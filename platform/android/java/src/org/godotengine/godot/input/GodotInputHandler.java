@@ -65,6 +65,32 @@ public class GodotInputHandler implements InputDeviceListener {
 		godotView.queueEvent(task);
 	}
 
+	private boolean isKeyEventSourceGameDevice(int source) {
+		// Physical keyboard input (SOURCE_KEYBOARD) can also be a SOURCE_DPAD
+		// We need to distinguish physical keyboard from DPAD
+		//if ((source & InputDevice.SOURCE_KEYBOARD) == InputDevice.SOURCE_KEYBOARD)
+		//	return false;
+		
+		// Is the source from a non-keyboard game device we are interested in?
+		return (source & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK
+//		|| (source & InputDevice.SOURCE_DPAD) == InputDevice.SOURCE_DPAD
+		|| (source & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD;
+	}
+	
+	// isKeyCodeHandled by Godot, or should it be passed back to the OS?
+	// By design, Godot doesn't know in advance which keys it wants to react to,
+	// and which to pass back to the OS. So by default we will choose to react to all keys,
+	// except these exceptions.
+	private boolean isKeyCodeHandled(int keyCode) {
+			// List here the keyCodes you want to return to the OS, and return false for these.
+			// This will cause super.onKeyDown() and super.onKeyUp() to be called.
+			// e.g.
+			// if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) return false;
+		
+			return true;
+//			return false;
+		}
+
 	public boolean onKeyUp(final int keyCode, KeyEvent event) {
 		if (keyCode == KeyEvent.KEYCODE_BACK) {
 			return true;
@@ -75,7 +101,8 @@ public class GodotInputHandler implements InputDeviceListener {
 		};
 
 		int source = event.getSource();
-		if ((source & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK || (source & InputDevice.SOURCE_DPAD) == InputDevice.SOURCE_DPAD || (source & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD) {
+		//if ((source & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK || (source & InputDevice.SOURCE_DPAD) == InputDevice.SOURCE_DPAD || (source & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD) {
+		if (isKeyEventSourceGameDevice(source)) {
 
 			final int button = getGodotButton(keyCode);
 			final int device_id = findJoystickDevice(event.getDeviceId());
@@ -100,7 +127,9 @@ public class GodotInputHandler implements InputDeviceListener {
 			});
 		};
 
-		return false;
+		// Only call the super.OnKey functions for certain keycodes
+		return isKeyCodeHandled(keyCode);
+		// return false ORIGINAL
 	}
 
 	public boolean onKeyDown(final int keyCode, KeyEvent event) {
@@ -117,8 +146,11 @@ public class GodotInputHandler implements InputDeviceListener {
 
 		int source = event.getSource();
 		//Log.e(TAG, String.format("Key down! source %d, device %d, joystick %d, %d, %d", event.getDeviceId(), source, (source & InputDevice.SOURCE_JOYSTICK), (source & InputDevice.SOURCE_DPAD), (source & InputDevice.SOURCE_GAMEPAD)));
+		//Log.d("PelA", "onKeyDown source: " + source);
+		GodotLib.debugPrint("onKeyDown source: " + source);
 
-		if ((source & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK || (source & InputDevice.SOURCE_DPAD) == InputDevice.SOURCE_DPAD || (source & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD) {
+		//if ((source & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK || (source & InputDevice.SOURCE_DPAD) == InputDevice.SOURCE_DPAD || (source & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD) {
+		if (isKeyEventSourceGameDevice(source)) {
 
 			if (event.getRepeatCount() > 0) // ignore key echo
 				return true;
@@ -146,7 +178,9 @@ public class GodotInputHandler implements InputDeviceListener {
 			});
 		};
 
-		return false;
+		// Only call the super.OnKey functions for certain keycodes
+		return isKeyCodeHandled(keyCode);
+		// return false ORIGINAL
 	}
 
 	public boolean onGenericMotionEvent(MotionEvent event) {

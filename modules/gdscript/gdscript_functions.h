@@ -36,6 +36,9 @@
 class GDScriptFunctions {
 public:
 	enum Function {
+		LOG_SIZE,
+		LOG_GET,
+		LOG_CLEAR,
 		MATH_SIN,
 		MATH_COS,
 		MATH_TAN,

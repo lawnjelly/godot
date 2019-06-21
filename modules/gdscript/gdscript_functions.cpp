@@ -40,11 +40,18 @@
 #include "core/variant_parser.h"
 #include "gdscript.h"
 
+#define GO_GDSCRIPT_CUSTOM_NAMES
+#define GO_GDSCRIPT_CUSTOM_CALL
+#define GO_GDSCRIPT_CUSTOM_GET_INFO
+
+#include "mod/gdscript/GoCustomGDScript.h"
+
 const char *GDScriptFunctions::get_func_name(Function p_func) {
 
 	ERR_FAIL_INDEX_V(p_func, FUNC_MAX, "");
 
 	static const char *_names[FUNC_MAX] = {
+		GO_GDSCRIPT_CUSTOM_NAMES
 		"sin",
 		"cos",
 		"tan",
@@ -174,7 +181,7 @@ void GDScriptFunctions::call(Function p_func, const Variant **p_args, int p_arg_
 	//using a switch, so the compiler generates a jumptable
 
 	switch (p_func) {
-
+		GO_GDSCRIPT_CUSTOM_CALL
 		case MATH_SIN: {
 			VALIDATE_ARG_COUNT(1);
 			VALIDATE_ARG_NUM(0);
@@ -1510,6 +1517,7 @@ MethodInfo GDScriptFunctions::get_info(Function p_func) {
 	//using a switch, so the compiler generates a jumptable
 
 	switch (p_func) {
+		GO_GDSCRIPT_CUSTOM_GET_INFO
 
 		case MATH_SIN: {
 			MethodInfo mi("sin", PropertyInfo(Variant::REAL, "s"));

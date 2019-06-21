@@ -47,6 +47,7 @@
 #include "string_android.h"
 #include "thread_jandroid.h"
 #include <unistd.h>
+#include "mod/gamelogger/GoGameLogger.h"
 
 static JavaClassWrapper *java_class_wrapper = NULL;
 static OS_Android *os_android = NULL;
@@ -1211,6 +1212,11 @@ JNIEXPORT void JNICALL Java_org_godotengine_godot_GodotLib_audio(JNIEnv *env, jo
 
 	ThreadAndroid::setup_thread();
 	AudioDriverAndroid::thread_func(env);
+}
+
+JNIEXPORT void JNICALL Java_org_godotengine_godot_GodotLib_debugPrint(JNIEnv *env, jobject p_obj, jstring s) {
+	String st = jstring_to_string(s, env);
+	Pel::g_GameLogger.Log(st);
 }
 
 JNIEXPORT void JNICALL Java_org_godotengine_godot_GodotLib_singleton(JNIEnv *env, jobject obj, jstring name, jobject p_object) {

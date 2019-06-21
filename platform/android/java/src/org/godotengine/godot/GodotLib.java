@@ -73,4 +73,5 @@ public class GodotLib {
 	public static native void requestPermissionResult(String p_permission, boolean p_result);
 
 	public static native void setVirtualKeyboardHeight(int p_height);
+	public static native void debugPrint(String s);
 }
