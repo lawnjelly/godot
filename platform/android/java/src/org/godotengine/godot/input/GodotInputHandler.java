@@ -144,7 +144,8 @@ public class GodotInputHandler implements InputDeviceListener {
 		int source = event.getSource();
 		//Log.e(TAG, String.format("Key down! source %d, device %d, joystick %d, %d, %d", event.getDeviceId(), source, (source & InputDevice.SOURCE_JOYSTICK), (source & InputDevice.SOURCE_DPAD), (source & InputDevice.SOURCE_GAMEPAD)));
 		//Log.d("PelA", "onKeyDown source: " + source);
-		GodotLib.debugPrint("onKeyDown source: " + source);
+		
+		//GodotLib.debugPrint("onKeyDown source: " + source);
 
 		//if ((source & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK || (source & InputDevice.SOURCE_DPAD) == InputDevice.SOURCE_DPAD || (source & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD) {
 		if (isKeyEvent_GameDevice(source)) {
