@@ -28,23 +28,25 @@ class Smoothing : public Spatial {
 
 	} data;
 
-	Transform parent_transform_prev;
-	Transform parent_transform_curr;
-	bool enabled;
+	Transform m_trParent_prev;
+	Transform m_trParent_curr;
+	bool m_bEnabled;
 
 
 
 
-    int count;
+//    int count;
 
 protected:
 	static void _bind_methods();
 	void _notification(int p_what);
 
 public:
-    void add(int value);
-    void reset();
-    int get_total() const;
+//    void add(int value);
+   // void reset();
+	//int get_total() const;
+	void SetEnabled(bool bEnable);
+	bool IsEnabled() const;
 
     Smoothing();
 

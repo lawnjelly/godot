@@ -2,33 +2,47 @@
 #include "core/engine.h"
 
 
-void Smoothing::add(int value) {
+//void Smoothing::add(int value) {
 
-    count += value;
+//    count += value;
+//}
+
+//void Smoothing::reset() {
+
+//    count = 0;
+//}
+
+//int Smoothing::get_total() const {
+
+//    return count;
+//}
+
+void Smoothing::SetEnabled(bool bEnable)
+{
+	m_bEnabled = bEnable;
 }
 
-void Smoothing::reset() {
-
-    count = 0;
+bool Smoothing::IsEnabled() const
+{
+	return m_bEnabled;
 }
 
-int Smoothing::get_total() const {
-
-    return count;
-}
 
 void Smoothing::_bind_methods() {
 
-    ClassDB::bind_method(D_METHOD("add", "value"), &Smoothing::add);
-    ClassDB::bind_method(D_METHOD("reset"), &Smoothing::reset);
-    ClassDB::bind_method(D_METHOD("get_total"), &Smoothing::get_total);
+//    ClassDB::bind_method(D_METHOD("add", "value"), &Smoothing::add);
+  //  ClassDB::bind_method(D_METHOD("reset"), &Smoothing::reset);
+   // ClassDB::bind_method(D_METHOD("get_total"), &Smoothing::get_total);
+
+
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "enabled"), "SetEnabled", "IsEnabled");
 }
 
 Smoothing::Smoothing() {
-	count = 0;
-	enabled = true;
-	parent_transform_prev.origin.zero();
-	parent_transform_curr.origin.zero();
+	//count = 0;
+	m_bEnabled = true;
+	m_trParent_prev.origin.zero();
+	m_trParent_curr.origin.zero();
 }
 
 void Smoothing::FixedUpdate()
@@ -38,16 +52,16 @@ void Smoothing::FixedUpdate()
 		return;
 
 	// keep the data flowing...
-	parent_transform_prev = parent_transform_curr;
+	m_trParent_prev = m_trParent_curr;
 
 	// new transform for this tick
-	parent_transform_curr = parent->get_transform();
+	m_trParent_curr = parent->get_transform();
 
 }
 
 void Smoothing::FrameUpdate()
 {
-	Vector3 ptDiff = parent_transform_curr.get_origin() - parent_transform_prev.get_origin();
+	Vector3 ptDiff = m_trParent_curr.get_origin() - m_trParent_prev.get_origin();
 
 	// interpolation fraction
 	float f = get_interpolation_fraction();
@@ -57,7 +71,7 @@ void Smoothing::FrameUpdate()
 	// reverse interpolation
 	f = 1.0f - f;
 
-	Vector3 ptNew = get_translation() + (ptDiff * f);
+	Vector3 ptNew = (ptDiff * -f);
 	set_translation(ptNew);
 }
 
@@ -67,7 +81,7 @@ void Smoothing::_notification(int p_what) {
 	switch (p_what) {
 	case NOTIFICATION_ENTER_TREE: {
 
-			if (!Engine::get_singleton()->is_editor_hint() && enabled)
+			if (!Engine::get_singleton()->is_editor_hint() && m_bEnabled)
 			{
 				//set_process_internal(false);
 				set_process(true);
@@ -76,12 +90,12 @@ void Smoothing::_notification(int p_what) {
 
 		} break;
 	case NOTIFICATION_PHYSICS_PROCESS: {
-			if (!enabled)
+			if (!m_bEnabled)
 				break;
 			FixedUpdate();
 		} break;
 	case NOTIFICATION_PROCESS: {
-			if (!enabled)
+			if (!m_bEnabled)
 				break;
 			FrameUpdate();
 			/*
