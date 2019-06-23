@@ -122,6 +122,10 @@ MainFrameTime MainTimerSync::advance_core(float p_frame_slice, int p_iterations_
 
 	time_accum -= ret.physics_steps * p_frame_slice;
 
+	// the left over time as a fraction of a whole physics tick
+	interpolation_fraction = time_accum / p_frame_slice;
+
+
 	// keep track of accumulated step counts
 	for (int i = CONTROL_STEPS - 2; i >= 0; --i) {
 		accumulated_physics_steps[i + 1] = accumulated_physics_steps[i] + ret.physics_steps;
@@ -198,6 +202,7 @@ MainTimerSync::MainTimerSync() :
 	for (int i = CONTROL_STEPS - 1; i >= 0; --i) {
 		typical_physics_steps[i] = i;
 		accumulated_physics_steps[i] = i;
+		interpolation_fraction = 0.0f;
 	}
 }
 

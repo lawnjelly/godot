@@ -51,6 +51,10 @@ class MainTimerSync {
 	// current difference between wall clock time and reported sum of idle_steps
 	float time_deficit;
 
+	// for fixed time step interpolation, the interpolation fraction is calculated as how
+	// far we are through the current physics tick on this frame
+	float interpolation_fraction;
+
 	// number of frames back for keeping accumulated physics steps roughly constant.
 	// value of 12 chosen because that is what is required to make 144 Hz monitors
 	// behave well with 60 Hz physics updates. The only worse commonly available refresh
@@ -96,6 +100,9 @@ public:
 
 	// advance one frame, return timesteps to take
 	MainFrameTime advance(float p_frame_slice, int p_iterations_per_second);
+
+	// fraction through current physics tick on this frame
+	float get_interpolation_fraction() const {return interpolation_fraction;}
 };
 
 #endif // MAIN_TIMER_SYNC_H

@@ -43,6 +43,11 @@
 #include "editor/editor_settings.h"
 #endif
 
+
+#include "main/main_timer_sync.h"
+extern MainTimerSync main_timer_sync;
+
+
 VARIANT_ENUM_CAST(Node::PauseMode);
 
 int Node::orphan_node_count = 0;
@@ -794,6 +799,12 @@ float Node::get_process_delta_time() const {
 	else
 		return 0;
 }
+
+float Node::get_interpolation_fraction() const
+{
+	return main_timer_sync.get_interpolation_fraction();
+}
+
 
 void Node::set_process(bool p_idle_process) {
 
