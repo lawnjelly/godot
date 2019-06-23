@@ -65,17 +65,15 @@ public class GodotInputHandler implements InputDeviceListener {
 		godotView.queueEvent(task);
 	}
 
-	private boolean isKeyEventSourceGameDevice(int source) {
-		// Physical keyboard input (SOURCE_KEYBOARD) can also be a SOURCE_DPAD
-		// We need to distinguish physical keyboard from DPAD
-		//if ((source & InputDevice.SOURCE_KEYBOARD) == InputDevice.SOURCE_KEYBOARD)
-		//	return false;
-		
-		// Is the source from a non-keyboard game device we are interested in?
-		return (source & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK
-//		|| (source & InputDevice.SOURCE_DPAD) == InputDevice.SOURCE_DPAD
-		|| (source & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD;
-	}
+	private boolean isKeyEvent_GameDevice(int source) {
+		// Note that keyboards are often (SOURCE_KEYBOARD | SOURCE_DPAD)
+		if (source == (InputDevice.SOURCE_KEYBOARD | InputDevice.SOURCE_DPAD))
+			return false;
+
+		return (source & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK ||
+(source & InputDevice.SOURCE_DPAD) == InputDevice.SOURCE_DPAD ||
+(source & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD;
+	}	
 	
 	// isKeyCodeHandled by Godot, or should it be passed back to the OS?
 	// By design, Godot doesn't know in advance which keys it wants to react to,
@@ -101,8 +99,7 @@ public class GodotInputHandler implements InputDeviceListener {
 		};
 
 		int source = event.getSource();
-		//if ((source & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK || (source & InputDevice.SOURCE_DPAD) == InputDevice.SOURCE_DPAD || (source & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD) {
-		if (isKeyEventSourceGameDevice(source)) {
+		if (isKeyEvent_GameDevice(source)) {
 
 			final int button = getGodotButton(keyCode);
 			final int device_id = findJoystickDevice(event.getDeviceId());
@@ -150,7 +147,7 @@ public class GodotInputHandler implements InputDeviceListener {
 		GodotLib.debugPrint("onKeyDown source: " + source);
 
 		//if ((source & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK || (source & InputDevice.SOURCE_DPAD) == InputDevice.SOURCE_DPAD || (source & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD) {
-		if (isKeyEventSourceGameDevice(source)) {
+		if (isKeyEvent_GameDevice(source)) {
 
 			if (event.getRepeatCount() > 0) // ignore key echo
 				return true;
