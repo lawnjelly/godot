@@ -45,6 +45,7 @@
 
 
 #include "main/main_timer_sync.h"
+//#include "mod/timing/main_timer_sync2.h"
 extern MainTimerSync main_timer_sync;
 
 
@@ -800,9 +801,9 @@ float Node::get_process_delta_time() const {
 		return 0;
 }
 
-float Node::get_interpolation_fraction() const
+float Node::get_physics_interpolation_fraction() const
 {
-	return main_timer_sync.get_interpolation_fraction();
+	return main_timer_sync.get_physics_interpolation_fraction();
 }
 
 

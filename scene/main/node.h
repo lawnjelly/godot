@@ -333,12 +333,12 @@ public:
 	void set_physics_process(bool p_process);
 	float get_physics_process_delta_time() const;
 	bool is_physics_processing() const;
+	float get_physics_interpolation_fraction() const;
 
 	void set_process(bool p_idle_process);
 	float get_process_delta_time() const;
 	bool is_processing() const;
 
-	float get_interpolation_fraction() const;
 
 	void set_physics_process_internal(bool p_process_internal);
 	bool is_physics_processing_internal() const;
