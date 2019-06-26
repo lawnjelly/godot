@@ -67,6 +67,10 @@ private:
 	uint64_t _idle_frames;
 	bool _in_physics;
 
+	// timing stuff for interpolation
+	float _physics_interpolation_fraction;
+
+
 	List<Singleton> singletons;
 	Map<StringName, Object *> singleton_ptrs;
 
@@ -98,6 +102,9 @@ public:
 
 	void set_time_scale(float p_scale);
 	float get_time_scale() const;
+
+	void set_physics_interpolation_fraction(float p_fraction);
+	float get_physics_interpolation_fraction() const;
 
 	void set_frame_delay(uint32_t p_msec);
 	uint32_t get_frame_delay() const;

@@ -1294,8 +1294,8 @@ Error Main::setup2(Thread::ID p_main_tid_override) {
 }
 
 // everything the main loop needs to know about frame timings
-MainTimerSync main_timer_sync;
-//static MainTimerSync main_timer_sync;
+//MainTimerSync main_timer_sync;
+static MainTimerSync main_timer_sync;
 
 bool Main::start() {
 
@@ -1876,6 +1876,7 @@ bool Main::iteration() {
 	double scaled_step = step * time_scale;
 
 	Engine::get_singleton()->_frame_step = step;
+	Engine::get_singleton()->set_physics_interpolation_fraction(advance.interpolation_fraction);
 
 	uint64_t physics_process_ticks = 0;
 	uint64_t idle_process_ticks = 0;

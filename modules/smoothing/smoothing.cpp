@@ -152,7 +152,7 @@ void Smoothing::FrameUpdate()
 		RefreshTransform(pProxy);
 
 	// interpolation fraction
-	float f = get_physics_interpolation_fraction();
+	float f = Engine::get_singleton()->get_physics_interpolation_fraction();
 
 	Vector3 ptNew = m_ptPrev + (m_ptDiff * f);
 

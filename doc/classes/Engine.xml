@@ -118,6 +118,13 @@
 				Returns [code]true[/code] if the game is inside the fixed process and physics phase of the game loop.
 			</description>
 		</method>
+		<method name="get_physics_interpolation_fraction" qualifiers="const">
+			<return type="float">
+			</return>
+			<description>
+				Returns the fraction through the current physics tick we are at the time of rendering the frame. Allows fixed timestep interpolation.
+			</description>
+		</method>
 	</methods>
 	<members>
 		<member name="editor_hint" type="bool" setter="set_editor_hint" getter="is_editor_hint">

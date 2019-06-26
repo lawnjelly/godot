@@ -89,6 +89,17 @@ float Engine::get_time_scale() const {
 	return _time_scale;
 }
 
+void Engine::set_physics_interpolation_fraction(float p_fraction)
+{
+	_physics_interpolation_fraction = p_fraction;
+}
+
+float Engine::get_physics_interpolation_fraction() const
+{
+	return _physics_interpolation_fraction;
+}
+
+
 Dictionary Engine::get_version_info() const {
 
 	Dictionary dict;
@@ -236,4 +247,6 @@ Engine::Engine() {
 	_frame_ticks = 0;
 	_frame_step = 0;
 	editor_hint = false;
+
+	_physics_interpolation_fraction = 0.0f;
 }

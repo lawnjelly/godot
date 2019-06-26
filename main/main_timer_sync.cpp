@@ -60,7 +60,8 @@ MainFrameTime MainTimerSync::advance_core(float p_frame_slice, int p_iterations_
 
 	m_fTimeLeftover = time_available - (ret.physics_steps * sec_per_frame);
 
-	m_fInterpolationFraction = m_fTimeLeftover / sec_per_frame;
+	ret.interpolation_fraction = m_fTimeLeftover / sec_per_frame;
+//	m_fInterpolationFraction = m_fTimeLeftover / sec_per_frame;
 	//print_line("MainTimerSync::advance_core fraction " + String(Variant(m_fInterpolationFraction)));
 
 	return ret;
@@ -89,7 +90,7 @@ MainTimerSync::MainTimerSync() :
 		last_cpu_ticks_usec(0),
 		current_cpu_ticks_usec(0)
 		{
-			m_fInterpolationFraction = 0.0f;
+			//m_fInterpolationFraction = 0.0f;
 			m_fTimeLeftover = 0.0f;
 		}
 

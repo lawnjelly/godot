@@ -36,6 +36,7 @@
 struct MainFrameTime {
 	float idle_step; // time to advance idles for (argument to process())
 	int physics_steps; // number of times to iterate the physics engine
+	float interpolation_fraction;
 
 	void clamp_idle(float min_idle_step, float max_idle_step);
 };
@@ -47,7 +48,7 @@ class MainTimerSync {
 
 	// for fixed time step interpolation, the interpolation fraction is calculated as how
 	// far we are through the current physics tick on this frame
-	float m_fInterpolationFraction;
+//	float m_fInterpolationFraction;
 	float m_fTimeLeftover;
 
 
@@ -75,7 +76,7 @@ public:
 	MainFrameTime advance(float p_frame_slice, int p_iterations_per_second);
 
 	// fraction through current physics tick on this frame
-	float get_physics_interpolation_fraction() const {return m_fInterpolationFraction;}
+//	float get_physics_interpolation_fraction() const {return m_fInterpolationFraction;}
 };
 
 #endif // MAIN_TIMER_SYNC_H
