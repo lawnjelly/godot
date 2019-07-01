@@ -1024,6 +1024,7 @@ Error Main::setup(const char *execpath, int argc, char *argv[], bool p_second_ph
 	Engine::get_singleton()->set_iterations_per_second(GLOBAL_DEF("physics/common/physics_fps", 60));
 	ProjectSettings::get_singleton()->set_custom_property_info("physics/common/physics_fps", PropertyInfo(Variant::INT, "physics/common/physics_fps", PROPERTY_HINT_RANGE, "1,120,1,or_greater"));
 	Engine::get_singleton()->set_physics_jitter_fix(GLOBAL_DEF("physics/common/physics_jitter_fix", 0.5));
+	Engine::get_singleton()->set_delta_smoothing(GLOBAL_DEF("physics/common/delta_smoothing", 0));
 	Engine::get_singleton()->set_target_fps(GLOBAL_DEF("debug/settings/fps/force_fps", 0));
 	ProjectSettings::get_singleton()->set_custom_property_info("debug/settings/fps/force_fps", PropertyInfo(Variant::INT, "debug/settings/fps/force_fps", PROPERTY_HINT_RANGE, "0,120,1,or_greater"));
 
@@ -1294,8 +1295,8 @@ Error Main::setup2(Thread::ID p_main_tid_override) {
 }
 
 // everything the main loop needs to know about frame timings
-//MainTimerSync main_timer_sync;
 static MainTimerSync main_timer_sync;
+static MainTimerSync2 main_timer_sync2;
 
 bool Main::start() {
 
@@ -1315,6 +1316,7 @@ bool Main::start() {
 	bool check_only = false;
 
 	main_timer_sync.init(OS::get_singleton()->get_ticks_usec());
+	main_timer_sync2.init(OS::get_singleton()->get_ticks_usec());
 
 	List<String> args = OS::get_singleton()->get_cmdline_args();
 	for (int i = 0; i < args.size(); i++) {
@@ -1861,8 +1863,12 @@ bool Main::iteration() {
 
 	uint64_t ticks = OS::get_singleton()->get_ticks_usec();
 	Engine::get_singleton()->_frame_ticks = ticks;
+
 	main_timer_sync.set_cpu_ticks_usec(ticks);
 	main_timer_sync.set_fixed_fps(fixed_fps);
+
+	main_timer_sync2.set_cpu_ticks_usec(ticks);
+	main_timer_sync2.set_fixed_fps(fixed_fps);
 
 	uint64_t ticks_elapsed = ticks - last_ticks;
 
@@ -1871,7 +1877,23 @@ bool Main::iteration() {
 
 	float time_scale = Engine::get_singleton()->get_time_scale();
 
-	MainFrameTime advance = main_timer_sync.advance(frame_slice, physics_fps);
+	MainFrameTime advance = main_timer_sync2.advance(frame_slice, physics_fps);
+	MainFrameTime advance_old = main_timer_sync.advance(frame_slice, physics_fps);
+//	MainFrameTime advance = main_timer_sync.advance(frame_slice, physics_fps);
+
+//	if (!Engine::get_singleton()->is_editor_hint())
+//	{
+//		if (advance.physics_steps != advance_old.physics_steps)
+//		{
+//			print_line("timers physics ticks different : " + itos(advance.physics_steps) + ", old was " + itos(advance_old.physics_steps));
+//		}
+//		if (advance.interpolation_fraction != advance_old.interpolation_fraction)
+//		{
+//			print_line("fractions different : " + String(Variant(advance.interpolation_fraction))
+//					   + ", old was " + String(Variant(advance_old.interpolation_fraction)));
+//		}
+//	}
+
 	double step = advance.idle_step;
 	double scaled_step = step * time_scale;
 

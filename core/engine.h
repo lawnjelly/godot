@@ -58,6 +58,7 @@ private:
 
 	int ips;
 	float physics_jitter_fix;
+	int delta_smoothing_nframes;
 	float _fps;
 	int _target_fps;
 	float _time_scale;
@@ -83,6 +84,9 @@ public:
 
 	virtual void set_iterations_per_second(int p_ips);
 	virtual int get_iterations_per_second() const;
+
+	void set_delta_smoothing(int p_num_frames);
+	int get_delta_smoothing() const;
 
 	void set_physics_jitter_fix(float p_threshold);
 	float get_physics_jitter_fix() const;

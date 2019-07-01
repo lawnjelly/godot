@@ -75,7 +75,7 @@ public:
 private:
 	void FixedUpdate();
 	void FrameUpdate();
-	void RefreshTransform(Spatial * pProxy);
+	void RefreshTransform(Spatial * pProxy, bool bDebug = false);
 	Spatial * GetProxy() const;
 };
 

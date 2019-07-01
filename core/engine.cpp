@@ -46,6 +46,15 @@ int Engine::get_iterations_per_second() const {
 	return ips;
 }
 
+void Engine::set_delta_smoothing(int p_num_frames) {
+	//print_line("setting_delta_smoothing");
+	delta_smoothing_nframes = p_num_frames;
+}
+
+int Engine::get_delta_smoothing() const {
+	return delta_smoothing_nframes;
+}
+
 void Engine::set_physics_jitter_fix(float p_threshold) {
 	if (p_threshold < 0)
 		p_threshold = 0;
@@ -236,6 +245,7 @@ Engine::Engine() {
 	frames_drawn = 0;
 	ips = 60;
 	physics_jitter_fix = 0.5;
+	delta_smoothing_nframes = 0;
 	_frame_delay = 0;
 	_fps = 1;
 	_target_fps = 0;

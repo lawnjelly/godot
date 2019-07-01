@@ -105,7 +105,7 @@ void Smoothing::teleport()
 	m_qtPrev = m_qtCurr;
 }
 
-void Smoothing::RefreshTransform(Spatial * pProxy)
+void Smoothing::RefreshTransform(Spatial * pProxy, bool bDebug)
 {
 	m_bDirty = false;
 
@@ -122,8 +122,9 @@ void Smoothing::RefreshTransform(Spatial * pProxy)
 		m_qtPrev = m_qtCurr;
 		m_qtCurr = trans.basis.get_quat();
 
-		//if (m_qtPrev == m_qtCurr)
-		//print_line("\tREFRESH TRANSFORM : qtPrev " + String(m_qtPrev) + "\tqtCurr " + String(m_qtCurr));
+//		if (bDebug && (m_qtPrev == m_qtCurr))
+//		if (bDebug)
+//			print_line("\tREFRESH TRANSFORM : qtPrev " + String(m_qtPrev) + "\tqtCurr " + String(m_qtCurr));
 	}
 	else
 	{
@@ -139,6 +140,18 @@ void Smoothing::RefreshTransform(Spatial * pProxy)
 
 void Smoothing::FixedUpdate()
 {
+	// has more than one physics tick occurred before a frame? if so
+	// refresh the transform to the last physics tick. In most cases this will not occur...
+	if (m_bDirty)
+	{
+		Spatial * pProxy = GetProxy();
+		if (pProxy)
+		{
+			RefreshTransform(pProxy, true);
+		}
+	}
+
+// refresh the transform on the next frame
 	m_bDirty = true;
 }
 
