@@ -107,7 +107,7 @@ public:
 	void set_time_scale(float p_scale);
 	float get_time_scale() const;
 
-	void set_physics_interpolation_fraction(float p_fraction);
+//	void set_physics_interpolation_fraction(float p_fraction);
 	float get_physics_interpolation_fraction() const;
 
 	void set_frame_delay(uint32_t p_msec);

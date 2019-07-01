@@ -1898,7 +1898,7 @@ bool Main::iteration() {
 	double scaled_step = step * time_scale;
 
 	Engine::get_singleton()->_frame_step = step;
-	Engine::get_singleton()->set_physics_interpolation_fraction(advance.interpolation_fraction);
+	Engine::get_singleton()->_physics_interpolation_fraction = advance.interpolation_fraction;
 
 	uint64_t physics_process_ticks = 0;
 	uint64_t idle_process_ticks = 0;
@@ -1910,6 +1910,7 @@ bool Main::iteration() {
 	static const int max_physics_steps = 8;
 	if (fixed_fps == -1 && advance.physics_steps > max_physics_steps) {
 		step -= (advance.physics_steps - max_physics_steps) * frame_slice;
+		// Should scaled_step be adjusted here too? Possible bug
 		advance.physics_steps = max_physics_steps;
 	}
 

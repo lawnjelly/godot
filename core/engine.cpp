@@ -98,10 +98,10 @@ float Engine::get_time_scale() const {
 	return _time_scale;
 }
 
-void Engine::set_physics_interpolation_fraction(float p_fraction)
-{
-	_physics_interpolation_fraction = p_fraction;
-}
+//void Engine::set_physics_interpolation_fraction(float p_fraction)
+//{
+//	_physics_interpolation_fraction = p_fraction;
+//}
 
 float Engine::get_physics_interpolation_fraction() const
 {
