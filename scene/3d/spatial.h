@@ -34,6 +34,8 @@
 #include "scene/main/node.h"
 #include "scene/main/scene_tree.h"
 
+class SpatialInterpolator;
+
 /**
 	@author Juan Linietsky <reduzio@gmail.com>
 */
@@ -93,6 +95,8 @@ class Spatial : public Node {
 
 		bool visible;
 		bool disable_scale;
+
+		SpatialInterpolator * m_pInterpolator;
 
 #ifdef TOOLS_ENABLED
 		Ref<SpatialGizmo> gizmo;

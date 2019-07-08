@@ -35,6 +35,7 @@
 #include "scene/main/scene_tree.h"
 #include "scene/main/viewport.h"
 #include "scene/scene_string_names.h"
+#include "spatial_interpolator.h"
 
 /*
 
@@ -844,7 +845,15 @@ Spatial::Spatial() :
 	data.notify_transform = false;
 	data.parent = NULL;
 	data.C = NULL;
+
+	data.m_pInterpolator = NULL;
+	data.m_pInterpolator = new SpatialInterpolator;
 }
 
 Spatial::~Spatial() {
+	if (data.m_pInterpolator)
+	{
+		delete data.m_pInterpolator;
+		data.m_pInterpolator = NULL;
+	}
 }
