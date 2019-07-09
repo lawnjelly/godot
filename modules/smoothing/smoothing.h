@@ -29,22 +29,54 @@ class Smoothing : public Spatial {
 
 	} data;
 */
+public:
+	enum eMode
+	{
+		MODE_AUTO,
+		MODE_MANUAL,
+	};
+private:
+	enum eSmoothFlags
+	{
+		SF_ENABLED = 1,
+		SF_DIRTY = 2,
+		SF_TRANSLATE = 4,
+		SF_ROTATE = 8,
+		SF_SCALE = 16,
+		SF_LERP = 32,
+	};
 
-	Vector3 m_ptCurr;
-	Vector3 m_ptPrev;
-	Vector3 m_ptDiff;
+	class STransform
+	{
+	public:
+		Vector3 m_ptTranslate;
+		Quat m_qtRotate;
+		Vector3 m_ptScale;
+		Basis m_Basis;
+	};
 
-	Quat m_qtCurr;
-	Quat m_qtPrev;
+	STransform m_Curr;
+	STransform m_Prev;
 
-	bool m_bEnabled;
 
-	bool m_bInterpolate_Rotation;
+	Vector3 m_ptTranslateDiff;
+
+	// defined by eSmoothFlags
+	int m_Flags;
+	eMode m_Mode;
+
+//	bool m_bEnabled;
+//	bool m_bInterpolate_Rotation;
 //	bool m_bInterpolate_Scale;
+
+	// use lerping instead of slerping and scale
+	// (faster but only suitable for high tick rates, and may
+	// introduce visual artefacts / skewing)
+//	bool m_bLerp;
 
 	// whether the transform needs to be refreshed from the parent
 	// (a physics tick has occurred)
-	bool m_bDirty;
+//	bool m_bDirty;
 
 //    int count;
 
@@ -58,6 +90,10 @@ public:
 //    void add(int value);
    // void reset();
 	//int get_total() const;
+
+	void set_mode(eMode p_mode);
+	eMode get_mode() const;
+
 	void set_enabled(bool p_enabled);
 	bool is_enabled() const;
 
@@ -68,6 +104,12 @@ public:
 	void set_interpolate_rotation(bool bRotate);
 	bool get_interpolate_rotation() const;
 
+	void set_interpolate_scale(bool bScale);
+	bool get_interpolate_scale() const;
+
+	void set_lerp(bool bLerp);
+	bool get_lerp() const;
+
 	void teleport();
 
     Smoothing();
@@ -77,6 +119,16 @@ private:
 	void FrameUpdate();
 	void RefreshTransform(Spatial * pProxy, bool bDebug = false);
 	Spatial * GetProxy() const;
+	void SetProcessing(bool bEnable);
+
+	void ChangeFlags(int f, bool bSet) {if (bSet) {SetFlags(f);} else {ClearFlags(f);}}
+	void SetFlags(int f) {m_Flags |= f;}
+	void ClearFlags(int f) {m_Flags &= ~f;}
+	bool TestFlags(int f) const {return (m_Flags & f) == f;}
+
+	void LerpBasis(const Basis &from, const Basis &to, Basis &res, float f) const;
 };
+
+VARIANT_ENUM_CAST(Smoothing::eMode);
 
 #endif
