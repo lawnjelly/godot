@@ -10,7 +10,7 @@ void SpatialInterpolator::FixedUpdate(const Transform &trans)
 	m_Curr.m_ptTranslate = trans.origin;
 	m_ptTranslate_Diff = m_Curr.m_ptTranslate - m_Prev.m_ptTranslate;
 
-	m_Curr.m_qtRotate = trans.basis.get_quat();
+	m_Curr.m_qtRotate = trans.basis.get_rotation_quat();
 }
 
 Transform SpatialInterpolator::GetInterpolatedTransform()
@@ -22,7 +22,7 @@ Transform SpatialInterpolator::GetInterpolatedTransform()
 
 
 //	Variant vf = f;
-	//print_line("fraction " + itos(f * 1000.0f) + "\tsetting translation " + String(ptNew));
+//	print_line("fraction " + itos(f * 1000.0f) + "\tsetting translation " + String(ptNew));
 
 //	if (!m_bInterpolate_Rotation)
 //	{

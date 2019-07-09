@@ -19,4 +19,7 @@ private:
 	
 	Vector3 m_ptTranslate_Diff;
 
+	// cache the interpolated transform, according to the frame
+	//Transform m_trRender;
+	//int m_iCurrentFrame;
 };

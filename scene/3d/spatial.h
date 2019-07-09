@@ -97,6 +97,7 @@ class Spatial : public Node {
 		bool disable_scale;
 
 		SpatialInterpolator * m_pInterpolator;
+		bool m_bInterpolate;
 
 #ifdef TOOLS_ENABLED
 		Ref<SpatialGizmo> gizmo;
@@ -109,6 +110,7 @@ class Spatial : public Node {
 	void _update_gizmo();
 	void _notify_dirty();
 	void _propagate_transform_changed(Spatial *p_origin);
+	Transform get_global_transform_internal() const;
 
 	void _propagate_visibility_changed();
 
@@ -202,6 +204,8 @@ public:
 
 	void set_visible(bool p_visible);
 	bool is_visible() const;
+	void set_interpolate(bool p_interpolate);
+	bool is_interpolate() const;
 	void show();
 	void hide();
 	bool is_visible_in_tree() const;

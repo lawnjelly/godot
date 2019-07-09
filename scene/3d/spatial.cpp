@@ -150,6 +150,16 @@ void Spatial::_notification(int p_what) {
 
 			notification(NOTIFICATION_ENTER_WORLD);
 
+
+			// interpolation turn on internal process
+//			if (!Engine::get_singleton()->is_editor_hint() && m_bEnabled)
+			if (!Engine::get_singleton()->is_editor_hint() && data.m_pInterpolator)
+			{
+				set_process_internal(true);
+				set_physics_process_internal(true);
+				//set_process(true);
+				//set_physics_process(true);
+			}
 		} break;
 		case NOTIFICATION_EXIT_TREE: {
 
@@ -225,6 +235,33 @@ void Spatial::_notification(int p_what) {
 #endif
 		} break;
 
+	case NOTIFICATION_INTERNAL_PHYSICS_PROCESS: {
+			//if (!m_bEnabled)
+			//	break;
+			if (data.m_pInterpolator)
+			{
+				data.m_pInterpolator->FixedUpdate(get_global_transform_internal());
+			}
+		} break;
+
+	case NOTIFICATION_INTERNAL_PROCESS: {
+			//if (!m_bEnabled)
+			//	break;
+			//FrameUpdate();
+			// make the transform dirty?
+			//set_translation(get_translation());
+
+			if (data.m_pInterpolator)
+			{
+//				_propagate_transform_changed(this);
+//				if (data.notify_local_transform)
+//					notification(NOTIFICATION_LOCAL_TRANSFORM_CHANGED);
+			}
+
+			//data.dirty |= DIRTY_GLOBAL;
+			//data.dirty |= DIRTY_LOCAL;
+		} break;
+
 		default: {
 		}
 	}
@@ -263,9 +300,46 @@ Transform Spatial::get_transform() const {
 
 	return data.local_transform;
 }
+
+
+Transform Spatial::get_global_transform_internal() const
+{
+	ERR_FAIL_COND_V(!is_inside_tree(), Transform());
+
+	if (data.dirty & DIRTY_GLOBAL) {
+
+		if (data.dirty & DIRTY_LOCAL) {
+
+			_update_local_transform();
+		}
+
+		if (data.parent && !data.toplevel_active) {
+
+			data.global_transform = data.parent->get_global_transform() * data.local_transform;
+		} else {
+
+			data.global_transform = data.local_transform;
+		}
+
+		if (data.disable_scale) {
+			data.global_transform.basis.orthonormalize();
+		}
+
+		data.dirty &= ~DIRTY_GLOBAL;
+	}
+
+	return data.global_transform;
+}
+
+
 Transform Spatial::get_global_transform() const {
 
 	ERR_FAIL_COND_V(!is_inside_tree(), Transform());
+
+	if (data.m_pInterpolator)
+	{
+		return data.m_pInterpolator->GetInterpolatedTransform();
+	}
 
 	if (data.dirty & DIRTY_GLOBAL) {
 
@@ -569,6 +643,30 @@ bool Spatial::is_visible_in_tree() const {
 	return true;
 }
 
+void Spatial::set_interpolate(bool p_interpolate)
+{
+	if (p_interpolate)
+	{
+		if (data.m_pInterpolator == NULL)
+//			if (!Engine::get_singleton()->is_editor_hint())
+			data.m_pInterpolator = new SpatialInterpolator;
+	}
+	else
+	{
+		if (data.m_pInterpolator)
+		{
+			delete data.m_pInterpolator;
+			data.m_pInterpolator = NULL;
+		}
+	}
+}
+
+bool Spatial::is_interpolate() const
+{
+	return data.m_pInterpolator != NULL;
+}
+
+
 void Spatial::set_visible(bool p_visible) {
 
 	if (p_visible)
@@ -774,6 +872,8 @@ void Spatial::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("is_visible_in_tree"), &Spatial::is_visible_in_tree);
 	ClassDB::bind_method(D_METHOD("show"), &Spatial::show);
 	ClassDB::bind_method(D_METHOD("hide"), &Spatial::hide);
+	ClassDB::bind_method(D_METHOD("set_interpolate", "interpolate"), &Spatial::set_interpolate);
+	ClassDB::bind_method(D_METHOD("is_interpolate"), &Spatial::is_interpolate);
 
 	ClassDB::bind_method(D_METHOD("set_notify_local_transform", "enable"), &Spatial::set_notify_local_transform);
 	ClassDB::bind_method(D_METHOD("is_local_transform_notification_enabled"), &Spatial::is_local_transform_notification_enabled);
@@ -818,6 +918,7 @@ void Spatial::_bind_methods() {
 	ADD_GROUP("Visibility", "");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "visible"), "set_visible", "is_visible");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "gizmo", PROPERTY_HINT_RESOURCE_TYPE, "SpatialGizmo", 0), "set_gizmo", "get_gizmo");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "interpolate"), "set_interpolate", "is_interpolate");
 
 	ADD_SIGNAL(MethodInfo("visibility_changed"));
 }
@@ -847,7 +948,8 @@ Spatial::Spatial() :
 	data.C = NULL;
 
 	data.m_pInterpolator = NULL;
-	data.m_pInterpolator = new SpatialInterpolator;
+	data.m_bInterpolate = false;
+
 }
 
 Spatial::~Spatial() {

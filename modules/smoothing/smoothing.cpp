@@ -120,7 +120,8 @@ void Smoothing::RefreshTransform(Spatial * pProxy, bool bDebug)
 	if (m_bInterpolate_Rotation)
 	{
 		m_qtPrev = m_qtCurr;
-		m_qtCurr = trans.basis.get_quat();
+		m_qtCurr = trans.basis.get_rotation_quat();
+		//m_qtCurr = trans.basis.get_quat();
 
 //		if (bDebug && (m_qtPrev == m_qtCurr))
 //		if (bDebug)
