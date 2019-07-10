@@ -75,15 +75,109 @@ bool Smoothing::get_lerp() const
 }
 
 
-void Smoothing::set_mode(eMode p_mode)
+//void Smoothing::set_mode(eMode p_mode)
+//{
+//	m_Mode = p_mode;
+//}
+
+//Smoothing::eMode Smoothing::get_mode() const
+//{
+//	return m_Mode;
+//}
+
+
+void Smoothing::RemoveProxy()
 {
-	m_Mode = p_mode;
+	NodePath pathnull;
+	set_proxy_path(pathnull);
 }
 
-Smoothing::eMode Smoothing::get_mode() const
+void Smoothing::set_proxy(const Object *p_proxy)
 {
-	return m_Mode;
+	// handle null
+	if (p_proxy == NULL)
+	{
+		print_line("SCRIPT set_proxy NULL");
+		RemoveProxy();
+		return;
+	}
+	print_line("SCRIPT set_proxy");
+
+	// is it a spatial?
+	const Spatial * pSpatial = Object::cast_to<Spatial>(p_proxy);
+
+	if (!pSpatial)
+	{
+		WARN_PRINT("Proxy must be a spatial.");
+		RemoveProxy();
+		return;
+	}
+
+	NodePath path = get_path_to(pSpatial);
+	set_proxy_path(path);
 }
+
+void Smoothing::_set_proxy(const Object *p_proxy)
+{
+//	m_refProxy.set_obj(pProxy);
+	if (p_proxy)
+		print_line("\t_set_proxy");
+	else
+		print_line("\t_set_proxy NULL");
+
+	m_ID_Proxy = 0;
+
+	if (p_proxy)
+	{
+		// check is spatial
+		const Spatial *pSpatial = Object::cast_to<Spatial>(p_proxy);
+
+		if (pSpatial)
+		{
+			m_ID_Proxy = pSpatial->get_instance_id();
+			print_line("\t\tproxy was spatial ID " + itos(m_ID_Proxy));
+		}
+		else
+		{
+			print_line("\t\tproxy was not spatial!");
+		}
+	}
+
+}
+
+void Smoothing::ResolveProxyPath()
+{
+	print_line("resolve_proxy_path " + m_path_Proxy);
+	if (has_node(m_path_Proxy))
+	{
+		print_line("has_node");
+		Spatial * pNode = Object::cast_to<Spatial>(get_node(m_path_Proxy));
+		if (pNode)
+		{
+			print_line("node_was spatial");
+			_set_proxy(pNode);
+			return;
+		}
+	}
+
+	// default to setting to null
+	_set_proxy(NULL);
+}
+
+
+void Smoothing::set_proxy_path(const NodePath &p_path)
+{
+	print_line("set_proxy_path " + p_path);
+	m_path_Proxy = p_path;
+
+	ResolveProxyPath();
+}
+
+NodePath Smoothing::get_proxy_path() const
+{
+	return m_path_Proxy;
+}
+
 
 void Smoothing::_bind_methods() {
 
@@ -91,8 +185,8 @@ void Smoothing::_bind_methods() {
 //	ClassDB::bind_method(D_METHOD("get_quat_prev"), &Smoothing::get_quat_prev);
 //	ClassDB::bind_method(D_METHOD("get_fraction"), &Smoothing::get_fraction);
 
-	BIND_ENUM_CONSTANT(MODE_AUTO);
-	BIND_ENUM_CONSTANT(MODE_MANUAL);
+//	BIND_ENUM_CONSTANT(MODE_AUTO);
+//	BIND_ENUM_CONSTANT(MODE_MANUAL);
 
 
 	ClassDB::bind_method(D_METHOD("teleport"), &Smoothing::teleport);
@@ -109,14 +203,20 @@ void Smoothing::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_lerp"), &Smoothing::set_lerp);
 	ClassDB::bind_method(D_METHOD("get_lerp"), &Smoothing::get_lerp);
 
-	ClassDB::bind_method(D_METHOD("set_mode", "mode"), &Smoothing::set_mode);
-	ClassDB::bind_method(D_METHOD("get_mode"), &Smoothing::get_mode);
+//	ClassDB::bind_method(D_METHOD("set_mode", "mode"), &Smoothing::set_mode);
+//	ClassDB::bind_method(D_METHOD("get_mode"), &Smoothing::get_mode);
 
-
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "mode", PROPERTY_HINT_ENUM, "Auto,Manual"), "set_mode", "get_mode");
+	ClassDB::bind_method(D_METHOD("set_proxy", "proxy"), &Smoothing::set_proxy);
+	ClassDB::bind_method(D_METHOD("set_proxy_path", "path"), &Smoothing::set_proxy_path);
+	ClassDB::bind_method(D_METHOD("get_proxy_path"), &Smoothing::get_proxy_path);
 
 
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "enabled"), "set_enabled", "is_enabled");
+
+//	ADD_PROPERTY(PropertyInfo(Variant::INT, "mode", PROPERTY_HINT_ENUM, "Auto,Manual"), "set_mode", "get_mode");
+	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "proxy"), "set_proxy_path", "get_proxy_path");
+
+
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "rotation"), "set_interpolate_rotation", "get_interpolate_rotation");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "scale"), "set_interpolate_scale", "get_interpolate_scale");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "lerp"), "set_lerp", "get_lerp");
@@ -127,7 +227,7 @@ Smoothing::Smoothing() {
 	//count = 0;
 	m_Flags = 0;
 	SetFlags(SF_ENABLED | SF_TRANSLATE | SF_ROTATE);
-	m_Mode = MODE_AUTO;
+//	m_Mode = MODE_AUTO;
 
 //	m_bEnabled = true;
 //	m_bInterpolate_Rotation = true;
@@ -142,20 +242,31 @@ Smoothing::Smoothing() {
 
 Spatial * Smoothing::GetProxy() const
 {
-	Node *pParent = get_parent();
-	if (!pParent)
-		return 0;
+//	if (m_Mode == MODE_MANUAL)
+//	{
+		if (m_ID_Proxy == 0)
+			return 0;
 
-	// first child of parent
-	Node * pChild = pParent->get_child(0);
-	Spatial *pProxy = Object::cast_to<Spatial>(pChild);
+		Object *obj = ObjectDB::get_instance(m_ID_Proxy);
+		return (Spatial *) obj;
+//	}
 
-	// cannot have ourself as the target of the smoothing
-	if (pProxy == this)
-		return 0;
+//	Node *pParent = get_parent();
+//	if (!pParent)
+//		return 0;
 
-	return pProxy;
+//	// first child of parent
+//	Node * pChild = pParent->get_child(0);
+//	Spatial *pProxy = Object::cast_to<Spatial>(pChild);
+
+//	// cannot have ourself as the target of the smoothing
+//	if (pProxy == this)
+//		return 0;
+
+//	return pProxy;
 }
+
+
 
 
 void Smoothing::teleport()
@@ -309,6 +420,9 @@ void Smoothing::_notification(int p_what) {
 //			if (!Engine::get_singleton()->is_editor_hint() && m_bEnabled)
 	//		{
 				SetProcessing(TestFlags(SF_ENABLED));
+
+				// we can't translate string name of proxy to a node until we are in the tree
+				ResolveProxyPath();
 		//	}
 
 		} break;

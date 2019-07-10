@@ -30,11 +30,11 @@ class Smoothing : public Spatial {
 	} data;
 */
 public:
-	enum eMode
-	{
-		MODE_AUTO,
-		MODE_MANUAL,
-	};
+//	enum eMode
+//	{
+//		MODE_AUTO,
+//		MODE_MANUAL,
+//	};
 private:
 	enum eSmoothFlags
 	{
@@ -63,7 +63,11 @@ private:
 
 	// defined by eSmoothFlags
 	int m_Flags;
-	eMode m_Mode;
+//	eMode m_Mode;
+
+	//WeakRef m_refProxy;
+	ObjectID m_ID_Proxy;
+	NodePath m_path_Proxy;
 
 //	bool m_bEnabled;
 //	bool m_bInterpolate_Rotation;
@@ -91,8 +95,8 @@ public:
    // void reset();
 	//int get_total() const;
 
-	void set_mode(eMode p_mode);
-	eMode get_mode() const;
+//	void set_mode(eMode p_mode);
+//	eMode get_mode() const;
 
 	void set_enabled(bool p_enabled);
 	bool is_enabled() const;
@@ -110,11 +114,17 @@ public:
 	void set_lerp(bool bLerp);
 	bool get_lerp() const;
 
+	void set_proxy(const Object *p_proxy);
+	void set_proxy_path(const NodePath &p_path);
+	NodePath get_proxy_path() const;
+
 	void teleport();
 
     Smoothing();
 
 private:
+	void _set_proxy(const Object *p_proxy);
+	void RemoveProxy();
 	void FixedUpdate();
 	void FrameUpdate();
 	void RefreshTransform(Spatial * pProxy, bool bDebug = false);
@@ -127,8 +137,9 @@ private:
 	bool TestFlags(int f) const {return (m_Flags & f) == f;}
 
 	void LerpBasis(const Basis &from, const Basis &to, Basis &res, float f) const;
+	void ResolveProxyPath();
 };
 
-VARIANT_ENUM_CAST(Smoothing::eMode);
+//VARIANT_ENUM_CAST(Smoothing::eMode);
 
 #endif
