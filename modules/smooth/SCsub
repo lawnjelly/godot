@@ -3,17 +3,17 @@ Import('env')
 
 sources = [
     "register_types.cpp",
-    "smoothing.cpp"
+    "smooth.cpp"
 ]
 
 module_env = env.Clone()
 module_env.Append(CXXFLAGS=['-O2', '-std=c++11'])
 
-if ARGUMENTS.get('smoothing_shared', 'no') == 'yes':
+if ARGUMENTS.get('smooth_shared', 'no') == 'yes':
     # Shared lib compilation
     module_env.Append(CXXFLAGS='-fPIC')
     module_env['LIBS'] = []
-    shared_lib = module_env.SharedLibrary(target='#bin/smoothing', source=sources)
+    shared_lib = module_env.SharedLibrary(target='#bin/smooth', source=sources)
     shared_lib_shim = shared_lib[0].name.rsplit('.', 1)[0]
     env.Append(LIBS=[shared_lib_shim])
     env.Append(LIBPATH=['#bin'])

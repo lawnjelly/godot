@@ -1,12 +1,18 @@
-/* smoothing.h */
-#ifndef SMOOTHING_H
-#define SMOOTHING_H
+/* smooth.h */
+#ifndef SMOOTH_H
+#define SMOOTH_H
+
+/**
+	@author lawnjelly <lawnjelly@gmail.com>
+*/
+
 
 #include "scene/3d/spatial.h"
 //#include "core/reference.h"
 
-class Smoothing : public Spatial {
-	GDCLASS(Smoothing, Spatial);
+
+class Smooth : public Spatial {
+	GDCLASS(Smooth, Spatial);
 
 	/*
 	struct Data {
@@ -49,10 +55,11 @@ private:
 	class STransform
 	{
 	public:
-		Vector3 m_ptTranslate;
+		Transform m_Transform;
+		//Vector3 m_ptTranslate;
 		Quat m_qtRotate;
 		Vector3 m_ptScale;
-		Basis m_Basis;
+		//Basis m_Basis;
 	};
 
 	STransform m_Curr;
@@ -65,9 +72,9 @@ private:
 	int m_Flags;
 //	eMode m_Mode;
 
-	//WeakRef m_refProxy;
-	ObjectID m_ID_Proxy;
-	NodePath m_path_Proxy;
+	//WeakRef m_refTarget;
+	ObjectID m_ID_target;
+	NodePath m_path_target;
 
 //	bool m_bEnabled;
 //	bool m_bInterpolate_Rotation;
@@ -105,6 +112,9 @@ public:
 //	Quat get_quat_prev() const {return m_qtPrev;}
 //	float get_fraction() const {return m_fFraction;}
 
+	void set_interpolate_translation(bool bTranslate);
+	bool get_interpolate_translation() const;
+
 	void set_interpolate_rotation(bool bRotate);
 	bool get_interpolate_rotation() const;
 
@@ -114,21 +124,21 @@ public:
 	void set_lerp(bool bLerp);
 	bool get_lerp() const;
 
-	void set_proxy(const Object *p_proxy);
-	void set_proxy_path(const NodePath &p_path);
-	NodePath get_proxy_path() const;
+	void set_target(const Object *p_target);
+	void set_target_path(const NodePath &p_path);
+	NodePath get_target_path() const;
 
 	void teleport();
 
-    Smoothing();
+    Smooth();
 
 private:
-	void _set_proxy(const Object *p_proxy);
-	void RemoveProxy();
+	void _set_target(const Object *p_target);
+	void RemoveTarget();
 	void FixedUpdate();
 	void FrameUpdate();
-	void RefreshTransform(Spatial * pProxy, bool bDebug = false);
-	Spatial * GetProxy() const;
+	void RefreshTransform(Spatial * pTarget, bool bDebug = false);
+	Spatial * GetTarget() const;
 	void SetProcessing(bool bEnable);
 
 	void ChangeFlags(int f, bool bSet) {if (bSet) {SetFlags(f);} else {ClearFlags(f);}}
@@ -137,9 +147,9 @@ private:
 	bool TestFlags(int f) const {return (m_Flags & f) == f;}
 
 	void LerpBasis(const Basis &from, const Basis &to, Basis &res, float f) const;
-	void ResolveProxyPath();
+	void ResolveTargetPath();
 };
 
-//VARIANT_ENUM_CAST(Smoothing::eMode);
+//VARIANT_ENUM_CAST(Smooth::eMode);
 
 #endif
