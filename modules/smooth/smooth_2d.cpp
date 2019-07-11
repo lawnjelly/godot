@@ -34,7 +34,7 @@ float Smooth2D::ShortAngleDist(float from, float to) const
     return fmod(2.0f * difference, max_angle) - difference;
 }
 
-void Smooth2D::RefreshTransform(Node2D * pTarget, bool bDebug)
+void Smooth2D::RefreshTransform(Node2D * pTarget)
 {
 	ClearFlags(SF_DIRTY);
 
@@ -149,10 +149,21 @@ void Smooth2D::teleport()
 	if (!pTarget)
 	return;
 
+	// refresh all components during teleport
+	int temp_flags = m_Flags;
+	SetFlags(SF_TRANSLATE | SF_ROTATE | SF_SCALE | SF_LERP);
+
 	RefreshTransform(pTarget);
 
 	// set previous equal to current
 	m_Prev = m_Curr;
 	m_ptTranslateDiff.x = 0.0f;
 	m_ptTranslateDiff.y = 0.0f;
+
+	// call frame upate to make sure all components of the node are set
+	FrameUpdate();
+
+	// restore flags
+	m_Flags = temp_flags;
+
 }

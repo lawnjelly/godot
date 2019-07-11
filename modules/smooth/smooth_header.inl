@@ -68,7 +68,7 @@ private:
 	void RemoveTarget();
 	void FixedUpdate();
 	void FrameUpdate();
-	void RefreshTransform(SMOOTHNODE * pTarget, bool bDebug = false);
+	void RefreshTransform(SMOOTHNODE * pTarget);
 	SMOOTHNODE * GetTarget() const;
 	void SetProcessing(bool bEnable);
 

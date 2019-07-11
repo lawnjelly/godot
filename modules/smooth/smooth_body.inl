@@ -3,6 +3,9 @@
 
 //#define SMOOTHVERBOSE
 
+#define SMOOTH_STRINGIFY(x) #x
+#define SMOOTH_TOSTRING(x) SMOOTH_STRINGIFY(x)
+
 void SMOOTHCLASS::SetProcessing(bool bEnable)
 {
 	if (Engine::get_singleton()->is_editor_hint())
@@ -123,10 +126,11 @@ void SMOOTHCLASS::set_target(const Object *p_target)
 
 	if (!pSMOOTHNODE)
 	{
-		WARN_PRINT("Target must be a SMOOTHNODE.");
+		WARN_PRINT("Target must be a "  SMOOTH_TOSTRING(SMOOTHNODE) ".");
 		RemoveTarget();
 		return;
 	}
+	smooth_print_line("Target successfully cast to "  SMOOTH_TOSTRING(SMOOTHNODE) ".");
 
 	NodePath path = get_path_to(pSMOOTHNODE);
 	set_target_path(path);
@@ -154,7 +158,8 @@ void SMOOTHCLASS::_set_target(const Object *p_target)
 		}
 		else
 		{
-			smooth_print_line("\t\tTarget was not SMOOTHNODE!");
+			// should never get here?
+			WARN_PRINT(SMOOTH_TOSTRING(SMOOTHCLASS) " target must be a "  SMOOTH_TOSTRING(SMOOTHNODE) ".");
 		}
 	}
 
@@ -170,9 +175,13 @@ void SMOOTHCLASS::ResolveTargetPath()
 		SMOOTHNODE * pNode = Object::cast_to<SMOOTHNODE>(get_node(m_path_target));
 		if (pNode)
 		{
-			smooth_print_line("node_was SMOOTHNODE");
+			smooth_print_line("node_was " SMOOTH_TOSTRING(SMOOTHNODE));
 			_set_target(pNode);
 			return;
+		}
+		else
+		{
+			WARN_PRINT(SMOOTH_TOSTRING(SMOOTHCLASS) " target must be a "  SMOOTH_TOSTRING(SMOOTHNODE) ".");
 		}
 	}
 
@@ -211,7 +220,7 @@ void SMOOTHCLASS::FixedUpdate()
 		SMOOTHNODE * pTarget = GetTarget();
 		if (pTarget)
 		{
-			RefreshTransform(pTarget, true);
+			RefreshTransform(pTarget);
 		}
 	}
 
@@ -284,3 +293,5 @@ void SMOOTHCLASS::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "output", PROPERTY_HINT_ENUM, "Local,Global"), "set_output_mode", "get_output_mode");
 //	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "lerp"), "set_lerp", "get_lerp");
 //}
+#undef SMOOTH_STRINGIFY
+#undef SMOOTH_TOSTRING
