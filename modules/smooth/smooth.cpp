@@ -86,15 +86,21 @@ bool Smooth::get_lerp() const
 }
 
 
-//void Smooth::set_mode(eMode p_mode)
-//{
-//	m_Mode = p_mode;
-//}
+void Smooth::set_mode(eMode p_mode)
+{
+	if (p_mode == MODE_GLOBAL)
+		SetFlags(SF_GLOBAL);
+	else
+		ClearFlags(SF_GLOBAL);
+}
 
-//Smooth::eMode Smooth::get_mode() const
-//{
-//	return m_Mode;
-//}
+Smooth::eMode Smooth::get_mode() const
+{
+	if (TestFlags(SF_GLOBAL))
+		return MODE_GLOBAL;
+
+	return MODE_LOCAL;
+}
 
 
 void Smooth::RemoveTarget()
@@ -180,7 +186,6 @@ void Smooth::set_target_path(const NodePath &p_path)
 {
 	print_line("set_Target_path " + p_path);
 	m_path_target = p_path;
-
 	ResolveTargetPath();
 }
 
@@ -216,8 +221,8 @@ void Smooth::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_lerp"), &Smooth::set_lerp);
 	ClassDB::bind_method(D_METHOD("get_lerp"), &Smooth::get_lerp);
 
-//	ClassDB::bind_method(D_METHOD("set_mode", "mode"), &Smooth::set_mode);
-//	ClassDB::bind_method(D_METHOD("get_mode"), &Smooth::get_mode);
+	ClassDB::bind_method(D_METHOD("set_mode", "mode"), &Smooth::set_mode);
+	ClassDB::bind_method(D_METHOD("get_mode"), &Smooth::get_mode);
 
 	ClassDB::bind_method(D_METHOD("set_target", "target"), &Smooth::set_target);
 	ClassDB::bind_method(D_METHOD("set_target_path", "path"), &Smooth::set_target_path);
@@ -226,7 +231,6 @@ void Smooth::_bind_methods() {
 
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "enabled"), "set_enabled", "is_enabled");
 
-//	ADD_PROPERTY(PropertyInfo(Variant::INT, "mode", PROPERTY_HINT_ENUM, "Auto,Manual"), "set_mode", "get_mode");
 	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "target"), "set_target_path", "get_target_path");
 
 
@@ -235,6 +239,7 @@ void Smooth::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "rotation"), "set_interpolate_rotation", "get_interpolate_rotation");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "scale"), "set_interpolate_scale", "get_interpolate_scale");
 	ADD_GROUP("Method", "");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "mode", PROPERTY_HINT_ENUM, "Local,Global"), "set_mode", "get_mode");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "lerp"), "set_lerp", "get_lerp");
 
 }
@@ -307,8 +312,18 @@ void Smooth::RefreshTransform(Spatial * pTarget, bool bDebug)
 	// translate..
 	m_Prev.m_Transform.origin = m_Curr.m_Transform.origin;
 
+	// global or local?
+	bool bGlobal = TestFlags(SF_GLOBAL);
+
 	// new transform for this tick
-	const Transform &trans = pTarget->get_transform();
+	Transform trans;
+	if (bGlobal)
+		trans = pTarget->get_global_transform();
+	else
+		trans = pTarget->get_transform();
+
+	//const Transform &trans = pTarget->get_transform();
+
 	m_Curr.m_Transform.origin = trans.origin;
 	m_ptTranslateDiff = m_Curr.m_Transform.origin - m_Prev.m_Transform.origin;
 
@@ -391,39 +406,44 @@ void Smooth::FrameUpdate()
 //	Variant vf = f;
 	//print_line("fraction " + itos(f * 1000.0f) + "\tsetting translation " + String(ptNew));
 
+	// global or local?
+	bool bGlobal = TestFlags(SF_GLOBAL);
+
 	// simplified, only using translate
+	// NOTE THIS IMPLIES LOCAL as global flag not set...
 	if (m_Flags == (SF_ENABLED | SF_TRANSLATE))
 	{
 		set_translation(ptNew);
+		return;
+	}
+
+	// send as a transform, the whole kabunga
+	Transform trans;
+	trans.origin = ptNew;
+
+	// lerping
+	if (TestFlags(SF_LERP))
+	{
+		//trans.basis = m_Prev.m_Basis.slerp(m_Curr.m_Basis, f);
+		LerpBasis(m_Prev.m_Transform.basis, m_Curr.m_Transform.basis, trans.basis, f);
 	}
 	else
 	{
-		// send as a transform, the whole kabunga
-		Transform trans;
-		trans.origin = ptNew;
+		// slerping
+		Quat qtRot = m_Prev.m_qtRotate.slerp(m_Curr.m_qtRotate, f);
+		trans.basis.set_quat(qtRot);
 
-		// lerping
-		if (TestFlags(SF_LERP))
+		if (TestFlags(SF_SCALE))
 		{
-			//trans.basis = m_Prev.m_Basis.slerp(m_Curr.m_Basis, f);
-			LerpBasis(m_Prev.m_Transform.basis, m_Curr.m_Transform.basis, trans.basis, f);
+			Vector3 ptScale = ((m_Curr.m_ptScale - m_Prev.m_ptScale) * f) + m_Prev.m_ptScale;
+			trans.basis.scale(ptScale);
 		}
-		else
-		{
-			// slerping
-			Quat qtRot = m_Prev.m_qtRotate.slerp(m_Curr.m_qtRotate, f);
-			trans.basis.set_quat(qtRot);
-
-			if (TestFlags(SF_SCALE))
-			{
-				Vector3 ptScale = ((m_Curr.m_ptScale - m_Prev.m_ptScale) * f) + m_Prev.m_ptScale;
-				trans.basis.scale(ptScale);
-			}
-		}
-
-
-		set_transform(trans);
 	}
+
+	if (bGlobal)
+		set_global_transform(trans);
+	else
+		set_transform(trans);
 //	print_line("\tframe " + itos(f * 1000.0f) + " y is " + itos(y * 1000.0f) + " actual y " + itos(actual_y * 1000.0f));
 
 }

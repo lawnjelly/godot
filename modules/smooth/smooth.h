@@ -36,11 +36,11 @@ class Smooth : public Spatial {
 	} data;
 */
 public:
-//	enum eMode
-//	{
-//		MODE_AUTO,
-//		MODE_MANUAL,
-//	};
+	enum eMode
+	{
+		MODE_LOCAL,
+		MODE_GLOBAL,
+	};
 private:
 	enum eSmoothFlags
 	{
@@ -49,7 +49,8 @@ private:
 		SF_TRANSLATE = 4,
 		SF_ROTATE = 8,
 		SF_SCALE = 16,
-		SF_LERP = 32,
+		SF_GLOBAL = 32,
+		SF_LERP = 64,
 	};
 
 	class STransform
@@ -102,8 +103,8 @@ public:
    // void reset();
 	//int get_total() const;
 
-//	void set_mode(eMode p_mode);
-//	eMode get_mode() const;
+	void set_mode(eMode p_mode);
+	eMode get_mode() const;
 
 	void set_enabled(bool p_enabled);
 	bool is_enabled() const;
@@ -150,6 +151,6 @@ private:
 	void ResolveTargetPath();
 };
 
-//VARIANT_ENUM_CAST(Smooth::eMode);
+VARIANT_ENUM_CAST(Smooth::eMode);
 
 #endif
