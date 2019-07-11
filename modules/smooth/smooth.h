@@ -27,6 +27,13 @@ private:
 
 	Vector3 m_ptTranslateDiff;
 
+public:
+	enum eMethod
+	{
+		METHOD_SLERP,
+		METHOD_LERP,
+	};
+
 #define SMOOTHNODE Spatial
 #include "smooth_header.inl"
 #undef SMOOTHNODE
@@ -37,12 +44,15 @@ private:
 public:
 	Smooth();
 
-	void set_lerp(bool bLerp);
-	bool get_lerp() const;
+	void set_method(eMethod p_method);
+	eMethod get_method() const;
+//	void set_lerp(bool bLerp);
+//	bool get_lerp() const;
 private:
 	void LerpBasis(const Basis &from, const Basis &to, Basis &res, float f) const;
 };
 
 VARIANT_ENUM_CAST(Smooth::eMode);
+VARIANT_ENUM_CAST(Smooth::eMethod);
 
 #endif

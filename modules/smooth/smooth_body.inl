@@ -1,20 +1,7 @@
 // where smoothclass is defined as the class
 // and smoothnode is defined as the node
 
-//void SMOOTHCLASS::add(int value) {
-
-//    count += value;
-//}
-
-//void SMOOTHCLASS::reset() {
-
-//    count = 0;
-//}
-
-//int SMOOTHCLASS::get_total() const {
-
-//    return count;
-//}
+//#define SMOOTHVERBOSE
 
 void SMOOTHCLASS::SetProcessing(bool bEnable)
 {
@@ -23,8 +10,6 @@ void SMOOTHCLASS::SetProcessing(bool bEnable)
 
 	set_process_internal(bEnable);
 	set_physics_process_internal(bEnable);
-	//set_process(true);
-	//set_physics_process(true);
 }
 
 
@@ -114,16 +99,24 @@ void SMOOTHCLASS::RemoveTarget()
 	set_target_path(pathnull);
 }
 
+void SMOOTHCLASS::smooth_print_line(Variant sz)
+{
+#ifdef SMOOTHVERBOSE
+		print_line(sz);
+#endif
+}
+
+
 void SMOOTHCLASS::set_target(const Object *p_target)
 {
 	// handle null
 	if (p_target == NULL)
 	{
-		print_line("SCRIPT set_Target NULL");
+		smooth_print_line("SCRIPT set_Target NULL");
 		RemoveTarget();
 		return;
 	}
-	print_line("SCRIPT set_Target");
+	smooth_print_line("SCRIPT set_Target");
 
 	// is it a SMOOTHNODE?
 	const SMOOTHNODE * pSMOOTHNODE = Object::cast_to<SMOOTHNODE>(p_target);
@@ -143,9 +136,9 @@ void SMOOTHCLASS::_set_target(const Object *p_target)
 {
 //	m_refTarget.set_obj(pTarget);
 	if (p_target)
-		print_line("\t_set_Target");
+		smooth_print_line("\t_set_Target");
 	else
-		print_line("\t_set_Target NULL");
+		smooth_print_line("\t_set_Target NULL");
 
 	m_ID_target = 0;
 
@@ -157,11 +150,11 @@ void SMOOTHCLASS::_set_target(const Object *p_target)
 		if (pSMOOTHNODE)
 		{
 			m_ID_target = pSMOOTHNODE->get_instance_id();
-			print_line("\t\tTarget was SMOOTHNODE ID " + itos(m_ID_target));
+			smooth_print_line("\t\tTarget was SMOOTHNODE ID " + itos(m_ID_target));
 		}
 		else
 		{
-			print_line("\t\tTarget was not SMOOTHNODE!");
+			smooth_print_line("\t\tTarget was not SMOOTHNODE!");
 		}
 	}
 
@@ -169,14 +162,15 @@ void SMOOTHCLASS::_set_target(const Object *p_target)
 
 void SMOOTHCLASS::ResolveTargetPath()
 {
-	print_line("resolve_Target_path " + m_path_target);
+	smooth_print_line("resolve_Target_path " + m_path_target);
+
 	if (has_node(m_path_target))
 	{
-		print_line("has_node");
+		smooth_print_line("has_node");
 		SMOOTHNODE * pNode = Object::cast_to<SMOOTHNODE>(get_node(m_path_target));
 		if (pNode)
 		{
-			print_line("node_was SMOOTHNODE");
+			smooth_print_line("node_was SMOOTHNODE");
 			_set_target(pNode);
 			return;
 		}
@@ -186,10 +180,9 @@ void SMOOTHCLASS::ResolveTargetPath()
 	_set_target(NULL);
 }
 
-
 void SMOOTHCLASS::set_target_path(const NodePath &p_path)
 {
-	print_line("set_Target_path " + p_path);
+	smooth_print_line("set_Target_path " + p_path);
 	m_path_target = p_path;
 	ResolveTargetPath();
 }
@@ -199,40 +192,14 @@ NodePath SMOOTHCLASS::get_target_path() const
 	return m_path_target;
 }
 
-
-
-
-
 SMOOTHNODE * SMOOTHCLASS::GetTarget() const
 {
-//	if (m_Mode == MODE_MANUAL)
-//	{
-		if (m_ID_target == 0)
-			return 0;
+	if (m_ID_target == 0)
+		return 0;
 
-		Object *obj = ObjectDB::get_instance(m_ID_target);
-		return (SMOOTHNODE *) obj;
-//	}
-
-//	Node *pParent = get_parent();
-//	if (!pParent)
-//		return 0;
-
-//	// first child of parent
-//	Node * pChild = pParent->get_child(0);
-//	SMOOTHNODE *pTarget = Object::cast_to<SMOOTHNODE>(pChild);
-
-//	// cannot have ourself as the target of the smoothing
-//	if (pTarget == this)
-//		return 0;
-
-//	return pTarget;
+	Object *obj = ObjectDB::get_instance(m_ID_target);
+	return (SMOOTHNODE *) obj;
 }
-
-
-
-
-
 
 void SMOOTHCLASS::FixedUpdate()
 {
@@ -260,24 +227,15 @@ void SMOOTHCLASS::_notification(int p_what) {
 
 	switch (p_what) {
 	case NOTIFICATION_ENTER_TREE: {
+			SetProcessing(TestFlags(SF_ENABLED));
 
-//			if (!Engine::get_singleton()->is_editor_hint() && m_bEnabled)
-	//		{
-				SetProcessing(TestFlags(SF_ENABLED));
-
-				// we can't translate string name of Target to a node until we are in the tree
-				ResolveTargetPath();
-		//	}
-
+			// we can't translate string name of Target to a node until we are in the tree
+			ResolveTargetPath();
 		} break;
 	case NOTIFICATION_INTERNAL_PHYSICS_PROCESS: {
-//			if (!m_bEnabled)
-	//			break;
 			FixedUpdate();
 		} break;
 	case NOTIFICATION_INTERNAL_PROCESS: {
-		//	if (!m_bEnabled)
-			//	break;
 			FrameUpdate();
 
 		} break;
@@ -287,27 +245,20 @@ void SMOOTHCLASS::_notification(int p_what) {
 
 void SMOOTHCLASS::_bind_methods() {
 
-//	ClassDB::bind_method(D_METHOD("get_quat_curr"), &SMOOTHCLASS::get_quat_curr);
-//	ClassDB::bind_method(D_METHOD("get_quat_prev"), &SMOOTHCLASS::get_quat_prev);
-//	ClassDB::bind_method(D_METHOD("get_fraction"), &SMOOTHCLASS::get_fraction);
-
-//	BIND_ENUM_CONSTANT(MODE_AUTO);
-//	BIND_ENUM_CONSTANT(MODE_MANUAL);
+	BIND_ENUM_CONSTANT(MODE_LOCAL);
+	BIND_ENUM_CONSTANT(MODE_GLOBAL);
 
 
 	ClassDB::bind_method(D_METHOD("teleport"), &SMOOTHCLASS::teleport);
 
-//    ClassDB::bind_method(D_METHOD("add", "value"), &SMOOTHCLASS::add);
-  //  ClassDB::bind_method(D_METHOD("reset"), &SMOOTHCLASS::reset);
-   // ClassDB::bind_method(D_METHOD("get_total"), &SMOOTHCLASS::get_total);
 	ClassDB::bind_method(D_METHOD("set_enabled"), &SMOOTHCLASS::set_enabled);
 	ClassDB::bind_method(D_METHOD("is_enabled"), &SMOOTHCLASS::is_enabled);
-	ClassDB::bind_method(D_METHOD("set_interpolate_translation"), &SMOOTHCLASS::set_interpolate_translation);
-	ClassDB::bind_method(D_METHOD("get_interpolate_translation"), &SMOOTHCLASS::get_interpolate_translation);
-	ClassDB::bind_method(D_METHOD("set_interpolate_rotation"), &SMOOTHCLASS::set_interpolate_rotation);
-	ClassDB::bind_method(D_METHOD("get_interpolate_rotation"), &SMOOTHCLASS::get_interpolate_rotation);
-	ClassDB::bind_method(D_METHOD("set_interpolate_scale"), &SMOOTHCLASS::set_interpolate_scale);
-	ClassDB::bind_method(D_METHOD("get_interpolate_scale"), &SMOOTHCLASS::get_interpolate_scale);
+	ClassDB::bind_method(D_METHOD("set_smooth_translate"), &SMOOTHCLASS::set_interpolate_translation);
+	ClassDB::bind_method(D_METHOD("get_smooth_translate"), &SMOOTHCLASS::get_interpolate_translation);
+	ClassDB::bind_method(D_METHOD("set_smooth_rotate"), &SMOOTHCLASS::set_interpolate_rotation);
+	ClassDB::bind_method(D_METHOD("get_smooth_rotate"), &SMOOTHCLASS::get_interpolate_rotation);
+	ClassDB::bind_method(D_METHOD("set_smooth_scale"), &SMOOTHCLASS::set_interpolate_scale);
+	ClassDB::bind_method(D_METHOD("get_smooth_scale"), &SMOOTHCLASS::get_interpolate_scale);
 
 	ClassDB::bind_method(D_METHOD("set_input_mode", "mode"), &SMOOTHCLASS::set_input_mode);
 	ClassDB::bind_method(D_METHOD("get_input_mode"), &SMOOTHCLASS::get_input_mode);
@@ -325,9 +276,9 @@ void SMOOTHCLASS::_bind_methods() {
 
 
 	ADD_GROUP("Components", "");
-	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "translation"), "set_interpolate_translation", "get_interpolate_translation");
-	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "rotation"), "set_interpolate_rotation", "get_interpolate_rotation");
-	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "scale"), "set_interpolate_scale", "get_interpolate_scale");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "smooth_translate"), "set_smooth_translate", "get_smooth_translate");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "smooth_rotate"), "set_smooth_rotate", "get_smooth_rotate");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "smooth_scale"), "set_smooth_scale", "get_smooth_scale");
 	ADD_GROUP("Coords", "");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "input", PROPERTY_HINT_ENUM, "Local,Global"), "set_input_mode", "get_input_mode");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "output", PROPERTY_HINT_ENUM, "Local,Global"), "set_output_mode", "get_output_mode");

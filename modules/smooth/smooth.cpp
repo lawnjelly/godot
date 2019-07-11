@@ -7,10 +7,16 @@
 #include "smooth_body.inl"
 
 // finish the bind with custom stuff
-ClassDB::bind_method(D_METHOD("set_lerp"), &SMOOTHCLASS::set_lerp);
-ClassDB::bind_method(D_METHOD("get_lerp"), &SMOOTHCLASS::get_lerp);
-ADD_GROUP("Method", "");
-ADD_PROPERTY(PropertyInfo(Variant::BOOL, "lerp"), "set_lerp", "get_lerp");
+BIND_ENUM_CONSTANT(METHOD_SLERP);
+BIND_ENUM_CONSTANT(METHOD_LERP);
+//ClassDB::bind_method(D_METHOD("set_lerp"), &SMOOTHCLASS::set_lerp);
+//ClassDB::bind_method(D_METHOD("get_lerp"), &SMOOTHCLASS::get_lerp);
+ClassDB::bind_method(D_METHOD("set_method", "method"), &SMOOTHCLASS::set_method);
+ClassDB::bind_method(D_METHOD("get_method"), &SMOOTHCLASS::get_method);
+
+ADD_GROUP("Misc", "");
+//ADD_PROPERTY(PropertyInfo(Variant::BOOL, "lerp"), "set_lerp", "get_lerp");
+ADD_PROPERTY(PropertyInfo(Variant::INT, "method", PROPERTY_HINT_ENUM, "Slerp,Lerp"), "set_method", "get_method");
 }
 
 #undef SMOOTHCLASS
@@ -32,15 +38,29 @@ Smooth::Smooth() {
 //	m_fFraction = 0.0f;
 }
 
-void Smooth::set_lerp(bool bLerp)
+void Smooth::set_method(eMethod p_method)
 {
-	ChangeFlags(SF_LERP, bLerp);
+	ChangeFlags(SF_LERP, p_method == METHOD_LERP);
 }
 
-bool Smooth::get_lerp() const
+Smooth::eMethod Smooth::get_method() const
 {
-	return TestFlags(SF_LERP);
+	if (TestFlags(SF_LERP))
+		return METHOD_LERP;
+
+	return METHOD_SLERP;
 }
+
+
+//void Smooth::set_lerp(bool bLerp)
+//{
+//	ChangeFlags(SF_LERP, bLerp);
+//}
+
+//bool Smooth::get_lerp() const
+//{
+//	return TestFlags(SF_LERP);
+//}
 
 
 void Smooth::teleport()

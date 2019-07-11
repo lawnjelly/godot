@@ -78,3 +78,4 @@ private:
 	bool TestFlags(int f) const {return (m_Flags & f) == f;}
 
 	void ResolveTargetPath();
+	void smooth_print_line(Variant sz);
