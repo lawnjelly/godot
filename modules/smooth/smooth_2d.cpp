@@ -36,6 +36,7 @@ float Smooth2D::ShortAngleDist(float from, float to) const
 
 void Smooth2D::RefreshTransform(Node2D * pTarget)
 {
+	//print_line("RefreshTransform");
 	ClearFlags(SF_DIRTY);
 
 	// keep the data flowing...
@@ -82,6 +83,8 @@ void Smooth2D::RefreshTransform(Node2D * pTarget)
 
 void Smooth2D::FrameUpdate()
 {
+	//print_line("FrameUpdate");
+
 	Node2D * pTarget = GetTarget();
 	if (!pTarget)
 	return;
@@ -167,3 +170,9 @@ void Smooth2D::teleport()
 	m_Flags = temp_flags;
 
 }
+
+//bool Smooth2D::FindVisibility() const
+//{
+//	return is_visible_in_tree();
+//}
+

@@ -6,10 +6,14 @@
 #define SMOOTH_STRINGIFY(x) #x
 #define SMOOTH_TOSTRING(x) SMOOTH_STRINGIFY(x)
 
-void SMOOTHCLASS::SetProcessing(bool bEnable)
+void SMOOTHCLASS::SetProcessing()
 {
 	if (Engine::get_singleton()->is_editor_hint())
 		return;
+
+	bool bEnable = TestFlags(SF_ENABLED);
+	if (TestFlags(SF_INVISIBLE))
+		bEnable = false;
 
 	set_process_internal(bEnable);
 	set_physics_process_internal(bEnable);
@@ -23,7 +27,7 @@ void SMOOTHCLASS::set_enabled(bool p_enabled)
 
 	ChangeFlags(SF_ENABLED, p_enabled);
 
-	SetProcessing (p_enabled);
+	SetProcessing ();
 }
 
 bool SMOOTHCLASS::is_enabled() const
@@ -236,7 +240,9 @@ void SMOOTHCLASS::_notification(int p_what) {
 
 	switch (p_what) {
 	case NOTIFICATION_ENTER_TREE: {
-			SetProcessing(TestFlags(SF_ENABLED));
+			bool bVisible = is_visible_in_tree();
+			ChangeFlags(SF_INVISIBLE, bVisible == false);
+			SetProcessing();
 
 			// we can't translate string name of Target to a node until we are in the tree
 			ResolveTargetPath();
@@ -246,10 +252,19 @@ void SMOOTHCLASS::_notification(int p_what) {
 		} break;
 	case NOTIFICATION_INTERNAL_PROCESS: {
 			FrameUpdate();
-
+		} break;
+	case NOTIFICATION_VISIBILITY_CHANGED: {
+			bool bVisible = is_visible_in_tree();
+			ChangeFlags(SF_INVISIBLE, bVisible == false);
+			SetProcessing();
+//			if (bVisible)
+//				print_line("now visible");
+//			else
+//				print_line("now hidden");
 		} break;
 	}
 }
+
 
 
 void SMOOTHCLASS::_bind_methods() {

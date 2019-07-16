@@ -18,6 +18,7 @@ private:
 		SF_GLOBAL_IN = 32,
 		SF_GLOBAL_OUT = 64,
 		SF_LERP = 128,
+		SF_INVISIBLE = 256,
 	};
 
 
@@ -70,7 +71,7 @@ private:
 	void FrameUpdate();
 	void RefreshTransform(SMOOTHNODE * pTarget);
 	SMOOTHNODE * GetTarget() const;
-	void SetProcessing(bool bEnable);
+	void SetProcessing();
 
 	void ChangeFlags(int f, bool bSet) {if (bSet) {SetFlags(f);} else {ClearFlags(f);}}
 	void SetFlags(int f) {m_Flags |= f;}
@@ -78,4 +79,5 @@ private:
 	bool TestFlags(int f) const {return (m_Flags & f) == f;}
 
 	void ResolveTargetPath();
+	//bool FindVisibility() const;
 	void smooth_print_line(Variant sz);

@@ -177,3 +177,24 @@ void Smooth::LerpBasis(const Basis &from, const Basis &to, Basis &res, float f) 
 }
 
 
+//bool Smooth::FindVisibility() const
+//{
+//	const Spatial *s = this;
+
+//	int count = 0;
+//	while (s) {
+
+//		if (!s->data.visible)
+//		{
+//			print_line(itos(count++) + " hidden");
+//			return false;
+//		}
+//		else
+//		{
+//			print_line(itos(count++) + " visible");
+//		}
+//		s = s->data.parent;
+//	}
+
+//	return true;
+//}
