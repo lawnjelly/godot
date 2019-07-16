@@ -30,61 +30,9 @@
 
 #include "main_timer_sync.h"
 
-MainTimerSync::DeltaSmoother::DeltaSmoother()
-{
-	const int default_delta = 16666;
-
-	for (int n=0; n<MAX_RECORDS; n++)
-		m_iRecords[n] = default_delta;
-
-	m_iRunningTotal = MAX_RECORDS * default_delta;
-	m_iCurrentRecord = 0;
-}
-
-
-int MainTimerSync::DeltaSmoother::SmoothDelta(int delta)
-{
-	const int ciMaxDelta = 1000000 / 24;
-	if (delta > ciMaxDelta)
-		return delta;
-
-	// cap at 1 second, prevent 32 bit integer overflow
-	if (delta > 1000000) delta = 1000000;
-
-	// keep running total (remove old record)
-	m_iRunningTotal -= m_iRecords[m_iCurrentRecord];
-
-	// store in the records
-	m_iRecords[m_iCurrentRecord] = delta;
-
-	// keep running total (add new record)
-	m_iRunningTotal += delta;
-
-	// increment the record pointer
-	m_iCurrentRecord++;
-
-	// wraparound circular buffer
-	if (m_iCurrentRecord == MAX_RECORDS)
-		m_iCurrentRecord = 0;
-
-	// find the average
-	int average = m_iRunningTotal / MAX_RECORDS;
-
-	// turn off smoothing when the average is below a certain point
-	// i.e. dropped frames are happening too often to deal with.
-	const int ciMaxAverage = 1000000 / 40;
-	if (average > ciMaxAverage)
-		return delta;
-	// Note that both the constants in this function could possibly be adjusted at runtime
-	// according to hardware.
-
-	return average;
-}
-
-
 ////////////////////////////
 
-MainTimerSync2::DeltaSmoother::DeltaSmoother()
+MainTimerSync::DeltaSmoother::DeltaSmoother()
 {
 	// just start by filling with values for 60 frames per second ...
 	// this isn't crucial as it only affects the first few frames before there is data filled.
@@ -100,7 +48,7 @@ MainTimerSync2::DeltaSmoother::DeltaSmoother()
 }
 
 
-void MainTimerSync2::DeltaSmoother::UpdateNumRecords()
+void MainTimerSync::DeltaSmoother::UpdateNumRecords()
 {
 	int nRecords = Engine::get_singleton()->get_delta_smoothing();
 
@@ -135,7 +83,7 @@ void MainTimerSync2::DeltaSmoother::UpdateNumRecords()
 // Average smoothing is really to deal with variation in delta caused by the OS.
 // Variation due to dropped frames is not easy to deal with as yet,
 // it may be to deal with in future APIs.
-int MainTimerSync2::DeltaSmoother::SmoothDelta(int delta)
+int MainTimerSync::DeltaSmoother::SmoothDelta(int delta)
 {
 //	if (delta <= 0)
 //		print_line("delta is negative : " + itos(delta));
@@ -230,18 +178,115 @@ void MainFrameTime::clamp_idle(float min_idle_step, float max_idle_step) {
 	}
 }
 
+void MainFrameTime::SetDefaults()
+{
+	idle_step = 0.0f;
+	physics_steps = 1;
+	interpolation_fraction = 0.0f;
+	physics_variable_step = false;
+	physics_variable_step_delta = 0.0f;
+}
+
+
 /////////////////////////////////
+
+
+MainTimerSync::MainTimerSync() :
+		last_cpu_ticks_usec(0),
+		current_cpu_ticks_usec(0),
+		fixed_fps(0)
+{
+	m_eMethod = M_FRAMEBASED;
+}
+
+// start the clock
+void MainTimerSync::init(uint64_t p_cpu_ticks_usec) {
+	current_cpu_ticks_usec = last_cpu_ticks_usec = p_cpu_ticks_usec;
+}
+
+// set measured wall clock time
+void MainTimerSync::set_cpu_ticks_usec(uint64_t p_cpu_ticks_usec) {
+	current_cpu_ticks_usec = p_cpu_ticks_usec;
+}
+
+void MainTimerSync::set_fixed_fps(int p_fixed_fps) {
+	fixed_fps = p_fixed_fps;
+}
+
+// advance one frame, return timesteps to take
+MainFrameTime MainTimerSync::advance(float p_frame_slice, int p_iterations_per_second) {
+
+	// common to all methods
+	float delta;
+	if (fixed_fps <= 0)
+	{
+		//  gets the delta and applies delta smoothing
+		delta = get_cpu_idle_step();
+	}
+	else
+	{
+		delta = 1.0f / fixed_fps;
+	}
+
+	// safety, might not be needed
+	if (p_iterations_per_second <= 0)
+		p_iterations_per_second = 1;
+
+	// choose which method to use
+	MainFrameTime mft;
+
+	// could be virtual or something .. but not much difference
+	switch (m_eMethod)
+	{
+	case M_FIXED:
+		mft = m_TSFixed.advance(delta, p_frame_slice, p_iterations_per_second);
+		break;
+	case M_SEMIFIXED:
+		mft = m_TSSemiFixed.advance(delta, p_frame_slice, p_iterations_per_second);
+		break;
+	case M_FRAMEBASED:
+		mft = m_TSFrameBased.advance(delta, p_frame_slice, p_iterations_per_second);
+		break;
+	default:
+		mft = m_TSJitterFix.advance(delta, p_frame_slice, p_iterations_per_second);
+		break;
+	}
+
+	return mft;
+}
+
+
+
+///////////////////////////////////
+
+// advance one frame, return timesteps to take
+MainFrameTime MainTimerSync_JitterFix::advance(float cpu_idle_step, float p_frame_slice, int p_iterations_per_second) {
+//	float cpu_idle_step = get_cpu_idle_step();
+
+	return advance_checked(p_frame_slice, p_iterations_per_second, cpu_idle_step);
+}
+
+MainTimerSync_JitterFix::MainTimerSync_JitterFix() :
+	time_accum(0),
+	time_deficit(0)
+{
+	for (int i = CONTROL_STEPS - 1; i >= 0; --i) {
+		typical_physics_steps[i] = i;
+		accumulated_physics_steps[i] = i;
+	}
+}
+
 
 // returns the fraction of p_frame_slice required for the timer to overshoot
 // before advance_core considers changing the physics_steps return from
 // the typical values as defined by typical_physics_steps
-float MainTimerSync::get_physics_jitter_fix() {
+float MainTimerSync_JitterFix::get_physics_jitter_fix() {
 	return Engine::get_singleton()->get_physics_jitter_fix();
 }
 
 // gets our best bet for the average number of physics steps per render frame
 // return value: number of frames back this data is consistent
-int MainTimerSync::get_average_physics_steps(float &p_min, float &p_max) {
+int MainTimerSync_JitterFix::get_average_physics_steps(float &p_min, float &p_max) {
 	p_min = typical_physics_steps[0];
 	p_max = p_min + 1;
 
@@ -263,8 +308,9 @@ int MainTimerSync::get_average_physics_steps(float &p_min, float &p_max) {
 }
 
 // advance physics clock by p_idle_step, return appropriate number of steps to simulate
-MainFrameTime MainTimerSync::advance_core(float p_frame_slice, int p_iterations_per_second, float p_idle_step) {
+MainFrameTime MainTimerSync_JitterFix::advance_core(float p_frame_slice, int p_iterations_per_second, float p_idle_step) {
 	MainFrameTime ret;
+	ret.SetDefaults();
 
 	ret.idle_step = p_idle_step;
 
@@ -334,9 +380,9 @@ MainFrameTime MainTimerSync::advance_core(float p_frame_slice, int p_iterations_
 }
 
 // calls advance_core, keeps track of deficit it adds to animaption_step, make sure the deficit sum stays close to zero
-MainFrameTime MainTimerSync::advance_checked(float p_frame_slice, int p_iterations_per_second, float p_idle_step) {
-	if (fixed_fps != -1)
-		p_idle_step = 1.0 / fixed_fps;
+MainFrameTime MainTimerSync_JitterFix::advance_checked(float p_frame_slice, int p_iterations_per_second, float p_idle_step) {
+	//if (fixed_fps != -1)
+	//	p_idle_step = 1.0 / fixed_fps;
 
 	// compensate for last deficit
 	p_idle_step += time_deficit;
@@ -378,150 +424,34 @@ MainFrameTime MainTimerSync::advance_checked(float p_frame_slice, int p_iteratio
 
 // determine wall clock step since last iteration
 float MainTimerSync::get_cpu_idle_step() {
-	uint64_t cpu_ticks_elapsed = current_cpu_ticks_usec - last_cpu_ticks_usec;
-	last_cpu_ticks_usec = current_cpu_ticks_usec;
-
-	cpu_ticks_elapsed = m_Smoother.SmoothDelta(cpu_ticks_elapsed);
-
-
-
-	return cpu_ticks_elapsed / 1000000.0;
-}
-
-MainTimerSync::MainTimerSync() :
-		last_cpu_ticks_usec(0),
-		current_cpu_ticks_usec(0),
-		time_accum(0),
-		time_deficit(0),
-		fixed_fps(0) {
-	for (int i = CONTROL_STEPS - 1; i >= 0; --i) {
-		typical_physics_steps[i] = i;
-		accumulated_physics_steps[i] = i;
-	}
-}
-
-// start the clock
-void MainTimerSync::init(uint64_t p_cpu_ticks_usec) {
-	current_cpu_ticks_usec = last_cpu_ticks_usec = p_cpu_ticks_usec;
-}
-
-// set measured wall clock time
-void MainTimerSync::set_cpu_ticks_usec(uint64_t p_cpu_ticks_usec) {
-	current_cpu_ticks_usec = p_cpu_ticks_usec;
-}
-
-void MainTimerSync::set_fixed_fps(int p_fixed_fps) {
-	fixed_fps = p_fixed_fps;
-}
-
-// advance one frame, return timesteps to take
-MainFrameTime MainTimerSync::advance(float p_frame_slice, int p_iterations_per_second) {
-	float cpu_idle_step = get_cpu_idle_step();
-
-	return advance_checked(p_frame_slice, p_iterations_per_second, cpu_idle_step);
-}
-
-
-
-///////////////////////////////////
-
-// calls advance_core, keeps track of deficit it adds to animaption_step, make sure the deficit sum stays close to zero
-// advance physics clock by p_idle_step, return appropriate number of steps to simulate
-//MainFrameTime MainTimerSync2::advance_checked(float p_sec_per_tick, int p_iterations_per_second, float p_idle_step) {
-
-//	MainFrameTime ret;
-
-//	ret.idle_step = p_idle_step;
-
-//	// safety, might not be needed
-//	if (p_iterations_per_second <= 0)
-//		p_iterations_per_second = 1;
-
-////	float sec_per_frame = 1.0f / p_iterations_per_second;
-////	float sec_per_tick = p_frame_slice;
-
-//	float time_available = m_fTimeLeftover + p_idle_step;
-
-//	ret.physics_steps = floor(time_available * p_iterations_per_second);
-
-//	m_fTimeLeftover = time_available - (ret.physics_steps * p_sec_per_tick);
-
-//	ret.interpolation_fraction = m_fTimeLeftover / p_sec_per_tick;
-////	m_fInterpolationFraction = m_fTimeLeftover / sec_per_frame;
-//	//print_line("MainTimerSync2::advance_core fraction " + String(Variant(m_fInterpolationFraction)));
-
-//	return ret;
-//}
-
-// determine wall clock step since last iteration
-float MainTimerSync2::get_cpu_idle_step() {
 	uint64_t delta = current_cpu_ticks_usec - last_cpu_ticks_usec;
 	last_cpu_ticks_usec = current_cpu_ticks_usec;
 
 	// smoothing
 	//print_line("input delta " + itos(delta));
-
 	delta = m_Smoother.SmoothDelta(delta);
-
-
 	return delta / 1000000.0;
 }
 
-MainTimerSync2::MainTimerSync2() :
-		last_cpu_ticks_usec(0),
-		current_cpu_ticks_usec(0),
-		fixed_fps(0)
+
+
+//////////////////////////////////////////////////////////
+
+
+
+MainTimerSync_Fixed::MainTimerSync_Fixed()// :
 		{
 			m_fTimeLeftover = 0.0f;
 		}
 
-// start the clock
-void MainTimerSync2::init(uint64_t p_cpu_ticks_usec) {
-	current_cpu_ticks_usec = last_cpu_ticks_usec = p_cpu_ticks_usec;
-}
-
-// set measured wall clock time
-void MainTimerSync2::set_cpu_ticks_usec(uint64_t p_cpu_ticks_usec) {
-	current_cpu_ticks_usec = p_cpu_ticks_usec;
-
-	//ERR_FAIL_COND(p_cpu_ticks_usec < current_cpu_ticks_usec);
-
-	// delta smoothed
-//	uint64_t delta = p_cpu_ticks_usec - current_cpu_ticks_usec;
-//	print_line("input delta " + itos(delta));
-//	delta = m_Smoother.SmoothDelta(delta);
-//	current_cpu_ticks_usec += delta;
-
-	// fixed
-//	current_cpu_ticks_usec += 16666;
-}
-
-void MainTimerSync2::set_fixed_fps(int p_fixed_fps) {
-	fixed_fps = p_fixed_fps;
-}
 
 // advance one frame, return timesteps to take
-MainFrameTime MainTimerSync2::advance(float p_sec_per_tick, int p_iterations_per_second) {
-	float gap;
-	if (fixed_fps <= 0)
-	{
-		gap = get_cpu_idle_step();
-	}
-	else
-	{
-		gap = 1.0f / fixed_fps;
-	}
+MainFrameTime MainTimerSync_Fixed::advance(float delta, float p_sec_per_tick, int p_iterations_per_second) {
+	float gap = delta;
 
 	MainFrameTime ret;
-
+	ret.SetDefaults();
 	ret.idle_step = gap;
-
-	// safety, might not be needed
-	if (p_iterations_per_second <= 0)
-		p_iterations_per_second = 1;
-
-//	float sec_per_frame = 1.0f / p_iterations_per_second;
-//	float sec_per_tick = p_frame_slice;
 
 	float time_available = m_fTimeLeftover + gap;
 
@@ -532,7 +462,45 @@ MainFrameTime MainTimerSync2::advance(float p_sec_per_tick, int p_iterations_per
 	ret.interpolation_fraction = m_fTimeLeftover / p_sec_per_tick;
 
 	return ret;
+}
+
+/////////////////////////////////////////////////////////////////
 
 
-	//return advance_checked(p_sec_per_tick, p_iterations_per_second, cpu_idle_step);
+MainFrameTime MainTimerSync_SemiFixed::advance(float delta, float p_sec_per_tick, int p_iterations_per_second)
+{
+	MainFrameTime ret;
+	ret.SetDefaults();
+	ret.idle_step = delta;
+
+	float time_available = delta;
+
+	ret.physics_steps = floor(time_available * p_iterations_per_second);
+	time_available -= ret.physics_steps * p_sec_per_tick;
+
+	// if there is more than a certain amount leftover, have an extra physics tick
+	if (time_available <= 0.0f)
+		return ret;
+
+	ret.physics_steps += 1;
+	ret.physics_variable_step = true;
+	ret.physics_variable_step_delta = time_available;
+
+	return ret;
+}
+
+//////////////////////////////////////////////////////
+
+MainFrameTime MainTimerSync_FrameBased::advance(float delta, float p_sec_per_tick, int p_iterations_per_second)
+{
+	MainFrameTime ret;
+	ret.SetDefaults();
+	ret.idle_step = delta;
+
+	// always have 1 physics step, with the delta the same as the frame
+	ret.physics_steps = 1;
+	ret.physics_variable_step = true;
+	ret.physics_variable_step_delta = delta;
+
+	return ret;
 }

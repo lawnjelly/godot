@@ -1296,7 +1296,7 @@ Error Main::setup2(Thread::ID p_main_tid_override) {
 
 // everything the main loop needs to know about frame timings
 static MainTimerSync main_timer_sync;
-static MainTimerSync2 main_timer_sync2;
+//static MainTimerSync2 main_timer_sync2;
 
 bool Main::start() {
 
@@ -1316,7 +1316,7 @@ bool Main::start() {
 	bool check_only = false;
 
 	main_timer_sync.init(OS::get_singleton()->get_ticks_usec());
-	main_timer_sync2.init(OS::get_singleton()->get_ticks_usec());
+//	main_timer_sync2.init(OS::get_singleton()->get_ticks_usec());
 
 	List<String> args = OS::get_singleton()->get_cmdline_args();
 	for (int i = 0; i < args.size(); i++) {
@@ -1854,6 +1854,40 @@ bool Main::is_iterating() {
 static uint64_t physics_process_max = 0;
 static uint64_t idle_process_max = 0;
 
+
+// returns usecs taken by the physics tick
+uint64_t Main::physics_tick(float physics_delta)
+{
+	uint64_t physics_begin = OS::get_singleton()->get_ticks_usec();
+
+	PhysicsServer::get_singleton()->sync();
+	PhysicsServer::get_singleton()->flush_queries();
+
+	Physics2DServer::get_singleton()->sync();
+	Physics2DServer::get_singleton()->flush_queries();
+
+	if (OS::get_singleton()->get_main_loop()->iteration(physics_delta)) {
+		// UINT64_MAX indicates we want to stop the loop through the physics iterations
+		return UINT64_MAX;
+	}
+
+	message_queue->flush();
+
+	PhysicsServer::get_singleton()->step(physics_delta);
+
+	Physics2DServer::get_singleton()->end_sync();
+	Physics2DServer::get_singleton()->step(physics_delta);
+
+	message_queue->flush();
+
+	//physics_process_ticks = MAX(physics_process_ticks, OS::get_singleton()->get_ticks_usec() - physics_begin); // keep the largest one for reference
+	//physics_process_max = MAX(OS::get_singleton()->get_ticks_usec() - physics_begin, physics_process_max);
+	Engine::get_singleton()->_physics_frames++;
+
+	return OS::get_singleton()->get_ticks_usec() - physics_begin;
+}
+
+
 bool Main::iteration() {
 
 	//for now do not error on this
@@ -1867,9 +1901,6 @@ bool Main::iteration() {
 	main_timer_sync.set_cpu_ticks_usec(ticks);
 	main_timer_sync.set_fixed_fps(fixed_fps);
 
-	main_timer_sync2.set_cpu_ticks_usec(ticks);
-	main_timer_sync2.set_fixed_fps(fixed_fps);
-
 	uint64_t ticks_elapsed = ticks - last_ticks;
 
 	int physics_fps = Engine::get_singleton()->get_iterations_per_second();
@@ -1877,8 +1908,8 @@ bool Main::iteration() {
 
 	float time_scale = Engine::get_singleton()->get_time_scale();
 
-	MainFrameTime advance = main_timer_sync2.advance(frame_slice, physics_fps);
-	MainFrameTime advance_old = main_timer_sync.advance(frame_slice, physics_fps);
+//	MainFrameTime advance_new = main_timer_sync2.advance(frame_slice, physics_fps);
+	MainFrameTime advance = main_timer_sync.advance(frame_slice, physics_fps);
 //	MainFrameTime advance = main_timer_sync.advance(frame_slice, physics_fps);
 
 //	if (!Engine::get_singleton()->is_editor_hint())
@@ -1918,33 +1949,34 @@ bool Main::iteration() {
 
 	Engine::get_singleton()->_in_physics = true;
 
+	float physics_delta = frame_slice * time_scale;
+
 	for (int iters = 0; iters < advance.physics_steps; ++iters) {
 
-		uint64_t physics_begin = OS::get_singleton()->get_ticks_usec();
+		// special case, if using variable physics timestep
+		if (advance.physics_variable_step)
+		{
+			// if the last physics step
+			if (iters == (advance.physics_steps - 1))
+			{
+				// substitute the variable delta
+				physics_delta = advance.physics_variable_step_delta;
+			}
+		}
 
-		PhysicsServer::get_singleton()->sync();
-		PhysicsServer::get_singleton()->flush_queries();
+		uint64_t physics_usecs = physics_tick(physics_delta);
 
-		Physics2DServer::get_singleton()->sync();
-		Physics2DServer::get_singleton()->flush_queries();
-
-		if (OS::get_singleton()->get_main_loop()->iteration(frame_slice * time_scale)) {
+		// in the special case of wanting to exit the loop we are passing
+		// UINT64_MAX which will never occur normally.
+		if (physics_usecs == UINT64_MAX)
+		{
 			exit = true;
 			break;
 		}
 
-		message_queue->flush();
-
-		PhysicsServer::get_singleton()->step(frame_slice * time_scale);
-
-		Physics2DServer::get_singleton()->end_sync();
-		Physics2DServer::get_singleton()->step(frame_slice * time_scale);
-
-		message_queue->flush();
-
-		physics_process_ticks = MAX(physics_process_ticks, OS::get_singleton()->get_ticks_usec() - physics_begin); // keep the largest one for reference
-		physics_process_max = MAX(OS::get_singleton()->get_ticks_usec() - physics_begin, physics_process_max);
-		Engine::get_singleton()->_physics_frames++;
+		// performance stats
+		physics_process_ticks = MAX(physics_process_ticks, physics_usecs); // keep the largest one for reference
+		physics_process_max = MAX(physics_usecs, physics_process_max);
 	}
 
 	Engine::get_singleton()->_in_physics = false;

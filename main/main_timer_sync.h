@@ -34,39 +34,26 @@
 #include "core/engine.h"
 
 struct MainFrameTime {
+	void SetDefaults();
+
 	float idle_step; // time to advance idles for (argument to process())
 	int physics_steps; // number of times to iterate the physics engine
 	float interpolation_fraction;
+
+	// for semi fixed and frame based methods, we can
+	// optionally have the last physics step with a variable delta to pass
+	// to physics
+	bool physics_variable_step;
+	float physics_variable_step_delta;
 
 	void clamp_idle(float min_idle_step, float max_idle_step);
 };
 
 
-class MainTimerSync {
-	class DeltaSmoother
-	{
-	public:
-		DeltaSmoother();
 
-		// pass the recorded delta, returns a smoothed delta
-		int SmoothDelta(int delta);
+///////////////////////////////////////////////////////////
 
-	private:
-		// records of the delta on previous main loop iterations
-		static const int MAX_RECORDS = 64;
-		int m_iRecords[MAX_RECORDS];
-
-		// circular buffer of records
-		int m_iCurrentRecord;
-
-		// save on computation by keeping a running total to calculate the average delta
-		int m_iRunningTotal;
-	};
-
-	// wall clock time measured on the main thread
-	uint64_t last_cpu_ticks_usec;
-	uint64_t current_cpu_ticks_usec;
-
+class MainTimerSync_JitterFix {
 	// logical game time since last physics timestep
 	float time_accum;
 
@@ -85,9 +72,6 @@ class MainTimerSync {
 	// typical value for accumulated_physics_steps[i] is either this or this plus one
 	int typical_physics_steps[CONTROL_STEPS];
 
-	int fixed_fps;
-	DeltaSmoother m_Smoother;
-
 protected:
 	// returns the fraction of p_frame_slice required for the timer to overshoot
 	// before advance_core considers changing the physics_steps return from
@@ -104,26 +88,54 @@ protected:
 	// calls advance_core, keeps track of deficit it adds to animaption_step, make sure the deficit sum stays close to zero
 	MainFrameTime advance_checked(float p_frame_slice, int p_iterations_per_second, float p_idle_step);
 
-	// determine wall clock step since last iteration
-	float get_cpu_idle_step();
-
 public:
-	MainTimerSync();
-
-	// start the clock
-	void init(uint64_t p_cpu_ticks_usec);
-	// set measured wall clock time
-	void set_cpu_ticks_usec(uint64_t p_cpu_ticks_usec);
-	//set fixed fps
-	void set_fixed_fps(int p_fixed_fps);
+	MainTimerSync_JitterFix();
 
 	// advance one frame, return timesteps to take
-	MainFrameTime advance(float p_frame_slice, int p_iterations_per_second);
+	MainFrameTime advance(float cpu_idle_step, float p_frame_slice, int p_iterations_per_second);
 };
 
-///////////////////////////////////////////////////////////
+class MainTimerSync_Fixed{
+	float m_fTimeLeftover;
 
-class MainTimerSync2 {
+public:
+	MainTimerSync_Fixed();
+
+	// advance one frame, return timesteps to take
+	MainFrameTime advance(float delta, float p_sec_per_tick, int p_iterations_per_second);
+};
+
+/////////////////////////////////////////////////////////
+
+class MainTimerSync_SemiFixed
+{
+public:
+	// advance one frame, return timesteps to take
+	MainFrameTime advance(float delta, float p_sec_per_tick, int p_iterations_per_second);
+};
+
+/////////////////////////////////////////////////////////
+
+class MainTimerSync_FrameBased
+{
+public:
+	// advance one frame, return timesteps to take
+	MainFrameTime advance(float delta, float p_sec_per_tick, int p_iterations_per_second);
+};
+
+
+/////////////////////////////////////////////////////////
+
+class MainTimerSync {
+	enum eMethod
+	{
+		M_DEFAULT, // default will be same as jitterfix... for now
+		M_FIXED,
+		M_SEMIFIXED,
+		M_FRAMEBASED,
+		M_JITTERFIX,
+	};
+
 
 	class DeltaSmoother
 	{
@@ -152,24 +164,24 @@ class MainTimerSync2 {
 	uint64_t last_cpu_ticks_usec;
 	uint64_t current_cpu_ticks_usec;
 
-	// for fixed time step interpolation, the interpolation fraction is calculated as how
-	// far we are through the current physics tick on this frame
-//	float m_fInterpolationFraction;
-	float m_fTimeLeftover;
 
 	int fixed_fps;
 
+
 	DeltaSmoother m_Smoother;
 
-protected:
-	// calls advance_core, keeps track of deficit it adds to animaption_step, make sure the deficit sum stays close to zero
-//	MainFrameTime advance_checked(float p_sec_per_tick, int p_iterations_per_second, float p_idle_step);
+	eMethod m_eMethod;
+	MainTimerSync_Fixed m_TSFixed;
+	MainTimerSync_SemiFixed m_TSSemiFixed;
+	MainTimerSync_FrameBased m_TSFrameBased;
+	MainTimerSync_JitterFix m_TSJitterFix;
+
 
 	// determine wall clock step since last iteration
 	float get_cpu_idle_step();
 
 public:
-	MainTimerSync2();
+	MainTimerSync();
 
 	// start the clock
 	void init(uint64_t p_cpu_ticks_usec);
@@ -179,11 +191,8 @@ public:
 	void set_fixed_fps(int p_fixed_fps);
 
 	// advance one frame, return timesteps to take
-	// frame slice is 1.0 / ticks per second
-	MainFrameTime advance(float p_sec_per_tick, int p_iterations_per_second);
-
-	// fraction through current physics tick on this frame
-//	float get_physics_interpolation_fraction() const {return m_fInterpolationFraction;}
+	MainFrameTime advance(float p_frame_slice, int p_iterations_per_second);
 };
+
 
 #endif // MAIN_TIMER_SYNC_H

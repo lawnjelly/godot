@@ -56,6 +56,8 @@ public:
 	static Error setup2(Thread::ID p_main_tid_override = 0);
 	static bool start();
 
+	static uint64_t physics_tick(float physics_delta);
+
 	static bool iteration();
 	static void force_redraw();
 
