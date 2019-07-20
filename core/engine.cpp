@@ -98,6 +98,12 @@ float Engine::get_time_scale() const {
 	return _time_scale;
 }
 
+bool Engine::get_stretch_ticks() const
+{
+	return _stretch_ticks;
+}
+
+
 //void Engine::set_physics_interpolation_fraction(float p_fraction)
 //{
 //	_physics_interpolation_fraction = p_fraction;
@@ -250,6 +256,7 @@ Engine::Engine() {
 	_fps = 1;
 	_target_fps = 0;
 	_time_scale = 1.0;
+	_stretch_ticks = true;
 	_pixel_snap = false;
 	_physics_frames = 0;
 	_idle_frames = 0;

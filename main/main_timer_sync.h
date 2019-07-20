@@ -36,7 +36,7 @@
 struct MainFrameTime {
 	void SetDefaults();
 
-	float idle_step; // time to advance idles for (argument to process())
+	float frame_delta; // time to advance idles for (argument to process())
 	int physics_steps; // number of times to iterate the physics engine
 	float interpolation_fraction;
 
@@ -45,11 +45,10 @@ struct MainFrameTime {
 	// to physics
 	bool physics_variable_step;
 	float physics_variable_step_delta;
+	float physics_fixed_step_delta;
 
 	void clamp_idle(float min_idle_step, float max_idle_step);
 };
-
-
 
 ///////////////////////////////////////////////////////////
 
@@ -83,62 +82,57 @@ protected:
 	int get_average_physics_steps(float &p_min, float &p_max);
 
 	// advance physics clock by p_idle_step, return appropriate number of steps to simulate
-	MainFrameTime advance_core(float p_frame_slice, int p_iterations_per_second, float p_idle_step);
+	MainFrameTime advance_core(float p_frame_slice, float p_iterations_per_second, float p_idle_step);
 
 	// calls advance_core, keeps track of deficit it adds to animaption_step, make sure the deficit sum stays close to zero
-	MainFrameTime advance_checked(float p_frame_slice, int p_iterations_per_second, float p_idle_step);
+	MainFrameTime advance_checked(float p_frame_slice, float p_iterations_per_second, float p_idle_step);
 
 public:
 	MainTimerSync_JitterFix();
 
 	// advance one frame, return timesteps to take
-	MainFrameTime advance(float cpu_idle_step, float p_frame_slice, int p_iterations_per_second);
+	MainFrameTime advance(float cpu_idle_step, float p_frame_slice, float p_iterations_per_second);
 };
 
-class MainTimerSync_Fixed{
+class MainTimerSync_Fixed {
 	float m_fTimeLeftover;
 
 public:
 	MainTimerSync_Fixed();
 
 	// advance one frame, return timesteps to take
-	MainFrameTime advance(float delta, float p_sec_per_tick, int p_iterations_per_second);
+	MainFrameTime advance(float delta, float p_sec_per_tick, float p_iterations_per_second);
 };
 
 /////////////////////////////////////////////////////////
 
-class MainTimerSync_SemiFixed
-{
+class MainTimerSync_SemiFixed {
 public:
 	// advance one frame, return timesteps to take
-	MainFrameTime advance(float delta, float p_sec_per_tick, int p_iterations_per_second);
+	MainFrameTime advance(float delta, float p_sec_per_tick, float p_iterations_per_second);
 };
 
 /////////////////////////////////////////////////////////
 
-class MainTimerSync_FrameBased
-{
-public:
-	// advance one frame, return timesteps to take
-	MainFrameTime advance(float delta, float p_sec_per_tick, int p_iterations_per_second);
-};
-
+//class MainTimerSync_FrameBased
+//{
+//public:
+//	// advance one frame, return timesteps to take
+//	MainFrameTime advance(float delta, float p_sec_per_tick, int p_iterations_per_second);
+//};
 
 /////////////////////////////////////////////////////////
 
 class MainTimerSync {
-	enum eMethod
-	{
-		M_DEFAULT, // default will be same as jitterfix... for now
+	enum eMethod {
+		//	M_DEFAULT, // default will be same as jitterfix... for now
 		M_FIXED,
 		M_SEMIFIXED,
-		M_FRAMEBASED,
+		//		M_FRAMEBASED,
 		M_JITTERFIX,
 	};
 
-
-	class DeltaSmoother
-	{
+	class DeltaSmoother {
 	public:
 		DeltaSmoother();
 
@@ -164,18 +158,21 @@ class MainTimerSync {
 	uint64_t last_cpu_ticks_usec;
 	uint64_t current_cpu_ticks_usec;
 
-
 	int fixed_fps;
 
+	// just for debugging
+	float m_fTimeScale;
+	String ftos(float f);
 
 	DeltaSmoother m_Smoother;
 
 	eMethod m_eMethod;
+	String m_szCurrentMethod;
+
 	MainTimerSync_Fixed m_TSFixed;
 	MainTimerSync_SemiFixed m_TSSemiFixed;
-	MainTimerSync_FrameBased m_TSFrameBased;
+	//	MainTimerSync_FrameBased m_TSFrameBased;
 	MainTimerSync_JitterFix m_TSJitterFix;
-
 
 	// determine wall clock step since last iteration
 	float get_cpu_idle_step();
@@ -191,8 +188,7 @@ public:
 	void set_fixed_fps(int p_fixed_fps);
 
 	// advance one frame, return timesteps to take
-	MainFrameTime advance(float p_frame_slice, int p_iterations_per_second);
+	MainFrameTime advance(int p_iterations_per_second);
 };
-
 
 #endif // MAIN_TIMER_SYNC_H

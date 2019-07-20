@@ -29,16 +29,16 @@
 /*************************************************************************/
 
 #include "main_timer_sync.h"
+#include "core/project_settings.h"
 
 ////////////////////////////
 
-MainTimerSync::DeltaSmoother::DeltaSmoother()
-{
+MainTimerSync::DeltaSmoother::DeltaSmoother() {
 	// just start by filling with values for 60 frames per second ...
 	// this isn't crucial as it only affects the first few frames before there is data filled.
 	const int default_delta = 16666;
 
-	for (int n=0; n<MAX_RECORDS; n++)
+	for (int n = 0; n < MAX_RECORDS; n++)
 		m_iRecords[n] = default_delta;
 
 	// set up the initial running total of all the records
@@ -47,9 +47,7 @@ MainTimerSync::DeltaSmoother::DeltaSmoother()
 	m_iNumRecords = MAX_RECORDS;
 }
 
-
-void MainTimerSync::DeltaSmoother::UpdateNumRecords()
-{
+void MainTimerSync::DeltaSmoother::UpdateNumRecords() {
 	int nRecords = Engine::get_singleton()->get_delta_smoothing();
 
 	// sanitize
@@ -65,14 +63,13 @@ void MainTimerSync::DeltaSmoother::UpdateNumRecords()
 	m_iNumRecords = nRecords;
 
 	m_iRunningTotal = 0;
-	for (int n=0; n<m_iNumRecords; n++)
+	for (int n = 0; n < m_iNumRecords; n++)
 		m_iRunningTotal += m_iRecords[n];
 
 	m_iCurrentRecord = 0;
 
-	print_line ("num records is now " + itos(m_iNumRecords));
+	print_line("num records is now " + itos(m_iNumRecords));
 }
-
 
 // References:
 // https://medium.com/@alen.ladavac/the-elusive-frame-timing-168f899aec92
@@ -83,10 +80,9 @@ void MainTimerSync::DeltaSmoother::UpdateNumRecords()
 // Average smoothing is really to deal with variation in delta caused by the OS.
 // Variation due to dropped frames is not easy to deal with as yet,
 // it may be to deal with in future APIs.
-int MainTimerSync::DeltaSmoother::SmoothDelta(int delta)
-{
-//	if (delta <= 0)
-//		print_line("delta is negative : " + itos(delta));
+int MainTimerSync::DeltaSmoother::SmoothDelta(int delta) {
+	//	if (delta <= 0)
+	//		print_line("delta is negative : " + itos(delta));
 
 	// make sure the number of records used is up to date with project settings
 	UpdateNumRecords();
@@ -95,19 +91,16 @@ int MainTimerSync::DeltaSmoother::SmoothDelta(int delta)
 	if (m_iNumRecords == 0)
 		return delta;
 
-
 	// If the number of dropped frames is changing often, the smoothing will not help.
 	// Turn off smoothing at real low frame rates where the game is struggling to keep up.
 	// 24 fps is a reasonable cutoff as lowest refresh rate display devices are probably around 50fps (PAL tv standard)
 	// and this is more than 1 dropped frame at that rate.
 	const int ciMaxDelta = 1000000 / 24;
-	if (delta > ciMaxDelta)
-	{
+	if (delta > ciMaxDelta) {
 		if (!Engine::get_singleton()->is_editor_hint())
 			print_line("delta too high");
 		return delta;
 	}
-
 
 	// cap at 1 second, prevent 32 bit integer overflow
 	if (delta > 1000000) delta = 1000000;
@@ -125,26 +118,25 @@ int MainTimerSync::DeltaSmoother::SmoothDelta(int delta)
 	m_iCurrentRecord++;
 
 	// wraparound circular buffer
-	if (m_iCurrentRecord == m_iNumRecords)
-	{
+	if (m_iCurrentRecord == m_iNumRecords) {
 		m_iCurrentRecord = 0;
 		// some debug stuff
-//		if (!Engine::get_singleton()->is_editor_hint())
-//		{
-//			String str;
-//			const int COLS = MAX_RECORDS / 8;
-//			int count = 0;
-//			for (int n=0; n<COLS; n++)
-//			{
-//				for (int m=0; m< 8; m++)
-//				{
-//					str += itos(m_iRecords[count++] / 100);
-//					str += ", ";
-//				}
-//				print_line(str);
-//			}
-//			print_line("Average : " + itos(m_iRunningTotal / MAX_RECORDS));
-//		} // if not editor
+		//		if (!Engine::get_singleton()->is_editor_hint())
+		//		{
+		//			String str;
+		//			const int COLS = MAX_RECORDS / 8;
+		//			int count = 0;
+		//			for (int n=0; n<COLS; n++)
+		//			{
+		//				for (int m=0; m< 8; m++)
+		//				{
+		//					str += itos(m_iRecords[count++] / 100);
+		//					str += ", ";
+		//				}
+		//				print_line(str);
+		//			}
+		//			print_line("Average : " + itos(m_iRunningTotal / MAX_RECORDS));
+		//		} // if not editor
 	}
 
 	// find the average
@@ -153,50 +145,45 @@ int MainTimerSync::DeltaSmoother::SmoothDelta(int delta)
 	// turn off smoothing when the average is below a certain point
 	// i.e. dropped frames are happening too often to deal with.
 	const int ciMaxAverage = 1000000 / 40;
-	if (average > ciMaxAverage)
-	{
+	if (average > ciMaxAverage) {
 		if (!Engine::get_singleton()->is_editor_hint())
 			print_line("average too high");
 		return delta;
 	}
 	// Note that both the constants in this function could possibly be adjusted at runtime
 	// according to hardware.
-//	print_line("delta " + itos(delta) + "\taverage " + itos(average));
+	//	print_line("delta " + itos(delta) + "\taverage " + itos(average));
 
 	return average;
 }
 
-
-
 //////////////////////////////////////////////
 
 void MainFrameTime::clamp_idle(float min_idle_step, float max_idle_step) {
-	if (idle_step < min_idle_step) {
-		idle_step = min_idle_step;
-	} else if (idle_step > max_idle_step) {
-		idle_step = max_idle_step;
+	if (frame_delta < min_idle_step) {
+		frame_delta = min_idle_step;
+	} else if (frame_delta > max_idle_step) {
+		frame_delta = max_idle_step;
 	}
 }
 
-void MainFrameTime::SetDefaults()
-{
-	idle_step = 0.0f;
+void MainFrameTime::SetDefaults() {
+	frame_delta = 0.0f;
 	physics_steps = 1;
 	interpolation_fraction = 0.0f;
 	physics_variable_step = false;
 	physics_variable_step_delta = 0.0f;
+	physics_fixed_step_delta = 0.0f;
 }
 
-
 /////////////////////////////////
-
 
 MainTimerSync::MainTimerSync() :
 		last_cpu_ticks_usec(0),
 		current_cpu_ticks_usec(0),
-		fixed_fps(0)
-{
-	m_eMethod = M_FRAMEBASED;
+		fixed_fps(0) {
+	m_eMethod = M_JITTERFIX;
+	m_fTimeScale = 0.0f;
 }
 
 // start the clock
@@ -213,69 +200,181 @@ void MainTimerSync::set_fixed_fps(int p_fixed_fps) {
 	fixed_fps = p_fixed_fps;
 }
 
+
+String MainTimerSync::ftos(float f)
+{
+	Variant v = f;
+	return (String) v;
+}
+
 // advance one frame, return timesteps to take
-MainFrameTime MainTimerSync::advance(float p_frame_slice, int p_iterations_per_second) {
+MainFrameTime MainTimerSync::advance(int p_iterations_per_second) {
+
+	// safety for divide by zero, might not be needed
+	if (p_iterations_per_second <= 0)
+		p_iterations_per_second = 1;
+
+	// convert to a float because we may need to adjust according to timescale
+	float ticks_per_sec = p_iterations_per_second;
+	float frame_slice_orig = 1.0f / ticks_per_sec;
 
 	// common to all methods
 	float delta;
-	if (fixed_fps <= 0)
-	{
+	if (fixed_fps <= 0) {
 		//  gets the delta and applies delta smoothing
 		delta = get_cpu_idle_step();
-	}
-	else
-	{
+	} else {
 		delta = 1.0f / fixed_fps;
 	}
 
-	// safety, might not be needed
-	if (p_iterations_per_second <= 0)
-		p_iterations_per_second = 1;
+	// handle global timescale as part of the physics ticking because we may want to adjust the number
+	// of physics ticks
+	float time_scale = Engine::get_singleton()->get_time_scale();
+	//bool bTimeScale = false;
+
+	// if in legacy mode,
+	bool bStretchTicks = false;
+
+	if (time_scale != 1.0f)
+	{
+		//bTimeScale = true;
+
+		// adjust the delta according to the timescale
+		delta *= time_scale;
+
+		bStretchTicks = Engine::get_singleton()->get_stretch_ticks();
+
+		// adjust the tick rate to the time scale so the physics remains
+		// consistent
+		if (bStretchTicks)
+		{
+			// prevent divide by zero
+			// this is just some arbitrary epsilon, can be changed
+			if (time_scale < 0.0001f)
+				time_scale = 0.0001f;
+
+			ticks_per_sec *= 1.0f / time_scale;
+		}
+	}
+
+	float frame_slice = 1.0f / ticks_per_sec;
+
+	// debug
+	if (time_scale != m_fTimeScale)
+	{
+		m_fTimeScale = time_scale;
+		print_line("changing timescale to " + ftos(time_scale));
+		print_line("ticks_per_sec " + ftos(ticks_per_sec));
+		print_line("frame_slice " + ftos(frame_slice) + "\n");
+	}
+
 
 	// choose which method to use
 	MainFrameTime mft;
 
+	// check project settings timestep method is the same as stored here
+	// note this is inefficient. Checking a string is silliness, but don't want to hard code integers
+	// in the project settings file in case the enum changes...
+	String sz = ProjectSettings::get_singleton()->get("physics/common/physics_timestep");
+	if (sz != m_szCurrentMethod) {
+		m_szCurrentMethod = sz;
+
+		// always default even if we change the enum in a different version of project settings ...
+		// this ensures a reasonable setting
+		m_eMethod = M_JITTERFIX;
+		print_line("Changing timestep to JITTERFIX");
+
+		if (sz == "Fixed") {
+			m_eMethod = M_FIXED;
+			print_line("Changing timestep to FIXED");
+		}
+		if (sz == "Semi Fixed") {
+			m_eMethod = M_SEMIFIXED;
+			print_line("Changing timestep to SEMIFIXED");
+		}
+		//		if (sz == "Frame Based")
+		//		{
+		//			m_eMethod = M_FRAMEBASED;
+		//			print_line ("Changing timestep to FRAMEBASED");
+		//		}
+		//		if (sz == "Jitter Fix")
+		//		{
+		//			m_eMethod = M_JITTERFIX;
+		//			print_line ("Changing timestep to JITTERFIX");
+		//		}
+	}
+
 	// could be virtual or something .. but not much difference
-	switch (m_eMethod)
+	switch (m_eMethod) {
+		case M_FIXED:
+			mft = m_TSFixed.advance(delta, frame_slice, ticks_per_sec);
+			break;
+		case M_SEMIFIXED:
+			mft = m_TSSemiFixed.advance(delta, frame_slice, ticks_per_sec);
+			break;
+			//	case M_FRAMEBASED:
+			//		mft = m_TSFrameBased.advance(delta, p_frame_slice, p_iterations_per_second);
+			//		break;
+		default:
+			mft = m_TSJitterFix.advance(delta, frame_slice, ticks_per_sec);
+			break;
+	}
+
+
+	// limit the number of physics steps to prevent runaway physics
+	static const int max_physics_steps = 8;
+	if (fixed_fps == -1 && mft.physics_steps > max_physics_steps)
 	{
-	case M_FIXED:
-		mft = m_TSFixed.advance(delta, p_frame_slice, p_iterations_per_second);
-		break;
-	case M_SEMIFIXED:
-		mft = m_TSSemiFixed.advance(delta, p_frame_slice, p_iterations_per_second);
-		break;
-	case M_FRAMEBASED:
-		mft = m_TSFrameBased.advance(delta, p_frame_slice, p_iterations_per_second);
-		break;
-	default:
-		mft = m_TSJitterFix.advance(delta, p_frame_slice, p_iterations_per_second);
-		break;
+		// this must use the SCALED frame_slice, because at this stage number of ticks is
+		// dependent on the scaled frame_slice (as the overall delta is also scaled)
+		mft.frame_delta -= (mft.physics_steps - max_physics_steps) * frame_slice;
+		mft.physics_steps = max_physics_steps;
+	}
+
+
+	// return the actual used physics step delta, because this
+	// may have changed because of time_scale
+	if (bStretchTicks)
+	{
+		mft.physics_fixed_step_delta = frame_slice;
+	}
+	else
+	{
+		// retain original tick delta (e.g. deterministic bullet time)
+		mft.physics_fixed_step_delta = frame_slice_orig;
+
+		// variable time
+		if (mft.physics_variable_step)
+		{
+			// fraction through the whole tick the variable tick is
+			float f = mft.physics_variable_step_delta / frame_slice;
+
+			// rescale to match the original tick size
+			mft.physics_variable_step_delta = f * frame_slice_orig;
+		}
+
 	}
 
 	return mft;
 }
 
-
-
 ///////////////////////////////////
 
 // advance one frame, return timesteps to take
-MainFrameTime MainTimerSync_JitterFix::advance(float cpu_idle_step, float p_frame_slice, int p_iterations_per_second) {
-//	float cpu_idle_step = get_cpu_idle_step();
+MainFrameTime MainTimerSync_JitterFix::advance(float cpu_idle_step, float p_frame_slice, float p_iterations_per_second) {
+	//	float cpu_idle_step = get_cpu_idle_step();
 
 	return advance_checked(p_frame_slice, p_iterations_per_second, cpu_idle_step);
 }
 
 MainTimerSync_JitterFix::MainTimerSync_JitterFix() :
-	time_accum(0),
-	time_deficit(0)
-{
+		time_accum(0),
+		time_deficit(0) {
 	for (int i = CONTROL_STEPS - 1; i >= 0; --i) {
 		typical_physics_steps[i] = i;
 		accumulated_physics_steps[i] = i;
 	}
 }
-
 
 // returns the fraction of p_frame_slice required for the timer to overshoot
 // before advance_core considers changing the physics_steps return from
@@ -308,14 +407,14 @@ int MainTimerSync_JitterFix::get_average_physics_steps(float &p_min, float &p_ma
 }
 
 // advance physics clock by p_idle_step, return appropriate number of steps to simulate
-MainFrameTime MainTimerSync_JitterFix::advance_core(float p_frame_slice, int p_iterations_per_second, float p_idle_step) {
+MainFrameTime MainTimerSync_JitterFix::advance_core(float p_frame_slice, float p_iterations_per_second, float p_idle_step) {
 	MainFrameTime ret;
 	ret.SetDefaults();
 
-	ret.idle_step = p_idle_step;
+	ret.frame_delta = p_idle_step;
 
 	// simple determination of number of physics iteration
-	time_accum += ret.idle_step;
+	time_accum += ret.frame_delta;
 	ret.physics_steps = floor(time_accum * p_iterations_per_second);
 
 	int min_typical_steps = typical_physics_steps[0];
@@ -380,7 +479,7 @@ MainFrameTime MainTimerSync_JitterFix::advance_core(float p_frame_slice, int p_i
 }
 
 // calls advance_core, keeps track of deficit it adds to animaption_step, make sure the deficit sum stays close to zero
-MainFrameTime MainTimerSync_JitterFix::advance_checked(float p_frame_slice, int p_iterations_per_second, float p_idle_step) {
+MainFrameTime MainTimerSync_JitterFix::advance_checked(float p_frame_slice, float p_iterations_per_second, float p_idle_step) {
 	//if (fixed_fps != -1)
 	//	p_idle_step = 1.0 / fixed_fps;
 
@@ -391,7 +490,7 @@ MainFrameTime MainTimerSync_JitterFix::advance_checked(float p_frame_slice, int 
 
 	// we will do some clamping on ret.idle_step and need to sync those changes to time_accum,
 	// that's easiest if we just remember their fixed difference now
-	const double idle_minus_accum = ret.idle_step - time_accum;
+	const double idle_minus_accum = ret.frame_delta - time_accum;
 
 	// first, least important clamping: keep ret.idle_step consistent with typical_physics_steps.
 	// this smoothes out the idle steps and culls small but quick variations.
@@ -411,10 +510,10 @@ MainFrameTime MainTimerSync_JitterFix::advance_checked(float p_frame_slice, int 
 	ret.clamp_idle(idle_minus_accum, idle_minus_accum + p_frame_slice);
 
 	// restore time_accum
-	time_accum = ret.idle_step - idle_minus_accum;
+	time_accum = ret.frame_delta - idle_minus_accum;
 
 	// track deficit
-	time_deficit = p_idle_step - ret.idle_step;
+	time_deficit = p_idle_step - ret.frame_delta;
 
 	// we will try and work out what is the interpolation fraction
 	ret.interpolation_fraction = time_accum / (1.0f / p_iterations_per_second);
@@ -433,25 +532,20 @@ float MainTimerSync::get_cpu_idle_step() {
 	return delta / 1000000.0;
 }
 
-
-
 //////////////////////////////////////////////////////////
 
-
-
-MainTimerSync_Fixed::MainTimerSync_Fixed()// :
-		{
-			m_fTimeLeftover = 0.0f;
-		}
-
+MainTimerSync_Fixed::MainTimerSync_Fixed() // :
+{
+	m_fTimeLeftover = 0.0f;
+}
 
 // advance one frame, return timesteps to take
-MainFrameTime MainTimerSync_Fixed::advance(float delta, float p_sec_per_tick, int p_iterations_per_second) {
+MainFrameTime MainTimerSync_Fixed::advance(float delta, float p_sec_per_tick, float p_iterations_per_second) {
 	float gap = delta;
 
 	MainFrameTime ret;
 	ret.SetDefaults();
-	ret.idle_step = gap;
+	ret.frame_delta = gap;
 
 	float time_available = m_fTimeLeftover + gap;
 
@@ -466,12 +560,10 @@ MainFrameTime MainTimerSync_Fixed::advance(float delta, float p_sec_per_tick, in
 
 /////////////////////////////////////////////////////////////////
 
-
-MainFrameTime MainTimerSync_SemiFixed::advance(float delta, float p_sec_per_tick, int p_iterations_per_second)
-{
+MainFrameTime MainTimerSync_SemiFixed::advance(float delta, float p_sec_per_tick, float p_iterations_per_second) {
 	MainFrameTime ret;
 	ret.SetDefaults();
-	ret.idle_step = delta;
+	ret.frame_delta = delta;
 
 	float time_available = delta;
 
@@ -484,6 +576,9 @@ MainFrameTime MainTimerSync_SemiFixed::advance(float delta, float p_sec_per_tick
 
 	ret.physics_steps += 1;
 	ret.physics_variable_step = true;
+	//ret.interpolation_fraction = time_available / p_sec_per_tick;
+
+	// this is now set in the generic MainTimerSync
 	ret.physics_variable_step_delta = time_available;
 
 	return ret;
@@ -491,16 +586,16 @@ MainFrameTime MainTimerSync_SemiFixed::advance(float delta, float p_sec_per_tick
 
 //////////////////////////////////////////////////////
 
-MainFrameTime MainTimerSync_FrameBased::advance(float delta, float p_sec_per_tick, int p_iterations_per_second)
-{
-	MainFrameTime ret;
-	ret.SetDefaults();
-	ret.idle_step = delta;
+//MainFrameTime MainTimerSync_FrameBased::advance(float delta, float p_sec_per_tick, int p_iterations_per_second)
+//{
+//	MainFrameTime ret;
+//	ret.SetDefaults();
+//	ret.idle_step = delta;
 
-	// always have 1 physics step, with the delta the same as the frame
-	ret.physics_steps = 1;
-	ret.physics_variable_step = true;
-	ret.physics_variable_step_delta = delta;
+//	// always have 1 physics step, with the delta the same as the frame
+//	ret.physics_steps = 1;
+//	ret.physics_variable_step = true;
+//	ret.physics_variable_step_delta = delta;
 
-	return ret;
-}
+//	return ret;
+//}

@@ -1021,11 +1021,22 @@ Error Main::setup(const char *execpath, int argc, char *argv[], bool p_second_ph
 			OS::get_singleton()->set_screen_orientation(OS::SCREEN_LANDSCAPE);
 	}
 
+
+//	GLOBAL_DEF("rendering/quality/driver/driver_name", "GLES3");
+//	ProjectSettings::get_singleton()->set_custom_property_info("rendering/quality/driver/driver_name", PropertyInfo(Variant::STRING, "rendering/quality/driver/driver_name", PROPERTY_HINT_ENUM, "GLES2,GLES3"));
+
+	GLOBAL_DEF("physics/common/physics_timestep", "Jitter Fix");
+	ProjectSettings::get_singleton()->set_custom_property_info("physics/common/physics_timestep", PropertyInfo(Variant::STRING, "physics/common/physics_timestep", PROPERTY_HINT_ENUM, "Fixed,Semi Fixed,Jitter Fix"));
+	//ProjectSettings::get_singleton()->set_custom_property_info("physics/common/physics_fps", PropertyInfo(Variant::INT, "physics/common/physics_fps", PROPERTY_HINT_RANGE, "1,120,1,or_greater"));
+
 	Engine::get_singleton()->set_iterations_per_second(GLOBAL_DEF("physics/common/physics_fps", 60));
 	ProjectSettings::get_singleton()->set_custom_property_info("physics/common/physics_fps", PropertyInfo(Variant::INT, "physics/common/physics_fps", PROPERTY_HINT_RANGE, "1,120,1,or_greater"));
 	Engine::get_singleton()->set_physics_jitter_fix(GLOBAL_DEF("physics/common/physics_jitter_fix", 0.5));
 	Engine::get_singleton()->set_delta_smoothing(GLOBAL_DEF("physics/common/delta_smoothing", 0));
+	Engine::get_singleton()->_stretch_ticks = GLOBAL_DEF("physics/common/stretch_ticks", true);
+
 	Engine::get_singleton()->set_target_fps(GLOBAL_DEF("debug/settings/fps/force_fps", 0));
+
 	ProjectSettings::get_singleton()->set_custom_property_info("debug/settings/fps/force_fps", PropertyInfo(Variant::INT, "debug/settings/fps/force_fps", PROPERTY_HINT_RANGE, "0,120,1,or_greater"));
 
 	GLOBAL_DEF("debug/settings/stdout/print_fps", false);
@@ -1904,29 +1915,15 @@ bool Main::iteration() {
 	uint64_t ticks_elapsed = ticks - last_ticks;
 
 	int physics_fps = Engine::get_singleton()->get_iterations_per_second();
+
+	// original physics delta, before time_scale applied
 	float frame_slice = 1.0 / physics_fps;
 
-	float time_scale = Engine::get_singleton()->get_time_scale();
+//	float time_scale = Engine::get_singleton()->get_time_scale();
 
-//	MainFrameTime advance_new = main_timer_sync2.advance(frame_slice, physics_fps);
-	MainFrameTime advance = main_timer_sync.advance(frame_slice, physics_fps);
-//	MainFrameTime advance = main_timer_sync.advance(frame_slice, physics_fps);
+	MainFrameTime advance = main_timer_sync.advance(physics_fps);
 
-//	if (!Engine::get_singleton()->is_editor_hint())
-//	{
-//		if (advance.physics_steps != advance_old.physics_steps)
-//		{
-//			print_line("timers physics ticks different : " + itos(advance.physics_steps) + ", old was " + itos(advance_old.physics_steps));
-//		}
-//		if (advance.interpolation_fraction != advance_old.interpolation_fraction)
-//		{
-//			print_line("fractions different : " + String(Variant(advance.interpolation_fraction))
-//					   + ", old was " + String(Variant(advance_old.interpolation_fraction)));
-//		}
-//	}
-
-	double step = advance.idle_step;
-	double scaled_step = step * time_scale;
+	double step = advance.frame_delta;
 
 	Engine::get_singleton()->_frame_step = step;
 	Engine::get_singleton()->_physics_interpolation_fraction = advance.interpolation_fraction;
@@ -1938,18 +1935,23 @@ bool Main::iteration() {
 
 	last_ticks = ticks;
 
-	static const int max_physics_steps = 8;
-	if (fixed_fps == -1 && advance.physics_steps > max_physics_steps) {
-		step -= (advance.physics_steps - max_physics_steps) * frame_slice;
-		// Should scaled_step be adjusted here too? Possible bug
-		advance.physics_steps = max_physics_steps;
-	}
+//	static const int max_physics_steps = 8;
+//	if (fixed_fps == -1 && advance.physics_steps > max_physics_steps) {
+//		step -= (advance.physics_steps - max_physics_steps) * frame_slice;
+//		// Should scaled_step be adjusted here too? Possible bug
+//		advance.physics_steps = max_physics_steps;
+//	}
+
+	// delay till after adjusting for max physics steps
+	//double scaled_step = step * time_scale;
+	double scaled_step = advance.frame_delta;
 
 	bool exit = false;
 
 	Engine::get_singleton()->_in_physics = true;
 
-	float physics_delta = frame_slice * time_scale;
+	//float physics_delta = frame_slice * time_scale;
+	float physics_delta = advance.physics_fixed_step_delta;
 
 	for (int iters = 0; iters < advance.physics_steps; ++iters) {
 
@@ -1960,7 +1962,7 @@ bool Main::iteration() {
 			if (iters == (advance.physics_steps - 1))
 			{
 				// substitute the variable delta
-				physics_delta = advance.physics_variable_step_delta;
+				physics_delta = advance.physics_variable_step_delta;// * time_scale;
 			}
 		}
 
@@ -1983,7 +1985,7 @@ bool Main::iteration() {
 
 	uint64_t idle_begin = OS::get_singleton()->get_ticks_usec();
 
-	if (OS::get_singleton()->get_main_loop()->idle(step * time_scale)) {
+	if (OS::get_singleton()->get_main_loop()->idle(scaled_step)) {
 		exit = true;
 	}
 	message_queue->flush();

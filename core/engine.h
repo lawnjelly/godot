@@ -62,6 +62,7 @@ private:
 	float _fps;
 	int _target_fps;
 	float _time_scale;
+	bool _stretch_ticks;
 	bool _pixel_snap;
 	uint64_t _physics_frames;
 
@@ -106,6 +107,7 @@ public:
 
 	void set_time_scale(float p_scale);
 	float get_time_scale() const;
+	bool get_stretch_ticks() const;
 
 //	void set_physics_interpolation_fraction(float p_fraction);
 	float get_physics_interpolation_fraction() const;
