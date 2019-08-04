@@ -184,11 +184,49 @@ MainTimerSync::MainTimerSync() :
 		fixed_fps(0) {
 	m_eMethod = M_JITTERFIX;
 	m_fTimeScale = 0.0f;
+	//m_pDeltaSmoothObject = 0;
+	m_iDeltaSmooth_ObjectID = -1;
 }
 
 // start the clock
 void MainTimerSync::init(uint64_t p_cpu_ticks_usec) {
 	current_cpu_ticks_usec = last_cpu_ticks_usec = p_cpu_ticks_usec;
+
+	// see if the user has created a singleton to do delta smoothing
+	const String szDelta = "delta_smooth";
+
+	//Engine::get_singleton()->list_singletons();
+
+
+//	List<StringName> global_classes;
+//	ScriptServer::get_global_class_list(&global_classes);
+
+//	String sz = "num global classes : ";
+//	sz += itos(global_classes.size());
+//	print_line(sz);
+
+//	for (List<StringName>::Element *E = global_classes.front(); E; E = E->next()) {
+
+//		StringName class_name = E->get();
+//		StringName base_class = ScriptServer::get_global_class_native_base(class_name);
+
+//		//print_line(class_name() + " : " + base_class());
+//		print_line(class_name);
+
+//	}
+
+//	if (Engine::get_singleton()->has_singleton(szDelta))
+//	{
+//		print_line("has delta_smooth singleton");
+//		m_pDeltaSmoothObject = Engine::get_singleton()->get_singleton_object(szDelta);
+//		if (m_pDeltaSmoothObject)
+//			print_line("delta smooth object found");
+//	}
+//	else
+//	{
+//		print_line("NO delta_smooth singleton");
+//	}
+
 }
 
 // set measured wall clock time
@@ -205,6 +243,12 @@ String MainTimerSync::ftos(float f)
 {
 	Variant v = f;
 	return (String) v;
+}
+
+void MainTimerSync::set_delta_smoothing_func(int objID, String szFunc)
+{
+	m_iDeltaSmooth_ObjectID = objID;
+	m_szDeltaSmooth_Func = szFunc;
 }
 
 // advance one frame, return timesteps to take
@@ -528,7 +572,48 @@ float MainTimerSync::get_cpu_idle_step() {
 
 	// smoothing
 	//print_line("input delta " + itos(delta));
-	delta = m_Smoother.SmoothDelta(delta);
+	//delta = m_Smoother.SmoothDelta(delta);
+
+	if (m_iDeltaSmooth_ObjectID != -1)
+	{
+		Object * pObj = ObjectDB::get_instance(m_iDeltaSmooth_ObjectID);
+		if (pObj)
+		{
+			Variant::CallError ce;
+
+			Variant arg = delta;
+			const Variant * pArg = &arg;
+			Variant res = pObj->call(m_szDeltaSmooth_Func, &pArg, 1, ce);
+			if (ce.error != Variant::CallError::CALL_OK) {
+				WARN_PRINT_ONCE("smooth function not found or incorrect, disabling delta smoothing");
+				m_iDeltaSmooth_ObjectID = -1;
+			}
+			else
+			{
+				delta = res;
+			}
+
+		}
+		else
+			// is no longer a valid object
+			m_iDeltaSmooth_ObjectID = -1;
+	}
+//	if (m_pDeltaSmoothObject)
+//	{
+//		Variant::CallError ce;
+
+//		Variant arg = delta;
+//		const Variant * pArg = &arg;
+//		Variant res = m_pDeltaSmoothObject->call("smooth", &pArg, 1, ce);
+//		if (ce.error != Variant::CallError::CALL_OK) {
+//			WARN_PRINT_ONCE("smooth function not found in smooth_delta singleton, smoothing is disabled");
+//		}
+//		else
+//		{
+//			delta = res;
+//		}
+//	}
+
 	return delta / 1000000.0;
 }
 

@@ -1306,7 +1306,7 @@ Error Main::setup2(Thread::ID p_main_tid_override) {
 }
 
 // everything the main loop needs to know about frame timings
-static MainTimerSync main_timer_sync;
+MainTimerSync main_timer_sync;
 //static MainTimerSync2 main_timer_sync2;
 
 bool Main::start() {

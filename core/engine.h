@@ -86,6 +86,8 @@ public:
 	virtual void set_iterations_per_second(int p_ips);
 	virtual int get_iterations_per_second() const;
 
+//	void set_delta_smoothing_func(Object * pObj, String szFunc);
+
 	void set_delta_smoothing(int p_num_frames);
 	int get_delta_smoothing() const;
 
@@ -117,6 +119,7 @@ public:
 
 	void add_singleton(const Singleton &p_singleton);
 	void get_singletons(List<Singleton> *p_singletons);
+	void list_singletons();
 	bool has_singleton(const String &p_name) const;
 	Object *get_singleton_object(const String &p_name) const;
 

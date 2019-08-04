@@ -447,6 +447,9 @@ public:
 	const Map<StringName, MultiplayerAPI::RPCMode>::Element *get_node_rpc_mode(const StringName &p_method);
 	const Map<StringName, MultiplayerAPI::RPCMode>::Element *get_node_rset_mode(const StringName &p_property);
 
+
+	Variant _set_delta_smoothing_func(const String szFunc);
+
 	Node();
 	~Node();
 };

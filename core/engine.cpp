@@ -36,6 +36,11 @@
 #include "core/version.h"
 #include "core/version_hash.gen.h"
 
+//void Engine::set_delta_smoothing_func(Object * pObj, String szFunc)
+//{
+//	print_line("Setting delta smoothing func " + szFunc);
+//}
+
 void Engine::set_iterations_per_second(int p_ips) {
 
 	ERR_FAIL_COND(p_ips <= 0);
@@ -232,6 +237,15 @@ bool Engine::has_singleton(const String &p_name) const {
 
 	return singleton_ptrs.has(p_name);
 };
+
+void Engine::list_singletons()
+{
+	for (List<Singleton>::Element *E = singletons.front(); E; E = E->next())
+	{
+		print_line(E->get().name);
+	}
+}
+
 
 void Engine::get_singletons(List<Singleton> *p_singletons) {
 
