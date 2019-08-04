@@ -774,6 +774,9 @@ public:
 	void set_editor_hint(bool p_enabled);
 	bool is_editor_hint() const;
 
+//	void set_generic_result(Variant res);
+	void set_callback(String callback_name, Object * pObj, String func_name);
+
 	_Engine();
 };
 

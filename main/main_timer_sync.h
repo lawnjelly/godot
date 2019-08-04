@@ -166,8 +166,8 @@ class MainTimerSync {
 
 	DeltaSmoother m_Smoother;
 
-	int m_iDeltaSmooth_ObjectID;
-	String m_szDeltaSmooth_Func;
+	//int m_iDeltaSmooth_ObjectID;
+	//String m_szDeltaSmooth_Func;
 
 	eMethod m_eMethod;
 	String m_szCurrentMethod;
@@ -191,7 +191,7 @@ public:
 	void set_fixed_fps(int p_fixed_fps);
 
 	// user delta smoothing function
-	void set_delta_smoothing_func(int objID, String szFunc);
+	//void set_delta_smoothing_func(int objID, String szFunc);
 
 	// advance one frame, return timesteps to take
 	MainFrameTime advance(int p_iterations_per_second);

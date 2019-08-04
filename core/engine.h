@@ -35,6 +35,7 @@
 #include "core/os/main_loop.h"
 #include "core/ustring.h"
 #include "core/vector.h"
+#include "core/callbacks.h"
 
 class Engine {
 
@@ -72,6 +73,10 @@ private:
 	// timing stuff for interpolation
 	float _physics_interpolation_fraction;
 
+	// used for callbacks, gdscript can return values
+	// by sending signal engine->'generic_result' with the result
+	// this is a bit of a hack, because signals don't natively support return values
+//	Variant _generic_result;
 
 	List<Singleton> singletons;
 	Map<StringName, Object *> singleton_ptrs;
@@ -139,6 +144,9 @@ public:
 	Dictionary get_donor_info() const;
 	Dictionary get_license_info() const;
 	String get_license_text() const;
+
+	Callbacks m_Callbacks;
+
 
 	Engine();
 	virtual ~Engine() {}

@@ -185,7 +185,7 @@ MainTimerSync::MainTimerSync() :
 	m_eMethod = M_JITTERFIX;
 	m_fTimeScale = 0.0f;
 	//m_pDeltaSmoothObject = 0;
-	m_iDeltaSmooth_ObjectID = -1;
+	//m_iDeltaSmooth_ObjectID = -1;
 }
 
 // start the clock
@@ -245,11 +245,11 @@ String MainTimerSync::ftos(float f)
 	return (String) v;
 }
 
-void MainTimerSync::set_delta_smoothing_func(int objID, String szFunc)
-{
-	m_iDeltaSmooth_ObjectID = objID;
-	m_szDeltaSmooth_Func = szFunc;
-}
+//void MainTimerSync::set_delta_smoothing_func(int objID, String szFunc)
+//{
+//	m_iDeltaSmooth_ObjectID = objID;
+//	m_szDeltaSmooth_Func = szFunc;
+//}
 
 // advance one frame, return timesteps to take
 MainFrameTime MainTimerSync::advance(int p_iterations_per_second) {
@@ -573,31 +573,45 @@ float MainTimerSync::get_cpu_idle_step() {
 	// smoothing
 	//print_line("input delta " + itos(delta));
 	//delta = m_Smoother.SmoothDelta(delta);
-
-	if (m_iDeltaSmooth_ObjectID != -1)
+	FuncRef fr;
+	if (Engine::get_singleton()->m_Callbacks.get_callback("delta_smooth", fr))
 	{
-		Object * pObj = ObjectDB::get_instance(m_iDeltaSmooth_ObjectID);
-		if (pObj)
-		{
-			Variant::CallError ce;
+		Variant::CallError ce;
 
-			Variant arg = delta;
-			const Variant * pArg = &arg;
-			Variant res = pObj->call(m_szDeltaSmooth_Func, &pArg, 1, ce);
-			if (ce.error != Variant::CallError::CALL_OK) {
-				WARN_PRINT_ONCE("smooth function not found or incorrect, disabling delta smoothing");
-				m_iDeltaSmooth_ObjectID = -1;
-			}
-			else
-			{
-				delta = res;
-			}
-
-		}
-		else
-			// is no longer a valid object
-			m_iDeltaSmooth_ObjectID = -1;
+		Variant arg = delta;
+		const Variant * pArg = &arg;
+		delta = fr.call_func(&pArg, 1, ce);
 	}
+
+
+	// try and send a signal to get to a user delta smooth function
+
+//	if (m_iDeltaSmooth_ObjectID != -1)
+//	{
+//		Object * pObj = ObjectDB::get_instance(m_iDeltaSmooth_ObjectID);
+//		if (pObj)
+//		{
+//			Variant::CallError ce;
+
+//			Variant arg = delta;
+//			const Variant * pArg = &arg;
+//			Variant res = pObj->call(m_szDeltaSmooth_Func, &pArg, 1, ce);
+//			if (ce.error != Variant::CallError::CALL_OK) {
+//				WARN_PRINT_ONCE("smooth function not found or incorrect, disabling delta smoothing");
+//				m_iDeltaSmooth_ObjectID = -1;
+//			}
+//			else
+//			{
+//				delta = res;
+//			}
+
+//		}
+//		else
+//			// is no longer a valid object
+//			m_iDeltaSmooth_ObjectID = -1;
+//	}
+
+
 //	if (m_pDeltaSmoothObject)
 //	{
 //		Variant::CallError ce;

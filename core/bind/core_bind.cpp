@@ -3024,6 +3024,17 @@ bool _Engine::is_editor_hint() const {
 	return Engine::get_singleton()->is_editor_hint();
 }
 
+void _Engine::set_callback(String callback_name, Object * pObj, String func_name)
+{
+	Engine::get_singleton()->m_Callbacks.set_callback(callback_name, pObj, func_name);
+}
+
+//void _Engine::set_generic_result(Variant res)
+//{
+//	Engine::get_singleton()->_generic_result = res;
+//}
+
+
 void _Engine::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("set_iterations_per_second", "iterations_per_second"), &_Engine::set_iterations_per_second);
@@ -3057,17 +3068,23 @@ void _Engine::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_editor_hint", "enabled"), &_Engine::set_editor_hint);
 	ClassDB::bind_method(D_METHOD("is_editor_hint"), &_Engine::is_editor_hint);
 
+	ClassDB::bind_method(D_METHOD("set_callback", "callback"), &_Engine::set_callback);
+
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "editor_hint"), "set_editor_hint", "is_editor_hint");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "iterations_per_second"), "set_iterations_per_second", "get_iterations_per_second");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "target_fps"), "set_target_fps", "get_target_fps");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "time_scale"), "set_time_scale", "get_time_scale");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "physics_jitter_fix"), "set_physics_jitter_fix", "get_physics_jitter_fix");
+
+	// new signals to support custom delta smooth
+//	ADD_SIGNAL(MethodInfo("delta_smooth", PropertyInfo(Variant::INT, "delta")));
 }
 
 _Engine *_Engine::singleton = NULL;
 
 _Engine::_Engine() {
 	singleton = this;
+
 }
 
 void JSONParseResult::_bind_methods() {

@@ -52,14 +52,14 @@ VARIANT_ENUM_CAST(Node::PauseMode);
 
 int Node::orphan_node_count = 0;
 
-Variant Node::_set_delta_smoothing_func(const String szFunc)
-{
-	print_line("set_delta_smoothing_func" + szFunc);
-	main_timer_sync.set_delta_smoothing_func(get_instance_id(), szFunc);
+//Variant Node::_set_delta_smoothing_func(const String szFunc)
+//{
+//	print_line("set_delta_smoothing_func" + szFunc);
+//	main_timer_sync.set_delta_smoothing_func(get_instance_id(), szFunc);
 
-	Variant res;
-	return res;
-}
+//	Variant res;
+//	return res;
+//}
 
 
 void Node::_notification(int p_notification) {
@@ -2860,7 +2860,7 @@ void Node::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("rset_unreliable", "property", "value"), &Node::rset_unreliable);
 	ClassDB::bind_method(D_METHOD("rset_unreliable_id", "peer_id", "property", "value"), &Node::rset_unreliable_id);
 
-	ClassDB::bind_method(D_METHOD("_set_delta_smoothing_func", "szFunc"), &Node::_set_delta_smoothing_func);
+//	ClassDB::bind_method(D_METHOD("_set_delta_smoothing_func", "szFunc"), &Node::_set_delta_smoothing_func);
 //	Variant Node::_set_delta_smoothing_func(const String szFunc)
 
 
