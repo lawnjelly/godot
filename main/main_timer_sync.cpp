@@ -184,13 +184,17 @@ MainTimerSync::MainTimerSync() :
 		fixed_fps(0) {
 	m_eMethod = M_JITTERFIX;
 	m_fTimeScale = 0.0f;
+	m_iSmoothingCallback_ID = -1;
 	//m_pDeltaSmoothObject = 0;
 	//m_iDeltaSmooth_ObjectID = -1;
+
 }
 
 // start the clock
 void MainTimerSync::init(uint64_t p_cpu_ticks_usec) {
 	current_cpu_ticks_usec = last_cpu_ticks_usec = p_cpu_ticks_usec;
+
+	m_iSmoothingCallback_ID = Engine::get_singleton()->m_Callbacks.create_callback("delta_smooth");
 
 	// see if the user has created a singleton to do delta smoothing
 	const String szDelta = "delta_smooth";
@@ -573,8 +577,9 @@ float MainTimerSync::get_cpu_idle_step() {
 	// smoothing
 	//print_line("input delta " + itos(delta));
 	//delta = m_Smoother.SmoothDelta(delta);
+
 	FuncRef fr;
-	if (Engine::get_singleton()->m_Callbacks.get_callback("delta_smooth", fr))
+	if (Engine::get_singleton()->m_Callbacks.get_callback(m_iSmoothingCallback_ID, fr))
 	{
 		Variant::CallError ce;
 

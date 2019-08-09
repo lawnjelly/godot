@@ -167,10 +167,10 @@ class MainTimerSync {
 	DeltaSmoother m_Smoother;
 
 	//int m_iDeltaSmooth_ObjectID;
-	//String m_szDeltaSmooth_Func;
 
 	eMethod m_eMethod;
 	String m_szCurrentMethod;
+	int m_iSmoothingCallback_ID;
 
 	MainTimerSync_Fixed m_TSFixed;
 	MainTimerSync_SemiFixed m_TSSemiFixed;
