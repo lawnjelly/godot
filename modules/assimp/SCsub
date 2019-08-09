@@ -85,13 +85,16 @@ elif(env['platform'] == 'osx'):
     
 env_thirdparty = env_assimp.Clone()
 env_thirdparty.disable_warnings()
-env_thirdparty.add_source_files(env.modules_sources, Glob('#thirdparty/assimp/code/Common/*.cpp'))
-env_thirdparty.add_source_files(env.modules_sources, Glob('#thirdparty/assimp/code/PostProcessing/*.cpp'))
-env_thirdparty.add_source_files(env.modules_sources, Glob('#thirdparty/assimp/code/Material/*.cpp'))
+
+env_thirdparty.add_source_files(env.modules_sources, Glob('#thirdparty/assimp/SCU.cpp'))
+
+#env_thirdparty.add_source_files(env.modules_sources, Glob('#thirdparty/assimp/code/Common/*.cpp'))
+#env_thirdparty.add_source_files(env.modules_sources, Glob('#thirdparty/assimp/code/PostProcessing/*.cpp'))
+#env_thirdparty.add_source_files(env.modules_sources, Glob('#thirdparty/assimp/code/Material/*.cpp'))
 env_thirdparty.add_source_files(env.modules_sources, Glob('#thirdparty/assimp/code/FBX/*.cpp'))
-env_thirdparty.add_source_files(env.modules_sources, Glob('#thirdparty/assimp/code/MMD/*.cpp'))
-env_thirdparty.add_source_files(env.modules_sources, Glob('#thirdparty/assimp/code/glTF/*.cpp'))
-env_thirdparty.add_source_files(env.modules_sources, Glob('#thirdparty/assimp/code/glTF2/*.cpp'))
+#env_thirdparty.add_source_files(env.modules_sources, Glob('#thirdparty/assimp/code/MMD/*.cpp'))
+#env_thirdparty.add_source_files(env.modules_sources, Glob('#thirdparty/assimp/code/glTF/*.cpp'))
+#env_thirdparty.add_source_files(env.modules_sources, Glob('#thirdparty/assimp/code/glTF2/*.cpp'))
 
 # Godot's own source files
 env_assimp.add_source_files(env.modules_sources, "*.cpp")

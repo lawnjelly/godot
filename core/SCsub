@@ -136,6 +136,7 @@ if env['builtin_zstd']:
 
 # Godot's own sources
 env.add_source_files(env.core_sources, "*.cpp")
+#env.add_source_files(env.core_sources, "SCU.cpp")
 
 # Certificates
 env.Depends("#core/io/certs_compressed.gen.h", ["#thirdparty/certs/ca-certificates.crt", env.Value(env['builtin_certs']), env.Value(env['system_certs_path'])])

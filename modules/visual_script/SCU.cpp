@@ -1,0 +1,11 @@
+// Single compilation unit
+#include "register_types.cpp"
+#include "visual_script_builtin_funcs.cpp"
+#include "visual_script.cpp"
+#include "visual_script_editor.cpp"
+#include "visual_script_expression.cpp"
+#include "visual_script_flow_control.cpp"
+#include "visual_script_func_nodes.cpp"
+//#include "visual_script_nodes.cpp"
+#include "visual_script_property_selector.cpp"
+#include "visual_script_yield_nodes.cpp"

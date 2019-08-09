@@ -140,6 +140,8 @@ public:
 	virtual VisualScriptNodeInstance *instance(VisualScriptInstance *p_instance);
 
 	VisualScriptYieldSignal();
+
+
 };
 
 VARIANT_ENUM_CAST(VisualScriptYieldSignal::CallMode);

@@ -53,8 +53,8 @@ private:
 
 	uint64_t frames_drawn;
 	uint32_t _frame_delay;
-	uint64_t _frame_ticks;
 	float _frame_step;
+	uint64_t _frame_ticks;
 
 	int ips;
 	float physics_jitter_fix;

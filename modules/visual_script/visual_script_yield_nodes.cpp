@@ -225,24 +225,24 @@ bool VisualScriptYieldSignal::has_input_sequence_port() const {
 }
 #ifdef TOOLS_ENABLED
 
-static Node *_find_script_node(Node *p_edited_scene, Node *p_current_node, const Ref<Script> &script) {
+//static Node * VisualScriptYieldSignal::_find_script_node(Node *p_edited_scene, Node *p_current_node, const Ref<Script> &script) {
 
-	if (p_edited_scene != p_current_node && p_current_node->get_owner() != p_edited_scene)
-		return NULL;
+//	if (p_edited_scene != p_current_node && p_current_node->get_owner() != p_edited_scene)
+//		return NULL;
 
-	Ref<Script> scr = p_current_node->get_script();
+//	Ref<Script> scr = p_current_node->get_script();
 
-	if (scr.is_valid() && scr == script)
-		return p_current_node;
+//	if (scr.is_valid() && scr == script)
+//		return p_current_node;
 
-	for (int i = 0; i < p_current_node->get_child_count(); i++) {
-		Node *n = _find_script_node(p_edited_scene, p_current_node->get_child(i), script);
-		if (n)
-			return n;
-	}
+//	for (int i = 0; i < p_current_node->get_child_count(); i++) {
+//		Node *n = _find_script_node(p_edited_scene, p_current_node->get_child(i), script);
+//		if (n)
+//			return n;
+//	}
 
-	return NULL;
-}
+//	return NULL;
+//}
 
 #endif
 Node *VisualScriptYieldSignal::_get_base_node() const {

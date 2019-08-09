@@ -1,0 +1,10 @@
+rasterizer.cpp
+shader_language.cpp
+shader_types.cpp
+visual_server_canvas.cpp
+visual_server_globals.cpp
+visual_server_light_baker.cpp
+visual_server_raster.cpp
+visual_server_scene.cpp
+visual_server_viewport.cpp
+visual_server_wrap_mt.cpp

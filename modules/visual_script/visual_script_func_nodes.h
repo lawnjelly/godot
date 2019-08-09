@@ -131,6 +131,11 @@ public:
 	virtual TypeGuess guess_output_type(TypeGuess *p_inputs, int p_output) const;
 
 	VisualScriptFunctionCall();
+
+private:
+#ifdef TOOLS_ENABLED
+	Node * _find_script_node(Node *p_edited_scene, Node *p_current_node, const Ref<Script> &script) const;
+#endif
 };
 
 VARIANT_ENUM_CAST(VisualScriptFunctionCall::CallMode);
