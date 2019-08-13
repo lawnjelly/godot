@@ -108,7 +108,7 @@ public class GodotInputHandler implements InputDeviceListener {
 			});
 		};
 
-		return false;
+		return true;
 	}
 
 	public boolean onKeyDown(final int keyCode, KeyEvent event) {
@@ -154,7 +154,7 @@ public class GodotInputHandler implements InputDeviceListener {
 			});
 		};
 
-		return false;
+		return true;
 	}
 
 	public boolean onGenericMotionEvent(MotionEvent event) {
