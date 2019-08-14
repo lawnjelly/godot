@@ -2,4 +2,9 @@
 
 Import('env')
 
+#if env['unity']:
+    #env.add_source_files(env.editor_sources, "#misc/scu/SCU_editor_fileserver.cc")
+#else:
+    #env.add_source_files(env.editor_sources, "*.cpp")
+
 env.add_source_files(env.editor_sources, "*.cpp")

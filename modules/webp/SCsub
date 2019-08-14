@@ -8,6 +8,7 @@ env_webp = env_modules.Clone()
 # Thirdparty source files
 if env['builtin_libwebp']:
     thirdparty_dir = "#thirdparty/libwebp/"
+    
     thirdparty_sources = [
         "dec/alpha_dec.c",
         "dec/buffer_dec.c",

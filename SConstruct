@@ -133,6 +133,7 @@ opts.Add(BoolVariable('disable_3d', "Disable 3D nodes for a smaller executable",
 opts.Add(BoolVariable('disable_advanced_gui', "Disable advanced GUI nodes and behaviors", False))
 opts.Add(BoolVariable('no_editor_splash', "Don't use the custom splash screen for the editor", False))
 opts.Add('system_certs_path', "Use this path as SSL certificates default for editor (for package maintainers)", '')
+opts.Add(BoolVariable('unity', "Single compilation unit (unity) build", False))
 
 # Thirdparty libraries
 opts.Add(BoolVariable('builtin_bullet', "Use the built-in Bullet library", True))

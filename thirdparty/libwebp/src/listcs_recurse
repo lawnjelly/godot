@@ -1,0 +1,14 @@
+#!/bin/bash
+ls *.c */*.c */*/*.c --ignore="SCU.cpp" > output.txt
+
+echo "// Single Compilation Unit" > SCU.cpp
+echo "#define SCU_IDENT(x) x" >> SCU.cpp
+echo "#define SCU_XSTR(x) #x" >> SCU.cpp
+echo "#define SCU_STR(x) SCU_XSTR(x)" >> SCU.cpp
+
+echo "#define SCU_PATH(x,y) SCU_STR(SCU_IDENT(x)SCU_IDENT(y))" >> SCU.cpp
+echo "#define SCU_DIR " >> SCU.cpp
+echo "" >> SCU.cpp
+
+cat output.txt | while read LINE; do echo "#include SCU_PATH(SCU_DIR,${LINE})" >> SCU.cpp; done
+
