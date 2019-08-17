@@ -2,4 +2,7 @@
 
 Import('env')
 
-env.add_source_files(env.core_sources, "*.cpp")
+if env['unity']:
+    env.add_source_files(env.core_sources, "#misc/scu/SCU_core_os.cc")
+else:
+    env.add_source_files(env.core_sources, "*.cpp")

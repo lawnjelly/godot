@@ -4,13 +4,17 @@ Import('env')
 Import('env_modules')
 
 env_gdnative = env_modules.Clone()
-env_gdnative.add_source_files(env.modules_sources, "gdnative.cpp")
-env_gdnative.add_source_files(env.modules_sources, "register_types.cpp")
-env_gdnative.add_source_files(env.modules_sources, "android/*.cpp")
-env_gdnative.add_source_files(env.modules_sources, "gdnative/*.cpp")
-env_gdnative.add_source_files(env.modules_sources, "nativescript/*.cpp")
-env_gdnative.add_source_files(env.modules_sources, "gdnative_library_singleton_editor.cpp")
-env_gdnative.add_source_files(env.modules_sources, "gdnative_library_editor_plugin.cpp")
+
+if env['unity']:
+    env_gdnative.add_source_files(env.modules_sources, "#misc/scu/SCU_modules_gdnative.cc")
+else:
+    env_gdnative.add_source_files(env.modules_sources, "gdnative.cpp")
+    env_gdnative.add_source_files(env.modules_sources, "register_types.cpp")
+    env_gdnative.add_source_files(env.modules_sources, "android/*.cpp")
+    env_gdnative.add_source_files(env.modules_sources, "gdnative/*.cpp")
+    env_gdnative.add_source_files(env.modules_sources, "nativescript/*.cpp")
+    env_gdnative.add_source_files(env.modules_sources, "gdnative_library_singleton_editor.cpp")
+    env_gdnative.add_source_files(env.modules_sources, "gdnative_library_editor_plugin.cpp")
 
 env_gdnative.Prepend(CPPPATH=['#modules/gdnative/include/'])
 

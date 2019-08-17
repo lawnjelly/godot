@@ -5,7 +5,11 @@ Import('env_modules')
 
 env_gdscript = env_modules.Clone()
 
-env_gdscript.add_source_files(env.modules_sources, "*.cpp")
+if env['unity']:
+    env_gdscript.add_source_files(env.modules_sources, "#misc/scu/SCU_modules_gdscript.cc")
+else:
+    env_gdscript.add_source_files(env.modules_sources, "*.cpp")
+
 
 if env['tools']:
 	env_gdscript.add_source_files(env.modules_sources, "./editor/*.cpp")

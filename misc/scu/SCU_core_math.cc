@@ -1,0 +1,31 @@
+// Single Compilation Unit
+#define SCU_IDENT(x) x
+#define SCU_XSTR(x) #x
+#define SCU_STR(x) SCU_XSTR(x)
+#define SCU_PATH(x,y) SCU_STR(SCU_IDENT(x)SCU_IDENT(y))
+#define SCU_DIR core/math/
+
+#include SCU_PATH(SCU_DIR,a_star.cpp)
+#include SCU_PATH(SCU_DIR,aabb.cpp)
+#include SCU_PATH(SCU_DIR,audio_frame.cpp)
+#include SCU_PATH(SCU_DIR,basis.cpp)
+#include SCU_PATH(SCU_DIR,bsp_tree.cpp)
+#include SCU_PATH(SCU_DIR,camera_matrix.cpp)
+#include SCU_PATH(SCU_DIR,crypto_core.cpp)
+#include SCU_PATH(SCU_DIR,expression.cpp)
+#include SCU_PATH(SCU_DIR,face3.cpp)
+#include SCU_PATH(SCU_DIR,geometry.cpp)
+#include SCU_PATH(SCU_DIR,math_fieldwise.cpp)
+#include SCU_PATH(SCU_DIR,math_funcs.cpp)
+#include SCU_PATH(SCU_DIR,plane.cpp)
+#include SCU_PATH(SCU_DIR,quat.cpp)
+#include SCU_PATH(SCU_DIR,quick_hull.cpp)
+#include SCU_PATH(SCU_DIR,random_number_generator.cpp)
+#include SCU_PATH(SCU_DIR,random_pcg.cpp)
+#include SCU_PATH(SCU_DIR,rect2.cpp)
+#include SCU_PATH(SCU_DIR,transform.cpp)
+#include SCU_PATH(SCU_DIR,transform_2d.cpp)
+#include SCU_PATH(SCU_DIR,triangle_mesh.cpp)
+#include SCU_PATH(SCU_DIR,triangulate.cpp)
+#include SCU_PATH(SCU_DIR,vector2.cpp)
+#include SCU_PATH(SCU_DIR,vector3.cpp)

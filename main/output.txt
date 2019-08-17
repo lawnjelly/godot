@@ -1,5 +1,0 @@
-default_controller_mappings.gen.cpp
-input_default.cpp
-main.cpp
-main_timer_sync.cpp
-performance.cpp

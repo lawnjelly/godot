@@ -73,6 +73,8 @@ def write_files(szDir, files, szOutput):
         
     f.close()
 
+# if you need to ignore more than 1 file / folder in a section, then manually
+# create an ignore_list and pass it to process()
 def process_ignore(szDir, szExtension, szOutput, szIgnore, bRecursive = False):
     ignore_list = []
     ignore_list.append(szIgnore)
@@ -80,13 +82,20 @@ def process_ignore(szDir, szExtension, szOutput, szIgnore, bRecursive = False):
 
 # fire off creation of the unity build files
 process_ignore("main/", "cpp", "main.cc", "default_controller_mappings")
+process("main/tests/", "cpp", "main_tests.cc")
+
+process_ignore("core/", "cpp", "core.cc", "variant_call.cpp")
+process("core/math/", "cpp", "core_math.cc")
+process("core/os/", "cpp", "core_os.cc")
+process("core/io/", "cpp", "core_io.cc")
+
 process("editor/", "cpp", "editor.cc")
 process("editor/doc/", "cpp", "editor_doc.cc")
 process("editor/fileserver/", "cpp", "editor_fileserver.cc")
 process("editor/import/", "cpp", "editor_import.cc")
 process_ignore("editor/plugins/", "cpp", "editor_plugins.cc", "script_text_editor.cpp")
-process("modules/bullet/", "cpp", "modules_bullet.cc")
-process_ignore("thirdparty/assimp/code/", "cpp", "thirdparty_assimp.cc", "FBX", True)
+
+
 
 process("servers/", "cpp", "servers.cc")
 process("servers/audio/", "cpp", "servers_audio.cc")
@@ -99,5 +108,24 @@ process("scene/2d/", "cpp", "scene_2d.cc")
 process("scene/3d/", "cpp", "scene_3d.cc")
 process("scene/animation/", "cpp", "scene_animation.cc")
 process_ignore("scene/gui/", "cpp", "scene_gui.cc", "line_edit.cpp")
+process("scene/main/", "cpp", "scene_main.cc")
+process("scene/resources/", "cpp", "scene_resources.cc")
 
 
+# Modules
+process("modules/bullet/", "cpp", "modules_bullet.cc")
+process("modules/gdscript/", "cpp", "modules_gdscript.cc")
+
+gdnative_ignore = []
+gdnative_ignore.append("gdnative_api_struct.gen")
+gdnative_ignore.append("arvr")
+gdnative_ignore.append("doc_classes")
+gdnative_ignore.append("icons")
+gdnative_ignore.append("include")
+gdnative_ignore.append("net")
+gdnative_ignore.append("pluginscript")
+gdnative_ignore.append("videodecoder")
+process("modules/gdnative/", "cpp", "modules_gdnative.cc", gdnative_ignore, True)
+
+# Third party
+process_ignore("thirdparty/assimp/code/", "cpp", "thirdparty_assimp.cc", "FBX", True)

@@ -2,6 +2,9 @@
 
 Import('env')
 
-env.add_source_files(env.scene_sources, "SCU.cpp")
+if env['unity']:
+    env.add_source_files(env.scene_sources, "#misc/scu/SCU_scene_resources.cc")
+else:
+    env.add_source_files(env.scene_sources, "*.cpp")
 
 SConscript("default_theme/SCsub")

@@ -35,4 +35,7 @@ if not has_module:
     thirdparty_mbedtls_sources = [thirdparty_mbedtls_dir + file for file in thirdparty_mbedtls_sources]
     env_thirdparty.add_source_files(env.core_sources, thirdparty_mbedtls_sources)
 
-env_math.add_source_files(env.core_sources, "*.cpp")
+if env['unity']:
+    env_math.add_source_files(env.core_sources, "#misc/scu/SCU_core_math.cc")
+else:
+    env_math.add_source_files(env.core_sources, "*.cpp")

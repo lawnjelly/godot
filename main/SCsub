@@ -22,6 +22,7 @@ env.CommandNoCache("#main/default_controller_mappings.gen.cpp", controller_datab
 # even if later builds will pick it up twice due to above *.cpp globbing.
 env.add_source_files(env.main_sources, "#main/default_controller_mappings.gen.cpp", warn_duplicates=False)
 
+
 env.Depends("#main/splash.gen.h", "#main/splash.png")
 env.CommandNoCache("#main/splash.gen.h", "#main/splash.png", run_in_subprocess(main_builders.make_splash))
 
@@ -33,5 +34,31 @@ env.CommandNoCache("#main/app_icon.gen.h", "#main/app_icon.png", run_in_subproce
 
 SConscript('tests/SCsub')
 
+#for count in range(32):
+    #f_a = FindFile('#main/splash.gen.h', ',')
+    #f_b = FindFile('#main/splash_editor.gen.h', ',')
+    #f_c = FindFile('#main/app_icon.gen.h', ',')
+    
+    #print f_a
+    #print f_b
+    #print f_c
+
+    #bBreak = True
+    
+    #if f_a == None:
+        #bBreak = False
+    #if f_b == None:
+        #bBreak = False
+    #if f_c == None:
+        #bBreak = False
+    
+    #if bBreak:
+        #break
+
+app_icon_obj = Object("#main/gen_require.cc")
+
 lib = env.add_library("main", env.main_sources)
+Requires(lib, app_icon_obj)
+
 env.Prepend(LIBS=[lib])
+
