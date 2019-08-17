@@ -79,7 +79,7 @@ def process_ignore(szDir, szExtension, szOutput, szIgnore, bRecursive = False):
     process(szDir, szExtension, szOutput, ignore_list, bRecursive)
 
 # fire off creation of the unity build files
-process("main/", "cpp", "main.cc")
+process_ignore("main/", "cpp", "main.cc", "default_controller_mappings")
 process("editor/", "cpp", "editor.cc")
 process("editor/doc/", "cpp", "editor_doc.cc")
 process("editor/fileserver/", "cpp", "editor_fileserver.cc")
@@ -87,4 +87,17 @@ process("editor/import/", "cpp", "editor_import.cc")
 process_ignore("editor/plugins/", "cpp", "editor_plugins.cc", "script_text_editor.cpp")
 process("modules/bullet/", "cpp", "modules_bullet.cc")
 process_ignore("thirdparty/assimp/code/", "cpp", "thirdparty_assimp.cc", "FBX", True)
+
+process("servers/", "cpp", "servers.cc")
+process("servers/audio/", "cpp", "servers_audio.cc")
+process("servers/audio/effects/", "cpp", "servers_audio_effects.cc")
+process("servers/physics/", "cpp", "servers_physics.cc")
+process("servers/physics_2d/", "cpp", "servers_physics_2d.cc")
+process("servers/visual/", "cpp", "servers_visual.cc")
+
+process("scene/2d/", "cpp", "scene_2d.cc")
+process("scene/3d/", "cpp", "scene_3d.cc")
+process("scene/animation/", "cpp", "scene_animation.cc")
+process_ignore("scene/gui/", "cpp", "scene_gui.cc", "line_edit.cpp")
+
 
