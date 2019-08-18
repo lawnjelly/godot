@@ -9,6 +9,9 @@ env.main_sources = []
 
 if env['unity']:
     env.add_source_files(env.main_sources, "#misc/scu/SCU_main.cc")
+    env.Depends("#misc/scu/SCU_main.cc", "#main/app_icon.gen.h")
+    env.Depends("#misc/scu/SCU_main.cc", "#main/splash.gen.h")
+    env.Depends("#misc/scu/SCU_main.cc", "#main/splash_editor.gen.h")
 else:
     env.add_source_files(env.main_sources, "*.cpp")
 
@@ -55,10 +58,9 @@ SConscript('tests/SCsub')
     #if bBreak:
         #break
 
-app_icon_obj = Object("#main/gen_require.cc")
-
+#dummy_generator_dependency = Object("#gen_require.cc")
 lib = env.add_library("main", env.main_sources)
-Requires(lib, app_icon_obj)
+#Requires(lib, dummy_generator_dependency)
 
 env.Prepend(LIBS=[lib])
 

@@ -7,6 +7,8 @@ env_gdnative = env_modules.Clone()
 
 if env['unity']:
     env_gdnative.add_source_files(env.modules_sources, "#misc/scu/SCU_modules_gdnative.cc")
+    env.Depends("#misc/scu/SCU_modules_gdnative.cc", "gdnative_api_struct.gen.cpp")
+    env.Depends("#misc/scu/SCU_modules_gdnative.cc", "gdnative_api_struct.gen.h")
 else:
     env_gdnative.add_source_files(env.modules_sources, "gdnative.cpp")
     env_gdnative.add_source_files(env.modules_sources, "register_types.cpp")

@@ -2,6 +2,9 @@
 
 Import('env')
 
-env.add_source_files(env.drivers_sources, "*.cpp")
+if env['unity']:
+    env.add_source_files(env.drivers_sources, "#misc/scu/SCU_drivers_unix.cc")
+else:
+    env.add_source_files(env.drivers_sources, "*.cpp")
 
 env["check_c_headers"] = [ [ "mntent.h", "HAVE_MNTENT" ] ]

@@ -171,5 +171,8 @@ SConscript('bind/SCsub')
 
 
 # Build it all as a library
+#dummy_generator_dependency = Object("#gen_require.cc")
 lib = env.add_library("core", env.core_sources)
+#Requires(lib, dummy_generator_dependency)
+
 env.Prepend(LIBS=[lib])

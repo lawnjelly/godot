@@ -89,6 +89,10 @@ process("core/math/", "cpp", "core_math.cc")
 process("core/os/", "cpp", "core_os.cc")
 process("core/io/", "cpp", "core_io.cc")
 
+process("drivers/unix/", "cpp", "drivers_unix.cc")
+#process("drivers/gles2/", "cpp", "drivers_gles2.cc")
+
+
 process("editor/", "cpp", "editor.cc")
 process("editor/doc/", "cpp", "editor_doc.cc")
 process("editor/fileserver/", "cpp", "editor_fileserver.cc")
@@ -129,3 +133,4 @@ process("modules/gdnative/", "cpp", "modules_gdnative.cc", gdnative_ignore, True
 
 # Third party
 process_ignore("thirdparty/assimp/code/", "cpp", "thirdparty_assimp.cc", "FBX", True)
+#process_ignore("thirdparty/squish/", "cpp", "thirdparty_squish.cc", "colourblock.cpp")

@@ -229,12 +229,12 @@ Engine::Engine() {
 	physics_jitter_fix = 0.5;
 	_physics_interpolation_fraction = 0.0f;
 	_frame_delay = 0;
-	_fps = 1;
 	_target_fps = 0;
+	_fps = 1;
 	_time_scale = 1.0;
 	_pixel_snap = false;
-	_physics_frames = 0;
 	_idle_frames = 0;
+	_physics_frames = 0;
 	_in_physics = false;
 	_frame_ticks = 0;
 	_frame_step = 0;

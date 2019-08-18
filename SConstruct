@@ -651,6 +651,12 @@ if 'env' in locals():
         pass
 
     cache_directory = os.environ.get("SCONS_CACHE")
+    
+    if cache_directory:
+        print ("scons cache" + cache_directory)
+    else:
+        print("scons no cache")
+    
     # Simple cache pruning, attached to SCons' progress callback. Trim the
     # cache directory to a size not larger than cache_limit.
     cache_limit = float(os.getenv("SCONS_CACHE_LIMIT", 1024)) * 1024 * 1024

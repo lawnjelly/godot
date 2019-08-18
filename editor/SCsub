@@ -80,6 +80,14 @@ if env['tools']:
 
     if env['unity']:
         env.add_source_files(env.editor_sources, "#misc/scu/SCU_editor.cc")
+        env.Depends("#misc/scu/SCU_editor.cc", "#core/authors.gen.h")
+        env.Depends("#misc/scu/SCU_editor.cc", "#core/donors.gen.h")
+        env.Depends("#misc/scu/SCU_editor.cc", "#core/license.gen.h")
+        env.Depends("#misc/scu/SCU_editor.cc", "#core/io/certs_compressed.gen.h")
+        env.Depends("#misc/scu/SCU_editor.cc", "builtin_fonts.gen.h")
+        env.Depends("#misc/scu/SCU_editor.cc", "doc_data_compressed.gen.h")
+        env.Depends("#misc/scu/SCU_editor.cc", "translations.gen.h")
+        env.Depends("#misc/scu/SCU_editor.cc", "editor_icons.gen.h")
     else:
         env.add_source_files(env.editor_sources, "*.cpp")
 
