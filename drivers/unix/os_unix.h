@@ -38,6 +38,8 @@
 
 class OS_Unix : public OS {
 
+	Mutex *_timing_mutex;
+
 protected:
 	// UNIX only handles the core functions.
 	// inheriting platforms under unix (eg. X11) should handle the rest

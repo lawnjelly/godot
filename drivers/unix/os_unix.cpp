@@ -143,12 +143,18 @@ void OS_Unix::initialize_core() {
 	IP_Unix::make_default();
 #endif
 
+	_timing_mutex = Mutex::create();
 	_setup_clock();
 }
 
 void OS_Unix::finalize_core() {
 
 	NetSocketPosix::cleanup();
+
+	if (_timing_mutex) {
+		memdelete(_timing_mutex);
+		_timing_mutex = NULL;
+	}
 }
 
 void OS_Unix::alert(const String &p_alert, const String &p_title) {
@@ -258,15 +264,30 @@ void OS_Unix::delay_usec(uint32_t p_usec) const {
 	while (nanosleep(&rem, &rem) == EINTR) {
 	}
 }
+
 uint64_t OS_Unix::get_ticks_usec() const {
 
 #if defined(__APPLE__)
+	if (_timing_mutex)
+		_timing_mutex->lock();
+
 	uint64_t longtime = mach_absolute_time() * _clock_scale;
+
+	if (_timing_mutex)
+		_timing_mutex->unlock();
 #else
 	// Unchecked return. Static analyzers might complain.
 	// If _setup_clock() succeeded, we assume clock_gettime() works.
 	struct timespec tv_now = { 0, 0 };
+
+	if (_timing_mutex)
+		_timing_mutex->lock();
+
 	clock_gettime(GODOT_CLOCK, &tv_now);
+
+	if (_timing_mutex)
+		_timing_mutex->unlock();
+
 	uint64_t longtime = ((uint64_t)tv_now.tv_nsec / 1000L) + (uint64_t)tv_now.tv_sec * 1000000L;
 #endif
 	longtime -= _clock_start;
@@ -576,6 +597,7 @@ void UnixTerminalLogger::log_error(const char *p_function, const char *p_file, i
 UnixTerminalLogger::~UnixTerminalLogger() {}
 
 OS_Unix::OS_Unix() {
+	_timing_mutex = NULL;
 	Vector<Logger *> loggers;
 	loggers.push_back(memnew(UnixTerminalLogger));
 	_set_logger(memnew(CompositeLogger(loggers)));

@@ -96,6 +96,7 @@ class OS_Windows : public OS {
 
 	uint64_t ticks_start;
 	uint64_t ticks_per_second;
+	Mutex *_timing_mutex;
 
 	bool old_invalid;
 	bool outside;

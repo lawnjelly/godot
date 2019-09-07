@@ -223,6 +223,8 @@ void OS_Windows::initialize_core() {
 
 	NetSocketPosix::make_default();
 
+	_timing_mutex = Mutex::create();
+
 	// We need to know how often the clock is updated
 	if (!QueryPerformanceFrequency((LARGE_INTEGER *)&ticks_per_second))
 		ticks_per_second = 1000;
@@ -1550,6 +1552,11 @@ void OS_Windows::finalize_core() {
 
 	memdelete(process_map);
 	NetSocketPosix::cleanup();
+
+	if (_timing_mutex) {
+		memdelete(_timing_mutex);
+		_timing_mutex = NULL;
+	}
 }
 
 void OS_Windows::alert(const String &p_alert, const String &p_title) {
@@ -2284,18 +2291,28 @@ void OS_Windows::delay_usec(uint32_t p_usec) const {
 	else
 		Sleep(p_usec / 1000);
 }
+
 uint64_t OS_Windows::get_ticks_usec() const {
 
 	uint64_t ticks;
 	uint64_t time;
+
+	if (_timing_mutex)
+		_timing_mutex->lock();
+
 	// This is the number of clock ticks since start
 	if (!QueryPerformanceCounter((LARGE_INTEGER *)&ticks))
 		ticks = (UINT64)timeGetTime();
+
+	if (_timing_mutex)
+		_timing_mutex->unlock();
+
 	// Divide by frequency to get the time in seconds
 	time = ticks * 1000000L / ticks_per_second;
 	// Subtract the time at game start to get
 	// the time since the game started
 	time -= ticks_start;
+
 	return time;
 }
 
@@ -3251,6 +3268,7 @@ OS_Windows::OS_Windows(HINSTANCE _hInstance) {
 	stdo = fopen("stdout.txt", "wb");
 #endif
 	user_proc = NULL;
+	_timing_mutex = NULL;
 
 #ifdef WASAPI_ENABLED
 	AudioDriverManager::add_driver(&driver_wasapi);
