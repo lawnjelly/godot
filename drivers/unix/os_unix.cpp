@@ -258,7 +258,21 @@ void OS_Unix::delay_usec(uint32_t p_usec) const {
 	while (nanosleep(&rem, &rem) == EINTR) {
 	}
 }
-uint64_t OS_Unix::get_ticks_usec() const {
+uint64_t OS_Unix::get_ticks_usec() {
+
+	// mutex create
+	if (!m_pMutex)
+	{
+		m_pMutex = Mutex::create();
+	}
+
+//#define TIMING_MUTEX_ALL
+
+#ifdef TIMING_MUTEX_ALL
+	if (m_pMutex)
+		m_pMutex->lock();
+#endif
+
 
 #if defined(__APPLE__)
 	uint64_t longtime = mach_absolute_time() * _clock_scale;
@@ -270,6 +284,28 @@ uint64_t OS_Unix::get_ticks_usec() const {
 	uint64_t longtime = ((uint64_t)tv_now.tv_nsec / 1000L) + (uint64_t)tv_now.tv_sec * 1000000L;
 #endif
 	longtime -= _clock_start;
+
+#ifndef TIMING_MUTEX_ALL
+	if (m_pMutex)
+		m_pMutex->lock();
+#endif
+
+	if (longtime < m_LongTime_prev)
+	{
+		uint64_t diff = m_LongTime_prev - longtime;
+
+		if (diff < 1000000) {
+			WARN_PRINTS("OS time running backward " + itos(diff) + " usecs detected");
+		}
+		else {
+			WARN_PRINTS("OS time running backward " + itos(diff / 1000000) + " secs detected");
+		}
+	}
+
+	m_LongTime_prev = longtime;
+
+	if (m_pMutex)
+		m_pMutex->unlock();
 
 	return longtime;
 }
@@ -579,6 +615,9 @@ OS_Unix::OS_Unix() {
 	Vector<Logger *> loggers;
 	loggers.push_back(memnew(UnixTerminalLogger));
 	_set_logger(memnew(CompositeLogger(loggers)));
+
+	m_pMutex = 0;
+	m_LongTime_prev = 0;
 }
 
 #endif

@@ -344,8 +344,8 @@ public:
 	virtual uint64_t get_system_time_msecs() const;
 
 	virtual void delay_usec(uint32_t p_usec) const = 0;
-	virtual uint64_t get_ticks_usec() const = 0;
-	uint32_t get_ticks_msec() const;
+	virtual uint64_t get_ticks_usec() = 0;
+	uint32_t get_ticks_msec();
 	uint64_t get_splash_tick_msec() const;
 
 	virtual bool can_draw() const = 0;

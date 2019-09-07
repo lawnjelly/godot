@@ -38,6 +38,9 @@
 
 class OS_Unix : public OS {
 
+	Mutex * m_pMutex;
+	uint64_t m_LongTime_prev;
+
 protected:
 	// UNIX only handles the core functions.
 	// inheriting platforms under unix (eg. X11) should handle the rest
@@ -83,7 +86,7 @@ public:
 	virtual uint64_t get_system_time_msecs() const;
 
 	virtual void delay_usec(uint32_t p_usec) const;
-	virtual uint64_t get_ticks_usec() const;
+	virtual uint64_t get_ticks_usec();
 
 	virtual Error execute(const String &p_path, const List<String> &p_arguments, bool p_blocking, ProcessID *r_child_id = NULL, String *r_pipe = NULL, int *r_exitcode = NULL, bool read_stderr = false, Mutex *p_pipe_mutex = NULL);
 	virtual Error kill(const ProcessID &p_pid);
