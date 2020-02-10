@@ -1588,6 +1588,7 @@ void RasterizerStorageGLES2::_update_shader(Shader *p_shader) const {
 
 	p_shader->uses_vertex_time = gen_code.uses_vertex_time;
 	p_shader->uses_fragment_time = gen_code.uses_fragment_time;
+	p_shader->uses_transform_uniform = gen_code.uses_transform_uniform;
 
 	p_shader->shader->set_custom_shader(p_shader->custom_code_id);
 	p_shader->shader->bind();

@@ -518,6 +518,10 @@ String ShaderCompilerGLES2::_dump_node_code(SL::Node *p_node, int p_level, Gener
 					r_gen_code.uses_fragment_time = true;
 				}
 			}
+
+			if (var_node->name == transform_name) {
+				r_gen_code.uses_transform_uniform = true;
+			}
 		} break;
 		case SL::Node::TYPE_ARRAY_DECLARATION: {
 
@@ -887,6 +891,7 @@ Error ShaderCompilerGLES2::compile(VS::ShaderMode p_mode, const String &p_code, 
 	r_gen_code.light = String();
 	r_gen_code.uses_fragment_time = false;
 	r_gen_code.uses_vertex_time = false;
+	r_gen_code.uses_transform_uniform = false;
 
 	used_name_defines.clear();
 	used_rmode_defines.clear();
@@ -1112,6 +1117,7 @@ ShaderCompilerGLES2::ShaderCompilerGLES2() {
 	fragment_name = "fragment";
 	light_name = "light";
 	time_name = "TIME";
+	transform_name = "MODELVIEW_MATRIX";
 
 	List<String> func_list;
 

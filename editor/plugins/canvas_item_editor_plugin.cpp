@@ -2628,6 +2628,8 @@ void CanvasItemEditor::_draw_smart_snapping() {
 	}
 }
 
+static float g_fRulerTestAngle = 0.0f;
+
 void CanvasItemEditor::_draw_rulers() {
 	Color bg_color = get_color("dark_color_2", "Editor");
 	Color graduation_color = get_color("font_color", "Editor").linear_interpolate(bg_color, 0.5);
@@ -2699,8 +2701,14 @@ void CanvasItemEditor::_draw_rulers() {
 			float val = (ruler_transform * major_subdivide * minor_subdivide).xform(Point2(0, i)).y;
 
 			Transform2D text_xform = Transform2D(-Math_PI / 2.0, Point2(font->get_height(), position.y - 2));
+			//g_fRulerTestAngle = -1.21f;
+			//Transform2D text_xform = Transform2D(g_fRulerTestAngle, Point2(font->get_height(), position.y - 2));
+//			g_fRulerTestAngle -= 0.01f;
+//			if (g_fRulerTestAngle < (-Math_PI / 2.0))
+//				g_fRulerTestAngle = 0.0f;
 			viewport->draw_set_transform_matrix(viewport->get_transform() * text_xform);
-			viewport->draw_string(font, Point2(), vformat(((int)val == val) ? "%d" : "%.1f", val), font_color);
+			Color test_col(1, 0.5, 0, 1);
+			viewport->draw_string(font, Point2(), vformat(((int)val == val) ? "%d" : "%.1f", val), test_col);
 			viewport->draw_set_transform_matrix(viewport->get_transform());
 
 		} else {

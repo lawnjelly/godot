@@ -504,6 +504,7 @@ public:
 
 		bool uses_vertex_time;
 		bool uses_fragment_time;
+		bool uses_transform_uniform;
 
 		Shader() :
 				dirty_list(this) {

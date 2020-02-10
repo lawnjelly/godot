@@ -75,6 +75,25 @@ void VisualServerViewport::_draw_3d(Viewport *p_viewport, ARVRInterface::Eyes p_
 	}
 }
 
+
+// BEWARE that RDTSC is subject to speedstep and multicore switching
+// Consider using QueryPerformanceCounter and CLOCK_MONOTONIC_RAW as well
+uint64_t kessel_get_time()
+{
+#define USE_RDTSC
+#ifdef USE_RDTSC
+    unsigned int lo,hi;
+    __asm__ __volatile__ ("rdtsc" : "=a" (lo), "=d" (hi));
+    return ((uint64_t)hi << 32) | lo;
+#else
+	clock_t t = clock();
+	return (uint64_t) (t * 1000);
+#endif
+}
+
+extern bool g_bUseKessel;
+
+
 void VisualServerViewport::_draw_viewport(Viewport *p_viewport, ARVRInterface::Eyes p_eye) {
 
 	/* Camera should always be BEFORE any other 3D */
@@ -237,7 +256,31 @@ void VisualServerViewport::_draw_viewport(Viewport *p_viewport, ARVRInterface::E
 				ptr = ptr->filter_next_ptr;
 			}
 
+			// performance test kessel
+//#define PERF_TEST_KESSEL
+#ifdef PERF_TEST_KESSEL
+			g_bUseKessel = true;
+			uint64_t before1 = kessel_get_time();
 			VSG::canvas->render_canvas(canvas, xform, canvas_lights, lights_with_mask, clip_rect);
+			uint64_t after1 = kessel_get_time();
+
+			g_bUseKessel = false;
+			uint64_t before2 = kessel_get_time();
+			VSG::canvas->render_canvas(canvas, xform, canvas_lights, lights_with_mask, clip_rect);
+			uint64_t after2 = kessel_get_time();
+
+			// difference
+			uint64_t diff1 = after1 - before1;
+			uint64_t diff2 = after2 - before2;
+
+			diff1 /= 100000;
+			diff2 /= 100000;
+
+			print_line("kess " + itos(diff1) + ",\told " + itos(diff2));
+#else
+
+			VSG::canvas->render_canvas(canvas, xform, canvas_lights, lights_with_mask, clip_rect);
+#endif
 			i++;
 
 			if (scenario_draw_canvas_bg && E->key().get_layer() >= scenario_canvas_max_layer) {

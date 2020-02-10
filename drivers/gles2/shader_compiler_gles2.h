@@ -65,6 +65,7 @@ public:
 
 		bool uses_fragment_time;
 		bool uses_vertex_time;
+		bool uses_transform_uniform;
 	};
 
 private:
@@ -85,6 +86,7 @@ private:
 	StringName fragment_name;
 	StringName light_name;
 	StringName time_name;
+	StringName transform_name;
 
 	Set<StringName> used_name_defines;
 	Set<StringName> used_flag_pointers;
