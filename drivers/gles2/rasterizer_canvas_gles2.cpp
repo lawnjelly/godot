@@ -1545,7 +1545,7 @@ void RasterizerCanvasGLES2::_copy_texscreen(const Rect2 &p_rect) {
 
 void RasterizerCanvasGLES2::canvas_render_items(Item *p_item_list, int p_z, const Color &p_modulate, Light *p_light, const Transform2D &p_base_transform) {
 
-	if (g_bUseKessel && g_bKesselFlash)
+	if (m_bUseBatching && g_bUseKessel && g_bKesselFlash)
 	{
 		batch_canvas_render_items(p_item_list, p_z, p_modulate, p_light, p_base_transform);
 		return;
@@ -2358,6 +2358,16 @@ RasterizerCanvasGLES2::RasterizerCanvasGLES2() {
 	// Not needed (a priori) on GLES devices
 	use_nvidia_rect_workaround = false;
 #endif
+
+
+	// turn off batching in the editor until it is considered stable
+	// (if the editor can't start, you can't change the use_batching project setting!)
+//	if (Engine::get_singleton()->is_editor_hint()) {
+	if (0) {
+		m_bUseBatching = false;
+	} else {
+		m_bUseBatching = GLOBAL_GET("rendering/quality/2d/use_batching");
+	}
 }
 
 void RasterizerCanvasGLES2::_batch_canvas_shader_bind_simple()

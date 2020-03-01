@@ -64,8 +64,8 @@ struct BVert_colored : public BVert {
 
 // we want the batch to be as small as possible
 struct Batch {
-	enum CommandType : uint32_t {
-		BT_DEFAULT,
+	enum CommandType : uint16_t {
+		BT_DEFAULT = 0,
 		BT_CHANGE_ITEM,
 		BT_CHANGE_MATERIAL,
 		BT_CHANGE_BLEND_MODE,
@@ -87,24 +87,26 @@ struct Batch {
 		BT_LINE,
 	};
 
+	enum Constants {
+		BATCH_TEX_ID_UNTEXTURED = 65535,
+	};
+
 	CommandType type;
 	bool is_compactable() const {return type > BT_COMPACTABLE;}
 
 	struct UPrimitive
 	{
-		uint32_t batch_texture_id;
-		uint32_t first_command;
-		uint32_t num_commands;
-//		uint32_t num_verts;
-		uint32_t first_quad;
-//		uint32_t first_vert;
+		uint16_t batch_texture_id;
+		uint16_t first_quad;
+		uint16_t num_commands;
 	};
 	struct UDefault
 	{
-		uint32_t batch_texture_id;
-		uint32_t first_command;
-		uint32_t num_commands;
+		uint16_t batch_texture_id;
+		uint16_t first_command;
+		uint16_t num_commands;
 	};
+	/*
 	struct URectI
 	{
 		int32_t x;
@@ -119,29 +121,59 @@ struct Batch {
 		void to(Rect2 &r) const {r.position.x = x; r.position.y = y; r.size.x = width; r.size.y = height;}
 		float x; float y; float width; float height;
 	};
+	*/
 	struct ULightBegin
 	{
 		AliasLight * m_pLight;
 //		int light_mode; // VS::CanvasLightMode
 	};
-	struct UColorChange {BColor color;};// bool bRedundant;};
+	//struct UColorChange {BColor color;};// bool bRedundant;};
 	struct UItemChange {AliasItem * m_pItem;};
 	struct UMaterialChange {int batch_material_id;};
 	struct UBlendModeChange {int blend_mode;};
 	struct UTransformChange {int transform_id;};
+	struct UIndex {int id;};
 	union
 	{
 		UPrimitive primitive;
 		UDefault def;
-		URectI scissor_rect;
-		URectF copy_back_buffer_rect;
-		UColorChange color_change;
-		UColorChange color_modulate_change;
+		UIndex index;
+//		URectI scissor_rect;
+//		URectF copy_back_buffer_rect;
+//		UColorChange color_change;
+//		UColorChange color_modulate_change;
 		UItemChange item_change;
 		UMaterialChange material_change;
 		UBlendModeChange blend_mode_change;
 		UTransformChange transform_change;
 		ULightBegin light_begin;
+	};
+};
+
+struct BRectI
+{
+	int32_t x;
+	int32_t y;
+	int32_t width;
+	int32_t height;
+};
+
+struct BRectF// must be 32 bit
+{
+	void zero() {x = y = width = height = 0.0f;}
+	void set(const Rect2 &r) {x = r.position.x; y = r.position.y; width = r.size.x; height = r.size.y;}
+	void to(Rect2 &r) const {r.position.x = x; r.position.y = y; r.size.x = width; r.size.y = height;}
+	float x; float y; float width; float height;
+};
+
+struct B128
+{
+
+	union
+	{
+		BRectI recti;
+		BRectF rectf;
+		BColor color;
 	};
 };
 

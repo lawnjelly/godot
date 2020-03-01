@@ -36,7 +36,7 @@ private:
 		void reset_pass() {
 			m_Flags.clear_flags();
 			m_pMaterial = 0;
-			m_iBatchMatID = -1;
+			//m_iBatchMatID = -1;
 			m_iBlendMode = -1;
 			m_pShader = 0;
 			m_RID_curr_Material = RID();
@@ -62,7 +62,7 @@ private:
 		AliasShader *m_pShader;
 		int m_iBlendMode;
 		RID m_RID_curr_Material;
-		int m_iBatchMatID;
+		//int m_iBatchMatID;
 
 		// usually the combined matrix will just be the model view, except when an extra
 		// matrix is set. Extra matrix in the shader is for instancing (e.g. particles) and may be able to be
@@ -166,6 +166,11 @@ public:
 	void flush();// {flush_heavy();}
 	void batch_translate_to_colored();
 
+
+	const BRectI &get_recti(int index) const {return m_Data.generic_128s[index].recti;}
+	const BRectF &get_rectf(int index) const {return m_Data.generic_128s[index].rectf;}
+	const BColor &get_color(int index) const {return m_Data.generic_128s[index].color;}
+
 	//void reset_batches();
 private:
 	// false if buffers full
@@ -206,6 +211,24 @@ private:
 	void choose_software_transform_mode();
 
 	Batch * request_new_batch();
+	B128 * _request_new_B128(Batch &batch);
+
+	BRectI * request_new_recti(Batch & batch)
+	{
+		B128 * p = _request_new_B128(batch);
+		return &p->recti;
+	}
+	BRectF * request_new_rectf(Batch & batch)
+	{
+		B128 * p = _request_new_B128(batch);
+		return &p->rectf;
+	}
+	BColor * request_new_color(Batch & batch)
+	{
+		B128 * p = _request_new_B128(batch);
+		return &p->color;
+	}
+
 
 	struct ProcessCommon
 	{

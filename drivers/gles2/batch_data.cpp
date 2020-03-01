@@ -121,6 +121,8 @@ void BatchData::reset_flush()
 	batches.reset();
 	batch_textures.reset();
 	vertices.reset();
+	//transforms.reset();???
+	generic_128s.reset();
 
 	buffer_full = false;
 	total_quads = 0;

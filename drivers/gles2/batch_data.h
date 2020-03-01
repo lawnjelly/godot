@@ -14,6 +14,7 @@ struct BatchData {
 
 	Batch * request_new_batch(bool p_blank = true);
 	BTransform * request_new_transform() {return transforms.request_with_grow();}
+	B128 * request_new_B128() {return generic_128s.request_with_grow();}
 	int push_back_new_material(const BMaterial &mat);
 
 	//GLuint gl_vertex_buffer;
@@ -32,6 +33,10 @@ struct BatchData {
 	RasterizerArray_non_pod<BTex> batch_textures; // the only reason this is non-POD is because of RIDs
 	RasterizerArray_non_pod<BMaterial> batch_materials; // the only reason this is non-POD is because of RIDs
 	RasterizerArray<BTransform> transforms;
+
+	// vector to contain larger extra info for the batches such as rects and colors
+	RasterizerArray<B128> generic_128s;
+
 
 	bool use_colored_vertices;
 	//bool use_batching;

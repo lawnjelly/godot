@@ -74,4 +74,5 @@ private:
 
 protected:
 	Batch::Batcher2d m_Batcher;
+	bool m_bUseBatching;
 };

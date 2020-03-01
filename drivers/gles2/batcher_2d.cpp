@@ -24,8 +24,17 @@ Batch * Batcher2d::request_new_batch()
 {
 	Batch * b = m_Data.request_new_batch();
 	m_FState.m_pCurrentBatch = b;
+//	int i = sizeof (Batch);
 	return b;
 }
+
+B128 * Batcher2d::_request_new_B128(Batch &batch)
+{
+	batch.index.id = m_Data.generic_128s.size();
+	B128 * p = m_Data.request_new_B128();
+	return p;
+}
+
 
 
 void Batcher2d::state_light_begin(AliasLight * pLight)
@@ -75,11 +84,15 @@ void Batcher2d::state_copy_back_buffer(RasterizerCanvas::Item *pItem)
 	Batch * b = request_new_batch();
 	b->type = Batch::BT_COPY_BACK_BUFFER;
 
+	BRectF * pRect = request_new_rectf(*b);
+
 	if (pItem->copy_back_buffer->full) {
-		b->copy_back_buffer_rect.zero();
+		//b->copy_back_buffer_rect.zero();
+		pRect->zero();
 	} else {
 		const Rect2 &r = pItem->copy_back_buffer->rect;
-		b->copy_back_buffer_rect.set(r);
+		//b->copy_back_buffer_rect.set(r);
+		pRect->set(r);
 	}
 }
 
@@ -96,11 +109,17 @@ void Batcher2d::state_set_scissor(RasterizerCanvas::Item *pClipItem)
 		Batch * b = request_new_batch();
 		b->type = Batch::BT_SCISSOR_ON;
 
+		BRectI &r = *request_new_recti(*b);
+
 		get_owner()->_batch_get_item_clip_rect(*pClipItem,
-		b->scissor_rect.x,
-		b->scissor_rect.y,
-		b->scissor_rect.width,
-		b->scissor_rect.height);
+		r.x,
+		r.y,
+		r.width,
+		r.height);
+//		b->scissor_rect.x,
+//		b->scissor_rect.y,
+//		b->scissor_rect.width,
+//		b->scissor_rect.height);
 	} else {
 		Batch * b = request_new_batch();
 		b->type = Batch::BT_SCISSOR_OFF;
@@ -182,8 +201,11 @@ void Batcher2d::state_set_color_modulate(const Color &col)
 	m_FState.m_Col_modulate.set(col);
 	Batch * b = request_new_batch();
 	b->type = Batch::BT_CHANGE_COLOR_MODULATE;
-	b->color_modulate_change.color.set(col);
-//	b->color_modulate_change.bRedundant = false;
+
+	BColor &dcol = *request_new_color(*b);
+
+	dcol.set(col);
+	//b->color_modulate_change.color.set(col);
 }
 
 
@@ -196,7 +218,11 @@ bool Batcher2d::state_set_color(const Color &col)
 
 	Batch * b = request_new_batch();
 	b->type = Batch::BT_CHANGE_COLOR;
-	b->color_change.color.set(col);
+
+	BColor &dcol = *request_new_color(*b);
+	dcol.set(col);
+
+//	b->color_change.color.set(col);
 	return true;
 }
 
@@ -337,7 +363,7 @@ void Batcher2d::pass_end()
 int Batcher2d::find_or_create_tex(const RID &p_texture, const RID &p_normal, bool p_tile, int p_previous_match) {
 
 	// optimization .. in 99% cases the last matched value will be the same, so no need to traverse the list
-	if (p_previous_match > 0) // if it is zero, it will get hit first in the linear search anyway
+	if (p_previous_match != Batch::BATCH_TEX_ID_UNTEXTURED) // if it is zero, it will get hit first in the linear search anyway
 	{
 		const BTex &batch_texture = m_Data.batch_textures[p_previous_match];
 
@@ -496,11 +522,11 @@ void Batcher2d::debug_log_run()
 				debug_log_type("UNSET_EXTRA_MATRIX");
 			} break;
 		case Batch::BT_CHANGE_COLOR: {
-				debug_log_type_col("CHANGE_COLOR", batch.color_change.color);
+				debug_log_type_col("CHANGE_COLOR", get_color(batch.index.id));
 //				batch.color_change.color.to(m_GLState.m_Color);
 			} break;
 		case Batch::BT_CHANGE_COLOR_MODULATE: {
-				debug_log_type_col("CHANGE_COLOR_MODULATE", batch.color_modulate_change.color);
+				debug_log_type_col("CHANGE_COLOR_MODULATE", get_color(batch.index.id));
 //				Color col;
 //				batch.color_modulate_change.color.to(col);
 //				_batch_change_color_modulate(col);
@@ -549,7 +575,7 @@ int Batcher2d::fill(int p_command_start)
 //	Batch *curr_batch = 0;
 	// alias
 	//int &batch_tex_id = m_State.m_iBatchMatID;
-	int batch_tex_id = -1;
+	int batch_tex_id = Batch::BATCH_TEX_ID_UNTEXTURED;
 
 	// re-entrant
 	int quad_count = m_Data.total_quads;
@@ -573,7 +599,7 @@ int Batcher2d::fill(int p_command_start)
 		{
 			batch_tex_id = m_FState.m_pCurrentBatch->primitive.batch_texture_id;
 
-			if (batch_tex_id >= 0)
+			if (batch_tex_id != Batch::BATCH_TEX_ID_UNTEXTURED)
 			{
 				//CRASH_COND(batch_tex_id < 0);
 
@@ -731,7 +757,7 @@ bool Batcher2d::fill_rect(int command_num, RasterizerCanvas::Item::Command *comm
 		curr_batch->type = Batch::BT_RECT;
 		//curr_batch->common.color.set(col);
 		curr_batch->primitive.batch_texture_id = batch_tex_id;
-		curr_batch->primitive.first_command = command_num;
+		//curr_batch->primitive.first_command = command_num;
 		curr_batch->primitive.num_commands = 1;
 		curr_batch->primitive.first_quad = quad_count;
 		//curr_batch->primitive.first_vert = quad_count * 4;
@@ -864,7 +890,7 @@ bool Batcher2d::fill_line(int command_num, RasterizerCanvas::Item::Command *comm
 	const Color &col = line->color;
 
 	// never a texture for lines
-	batch_tex_id = -1; //-1;
+	batch_tex_id = Batch::BATCH_TEX_ID_UNTEXTURED; //-1;
 
 
 	bool change_batch = false;
@@ -894,7 +920,7 @@ bool Batcher2d::fill_line(int command_num, RasterizerCanvas::Item::Command *comm
 		curr_batch->type = Batch::BT_LINE;
 		//curr_batch->common.color.set(col);
 		curr_batch->primitive.batch_texture_id = batch_tex_id;
-		curr_batch->primitive.first_command = command_num;
+		//curr_batch->primitive.first_command = command_num;
 		curr_batch->primitive.num_commands = 1;
 		curr_batch->primitive.first_quad = quad_count;
 		//curr_batch->primitive.first_vert = quad_count * 4;
@@ -1011,7 +1037,7 @@ bool Batcher2d::fill_ninepatch(int command_num, RasterizerCanvas::Item::Command 
 		curr_batch->type = Batch::BT_RECT;
 		//curr_batch->common.color.set(col);
 		curr_batch->primitive.batch_texture_id = batch_tex_id;
-		curr_batch->primitive.first_command = command_num;
+	//	curr_batch->primitive.first_command = command_num;
 		curr_batch->primitive.num_commands = 9;
 		curr_batch->primitive.first_quad = quad_count;
 		//curr_batch->primitive.first_vert = quad_count * 4;
@@ -1574,7 +1600,8 @@ void Batcher2d::batch_translate_to_colored()
 		// changing color
 		if (b.type == Batch::BT_CHANGE_COLOR)
 		{
-			curr_col = b.color_change.color;
+			curr_col = get_color(b.index.id);
+			//curr_col = b.color_change.color;
 			continue;
 		}
 

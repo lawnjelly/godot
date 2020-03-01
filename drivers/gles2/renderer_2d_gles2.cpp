@@ -163,7 +163,10 @@ void Renderer2dGles2::batch_flush_render() {
 			} break;
 		case Batch::Batch::BT_COPY_BACK_BUFFER: {
 				Rect2 r;
-				batch.copy_back_buffer_rect.to(r);
+
+				const Batch::BRectF &rect = m_Batcher.get_rectf(batch.index.id);
+				rect.to(r);
+				//batch.copy_back_buffer_rect.to(r);
 				_batch_copy_back_buffer(r);
 			} break;
 		case Batch::Batch::BT_CHANGE_TRANSFORM: {
@@ -179,21 +182,26 @@ void Renderer2dGles2::batch_flush_render() {
 				m_GLState.m_bExtraMatrixSet = false;
 			} break;
 		case Batch::Batch::BT_CHANGE_COLOR: {
-				batch.color_change.color.to(m_GLState.m_Color);
+				const Batch::BColor &col = m_Batcher.get_color(batch.index.id);
+				col.to(m_GLState.m_Color);
+				//batch.color_change.color.to(m_GLState.m_Color);
 			} break;
 		case Batch::Batch::BT_CHANGE_COLOR_MODULATE: {
+				const Batch::BColor &bcol = m_Batcher.get_color(batch.index.id);
 				Color col;
-				batch.color_modulate_change.color.to(col);
-				//_batch_change_color_modulate(col, batch.color_modulate_change.bRedundant);
+				bcol.to(col);
+				//batch.color_modulate_change.color.to(col);
 				_batch_change_color_modulate(col);
 			} break;
 		case Batch::Batch::BT_SCISSOR_ON: {
 				// this could probably be isolated to the derived renderer but for now...
 				glEnable(GL_SCISSOR_TEST);
-				glScissor(batch.scissor_rect.x,
-				batch.scissor_rect.y,
-				batch.scissor_rect.width,
-				batch.scissor_rect.height);
+				const Batch::BRectI &r = m_Batcher.get_recti(batch.index.id);
+
+				glScissor(r.x,
+				r.y,
+				r.width,
+				r.height);
 			} break;
 		case Batch::Batch::BT_SCISSOR_OFF: {
 				glDisable(GL_SCISSOR_TEST);
