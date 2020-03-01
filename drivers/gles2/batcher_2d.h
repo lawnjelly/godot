@@ -112,6 +112,7 @@ private:
 			m_CurrentCol.r = -100.0;
 			reset_col_modulate();
 			m_bDirty = false;
+			m_bPreviousLineOdd = false;
 		}
 		void reset_item()
 		{
@@ -138,6 +139,10 @@ private:
 		// if unhandled default batches have been processed, the opengl state might need
 		// refreshing
 		bool m_bDirty;
+
+		// lines are special, they use 2 verts instead of 4,
+		// so we have to keep track of whether we can reuse the previous 2 verts for the next line
+		bool m_bPreviousLineOdd;
 	} m_FState;
 
 	String m_szDebugLog;
@@ -176,6 +181,7 @@ private:
 	// false if buffers full
 	bool process_commands();
 
+	void fill_sync_verts();
 	int fill(int p_command_start);
 	bool fill_rect(int command_num, RasterizerCanvas::Item::Command *command, int &batch_tex_id, int &quad_count, Vector2 &texpixel_size);
 	bool fill_line(int command_num, RasterizerCanvas::Item::Command *command, int &batch_tex_id, int &quad_count, Vector2 &texpixel_size);
@@ -284,11 +290,27 @@ private:
 
 	void add_colored_verts(const Batch &b, const BColor &curr_col)
 	{
+		if (!b.is_compactable())
+			return;
+
 		// create colored verts
 		int first_vert = b.primitive.first_quad * 4;
-		int end_vert = 4 * (b.primitive.first_quad + b.primitive.num_commands);
+		int end_vert = 4 * (b.primitive.first_quad + b.primitive.num_quads);
 		//int first_vert = b.primitive.first_vert;
 		//int end_vert = first_vert + (4 * b.primitive.num_commands);
+
+		/*
+		String sz = "";
+		sz += "first_vert : " + itos(first_vert) + ",\tend_vert : " + itos(end_vert);
+
+		if (b.type == Batch::BT_LINE)
+		{
+			sz += "\tfirst_quad : " + itos(b.primitive.first_quad);
+		}
+		print_line(sz);
+		*/
+
+		CRASH_COND(first_vert != m_Data.vertices_colored.size());
 
 		for (int v = first_vert; v < end_vert; v++)
 		{

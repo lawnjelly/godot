@@ -231,6 +231,7 @@ void Renderer2dGles2::batch_flush() {
 	// feel free to tweak this.
 	// this could use hysteresis, to prevent jumping between methods
 	// .. however probably not necessary
+//	if (1) {
 	if ((bd.total_color_changes * 4) > (bd.total_quads * 1)) {
 		// small perf cost versus going straight to colored verts (maybe around 10%)
 		// however more straightforward

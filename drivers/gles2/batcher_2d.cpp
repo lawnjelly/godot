@@ -472,11 +472,15 @@ void Batcher2d::debug_log_run()
 			case Batch::BT_RECT: {
 				debug_log_type("RECT", 1);
 				debug_log_int("btex_id", batch.primitive.batch_texture_id);
-				debug_log_int("num_commands", batch.primitive.num_commands);
+				debug_log_int("first_quad", batch.primitive.first_quad);
+				debug_log_int("num_quads", batch.primitive.num_quads);
 			} break;
 		case Batch::BT_LINE: {
 			debug_log_type("LINE", 1);
-			debug_log_int("num_commands", batch.primitive.num_commands);
+			debug_log_int("first_quad", batch.primitive.first_quad);
+			debug_log_int("num_quads", batch.primitive.num_quads);
+			debug_log_int("first_vert", batch.primitive.first_vert);
+			debug_log_int("num_verts", batch.primitive.num_verts);
 		} break;
 			case Batch::BT_CHANGE_ITEM: {
 				debug_log_type("CHANGE_ITEM");
@@ -558,6 +562,25 @@ void Batcher2d::debug_log_run()
 	} // for
 
 	print_line(m_szDebugLog);
+}
+
+// as a result of adding lines, we may get out of sync,
+// we need to be in sync of groups of 4 verts for rects
+void Batcher2d::fill_sync_verts()
+{
+	int remainder = m_Data.vertices.size() & 3;
+	if (!remainder)
+		return;
+
+	remainder = 4-remainder;
+
+	for (int n=0; n<remainder; n++)
+	{
+		m_Data.vertices.request();
+	}
+
+	// keep the start quad up to date
+	m_Data.total_quads = m_Data.vertices.size() / 4;
 }
 
 
@@ -758,7 +781,7 @@ bool Batcher2d::fill_rect(int command_num, RasterizerCanvas::Item::Command *comm
 		//curr_batch->common.color.set(col);
 		curr_batch->primitive.batch_texture_id = batch_tex_id;
 		//curr_batch->primitive.first_command = command_num;
-		curr_batch->primitive.num_commands = 1;
+		curr_batch->primitive.num_quads = 1;
 		curr_batch->primitive.first_quad = quad_count;
 		//curr_batch->primitive.first_vert = quad_count * 4;
 
@@ -766,7 +789,7 @@ bool Batcher2d::fill_rect(int command_num, RasterizerCanvas::Item::Command *comm
 		m_FState.m_pCurrentBatch = curr_batch;
 	} else {
 		// we could alternatively do the count when closing a batch .. perhaps more efficient
-		curr_batch->primitive.num_commands++;
+		curr_batch->primitive.num_quads++;
 	}
 
 	// fill the quad geometry
@@ -876,29 +899,28 @@ bool Batcher2d::fill_line(int command_num, RasterizerCanvas::Item::Command *comm
 
 	CRASH_COND (quad_count != (m_Data.vertices.size() / 4));
 
-	// request FOUR vertices at a time, this is more efficient
-	BVert *bvs = m_Data.vertices.request_four();
-	if (!bvs) {
-		// run out of space in the vertex buffer .. finish this function and draw what we have so far
-		m_Data.buffer_full = true;
-
-		return false;
-		//goto cleanup;
-	}
-
-
-	const Color &col = line->color;
-
-	// never a texture for lines
-	batch_tex_id = Batch::BATCH_TEX_ID_UNTEXTURED; //-1;
-
-
+	// decide whether we are changing batch type
 	bool change_batch = false;
 
 	// conditions for creating a new batch
 	if (curr_batch->type != Batch::BT_LINE) {
 		change_batch = true;
 	}
+
+
+	// is there room for 4 verts?
+	if ((m_Data.vertices.size() + 4) > m_Data.vertices.max_size())
+	{
+		// run out of space in the vertex buffer .. finish this function and draw what we have so far
+		m_Data.buffer_full = true;
+		return false;
+	}
+
+	// always room for 4 verts if we got to here, it will not fail, so safe to create color batch
+	const Color &col = line->color;
+
+	// never a texture for lines
+	batch_tex_id = Batch::BATCH_TEX_ID_UNTEXTURED; //-1;
 
 	// we need to treat color change separately because we need to count these
 	// to decide whether to switch on the fly to colored vertices.
@@ -909,6 +931,33 @@ bool Batcher2d::fill_line(int command_num, RasterizerCanvas::Item::Command *comm
 		m_Data.total_color_changes++;
 	}
 
+
+	BVert *bvs;
+	int first_vert;
+	if (!change_batch && m_FState.m_bPreviousLineOdd)
+	{
+		first_vert = m_Data.vertices.size()-2;
+		bvs = &m_Data.vertices[first_vert];
+		m_FState.m_bPreviousLineOdd = false;
+	}
+	else
+	{
+		first_vert = m_Data.vertices.size();
+
+		// request FOUR vertices at a time, this is more efficient
+		bvs = m_Data.vertices.request_four();
+		if (!bvs) {
+			// run out of space in the vertex buffer .. finish this function and draw what we have so far
+			m_Data.buffer_full = true;
+
+			return false;
+			//goto cleanup;
+		}
+		m_FState.m_bPreviousLineOdd = true;
+	}
+
+
+
 	if (change_batch) {
 		// put the tex pixel size  in a local (less verbose and can be a register)
 //		m_Data.batch_textures[batch_tex_id].tex_pixel_size.to(texpixel_size);
@@ -918,18 +967,21 @@ bool Batcher2d::fill_line(int command_num, RasterizerCanvas::Item::Command *comm
 		curr_batch = request_new_batch();
 
 		curr_batch->type = Batch::BT_LINE;
-		//curr_batch->common.color.set(col);
 		curr_batch->primitive.batch_texture_id = batch_tex_id;
-		//curr_batch->primitive.first_command = command_num;
-		curr_batch->primitive.num_commands = 1;
 		curr_batch->primitive.first_quad = quad_count;
-		//curr_batch->primitive.first_vert = quad_count * 4;
+
+		curr_batch->primitive.num_quads = 1;
+
+		curr_batch->primitive.first_vert = first_vert;
+		curr_batch->primitive.num_verts = 2;
 
 		// keep the state version up to date
 		m_FState.m_pCurrentBatch = curr_batch;
 	} else {
 		// we could alternatively do the count when closing a batch .. perhaps more efficient
-		curr_batch->primitive.num_commands++;
+		curr_batch->primitive.num_verts += 2;
+		if (m_FState.m_bPreviousLineOdd)
+			curr_batch->primitive.num_quads++;
 	}
 
 
@@ -952,14 +1004,14 @@ bool Batcher2d::fill_line(int command_num, RasterizerCanvas::Item::Command *comm
 	// just aliases
 	BVert *bA = &bvs[0];
 	BVert *bB = &bvs[1];
-	BVert *bC = &bvs[2];
-	BVert *bD = &bvs[3];
+//	BVert *bC = &bvs[2];
+//	BVert *bD = &bvs[3];
 
 	// top left, top right, bot right, bot left
 	bA->pos.set(ptFrom);
 	bB->pos.set(ptTo);
-	bC->pos.set(ptFrom);
-	bD->pos.set(ptTo);
+//	bC->pos.set(ptFrom);
+//	bD->pos.set(ptTo);
 
 	// uvs
 	BVec2 zero;
@@ -967,11 +1019,12 @@ bool Batcher2d::fill_line(int command_num, RasterizerCanvas::Item::Command *comm
 	zero.y = 0;
 	bA->uv = zero;
 	bB->uv = zero;
-	bC->uv = zero;
-	bD->uv = zero;
+//	bC->uv = zero;
+//	bD->uv = zero;
 
 	// increment quad count
-	quad_count++;
+	if (m_FState.m_bPreviousLineOdd)
+		quad_count++;
 
 	return true;
 }
@@ -1038,14 +1091,14 @@ bool Batcher2d::fill_ninepatch(int command_num, RasterizerCanvas::Item::Command 
 		//curr_batch->common.color.set(col);
 		curr_batch->primitive.batch_texture_id = batch_tex_id;
 	//	curr_batch->primitive.first_command = command_num;
-		curr_batch->primitive.num_commands = 9;
+		curr_batch->primitive.num_quads = 9;
 		curr_batch->primitive.first_quad = quad_count;
 		//curr_batch->primitive.first_vert = quad_count * 4;
 
 		// keep the state version up to date
 		m_FState.m_pCurrentBatch = curr_batch;
 	} else {
-		curr_batch->primitive.num_commands += 9;
+		curr_batch->primitive.num_quads += 9;
 	}
 
 	// we need 16 verts to make the corners of each quad in the ninepatch (9 quads)
@@ -1184,7 +1237,7 @@ void Batcher2d::flush()
 	{
 //		if ((rand() % 1000) == 0)
 
-		if (!Engine::get_singleton()->is_editor_hint())
+//		if (!Engine::get_singleton()->is_editor_hint())
 			debug_log_run();
 	}
 #endif
@@ -1615,7 +1668,7 @@ void Batcher2d::batch_translate_to_colored()
 				needs_new_batch = false;
 
 				// add to previous batch
-				pDestBatch->primitive.num_commands += b.primitive.num_commands;
+				pDestBatch->primitive.num_quads += b.primitive.num_quads;
 
 				// create colored verts
 				add_colored_verts(b, curr_col);
@@ -1630,9 +1683,12 @@ void Batcher2d::batch_translate_to_colored()
 
 			*pDestBatch = b;
 
+			add_colored_verts(*pDestBatch, curr_col);
+
 			// create the colored verts (only if not default)
 			if (b.type == Batch::BT_RECT)
-				add_colored_verts(*pDestBatch, curr_col);
+//			if (b.is_compactable())
+				;
 			else
 				// there is no valid destination batch, we need to start again
 				pDestBatch = 0;

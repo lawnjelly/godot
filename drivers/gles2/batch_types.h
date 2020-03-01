@@ -62,9 +62,14 @@ struct BVert_colored : public BVert {
 	BColor col;
 };
 
+// take particular care of the packing of batch, we want the size 16 bytes
+// so as to stay aligned and also not take too much memory because
+// we will create a lot...
+#pragma pack(push, 4)
+
 // we want the batch to be as small as possible
 struct Batch {
-	enum CommandType : uint16_t {
+	enum CommandType : uint32_t {
 		BT_DEFAULT = 0,
 		BT_CHANGE_ITEM,
 		BT_CHANGE_MATERIAL,
@@ -87,24 +92,31 @@ struct Batch {
 		BT_LINE,
 	};
 
+	// the best value for this depends on the data type used to store batch_texture_id.
+	// however, due to the vertex buffer size limit of 65535, the actual max possible batch_texture_ids
+	// will be around 65535 / 4, so there should be no danger of reaching this value at runtime.
 	enum Constants {
 		BATCH_TEX_ID_UNTEXTURED = 65535,
 	};
 
+	// we have to use a pack to prevent the compiler using 8 bytes to store this..
 	CommandType type;
+
 	bool is_compactable() const {return type > BT_COMPACTABLE;}
 
 	struct UPrimitive
 	{
 		uint16_t batch_texture_id;
 		uint16_t first_quad;
-		uint16_t num_commands;
+		uint16_t num_quads;
+		uint16_t first_vert;
+		uint16_t num_verts;
 	};
 	struct UDefault
 	{
-		uint16_t batch_texture_id;
-		uint16_t first_command;
-		uint16_t num_commands;
+		uint32_t batch_texture_id;
+		uint32_t first_command;
+		uint32_t num_commands;
 	};
 	/*
 	struct URectI
@@ -128,7 +140,7 @@ struct Batch {
 //		int light_mode; // VS::CanvasLightMode
 	};
 	//struct UColorChange {BColor color;};// bool bRedundant;};
-	struct UItemChange {AliasItem * m_pItem;};
+	struct UItemChange {uint32_t dummy; AliasItem * m_pItem;};
 	struct UMaterialChange {int batch_material_id;};
 	struct UBlendModeChange {int blend_mode;};
 	struct UTransformChange {int transform_id;};
@@ -149,6 +161,8 @@ struct Batch {
 		ULightBegin light_begin;
 	};
 };
+
+#pragma pack(pop)
 
 struct BRectI
 {

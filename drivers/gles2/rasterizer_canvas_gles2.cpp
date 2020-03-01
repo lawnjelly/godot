@@ -2404,7 +2404,8 @@ void RasterizerCanvasGLES2::_batch_canvas_shader_bind(RasterizerStorageGLES2::Ma
 void RasterizerCanvasGLES2::_batch_render_lines(const Batch::Batch &batch, RasterizerStorageGLES2::Material *p_material) {
 
 	const Batch::BatchData &bdata = m_Batcher.m_Data;
-	ERR_FAIL_COND(batch.primitive.num_commands <= 0);
+//	ERR_FAIL_COND(batch.primitive.num_commands <= 0);
+	ERR_FAIL_COND(batch.primitive.num_verts <= 0);
 
 	const bool &colored_verts = bdata.use_colored_vertices;
 	int sizeof_vert;
@@ -2476,7 +2477,8 @@ void RasterizerCanvasGLES2::_batch_render_lines(const Batch::Batch &batch, Raste
 //	int num_elements = batch.primitive.num_commands * 6;
 //	glDrawElements(GL_TRIANGLES, num_elements, GL_UNSIGNED_SHORT, (void *)offset);
 
-	glDrawArrays(GL_LINES, batch.primitive.first_quad * 4, batch.primitive.num_commands * 4);
+//	glDrawArrays(GL_LINES, batch.primitive.first_quad * 4, batch.primitive.num_commands * 4);
+	glDrawArrays(GL_LINES, batch.primitive.first_vert, batch.primitive.num_verts);
 
 //	switch (tex.tile_mode) {
 //		case Batch::BTex::TILE_FORCE_REPEAT: {
@@ -2505,7 +2507,7 @@ void RasterizerCanvasGLES2::_batch_render_rects(const Batch::Batch &batch, Raste
 //		return;
 	const Batch::BatchData &bdata = m_Batcher.m_Data;
 
-	ERR_FAIL_COND(batch.primitive.num_commands <= 0);
+	ERR_FAIL_COND(batch.primitive.num_quads <= 0);
 
 	const bool &colored_verts = bdata.use_colored_vertices;
 	int sizeof_vert;
@@ -2606,7 +2608,7 @@ void RasterizerCanvasGLES2::_batch_render_rects(const Batch::Batch &batch, Raste
 	int64_t offset = batch.primitive.first_quad * 6 * 2; // 6 inds per quad at 2 bytes each
 //	int64_t offset = batch.primitive.first_vert * 6 * 2; // 6 inds per quad at 2 bytes each
 
-	int num_elements = batch.primitive.num_commands * 6;
+	int num_elements = batch.primitive.num_quads * 6;
 	glDrawElements(GL_TRIANGLES, num_elements, GL_UNSIGNED_SHORT, (void *)offset);
 
 	switch (tex.tile_mode) {
