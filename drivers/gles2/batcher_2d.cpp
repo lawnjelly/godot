@@ -1,5 +1,5 @@
 #include "batcher_2d.h"
-#include "renderer_2d_gles2.h"
+#include "rasterizer_canvas_batched.h"
 #include <stdlib.h> // for rand
 #include "core/engine.h"
 
@@ -8,15 +8,12 @@
 namespace Batch
 {
 
-
-
-//void Batcher2d::process_prepare(Renderer2dGles2 * pOwner, int p_z, const Color &p_modulate, AliasLight *p_light, const Transform2D &p_base_transform)
-void Batcher2d::process_prepare(Renderer2dGles2 * pOwner, int p_z, const Color &p_modulate, const Transform2D &p_base_transform)
+void Batcher2d::process_prepare(RasterizerCanvasBatched * pOwner, int p_z, const Color &p_modulate, const Transform2D &p_base_transform)
 {
 	m_PCommon.m_pOwner = pOwner;
 	m_PCommon.m_iZ = p_z;
 	m_PCommon.m_colModulate = p_modulate;
-	m_PCommon.m_pLight = NULL; //p_light;
+	m_PCommon.m_pLight = NULL;
 	m_PCommon.m_trBase = p_base_transform;
 }
 
@@ -56,24 +53,8 @@ void Batcher2d::state_light_end()
 
 void Batcher2d::state_set_item(RasterizerCanvas::Item * pItem)
 {
-
 	m_FState.m_pItem = (AliasItem *) pItem;
 	m_FState.m_bDirty_Item = true;
-
-	/*
-	if ((AliasItem *) pItem != m_FState.m_pItem)
-	{
-		// changed
-		m_FState.m_pItem = (AliasItem *) pItem;
-		m_FState.m_bDirty_Item = true;
-
-		Batch * b = request_new_batch();
-		b->type = Batch::BT_CHANGE_ITEM;
-		b->item_change.m_pItem = m_FState.m_pItem;
-
-		m_FState.m_pCurrentBatch = b;
-	}
-	*/
 }
 
 void Batcher2d::state_copy_back_buffer(RasterizerCanvas::Item *pItem)
@@ -87,11 +68,9 @@ void Batcher2d::state_copy_back_buffer(RasterizerCanvas::Item *pItem)
 	BRectF * pRect = request_new_rectf(*b);
 
 	if (pItem->copy_back_buffer->full) {
-		//b->copy_back_buffer_rect.zero();
 		pRect->zero();
 	} else {
 		const Rect2 &r = pItem->copy_back_buffer->rect;
-		//b->copy_back_buffer_rect.set(r);
 		pRect->set(r);
 	}
 }
@@ -116,10 +95,6 @@ void Batcher2d::state_set_scissor(RasterizerCanvas::Item *pClipItem)
 		r.y,
 		r.width,
 		r.height);
-//		b->scissor_rect.x,
-//		b->scissor_rect.y,
-//		b->scissor_rect.width,
-//		b->scissor_rect.height);
 	} else {
 		Batch * b = request_new_batch();
 		b->type = Batch::BT_SCISSOR_OFF;
@@ -151,9 +126,7 @@ void Batcher2d::state_set_RID_material(const RID &rid)
 
 	AliasShader * pShader = 0;
 	AliasMaterial * pMat = get_owner()->batch_get_material_and_shader_from_RID(rid, &pShader);
-	//state_set_material(pMat);
 	m_State.m_pMaterial = pMat;
-
 
 	BMaterial mat;
 	mat.RID_material = rid;
@@ -191,10 +164,6 @@ void Batcher2d::state_set_color_modulate(const Color &col)
 {
 	if (m_FState.m_Col_modulate.equals(col))
 	{
-//		Batch * b = request_new_batch();
-//		b->type = Batch::BT_CHANGE_COLOR_MODULATE;
-//		b->color_modulate_change.color.set(col);
-//		b->color_modulate_change.bRedundant = true;
 		return;
 	}
 
@@ -205,7 +174,6 @@ void Batcher2d::state_set_color_modulate(const Color &col)
 	BColor &dcol = *request_new_color(*b);
 
 	dcol.set(col);
-	//b->color_modulate_change.color.set(col);
 }
 
 
@@ -222,7 +190,6 @@ bool Batcher2d::state_set_color(const Color &col)
 	BColor &dcol = *request_new_color(*b);
 	dcol.set(col);
 
-//	b->color_change.color.set(col);
 	return true;
 }
 
@@ -230,7 +197,7 @@ bool Batcher2d::state_set_color(const Color &col)
 void Batcher2d::state_set_extra_matrix(const Transform2D &tr)
 {
 	state_flush_modelview();
-//	return;
+
 	if (!m_State.m_bExtraMatrixSet)
 	{
 		// store the original model view
@@ -246,14 +213,10 @@ void Batcher2d::state_set_extra_matrix(const Transform2D &tr)
 	m_State.m_matCombined = m_State.m_matModelView * tr;
 
 	choose_software_transform_mode();
-
-//	m_State.m_matCombined = tr * m_State.m_matModelView;
-
 }
 
 void Batcher2d::state_unset_extra_matrix()
 {
-//	return;
 	if (m_State.m_bExtraMatrixSet)
 	{
 		m_State.m_matCombined = m_State.m_matModelView;
@@ -274,12 +237,10 @@ void Batcher2d::choose_software_transform_mode()
 	(tr.elements[1].x == 0.0) &&
 	(tr.elements[1].y == 1.0))
 	{
-		//m_State.m_bTransform_Translate_Only = true;
 		m_State.m_eTransformMode = BState::TM_TRANSLATE;
 	}
 	else
 	{
-		//m_State.m_bTransform_Translate_Only = false;
 		m_State.m_eTransformMode = BState::TM_ALL;
 	}
 }
@@ -299,15 +260,6 @@ void Batcher2d::state_set_modelview(const Transform2D &tr)
 
 	// decided whether to do translate only for software transform
 	choose_software_transform_mode();
-
-	/*
-	BTransform * p = m_Data.request_new_transform();
-	p->tr = tr;
-
-	Batch * b = request_new_batch();
-	b->type = Batch::BT_CHANGE_TRANSFORM;
-	b->transform_change.transform_id = m_Data.transforms.size()-1;
-	*/
 }
 
 void Batcher2d::state_flush_modelview()
@@ -334,15 +286,8 @@ void Batcher2d::state_flush_modelview()
 }
 
 
-//void Batcher2d::reset_batches()
-//{
-//	// zero all the batch data ready for the next run
-//	m_Data.reset_pass();
-//}
-
 static int g_MyFrameCount = 0;
 static bool g_bBatcherLogFrame = false;
-
 
 void Batcher2d::pass_end()
 {
@@ -500,24 +445,12 @@ void Batcher2d::debug_log_run()
 				debug_log_type("CHANGE_MATERIAL");
 				int bmat_id = batch.material_change.batch_material_id;
 				debug_log_int("bmat_id", bmat_id);
-
-//				const Batch::BMaterial & bmat = m_Batcher.m_Data.batch_materials[bmat_id];
-//				CRASH_COND(m_GLState.m_pMaterial == (RasterizerStorageGLES2::Material *) bmat.m_pMaterial);
-//				m_GLState.m_pMaterial = (RasterizerStorageGLES2::Material *) bmat.m_pMaterial;
-//				p_material = m_GLState.m_pMaterial;
 			} break;
 		case Batch::BT_COPY_BACK_BUFFER: {
 				debug_log_type("COPY_BACK_BUFFER");
-//				Rect2 r;
-//				batch.copy_back_buffer_rect.to(r);
-//				_batch_copy_back_buffer(r);
 			} break;
 		case Batch::BT_CHANGE_TRANSFORM: {
 				debug_log_type("CHANGE_TRANSFORM");
-//				int iTransformID = batch.transform_change.transform_id;
-//				m_GLState.m_matModelView = bdata.transforms[iTransformID].tr;
-
-				// update uniforms
 			} break;
 		case Batch::BT_SET_EXTRA_MATRIX: {
 				debug_log_type("SET_EXTRA_MATRIX");
@@ -527,23 +460,12 @@ void Batcher2d::debug_log_run()
 			} break;
 		case Batch::BT_CHANGE_COLOR: {
 				debug_log_type_col("CHANGE_COLOR", get_color(batch.index.id));
-//				batch.color_change.color.to(m_GLState.m_Color);
 			} break;
 		case Batch::BT_CHANGE_COLOR_MODULATE: {
 				debug_log_type_col("CHANGE_COLOR_MODULATE", get_color(batch.index.id));
-//				Color col;
-//				batch.color_modulate_change.color.to(col);
-//				_batch_change_color_modulate(col);
-				//batch.color_change.color.to(m_GLState.m_Color);
 			} break;
 		case Batch::BT_SCISSOR_ON: {
 				debug_log_type("SCISSOR_ON");
-				// this could probably be isolated to the derived renderer but for now...
-//				glEnable(GL_SCISSOR_TEST);
-//				glScissor(batch.scissor_rect.x,
-//				batch.scissor_rect.y,
-//				batch.scissor_rect.width,
-//				batch.scissor_rect.height);
 			} break;
 		case Batch::BT_SCISSOR_OFF: {
 				debug_log_type("SCISSOR_OFF");
@@ -551,8 +473,6 @@ void Batcher2d::debug_log_run()
 			case Batch::BT_DEFAULT: {
 				debug_log_type("DEFAULT", 1);
 				debug_log_int("num_commands", batch.def.num_commands);
-//				bool reclip = false;
-//				_batch_render_default_batch(batch_num, m_GLState.m_pItem, m_GLState.m_pClipItem, reclip, p_material);
 			} break;
 			default: {
 				debug_log_type("UNRECOGNISED", 1);
@@ -592,12 +512,7 @@ int Batcher2d::fill(int p_command_start)
 	// we will prefill batches and vertices ready for sending in one go to the vertex buffer
 	int command_count = pItem->commands.size();
 	RasterizerCanvas::Item::Command * const*commands = pItem->commands.ptr(); // ptrw? or ptr
-//	RasterizerCanvas::Item::Command **commands = pItem->commands.ptrw(); // ptrw? or ptr
 
-	// previous batch (reentrant) NYI
-//	Batch *curr_batch = 0;
-	// alias
-	//int &batch_tex_id = m_State.m_iBatchMatID;
 	int batch_tex_id = Batch::BATCH_TEX_ID_UNTEXTURED;
 
 	// re-entrant
@@ -605,10 +520,6 @@ int Batcher2d::fill(int p_command_start)
 
 	//	CRASH_COND (quad_count != bdata.debug_batch_quads_total);
 
-	// we keep a record of how many color changes caused new batches
-	// if the colors are causing an excessive number of batches, we switch
-	// to alternate batching method and add color to the vertex format.
-	//	int color_changes = 0;
 
 	Vector2 texpixel_size(1, 1);
 

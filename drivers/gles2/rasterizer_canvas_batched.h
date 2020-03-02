@@ -7,7 +7,7 @@
 
 //namespace Batch {class Batcher2d;}
 
-class Renderer2dGles2 : public RasterizerCanvas
+class RasterizerCanvasBatched : public RasterizerCanvas
 {
 protected:
 	struct GLState

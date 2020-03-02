@@ -5,7 +5,7 @@
 #include "batch_data.h"
 #include "servers/visual/rasterizer.h"
 
-class Renderer2dGles2;
+class RasterizerCanvasBatched;
 
 namespace Batch
 {
@@ -153,7 +153,7 @@ public:
 
 	// called at the start of each canvas_render_items
 //	void process_prepare(Renderer2dGles2 * pOwner, int p_z, const Color &p_modulate, AliasLight*p_light, const Transform2D &p_base_transform);
-	void process_prepare(Renderer2dGles2 * pOwner, int p_z, const Color &p_modulate, const Transform2D &p_base_transform);
+	void process_prepare(RasterizerCanvasBatched * pOwner, int p_z, const Color &p_modulate, const Transform2D &p_base_transform);
 
 	//void process_next_light(AliasLight *p_light) {m_PCommon.m_pLight = p_light;	}
 
@@ -195,7 +195,7 @@ private:
 	void debug_log_color(String field, const BColor &col);
 	void debug_log_type_col(String sz, const BColor &col, int spacer = 0);
 
-	Renderer2dGles2 * get_owner() const {return m_PCommon.m_pOwner;}
+	RasterizerCanvasBatched * get_owner() const {return m_PCommon.m_pOwner;}
 
 	void state_set_item(RasterizerCanvas::Item *pItem);
 	void state_set_RID_material(const RID &rid);
@@ -238,7 +238,7 @@ private:
 
 	struct ProcessCommon
 	{
-		Renderer2dGles2 * m_pOwner;
+		RasterizerCanvasBatched * m_pOwner;
 		int m_iZ;
 		Color m_colModulate;
 		AliasLight * m_pLight;

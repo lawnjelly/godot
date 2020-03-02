@@ -17,14 +17,10 @@ struct BatchData {
 	B128 * request_new_B128() {return generic_128s.request_with_grow();}
 	int push_back_new_material(const BMaterial &mat);
 
-	//GLuint gl_vertex_buffer;
-	//GLuint gl_index_buffer;
-
 	uint32_t max_quads;
 	uint32_t vertex_buffer_size_units;
 	uint32_t vertex_buffer_size_bytes;
 	uint32_t index_buffer_size_units;
-//	uint32_t index_buffer_size_bytes;
 
 	RasterizerArray<BVert> vertices;
 	RasterizerArray<BVert_colored> vertices_colored;
@@ -39,11 +35,14 @@ struct BatchData {
 
 
 	bool use_colored_vertices;
-	//bool use_batching;
 	bool buffer_full;
 
 	// counts
 	int total_quads;
+
+	// we keep a record of how many color changes caused new batches
+	// if the colors are causing an excessive number of batches, we switch
+	// to alternate batching method and add color to the vertex format.
 	int total_color_changes;
 };
 

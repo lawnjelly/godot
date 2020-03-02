@@ -1,8 +1,8 @@
-#include "renderer_2d_gles2.h"
+#include "rasterizer_canvas_batched.h"
 
 static bool g_bKessel2DOnly = true;
 
-void Renderer2dGles2::batch_initialize() {
+void RasterizerCanvasBatched::batch_initialize() {
 	const Batch::BatchData &bd = m_Batcher.m_Data;
 
 	m_BatchData.index_buffer_size_bytes = bd.index_buffer_size_units * 2; // 16 bit inds
@@ -50,10 +50,10 @@ void Renderer2dGles2::batch_initialize() {
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
 
-void Renderer2dGles2::batch_terminate() {
+void RasterizerCanvasBatched::batch_terminate() {
 }
 
-void Renderer2dGles2::batch_upload_buffers() {
+void RasterizerCanvasBatched::batch_upload_buffers() {
 
 	const Batch::BatchData &bd = m_Batcher.m_Data;
 
@@ -76,10 +76,10 @@ void Renderer2dGles2::batch_upload_buffers() {
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
-void Renderer2dGles2::batch_pass_begin() {
+void RasterizerCanvasBatched::batch_pass_begin() {
 }
 
-void Renderer2dGles2::batch_pass_end() {
+void RasterizerCanvasBatched::batch_pass_end() {
 	if (g_bKessel2DOnly)
 		batch_flush();
 
@@ -87,7 +87,7 @@ void Renderer2dGles2::batch_pass_end() {
 }
 
 
-void Renderer2dGles2::batch_flush_render() {
+void RasterizerCanvasBatched::batch_flush_render() {
 	const Batch::BatchData &bdata = m_Batcher.m_Data;
 
 	RasterizerStorageGLES2::Material *p_material = 0;
@@ -217,7 +217,7 @@ void Renderer2dGles2::batch_flush_render() {
 	} // for
 }
 
-void Renderer2dGles2::batch_flush() {
+void RasterizerCanvasBatched::batch_flush() {
 	Batch::BatchData &bd = m_Batcher.m_Data;
 
 	// render the batches
@@ -245,7 +245,7 @@ void Renderer2dGles2::batch_flush() {
 	m_Batcher.flush();
 }
 
-void Renderer2dGles2::batch_canvas_render_items(RasterizerCanvas::Item *p_item_list, int p_z, const Color &p_modulate, RasterizerCanvas::Light *p_light, const Transform2D &p_base_transform) {
+void RasterizerCanvasBatched::batch_canvas_render_items(RasterizerCanvas::Item *p_item_list, int p_z, const Color &p_modulate, RasterizerCanvas::Light *p_light, const Transform2D &p_base_transform) {
 
 //	m_Batcher.process_prepare(this, p_z, p_modulate, (Batch::AliasLight *)p_light, p_base_transform);
 	m_Batcher.process_prepare(this, p_z, p_modulate, p_base_transform);
@@ -323,7 +323,7 @@ void Renderer2dGles2::batch_canvas_render_items(RasterizerCanvas::Item *p_item_l
 
 
 /*
-RasterizerStorageGLES2::Texture *Renderer2dGles2::_batch_bind_canvas_texture(const RID &p_texture, const RID &p_normal_map) {
+RasterizerStorageGLES2::Texture *RasterizerCanvasBatched::_batch_bind_canvas_texture(const RID &p_texture, const RID &p_normal_map) {
 
 	RasterizerStorageGLES2::Texture *tex_return = NULL;
 

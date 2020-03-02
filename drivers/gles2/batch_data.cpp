@@ -48,40 +48,6 @@ BatchData::BatchData()
 
 		// batch textures can also be increased dynamically
 		batch_textures.create(32);
-/*
-		// just reserve some space (may not be needed as we are orphaning, but hey ho)
-		glGenBuffers(1, &bdata.gl_vertex_buffer);
-		glBindBuffer(GL_ARRAY_BUFFER, bdata.gl_vertex_buffer);
-		glBufferData(GL_ARRAY_BUFFER, bdata.vertex_buffer_size_bytes, NULL, GL_DYNAMIC_DRAW);
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-		// pre fill index buffer, the indices never need to change so can be static
-		glGenBuffers(1, &bdata.gl_index_buffer);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bdata.gl_index_buffer);
-
-		Vector<uint16_t> indices;
-		indices.resize(bdata.index_buffer_size_units);
-
-		for (int q = 0; q < max_quads; q++) {
-			int i_pos = q * 6; //  6 inds per quad
-			int q_pos = q * 4; // 4 verts per quad
-			indices.set(i_pos, q_pos);
-			indices.set(i_pos + 1, q_pos + 1);
-			indices.set(i_pos + 2, q_pos + 2);
-			indices.set(i_pos + 3, q_pos);
-			indices.set(i_pos + 4, q_pos + 2);
-			indices.set(i_pos + 5, q_pos + 3);
-
-			// we can only use 16 bit indices in GLES2!
-#ifdef DEBUG_ENABLED
-			CRASH_COND((q_pos + 3) > 65535);
-#endif
-		}
-
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, bdata.index_buffer_size_bytes, &indices[0], GL_STATIC_DRAW);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-		*/
-
 }
 
 int BatchData::push_back_new_material(const BMaterial &mat)
