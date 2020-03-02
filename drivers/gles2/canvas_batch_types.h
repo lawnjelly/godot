@@ -4,8 +4,17 @@
 #include "core/color.h"
 #include "core/rid.h"
 #include "core/math/transform_2d.h"
-//#include "rasterizer_canvas_gles2.h"
-//#include "servers/visual/rasterizer.h"
+
+// these will slow down runtime slightly (in debug only),
+// and are only necessary while developing / testing the rendering.
+// comment out this line for normal use.
+#define BATCH_EXTRA_DEBUG_CHECKS
+
+#if defined DEBUG_ENABLED && defined BATCH_EXTRA_DEBUG_CHECKS
+#define BATCH_DEBUG_CRASH_COND(a) CRASH_COND(a)
+#else
+#define BATCH_DEBUG_CRASH_COND(a)
+#endif
 
 namespace Batch
 {
@@ -62,9 +71,11 @@ struct BVert_colored : public BVert {
 	BColor col;
 };
 
-// take particular care of the packing of batch, we want the size 16 bytes
+// Take particular care of the packing of batch, we want the size 16 bytes
 // so as to stay aligned and also not take too much memory because
 // we will create a lot...
+// Also because we are handling alignment ourself, take particular care on ARM
+// i.e. Align 64 bit to 8 byte boundary, 32 bit to 4 byte, 16 bit to 2 byte, etc.
 #pragma pack(push, 4)
 
 // we want the batch to be as small as possible
@@ -102,8 +113,10 @@ struct Batch {
 	// we have to use a pack to prevent the compiler using 8 bytes to store this..
 	CommandType type;
 
+	// batches that can be joined by removing color change batches (to form colored verts)
 	bool is_compactable() const {return type > BT_COMPACTABLE;}
 
+	// rects, lines
 	struct UPrimitive
 	{
 		uint16_t batch_texture_id;
@@ -112,34 +125,19 @@ struct Batch {
 		uint16_t first_vert;
 		uint16_t num_verts;
 	};
+
+	// unhandled primitives passed to the old style rendering method
 	struct UDefault
 	{
 		uint32_t batch_texture_id;
 		uint32_t first_command;
 		uint32_t num_commands;
 	};
-	/*
-	struct URectI
-	{
-		int32_t x;
-		int32_t y;
-		int32_t width;
-		int32_t height;
-	};
-	struct URectF// must be 32 bit
-	{
-		void zero() {x = y = width = height = 0.0f;}
-		void set(const Rect2 &r) {x = r.position.x; y = r.position.y; width = r.size.x; height = r.size.y;}
-		void to(Rect2 &r) const {r.position.x = x; r.position.y = y; r.size.x = width; r.size.y = height;}
-		float x; float y; float width; float height;
-	};
-	*/
-	struct ULightBegin
-	{
-		AliasLight * m_pLight;
-//		int light_mode; // VS::CanvasLightMode
-	};
-	//struct UColorChange {BColor color;};// bool bRedundant;};
+
+	// dummys are to align the data better for 64 bit access.
+	// as well as making access faster, this may be necessary on some platforms (e.g. ARM)
+	// to prevent alignment crashes
+	struct ULightBegin {uint32_t dummy; AliasLight * m_pLight;};
 	struct UItemChange {uint32_t dummy; AliasItem * m_pItem;};
 	struct UMaterialChange {int batch_material_id;};
 	struct UBlendModeChange {int blend_mode;};
@@ -150,10 +148,6 @@ struct Batch {
 		UPrimitive primitive;
 		UDefault def;
 		UIndex index;
-//		URectI scissor_rect;
-//		URectF copy_back_buffer_rect;
-//		UColorChange color_change;
-//		UColorChange color_modulate_change;
 		UItemChange item_change;
 		UMaterialChange material_change;
 		UBlendModeChange blend_mode_change;
@@ -180,9 +174,11 @@ struct BRectF// must be 32 bit
 	float x; float y; float width; float height;
 };
 
+// a few different bits of extra data are needed for batches that are too big to fit in the batch,
+// but conveniently fit in 128 bits. This involves an indirection, but won't happen super often except
+// for colors, and if it does the verts will be translated to colored verts.
 struct B128
 {
-
 	union
 	{
 		BRectI recti;
@@ -201,7 +197,6 @@ struct BMaterial
 	RID RID_material;
 	AliasMaterial * m_pMaterial;
 	bool m_bChangedShader;
-//	AliasShader * m_pShader;
 };
 
 struct BTex {
@@ -215,7 +210,6 @@ struct BTex {
 	TileMode tile_mode;
 	BVec2 tex_pixel_size;
 };
-
 
 
 } // namespace

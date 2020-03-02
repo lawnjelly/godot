@@ -1,4 +1,4 @@
-#include "batch_data.h"
+#include "canvas_batch_data.h"
 
 namespace Batch
 {

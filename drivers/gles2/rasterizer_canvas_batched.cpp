@@ -3,19 +3,19 @@
 static bool g_bKessel2DOnly = true;
 
 void RasterizerCanvasBatched::batch_initialize() {
-	const Batch::BatchData &bd = m_Batcher.m_Data;
+	const Batch::BatchData &bd = _canvas_batcher.m_Data;
 
-	m_BatchData.index_buffer_size_bytes = bd.index_buffer_size_units * 2; // 16 bit inds
+	_gl_data.index_buffer_size_bytes = bd.index_buffer_size_units * 2; // 16 bit inds
 
 	// just reserve some space (may not be needed as we are orphaning, but hey ho)
-	glGenBuffers(1, &m_BatchData.gl_vertex_buffer);
-	glBindBuffer(GL_ARRAY_BUFFER, m_BatchData.gl_vertex_buffer);
+	glGenBuffers(1, &_gl_data.gl_vertex_buffer);
+	glBindBuffer(GL_ARRAY_BUFFER, _gl_data.gl_vertex_buffer);
 	glBufferData(GL_ARRAY_BUFFER, bd.vertex_buffer_size_bytes, NULL, GL_DYNAMIC_DRAW);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 	// pre fill index buffer, the indices never need to change so can be static
-	glGenBuffers(1, &m_BatchData.gl_index_buffer);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_BatchData.gl_index_buffer);
+	glGenBuffers(1, &_gl_data.gl_index_buffer);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _gl_data.gl_index_buffer);
 
 	Vector<uint16_t> indices;
 	indices.resize(bd.index_buffer_size_units);
@@ -31,22 +31,13 @@ void RasterizerCanvasBatched::batch_initialize() {
 		indices.set(i_pos + 4, q_pos + 2);
 		indices.set(i_pos + 5, q_pos + 3);
 
-		// test
-//		indices.set(i_pos, 0);
-//		indices.set(i_pos + 1, q_pos + 1);
-//		indices.set(i_pos + 2, q_pos + 2);
-//		indices.set(i_pos + 3, 0);
-//		indices.set(i_pos + 4, q_pos + 1);
-//		indices.set(i_pos + 5, q_pos + 2);
-
-
 		// we can only use 16 bit indices in GLES2!
 #ifdef DEBUG_ENABLED
 		CRASH_COND((q_pos + 3) > 65535);
 #endif
 	}
 
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_BatchData.index_buffer_size_bytes, &indices[0], GL_STATIC_DRAW);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, _gl_data.index_buffer_size_bytes, &indices[0], GL_STATIC_DRAW);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
 
@@ -55,13 +46,13 @@ void RasterizerCanvasBatched::batch_terminate() {
 
 void RasterizerCanvasBatched::batch_upload_buffers() {
 
-	const Batch::BatchData &bd = m_Batcher.m_Data;
+	const Batch::BatchData &bd = _canvas_batcher.m_Data;
 
 	// noop?
 	if (!bd.vertices.size())
 		return;
 
-	glBindBuffer(GL_ARRAY_BUFFER, m_BatchData.gl_vertex_buffer);
+	glBindBuffer(GL_ARRAY_BUFFER, _gl_data.gl_vertex_buffer);
 
 	// orphan the old (for now)
 	glBufferData(GL_ARRAY_BUFFER, 0, 0, GL_DYNAMIC_DRAW);
@@ -83,12 +74,12 @@ void RasterizerCanvasBatched::batch_pass_end() {
 	if (g_bKessel2DOnly)
 		batch_flush();
 
-	m_Batcher.pass_end();
+	_canvas_batcher.pass_end();
 }
 
 
 void RasterizerCanvasBatched::batch_flush_render() {
-	const Batch::BatchData &bdata = m_Batcher.m_Data;
+	const Batch::BatchData &bdata = _canvas_batcher.m_Data;
 
 	RasterizerStorageGLES2::Material *p_material = 0;
 
@@ -113,15 +104,15 @@ void RasterizerCanvasBatched::batch_flush_render() {
 			_batch_render_lines(batch, p_material);
 		} break;
 			case Batch::Batch::BT_LIGHT_BEGIN: {
-				_batch_light_begin(batch.light_begin.m_pLight, m_GLState.m_pItem);
+				_batch_light_begin(batch.light_begin.m_pLight, _gl_state.m_pItem);
 			} break;
 		case Batch::Batch::BT_LIGHT_END: {
 				_batch_light_end();
 		} break;
 			case Batch::Batch::BT_CHANGE_ITEM: {
 				//CRASH_COND(!batch.item);
-				m_GLState.m_pItem = (RasterizerCanvas::Item *)batch.item_change.m_pItem;
-				commands = m_GLState.m_pItem->commands.ptr();
+				_gl_state.m_pItem = (RasterizerCanvas::Item *)batch.item_change.m_pItem;
+				commands = _gl_state.m_pItem->commands.ptr();
 				// if comands is null, we are probably quitting the app
 				if (!commands)
 					return;
@@ -131,17 +122,17 @@ void RasterizerCanvasBatched::batch_flush_render() {
 			} break;
 		case Batch::Batch::BT_CHANGE_MATERIAL: {
 				int bmat_id = batch.material_change.batch_material_id;
-				const Batch::BMaterial & bmat = m_Batcher.m_Data.batch_materials[bmat_id];
+				const Batch::BMaterial & bmat = _canvas_batcher.m_Data.batch_materials[bmat_id];
 
 				// don't crash, in some cases (going from a non-rect batch previously) we will lose track of the current material
 				// so could get a redundant material change - FIXME
-				if (m_GLState.m_pMaterial == (RasterizerStorageGLES2::Material *) bmat.m_pMaterial)
+				if (_gl_state.m_pMaterial == (RasterizerStorageGLES2::Material *) bmat.m_pMaterial)
 				{
 					WARN_PRINT_ONCE("kessel - redundant material change detected");
 				}
 				//CRASH_COND(m_GLState.m_pMaterial == (RasterizerStorageGLES2::Material *) bmat.m_pMaterial);
-				m_GLState.m_pMaterial = (RasterizerStorageGLES2::Material *) bmat.m_pMaterial;
-				p_material = m_GLState.m_pMaterial;
+				_gl_state.m_pMaterial = (RasterizerStorageGLES2::Material *) bmat.m_pMaterial;
+				p_material = _gl_state.m_pMaterial;
 
 				// work out the shader
 				RasterizerStorageGLES2::Shader * pShader = 0;
@@ -153,10 +144,10 @@ void RasterizerCanvasBatched::batch_flush_render() {
 						pShader = 0; // not a canvas item shader, don't use.
 					}
 				}
-				if (pShader != m_GLState.m_pShader)
+				if (pShader != _gl_state.m_pShader)
 				{
-					m_GLState.m_pShader = pShader;
-					m_GLState.m_bChangedShader = true;
+					_gl_state.m_pShader = pShader;
+					_gl_state.m_bChangedShader = true;
 				}
 				_batch_change_material();
 				//_batch_change_material(bmat.RID_material, p_material);
@@ -164,30 +155,30 @@ void RasterizerCanvasBatched::batch_flush_render() {
 		case Batch::Batch::BT_COPY_BACK_BUFFER: {
 				Rect2 r;
 
-				const Batch::BRectF &rect = m_Batcher.get_rectf(batch.index.id);
+				const Batch::BRectF &rect = _canvas_batcher.get_rectf(batch.index.id);
 				rect.to(r);
 				//batch.copy_back_buffer_rect.to(r);
 				_batch_copy_back_buffer(r);
 			} break;
 		case Batch::Batch::BT_CHANGE_TRANSFORM: {
 				int iTransformID = batch.transform_change.transform_id;
-				m_GLState.m_matModelView = bdata.transforms[iTransformID].tr;
+				_gl_state.m_matModelView = bdata.transforms[iTransformID].tr;
 				// update uniforms
 			} break;
 		case Batch::Batch::BT_SET_EXTRA_MATRIX: {
-				m_GLState.m_bExtraMatrixSet = true;
+				_gl_state.m_bExtraMatrixSet = true;
 			} break;
 		case Batch::Batch::BT_UNSET_EXTRA_MATRIX: {
 				_batch_unset_extra_matrix();
-				m_GLState.m_bExtraMatrixSet = false;
+				_gl_state.m_bExtraMatrixSet = false;
 			} break;
 		case Batch::Batch::BT_CHANGE_COLOR: {
-				const Batch::BColor &col = m_Batcher.get_color(batch.index.id);
-				col.to(m_GLState.m_Color);
+				const Batch::BColor &col = _canvas_batcher.get_color(batch.index.id);
+				col.to(_gl_state.m_Color);
 				//batch.color_change.color.to(m_GLState.m_Color);
 			} break;
 		case Batch::Batch::BT_CHANGE_COLOR_MODULATE: {
-				const Batch::BColor &bcol = m_Batcher.get_color(batch.index.id);
+				const Batch::BColor &bcol = _canvas_batcher.get_color(batch.index.id);
 				Color col;
 				bcol.to(col);
 				//batch.color_modulate_change.color.to(col);
@@ -196,7 +187,7 @@ void RasterizerCanvasBatched::batch_flush_render() {
 		case Batch::Batch::BT_SCISSOR_ON: {
 				// this could probably be isolated to the derived renderer but for now...
 				glEnable(GL_SCISSOR_TEST);
-				const Batch::BRectI &r = m_Batcher.get_recti(batch.index.id);
+				const Batch::BRectI &r = _canvas_batcher.get_recti(batch.index.id);
 
 				glScissor(r.x,
 				r.y,
@@ -208,7 +199,7 @@ void RasterizerCanvasBatched::batch_flush_render() {
 			} break;
 			case Batch::Batch::BT_DEFAULT: {
 				bool reclip = false;
-				_batch_render_default_batch(batch_num, m_GLState.m_pItem, m_GLState.m_pClipItem, reclip, p_material);
+				_batch_render_default_batch(batch_num, _gl_state.m_pItem, _gl_state.m_pClipItem, reclip, p_material);
 			} break;
 			default: {
 			} break;
@@ -218,12 +209,12 @@ void RasterizerCanvasBatched::batch_flush_render() {
 }
 
 void RasterizerCanvasBatched::batch_flush() {
-	Batch::BatchData &bd = m_Batcher.m_Data;
+	Batch::BatchData &bd = _canvas_batcher.m_Data;
 
 	// render the batches
 	// noop?
 	if (!bd.batches.size()) {
-		m_Batcher.flush();
+		_canvas_batcher.flush();
 		return;
 	}
 
@@ -235,34 +226,34 @@ void RasterizerCanvasBatched::batch_flush() {
 	if ((bd.total_color_changes * 4) > (bd.total_quads * 1)) {
 		// small perf cost versus going straight to colored verts (maybe around 10%)
 		// however more straightforward
-		m_Batcher.batch_translate_to_colored();
+		_canvas_batcher.batch_translate_to_colored();
 	}
 
 	batch_upload_buffers();
 
 	batch_flush_render();
 
-	m_Batcher.flush();
+	_canvas_batcher.flush();
 }
 
 void RasterizerCanvasBatched::batch_canvas_render_items(RasterizerCanvas::Item *p_item_list, int p_z, const Color &p_modulate, RasterizerCanvas::Light *p_light, const Transform2D &p_base_transform) {
 
-//	m_Batcher.process_prepare(this, p_z, p_modulate, (Batch::AliasLight *)p_light, p_base_transform);
-	m_Batcher.process_prepare(this, p_z, p_modulate, p_base_transform);
+//	_canvas_batcher.process_prepare(this, p_z, p_modulate, (Batch::AliasLight *)p_light, p_base_transform);
+	_canvas_batcher.process_prepare(this, p_z, p_modulate, p_base_transform);
 
-	m_GLState.m_pClipItem = NULL;
+	_gl_state.m_pClipItem = NULL;
 
 	while (p_item_list) {
 
 		RasterizerCanvas::Item *ci = p_item_list;
 
 		// returns whether to render without lighting
-		if (m_Batcher.process_item_start(ci))
+		if (_canvas_batcher.process_item_start(ci))
 		{
 			// no lighting?
 			while (1) {
 				// keep on processing the same item until it is finished
-				if (m_Batcher.process_item(ci) == true)
+				if (_canvas_batcher.process_item(ci) == true)
 					break;
 
 				// needs a render
@@ -281,18 +272,18 @@ void RasterizerCanvasBatched::batch_canvas_render_items(RasterizerCanvas::Item *
 		while (pCurrLight)
 		{
 			// let the batcher know which light we are using
-			//m_Batcher.process_next_light((Batch::AliasLight *)pCurrLight);
+			//_canvas_batcher.process_next_light((Batch::AliasLight *)pCurrLight);
 
 			// does it intersect light?
 			if (ci->light_mask & pCurrLight->item_mask && p_z >= pCurrLight->z_min && p_z <= pCurrLight->z_max && ci->global_rect_cache.intersects_transformed(pCurrLight->xform_cache, pCurrLight->rect_cache))
 			{
-				if (m_Batcher.process_lit_item_start(ci, (Batch::AliasLight *)pCurrLight))
+				if (_canvas_batcher.process_lit_item_start(ci, (Batch::AliasLight *)pCurrLight))
 				{
 					used_light = true;
 
 					while (1) {
 						// keep on processing the same item until it is finished
-						if (m_Batcher.process_lit_item(ci) == true)
+						if (_canvas_batcher.process_lit_item(ci) == true)
 							break;
 
 						// needs a render
@@ -310,7 +301,7 @@ void RasterizerCanvasBatched::batch_canvas_render_items(RasterizerCanvas::Item *
 		}  // while through lights
 
 		if (used_light)
-			m_Batcher.process_lit_item_end();
+			_canvas_batcher.process_lit_item_end();
 
 		// next item
 		p_item_list = p_item_list->next;

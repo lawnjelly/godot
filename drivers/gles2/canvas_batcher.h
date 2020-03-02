@@ -1,8 +1,7 @@
 #pragma once
 
-#include "batch_types.h"
-#include "batch_flags.h"
-#include "batch_data.h"
+#include "canvas_batch_types.h"
+#include "canvas_batch_data.h"
 #include "servers/visual/rasterizer.h"
 
 class RasterizerCanvasBatched;
@@ -10,7 +9,32 @@ class RasterizerCanvasBatched;
 namespace Batch
 {
 
-class Batcher2d
+template <class T> class BFlags
+{
+public:
+	void set_flag(T s) { m_Flags |= s; }
+	void clear_flag(T s) { m_Flags &= ~s; }
+	void clear_flags() { m_Flags = 0; }
+	bool get_flag(T s) { return m_Flags & s; }
+	bool set_flag_if_false(T s) {
+		if (!get_flag(s)) {
+			set_flag(s);
+			return true;
+		}
+		return false;
+	}
+	bool clear_flag_if_true(T s) {
+		if (get_flag(s)) {
+			clear_flag(s);
+			return true;
+		}
+		return false;
+	}
+private:
+	T m_Flags;
+};
+
+class CanvasBatcher
 {
 public:
 	BatchData m_Data;
@@ -36,18 +60,15 @@ private:
 		void reset_pass() {
 			m_Flags.clear_flags();
 			m_pMaterial = 0;
-			//m_iBatchMatID = -1;
 			m_iBlendMode = -1;
 			m_pShader = 0;
 			m_RID_curr_Material = RID();
 			m_bDirty_ModelView = false;
 			m_bExtraMatrixSet = false;
 			m_bModelView_SentThisItem = false;
-			//m_bTransform_Translate_Only = false;
 
 			m_eTransformMode = TM_ALL;
 		}
-		//bool software_transform_needed() const {return m_bDirty_ModelView;}
 
 		void reset_item()
 		{
@@ -62,7 +83,6 @@ private:
 		AliasShader *m_pShader;
 		int m_iBlendMode;
 		RID m_RID_curr_Material;
-		//int m_iBatchMatID;
 
 		// usually the combined matrix will just be the model view, except when an extra
 		// matrix is set. Extra matrix in the shader is for instancing (e.g. particles) and may be able to be
@@ -77,22 +97,8 @@ private:
 
 		// we only need to send model view at most once per item
 		bool m_bModelView_SentThisItem;
-
 		bool m_bExtraMatrixSet;
-		//bool m_bTransform_Translate_Only;
-
 		TransformMode m_eTransformMode;
-	//		Item * m_pCurrentClipItem;
-
-	//		bool m_bRebindShader;
-		//bool m_bUseSkeleton;
-	//		bool m_bTexScreen_Used;
-
-	//		bool m_bConditional_UseSkeleton;
-	//		RID m_RID_curr_Tex;
-	//		RID m_RID_curr_Norm;
-
-	//		RasterizerStorageGLES2::Texture *m_pCurrTex;
 	} m_State;
 
 
@@ -152,10 +158,7 @@ public:
 	void pass_end();
 
 	// called at the start of each canvas_render_items
-//	void process_prepare(Renderer2dGles2 * pOwner, int p_z, const Color &p_modulate, AliasLight*p_light, const Transform2D &p_base_transform);
 	void process_prepare(RasterizerCanvasBatched * pOwner, int p_z, const Color &p_modulate, const Transform2D &p_base_transform);
-
-	//void process_next_light(AliasLight *p_light) {m_PCommon.m_pLight = p_light;	}
 
 	// call this repeatedly until all items processed
 	// returns true if finished, or
@@ -176,12 +179,11 @@ public:
 	const BRectF &get_rectf(int index) const {return m_Data.generic_128s[index].rectf;}
 	const BColor &get_color(int index) const {return m_Data.generic_128s[index].color;}
 
-	//void reset_batches();
 private:
 	// false if buffers full
 	bool process_commands();
 
-	void fill_sync_verts();
+//	void fill_sync_verts();
 	int fill(int p_command_start);
 	bool fill_rect(int command_num, RasterizerCanvas::Item::Command *command, int &batch_tex_id, int &quad_count, Vector2 &texpixel_size);
 	bool fill_line(int command_num, RasterizerCanvas::Item::Command *command, int &batch_tex_id, int &quad_count, Vector2 &texpixel_size);
@@ -276,16 +278,8 @@ private:
 
 	void software_translate_rect(Rect2 &rect) const
 	{
-//		if (m_State.software_transform_needed())
-//		{
-//			if (m_State.m_bTransform_Translate_Only)
-//			{
-				rect.position.x += m_State.m_matCombined.elements[2].x;
-				rect.position.y += m_State.m_matCombined.elements[2].y;
-//			}
-//			else
-//				rect = m_State.m_matModelView.xform(rect);
-//		}
+		rect.position.x += m_State.m_matCombined.elements[2].x;
+		rect.position.y += m_State.m_matCombined.elements[2].y;
 	}
 
 	void add_colored_verts(const Batch &b, const BColor &curr_col)
@@ -296,9 +290,6 @@ private:
 		// create colored verts
 		int first_vert = b.primitive.first_quad * 4;
 		int end_vert = 4 * (b.primitive.first_quad + b.primitive.num_quads);
-		//int first_vert = b.primitive.first_vert;
-		//int end_vert = first_vert + (4 * b.primitive.num_commands);
-
 		/*
 		String sz = "";
 		sz += "first_vert : " + itos(first_vert) + ",\tend_vert : " + itos(end_vert);
@@ -310,7 +301,9 @@ private:
 		print_line(sz);
 		*/
 
+#ifdef DEBUG_ENABLED
 		CRASH_COND(first_vert != m_Data.vertices_colored.size());
+#endif
 
 		for (int v = first_vert; v < end_vert; v++)
 		{

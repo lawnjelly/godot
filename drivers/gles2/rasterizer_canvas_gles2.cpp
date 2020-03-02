@@ -1,21 +1,11 @@
 #include "rasterizer_canvas_gles2.h"
 
-#include "core/os/os.h"
-#include "core/project_settings.h"
-#include "rasterizer_scene_gles2.h"
 #include "servers/visual/visual_server_raster.h"
 
-#ifndef GLES_OVER_GL
-#define glClearDepth glClearDepthf
-#endif
 
-
-bool g_bUseKessel = true;
-//static bool g_bUseKessel = true;
+static bool g_bUseKessel = true;
 static bool g_bKesselFlash = true;
 //#define FLASH_KESSEL
-
-
 
 
 static const GLenum gl_primitive[] = {
@@ -30,7 +20,7 @@ static const GLenum gl_primitive[] = {
 
 void RasterizerCanvasGLES2::canvas_render_items(Item *p_item_list, int p_z, const Color &p_modulate, Light *p_light, const Transform2D &p_base_transform) {
 
-	if (m_bUseBatching && g_bUseKessel && g_bKesselFlash)
+	if (_use_batching && g_bUseKessel && g_bKesselFlash)
 	{
 		batch_canvas_render_items(p_item_list, p_z, p_modulate, p_light, p_base_transform);
 		return;
@@ -67,9 +57,9 @@ void RasterizerCanvasGLES2::canvas_end() {
 	RasterizerCanvasSimpleGLES2::canvas_end();
 }
 
-Batch::AliasMaterial * RasterizerCanvasGLES2::batch_get_material_and_shader_from_RID(const RID &rid, Batch::AliasShader ** ppShader) const
+Batch::AliasMaterial * RasterizerCanvasGLES2::batch_get_material_and_shader_from_RID(const RID &p_rid, Batch::AliasShader ** r_shader) const
 {
-	RasterizerStorageGLES2::Material * pMaterial = storage->material_owner.getornull(rid);
+	RasterizerStorageGLES2::Material * pMaterial = storage->material_owner.getornull(p_rid);
 
 	RasterizerStorageGLES2::Shader *pShader = NULL;
 
@@ -81,7 +71,7 @@ Batch::AliasMaterial * RasterizerCanvasGLES2::batch_get_material_and_shader_from
 		}
 	}
 
-	*ppShader = (Batch::AliasShader *) pShader;
+	*r_shader = (Batch::AliasShader *) pShader;
 
 	return (Batch::AliasMaterial *) pMaterial;
 }
@@ -99,31 +89,31 @@ RasterizerStorageGLES2::Texture *RasterizerCanvasGLES2::batch_get_canvas_texture
 	return 0;
 }
 
-void RasterizerCanvasGLES2::_batch_get_item_clip_rect(const Item &item, int &x, int &y, int &width, int &height) const
+void RasterizerCanvasGLES2::_batch_get_item_clip_rect(const Item &p_item, int &r_x, int &r_y, int &r_width, int &r_height) const
 {
-	y = storage->frame.current_rt->height - (item.final_clip_rect.position.y + item.final_clip_rect.size.y);
+	r_y = storage->frame.current_rt->height - (p_item.final_clip_rect.position.y + p_item.final_clip_rect.size.y);
 
 	if (storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_VFLIP])
-		y = item.final_clip_rect.position.y;
+		r_y = p_item.final_clip_rect.position.y;
 
-	x = item.final_clip_rect.position.x;
-	width = item.final_clip_rect.size.width;
-	height = item.final_clip_rect.size.height;
+	r_x = p_item.final_clip_rect.position.x;
+	r_width = p_item.final_clip_rect.size.width;
+	r_height = p_item.final_clip_rect.size.height;
 }
 
 // return whether texture found
-bool RasterizerCanvasGLES2::batch_get_texture_pixel_size_and_tile(const RID &rid, float &x, float &y, bool p_tile, bool &npot) const
+bool RasterizerCanvasGLES2::batch_get_texture_pixel_size_and_tile(const RID &p_rid, float &r_x, float &r_y, bool p_tile, bool &r_npot) const
 {
 	// get the texture
-	RasterizerStorageGLES2::Texture *texture = batch_get_canvas_texture(rid);
+	RasterizerStorageGLES2::Texture *texture = batch_get_canvas_texture(p_rid);
 
 	if (texture) {
-		x = 1.0 / texture->width;
-		y = 1.0 / texture->height;
+		r_x = 1.0 / texture->width;
+		r_y = 1.0 / texture->height;
 	} else {
 		// maybe doesn't need doing...
-		x = 1.0;
-		y = 1.0;
+		r_x = 1.0;
+		r_y = 1.0;
 
 		return false;
 	}
@@ -131,12 +121,12 @@ bool RasterizerCanvasGLES2::batch_get_texture_pixel_size_and_tile(const RID &rid
 	if (p_tile) {
 		if (texture) {
 			// default
-			npot = false;
+			r_npot = false;
 
 			// no hardware support for non power of 2 tiling
 			if (!storage->config.support_npot_repeat_mipmap) {
 				if (next_power_of_2(texture->alloc_width) != (unsigned int)texture->alloc_width && next_power_of_2(texture->alloc_height) != (unsigned int)texture->alloc_height) {
-					npot = true;
+					r_npot = true;
 				}
 			}
 		} else {
@@ -151,11 +141,11 @@ bool RasterizerCanvasGLES2::batch_get_texture_pixel_size_and_tile(const RID &rid
 }
 
 
-int RasterizerCanvasGLES2::batch_get_blendmode_from_shader(Batch::AliasShader * pShader) const
+int RasterizerCanvasGLES2::batch_get_blendmode_from_shader(Batch::AliasShader * p_shader) const
 {
-	if (pShader)
+	if (p_shader)
 	{
-		RasterizerStorageGLES2::Shader * pS = (RasterizerStorageGLES2::Shader *) pShader;
+		RasterizerStorageGLES2::Shader * pS = (RasterizerStorageGLES2::Shader *) p_shader;
 		return pS->canvas_item.blend_mode;
 	}
 	return RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_MIX;
@@ -193,11 +183,11 @@ void RasterizerCanvasGLES2::_batch_canvas_shader_bind(RasterizerStorageGLES2::Ma
 	}
 }
 
-void RasterizerCanvasGLES2::_batch_render_lines(const Batch::Batch &batch, RasterizerStorageGLES2::Material *p_material) {
+void RasterizerCanvasGLES2::_batch_render_lines(const Batch::Batch &p_batch, RasterizerStorageGLES2::Material *p_material) {
 
-	const Batch::BatchData &bdata = m_Batcher.m_Data;
+	const Batch::BatchData &bdata = _canvas_batcher.m_Data;
 //	ERR_FAIL_COND(batch.primitive.num_commands <= 0);
-	ERR_FAIL_COND(batch.primitive.num_verts <= 0);
+	ERR_FAIL_COND(p_batch.primitive.num_verts <= 0);
 
 	const bool &colored_verts = bdata.use_colored_vertices;
 	int sizeof_vert;
@@ -215,7 +205,7 @@ void RasterizerCanvasGLES2::_batch_render_lines(const Batch::Batch &batch, Raste
 	if (use_identity)
 	{
 		state.uniforms.modelview_matrix = Transform2D();
-		if (m_GLState.m_bExtraMatrixSet)
+		if (_gl_state.m_bExtraMatrixSet)
 		{
 			extra = state.uniforms.extra_matrix;
 			state.uniforms.extra_matrix = Transform2D();
@@ -226,7 +216,7 @@ void RasterizerCanvasGLES2::_batch_render_lines(const Batch::Batch &batch, Raste
 	if (use_identity)
 	{
 		//state.uniforms.modelview_matrix = Transform2D();
-		if (m_GLState.m_bExtraMatrixSet)
+		if (_gl_state.m_bExtraMatrixSet)
 			state.uniforms.extra_matrix = extra;
 	}
 
@@ -234,7 +224,7 @@ void RasterizerCanvasGLES2::_batch_render_lines(const Batch::Batch &batch, Raste
 	RasterizerStorageGLES2::Texture *texture = _bind_canvas_texture(RID(), RID());
 
 	// bind the index and vertex buffer
-	glBindBuffer(GL_ARRAY_BUFFER, m_BatchData.gl_vertex_buffer);
+	glBindBuffer(GL_ARRAY_BUFFER, _gl_data.gl_vertex_buffer);
 //	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_BatchData.gl_index_buffer);
 
 //	uint64_t pointer = sizeof_vert * batch.primitive.first_quad * 4;
@@ -251,7 +241,7 @@ void RasterizerCanvasGLES2::_batch_render_lines(const Batch::Batch &batch, Raste
 	// color
 	if (!colored_verts) {
 		glDisableVertexAttribArray(VS::ARRAY_COLOR);
-		glVertexAttrib4fv(VS::ARRAY_COLOR, m_GLState.m_Color.components);
+		glVertexAttrib4fv(VS::ARRAY_COLOR, _gl_state.m_Color.components);
 	} else {
 		glVertexAttribPointer(VS::ARRAY_COLOR, 4, GL_FLOAT, GL_FALSE, sizeof_vert, CAST_INT_TO_UCHAR_PTR(pointer + (4 * 4)));
 		glEnableVertexAttribArray(VS::ARRAY_COLOR);
@@ -270,7 +260,7 @@ void RasterizerCanvasGLES2::_batch_render_lines(const Batch::Batch &batch, Raste
 //	glDrawElements(GL_TRIANGLES, num_elements, GL_UNSIGNED_SHORT, (void *)offset);
 
 //	glDrawArrays(GL_LINES, batch.primitive.first_quad * 4, batch.primitive.num_commands * 4);
-	glDrawArrays(GL_LINES, batch.primitive.first_vert, batch.primitive.num_verts);
+	glDrawArrays(GL_LINES, p_batch.primitive.first_vert, p_batch.primitive.num_verts);
 
 //	switch (tex.tile_mode) {
 //		case Batch::BTex::TILE_FORCE_REPEAT: {
@@ -295,11 +285,11 @@ void RasterizerCanvasGLES2::_batch_render_lines(const Batch::Batch &batch, Raste
 }
 
 
-void RasterizerCanvasGLES2::_batch_render_rects(const Batch::Batch &batch, RasterizerStorageGLES2::Material *p_material) {
+void RasterizerCanvasGLES2::_batch_render_rects(const Batch::Batch &p_batch, RasterizerStorageGLES2::Material *p_material) {
 //		return;
-	const Batch::BatchData &bdata = m_Batcher.m_Data;
+	const Batch::BatchData &bdata = _canvas_batcher.m_Data;
 
-	ERR_FAIL_COND(batch.primitive.num_quads <= 0);
+	ERR_FAIL_COND(p_batch.primitive.num_quads <= 0);
 
 	const bool &colored_verts = bdata.use_colored_vertices;
 	int sizeof_vert;
@@ -321,7 +311,7 @@ void RasterizerCanvasGLES2::_batch_render_rects(const Batch::Batch &batch, Raste
 	if (use_identity)
 	{
 		state.uniforms.modelview_matrix = Transform2D();
-		if (m_GLState.m_bExtraMatrixSet)
+		if (_gl_state.m_bExtraMatrixSet)
 		{
 			extra = state.uniforms.extra_matrix;
 			state.uniforms.extra_matrix = Transform2D();
@@ -332,7 +322,7 @@ void RasterizerCanvasGLES2::_batch_render_rects(const Batch::Batch &batch, Raste
 	if (use_identity)
 	{
 		//state.uniforms.modelview_matrix = Transform2D();
-		if (m_GLState.m_bExtraMatrixSet)
+		if (_gl_state.m_bExtraMatrixSet)
 			state.uniforms.extra_matrix = extra;
 	}
 
@@ -350,7 +340,7 @@ void RasterizerCanvasGLES2::_batch_render_rects(const Batch::Batch &batch, Raste
 		*/
 
 	// batch tex
-	const Batch::BTex &tex = bdata.batch_textures[batch.primitive.batch_texture_id];
+	const Batch::BTex &tex = bdata.batch_textures[p_batch.primitive.batch_texture_id];
 
 	switch (tex.tile_mode) {
 		case Batch::BTex::TILE_FORCE_REPEAT: {
@@ -368,8 +358,8 @@ void RasterizerCanvasGLES2::_batch_render_rects(const Batch::Batch &batch, Raste
 	RasterizerStorageGLES2::Texture *texture = _bind_canvas_texture(tex.RID_texture, tex.RID_normal);
 
 	// bind the index and vertex buffer
-	glBindBuffer(GL_ARRAY_BUFFER, m_BatchData.gl_vertex_buffer);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_BatchData.gl_index_buffer);
+	glBindBuffer(GL_ARRAY_BUFFER, _gl_data.gl_vertex_buffer);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _gl_data.gl_index_buffer);
 
 	uint64_t pointer = 0;
 	glVertexAttribPointer(VS::ARRAY_VERTEX, 2, GL_FLOAT, GL_FALSE, sizeof_vert, (const void *)pointer);
@@ -384,7 +374,7 @@ void RasterizerCanvasGLES2::_batch_render_rects(const Batch::Batch &batch, Raste
 	// color
 	if (!colored_verts) {
 		glDisableVertexAttribArray(VS::ARRAY_COLOR);
-		glVertexAttrib4fv(VS::ARRAY_COLOR, m_GLState.m_Color.components);
+		glVertexAttrib4fv(VS::ARRAY_COLOR, _gl_state.m_Color.components);
 	} else {
 		glVertexAttribPointer(VS::ARRAY_COLOR, 4, GL_FLOAT, GL_FALSE, sizeof_vert, CAST_INT_TO_UCHAR_PTR(pointer + (4 * 4)));
 		glEnableVertexAttribArray(VS::ARRAY_COLOR);
@@ -397,10 +387,10 @@ void RasterizerCanvasGLES2::_batch_render_rects(const Batch::Batch &batch, Raste
 	tex.tex_pixel_size.to(tps);
 	state.canvas_shader.set_uniform(CanvasShaderGLES2::COLOR_TEXPIXEL_SIZE, tps);
 
-	int64_t offset = batch.primitive.first_quad * 6 * 2; // 6 inds per quad at 2 bytes each
+	int64_t offset = p_batch.primitive.first_quad * 6 * 2; // 6 inds per quad at 2 bytes each
 //	int64_t offset = batch.primitive.first_vert * 6 * 2; // 6 inds per quad at 2 bytes each
 
-	int num_elements = batch.primitive.num_quads * 6;
+	int num_elements = p_batch.primitive.num_quads * 6;
 	glDrawElements(GL_TRIANGLES, num_elements, GL_UNSIGNED_SHORT, (void *)offset);
 
 	switch (tex.tile_mode) {
@@ -425,14 +415,14 @@ void RasterizerCanvasGLES2::_batch_render_rects(const Batch::Batch &batch, Raste
 	//	_resend_modelview_matrix();
 }
 
-void RasterizerCanvasGLES2::_batch_light_begin(Batch::AliasLight * pLight, Item *p_item)
+void RasterizerCanvasGLES2::_batch_light_begin(Batch::AliasLight * p_light, Item *p_item)
 {
-	RasterizerCanvas::Item * ci = m_GLState.m_pItem;
+	RasterizerCanvas::Item * ci = _gl_state.m_pItem;
 
 	state.uniforms.final_modulate = ci->final_modulate; // remove the canvas modulate
 
 	//intersects this light
-	Light *light = (Light *) pLight;
+	Light *light = (Light *) p_light;
 //	if (!light_used || mode != light->mode) {
 
 		VS::CanvasLightMode mode = light->mode;
@@ -488,7 +478,7 @@ void RasterizerCanvasGLES2::_batch_light_begin(Batch::AliasLight * pLight, Item 
 	_set_uniforms();
 
 //	state.canvas_shader.use_material((void *)material_ptr);
-	state.canvas_shader.use_material((void *)m_GLState.m_pMaterial);
+	state.canvas_shader.use_material((void *)_gl_state.m_pMaterial);
 
 	glActiveTexture(GL_TEXTURE0 + storage->config.max_texture_image_units - 4);
 	RasterizerStorageGLES2::Texture *t = storage->texture_owner.getornull(light->texture);
@@ -528,7 +518,7 @@ void RasterizerCanvasGLES2::_batch_unset_extra_matrix()
 
 
 //void RasterizerCanvasGLES2::_batch_change_color_modulate(const Color &col, bool bRedundant)
-void RasterizerCanvasGLES2::_batch_change_color_modulate(const Color &col)
+void RasterizerCanvasGLES2::_batch_change_color_modulate(const Color &p_col)
 {
 //	if (bRedundant)
 //	{
@@ -540,7 +530,7 @@ void RasterizerCanvasGLES2::_batch_change_color_modulate(const Color &col)
 //		return;
 //	}
 
-	state.uniforms.final_modulate = col;
+	state.uniforms.final_modulate = p_col;
 	state.canvas_shader.set_uniform(CanvasShaderGLES2::FINAL_MODULATE, state.uniforms.final_modulate);
 }
 
@@ -605,8 +595,8 @@ void RasterizerCanvasGLES2::_batch_change_material()
 //	if (material != canvas_last_material || rebind_shader) {
 
 	// an alias
-	RasterizerStorageGLES2::Material * material_ptr = m_GLState.m_pMaterial;
-	RasterizerStorageGLES2::Shader *shader_ptr = m_GLState.m_pShader;
+	RasterizerStorageGLES2::Material * material_ptr = _gl_state.m_pMaterial;
+	RasterizerStorageGLES2::Shader *shader_ptr = _gl_state.m_pShader;
 
 //		if (material_ptr) {
 //			shader_ptr = material_ptr->shader;
@@ -632,7 +622,7 @@ void RasterizerCanvasGLES2::_batch_change_material()
 				}
 			}
 
-			if (m_GLState.m_bChangedShader) {
+			if (_gl_state.m_bChangedShader) {
 //			if (shader_ptr != shader_cache) {
 
 				if (shader_ptr->canvas_item.uses_time) {
@@ -700,7 +690,7 @@ void RasterizerCanvasGLES2::_batch_change_material()
 		}
 		state.canvas_shader.use_material((void *)material_ptr);
 
-		m_GLState.m_bChangedShader = false;
+		_gl_state.m_bChangedShader = false;
 //		shader_cache = shader_ptr;
 
 	//	canvas_last_material = material;
@@ -709,19 +699,19 @@ void RasterizerCanvasGLES2::_batch_change_material()
 //	}
 }
 
-void RasterizerCanvasGLES2::_batch_copy_back_buffer(const Rect2 &rect)
+void RasterizerCanvasGLES2::_batch_copy_back_buffer(const Rect2 &p_rect)
 {
-	_copy_texscreen(rect);
+	_copy_texscreen(p_rect);
 }
 
-void RasterizerCanvasGLES2::_batch_render_default_batch(int batch_id, Item *p_item, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material) {
+void RasterizerCanvasGLES2::_batch_render_default_batch(int p_batch_id, Item *p_item, Item *p_current_clip, bool &r_reclip, RasterizerStorageGLES2::Material *p_material) {
 
 //	return;
 
-	const Batch::Batch &batch = m_Batcher.m_Data.batches[batch_id];
+	const Batch::Batch &batch = _canvas_batcher.m_Data.batches[p_batch_id];
 
 	// set the model view
-	state.uniforms.modelview_matrix = m_GLState.m_matModelView;
+	state.uniforms.modelview_matrix = _gl_state.m_matModelView;
 
 	// test test test
 	state.canvas_shader.set_uniform(CanvasShaderGLES2::MODELVIEW_MATRIX, state.uniforms.modelview_matrix);
@@ -1521,25 +1511,25 @@ void RasterizerCanvasGLES2::_batch_render_default_batch(int batch_id, Item *p_it
 							case Item::Command::TYPE_CLIP_IGNORE: {
 
 								Item::CommandClipIgnore *ci = static_cast<Item::CommandClipIgnore *>(command);
-								if (current_clip) {
-									if (ci->ignore != reclip) {
+								if (p_current_clip) {
+									if (ci->ignore != r_reclip) {
 										if (ci->ignore) {
 											glDisable(GL_SCISSOR_TEST);
-											reclip = true;
+											r_reclip = true;
 										} else {
 											glEnable(GL_SCISSOR_TEST);
 
-											int x = current_clip->final_clip_rect.position.x;
-											int y = storage->frame.current_rt->height - (current_clip->final_clip_rect.position.y + current_clip->final_clip_rect.size.y);
-											int w = current_clip->final_clip_rect.size.x;
-											int h = current_clip->final_clip_rect.size.y;
+											int x = p_current_clip->final_clip_rect.position.x;
+											int y = storage->frame.current_rt->height - (p_current_clip->final_clip_rect.position.y + p_current_clip->final_clip_rect.size.y);
+											int w = p_current_clip->final_clip_rect.size.x;
+											int h = p_current_clip->final_clip_rect.size.y;
 
 											if (storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_VFLIP])
-												y = current_clip->final_clip_rect.position.y;
+												y = p_current_clip->final_clip_rect.position.y;
 
 											glScissor(x, y, w, h);
 
-											reclip = false;
+											r_reclip = false;
 										}
 									}
 								}
@@ -1567,8 +1557,8 @@ RasterizerCanvasGLES2::RasterizerCanvasGLES2()
 	// (if the editor can't start, you can't change the use_batching project setting!)
 //	if (Engine::get_singleton()->is_editor_hint()) {
 	if (0) {
-		m_bUseBatching = false;
+		_use_batching = false;
 	} else {
-		m_bUseBatching = GLOBAL_GET("rendering/quality/2d/use_batching");
+		_use_batching = GLOBAL_GET("rendering/quality/2d/use_batching");
 	}
 }

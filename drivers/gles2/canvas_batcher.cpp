@@ -1,14 +1,17 @@
-#include "batcher_2d.h"
+#include "canvas_batcher.h"
 #include "rasterizer_canvas_batched.h"
-#include <stdlib.h> // for rand
+//#include <stdlib.h> // for rand
 #include "core/engine.h"
 
 //#define BATCH_DEBUG_FRAMES
 
+
+
+
 namespace Batch
 {
 
-void Batcher2d::process_prepare(RasterizerCanvasBatched * pOwner, int p_z, const Color &p_modulate, const Transform2D &p_base_transform)
+void CanvasBatcher::process_prepare(RasterizerCanvasBatched * pOwner, int p_z, const Color &p_modulate, const Transform2D &p_base_transform)
 {
 	m_PCommon.m_pOwner = pOwner;
 	m_PCommon.m_iZ = p_z;
@@ -17,7 +20,7 @@ void Batcher2d::process_prepare(RasterizerCanvasBatched * pOwner, int p_z, const
 	m_PCommon.m_trBase = p_base_transform;
 }
 
-Batch * Batcher2d::request_new_batch()
+Batch * CanvasBatcher::request_new_batch()
 {
 	Batch * b = m_Data.request_new_batch();
 	m_FState.m_pCurrentBatch = b;
@@ -25,7 +28,7 @@ Batch * Batcher2d::request_new_batch()
 	return b;
 }
 
-B128 * Batcher2d::_request_new_B128(Batch &batch)
+B128 * CanvasBatcher::_request_new_B128(Batch &batch)
 {
 	batch.index.id = m_Data.generic_128s.size();
 	B128 * p = m_Data.request_new_B128();
@@ -34,7 +37,7 @@ B128 * Batcher2d::_request_new_B128(Batch &batch)
 
 
 
-void Batcher2d::state_light_begin(AliasLight * pLight)
+void CanvasBatcher::state_light_begin(AliasLight * pLight)
 {
 	Batch * b = request_new_batch();
 	b->type = Batch::BT_LIGHT_BEGIN;
@@ -44,20 +47,20 @@ void Batcher2d::state_light_begin(AliasLight * pLight)
 	//state_invalidate_blend_mode();
 }
 
-void Batcher2d::state_light_end()
+void CanvasBatcher::state_light_end()
 {
 	Batch * b = request_new_batch();
 	b->type = Batch::BT_LIGHT_END;
 }
 
 
-void Batcher2d::state_set_item(RasterizerCanvas::Item * pItem)
+void CanvasBatcher::state_set_item(RasterizerCanvas::Item * pItem)
 {
 	m_FState.m_pItem = (AliasItem *) pItem;
 	m_FState.m_bDirty_Item = true;
 }
 
-void Batcher2d::state_copy_back_buffer(RasterizerCanvas::Item *pItem)
+void CanvasBatcher::state_copy_back_buffer(RasterizerCanvas::Item *pItem)
 {
 	if (!pItem->copy_back_buffer)
 		return;
@@ -76,7 +79,7 @@ void Batcher2d::state_copy_back_buffer(RasterizerCanvas::Item *pItem)
 }
 
 
-void Batcher2d::state_set_scissor(RasterizerCanvas::Item *pClipItem)
+void CanvasBatcher::state_set_scissor(RasterizerCanvas::Item *pClipItem)
 {
 	if ((RasterizerCanvas::Item *) m_FState.m_pClipItem == pClipItem)
 		return;
@@ -102,7 +105,7 @@ void Batcher2d::state_set_scissor(RasterizerCanvas::Item *pClipItem)
 }
 
 
-void Batcher2d::state_flush_item()
+void CanvasBatcher::state_flush_item()
 {
 	if (!m_FState.m_bDirty_Item)
 		return;
@@ -117,7 +120,7 @@ void Batcher2d::state_flush_item()
 }
 
 
-void Batcher2d::state_set_RID_material(const RID &rid)
+void CanvasBatcher::state_set_RID_material(const RID &rid)
 {
 	if (m_State.m_RID_curr_Material == rid)
 		return;
@@ -148,7 +151,7 @@ void Batcher2d::state_set_RID_material(const RID &rid)
 	b->material_change.batch_material_id = mat_id;
 }
 
-void Batcher2d::state_set_blend_mode(int mode)
+void CanvasBatcher::state_set_blend_mode(int mode)
 {
 	if (mode == m_State.m_iBlendMode)
 		return;
@@ -160,7 +163,7 @@ void Batcher2d::state_set_blend_mode(int mode)
 	b->blend_mode_change.blend_mode = mode;
 }
 
-void Batcher2d::state_set_color_modulate(const Color &col)
+void CanvasBatcher::state_set_color_modulate(const Color &col)
 {
 	if (m_FState.m_Col_modulate.equals(col))
 	{
@@ -177,7 +180,7 @@ void Batcher2d::state_set_color_modulate(const Color &col)
 }
 
 
-bool Batcher2d::state_set_color(const Color &col)
+bool CanvasBatcher::state_set_color(const Color &col)
 {
 	if (m_FState.m_CurrentCol.equals(col))
 		return false;
@@ -194,7 +197,7 @@ bool Batcher2d::state_set_color(const Color &col)
 }
 
 
-void Batcher2d::state_set_extra_matrix(const Transform2D &tr)
+void CanvasBatcher::state_set_extra_matrix(const Transform2D &tr)
 {
 	state_flush_modelview();
 
@@ -215,7 +218,7 @@ void Batcher2d::state_set_extra_matrix(const Transform2D &tr)
 	choose_software_transform_mode();
 }
 
-void Batcher2d::state_unset_extra_matrix()
+void CanvasBatcher::state_unset_extra_matrix()
 {
 	if (m_State.m_bExtraMatrixSet)
 	{
@@ -227,7 +230,7 @@ void Batcher2d::state_unset_extra_matrix()
 	}
 }
 
-void Batcher2d::choose_software_transform_mode()
+void CanvasBatcher::choose_software_transform_mode()
 {
 	const Transform2D &tr = m_State.m_matCombined;
 
@@ -246,9 +249,9 @@ void Batcher2d::choose_software_transform_mode()
 }
 
 
-void Batcher2d::state_set_modelview(const Transform2D &tr)
+void CanvasBatcher::state_set_modelview(const Transform2D &tr)
 {
-	CRASH_COND(m_State.m_bExtraMatrixSet);
+	BATCH_DEBUG_CRASH_COND(m_State.m_bExtraMatrixSet);
 
 	if (tr == m_State.m_matCombined)
 		return;
@@ -262,7 +265,7 @@ void Batcher2d::state_set_modelview(const Transform2D &tr)
 	choose_software_transform_mode();
 }
 
-void Batcher2d::state_flush_modelview()
+void CanvasBatcher::state_flush_modelview()
 {
 	if (!m_State.m_bDirty_ModelView)
 		return;
@@ -289,7 +292,7 @@ void Batcher2d::state_flush_modelview()
 static int g_MyFrameCount = 0;
 static bool g_bBatcherLogFrame = false;
 
-void Batcher2d::pass_end()
+void CanvasBatcher::pass_end()
 {
 
 	if ((g_MyFrameCount % 50) == 0)
@@ -305,7 +308,7 @@ void Batcher2d::pass_end()
 }
 
 
-int Batcher2d::find_or_create_tex(const RID &p_texture, const RID &p_normal, bool p_tile, int p_previous_match) {
+int CanvasBatcher::find_or_create_tex(const RID &p_texture, const RID &p_normal, bool p_tile, int p_previous_match) {
 
 	// optimization .. in 99% cases the last matched value will be the same, so no need to traverse the list
 	if (p_previous_match != Batch::BATCH_TEX_ID_UNTEXTURED) // if it is zero, it will get hit first in the linear search anyway
@@ -325,6 +328,8 @@ int Batcher2d::find_or_create_tex(const RID &p_texture, const RID &p_normal, boo
 
 	// not the previous match .. we will do a linear search ... slower, but should happen
 	// not very often except with non-batchable runs, which are going to be slow anyway
+
+	// note this could be converted to a high speed hash table, profile though to check faster
 	for (int n = 0; n < m_Data.batch_textures.size(); n++) {
 		const BTex &batch_texture = m_Data.batch_textures[n];
 		if ((batch_texture.RID_texture == p_texture) && (batch_texture.RID_normal == p_normal)) {
@@ -367,7 +372,7 @@ int Batcher2d::find_or_create_tex(const RID &p_texture, const RID &p_normal, boo
 	return m_Data.batch_textures.size() - 1;
 }
 
-void Batcher2d::debug_log_type_col(String sz, const BColor &col, int spacer)
+void CanvasBatcher::debug_log_type_col(String sz, const BColor &col, int spacer)
 {
 	String s = "";
 	for (int n=0; n<spacer; n++)
@@ -379,7 +384,7 @@ void Batcher2d::debug_log_type_col(String sz, const BColor &col, int spacer)
 }
 
 
-void Batcher2d::debug_log_type(String sz, int spacer)
+void CanvasBatcher::debug_log_type(String sz, int spacer)
 {
 	String s = "";
 	for (int n=0; n<spacer; n++)
@@ -388,7 +393,7 @@ void Batcher2d::debug_log_type(String sz, int spacer)
 	m_szDebugLog += (s + sz + "\n");
 }
 
-void Batcher2d::debug_log_color(String field, const BColor &col)
+void CanvasBatcher::debug_log_color(String field, const BColor &col)
 {
 	Color c;
 	col.to(c);
@@ -396,13 +401,13 @@ void Batcher2d::debug_log_color(String field, const BColor &col)
 }
 
 
-void Batcher2d::debug_log_int(String field, int val)
+void CanvasBatcher::debug_log_int(String field, int val)
 {
 	m_szDebugLog += "\t\t" + field +" " +  itos(val) + "\n";
 }
 
 
-void Batcher2d::debug_log_run()
+void CanvasBatcher::debug_log_run()
 {
 	m_szDebugLog = "";
 
@@ -486,25 +491,25 @@ void Batcher2d::debug_log_run()
 
 // as a result of adding lines, we may get out of sync,
 // we need to be in sync of groups of 4 verts for rects
-void Batcher2d::fill_sync_verts()
-{
-	int remainder = m_Data.vertices.size() & 3;
-	if (!remainder)
-		return;
+//void Batcher2d::fill_sync_verts()
+//{
+//	int remainder = m_Data.vertices.size() & 3;
+//	if (!remainder)
+//		return;
 
-	remainder = 4-remainder;
+//	remainder = 4-remainder;
 
-	for (int n=0; n<remainder; n++)
-	{
-		m_Data.vertices.request();
-	}
+//	for (int n=0; n<remainder; n++)
+//	{
+//		m_Data.vertices.request();
+//	}
 
-	// keep the start quad up to date
-	m_Data.total_quads = m_Data.vertices.size() / 4;
-}
+//	// keep the start quad up to date
+//	m_Data.total_quads = m_Data.vertices.size() / 4;
+//}
 
 
-int Batcher2d::fill(int p_command_start)
+int CanvasBatcher::fill(int p_command_start)
 {
 	RasterizerCanvas::Item * pItem = m_FState.get_item();
 
@@ -518,25 +523,19 @@ int Batcher2d::fill(int p_command_start)
 	// re-entrant
 	int quad_count = m_Data.total_quads;
 
-	//	CRASH_COND (quad_count != bdata.debug_batch_quads_total);
+	//BATCH_DEBUG_CRASH_COND (quad_count != bdata.debug_batch_quads_total);
 
 
 	Vector2 texpixel_size(1, 1);
 
-//	bool item_changed = true;
 	if (m_FState.m_pCurrentBatch)
 	{
-//		curr_batch = m_FState.m_pCurrentBatch;
-
-//		if (curr_batch->type == Batch::BT_RECT)
 		if (m_FState.m_pCurrentBatch->type > Batch::BT_COMPACTABLE)
 		{
 			batch_tex_id = m_FState.m_pCurrentBatch->primitive.batch_texture_id;
 
 			if (batch_tex_id != Batch::BATCH_TEX_ID_UNTEXTURED)
 			{
-				//CRASH_COND(batch_tex_id < 0);
-
 				// tex pixel size
 				const BTex &tex = m_Data.batch_textures[batch_tex_id];
 				tex.tex_pixel_size.to(texpixel_size);
@@ -548,12 +547,7 @@ int Batcher2d::fill(int p_command_start)
 		// after a flush always start with an item (to make sure there is something as the current batch
 		state_set_item(pItem);
 		state_flush_item();
-		//curr_batch = m_FState.m_pCurrentBatch;
 	}
-
-
-//	Color curr_col;
-//	m_FState.m_CurrentCol.to(curr_col);
 
 	// we need to return which command we got up to, so
 	// store this outside the loop
@@ -629,7 +623,7 @@ cleanup:;
 }
 
 
-bool Batcher2d::fill_rect(int command_num, RasterizerCanvas::Item::Command *command, int &batch_tex_id, int &quad_count, Vector2 &texpixel_size)
+bool CanvasBatcher::fill_rect(int command_num, RasterizerCanvas::Item::Command *command, int &batch_tex_id, int &quad_count, Vector2 &texpixel_size)
 {
 	Batch *curr_batch = m_FState.m_pCurrentBatch;
 
@@ -642,7 +636,7 @@ bool Batcher2d::fill_rect(int command_num, RasterizerCanvas::Item::Command *comm
 	// because if the vertex buffer is full, we need to finish this
 	// function, draw what we have so far, and then start a new set of batches
 
-	CRASH_COND (quad_count != (m_Data.vertices.size() / 4));
+	BATCH_DEBUG_CRASH_COND (quad_count != (m_Data.vertices.size() / 4));
 
 	// request FOUR vertices at a time, this is more efficient
 	BVert *bvs = m_Data.vertices.request_four();
@@ -651,7 +645,6 @@ bool Batcher2d::fill_rect(int command_num, RasterizerCanvas::Item::Command *comm
 		m_Data.buffer_full = true;
 
 		return false;
-		//goto cleanup;
 	}
 
 
@@ -709,14 +702,8 @@ bool Batcher2d::fill_rect(int command_num, RasterizerCanvas::Item::Command *comm
 	if (m_State.m_eTransformMode == BState::TM_TRANSLATE)
 		software_translate_rect(trect);
 
-	// lets override this for a test
-	//trect = Rect2(curr_batch->common.num_commands * 20, 0, 20, 20);
-
-
 	const Vector2 &mins = trect.position;
 	Vector2 maxs = mins + trect.size;
-//				const Vector2 &mins = rect->rect.position;
-//				Vector2 maxs = mins + rect->rect.size;
 
 	// just aliases
 	BVert *bA = &bvs[0];
@@ -758,10 +745,6 @@ bool Batcher2d::fill_rect(int command_num, RasterizerCanvas::Item::Command *comm
 	// uvs
 	Rect2 src_rect = (rect->flags & RasterizerCanvas::CANVAS_RECT_REGION) ? Rect2(rect->source.position * texpixel_size, rect->source.size * texpixel_size) : Rect2(0, 0, 1, 1);
 
-	// test test test
-	//src_rect = Rect2(0, 0, 1, 1);
-
-
 	// 10% faster calculating the max first
 	Vector2 pos_max = src_rect.position + src_rect.size;
 	Vector2 uvs[4] = {
@@ -795,7 +778,7 @@ bool Batcher2d::fill_rect(int command_num, RasterizerCanvas::Item::Command *comm
 	return true;
 }
 
-bool Batcher2d::fill_line(int command_num, RasterizerCanvas::Item::Command *command, int &batch_tex_id, int &quad_count, Vector2 &texpixel_size)
+bool CanvasBatcher::fill_line(int command_num, RasterizerCanvas::Item::Command *command, int &batch_tex_id, int &quad_count, Vector2 &texpixel_size)
 {
 	Batch *curr_batch = m_FState.m_pCurrentBatch;
 
@@ -808,7 +791,7 @@ bool Batcher2d::fill_line(int command_num, RasterizerCanvas::Item::Command *comm
 	// because if the vertex buffer is full, we need to finish this
 	// function, draw what we have so far, and then start a new set of batches
 
-	CRASH_COND (quad_count != (m_Data.vertices.size() / 4));
+	BATCH_DEBUG_CRASH_COND (quad_count != (m_Data.vertices.size() / 4));
 
 	// decide whether we are changing batch type
 	bool change_batch = false;
@@ -940,7 +923,7 @@ bool Batcher2d::fill_line(int command_num, RasterizerCanvas::Item::Command *comm
 	return true;
 }
 
-bool Batcher2d::fill_ninepatch(int command_num, RasterizerCanvas::Item::Command *command, int &batch_tex_id, int &quad_count, Vector2 &texpixel_size)
+bool CanvasBatcher::fill_ninepatch(int command_num, RasterizerCanvas::Item::Command *command, int &batch_tex_id, int &quad_count, Vector2 &texpixel_size)
 {
 	Batch *curr_batch = m_FState.m_pCurrentBatch;
 
@@ -953,7 +936,7 @@ bool Batcher2d::fill_ninepatch(int command_num, RasterizerCanvas::Item::Command 
 	// because if the vertex buffer is full, we need to finish this
 	// function, draw what we have so far, and then start a new set of batches
 
-	CRASH_COND (quad_count != (m_Data.vertices.size() / 4));
+	BATCH_DEBUG_CRASH_COND (quad_count != (m_Data.vertices.size() / 4));
 
 	// request all vertices at a time, this is more efficient
 	BVert *bvs = m_Data.vertices.request_thirtysix();
@@ -1140,7 +1123,7 @@ bool Batcher2d::fill_ninepatch(int command_num, RasterizerCanvas::Item::Command 
 	return true;
 }
 
-void Batcher2d::flush()
+void CanvasBatcher::flush()
 {
 	// debug
 #ifdef BATCH_DEBUG_FRAMES
@@ -1148,7 +1131,7 @@ void Batcher2d::flush()
 	{
 //		if ((rand() % 1000) == 0)
 
-//		if (!Engine::get_singleton()->is_editor_hint())
+		if (!Engine::get_singleton()->is_editor_hint())
 			debug_log_run();
 	}
 #endif
@@ -1161,7 +1144,7 @@ void Batcher2d::flush()
 
 
 // false if buffers full
-bool Batcher2d::process_commands()
+bool CanvasBatcher::process_commands()
 {
 	RasterizerCanvas::Item * pItem = m_FState.get_item();
 
@@ -1178,14 +1161,9 @@ bool Batcher2d::process_commands()
 		if (use_batching) {
 			// fill as many batches as possible (until all done, or the vertex buffer is full)
 			m_FState.m_iCommand = fill(m_FState.m_iCommand);
-
-			// send buffers to opengl
-			//_batch_upload_buffers();
 		} else {
 			// legacy .. just create one massive batch and render everything as before
 			m_Data.reset_pass();
-//			bdata.batches.reset();
-//			bdata.vertices.reset();
 			Batch *batch = m_Data.request_new_batch();
 			batch->type = Batch::BT_CHANGE_ITEM;
 			batch->item_change.m_pItem = m_FState.m_pItem;
@@ -1193,8 +1171,6 @@ bool Batcher2d::process_commands()
 			batch = m_Data.request_new_batch();
 			batch->type = Batch::BT_DEFAULT;
 			batch->def.num_commands = command_count;
-			//batch->item = p_item;
-			//CRASH_COND(!p_item);
 
 			// signify to do only one while loop
 			m_FState.m_iCommand = command_count;
@@ -1203,10 +1179,9 @@ bool Batcher2d::process_commands()
 		// only flush when buffer full
 		if (m_Data.buffer_full)
 		{
-			//m_FState.m_iCommand = command_start;
 			return false;
 		}
-			//flush_heavy();
+			//flush();
 
 	} // while there are still more batches to fill
 
@@ -1216,11 +1191,10 @@ bool Batcher2d::process_commands()
 
 	//_flush();
 
-	//m_FState.m_iCommand = command_start;
 	return true;
 }
 
-void Batcher2d::process_lit_item_end()
+void CanvasBatcher::process_lit_item_end()
 {
 	state_light_end();
 	state_invalidate_blend_mode();
@@ -1232,7 +1206,7 @@ void Batcher2d::process_lit_item_end()
 
 }
 
-bool Batcher2d::process_lit_item_start(RasterizerCanvas::Item *ci, AliasLight *p_light)
+bool CanvasBatcher::process_lit_item_start(RasterizerCanvas::Item *ci, AliasLight *p_light)
 {
 	// lights need to know the item, no opportunity to batch around this
 	//state_set_item(ci);
@@ -1286,7 +1260,7 @@ bool Batcher2d::process_lit_item_start(RasterizerCanvas::Item *ci, AliasLight *p
 	return true;
 }
 
-bool Batcher2d::process_item_start(RasterizerCanvas::Item *ci)
+bool CanvasBatcher::process_item_start(RasterizerCanvas::Item *ci)
 {
 	m_State.reset_item();
 	m_FState.reset_item();
@@ -1506,13 +1480,13 @@ bool Batcher2d::process_item_start(RasterizerCanvas::Item *ci)
 	return bRenderNoLighting;
 }
 
-bool Batcher2d::process_lit_item(RasterizerCanvas::Item *ci)
+bool CanvasBatcher::process_lit_item(RasterizerCanvas::Item *ci)
 {
 	return process_item(ci);
 }
 
 
-bool Batcher2d::process_item(RasterizerCanvas::Item *ci)
+bool CanvasBatcher::process_item(RasterizerCanvas::Item *ci)
 {
 	//m_State.reset_item();
 
@@ -1534,7 +1508,7 @@ bool Batcher2d::process_item(RasterizerCanvas::Item *ci)
 	return true;
 }
 
-void Batcher2d::batch_translate_to_colored()
+void CanvasBatcher::batch_translate_to_colored()
 {
 	BatchData &bdata = m_Data;
 	bdata.use_colored_vertices = true;
@@ -1546,10 +1520,8 @@ void Batcher2d::batch_translate_to_colored()
 	// the sizes should be equal, and allocations should never fail. Hence the use of debug
 	// asserts to check program flow, these should not occur at runtime unless the allocation
 	// code has been altered.
-#ifdef DEBUG_ENABLED
-	CRASH_COND(bdata.vertices_colored.max_size() != bdata.vertices.max_size());
-	CRASH_COND(bdata.batches_temp.max_size() != bdata.batches.max_size());
-#endif
+	BATCH_DEBUG_CRASH_COND(bdata.vertices_colored.max_size() != bdata.vertices.max_size());
+	BATCH_DEBUG_CRASH_COND(bdata.batches_temp.max_size() != bdata.batches.max_size());
 
 	BColor curr_col;
 	curr_col.set(-1, -1, -1, -1);
@@ -1588,9 +1560,7 @@ void Batcher2d::batch_translate_to_colored()
 
 		if (needs_new_batch) {
 			pDestBatch = bdata.batches_temp.request();
-#ifdef DEBUG_ENABLED
-			CRASH_COND(!pDestBatch);
-#endif
+			BATCH_DEBUG_CRASH_COND(!pDestBatch);
 
 			*pDestBatch = b;
 

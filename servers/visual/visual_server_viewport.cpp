@@ -91,7 +91,10 @@ uint64_t kessel_get_time()
 #endif
 }
 
+//#define PERF_TEST_KESSEL
+#ifdef PERF_TEST_KESSEL
 extern bool g_bUseKessel;
+#endif
 
 
 void VisualServerViewport::_draw_viewport(Viewport *p_viewport, ARVRInterface::Eyes p_eye) {
@@ -257,7 +260,6 @@ void VisualServerViewport::_draw_viewport(Viewport *p_viewport, ARVRInterface::E
 			}
 
 			// performance test kessel
-//#define PERF_TEST_KESSEL
 #ifdef PERF_TEST_KESSEL
 			g_bUseKessel = true;
 			uint64_t before1 = kessel_get_time();
