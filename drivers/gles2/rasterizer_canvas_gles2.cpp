@@ -185,7 +185,7 @@ void RasterizerCanvasGLES2::_batch_canvas_shader_bind(RasterizerStorageGLES2::Ma
 
 void RasterizerCanvasGLES2::_batch_render_lines(const Batch::Batch &p_batch, RasterizerStorageGLES2::Material *p_material) {
 
-	const Batch::BatchData &bdata = _canvas_batcher.m_Data;
+	const Batch::CanvasBatchData &bdata = _canvas_batcher._data;
 //	ERR_FAIL_COND(batch.primitive.num_commands <= 0);
 	ERR_FAIL_COND(p_batch.primitive.num_verts <= 0);
 
@@ -287,7 +287,7 @@ void RasterizerCanvasGLES2::_batch_render_lines(const Batch::Batch &p_batch, Ras
 
 void RasterizerCanvasGLES2::_batch_render_rects(const Batch::Batch &p_batch, RasterizerStorageGLES2::Material *p_material) {
 //		return;
-	const Batch::BatchData &bdata = _canvas_batcher.m_Data;
+	const Batch::CanvasBatchData &bdata = _canvas_batcher._data;
 
 	ERR_FAIL_COND(p_batch.primitive.num_quads <= 0);
 
@@ -708,7 +708,7 @@ void RasterizerCanvasGLES2::_batch_render_default_batch(int p_batch_id, Item *p_
 
 //	return;
 
-	const Batch::Batch &batch = _canvas_batcher.m_Data.batches[p_batch_id];
+	const Batch::Batch &batch = _canvas_batcher._data.batches[p_batch_id];
 
 	// set the model view
 	state.uniforms.modelview_matrix = _gl_state.m_matModelView;

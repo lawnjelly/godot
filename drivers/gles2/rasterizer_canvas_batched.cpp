@@ -3,7 +3,7 @@
 static bool g_bKessel2DOnly = true;
 
 void RasterizerCanvasBatched::batch_initialize() {
-	const Batch::BatchData &bd = _canvas_batcher.m_Data;
+	const Batch::CanvasBatchData &bd = _canvas_batcher._data;
 
 	_gl_data.index_buffer_size_bytes = bd.index_buffer_size_units * 2; // 16 bit inds
 
@@ -46,7 +46,7 @@ void RasterizerCanvasBatched::batch_terminate() {
 
 void RasterizerCanvasBatched::batch_upload_buffers() {
 
-	const Batch::BatchData &bd = _canvas_batcher.m_Data;
+	const Batch::CanvasBatchData &bd = _canvas_batcher._data;
 
 	// noop?
 	if (!bd.vertices.size())
@@ -79,7 +79,7 @@ void RasterizerCanvasBatched::batch_pass_end() {
 
 
 void RasterizerCanvasBatched::batch_flush_render() {
-	const Batch::BatchData &bdata = _canvas_batcher.m_Data;
+	const Batch::CanvasBatchData &bdata = _canvas_batcher._data;
 
 	RasterizerStorageGLES2::Material *p_material = 0;
 
@@ -122,7 +122,7 @@ void RasterizerCanvasBatched::batch_flush_render() {
 			} break;
 		case Batch::Batch::BT_CHANGE_MATERIAL: {
 				int bmat_id = batch.material_change.batch_material_id;
-				const Batch::BMaterial & bmat = _canvas_batcher.m_Data.batch_materials[bmat_id];
+				const Batch::BMaterial & bmat = _canvas_batcher._data.batch_materials[bmat_id];
 
 				// don't crash, in some cases (going from a non-rect batch previously) we will lose track of the current material
 				// so could get a redundant material change - FIXME
@@ -209,7 +209,7 @@ void RasterizerCanvasBatched::batch_flush_render() {
 }
 
 void RasterizerCanvasBatched::batch_flush() {
-	Batch::BatchData &bd = _canvas_batcher.m_Data;
+	Batch::CanvasBatchData &bd = _canvas_batcher._data;
 
 	// render the batches
 	// noop?

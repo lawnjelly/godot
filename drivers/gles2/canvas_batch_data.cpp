@@ -3,7 +3,7 @@
 namespace Batch
 {
 
-BatchData::BatchData()
+CanvasBatchData::CanvasBatchData()
 {
 	reset_pass();
 	max_quads = 0;
@@ -50,14 +50,14 @@ BatchData::BatchData()
 		batch_textures.create(32);
 }
 
-int BatchData::push_back_new_material(const BMaterial &mat)
+int CanvasBatchData::push_back_new_material(const BMaterial &mat)
 {
 	int size = batch_materials.size();
 	batch_materials.push_back(mat);
 	return size;
 }
 
-Batch * BatchData::request_new_batch(bool p_blank)
+Batch * CanvasBatchData::request_new_batch(bool p_blank)
 {
 	Batch *batch = batches.request();
 	if (!batch) {
@@ -82,7 +82,7 @@ Batch * BatchData::request_new_batch(bool p_blank)
 }
 
 // after each flush
-void BatchData::reset_flush()
+void CanvasBatchData::reset_flush()
 {
 	batches.reset();
 	batch_textures.reset();
@@ -97,7 +97,7 @@ void BatchData::reset_flush()
 }
 
 // think in terms of every frame
-void BatchData::reset_pass()
+void CanvasBatchData::reset_pass()
 {
 	// zero all the batch data ready for the next run
 	batches.reset();

@@ -29,8 +29,8 @@
 namespace Batch
 {
 
-struct BatchData {
-	BatchData();
+struct CanvasBatchData {
+	CanvasBatchData();
 
 	void reset_pass();
 	void reset_flush();

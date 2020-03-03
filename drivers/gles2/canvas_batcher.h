@@ -9,38 +9,22 @@ class RasterizerCanvasBatched;
 namespace Batch
 {
 
-template <class T> class BFlags
-{
-public:
-	void set_flag(T s) { m_Flags |= s; }
-	void clear_flag(T s) { m_Flags &= ~s; }
-	void clear_flags() { m_Flags = 0; }
-	bool get_flag(T s) { return m_Flags & s; }
-	bool set_flag_if_false(T s) {
-		if (!get_flag(s)) {
-			set_flag(s);
-			return true;
-		}
-		return false;
-	}
-	bool clear_flag_if_true(T s) {
-		if (get_flag(s)) {
-			clear_flag(s);
-			return true;
-		}
-		return false;
-	}
-private:
-	T m_Flags;
-};
-
 class CanvasBatcher
 {
 public:
-	BatchData m_Data;
+	CanvasBatchData _data;
 private:
 
-	struct BState {
+	struct ProcessCommon
+	{
+		RasterizerCanvasBatched * m_pOwner;
+		int m_iZ;
+		Color m_colModulate;
+		AliasLight * m_pLight;
+		Transform2D m_trBase;
+	} m_PCommon;
+
+	struct FillState {
 		enum StateFlags {
 			SF_FORCE_FLUSH = 1 << 0,
 			SF_SCISSOR = 1 << 1,
@@ -55,28 +39,19 @@ private:
 			TM_ALL,
 		};
 
-
-		BState() {reset_pass();}
-		void reset_pass() {
-			m_Flags.clear_flags();
-			m_pMaterial = 0;
-			m_iBlendMode = -1;
-			m_pShader = 0;
-			m_RID_curr_Material = RID();
-			m_bDirty_ModelView = false;
-			m_bExtraMatrixSet = false;
-			m_bModelView_SentThisItem = false;
-
-			m_eTransformMode = TM_ALL;
-		}
-
-		void reset_item()
+		FillState() {reset_pass();}
+		void reset_pass();
+		void reset_flush();
+		void reset_item();
+		void reset_if_dirty()
 		{
-			m_bModelView_SentThisItem = false;
+			if (!m_bDirty) return;
+			m_bDirty = false;
+			reset_col_modulate();
 		}
-
-	private:
-		BFlags<uint32_t> m_Flags;
+		void reset_col_modulate() {m_Col_modulate.r = -100.0;}
+		void make_dirty() {m_bDirty = true;}
+		RasterizerCanvas::Item * get_item() const {return (RasterizerCanvas::Item *) m_pItem;}
 
 	public:
 		AliasMaterial *m_pMaterial;
@@ -99,41 +74,7 @@ private:
 		bool m_bModelView_SentThisItem;
 		bool m_bExtraMatrixSet;
 		TransformMode m_eTransformMode;
-	} m_State;
 
-
-	struct FillState {
-		FillState() {reset_pass();}
-		void reset_pass()
-		{
-			m_pItem = 0;
-			m_pClipItem = 0;
-			m_iCommand = 0;
-			reset_flush();
-		}
-		void reset_flush()
-		{
-			m_pCurrentBatch = 0;
-			m_bDirty_Item = false;
-			m_CurrentCol.r = -100.0;
-			reset_col_modulate();
-			m_bDirty = false;
-			m_bPreviousLineOdd = false;
-		}
-		void reset_item()
-		{
-			// start of commands
-			m_iCommand = 0;
-		}
-		void reset_if_dirty()
-		{
-			if (!m_bDirty) return;
-			m_bDirty = false;
-			reset_col_modulate();
-		}
-		void reset_col_modulate() {m_Col_modulate.r = -100.0;}
-		void make_dirty() {m_bDirty = true;}
-		RasterizerCanvas::Item * get_item() const {return (RasterizerCanvas::Item *) m_pItem;}
 		AliasItem * m_pItem;
 		AliasItem * m_pClipItem;
 		bool m_bDirty_Item;
@@ -149,7 +90,7 @@ private:
 		// lines are special, they use 2 verts instead of 4,
 		// so we have to keep track of whether we can reuse the previous 2 verts for the next line
 		bool m_bPreviousLineOdd;
-	} m_FState;
+	} _fillstate;
 
 	String m_szDebugLog;
 
@@ -175,9 +116,9 @@ public:
 	void batch_translate_to_colored();
 
 
-	const BRectI &get_recti(int index) const {return m_Data.generic_128s[index].recti;}
-	const BRectF &get_rectf(int index) const {return m_Data.generic_128s[index].rectf;}
-	const BColor &get_color(int index) const {return m_Data.generic_128s[index].color;}
+	const BRectI &get_recti(int index) const {return _data.generic_128s[index].recti;}
+	const BRectF &get_rectf(int index) const {return _data.generic_128s[index].rectf;}
+	const BColor &get_color(int index) const {return _data.generic_128s[index].color;}
 
 private:
 	// false if buffers full
@@ -202,7 +143,7 @@ private:
 	void state_set_item(RasterizerCanvas::Item *pItem);
 	void state_set_RID_material(const RID &rid);
 	void state_set_blend_mode(int mode);
-	void state_invalidate_blend_mode() {m_State.m_iBlendMode = -1;}
+	void state_invalidate_blend_mode() {_fillstate.m_iBlendMode = -1;}
 	void state_set_modelview(const Transform2D &tr);
 	bool state_set_color(const Color &col);
 	void state_set_color_modulate(const Color &col);
@@ -237,87 +178,119 @@ private:
 		return &p->color;
 	}
 
-
-	struct ProcessCommon
-	{
-		RasterizerCanvasBatched * m_pOwner;
-		int m_iZ;
-		Color m_colModulate;
-		AliasLight * m_pLight;
-		Transform2D m_trBase;
-	} m_PCommon;
-
 	bool is_lit() const {return m_PCommon.m_pLight != 0;}
 
-	void software_transform_vert(BVert &v) const
-	{
-		Vector2 vc(v.pos.x, v.pos.y);
-		vc = m_State.m_matCombined.xform(vc);
-		v.pos.set(vc);
-
-		// test
-		//v.pos.x -= 60.0f;
-	}
-
-	void software_translate_vert(BVert &v) const
-	{
-		v.pos.x += m_State.m_matCombined.elements[2].x;
-		v.pos.y += m_State.m_matCombined.elements[2].y;
-	}
-
-	void software_transform_vert(Vector2 &v) const
-	{
-		v = m_State.m_matCombined.xform(v);
-	}
-
-	void software_translate_vert(Vector2 &v) const
-	{
-		v.x += m_State.m_matCombined.elements[2].x;
-		v.y += m_State.m_matCombined.elements[2].y;
-	}
-
-	void software_translate_rect(Rect2 &rect) const
-	{
-		rect.position.x += m_State.m_matCombined.elements[2].x;
-		rect.position.y += m_State.m_matCombined.elements[2].y;
-	}
-
-	void add_colored_verts(const Batch &b, const BColor &curr_col)
-	{
-		if (!b.is_compactable())
-			return;
-
-		// create colored verts
-		int first_vert = b.primitive.first_quad * 4;
-		int end_vert = 4 * (b.primitive.first_quad + b.primitive.num_quads);
-		/*
-		String sz = "";
-		sz += "first_vert : " + itos(first_vert) + ",\tend_vert : " + itos(end_vert);
-
-		if (b.type == Batch::BT_LINE)
-		{
-			sz += "\tfirst_quad : " + itos(b.primitive.first_quad);
-		}
-		print_line(sz);
-		*/
-
-#ifdef DEBUG_ENABLED
-		CRASH_COND(first_vert != m_Data.vertices_colored.size());
-#endif
-
-		for (int v = first_vert; v < end_vert; v++)
-		{
-			const BVert &bv = m_Data.vertices[v];
-			BVert_colored *cv = m_Data.vertices_colored.request();
-#ifdef DEBUG_ENABLED
-			CRASH_COND(!cv);
-#endif
-			cv->pos = bv.pos;
-			cv->uv = bv.uv;
-			cv->col = curr_col;
-		}
-	}
+	void software_transform_vert(BVert &v) const;
+	void software_translate_vert(BVert &v) const;
+	void software_transform_vert(Vector2 &v) const;
+	void software_translate_vert(Vector2 &v) const;
+	void software_translate_rect(Rect2 &rect) const;
+	void add_colored_verts(const Batch &b, const BColor &curr_col);
 };
+
+
+inline void CanvasBatcher::FillState::reset_pass()
+{
+	m_pMaterial = 0;
+	m_iBlendMode = -1;
+	m_pShader = 0;
+	m_RID_curr_Material = RID();
+	m_bDirty_ModelView = false;
+	m_bExtraMatrixSet = false;
+	m_bModelView_SentThisItem = false;
+
+	m_eTransformMode = TM_ALL;
+
+
+	m_pItem = 0;
+	m_pClipItem = 0;
+	m_iCommand = 0;
+	reset_flush();
+}
+
+inline void CanvasBatcher::FillState::reset_flush()
+{
+	m_pCurrentBatch = 0;
+	m_bDirty_Item = false;
+	m_CurrentCol.r = -100.0;
+	reset_col_modulate();
+	m_bDirty = false;
+	m_bPreviousLineOdd = false;
+}
+
+inline void CanvasBatcher::FillState::reset_item()
+{
+	// start of commands
+	m_iCommand = 0;
+	m_bModelView_SentThisItem = false;
+}
+
+
+inline void CanvasBatcher::software_transform_vert(BVert &v) const
+{
+	Vector2 vc(v.pos.x, v.pos.y);
+	vc = _fillstate.m_matCombined.xform(vc);
+	v.pos.set(vc);
+}
+
+inline void CanvasBatcher::software_translate_vert(BVert &v) const
+{
+	v.pos.x += _fillstate.m_matCombined.elements[2].x;
+	v.pos.y += _fillstate.m_matCombined.elements[2].y;
+}
+
+inline void CanvasBatcher::software_transform_vert(Vector2 &v) const
+{
+	v = _fillstate.m_matCombined.xform(v);
+}
+
+inline void CanvasBatcher::software_translate_vert(Vector2 &v) const
+{
+	v.x += _fillstate.m_matCombined.elements[2].x;
+	v.y += _fillstate.m_matCombined.elements[2].y;
+}
+
+inline void CanvasBatcher::software_translate_rect(Rect2 &rect) const
+{
+	rect.position.x += _fillstate.m_matCombined.elements[2].x;
+	rect.position.y += _fillstate.m_matCombined.elements[2].y;
+}
+
+inline void CanvasBatcher::add_colored_verts(const Batch &b, const BColor &curr_col)
+{
+	if (!b.is_compactable())
+		return;
+
+	// create colored verts
+	int first_vert = b.primitive.first_quad * 4;
+	int end_vert = 4 * (b.primitive.first_quad + b.primitive.num_quads);
+	/*
+	String sz = "";
+	sz += "first_vert : " + itos(first_vert) + ",\tend_vert : " + itos(end_vert);
+
+	if (b.type == Batch::BT_LINE)
+	{
+		sz += "\tfirst_quad : " + itos(b.primitive.first_quad);
+	}
+	print_line(sz);
+	*/
+
+#ifdef DEBUG_ENABLED
+	CRASH_COND(first_vert != _data.vertices_colored.size());
+#endif
+
+	for (int v = first_vert; v < end_vert; v++)
+	{
+		const BVert &bv = _data.vertices[v];
+		BVert_colored *cv = _data.vertices_colored.request();
+#ifdef DEBUG_ENABLED
+		CRASH_COND(!cv);
+#endif
+		cv->pos = bv.pos;
+		cv->uv = bv.uv;
+		cv->col = curr_col;
+	}
+}
 
 
 } // namespace

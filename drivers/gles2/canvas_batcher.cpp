@@ -22,16 +22,16 @@ void CanvasBatcher::process_prepare(RasterizerCanvasBatched * pOwner, int p_z, c
 
 Batch * CanvasBatcher::request_new_batch()
 {
-	Batch * b = m_Data.request_new_batch();
-	m_FState.m_pCurrentBatch = b;
+	Batch * b = _data.request_new_batch();
+	_fillstate.m_pCurrentBatch = b;
 //	int i = sizeof (Batch);
 	return b;
 }
 
 B128 * CanvasBatcher::_request_new_B128(Batch &batch)
 {
-	batch.index.id = m_Data.generic_128s.size();
-	B128 * p = m_Data.request_new_B128();
+	batch.index.id = _data.generic_128s.size();
+	B128 * p = _data.request_new_B128();
 	return p;
 }
 
@@ -56,8 +56,8 @@ void CanvasBatcher::state_light_end()
 
 void CanvasBatcher::state_set_item(RasterizerCanvas::Item * pItem)
 {
-	m_FState.m_pItem = (AliasItem *) pItem;
-	m_FState.m_bDirty_Item = true;
+	_fillstate.m_pItem = (AliasItem *) pItem;
+	_fillstate.m_bDirty_Item = true;
 }
 
 void CanvasBatcher::state_copy_back_buffer(RasterizerCanvas::Item *pItem)
@@ -81,11 +81,11 @@ void CanvasBatcher::state_copy_back_buffer(RasterizerCanvas::Item *pItem)
 
 void CanvasBatcher::state_set_scissor(RasterizerCanvas::Item *pClipItem)
 {
-	if ((RasterizerCanvas::Item *) m_FState.m_pClipItem == pClipItem)
+	if ((RasterizerCanvas::Item *) _fillstate.m_pClipItem == pClipItem)
 		return;
 
 	// changes
-	m_FState.m_pClipItem = (AliasItem *) pClipItem;
+	_fillstate.m_pClipItem = (AliasItem *) pClipItem;
 
 	if (pClipItem) {
 		Batch * b = request_new_batch();
@@ -107,43 +107,43 @@ void CanvasBatcher::state_set_scissor(RasterizerCanvas::Item *pClipItem)
 
 void CanvasBatcher::state_flush_item()
 {
-	if (!m_FState.m_bDirty_Item)
+	if (!_fillstate.m_bDirty_Item)
 		return;
 
-	m_FState.m_bDirty_Item = false;
+	_fillstate.m_bDirty_Item = false;
 
 	Batch * b = request_new_batch();
 	b->type = Batch::BT_CHANGE_ITEM;
-	b->item_change.m_pItem = m_FState.m_pItem;
+	b->item_change.m_pItem = _fillstate.m_pItem;
 
-	m_FState.m_pCurrentBatch = b;
+	_fillstate.m_pCurrentBatch = b;
 }
 
 
 void CanvasBatcher::state_set_RID_material(const RID &rid)
 {
-	if (m_State.m_RID_curr_Material == rid)
+	if (_fillstate.m_RID_curr_Material == rid)
 		return;
 
-	m_State.m_RID_curr_Material = rid;
+	_fillstate.m_RID_curr_Material = rid;
 
 	AliasShader * pShader = 0;
 	AliasMaterial * pMat = get_owner()->batch_get_material_and_shader_from_RID(rid, &pShader);
-	m_State.m_pMaterial = pMat;
+	_fillstate.m_pMaterial = pMat;
 
 	BMaterial mat;
 	mat.RID_material = rid;
 	mat.m_pMaterial = pMat;
 	mat.m_bChangedShader = false;
 
-	if (pShader != m_State.m_pShader)
+	if (pShader != _fillstate.m_pShader)
 	{
-		m_State.m_pShader = pShader;
+		_fillstate.m_pShader = pShader;
 		mat.m_bChangedShader = true;
 	}
 
 
-	int mat_id = m_Data.push_back_new_material(mat);
+	int mat_id = _data.push_back_new_material(mat);
 
 	Batch * b = request_new_batch();
 	b->type = Batch::BT_CHANGE_MATERIAL;
@@ -153,10 +153,10 @@ void CanvasBatcher::state_set_RID_material(const RID &rid)
 
 void CanvasBatcher::state_set_blend_mode(int mode)
 {
-	if (mode == m_State.m_iBlendMode)
+	if (mode == _fillstate.m_iBlendMode)
 		return;
 
-	m_State.m_iBlendMode = mode;
+	_fillstate.m_iBlendMode = mode;
 
 	Batch * b = request_new_batch();
 	b->type = Batch::BT_CHANGE_BLEND_MODE;
@@ -165,12 +165,12 @@ void CanvasBatcher::state_set_blend_mode(int mode)
 
 void CanvasBatcher::state_set_color_modulate(const Color &col)
 {
-	if (m_FState.m_Col_modulate.equals(col))
+	if (_fillstate.m_Col_modulate.equals(col))
 	{
 		return;
 	}
 
-	m_FState.m_Col_modulate.set(col);
+	_fillstate.m_Col_modulate.set(col);
 	Batch * b = request_new_batch();
 	b->type = Batch::BT_CHANGE_COLOR_MODULATE;
 
@@ -182,10 +182,10 @@ void CanvasBatcher::state_set_color_modulate(const Color &col)
 
 bool CanvasBatcher::state_set_color(const Color &col)
 {
-	if (m_FState.m_CurrentCol.equals(col))
+	if (_fillstate.m_CurrentCol.equals(col))
 		return false;
 
-	m_FState.m_CurrentCol.set(col);
+	_fillstate.m_CurrentCol.set(col);
 
 	Batch * b = request_new_batch();
 	b->type = Batch::BT_CHANGE_COLOR;
@@ -201,30 +201,30 @@ void CanvasBatcher::state_set_extra_matrix(const Transform2D &tr)
 {
 	state_flush_modelview();
 
-	if (!m_State.m_bExtraMatrixSet)
+	if (!_fillstate.m_bExtraMatrixSet)
 	{
 		// store the original model view
-		m_State.m_matModelView = m_State.m_matCombined;
+		_fillstate.m_matModelView = _fillstate.m_matCombined;
 
-		m_State.m_bExtraMatrixSet = true;
+		_fillstate.m_bExtraMatrixSet = true;
 
 		Batch * b = request_new_batch();
 		b->type = Batch::BT_SET_EXTRA_MATRIX;
 	}
 
-	m_State.m_matExtra = tr;
-	m_State.m_matCombined = m_State.m_matModelView * tr;
+	_fillstate.m_matExtra = tr;
+	_fillstate.m_matCombined = _fillstate.m_matModelView * tr;
 
 	choose_software_transform_mode();
 }
 
 void CanvasBatcher::state_unset_extra_matrix()
 {
-	if (m_State.m_bExtraMatrixSet)
+	if (_fillstate.m_bExtraMatrixSet)
 	{
-		m_State.m_matCombined = m_State.m_matModelView;
+		_fillstate.m_matCombined = _fillstate.m_matModelView;
 
-		m_State.m_bExtraMatrixSet = false;
+		_fillstate.m_bExtraMatrixSet = false;
 		Batch * b = request_new_batch();
 		b->type = Batch::BT_UNSET_EXTRA_MATRIX;
 	}
@@ -232,7 +232,7 @@ void CanvasBatcher::state_unset_extra_matrix()
 
 void CanvasBatcher::choose_software_transform_mode()
 {
-	const Transform2D &tr = m_State.m_matCombined;
+	const Transform2D &tr = _fillstate.m_matCombined;
 
 	// decided whether to do translate only for software transform
 	if ((tr.elements[0].x == 1.0) &&
@@ -240,26 +240,26 @@ void CanvasBatcher::choose_software_transform_mode()
 	(tr.elements[1].x == 0.0) &&
 	(tr.elements[1].y == 1.0))
 	{
-		m_State.m_eTransformMode = BState::TM_TRANSLATE;
+		_fillstate.m_eTransformMode = FillState::TM_TRANSLATE;
 	}
 	else
 	{
-		m_State.m_eTransformMode = BState::TM_ALL;
+		_fillstate.m_eTransformMode = FillState::TM_ALL;
 	}
 }
 
 
 void CanvasBatcher::state_set_modelview(const Transform2D &tr)
 {
-	BATCH_DEBUG_CRASH_COND(m_State.m_bExtraMatrixSet);
+	BATCH_DEBUG_CRASH_COND(_fillstate.m_bExtraMatrixSet);
 
-	if (tr == m_State.m_matCombined)
+	if (tr == _fillstate.m_matCombined)
 		return;
 
-	m_State.m_matCombined = tr;
+	_fillstate.m_matCombined = tr;
 
 	// defer this as only needed when not doing software transform
-	m_State.m_bDirty_ModelView = true;
+	_fillstate.m_bDirty_ModelView = true;
 
 	// decided whether to do translate only for software transform
 	choose_software_transform_mode();
@@ -267,25 +267,25 @@ void CanvasBatcher::state_set_modelview(const Transform2D &tr)
 
 void CanvasBatcher::state_flush_modelview()
 {
-	if (!m_State.m_bDirty_ModelView)
+	if (!_fillstate.m_bDirty_ModelView)
 		return;
 
 	// only send once per item
-	if (m_State.m_bModelView_SentThisItem)
+	if (_fillstate.m_bModelView_SentThisItem)
 		return;
 
-	m_State.m_bDirty_ModelView = false;
-	m_State.m_bModelView_SentThisItem = true;
+	_fillstate.m_bDirty_ModelView = false;
+	_fillstate.m_bModelView_SentThisItem = true;
 
-	BTransform * p = m_Data.request_new_transform();
-	if (!m_State.m_bExtraMatrixSet)
-		p->tr = m_State.m_matCombined;
+	BTransform * p = _data.request_new_transform();
+	if (!_fillstate.m_bExtraMatrixSet)
+		p->tr = _fillstate.m_matCombined;
 	else
-		p->tr = m_State.m_matModelView;
+		p->tr = _fillstate.m_matModelView;
 
 	Batch * b = request_new_batch();
 	b->type = Batch::BT_CHANGE_TRANSFORM;
-	b->transform_change.transform_id = m_Data.transforms.size()-1;
+	b->transform_change.transform_id = _data.transforms.size()-1;
 }
 
 
@@ -302,9 +302,9 @@ void CanvasBatcher::pass_end()
 
 	g_MyFrameCount++;
 
-	m_Data.reset_pass();
-	m_State.reset_pass();
-	m_FState.reset_pass();
+	_data.reset_pass();
+//	m_State.reset_pass();
+	_fillstate.reset_pass();
 }
 
 
@@ -313,7 +313,7 @@ int CanvasBatcher::find_or_create_tex(const RID &p_texture, const RID &p_normal,
 	// optimization .. in 99% cases the last matched value will be the same, so no need to traverse the list
 	if (p_previous_match != Batch::BATCH_TEX_ID_UNTEXTURED) // if it is zero, it will get hit first in the linear search anyway
 	{
-		const BTex &batch_texture = m_Data.batch_textures[p_previous_match];
+		const BTex &batch_texture = _data.batch_textures[p_previous_match];
 
 		// note for future reference, if RID implementation changes, this could become more expensive
 		if ((batch_texture.RID_texture == p_texture) && (batch_texture.RID_normal == p_normal)) {
@@ -330,8 +330,8 @@ int CanvasBatcher::find_or_create_tex(const RID &p_texture, const RID &p_normal,
 	// not very often except with non-batchable runs, which are going to be slow anyway
 
 	// note this could be converted to a high speed hash table, profile though to check faster
-	for (int n = 0; n < m_Data.batch_textures.size(); n++) {
-		const BTex &batch_texture = m_Data.batch_textures[n];
+	for (int n = 0; n < _data.batch_textures.size(); n++) {
+		const BTex &batch_texture = _data.batch_textures[n];
 		if ((batch_texture.RID_texture == p_texture) && (batch_texture.RID_normal == p_normal)) {
 
 			// tiling mode must also match
@@ -367,9 +367,9 @@ int CanvasBatcher::find_or_create_tex(const RID &p_texture, const RID &p_normal,
 	}
 
 	// push back
-	m_Data.batch_textures.push_back(b);
+	_data.batch_textures.push_back(b);
 
-	return m_Data.batch_textures.size() - 1;
+	return _data.batch_textures.size() - 1;
 }
 
 void CanvasBatcher::debug_log_type_col(String sz, const BColor &col, int spacer)
@@ -411,12 +411,12 @@ void CanvasBatcher::debug_log_run()
 {
 	m_szDebugLog = "";
 
-	int num_batches = m_Data.batches.size();
+	int num_batches = _data.batches.size();
 	debug_log_type("\n\n_________________________________________________________\nRUN");
 	debug_log_int("num_batches", num_batches);
 
 	for (int batch_num = 0; batch_num < num_batches; batch_num++) {
-		const Batch &batch = m_Data.batches[batch_num];
+		const Batch &batch = _data.batches[batch_num];
 
 		switch (batch.type) {
 			case Batch::BT_RECT: {
@@ -511,7 +511,7 @@ void CanvasBatcher::debug_log_run()
 
 int CanvasBatcher::fill(int p_command_start)
 {
-	RasterizerCanvas::Item * pItem = m_FState.get_item();
+	RasterizerCanvas::Item * pItem = _fillstate.get_item();
 
 
 	// we will prefill batches and vertices ready for sending in one go to the vertex buffer
@@ -521,23 +521,23 @@ int CanvasBatcher::fill(int p_command_start)
 	int batch_tex_id = Batch::BATCH_TEX_ID_UNTEXTURED;
 
 	// re-entrant
-	int quad_count = m_Data.total_quads;
+	int quad_count = _data.total_quads;
 
 	//BATCH_DEBUG_CRASH_COND (quad_count != bdata.debug_batch_quads_total);
 
 
 	Vector2 texpixel_size(1, 1);
 
-	if (m_FState.m_pCurrentBatch)
+	if (_fillstate.m_pCurrentBatch)
 	{
-		if (m_FState.m_pCurrentBatch->type > Batch::BT_COMPACTABLE)
+		if (_fillstate.m_pCurrentBatch->type > Batch::BT_COMPACTABLE)
 		{
-			batch_tex_id = m_FState.m_pCurrentBatch->primitive.batch_texture_id;
+			batch_tex_id = _fillstate.m_pCurrentBatch->primitive.batch_texture_id;
 
 			if (batch_tex_id != Batch::BATCH_TEX_ID_UNTEXTURED)
 			{
 				// tex pixel size
-				const BTex &tex = m_Data.batch_textures[batch_tex_id];
+				const BTex &tex = _data.batch_textures[batch_tex_id];
 				tex.tex_pixel_size.to(texpixel_size);
 			}
 		}
@@ -555,13 +555,13 @@ int CanvasBatcher::fill(int p_command_start)
 
 #define GLES2_BATCH_DEFAULT state_flush_item();\
 state_flush_modelview();\
-if (m_FState.m_pCurrentBatch->type == Batch::BT_DEFAULT) {\
-m_FState.m_pCurrentBatch->def.num_commands++;\
+if (_fillstate.m_pCurrentBatch->type == Batch::BT_DEFAULT) {\
+_fillstate.m_pCurrentBatch->def.num_commands++;\
 } else {\
-m_FState.m_pCurrentBatch = m_Data.request_new_batch();\
-m_FState.m_pCurrentBatch->type = Batch::BT_DEFAULT;\
-m_FState.m_pCurrentBatch->def.first_command = command_num;\
-m_FState.m_pCurrentBatch->def.num_commands = 1;\
+_fillstate.m_pCurrentBatch = _data.request_new_batch();\
+_fillstate.m_pCurrentBatch->type = Batch::BT_DEFAULT;\
+_fillstate.m_pCurrentBatch->def.first_command = command_num;\
+_fillstate.m_pCurrentBatch->def.num_commands = 1;\
 }
 
 	// do as many commands as possible until the vertex buffer will be full up
@@ -613,7 +613,7 @@ m_FState.m_pCurrentBatch->def.num_commands = 1;\
 cleanup:;
 
 	// resave this
-	m_Data.total_quads = quad_count;
+	_data.total_quads = quad_count;
 
 	// important, we return how far we got through the commands.
 	// We may not yet have reached the end, the vertex buffer may be full,
@@ -625,10 +625,10 @@ cleanup:;
 
 bool CanvasBatcher::fill_rect(int command_num, RasterizerCanvas::Item::Command *command, int &batch_tex_id, int &quad_count, Vector2 &texpixel_size)
 {
-	Batch *curr_batch = m_FState.m_pCurrentBatch;
+	Batch *curr_batch = _fillstate.m_pCurrentBatch;
 
 	// modelview will need to be refreshed after drawing rects
-	m_State.m_bDirty_ModelView = true;
+	_fillstate.m_bDirty_ModelView = true;
 
 	RasterizerCanvas::Item::CommandRect *rect = static_cast<RasterizerCanvas::Item::CommandRect *>(command);
 
@@ -636,13 +636,13 @@ bool CanvasBatcher::fill_rect(int command_num, RasterizerCanvas::Item::Command *
 	// because if the vertex buffer is full, we need to finish this
 	// function, draw what we have so far, and then start a new set of batches
 
-	BATCH_DEBUG_CRASH_COND (quad_count != (m_Data.vertices.size() / 4));
+	BATCH_DEBUG_CRASH_COND (quad_count != (_data.vertices.size() / 4));
 
 	// request FOUR vertices at a time, this is more efficient
-	BVert *bvs = m_Data.vertices.request_four();
+	BVert *bvs = _data.vertices.request_four();
 	if (!bvs) {
 		// run out of space in the vertex buffer .. finish this function and draw what we have so far
-		m_Data.buffer_full = true;
+		_data.buffer_full = true;
 
 		return false;
 	}
@@ -669,14 +669,14 @@ bool CanvasBatcher::fill_rect(int command_num, RasterizerCanvas::Item::Command *
 	// to decide whether to switch on the fly to colored vertices.
 	if (state_set_color(col))
 	{
-		curr_batch = m_FState.m_pCurrentBatch;
+		curr_batch = _fillstate.m_pCurrentBatch;
 		change_batch = true;
-		m_Data.total_color_changes++;
+		_data.total_color_changes++;
 	}
 
 	if (change_batch) {
 		// put the tex pixel size  in a local (less verbose and can be a register)
-		m_Data.batch_textures[batch_tex_id].tex_pixel_size.to(texpixel_size);
+		_data.batch_textures[batch_tex_id].tex_pixel_size.to(texpixel_size);
 
 		// open new batch (this should never fail, it dynamically grows)
 		curr_batch = request_new_batch();
@@ -690,7 +690,7 @@ bool CanvasBatcher::fill_rect(int command_num, RasterizerCanvas::Item::Command *
 		//curr_batch->primitive.first_vert = quad_count * 4;
 
 		// keep the state version up to date
-		m_FState.m_pCurrentBatch = curr_batch;
+		_fillstate.m_pCurrentBatch = curr_batch;
 	} else {
 		// we could alternatively do the count when closing a batch .. perhaps more efficient
 		curr_batch->primitive.num_quads++;
@@ -699,7 +699,7 @@ bool CanvasBatcher::fill_rect(int command_num, RasterizerCanvas::Item::Command *
 	// fill the quad geometry
 	Rect2 trect = rect->rect;
 	// software transform
-	if (m_State.m_eTransformMode == BState::TM_TRANSLATE)
+	if (_fillstate.m_eTransformMode == FillState::TM_TRANSLATE)
 		software_translate_rect(trect);
 
 	const Vector2 &mins = trect.position;
@@ -734,7 +734,7 @@ bool CanvasBatcher::fill_rect(int command_num, RasterizerCanvas::Item::Command *
 	}
 
 	// complex software transform
-	if (m_State.m_eTransformMode == BState::TM_ALL)
+	if (_fillstate.m_eTransformMode == FillState::TM_ALL)
 	{
 		software_transform_vert(*bA);
 		software_transform_vert(*bB);
@@ -780,10 +780,10 @@ bool CanvasBatcher::fill_rect(int command_num, RasterizerCanvas::Item::Command *
 
 bool CanvasBatcher::fill_line(int command_num, RasterizerCanvas::Item::Command *command, int &batch_tex_id, int &quad_count, Vector2 &texpixel_size)
 {
-	Batch *curr_batch = m_FState.m_pCurrentBatch;
+	Batch *curr_batch = _fillstate.m_pCurrentBatch;
 
 	// modelview will need to be refreshed after drawing rects
-	m_State.m_bDirty_ModelView = true;
+	_fillstate.m_bDirty_ModelView = true;
 
 	RasterizerCanvas::Item::CommandLine *line = static_cast<RasterizerCanvas::Item::CommandLine *>(command);
 
@@ -791,7 +791,7 @@ bool CanvasBatcher::fill_line(int command_num, RasterizerCanvas::Item::Command *
 	// because if the vertex buffer is full, we need to finish this
 	// function, draw what we have so far, and then start a new set of batches
 
-	BATCH_DEBUG_CRASH_COND (quad_count != (m_Data.vertices.size() / 4));
+	BATCH_DEBUG_CRASH_COND (quad_count != (_data.vertices.size() / 4));
 
 	// decide whether we are changing batch type
 	bool change_batch = false;
@@ -803,10 +803,10 @@ bool CanvasBatcher::fill_line(int command_num, RasterizerCanvas::Item::Command *
 
 
 	// is there room for 4 verts?
-	if ((m_Data.vertices.size() + 4) > m_Data.vertices.max_size())
+	if ((_data.vertices.size() + 4) > _data.vertices.max_size())
 	{
 		// run out of space in the vertex buffer .. finish this function and draw what we have so far
-		m_Data.buffer_full = true;
+		_data.buffer_full = true;
 		return false;
 	}
 
@@ -820,34 +820,34 @@ bool CanvasBatcher::fill_line(int command_num, RasterizerCanvas::Item::Command *
 	// to decide whether to switch on the fly to colored vertices.
 	if (state_set_color(col))
 	{
-		curr_batch = m_FState.m_pCurrentBatch;
+		curr_batch = _fillstate.m_pCurrentBatch;
 		change_batch = true;
-		m_Data.total_color_changes++;
+		_data.total_color_changes++;
 	}
 
 
 	BVert *bvs;
 	int first_vert;
-	if (!change_batch && m_FState.m_bPreviousLineOdd)
+	if (!change_batch && _fillstate.m_bPreviousLineOdd)
 	{
-		first_vert = m_Data.vertices.size()-2;
-		bvs = &m_Data.vertices[first_vert];
-		m_FState.m_bPreviousLineOdd = false;
+		first_vert = _data.vertices.size()-2;
+		bvs = &_data.vertices[first_vert];
+		_fillstate.m_bPreviousLineOdd = false;
 	}
 	else
 	{
-		first_vert = m_Data.vertices.size();
+		first_vert = _data.vertices.size();
 
 		// request FOUR vertices at a time, this is more efficient
-		bvs = m_Data.vertices.request_four();
+		bvs = _data.vertices.request_four();
 		if (!bvs) {
 			// run out of space in the vertex buffer .. finish this function and draw what we have so far
-			m_Data.buffer_full = true;
+			_data.buffer_full = true;
 
 			return false;
 			//goto cleanup;
 		}
-		m_FState.m_bPreviousLineOdd = true;
+		_fillstate.m_bPreviousLineOdd = true;
 	}
 
 
@@ -870,11 +870,11 @@ bool CanvasBatcher::fill_line(int command_num, RasterizerCanvas::Item::Command *
 		curr_batch->primitive.num_verts = 2;
 
 		// keep the state version up to date
-		m_FState.m_pCurrentBatch = curr_batch;
+		_fillstate.m_pCurrentBatch = curr_batch;
 	} else {
 		// we could alternatively do the count when closing a batch .. perhaps more efficient
 		curr_batch->primitive.num_verts += 2;
-		if (m_FState.m_bPreviousLineOdd)
+		if (_fillstate.m_bPreviousLineOdd)
 			curr_batch->primitive.num_quads++;
 	}
 
@@ -884,7 +884,7 @@ bool CanvasBatcher::fill_line(int command_num, RasterizerCanvas::Item::Command *
 	Vector2 ptTo = line->to;
 
 	// software transform
-	if (m_State.m_eTransformMode == BState::TM_TRANSLATE)
+	if (_fillstate.m_eTransformMode == FillState::TM_TRANSLATE)
 	{
 		software_translate_vert(ptFrom);
 		software_translate_vert(ptTo);
@@ -917,7 +917,7 @@ bool CanvasBatcher::fill_line(int command_num, RasterizerCanvas::Item::Command *
 //	bD->uv = zero;
 
 	// increment quad count
-	if (m_FState.m_bPreviousLineOdd)
+	if (_fillstate.m_bPreviousLineOdd)
 		quad_count++;
 
 	return true;
@@ -925,10 +925,10 @@ bool CanvasBatcher::fill_line(int command_num, RasterizerCanvas::Item::Command *
 
 bool CanvasBatcher::fill_ninepatch(int command_num, RasterizerCanvas::Item::Command *command, int &batch_tex_id, int &quad_count, Vector2 &texpixel_size)
 {
-	Batch *curr_batch = m_FState.m_pCurrentBatch;
+	Batch *curr_batch = _fillstate.m_pCurrentBatch;
 
 	// modelview will need to be refreshed after drawing rects
-	m_State.m_bDirty_ModelView = true;
+	_fillstate.m_bDirty_ModelView = true;
 
 	RasterizerCanvas::Item::CommandNinePatch *np = static_cast<RasterizerCanvas::Item::CommandNinePatch *>(command);
 
@@ -936,13 +936,13 @@ bool CanvasBatcher::fill_ninepatch(int command_num, RasterizerCanvas::Item::Comm
 	// because if the vertex buffer is full, we need to finish this
 	// function, draw what we have so far, and then start a new set of batches
 
-	BATCH_DEBUG_CRASH_COND (quad_count != (m_Data.vertices.size() / 4));
+	BATCH_DEBUG_CRASH_COND (quad_count != (_data.vertices.size() / 4));
 
 	// request all vertices at a time, this is more efficient
-	BVert *bvs = m_Data.vertices.request_thirtysix();
+	BVert *bvs = _data.vertices.request_thirtysix();
 	if (!bvs) {
 		// run out of space in the vertex buffer .. finish this function and draw what we have so far
-		m_Data.buffer_full = true;
+		_data.buffer_full = true;
 
 		return false;
 		//goto cleanup;
@@ -969,14 +969,14 @@ bool CanvasBatcher::fill_ninepatch(int command_num, RasterizerCanvas::Item::Comm
 	// to decide whether to switch on the fly to colored vertices.
 	if (state_set_color(col))
 	{
-		curr_batch = m_FState.m_pCurrentBatch;
+		curr_batch = _fillstate.m_pCurrentBatch;
 		change_batch = true;
-		m_Data.total_color_changes++;
+		_data.total_color_changes++;
 	}
 
 	if (change_batch) {
 		// put the tex pixel size  in a local (less verbose and can be a register)
-		m_Data.batch_textures[batch_tex_id].tex_pixel_size.to(texpixel_size);
+		_data.batch_textures[batch_tex_id].tex_pixel_size.to(texpixel_size);
 
 		// open new batch (this should never fail, it dynamically grows)
 		curr_batch = request_new_batch();
@@ -990,7 +990,7 @@ bool CanvasBatcher::fill_ninepatch(int command_num, RasterizerCanvas::Item::Comm
 		//curr_batch->primitive.first_vert = quad_count * 4;
 
 		// keep the state version up to date
-		m_FState.m_pCurrentBatch = curr_batch;
+		_fillstate.m_pCurrentBatch = curr_batch;
 	} else {
 		curr_batch->primitive.num_quads += 9;
 	}
@@ -1088,7 +1088,7 @@ bool CanvasBatcher::fill_ninepatch(int command_num, RasterizerCanvas::Item::Comm
 	verts[15].uv.y = v;
 
 	// software transform
-	if (m_State.m_eTransformMode == BState::TM_TRANSLATE)
+	if (_fillstate.m_eTransformMode == FillState::TM_TRANSLATE)
 	{
 		for (int n=0; n<16; n++)
 		{
@@ -1138,15 +1138,15 @@ void CanvasBatcher::flush()
 
 
 	// zero all the batch data ready for the next run
-	m_Data.reset_flush();
-	m_FState.reset_flush();
+	_data.reset_flush();
+	_fillstate.reset_flush();
 }
 
 
 // false if buffers full
 bool CanvasBatcher::process_commands()
 {
-	RasterizerCanvas::Item * pItem = m_FState.get_item();
+	RasterizerCanvas::Item * pItem = _fillstate.get_item();
 
 	int command_count = pItem->commands.size();
 //	int command_start = m_FState.m_iCommand;
@@ -1157,27 +1157,27 @@ bool CanvasBatcher::process_commands()
 	// while there are still more batches to fill...
 	// we may have to do this multiple times because there is a limit of 65535
 	// verts referenced in the index buffer (each potential run of this loop)
-	while (m_FState.m_iCommand < command_count) {
+	while (_fillstate.m_iCommand < command_count) {
 		if (use_batching) {
 			// fill as many batches as possible (until all done, or the vertex buffer is full)
-			m_FState.m_iCommand = fill(m_FState.m_iCommand);
+			_fillstate.m_iCommand = fill(_fillstate.m_iCommand);
 		} else {
 			// legacy .. just create one massive batch and render everything as before
-			m_Data.reset_pass();
-			Batch *batch = m_Data.request_new_batch();
+			_data.reset_pass();
+			Batch *batch = _data.request_new_batch();
 			batch->type = Batch::BT_CHANGE_ITEM;
-			batch->item_change.m_pItem = m_FState.m_pItem;
+			batch->item_change.m_pItem = _fillstate.m_pItem;
 
-			batch = m_Data.request_new_batch();
+			batch = _data.request_new_batch();
 			batch->type = Batch::BT_DEFAULT;
 			batch->def.num_commands = command_count;
 
 			// signify to do only one while loop
-			m_FState.m_iCommand = command_count;
+			_fillstate.m_iCommand = command_count;
 		}
 
 		// only flush when buffer full
-		if (m_Data.buffer_full)
+		if (_data.buffer_full)
 		{
 			return false;
 		}
@@ -1218,7 +1218,7 @@ bool CanvasBatcher::process_lit_item_start(RasterizerCanvas::Item *ci, AliasLigh
 	process_item_start(ci);
 
 	// prevent flushing item twice
-	m_FState.m_bDirty_Item = false;
+	_fillstate.m_bDirty_Item = false;
 
 
 
@@ -1262,8 +1262,8 @@ bool CanvasBatcher::process_lit_item_start(RasterizerCanvas::Item *ci, AliasLigh
 
 bool CanvasBatcher::process_item_start(RasterizerCanvas::Item *ci)
 {
-	m_State.reset_item();
-	m_FState.reset_item();
+	//m_State.reset_item();
+	_fillstate.reset_item();
 
 	// changed item?
 	state_set_item(ci);
@@ -1387,7 +1387,7 @@ bool CanvasBatcher::process_item_start(RasterizerCanvas::Item *ci)
 		rebind_shader = false;
 	}
 */
-	state_set_blend_mode(get_owner()->batch_get_blendmode_from_shader(m_State.m_pShader));
+	state_set_blend_mode(get_owner()->batch_get_blendmode_from_shader(_fillstate.m_pShader));
 
 
 	//	int blend_mode = shader_cache ? shader_cache->canvas_item.blend_mode : RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_MIX;
@@ -1448,8 +1448,8 @@ bool CanvasBatcher::process_item_start(RasterizerCanvas::Item *ci)
 	*/
 		//state.uniforms.final_modulate = unshaded ? ci->final_modulate : Color(ci->final_modulate.r * p_modulate.r, ci->final_modulate.g * p_modulate.g, ci->final_modulate.b * p_modulate.b, ci->final_modulate.a * p_modulate.a);
 
-	RasterizerStorageGLES2::Shader * pShader = (RasterizerStorageGLES2::Shader *) m_State.m_pShader;
-	int blend_mode = m_State.m_iBlendMode;
+	RasterizerStorageGLES2::Shader * pShader = (RasterizerStorageGLES2::Shader *) _fillstate.m_pShader;
+	int blend_mode = _fillstate.m_iBlendMode;
 
 	bool unshaded = pShader && (pShader->canvas_item.light_mode == RasterizerStorageGLES2::Shader::CanvasItem::LIGHT_MODE_UNSHADED || (blend_mode != RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_MIX && blend_mode != RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_PMALPHA));
 
@@ -1510,7 +1510,7 @@ bool CanvasBatcher::process_item(RasterizerCanvas::Item *ci)
 
 void CanvasBatcher::batch_translate_to_colored()
 {
-	BatchData &bdata = m_Data;
+	CanvasBatchData &bdata = _data;
 	bdata.use_colored_vertices = true;
 
 	bdata.vertices_colored.reset();
