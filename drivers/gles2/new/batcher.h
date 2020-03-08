@@ -1,8 +1,10 @@
 #pragma once
 
+#include "legacy.h"
+
 namespace Batch {
 
-class Batcher
+class Batcher : public Legacy
 {
 
 

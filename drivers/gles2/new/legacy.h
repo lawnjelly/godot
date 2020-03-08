@@ -1,8 +1,10 @@
 #pragma once
 
+#include "state.h"
+
 namespace Batch {
 
-class Legacy
+class Legacy : public State
 {
 
 

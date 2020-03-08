@@ -1,8 +1,8 @@
 #pragma once
 
-#include "renderer_2d_old.h"
+#include "new/renderer_2d.h"
 
-class RasterizerCanvasGLES2 : public Renderer2D_old
+class RasterizerCanvasGLES2 : public Batch::Renderer2D
 {
 
 	

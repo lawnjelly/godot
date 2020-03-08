@@ -1,8 +1,10 @@
 #pragma once
 
+#include "data.h"
+
 namespace Batch {
 
-class State
+class State : public Data
 {
 
 
