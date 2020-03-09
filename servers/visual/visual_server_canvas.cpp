@@ -47,6 +47,7 @@ void VisualServerCanvas::_render_canvas_item_tree(Item *p_canvas_item, const Tra
 			continue;
 		VSG::canvas_render->canvas_render_items(z_list[i], VS::CANVAS_ITEM_Z_MIN + i, p_modulate, p_lights, p_transform);
 	}
+	VSG::canvas_render->canvas_render_items_flush();
 }
 
 void _collect_ysort_children(VisualServerCanvas::Item *p_canvas_item, Transform2D p_transform, VisualServerCanvas::Item *p_material_owner, const Color p_modulate, VisualServerCanvas::Item **r_items, int &r_index) {
@@ -269,6 +270,7 @@ void VisualServerCanvas::render_canvas(Canvas *p_canvas, const Transform2D &p_tr
 
 			VSG::canvas_render->canvas_render_items(z_list[i], VS::CANVAS_ITEM_Z_MIN + i, p_canvas->modulate, p_lights, p_transform);
 		}
+		VSG::canvas_render->canvas_render_items_flush();
 	} else {
 
 		for (int i = 0; i < l; i++) {

@@ -28,4 +28,11 @@ void State_ItemGroup::Reset()
 }
 
 
+void State_Item::Reset()
+{
+	skeleton = NULL;
+	use_skeleton = false;
+}
+
+
 } // namespace

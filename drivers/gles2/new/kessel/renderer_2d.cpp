@@ -18,9 +18,14 @@ void Renderer2D::canvas_begin()
 
 void Renderer2D::canvas_end()
 {
-	flush();
 	Renderer2D_old::canvas_end();
 }
+
+void Renderer2D::canvas_render_items_flush()
+{
+	flush();
+}
+
 
 void Renderer2D::canvas_render_items(Item *p_item_list, int p_z, const Color &p_modulate, Light *p_light, const Transform2D &p_base_transform)
 {

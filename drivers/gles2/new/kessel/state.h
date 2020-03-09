@@ -29,6 +29,7 @@ public:
 class State_Item
 {
 public:
+	void Reset();
 	RasterizerStorageGLES2::Skeleton *skeleton;
 	bool use_skeleton;
 };

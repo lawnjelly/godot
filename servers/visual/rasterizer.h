@@ -1063,6 +1063,7 @@ public:
 	virtual void canvas_end() = 0;
 
 	virtual void canvas_render_items(Item *p_item_list, int p_z, const Color &p_modulate, Light *p_light, const Transform2D &p_base_transform) = 0;
+	virtual void canvas_render_items_flush() {} // noop except in batch renderers
 	virtual void canvas_debug_viewport_shadows(Light *p_lights_with_shadow) = 0;
 
 	struct LightOccluderInstance : public RID_Data {
