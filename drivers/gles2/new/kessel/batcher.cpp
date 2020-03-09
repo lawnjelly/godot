@@ -11,10 +11,20 @@ void Batcher::fill_canvas_render_items(Item *p_item_list, int p_z, const Color &
 	{
 		Item *ci = p_item_list;
 		State_SetItem(ci);
+
+		fill_extract_commands(ci);
+
 		p_item_list = p_item_list->next;
 	}
 
 	State_SetItemGroup_End();
+}
+
+
+void Batcher::fill_extract_commands(Item *ci)
+{
+
+
 }
 
 
