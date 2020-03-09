@@ -41,7 +41,6 @@
 class RasterizerSceneGLES2;
 
 class Renderer2D_old : public RasterizerCanvas {
-public:
 	enum {
 		INSTANCE_ATTRIB_BASE = 8,
 	};
@@ -71,6 +70,7 @@ public:
 
 	} data;
 
+public:
 	struct State {
 		Uniforms uniforms;
 		bool canvas_texscreen_used;
@@ -100,8 +100,8 @@ public:
 	typedef void Texture;
 
 	RasterizerSceneGLES2 *scene_render;
-
 	RasterizerStorageGLES2 *storage;
+private:
 
 	bool use_nvidia_rect_workaround;
 
@@ -111,28 +111,34 @@ public:
 
 	void _set_uniforms();
 
+public:
 	virtual void canvas_begin();
 	virtual void canvas_end();
 
+private:
 	_FORCE_INLINE_ void _draw_gui_primitive(int p_points, const Vector2 *p_vertices, const Color *p_colors, const Vector2 *p_uvs);
 	_FORCE_INLINE_ void _draw_polygon(const int *p_indices, int p_index_count, int p_vertex_count, const Vector2 *p_vertices, const Vector2 *p_uvs, const Color *p_colors, bool p_singlecolor, const float *p_weights = NULL, const int *p_bones = NULL);
 	_FORCE_INLINE_ void _draw_generic(GLuint p_primitive, int p_vertex_count, const Vector2 *p_vertices, const Vector2 *p_uvs, const Color *p_colors, bool p_singlecolor);
 	_FORCE_INLINE_ void _draw_generic_indices(GLuint p_primitive, const int *p_indices, int p_index_count, int p_vertex_count, const Vector2 *p_vertices, const Vector2 *p_uvs, const Color *p_colors, bool p_singlecolor);
 
 	_FORCE_INLINE_ void _canvas_item_render_commands(Item *p_item, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material);
-	void _copy_screen(const Rect2 &p_rect);
 	_FORCE_INLINE_ void _copy_texscreen(const Rect2 &p_rect);
+public:
+	void _copy_screen(const Rect2 &p_rect);
 
 	virtual void canvas_render_items(Item *p_item_list, int p_z, const Color &p_modulate, Light *p_light, const Transform2D &p_base_transform);
+
 	virtual void canvas_debug_viewport_shadows(Light *p_lights_with_shadow);
 
 	virtual void canvas_light_shadow_buffer_update(RID p_buffer, const Transform2D &p_light_xform, int p_light_mask, float p_near, float p_far, LightOccluderInstance *p_occluders, CameraMatrix *p_xform_cache);
 
 	virtual void reset_canvas();
 
+private:
 	RasterizerStorageGLES2::Texture *_bind_canvas_texture(const RID &p_texture, const RID &p_normal_map);
-
 	void _bind_quad_buffer();
+
+public:
 	void draw_generic_textured_rect(const Rect2 &p_rect, const Rect2 &p_src);
 	void draw_lens_distortion_rect(const Rect2 &p_rect, float p_k1, float p_k2, const Vector2 &p_eye_center, float p_oversample);
 

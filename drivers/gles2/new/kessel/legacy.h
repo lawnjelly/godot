@@ -14,8 +14,8 @@ public:
 
 
 protected:
-	Data m_Data;
-	State m_State;
+	BData m_Data;
+	BState m_State;
 };
 
 

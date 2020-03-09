@@ -5,10 +5,13 @@
 
 namespace Batch {
 
-class Data
+class BData
 {
 public:
-	Data();
+	BData();
+
+	void Reset_Flush();
+	void Reset_Pass();
 
 	// the sizes of these 2 arrays should be identical
 	BArray<Batch> batches;

@@ -2,13 +2,26 @@
 
 namespace Batch {
 
-Data::Data()
+BData::BData()
 {
 
 }
 
 
-Batch * Data::request_new_batch(bool p_blank)
+void BData::Reset_Flush()
+{
+	batches.reset();
+	batches_temp.reset();
+}
+
+void BData::Reset_Pass()
+{
+	Reset_Flush();
+
+}
+
+
+Batch * BData::request_new_batch(bool p_blank)
 {
 	Batch *batch = batches.request();
 	if (!batch) {

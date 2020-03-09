@@ -2,7 +2,7 @@
 
 namespace Batch {
 
-class State
+class BState
 {
 
 
