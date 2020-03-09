@@ -2,6 +2,12 @@
 
 namespace Batch {
 
+void State_Fill::Reset()
+{
+	m_pBatch_ItemGroup = NULL;
+	m_pBatch_Item = NULL;
+}
+
 
 void State_ItemGroup::Reset()
 {

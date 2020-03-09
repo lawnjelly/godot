@@ -12,17 +12,23 @@ void BatcherState::State_SetItemGroup(int p_z, const Color &p_modulate, Light *p
 
 	Batch * b = RequestNewBatch(Batch::BT_CHANGE_ITEM_GROUP);
 	b->change_itemgroup.id = m_Data.itemgroups.size()-1;
+
+	// record which batch for dry run
+	m_State_Fill.m_pBatch_ItemGroup = b;
 }
 
 void BatcherState::State_SetItemGroup_End()
 {
-	Batch * b = RequestNewBatch(Batch::BT_CHANGE_ITEM_GROUP_END);
+	RequestNewBatch(Batch::BT_CHANGE_ITEM_GROUP_END);
 }
 
 void BatcherState::State_SetItem(RasterizerCanvas::Item * p_item)
 {
 	Batch * b = RequestNewBatch(Batch::BT_CHANGE_ITEM);
 	b->change_item.m_pItem = p_item;
+
+	// record which batch for dry run
+	m_State_Fill.m_pBatch_Item = b;
 }
 
 

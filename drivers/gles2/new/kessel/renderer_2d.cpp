@@ -63,9 +63,12 @@ void Renderer2D::flush_do()
 
 void Renderer2D::flush_render()
 {
+	// mark that we are rendering rather than filling during playback
+	Playback_SetDryRun(false);
+
 	int num_batches = m_Data.batches.size();
 
-	Item::Command *const *commands = 0;
+	//Item::Command *const *commands = 0;
 
 	for (int batch_num = 0; batch_num < num_batches; batch_num++)
 	{

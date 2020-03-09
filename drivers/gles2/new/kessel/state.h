@@ -13,9 +13,19 @@ class BState
 
 };
 
+class State_Fill
+{
+public:
+	State_Fill() {Reset();}
+	void Reset();
+	Batch * m_pBatch_ItemGroup;
+	Batch * m_pBatch_Item;
+};
+
 class State_ItemGroup
 {
 public:
+	State_ItemGroup() {Reset();}
 	void Reset();
 	BItemGroup * m_pItemGroup;
 	RasterizerCanvas::Item *current_clip;
@@ -29,6 +39,7 @@ public:
 class State_Item
 {
 public:
+	State_Item() {Reset();}
 	void Reset();
 	RasterizerStorageGLES2::Skeleton *skeleton;
 	bool use_skeleton;

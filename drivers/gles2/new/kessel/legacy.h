@@ -18,6 +18,7 @@ protected:
 	BState m_State;
 	State_ItemGroup m_State_ItemGroup;
 	State_Item m_State_Item;
+	State_Fill m_State_Fill;
 };
 
 

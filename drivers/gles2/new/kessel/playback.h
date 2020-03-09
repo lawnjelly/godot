@@ -16,6 +16,9 @@ protected:
 	void Playback_Change_ItemGroup(const Batch &batch);
 	void Playback_Change_ItemGroup_End(const Batch &batch);
 
+
+	virtual void fill_canvas_item_render_commands(Item *p_item, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material) = 0;
+
 private:
 	// when filling we do a dry run and don't change GL states,
 	// we have to repeat the same logic to fill
