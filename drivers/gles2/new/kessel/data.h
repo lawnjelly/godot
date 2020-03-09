@@ -17,7 +17,9 @@ public:
 	BArray<Batch> batches;
 	BArray<Batch> batches_temp;
 
-protected:
+	BArray<BItemList> itemlists;
+
+
 	Batch * request_new_batch(bool p_blank = true);
 };
 

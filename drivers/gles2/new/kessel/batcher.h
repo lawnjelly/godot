@@ -1,10 +1,10 @@
 #pragma once
 
-#include "legacy.h"
+#include "batcher_state.h"
 
 namespace Batch {
 
-class Batcher : public Legacy
+class Batcher : public BatcherState
 {
 public:
 
