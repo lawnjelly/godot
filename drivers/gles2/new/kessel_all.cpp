@@ -1,6 +1,8 @@
 #include "defines.h"
 #include "kessel/batch.cpp"
 #include "kessel/batcher.cpp"
+#include "kessel/playback.cpp"
+#include "kessel/batcher_state.cpp"
 #include "kessel/data.cpp"
 #include "kessel/legacy.cpp"
 #include "kessel/state.cpp"

@@ -12,6 +12,7 @@ void BData::Reset_Flush()
 {
 	batches.reset();
 	batches_temp.reset();
+	itemgroups.reset();
 }
 
 void BData::Reset_Pass()

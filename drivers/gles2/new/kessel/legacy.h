@@ -16,6 +16,7 @@ public:
 protected:
 	BData m_Data;
 	BState m_State;
+	State_ItemGroup m_State_ItemGroup;
 };
 
 

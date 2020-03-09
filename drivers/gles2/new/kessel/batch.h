@@ -5,9 +5,9 @@
 namespace Batch {
 
 
-struct BItemList {
+struct BItemGroup {
 	Transform2D trBase;
-	BColor colModulate;
+	Color colModulate;
 	RasterizerCanvas::Light * pLight;
 	int z;
 };
@@ -24,7 +24,7 @@ struct BItemList {
 struct Batch {
 	enum CommandType : uint32_t {
 		BT_DEFAULT = 0,
-//		BT_CHANGE_ITEM,
+		BT_CHANGE_ITEM,
 //		BT_CHANGE_MATERIAL,
 //		BT_CHANGE_BLEND_MODE,
 //		BT_CHANGE_TRANSFORM,
@@ -38,7 +38,8 @@ struct Batch {
 //		BT_LIGHT_BEGIN,
 //		BT_LIGHT_END,
 //		BT_ITEM_FULL_STATE,
-		BT_CHANGE_ITEM_LIST,
+		BT_CHANGE_ITEM_GROUP,
+		BT_CHANGE_ITEM_GROUP_END,
 
 
 		// place compactable (types with batch verts) after here
@@ -82,7 +83,7 @@ struct Batch {
 	// as well as making access faster, this may be necessary on some platforms (e.g. ARM)
 	// to prevent alignment crashes
 //	struct ULightBegin {uint32_t dummy; AliasLight * m_pLight;};
-//	struct UItemChange {uint32_t dummy; AliasItem * m_pItem;};
+	struct UChangeItem {uint32_t dummy; const RasterizerCanvas::Item * m_pItem;};
 //	struct UMaterialChange {int batch_material_id;};
 //	struct UBlendModeChange {int blend_mode;};
 //	struct UTransformChange {int transform_id;};
@@ -91,12 +92,12 @@ struct Batch {
 	{
 //		UPrimitive primitive;
 //		UDefault def;
-//		UItemChange item_change;
+		UChangeItem change_item;
 //		UMaterialChange material_change;
 //		UBlendModeChange blend_mode_change;
 //		UTransformChange transform_change;
 //		ULightBegin light_begin;
-		UIndex itemlist;
+		UIndex change_itemgroup;
 	};
 };
 

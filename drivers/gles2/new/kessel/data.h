@@ -17,7 +17,7 @@ public:
 	BArray<Batch> batches;
 	BArray<Batch> batches_temp;
 
-	BArray<BItemList> itemlists;
+	BArray<BItemGroup> itemgroups;
 
 
 	Batch * request_new_batch(bool p_blank = true);
