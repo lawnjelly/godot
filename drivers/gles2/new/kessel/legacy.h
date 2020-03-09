@@ -1,15 +1,21 @@
 #pragma once
 
+#include "drivers/gles2/new/defines.h"
+#include "drivers/gles2/renderer_2d_old.h"
+
 #include "state.h"
+#include "data.h"
 
 namespace Batch {
 
-class Legacy : public State
+class Legacy : public Renderer2D_old
 {
+public:
 
 
-
-
+protected:
+	Data m_Data;
+	State m_State;
 };
 
 
