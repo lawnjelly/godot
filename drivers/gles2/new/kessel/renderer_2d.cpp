@@ -4,7 +4,7 @@ namespace Batch {
 
 Renderer2D::Renderer2D()
 {
-	m_bUseKessel = false;
+	m_bUseKessel = true;
 }
 
 

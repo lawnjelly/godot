@@ -50,7 +50,7 @@ public:
 		_size = 0;
 		_max_size = 0;
 	}
-	~RasterizerArray() { free(); }
+	~BArray() { free(); }
 
 	T &operator[](unsigned int ui) { return _list[ui]; }
 	const T &operator[](unsigned int ui) const { return _list[ui]; }
@@ -121,7 +121,7 @@ public:
 	int max_size() const { return _max_size; }
 	const T *get_data() const { return _list; }
 
-	bool copy_from(const RasterizerArray<T> &o) {
+	bool copy_from(const BArray<T> &o) {
 		// no resizing done here, it should be done manually
 		if (o.size() > _max_size)
 			return false;
