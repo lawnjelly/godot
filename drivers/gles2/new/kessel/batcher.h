@@ -1,10 +1,10 @@
 #pragma once
 
-#include "batcher_state.h"
+#include "playback.h"
 
 namespace Batch {
 
-class Batcher : public BatcherState
+class Batcher : public Playback
 {
 public:
 

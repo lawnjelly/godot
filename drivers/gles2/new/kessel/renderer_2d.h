@@ -1,10 +1,10 @@
 #pragma once
 
-#include "playback.h"
+#include "batcher.h"
 
 namespace Batch {
 
-class Renderer2D : public Playback
+class Renderer2D : public Batcher
 {
 public:
 	Renderer2D();
