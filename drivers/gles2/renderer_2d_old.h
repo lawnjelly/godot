@@ -122,7 +122,8 @@ private:
 	_FORCE_INLINE_ void _draw_generic_indices(GLuint p_primitive, const int *p_indices, int p_index_count, int p_vertex_count, const Vector2 *p_vertices, const Vector2 *p_uvs, const Color *p_colors, bool p_singlecolor);
 
 	_FORCE_INLINE_ void _canvas_item_render_commands(Item *p_item, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material);
-	_FORCE_INLINE_ void _copy_texscreen(const Rect2 &p_rect);
+protected:
+	void _copy_texscreen(const Rect2 &p_rect);
 public:
 	void _copy_screen(const Rect2 &p_rect);
 

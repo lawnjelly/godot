@@ -5,6 +5,8 @@ namespace Batch {
 
 void State_ItemGroup::Reset()
 {
+	m_pItemGroup = NULL;
+
 	current_clip = NULL;
 	shader_cache = NULL;
 

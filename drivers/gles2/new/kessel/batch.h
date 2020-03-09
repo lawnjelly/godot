@@ -6,10 +6,10 @@ namespace Batch {
 
 
 struct BItemGroup {
-	Transform2D trBase;
-	Color colModulate;
-	RasterizerCanvas::Light * pLight;
-	int z;
+	Transform2D p_base_transform;
+	Color p_modulate;
+	RasterizerCanvas::Light * p_light;
+	int p_z;
 };
 
 
@@ -83,7 +83,7 @@ struct Batch {
 	// as well as making access faster, this may be necessary on some platforms (e.g. ARM)
 	// to prevent alignment crashes
 //	struct ULightBegin {uint32_t dummy; AliasLight * m_pLight;};
-	struct UChangeItem {uint32_t dummy; const RasterizerCanvas::Item * m_pItem;};
+	struct UChangeItem {uint32_t dummy; RasterizerCanvas::Item * m_pItem;};
 //	struct UMaterialChange {int batch_material_id;};
 //	struct UBlendModeChange {int blend_mode;};
 //	struct UTransformChange {int transform_id;};
