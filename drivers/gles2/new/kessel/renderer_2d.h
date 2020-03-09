@@ -21,6 +21,7 @@ private:
 
 	// mem vars
 	bool m_bUseKessel;
+	bool m_bKesselFlash;
 };
 
 

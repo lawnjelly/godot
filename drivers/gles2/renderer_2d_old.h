@@ -109,6 +109,7 @@ private:
 	virtual void light_internal_update(RID p_rid, Light *p_light);
 	virtual void light_internal_free(RID p_rid);
 
+protected:
 	void _set_uniforms();
 
 public:
@@ -121,8 +122,8 @@ private:
 	_FORCE_INLINE_ void _draw_generic(GLuint p_primitive, int p_vertex_count, const Vector2 *p_vertices, const Vector2 *p_uvs, const Color *p_colors, bool p_singlecolor);
 	_FORCE_INLINE_ void _draw_generic_indices(GLuint p_primitive, const int *p_indices, int p_index_count, int p_vertex_count, const Vector2 *p_vertices, const Vector2 *p_uvs, const Color *p_colors, bool p_singlecolor);
 
-	_FORCE_INLINE_ void _canvas_item_render_commands(Item *p_item, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material);
 protected:
+	void _canvas_item_render_commands(Item *p_item, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material);
 	void _copy_texscreen(const Rect2 &p_rect);
 public:
 	void _copy_screen(const Rect2 &p_rect);
