@@ -48,6 +48,7 @@ public:
 	bool use_skeleton;
 
 	bool unshaded;
+	int blend_mode;
 };
 
 

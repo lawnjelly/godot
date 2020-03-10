@@ -21,9 +21,9 @@ protected:
 	void Playback_Item_CopyBackBuffer(Item *ci);
 	void Playback_Item_SkeletonHandling(Item *ci);
 	RasterizerStorageGLES2::Material * Playback_Item_ChangeMaterial(Item *ci);
-	void Playback_Item_SetBlendModeAndUniforms(Item * ci, int &blend_mode);
+	void Playback_Item_SetBlendModeAndUniforms(Item * ci);
 	void Playback_Item_RenderCommandsNormal(Item * ci, bool &reclip, RasterizerStorageGLES2::Material * material_ptr);
-	void Playback_Item_ProcessLights(Item * ci, int &blend_mode, bool &reclip, RasterizerStorageGLES2::Material * material_ptr);
+	void Playback_Item_ProcessLights(Item * ci, bool &reclip, RasterizerStorageGLES2::Material * material_ptr);
 	void Playback_Item_ProcessLight(Item * ci, Light * light, bool &light_used, VS::CanvasLightMode &mode, bool &reclip, RasterizerStorageGLES2::Material * material_ptr);
 	void Playback_Item_ReenableScissor(bool reclip);
 
