@@ -22,6 +22,11 @@ protected:
 	State_Fill m_State_Fill;
 
 
+	void GL_SetState_LightBlend(VS::CanvasLightMode mode);
+
+	void CanvasShader_SetConditionals_Light(bool has_shadow, Light * light);
+
+
 protected:
 	// when filling we do a dry run and don't change GL states,
 	// we have to repeat the same logic to fill
