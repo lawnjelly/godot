@@ -45,6 +45,7 @@ void State_Item::Reset()
 	unshaded = false;
 	blend_mode = 0;
 	reclip = false;
+	material_ptr = NULL;
 }
 
 

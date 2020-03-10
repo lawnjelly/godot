@@ -91,21 +91,22 @@ void Playback::Playback_Item_SkeletonHandling(Item *ci)
 	}
 }
 
-RasterizerStorageGLES2::Material * Playback::Playback_Item_ChangeMaterial(Item *ci)
+void Playback::Playback_Item_ChangeMaterial(Item *ci)
 {
 	State_ItemGroup &sig = m_State_ItemGroup;
+	State_Item &sit = m_State_Item;
 
 	Item *material_owner = ci->material_owner ? ci->material_owner : ci;
 
 	RID material = material_owner->material;
-	RasterizerStorageGLES2::Material *material_ptr = storage->material_owner.getornull(material);
+	sit.material_ptr = storage->material_owner.getornull(material);
 
 	if (material != sig.canvas_last_material || sig.rebind_shader) {
 
 		RasterizerStorageGLES2::Shader *shader_ptr = NULL;
 
-		if (material_ptr) {
-			shader_ptr = material_ptr->shader;
+		if (sit.material_ptr) {
+			shader_ptr = sit.material_ptr->shader;
 
 			if (shader_ptr && shader_ptr->mode != VS::SHADER_CANVAS_ITEM) {
 				shader_ptr = NULL; // not a canvas item shader, don't use.
@@ -140,8 +141,8 @@ RasterizerStorageGLES2::Material * Playback::Playback_Item_ChangeMaterial(Item *
 					state.canvas_shader.bind();
 				}
 
-				int tc = material_ptr->textures.size();
-				Pair<StringName, RID> *textures = material_ptr->textures.ptrw();
+				int tc = sit.material_ptr->textures.size();
+				Pair<StringName, RID> *textures = sit.material_ptr->textures.ptrw();
 
 				ShaderLanguage::ShaderNode::Uniform::Hint *texture_hints = shader_ptr->texture_hints.ptrw();
 
@@ -193,7 +194,7 @@ RasterizerStorageGLES2::Material * Playback::Playback_Item_ChangeMaterial(Item *
 				state.canvas_shader.set_custom_shader(0);
 				state.canvas_shader.bind();
 			}
-			state.canvas_shader.use_material((void *)material_ptr);
+			state.canvas_shader.use_material((void *)sit.material_ptr);
 
 		} // dry run
 
@@ -204,7 +205,6 @@ RasterizerStorageGLES2::Material * Playback::Playback_Item_ChangeMaterial(Item *
 		sig.rebind_shader = false;
 	}
 
-	return material_ptr;
 }
 
 
@@ -284,17 +284,19 @@ void Playback::Playback_Item_SetBlendModeAndUniforms(Item * ci)
 
 }
 
-void Playback::Playback_Item_RenderCommandsNormal(Item * ci, RasterizerStorageGLES2::Material * material_ptr)
+void Playback::Playback_Item_RenderCommandsNormal(Item * ci)
 {
 	State_ItemGroup &sig = m_State_ItemGroup;
 	State_Item &sit = m_State_Item;
 
+	sit.reclip = false;
+
 	if (sit.unshaded || (state.uniforms.final_modulate.a > 0.001 && (!sig.shader_cache || sig.shader_cache->canvas_item.light_mode != RasterizerStorageGLES2::Shader::CanvasItem::LIGHT_MODE_LIGHT_ONLY) && !ci->light_masked))
 	{
 		if (!m_bDryRun)
-			_canvas_item_render_commands(ci, NULL, sit.reclip, material_ptr);
+			_canvas_item_render_commands(ci, NULL, sit.reclip, sit.material_ptr);
 		else
-			fill_canvas_item_render_commands(ci, NULL, sit.reclip, material_ptr);
+			fill_canvas_item_render_commands(ci, NULL, sit.reclip, sit.material_ptr);
 	}
 
 	sig.rebind_shader = true; // hacked in for now.
@@ -319,7 +321,7 @@ void Playback::Playback_Item_ReenableScissor()
 }
 
 
-void Playback::Playback_Item_ProcessLight(Item * ci, Light * light, bool &light_used, VS::CanvasLightMode &mode, RasterizerStorageGLES2::Material * material_ptr)
+void Playback::Playback_Item_ProcessLight(Item * ci, Light * light, bool &light_used, VS::CanvasLightMode &mode)
 {
 	State_ItemGroup &sig = m_State_ItemGroup;
 	const BItemGroup &big = *sig.m_pItemGroup;
@@ -386,7 +388,7 @@ void Playback::Playback_Item_ProcessLight(Item * ci, Light * light, bool &light_
 
 			//always re-set uniforms, since light parameters changed
 			_set_uniforms();
-			state.canvas_shader.use_material((void *)material_ptr);
+			state.canvas_shader.use_material((void *)sit.material_ptr);
 
 			glActiveTexture(GL_TEXTURE0 + storage->config.max_texture_image_units - 4);
 			RasterizerStorageGLES2::Texture *t = storage->texture_owner.getornull(light->texture);
@@ -402,9 +404,9 @@ void Playback::Playback_Item_ProcessLight(Item * ci, Light * light, bool &light_
 		} // dry run
 
 		if (!m_bDryRun)
-			_canvas_item_render_commands(ci, NULL, sit.reclip, material_ptr); //redraw using light
+			_canvas_item_render_commands(ci, NULL, sit.reclip, sit.material_ptr); //redraw using light
 		else
-			fill_canvas_item_render_commands(ci, NULL, sit.reclip, material_ptr); //redraw using light
+			fill_canvas_item_render_commands(ci, NULL, sit.reclip, sit.material_ptr); //redraw using light
 
 		state.using_light = NULL;
 	}
@@ -412,7 +414,7 @@ void Playback::Playback_Item_ProcessLight(Item * ci, Light * light, bool &light_
 
 }
 
-void Playback::Playback_Item_ProcessLights(Item * ci, RasterizerStorageGLES2::Material * material_ptr)
+void Playback::Playback_Item_ProcessLights(Item * ci)
 {
 	State_ItemGroup &sig = m_State_ItemGroup;
 	const BItemGroup &big = *sig.m_pItemGroup;
@@ -432,7 +434,7 @@ void Playback::Playback_Item_ProcessLights(Item * ci, RasterizerStorageGLES2::Ma
 
 		while (light)
 		{
-			Playback_Item_ProcessLight(ci, light, light_used, mode, material_ptr);
+			Playback_Item_ProcessLight(ci, light, light_used, mode);
 			light = light->next_ptr;
 		}
 
@@ -465,7 +467,7 @@ void Playback::Playback_Change_Item(const Batch &batch)
 
 	// alias
 //	State_ItemGroup &sig = m_State_ItemGroup;
-	State_Item &sit = m_State_Item;
+//	State_Item &sit = m_State_Item;
 //	const BItemGroup &big = *sig.m_pItemGroup;
 //	const Color &p_modulate = big.p_modulate;
 //	int p_z = big.p_z;
@@ -474,14 +476,10 @@ void Playback::Playback_Change_Item(const Batch &batch)
 	Playback_Item_ChangeScissorItem(ci->final_clip_owner);
 	Playback_Item_CopyBackBuffer(ci);
 	Playback_Item_SkeletonHandling(ci);
-	RasterizerStorageGLES2::Material *material_ptr = Playback_Item_ChangeMaterial(ci);
+	Playback_Item_ChangeMaterial(ci);
 	Playback_Item_SetBlendModeAndUniforms(ci);
-
-	sit.reclip = false;
-
-	Playback_Item_RenderCommandsNormal(ci, material_ptr);
-	Playback_Item_ProcessLights(ci, material_ptr);
-
+	Playback_Item_RenderCommandsNormal(ci);
+	Playback_Item_ProcessLights(ci);
 	Playback_Item_ReenableScissor();
 
 }

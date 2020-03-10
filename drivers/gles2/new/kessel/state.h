@@ -50,6 +50,7 @@ public:
 	bool unshaded;
 	int blend_mode;
 	bool reclip;
+	RasterizerStorageGLES2::Material * material_ptr;
 };
 
 

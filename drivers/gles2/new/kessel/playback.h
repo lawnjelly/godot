@@ -20,11 +20,11 @@ protected:
 	void Playback_Item_ChangeScissorItem(Item * pNewScissorItem);
 	void Playback_Item_CopyBackBuffer(Item *ci);
 	void Playback_Item_SkeletonHandling(Item *ci);
-	RasterizerStorageGLES2::Material * Playback_Item_ChangeMaterial(Item *ci);
+	void Playback_Item_ChangeMaterial(Item *ci);
 	void Playback_Item_SetBlendModeAndUniforms(Item * ci);
-	void Playback_Item_RenderCommandsNormal(Item * ci, RasterizerStorageGLES2::Material * material_ptr);
-	void Playback_Item_ProcessLights(Item * ci, RasterizerStorageGLES2::Material * material_ptr);
-	void Playback_Item_ProcessLight(Item * ci, Light * light, bool &light_used, VS::CanvasLightMode &mode, RasterizerStorageGLES2::Material * material_ptr);
+	void Playback_Item_RenderCommandsNormal(Item * ci);
+	void Playback_Item_ProcessLights(Item * ci);
+	void Playback_Item_ProcessLight(Item * ci, Light * light, bool &light_used, VS::CanvasLightMode &mode);
 	void Playback_Item_ReenableScissor();
 
 
