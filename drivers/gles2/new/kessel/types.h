@@ -28,6 +28,7 @@ enum ItemChangeFlags
 	CF_FINAL_MODULATE = 1 << 5,
 	CF_MODEL_VIEW = 1 << 6,
 	CF_EXTRA = 1 << 7,
+	CF_LIGHT = 1 << 8,
 };
 
 

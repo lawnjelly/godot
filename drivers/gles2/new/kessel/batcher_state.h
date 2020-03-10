@@ -15,6 +15,8 @@ protected:
 	void State_SetScissorItem(Item * pItem);
 	void State_SetScissor(bool bOn);
 
+	void State_SetBlendMode(int iBlendMode);
+
 private:
 	Batch * RequestNewBatch(Batch::CommandType ct);
 };

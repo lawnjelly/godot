@@ -126,18 +126,18 @@ void Playback::Playback_Item_ChangeMaterial(Item *ci)
 		material_owner = ci;
 
 	RID material = material_owner->material;
-	sit.m_pMaterial = storage->material_owner.getornull(material);
+	save_material(storage->material_owner.getornull(material));
 
+	// check whether rebind is always set .. this will muck up batching
 	if ((material != sig.m_RID_CanvasLastMaterial) || sig.m_bRebindShader)
 	{
-		// check whether rebind is always set .. this will muck up batching
 		AddItemChangeFlag(CF_MATERIAL);
 
 		RasterizerStorageGLES2::Shader *shader_ptr = NULL;
 
-		if (sit.m_pMaterial)
+		if (get_material())
 		{
-			shader_ptr = sit.m_pMaterial->shader;
+			shader_ptr = get_material()->shader;
 
 			if (shader_ptr && shader_ptr->mode != VS::SHADER_CANVAS_ITEM)
 				shader_ptr = NULL; // not a canvas item shader, don't use.
@@ -177,8 +177,8 @@ void Playback::Playback_Item_ChangeMaterial(Item *ci)
 					state.canvas_shader.bind();
 				}
 
-				int tc = sit.m_pMaterial->textures.size();
-				Pair<StringName, RID> *textures = sit.m_pMaterial->textures.ptrw();
+				int tc = get_material()->textures.size();
+				Pair<StringName, RID> *textures = get_material()->textures.ptrw();
 
 				ShaderLanguage::ShaderNode::Uniform::Hint *texture_hints = shader_ptr->texture_hints.ptrw();
 
@@ -242,7 +242,7 @@ void Playback::Playback_Item_ChangeMaterial(Item *ci)
 				state.canvas_shader.set_custom_shader(0);
 				state.canvas_shader.bind();
 			}
-			state.canvas_shader.use_material((void *)sit.m_pMaterial);
+			state.canvas_shader.use_material((void *)get_material());
 
 		} // dry run
 
@@ -261,37 +261,43 @@ void Playback::Playback_Item_SetBlendModeAndUniforms(Item *ci)
 	const Color &p_modulate = big.p_modulate;
 	State_Item &sit = m_State_Item;
 
-	sit.m_iBlendMode = 0;
-
+	// decide new blend mode
+	int blend_mode = 0;
 	if (sig.m_pCachedShader)
-		sit.m_iBlendMode = sig.m_pCachedShader->canvas_item.blend_mode;
+		blend_mode = sig.m_pCachedShader->canvas_item.blend_mode;
 	else
-		sit.m_iBlendMode = RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_MIX;
+		blend_mode = RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_MIX;
+//	state_set_blend_mode(blend_mode);
 
+	// is item unshaded?
 	sit.m_bUnshaded = sig.m_pCachedShader &&
 	((sig.m_pCachedShader->canvas_item.light_mode == RasterizerStorageGLES2::Shader::CanvasItem::LIGHT_MODE_UNSHADED) ||
-	((sit.m_iBlendMode != RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_MIX) &&
-	(sit.m_iBlendMode != RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_PMALPHA)));
+	((blend_mode != RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_MIX) &&
+	(blend_mode != RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_PMALPHA)));
+
+	// last blend mode is never set????
+	State_SetBlendMode(blend_mode);
+//	state_set_blend_mode(blend_mode);
+//	if (sig.m_iLastBlendMode != get_blendmode())
+//	{
+//		sig.m_iLastBlendMode = get_blendmode();
+
+//		AddItemChangeFlag(CF_BLEND_MODE);
+//		if (!m_bDryRun)
+//			GL_SetState_BlendMode(get_blendmode());
+//	}
+
+	Color col = ci->final_modulate;
+	// possibly need a changed flag for unshaded?
+	if (!sit.m_bUnshaded)
+		col *= p_modulate;
+	state_set_final_modulate(col);
+
+	state_set_model_view(ci->final_transform);
+	state_set_extra(Transform2D());
 
 	if (!m_bDryRun)
-	{
-		if (sig.m_iLastBlendMode != sit.m_iBlendMode)
-		{
-			AddItemChangeFlag(CF_BLEND_MODE);
-			GL_SetState_BlendMode(sit.m_iBlendMode);
-		}
-
-		Color col = ci->final_modulate;
-		// possibly need a changed flag for unshaded?
-		if (!sit.m_bUnshaded)
-			col *= p_modulate;
-		state_set_final_modulate(col);
-
-		state_set_model_view(ci->final_transform);
-		state_set_extra(Transform2D());
-
 		_set_uniforms();
-	} // if dry run
 }
 
 void Playback::Playback_Item_RenderCommandsNormal(Item *ci)
@@ -304,12 +310,14 @@ void Playback::Playback_Item_RenderCommandsNormal(Item *ci)
 	if (sit.m_bUnshaded || (state.uniforms.final_modulate.a > 0.001 && (!sig.m_pCachedShader || sig.m_pCachedShader->canvas_item.light_mode != RasterizerStorageGLES2::Shader::CanvasItem::LIGHT_MODE_LIGHT_ONLY) && !ci->light_masked))
 	{
 		if (!m_bDryRun)
-			_canvas_item_render_commands(ci, NULL, sit.m_bReclip, sit.m_pMaterial);
+			_canvas_item_render_commands(ci, NULL, sit.m_bReclip, get_material());
 		else
-			fill_canvas_item_render_commands(ci, NULL, sit.m_bReclip, sit.m_pMaterial);
+			fill_canvas_item_render_commands(ci, NULL, sit.m_bReclip, get_material());
 	}
 
-	sig.m_bRebindShader = true; // hacked in for now.
+	// this could be dealt with .. only if conditionals change
+	// NOTE .. uncomment this if there are regressions
+	//sig.m_bRebindShader = true; // hacked in for now.
 }
 
 void Playback::Playback_Item_ReenableScissor()
@@ -387,7 +395,7 @@ void Playback::Playback_Item_ProcessLight(Item *ci, Light *light, bool &light_us
 
 			//always re-set uniforms, since light parameters changed
 			_set_uniforms();
-			state.canvas_shader.use_material((void *)sit.m_pMaterial);
+			state.canvas_shader.use_material((void *)get_material());
 
 			glActiveTexture(GL_TEXTURE0 + storage->config.max_texture_image_units - 4);
 			RasterizerStorageGLES2::Texture *t = storage->texture_owner.getornull(light->texture);
@@ -406,9 +414,9 @@ void Playback::Playback_Item_ProcessLight(Item *ci, Light *light, bool &light_us
 		} // dry run
 
 		if (!m_bDryRun)
-			_canvas_item_render_commands(ci, NULL, sit.m_bReclip, sit.m_pMaterial); //redraw using light
+			_canvas_item_render_commands(ci, NULL, sit.m_bReclip, get_material()); //redraw using light
 		else
-			fill_canvas_item_render_commands(ci, NULL, sit.m_bReclip, sit.m_pMaterial); //redraw using light
+			fill_canvas_item_render_commands(ci, NULL, sit.m_bReclip, get_material()); //redraw using light
 
 		state.using_light = NULL;
 	}
@@ -420,8 +428,10 @@ void Playback::Playback_Item_ProcessLights(Item *ci)
 	const BItemGroup &big = *sig.m_pItemGroup;
 	State_Item &sit = m_State_Item;
 
-	if ((sit.m_iBlendMode == RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_MIX || sit.m_iBlendMode == RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_PMALPHA) && big.p_light && !sit.m_bUnshaded)
+	if ((get_blendmode() == RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_MIX || get_blendmode() == RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_PMALPHA) && big.p_light && !sit.m_bUnshaded)
 	{
+		// lights ALWAYS break the batching between items. Can only batch commands within items
+		AddItemChangeFlag(CF_LIGHT);
 
 		Light *light = big.p_light;
 		bool light_used = false;
@@ -472,6 +482,14 @@ void Playback::Playback_Change_Item(const Batch &batch)
 	Playback_Item_RenderCommandsNormal(ci);
 	Playback_Item_ProcessLights(ci);
 	Playback_Item_ReenableScissor();
+
+	if (m_bDryRun)
+	{
+#ifdef KESSEL_PRINT_ITEM_STATE_CHANGES
+		String sz = m_State_Item.ChangeFlagsToString();
+		print_line(sz);
+#endif
+	}
 }
 
 void Playback::Playback_Change_ItemGroup(const Batch &batch)

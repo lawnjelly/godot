@@ -28,7 +28,12 @@ void Renderer2D::canvas_render_items_flush()
 
 void Renderer2D::canvas_render_items(Item *p_item_list, int p_z, const Color &p_modulate, Light *p_light, const Transform2D &p_base_transform)
 {
+#ifdef KESSEL_ON
 	bool use_kessel = m_bUseKessel;
+#else
+	bool use_kessel = false;
+#endif
+
 #ifdef KESSEL_FLASH
 	if ((Engine::get_singleton()->get_frames_drawn() % 2) == 0)
 		use_kessel = false;

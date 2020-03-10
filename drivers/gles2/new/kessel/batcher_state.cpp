@@ -39,6 +39,23 @@ Batch *BatcherState::RequestNewBatch(Batch::CommandType ct)
 	return p;
 }
 
+void BatcherState::State_SetBlendMode(int iBlendMode)
+{
+	State_ItemGroup &sig = m_State_ItemGroup;
+	sig.m_iBlendMode = iBlendMode;
+
+	if (sig.m_iLastBlendMode != iBlendMode)
+	{
+		sig.m_iLastBlendMode = iBlendMode;
+
+		AddItemChangeFlag(CF_BLEND_MODE);
+		if (!m_bDryRun)
+			GL_SetState_BlendMode(iBlendMode);
+	}
+
+}
+
+
 void BatcherState::State_SetScissorItem(Item *pItem)
 {
 	if (pItem != m_State_ItemGroup.m_pScissorItem)

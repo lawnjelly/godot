@@ -34,6 +34,10 @@ void State_ItemGroup::Reset()
 	m_iLastBlendMode = -1;
 
 	m_RID_CanvasLastMaterial = RID();
+
+	m_iBlendMode = 0;
+	m_pMaterial = NULL;
+
 }
 
 
@@ -42,10 +46,42 @@ void State_Item::Reset()
 	m_pSkeleton = NULL;
 	m_bUseSkeleton = false;
 	m_bUnshaded = false;
-	m_iBlendMode = 0;
 	m_bReclip = false;
-	m_pMaterial = NULL;
+//	m_iBlendMode = 0;
+//	m_pMaterial = NULL;
 }
 
+String State_Item::ChangeFlagsToString() const // for debugging
+{
+	uint32_t f = m_ChangeFlags;
+	String sz = "";
+
+	if (!f)
+	{
+		sz = "none";
+		return sz;
+	}
+
+	if (f & CF_SCISSOR)
+		sz += " | scissor";
+	if (f & CF_COPY_BACK_BUFFER)
+		sz += " | copy_back_buffer";
+	if (f & CF_SKELETON)
+		sz += " | skeleton";
+	if (f & CF_MATERIAL)
+		sz += " | material";
+	if (f & CF_BLEND_MODE)
+		sz += " | blend_mode";
+	if (f & CF_FINAL_MODULATE)
+		sz += " | final_modulate";
+	if (f & CF_MODEL_VIEW)
+		sz += " | model_view";
+	if (f & CF_EXTRA)
+		sz += " | extra";
+	if (f & CF_LIGHT)
+		sz += " | light";
+
+	return sz;
+}
 
 } // namespace

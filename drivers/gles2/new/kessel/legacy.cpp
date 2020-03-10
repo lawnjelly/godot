@@ -19,6 +19,7 @@ void Legacy::state_set_extra(const Transform2D &tr)
 }
 
 
+
 void Legacy::GL_SetState_BlendMode(int blend_mode)
 {
 	switch (blend_mode)

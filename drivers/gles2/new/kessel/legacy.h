@@ -31,6 +31,15 @@ protected:
 	void state_set_model_view(const Transform2D &tr);
 	void state_set_extra(const Transform2D &tr);
 
+	// accessors (to allow easy changing)
+	void save_material(RasterizerStorageGLES2::Material * pMaterial) {m_State_ItemGroup.m_pMaterial = pMaterial;}
+	RasterizerStorageGLES2::Material * get_material() const {return m_State_ItemGroup.m_pMaterial;}
+private:
+//	void save_blendmode(int iBlendMode) {m_State_ItemGroup.m_iBlendMode = iBlendMode;}
+protected:
+	int get_blendmode() const {return m_State_ItemGroup.m_iBlendMode;}
+
+
 	void AddItemChangeFlag(ItemChangeFlags cf)
 	{
 		if (m_bDryRun)
