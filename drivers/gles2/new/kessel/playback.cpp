@@ -4,21 +4,13 @@
 
 namespace Batch {
 
-void Playback::Playback_Change_Item(const Batch &batch)
+void Playback::Playback_Item_ChangeScissorItem(Item * pNewScissorItem)
 {
-	Item *ci = batch.change_item.m_pItem;
-
-	// alias
 	State_ItemGroup &sig = m_State_ItemGroup;
-	State_Item &sit = m_State_Item;
-	const BItemGroup &big = *sig.m_pItemGroup;
-	const Color &p_modulate = big.p_modulate;
-	int p_z = big.p_z;
 
+	if (sig.current_clip != pNewScissorItem) {
 
-	if (sig.current_clip != ci->final_clip_owner) {
-
-		sig.current_clip = ci->final_clip_owner;
+		sig.current_clip = pNewScissorItem;
 
 		if (!m_bDryRun)
 		{
@@ -33,7 +25,11 @@ void Playback::Playback_Change_Item(const Batch &batch)
 			}
 		} // dry run
 	}
+}
 
+
+void Playback::Playback_Item_CopyBackBuffer(Item *ci)
+{
 	// TODO: copy back buffer
 
 	if (!m_bDryRun)
@@ -46,6 +42,13 @@ void Playback::Playback_Change_Item(const Batch &batch)
 			}
 		}
 	} // dry run
+
+}
+
+void Playback::Playback_Item_SkeletonHandling(Item *ci)
+{
+	State_Item &sit = m_State_Item;
+	State_ItemGroup &sig = m_State_ItemGroup;
 
 	sit.skeleton = NULL;
 
@@ -86,6 +89,11 @@ void Playback::Playback_Change_Item(const Batch &batch)
 			}
 		} // dry run
 	}
+}
+
+RasterizerStorageGLES2::Material * Playback::Playback_Item_ChangeMaterial(Item *ci)
+{
+	State_ItemGroup &sig = m_State_ItemGroup;
 
 	Item *material_owner = ci->material_owner ? ci->material_owner : ci;
 
@@ -196,9 +204,19 @@ void Playback::Playback_Change_Item(const Batch &batch)
 		sig.rebind_shader = false;
 	}
 
-	int blend_mode = sig.shader_cache ? sig.shader_cache->canvas_item.blend_mode : RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_MIX;
+	return material_ptr;
+}
+
+
+bool Playback::Playback_Item_SetBlendModeAndUniforms(Item * ci, int &blend_mode)
+{
+	State_ItemGroup &sig = m_State_ItemGroup;
+	const BItemGroup &big = *sig.m_pItemGroup;
+	const Color &p_modulate = big.p_modulate;
+
+
+	blend_mode = sig.shader_cache ? sig.shader_cache->canvas_item.blend_mode : RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_MIX;
 	bool unshaded = sig.shader_cache && (sig.shader_cache->canvas_item.light_mode == RasterizerStorageGLES2::Shader::CanvasItem::LIGHT_MODE_UNSHADED || (blend_mode != RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_MIX && blend_mode != RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_PMALPHA));
-	bool reclip = false;
 
 	if (!m_bDryRun)
 	{
@@ -262,6 +280,13 @@ void Playback::Playback_Change_Item(const Batch &batch)
 		_set_uniforms();
 	} // if dry run
 
+	return unshaded;
+}
+
+void Playback::Playback_Item_RenderCommandsNormal(Item * ci, bool unshaded, bool &reclip, RasterizerStorageGLES2::Material * material_ptr)
+{
+	State_ItemGroup &sig = m_State_ItemGroup;
+
 	if (unshaded || (state.uniforms.final_modulate.a > 0.001 && (!sig.shader_cache || sig.shader_cache->canvas_item.light_mode != RasterizerStorageGLES2::Shader::CanvasItem::LIGHT_MODE_LIGHT_ONLY) && !ci->light_masked))
 	{
 		if (!m_bDryRun)
@@ -271,6 +296,50 @@ void Playback::Playback_Change_Item(const Batch &batch)
 	}
 
 	sig.rebind_shader = true; // hacked in for now.
+
+}
+
+void Playback::Playback_Item_ReenableScissor(bool reclip)
+{
+	State_ItemGroup &sig = m_State_ItemGroup;
+
+	if (!m_bDryRun)
+	{
+		if (reclip) {
+			glEnable(GL_SCISSOR_TEST);
+			int y = storage->frame.current_rt->height - (sig.current_clip->final_clip_rect.position.y + sig.current_clip->final_clip_rect.size.y);
+			if (storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_VFLIP])
+				y = sig.current_clip->final_clip_rect.position.y;
+			glScissor(sig.current_clip->final_clip_rect.position.x, y, sig.current_clip->final_clip_rect.size.width, sig.current_clip->final_clip_rect.size.height);
+		}
+	} // dry run
+}
+
+
+void Playback::Playback_Change_Item(const Batch &batch)
+{
+	Item *ci = batch.change_item.m_pItem;
+
+	// alias
+	State_ItemGroup &sig = m_State_ItemGroup;
+	State_Item &sit = m_State_Item;
+	const BItemGroup &big = *sig.m_pItemGroup;
+	const Color &p_modulate = big.p_modulate;
+	int p_z = big.p_z;
+
+
+	Playback_Item_ChangeScissorItem(ci->final_clip_owner);
+	Playback_Item_CopyBackBuffer(ci);
+	Playback_Item_SkeletonHandling(ci);
+	RasterizerStorageGLES2::Material *material_ptr = Playback_Item_ChangeMaterial(ci);
+
+	int blend_mode = 0;
+	bool unshaded = Playback_Item_SetBlendModeAndUniforms(ci, blend_mode);
+
+	bool reclip = false;
+
+	Playback_Item_RenderCommandsNormal(ci, unshaded, reclip, material_ptr);
+
 
 	if ((blend_mode == RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_MIX || blend_mode == RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_PMALPHA) && big.p_light && !unshaded) {
 
@@ -391,18 +460,11 @@ void Playback::Playback_Change_Item(const Batch &batch)
 		}
 	}
 
-	if (!m_bDryRun)
-	{
-		if (reclip) {
-			glEnable(GL_SCISSOR_TEST);
-			int y = storage->frame.current_rt->height - (sig.current_clip->final_clip_rect.position.y + sig.current_clip->final_clip_rect.size.y);
-			if (storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_VFLIP])
-				y = sig.current_clip->final_clip_rect.position.y;
-			glScissor(sig.current_clip->final_clip_rect.position.x, y, sig.current_clip->final_clip_rect.size.width, sig.current_clip->final_clip_rect.size.height);
-		}
-	} // dry run
+
+	Playback_Item_ReenableScissor(reclip);
 
 }
+
 
 
 void Playback::Playback_Change_ItemGroup(const Batch &batch)

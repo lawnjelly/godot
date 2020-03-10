@@ -41,4 +41,55 @@ Batch * BatcherState::RequestNewBatch(Batch::CommandType ct)
 
 
 
+void BatcherState::State_SetScissorItem(Item * pItem)
+{
+	if (pItem != m_State_ItemGroup.m_pScissorItem)
+	{
+		m_State_ItemGroup.m_pScissorItem = pItem;
+		State_SetScissor(false);
+	}
+}
+
+void BatcherState::State_SetScissor(bool bOn)
+{
+	if (bOn == m_State_ItemGroup.m_bScissorActive)
+		return;
+
+	m_State_ItemGroup.m_bScissorActive = bOn;
+
+	if (m_bDryRun)
+		return;
+
+	if (bOn)
+	{
+		Item * i = m_State_ItemGroup.m_pScissorItem;
+		if (i)
+		{
+			glEnable(GL_SCISSOR_TEST);
+
+			const Rect2 &fcr = i->final_clip_rect;
+
+			int x = fcr.position.x;
+			int y = storage->frame.current_rt->height - (fcr.position.y + fcr.size.y);
+			int w = fcr.size.x;
+			int h = fcr.size.y;
+
+			if (storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_VFLIP])
+				y = fcr.position.y;
+
+			glScissor(x, y, w, h);
+		}
+		else
+		{
+			WARN_PRINT_ONCE("Scissor Item unset");
+		}
+	}
+	else
+	{
+		glDisable(GL_SCISSOR_TEST);
+	}
+}
+
+
+
 } // namespace

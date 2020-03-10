@@ -34,6 +34,9 @@ public:
 	bool prev_use_skeleton;
 	int last_blend_mode;
 	RID canvas_last_material;
+
+	RasterizerCanvas::Item * m_pScissorItem;
+	bool m_bScissorActive;
 };
 
 class State_Item

@@ -13,6 +13,10 @@ void State_ItemGroup::Reset()
 {
 	m_pItemGroup = NULL;
 
+
+	m_pScissorItem = NULL;
+	m_bScissorActive = false;
+
 	current_clip = NULL;
 	shader_cache = NULL;
 

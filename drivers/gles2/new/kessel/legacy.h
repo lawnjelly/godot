@@ -11,6 +11,7 @@ namespace Batch {
 class Legacy : public Renderer2D_old
 {
 public:
+	Legacy() {m_bDryRun = true;}
 
 
 protected:
@@ -19,6 +20,12 @@ protected:
 	State_ItemGroup m_State_ItemGroup;
 	State_Item m_State_Item;
 	State_Fill m_State_Fill;
+
+
+protected:
+	// when filling we do a dry run and don't change GL states,
+	// we have to repeat the same logic to fill
+	bool m_bDryRun;
 };
 
 
