@@ -23,6 +23,7 @@ protected:
 
 
 	void GL_SetState_LightBlend(VS::CanvasLightMode mode);
+	void GL_SetState_BlendMode(int blend_mode);
 
 	void CanvasShader_SetConditionals_Light(bool has_shadow, Light * light);
 

@@ -222,59 +222,18 @@ void Playback::Playback_Item_SetBlendModeAndUniforms(Item * ci)
 
 	if (!m_bDryRun)
 	{
-		if (sig.last_blend_mode != sit.blend_mode) {
+		if (sig.last_blend_mode != sit.blend_mode)
+			GL_SetState_BlendMode(sit.blend_mode);
 
-			switch (sit.blend_mode) {
 
-			case RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_MIX: {
-					glBlendEquation(GL_FUNC_ADD);
-					if (storage->frame.current_rt && storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_TRANSPARENT]) {
-						glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-					} else {
-						glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE);
-					}
-
-				} break;
-			case RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_ADD: {
-
-					glBlendEquation(GL_FUNC_ADD);
-					if (storage->frame.current_rt && storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_TRANSPARENT]) {
-						glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_SRC_ALPHA, GL_ONE);
-					} else {
-						glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ZERO, GL_ONE);
-					}
-
-				} break;
-			case RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_SUB: {
-
-					glBlendEquation(GL_FUNC_REVERSE_SUBTRACT);
-					if (storage->frame.current_rt && storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_TRANSPARENT]) {
-						glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_SRC_ALPHA, GL_ONE);
-					} else {
-						glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ZERO, GL_ONE);
-					}
-				} break;
-			case RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_MUL: {
-					glBlendEquation(GL_FUNC_ADD);
-					if (storage->frame.current_rt && storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_TRANSPARENT]) {
-						glBlendFuncSeparate(GL_DST_COLOR, GL_ZERO, GL_DST_ALPHA, GL_ZERO);
-					} else {
-						glBlendFuncSeparate(GL_DST_COLOR, GL_ZERO, GL_ZERO, GL_ONE);
-					}
-				} break;
-			case RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_PMALPHA: {
-					glBlendEquation(GL_FUNC_ADD);
-					if (storage->frame.current_rt && storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_TRANSPARENT]) {
-						glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-					} else {
-						glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE);
-					}
-				} break;
-			}
+		if (sit.unshaded)
+		{
+			state.uniforms.final_modulate = ci->final_modulate;
 		}
-
-
-		state.uniforms.final_modulate = sit.unshaded ? ci->final_modulate : Color(ci->final_modulate.r * p_modulate.r, ci->final_modulate.g * p_modulate.g, ci->final_modulate.b * p_modulate.b, ci->final_modulate.a * p_modulate.a);
+		else
+		{
+			state.uniforms.final_modulate = ci->final_modulate * p_modulate;
+		}
 
 		state.uniforms.modelview_matrix = ci->final_transform;
 		state.uniforms.extra_matrix = Transform2D();
