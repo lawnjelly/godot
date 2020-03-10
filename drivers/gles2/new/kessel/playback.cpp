@@ -6,8 +6,12 @@ namespace Batch
 
 void Playback::Playback_Item_ChangeScissorItem(Item *pNewScissorItem)
 {
-	State_ItemGroup &sig = m_State_ItemGroup;
+	//State_ItemGroup &sig = m_State_ItemGroup;
 
+	State_SetScissorItem(pNewScissorItem);
+	State_SetScissor(pNewScissorItem != 0);
+
+	/* KEEP THIS HERE AS REFERENCE IN CASE OF REGRESSIONS
 	if (sig.m_pScissorItem != pNewScissorItem)
 	{
 
@@ -29,6 +33,7 @@ void Playback::Playback_Item_ChangeScissorItem(Item *pNewScissorItem)
 			}
 		} // dry run
 	}
+	*/
 }
 
 void Playback::Playback_Item_CopyBackBuffer(Item *ci)

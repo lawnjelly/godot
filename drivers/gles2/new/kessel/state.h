@@ -33,7 +33,6 @@ public:
 	int m_iLastBlendMode;
 	RID m_RID_CanvasLastMaterial;
 
-//	RasterizerCanvas::Item *m_pScissorItem;
 	bool m_bScissorActive;
 };
 

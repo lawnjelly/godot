@@ -11,12 +11,11 @@ protected:
 	void State_SetItemGroup_End();
 	void State_SetItem(RasterizerCanvas::Item * p_item);
 
-private:
 
 	void State_SetScissorItem(Item * pItem);
 	void State_SetScissor(bool bOn);
 
-
+private:
 	Batch * RequestNewBatch(Batch::CommandType ct);
 };
 
