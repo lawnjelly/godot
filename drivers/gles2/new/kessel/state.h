@@ -26,14 +26,14 @@ public:
 	State_ItemGroup() { Reset(); }
 	void Reset();
 	BItemGroup *m_pItemGroup;
-	RasterizerCanvas::Item *current_clip;
-	RasterizerStorageGLES2::Shader *shader_cache;
-	bool rebind_shader;
-	bool prev_use_skeleton;
-	int last_blend_mode;
-	RID canvas_last_material;
-
 	RasterizerCanvas::Item *m_pScissorItem;
+	RasterizerStorageGLES2::Shader *m_pCachedShader;
+	bool m_bRebindShader;
+	bool m_bPrevUseSkeleton;
+	int m_iLastBlendMode;
+	RID m_RID_CanvasLastMaterial;
+
+//	RasterizerCanvas::Item *m_pScissorItem;
 	bool m_bScissorActive;
 };
 
@@ -42,13 +42,13 @@ class State_Item
 public:
 	State_Item() { Reset(); }
 	void Reset();
-	RasterizerStorageGLES2::Skeleton *skeleton;
-	bool use_skeleton;
+	RasterizerStorageGLES2::Skeleton *m_pSkeleton;
+	bool m_bUseSkeleton;
 
-	bool unshaded;
-	int blend_mode;
-	bool reclip;
-	RasterizerStorageGLES2::Material *material_ptr;
+	bool m_bUnshaded;
+	int m_iBlendMode;
+	bool m_bReclip;
+	RasterizerStorageGLES2::Material *m_pMaterial;
 };
 
 } // namespace Batch

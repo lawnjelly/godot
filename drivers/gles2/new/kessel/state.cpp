@@ -17,11 +17,10 @@ void State_ItemGroup::Reset()
 	m_pScissorItem = NULL;
 	m_bScissorActive = false;
 
-	current_clip = NULL;
-	shader_cache = NULL;
+	m_pCachedShader = NULL;
 
-	rebind_shader = true;
-	prev_use_skeleton = false;
+	m_bRebindShader = true;
+	m_bPrevUseSkeleton = false;
 //	state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_SKELETON, false);
 
 //	state.current_tex = RID();
@@ -32,20 +31,20 @@ void State_ItemGroup::Reset()
 //	glActiveTexture(GL_TEXTURE0);
 //	glBindTexture(GL_TEXTURE_2D, storage->resources.white_tex);
 
-	last_blend_mode = -1;
+	m_iLastBlendMode = -1;
 
-	canvas_last_material = RID();
+	m_RID_CanvasLastMaterial = RID();
 }
 
 
 void State_Item::Reset()
 {
-	skeleton = NULL;
-	use_skeleton = false;
-	unshaded = false;
-	blend_mode = 0;
-	reclip = false;
-	material_ptr = NULL;
+	m_pSkeleton = NULL;
+	m_bUseSkeleton = false;
+	m_bUnshaded = false;
+	m_iBlendMode = 0;
+	m_bReclip = false;
+	m_pMaterial = NULL;
 }
 
 

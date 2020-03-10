@@ -8,20 +8,20 @@ void Playback::Playback_Item_ChangeScissorItem(Item *pNewScissorItem)
 {
 	State_ItemGroup &sig = m_State_ItemGroup;
 
-	if (sig.current_clip != pNewScissorItem)
+	if (sig.m_pScissorItem != pNewScissorItem)
 	{
 
-		sig.current_clip = pNewScissorItem;
+		sig.m_pScissorItem = pNewScissorItem;
 
 		if (!m_bDryRun)
 		{
-			if (sig.current_clip)
+			if (sig.m_pScissorItem)
 			{
 				glEnable(GL_SCISSOR_TEST);
-				int y = storage->frame.current_rt->height - (sig.current_clip->final_clip_rect.position.y + sig.current_clip->final_clip_rect.size.y);
+				int y = storage->frame.current_rt->height - (sig.m_pScissorItem->final_clip_rect.position.y + sig.m_pScissorItem->final_clip_rect.size.y);
 				if (storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_VFLIP])
-					y = sig.current_clip->final_clip_rect.position.y;
-				glScissor(sig.current_clip->final_clip_rect.position.x, y, sig.current_clip->final_clip_rect.size.width, sig.current_clip->final_clip_rect.size.height);
+					y = sig.m_pScissorItem->final_clip_rect.position.y;
+				glScissor(sig.m_pScissorItem->final_clip_rect.position.x, y, sig.m_pScissorItem->final_clip_rect.size.width, sig.m_pScissorItem->final_clip_rect.size.height);
 			}
 			else
 			{
@@ -56,45 +56,45 @@ void Playback::Playback_Item_SkeletonHandling(Item *ci)
 	State_Item &sit = m_State_Item;
 	State_ItemGroup &sig = m_State_ItemGroup;
 
-	sit.skeleton = NULL;
+	sit.m_pSkeleton = NULL;
 
 	{
 		//skeleton handling
 		if (ci->skeleton.is_valid() && storage->skeleton_owner.owns(ci->skeleton))
 		{
-			sit.skeleton = storage->skeleton_owner.get(ci->skeleton);
-			if (!sit.skeleton->use_2d)
+			sit.m_pSkeleton = storage->skeleton_owner.get(ci->skeleton);
+			if (!sit.m_pSkeleton->use_2d)
 			{
-				sit.skeleton = NULL;
+				sit.m_pSkeleton = NULL;
 			}
 			else
 			{
 				if (!m_bDryRun)
 				{
-					state.skeleton_transform = sig.m_pItemGroup->p_base_transform * sit.skeleton->base_transform_2d;
+					state.skeleton_transform = sig.m_pItemGroup->p_base_transform * sit.m_pSkeleton->base_transform_2d;
 					state.skeleton_transform_inverse = state.skeleton_transform.affine_inverse();
-					state.skeleton_texture_size = Vector2(sit.skeleton->size * 2, 0);
+					state.skeleton_texture_size = Vector2(sit.m_pSkeleton->size * 2, 0);
 				} // dry run
 			}
 		}
 
-		sit.use_skeleton = sit.skeleton != NULL;
-		if (sig.prev_use_skeleton != sit.use_skeleton)
+		sit.m_bUseSkeleton = sit.m_pSkeleton != NULL;
+		if (sig.m_bPrevUseSkeleton != sit.m_bUseSkeleton)
 		{
-			sig.rebind_shader = true;
+			sig.m_bRebindShader = true;
 			if (!m_bDryRun)
 			{
-				state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_SKELETON, sit.use_skeleton);
+				state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_SKELETON, sit.m_bUseSkeleton);
 			}
-			sig.prev_use_skeleton = sit.use_skeleton;
+			sig.m_bPrevUseSkeleton = sit.m_bUseSkeleton;
 		}
 
 		if (!m_bDryRun)
 		{
-			if (sit.skeleton)
+			if (sit.m_pSkeleton)
 			{
 				glActiveTexture(GL_TEXTURE0 + storage->config.max_texture_image_units - 3);
-				glBindTexture(GL_TEXTURE_2D, sit.skeleton->tex_id);
+				glBindTexture(GL_TEXTURE_2D, sit.m_pSkeleton->tex_id);
 				state.using_skeleton = true;
 			}
 			else
@@ -113,16 +113,16 @@ void Playback::Playback_Item_ChangeMaterial(Item *ci)
 	Item *material_owner = ci->material_owner ? ci->material_owner : ci;
 
 	RID material = material_owner->material;
-	sit.material_ptr = storage->material_owner.getornull(material);
+	sit.m_pMaterial = storage->material_owner.getornull(material);
 
-	if (material != sig.canvas_last_material || sig.rebind_shader)
+	if (material != sig.m_RID_CanvasLastMaterial || sig.m_bRebindShader)
 	{
 
 		RasterizerStorageGLES2::Shader *shader_ptr = NULL;
 
-		if (sit.material_ptr)
+		if (sit.m_pMaterial)
 		{
-			shader_ptr = sit.material_ptr->shader;
+			shader_ptr = sit.m_pMaterial->shader;
 
 			if (shader_ptr && shader_ptr->mode != VS::SHADER_CANVAS_ITEM)
 				shader_ptr = NULL; // not a canvas item shader, don't use.
@@ -150,7 +150,7 @@ void Playback::Playback_Item_ChangeMaterial(Item *ci)
 					}
 				}
 
-				if (shader_ptr != sig.shader_cache)
+				if (shader_ptr != sig.m_pCachedShader)
 				{
 
 					if (shader_ptr->canvas_item.uses_time)
@@ -162,8 +162,8 @@ void Playback::Playback_Item_ChangeMaterial(Item *ci)
 					state.canvas_shader.bind();
 				}
 
-				int tc = sit.material_ptr->textures.size();
-				Pair<StringName, RID> *textures = sit.material_ptr->textures.ptrw();
+				int tc = sit.m_pMaterial->textures.size();
+				Pair<StringName, RID> *textures = sit.m_pMaterial->textures.ptrw();
 
 				ShaderLanguage::ShaderNode::Uniform::Hint *texture_hints = shader_ptr->texture_hints.ptrw();
 
@@ -227,15 +227,15 @@ void Playback::Playback_Item_ChangeMaterial(Item *ci)
 				state.canvas_shader.set_custom_shader(0);
 				state.canvas_shader.bind();
 			}
-			state.canvas_shader.use_material((void *)sit.material_ptr);
+			state.canvas_shader.use_material((void *)sit.m_pMaterial);
 
 		} // dry run
 
-		sig.shader_cache = shader_ptr;
+		sig.m_pCachedShader = shader_ptr;
 
-		sig.canvas_last_material = material;
+		sig.m_RID_CanvasLastMaterial = material;
 
-		sig.rebind_shader = false;
+		sig.m_bRebindShader = false;
 	}
 }
 
@@ -246,21 +246,21 @@ void Playback::Playback_Item_SetBlendModeAndUniforms(Item *ci)
 	const Color &p_modulate = big.p_modulate;
 	State_Item &sit = m_State_Item;
 
-	sit.blend_mode = 0;
+	sit.m_iBlendMode = 0;
 
-	if (sig.shader_cache)
-		sit.blend_mode = sig.shader_cache->canvas_item.blend_mode;
+	if (sig.m_pCachedShader)
+		sit.m_iBlendMode = sig.m_pCachedShader->canvas_item.blend_mode;
 	else
-		sit.blend_mode = RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_MIX;
+		sit.m_iBlendMode = RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_MIX;
 
-	sit.unshaded = sig.shader_cache && (sig.shader_cache->canvas_item.light_mode == RasterizerStorageGLES2::Shader::CanvasItem::LIGHT_MODE_UNSHADED || (sit.blend_mode != RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_MIX && sit.blend_mode != RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_PMALPHA));
+	sit.m_bUnshaded = sig.m_pCachedShader && (sig.m_pCachedShader->canvas_item.light_mode == RasterizerStorageGLES2::Shader::CanvasItem::LIGHT_MODE_UNSHADED || (sit.m_iBlendMode != RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_MIX && sit.m_iBlendMode != RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_PMALPHA));
 
 	if (!m_bDryRun)
 	{
-		if (sig.last_blend_mode != sit.blend_mode)
-			GL_SetState_BlendMode(sit.blend_mode);
+		if (sig.m_iLastBlendMode != sit.m_iBlendMode)
+			GL_SetState_BlendMode(sit.m_iBlendMode);
 
-		if (sit.unshaded)
+		if (sit.m_bUnshaded)
 			state.uniforms.final_modulate = ci->final_modulate;
 		else
 			state.uniforms.final_modulate = ci->final_modulate * p_modulate;
@@ -277,17 +277,17 @@ void Playback::Playback_Item_RenderCommandsNormal(Item *ci)
 	State_ItemGroup &sig = m_State_ItemGroup;
 	State_Item &sit = m_State_Item;
 
-	sit.reclip = false;
+	sit.m_bReclip = false;
 
-	if (sit.unshaded || (state.uniforms.final_modulate.a > 0.001 && (!sig.shader_cache || sig.shader_cache->canvas_item.light_mode != RasterizerStorageGLES2::Shader::CanvasItem::LIGHT_MODE_LIGHT_ONLY) && !ci->light_masked))
+	if (sit.m_bUnshaded || (state.uniforms.final_modulate.a > 0.001 && (!sig.m_pCachedShader || sig.m_pCachedShader->canvas_item.light_mode != RasterizerStorageGLES2::Shader::CanvasItem::LIGHT_MODE_LIGHT_ONLY) && !ci->light_masked))
 	{
 		if (!m_bDryRun)
-			_canvas_item_render_commands(ci, NULL, sit.reclip, sit.material_ptr);
+			_canvas_item_render_commands(ci, NULL, sit.m_bReclip, sit.m_pMaterial);
 		else
-			fill_canvas_item_render_commands(ci, NULL, sit.reclip, sit.material_ptr);
+			fill_canvas_item_render_commands(ci, NULL, sit.m_bReclip, sit.m_pMaterial);
 	}
 
-	sig.rebind_shader = true; // hacked in for now.
+	sig.m_bRebindShader = true; // hacked in for now.
 }
 
 void Playback::Playback_Item_ReenableScissor()
@@ -297,13 +297,14 @@ void Playback::Playback_Item_ReenableScissor()
 
 	if (!m_bDryRun)
 	{
-		if (sit.reclip)
+		if (sit.m_bReclip)
 		{
 			glEnable(GL_SCISSOR_TEST);
-			int y = storage->frame.current_rt->height - (sig.current_clip->final_clip_rect.position.y + sig.current_clip->final_clip_rect.size.y);
+			int y = storage->frame.current_rt->height - (sig.m_pScissorItem->final_clip_rect.position.y + sig.m_pScissorItem->final_clip_rect.size.y);
 			if (storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_VFLIP])
-				y = sig.current_clip->final_clip_rect.position.y;
-			glScissor(sig.current_clip->final_clip_rect.position.x, y, sig.current_clip->final_clip_rect.size.width, sig.current_clip->final_clip_rect.size.height);
+				y = sig.m_pScissorItem->final_clip_rect.position.y;
+
+			glScissor(sig.m_pScissorItem->final_clip_rect.position.x, y, sig.m_pScissorItem->final_clip_rect.size.width, sig.m_pScissorItem->final_clip_rect.size.height);
 		}
 	} // dry run
 }
@@ -315,7 +316,9 @@ void Playback::Playback_Item_ProcessLight(Item *ci, Light *light, bool &light_us
 	int p_z = big.p_z;
 	State_Item &sit = m_State_Item;
 
-	if (ci->light_mask & light->item_mask && p_z >= light->z_min && p_z <= light->z_max && ci->global_rect_cache.intersects_transformed(light->xform_cache, light->rect_cache))
+	if (ci->light_mask & light->item_mask &&
+			p_z >= light->z_min && p_z <= light->z_max &&
+			ci->global_rect_cache.intersects_transformed(light->xform_cache, light->rect_cache))
 	{
 
 		//intersects this light
@@ -351,7 +354,7 @@ void Playback::Playback_Item_ProcessLight(Item *ci, Light *light, bool &light_us
 
 			//always re-set uniforms, since light parameters changed
 			_set_uniforms();
-			state.canvas_shader.use_material((void *)sit.material_ptr);
+			state.canvas_shader.use_material((void *)sit.m_pMaterial);
 
 			glActiveTexture(GL_TEXTURE0 + storage->config.max_texture_image_units - 4);
 			RasterizerStorageGLES2::Texture *t = storage->texture_owner.getornull(light->texture);
@@ -370,9 +373,9 @@ void Playback::Playback_Item_ProcessLight(Item *ci, Light *light, bool &light_us
 		} // dry run
 
 		if (!m_bDryRun)
-			_canvas_item_render_commands(ci, NULL, sit.reclip, sit.material_ptr); //redraw using light
+			_canvas_item_render_commands(ci, NULL, sit.m_bReclip, sit.m_pMaterial); //redraw using light
 		else
-			fill_canvas_item_render_commands(ci, NULL, sit.reclip, sit.material_ptr); //redraw using light
+			fill_canvas_item_render_commands(ci, NULL, sit.m_bReclip, sit.m_pMaterial); //redraw using light
 
 		state.using_light = NULL;
 	}
@@ -384,7 +387,7 @@ void Playback::Playback_Item_ProcessLights(Item *ci)
 	const BItemGroup &big = *sig.m_pItemGroup;
 	State_Item &sit = m_State_Item;
 
-	if ((sit.blend_mode == RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_MIX || sit.blend_mode == RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_PMALPHA) && big.p_light && !sit.unshaded)
+	if ((sit.m_iBlendMode == RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_MIX || sit.m_iBlendMode == RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_PMALPHA) && big.p_light && !sit.m_bUnshaded)
 	{
 
 		Light *light = big.p_light;
@@ -411,7 +414,7 @@ void Playback::Playback_Item_ProcessLights(Item *ci)
 				state.canvas_shader.bind();
 			} // dry run
 
-			sig.last_blend_mode = -1;
+			sig.m_iLastBlendMode = -1;
 		}
 	}
 }
@@ -462,7 +465,7 @@ void Playback::Playback_Change_ItemGroup_End(const Batch &batch)
 {
 	if (!m_bDryRun)
 	{
-		if (m_State_ItemGroup.current_clip)
+		if (m_State_ItemGroup.m_pScissorItem)
 		{
 			glDisable(GL_SCISSOR_TEST);
 		}
