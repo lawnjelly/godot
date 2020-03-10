@@ -46,6 +46,8 @@ public:
 	void Reset();
 	RasterizerStorageGLES2::Skeleton *skeleton;
 	bool use_skeleton;
+
+	bool unshaded;
 };
 
 

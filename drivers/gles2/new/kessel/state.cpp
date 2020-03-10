@@ -42,6 +42,7 @@ void State_Item::Reset()
 {
 	skeleton = NULL;
 	use_skeleton = false;
+	unshaded = false;
 }
 
 

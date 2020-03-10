@@ -208,15 +208,16 @@ RasterizerStorageGLES2::Material * Playback::Playback_Item_ChangeMaterial(Item *
 }
 
 
-bool Playback::Playback_Item_SetBlendModeAndUniforms(Item * ci, int &blend_mode)
+void Playback::Playback_Item_SetBlendModeAndUniforms(Item * ci, int &blend_mode)
 {
 	State_ItemGroup &sig = m_State_ItemGroup;
 	const BItemGroup &big = *sig.m_pItemGroup;
 	const Color &p_modulate = big.p_modulate;
+	State_Item &sit = m_State_Item;
 
 
 	blend_mode = sig.shader_cache ? sig.shader_cache->canvas_item.blend_mode : RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_MIX;
-	bool unshaded = sig.shader_cache && (sig.shader_cache->canvas_item.light_mode == RasterizerStorageGLES2::Shader::CanvasItem::LIGHT_MODE_UNSHADED || (blend_mode != RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_MIX && blend_mode != RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_PMALPHA));
+	sit.unshaded = sig.shader_cache && (sig.shader_cache->canvas_item.light_mode == RasterizerStorageGLES2::Shader::CanvasItem::LIGHT_MODE_UNSHADED || (blend_mode != RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_MIX && blend_mode != RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_PMALPHA));
 
 	if (!m_bDryRun)
 	{
@@ -272,7 +273,7 @@ bool Playback::Playback_Item_SetBlendModeAndUniforms(Item * ci, int &blend_mode)
 		}
 
 
-		state.uniforms.final_modulate = unshaded ? ci->final_modulate : Color(ci->final_modulate.r * p_modulate.r, ci->final_modulate.g * p_modulate.g, ci->final_modulate.b * p_modulate.b, ci->final_modulate.a * p_modulate.a);
+		state.uniforms.final_modulate = sit.unshaded ? ci->final_modulate : Color(ci->final_modulate.r * p_modulate.r, ci->final_modulate.g * p_modulate.g, ci->final_modulate.b * p_modulate.b, ci->final_modulate.a * p_modulate.a);
 
 		state.uniforms.modelview_matrix = ci->final_transform;
 		state.uniforms.extra_matrix = Transform2D();
@@ -280,14 +281,14 @@ bool Playback::Playback_Item_SetBlendModeAndUniforms(Item * ci, int &blend_mode)
 		_set_uniforms();
 	} // if dry run
 
-	return unshaded;
 }
 
-void Playback::Playback_Item_RenderCommandsNormal(Item * ci, bool unshaded, bool &reclip, RasterizerStorageGLES2::Material * material_ptr)
+void Playback::Playback_Item_RenderCommandsNormal(Item * ci, bool &reclip, RasterizerStorageGLES2::Material * material_ptr)
 {
 	State_ItemGroup &sig = m_State_ItemGroup;
+	State_Item &sit = m_State_Item;
 
-	if (unshaded || (state.uniforms.final_modulate.a > 0.001 && (!sig.shader_cache || sig.shader_cache->canvas_item.light_mode != RasterizerStorageGLES2::Shader::CanvasItem::LIGHT_MODE_LIGHT_ONLY) && !ci->light_masked))
+	if (sit.unshaded || (state.uniforms.final_modulate.a > 0.001 && (!sig.shader_cache || sig.shader_cache->canvas_item.light_mode != RasterizerStorageGLES2::Shader::CanvasItem::LIGHT_MODE_LIGHT_ONLY) && !ci->light_masked))
 	{
 		if (!m_bDryRun)
 			_canvas_item_render_commands(ci, NULL, reclip, material_ptr);
@@ -408,12 +409,13 @@ void Playback::Playback_Item_ProcessLight(Item * ci, Light * light, bool &light_
 
 }
 
-void Playback::Playback_Item_ProcessLights(Item * ci, int &blend_mode, bool &reclip, RasterizerStorageGLES2::Material * material_ptr, bool unshaded)
+void Playback::Playback_Item_ProcessLights(Item * ci, int &blend_mode, bool &reclip, RasterizerStorageGLES2::Material * material_ptr)
 {
 	State_ItemGroup &sig = m_State_ItemGroup;
 	const BItemGroup &big = *sig.m_pItemGroup;
+	State_Item &sit = m_State_Item;
 
-	if ((blend_mode == RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_MIX || blend_mode == RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_PMALPHA) && big.p_light && !unshaded) {
+	if ((blend_mode == RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_MIX || blend_mode == RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_PMALPHA) && big.p_light && !sit.unshaded) {
 
 		Light *light = big.p_light;
 		bool light_used = false;
@@ -472,12 +474,13 @@ void Playback::Playback_Change_Item(const Batch &batch)
 	RasterizerStorageGLES2::Material *material_ptr = Playback_Item_ChangeMaterial(ci);
 
 	int blend_mode = 0;
-	bool unshaded = Playback_Item_SetBlendModeAndUniforms(ci, blend_mode);
+	//bool unshaded = Playback_Item_SetBlendModeAndUniforms(ci, blend_mode);
+	Playback_Item_SetBlendModeAndUniforms(ci, blend_mode);
 
 	bool reclip = false;
 
-	Playback_Item_RenderCommandsNormal(ci, unshaded, reclip, material_ptr);
-	Playback_Item_ProcessLights(ci, blend_mode, reclip, material_ptr, unshaded);
+	Playback_Item_RenderCommandsNormal(ci, reclip, material_ptr);
+	Playback_Item_ProcessLights(ci, blend_mode, reclip, material_ptr);
 
 	Playback_Item_ReenableScissor(reclip);
 
