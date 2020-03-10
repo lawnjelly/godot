@@ -49,6 +49,7 @@ public:
 
 	bool unshaded;
 	int blend_mode;
+	bool reclip;
 };
 
 

@@ -22,10 +22,10 @@ protected:
 	void Playback_Item_SkeletonHandling(Item *ci);
 	RasterizerStorageGLES2::Material * Playback_Item_ChangeMaterial(Item *ci);
 	void Playback_Item_SetBlendModeAndUniforms(Item * ci);
-	void Playback_Item_RenderCommandsNormal(Item * ci, bool &reclip, RasterizerStorageGLES2::Material * material_ptr);
-	void Playback_Item_ProcessLights(Item * ci, bool &reclip, RasterizerStorageGLES2::Material * material_ptr);
-	void Playback_Item_ProcessLight(Item * ci, Light * light, bool &light_used, VS::CanvasLightMode &mode, bool &reclip, RasterizerStorageGLES2::Material * material_ptr);
-	void Playback_Item_ReenableScissor(bool reclip);
+	void Playback_Item_RenderCommandsNormal(Item * ci, RasterizerStorageGLES2::Material * material_ptr);
+	void Playback_Item_ProcessLights(Item * ci, RasterizerStorageGLES2::Material * material_ptr);
+	void Playback_Item_ProcessLight(Item * ci, Light * light, bool &light_used, VS::CanvasLightMode &mode, RasterizerStorageGLES2::Material * material_ptr);
+	void Playback_Item_ReenableScissor();
 
 
 	virtual void fill_canvas_item_render_commands(Item *p_item, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material) = 0;

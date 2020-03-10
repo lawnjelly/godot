@@ -284,7 +284,7 @@ void Playback::Playback_Item_SetBlendModeAndUniforms(Item * ci)
 
 }
 
-void Playback::Playback_Item_RenderCommandsNormal(Item * ci, bool &reclip, RasterizerStorageGLES2::Material * material_ptr)
+void Playback::Playback_Item_RenderCommandsNormal(Item * ci, RasterizerStorageGLES2::Material * material_ptr)
 {
 	State_ItemGroup &sig = m_State_ItemGroup;
 	State_Item &sit = m_State_Item;
@@ -292,22 +292,23 @@ void Playback::Playback_Item_RenderCommandsNormal(Item * ci, bool &reclip, Raste
 	if (sit.unshaded || (state.uniforms.final_modulate.a > 0.001 && (!sig.shader_cache || sig.shader_cache->canvas_item.light_mode != RasterizerStorageGLES2::Shader::CanvasItem::LIGHT_MODE_LIGHT_ONLY) && !ci->light_masked))
 	{
 		if (!m_bDryRun)
-			_canvas_item_render_commands(ci, NULL, reclip, material_ptr);
+			_canvas_item_render_commands(ci, NULL, sit.reclip, material_ptr);
 		else
-			fill_canvas_item_render_commands(ci, NULL, reclip, material_ptr);
+			fill_canvas_item_render_commands(ci, NULL, sit.reclip, material_ptr);
 	}
 
 	sig.rebind_shader = true; // hacked in for now.
 
 }
 
-void Playback::Playback_Item_ReenableScissor(bool reclip)
+void Playback::Playback_Item_ReenableScissor()
 {
 	State_ItemGroup &sig = m_State_ItemGroup;
+	State_Item &sit = m_State_Item;
 
 	if (!m_bDryRun)
 	{
-		if (reclip) {
+		if (sit.reclip) {
 			glEnable(GL_SCISSOR_TEST);
 			int y = storage->frame.current_rt->height - (sig.current_clip->final_clip_rect.position.y + sig.current_clip->final_clip_rect.size.y);
 			if (storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_VFLIP])
@@ -318,11 +319,12 @@ void Playback::Playback_Item_ReenableScissor(bool reclip)
 }
 
 
-void Playback::Playback_Item_ProcessLight(Item * ci, Light * light, bool &light_used, VS::CanvasLightMode &mode, bool &reclip, RasterizerStorageGLES2::Material * material_ptr)
+void Playback::Playback_Item_ProcessLight(Item * ci, Light * light, bool &light_used, VS::CanvasLightMode &mode, RasterizerStorageGLES2::Material * material_ptr)
 {
 	State_ItemGroup &sig = m_State_ItemGroup;
 	const BItemGroup &big = *sig.m_pItemGroup;
 	int p_z = big.p_z;
+	State_Item &sit = m_State_Item;
 
 
 	if (ci->light_mask & light->item_mask && p_z >= light->z_min && p_z <= light->z_max && ci->global_rect_cache.intersects_transformed(light->xform_cache, light->rect_cache)) {
@@ -400,9 +402,9 @@ void Playback::Playback_Item_ProcessLight(Item * ci, Light * light, bool &light_
 		} // dry run
 
 		if (!m_bDryRun)
-			_canvas_item_render_commands(ci, NULL, reclip, material_ptr); //redraw using light
+			_canvas_item_render_commands(ci, NULL, sit.reclip, material_ptr); //redraw using light
 		else
-			fill_canvas_item_render_commands(ci, NULL, reclip, material_ptr); //redraw using light
+			fill_canvas_item_render_commands(ci, NULL, sit.reclip, material_ptr); //redraw using light
 
 		state.using_light = NULL;
 	}
@@ -410,7 +412,7 @@ void Playback::Playback_Item_ProcessLight(Item * ci, Light * light, bool &light_
 
 }
 
-void Playback::Playback_Item_ProcessLights(Item * ci, bool &reclip, RasterizerStorageGLES2::Material * material_ptr)
+void Playback::Playback_Item_ProcessLights(Item * ci, RasterizerStorageGLES2::Material * material_ptr)
 {
 	State_ItemGroup &sig = m_State_ItemGroup;
 	const BItemGroup &big = *sig.m_pItemGroup;
@@ -430,7 +432,7 @@ void Playback::Playback_Item_ProcessLights(Item * ci, bool &reclip, RasterizerSt
 
 		while (light)
 		{
-			Playback_Item_ProcessLight(ci, light, light_used, mode, reclip, material_ptr);
+			Playback_Item_ProcessLight(ci, light, light_used, mode, material_ptr);
 			light = light->next_ptr;
 		}
 
@@ -463,7 +465,7 @@ void Playback::Playback_Change_Item(const Batch &batch)
 
 	// alias
 //	State_ItemGroup &sig = m_State_ItemGroup;
-//	State_Item &sit = m_State_Item;
+	State_Item &sit = m_State_Item;
 //	const BItemGroup &big = *sig.m_pItemGroup;
 //	const Color &p_modulate = big.p_modulate;
 //	int p_z = big.p_z;
@@ -475,12 +477,12 @@ void Playback::Playback_Change_Item(const Batch &batch)
 	RasterizerStorageGLES2::Material *material_ptr = Playback_Item_ChangeMaterial(ci);
 	Playback_Item_SetBlendModeAndUniforms(ci);
 
-	bool reclip = false;
+	sit.reclip = false;
 
-	Playback_Item_RenderCommandsNormal(ci, reclip, material_ptr);
-	Playback_Item_ProcessLights(ci, reclip, material_ptr);
+	Playback_Item_RenderCommandsNormal(ci, material_ptr);
+	Playback_Item_ProcessLights(ci, material_ptr);
 
-	Playback_Item_ReenableScissor(reclip);
+	Playback_Item_ReenableScissor();
 
 }
 
