@@ -316,30 +316,102 @@ void Playback::Playback_Item_ReenableScissor(bool reclip)
 }
 
 
-void Playback::Playback_Change_Item(const Batch &batch)
+void Playback::Playback_Item_ProcessLight(Item * ci, Light * light, bool &light_used, VS::CanvasLightMode &mode, bool &reclip, RasterizerStorageGLES2::Material * material_ptr)
 {
-	Item *ci = batch.change_item.m_pItem;
-
-	// alias
 	State_ItemGroup &sig = m_State_ItemGroup;
-	State_Item &sit = m_State_Item;
 	const BItemGroup &big = *sig.m_pItemGroup;
-	const Color &p_modulate = big.p_modulate;
 	int p_z = big.p_z;
 
 
-	Playback_Item_ChangeScissorItem(ci->final_clip_owner);
-	Playback_Item_CopyBackBuffer(ci);
-	Playback_Item_SkeletonHandling(ci);
-	RasterizerStorageGLES2::Material *material_ptr = Playback_Item_ChangeMaterial(ci);
+	if (ci->light_mask & light->item_mask && p_z >= light->z_min && p_z <= light->z_max && ci->global_rect_cache.intersects_transformed(light->xform_cache, light->rect_cache)) {
 
-	int blend_mode = 0;
-	bool unshaded = Playback_Item_SetBlendModeAndUniforms(ci, blend_mode);
+		//intersects this light
 
-	bool reclip = false;
+		if (!light_used || mode != light->mode) {
 
-	Playback_Item_RenderCommandsNormal(ci, unshaded, reclip, material_ptr);
+			mode = light->mode;
 
+			if (!m_bDryRun)
+			{
+				switch (mode) {
+
+				case VS::CANVAS_LIGHT_MODE_ADD: {
+						glBlendEquation(GL_FUNC_ADD);
+						glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+
+					} break;
+				case VS::CANVAS_LIGHT_MODE_SUB: {
+						glBlendEquation(GL_FUNC_REVERSE_SUBTRACT);
+						glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+					} break;
+				case VS::CANVAS_LIGHT_MODE_MIX:
+				case VS::CANVAS_LIGHT_MODE_MASK: {
+						glBlendEquation(GL_FUNC_ADD);
+						glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+					} break;
+				}
+			} // dry run
+		}
+
+		if (!light_used) {
+
+			if (!m_bDryRun)
+				state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_LIGHTING, true);
+			light_used = true;
+		}
+
+		bool has_shadow = light->shadow_buffer.is_valid() && ci->light_mask & light->item_shadow_mask;
+
+		if (!m_bDryRun)
+		{
+			state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_SHADOWS, has_shadow);
+			if (has_shadow) {
+				state.canvas_shader.set_conditional(CanvasShaderGLES2::SHADOW_USE_GRADIENT, light->shadow_gradient_length > 0);
+				state.canvas_shader.set_conditional(CanvasShaderGLES2::SHADOW_FILTER_NEAREST, light->shadow_filter == VS::CANVAS_LIGHT_FILTER_NONE);
+				state.canvas_shader.set_conditional(CanvasShaderGLES2::SHADOW_FILTER_PCF3, light->shadow_filter == VS::CANVAS_LIGHT_FILTER_PCF3);
+				state.canvas_shader.set_conditional(CanvasShaderGLES2::SHADOW_FILTER_PCF5, light->shadow_filter == VS::CANVAS_LIGHT_FILTER_PCF5);
+				state.canvas_shader.set_conditional(CanvasShaderGLES2::SHADOW_FILTER_PCF7, light->shadow_filter == VS::CANVAS_LIGHT_FILTER_PCF7);
+				state.canvas_shader.set_conditional(CanvasShaderGLES2::SHADOW_FILTER_PCF9, light->shadow_filter == VS::CANVAS_LIGHT_FILTER_PCF9);
+				state.canvas_shader.set_conditional(CanvasShaderGLES2::SHADOW_FILTER_PCF13, light->shadow_filter == VS::CANVAS_LIGHT_FILTER_PCF13);
+			}
+
+			state.canvas_shader.bind();
+			state.using_light = light;
+			state.using_shadow = has_shadow;
+
+			//always re-set uniforms, since light parameters changed
+			_set_uniforms();
+			state.canvas_shader.use_material((void *)material_ptr);
+
+			glActiveTexture(GL_TEXTURE0 + storage->config.max_texture_image_units - 4);
+			RasterizerStorageGLES2::Texture *t = storage->texture_owner.getornull(light->texture);
+			if (!t) {
+				glBindTexture(GL_TEXTURE_2D, storage->resources.white_tex);
+			} else {
+				t = t->get_ptr();
+
+				glBindTexture(t->target, t->tex_id);
+			}
+
+			glActiveTexture(GL_TEXTURE0);
+		} // dry run
+
+		if (!m_bDryRun)
+			_canvas_item_render_commands(ci, NULL, reclip, material_ptr); //redraw using light
+		else
+			fill_canvas_item_render_commands(ci, NULL, reclip, material_ptr); //redraw using light
+
+		state.using_light = NULL;
+	}
+
+
+}
+
+void Playback::Playback_Item_ProcessLights(Item * ci, int &blend_mode, bool &reclip, RasterizerStorageGLES2::Material * material_ptr, bool unshaded)
+{
+	State_ItemGroup &sig = m_State_ItemGroup;
+	const BItemGroup &big = *sig.m_pItemGroup;
 
 	if ((blend_mode == RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_MIX || blend_mode == RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_PMALPHA) && big.p_light && !unshaded) {
 
@@ -353,90 +425,9 @@ void Playback::Playback_Change_Item(const Batch &batch)
 			state.uniforms.final_modulate = ci->final_modulate; // remove the canvas modulate
 		}
 
-		while (light) {
-
-			if (ci->light_mask & light->item_mask && p_z >= light->z_min && p_z <= light->z_max && ci->global_rect_cache.intersects_transformed(light->xform_cache, light->rect_cache)) {
-
-				//intersects this light
-
-				if (!light_used || mode != light->mode) {
-
-					mode = light->mode;
-
-					if (!m_bDryRun)
-					{
-						switch (mode) {
-
-						case VS::CANVAS_LIGHT_MODE_ADD: {
-								glBlendEquation(GL_FUNC_ADD);
-								glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-
-							} break;
-						case VS::CANVAS_LIGHT_MODE_SUB: {
-								glBlendEquation(GL_FUNC_REVERSE_SUBTRACT);
-								glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-							} break;
-						case VS::CANVAS_LIGHT_MODE_MIX:
-						case VS::CANVAS_LIGHT_MODE_MASK: {
-								glBlendEquation(GL_FUNC_ADD);
-								glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-							} break;
-						}
-					} // dry run
-				}
-
-				if (!light_used) {
-
-					if (!m_bDryRun)
-						state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_LIGHTING, true);
-					light_used = true;
-				}
-
-				bool has_shadow = light->shadow_buffer.is_valid() && ci->light_mask & light->item_shadow_mask;
-
-				if (!m_bDryRun)
-				{
-					state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_SHADOWS, has_shadow);
-					if (has_shadow) {
-						state.canvas_shader.set_conditional(CanvasShaderGLES2::SHADOW_USE_GRADIENT, light->shadow_gradient_length > 0);
-						state.canvas_shader.set_conditional(CanvasShaderGLES2::SHADOW_FILTER_NEAREST, light->shadow_filter == VS::CANVAS_LIGHT_FILTER_NONE);
-						state.canvas_shader.set_conditional(CanvasShaderGLES2::SHADOW_FILTER_PCF3, light->shadow_filter == VS::CANVAS_LIGHT_FILTER_PCF3);
-						state.canvas_shader.set_conditional(CanvasShaderGLES2::SHADOW_FILTER_PCF5, light->shadow_filter == VS::CANVAS_LIGHT_FILTER_PCF5);
-						state.canvas_shader.set_conditional(CanvasShaderGLES2::SHADOW_FILTER_PCF7, light->shadow_filter == VS::CANVAS_LIGHT_FILTER_PCF7);
-						state.canvas_shader.set_conditional(CanvasShaderGLES2::SHADOW_FILTER_PCF9, light->shadow_filter == VS::CANVAS_LIGHT_FILTER_PCF9);
-						state.canvas_shader.set_conditional(CanvasShaderGLES2::SHADOW_FILTER_PCF13, light->shadow_filter == VS::CANVAS_LIGHT_FILTER_PCF13);
-					}
-
-					state.canvas_shader.bind();
-					state.using_light = light;
-					state.using_shadow = has_shadow;
-
-					//always re-set uniforms, since light parameters changed
-					_set_uniforms();
-					state.canvas_shader.use_material((void *)material_ptr);
-
-					glActiveTexture(GL_TEXTURE0 + storage->config.max_texture_image_units - 4);
-					RasterizerStorageGLES2::Texture *t = storage->texture_owner.getornull(light->texture);
-					if (!t) {
-						glBindTexture(GL_TEXTURE_2D, storage->resources.white_tex);
-					} else {
-						t = t->get_ptr();
-
-						glBindTexture(t->target, t->tex_id);
-					}
-
-					glActiveTexture(GL_TEXTURE0);
-				} // dry run
-
-				if (!m_bDryRun)
-					_canvas_item_render_commands(ci, NULL, reclip, material_ptr); //redraw using light
-				else
-					fill_canvas_item_render_commands(ci, NULL, reclip, material_ptr); //redraw using light
-
-				state.using_light = NULL;
-			}
-
+		while (light)
+		{
+			Playback_Item_ProcessLight(ci, light, light_used, mode, reclip, material_ptr);
 			light = light->next_ptr;
 		}
 
@@ -460,6 +451,33 @@ void Playback::Playback_Change_Item(const Batch &batch)
 		}
 	}
 
+}
+
+
+void Playback::Playback_Change_Item(const Batch &batch)
+{
+	Item *ci = batch.change_item.m_pItem;
+
+	// alias
+//	State_ItemGroup &sig = m_State_ItemGroup;
+//	State_Item &sit = m_State_Item;
+//	const BItemGroup &big = *sig.m_pItemGroup;
+//	const Color &p_modulate = big.p_modulate;
+//	int p_z = big.p_z;
+
+
+	Playback_Item_ChangeScissorItem(ci->final_clip_owner);
+	Playback_Item_CopyBackBuffer(ci);
+	Playback_Item_SkeletonHandling(ci);
+	RasterizerStorageGLES2::Material *material_ptr = Playback_Item_ChangeMaterial(ci);
+
+	int blend_mode = 0;
+	bool unshaded = Playback_Item_SetBlendModeAndUniforms(ci, blend_mode);
+
+	bool reclip = false;
+
+	Playback_Item_RenderCommandsNormal(ci, unshaded, reclip, material_ptr);
+	Playback_Item_ProcessLights(ci, blend_mode, reclip, material_ptr, unshaded);
 
 	Playback_Item_ReenableScissor(reclip);
 
