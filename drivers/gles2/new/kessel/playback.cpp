@@ -1,32 +1,35 @@
 #include "playback.h"
 #include "servers/visual/visual_server_raster.h"
 
+namespace Batch
+{
 
-namespace Batch {
-
-void Playback::Playback_Item_ChangeScissorItem(Item * pNewScissorItem)
+void Playback::Playback_Item_ChangeScissorItem(Item *pNewScissorItem)
 {
 	State_ItemGroup &sig = m_State_ItemGroup;
 
-	if (sig.current_clip != pNewScissorItem) {
+	if (sig.current_clip != pNewScissorItem)
+	{
 
 		sig.current_clip = pNewScissorItem;
 
 		if (!m_bDryRun)
 		{
-			if (sig.current_clip) {
+			if (sig.current_clip)
+			{
 				glEnable(GL_SCISSOR_TEST);
 				int y = storage->frame.current_rt->height - (sig.current_clip->final_clip_rect.position.y + sig.current_clip->final_clip_rect.size.y);
 				if (storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_VFLIP])
 					y = sig.current_clip->final_clip_rect.position.y;
 				glScissor(sig.current_clip->final_clip_rect.position.x, y, sig.current_clip->final_clip_rect.size.width, sig.current_clip->final_clip_rect.size.height);
-			} else {
+			}
+			else
+			{
 				glDisable(GL_SCISSOR_TEST);
 			}
 		} // dry run
 	}
 }
-
 
 void Playback::Playback_Item_CopyBackBuffer(Item *ci)
 {
@@ -34,15 +37,18 @@ void Playback::Playback_Item_CopyBackBuffer(Item *ci)
 
 	if (!m_bDryRun)
 	{
-		if (ci->copy_back_buffer) {
-			if (ci->copy_back_buffer->full) {
+		if (ci->copy_back_buffer)
+		{
+			if (ci->copy_back_buffer->full)
+			{
 				_copy_texscreen(Rect2());
-			} else {
+			}
+			else
+			{
 				_copy_texscreen(ci->copy_back_buffer->rect);
 			}
 		}
 	} // dry run
-
 }
 
 void Playback::Playback_Item_SkeletonHandling(Item *ci)
@@ -54,11 +60,15 @@ void Playback::Playback_Item_SkeletonHandling(Item *ci)
 
 	{
 		//skeleton handling
-		if (ci->skeleton.is_valid() && storage->skeleton_owner.owns(ci->skeleton)) {
+		if (ci->skeleton.is_valid() && storage->skeleton_owner.owns(ci->skeleton))
+		{
 			sit.skeleton = storage->skeleton_owner.get(ci->skeleton);
-			if (!sit.skeleton->use_2d) {
+			if (!sit.skeleton->use_2d)
+			{
 				sit.skeleton = NULL;
-			} else {
+			}
+			else
+			{
 				if (!m_bDryRun)
 				{
 					state.skeleton_transform = sig.m_pItemGroup->p_base_transform * sit.skeleton->base_transform_2d;
@@ -69,7 +79,8 @@ void Playback::Playback_Item_SkeletonHandling(Item *ci)
 		}
 
 		sit.use_skeleton = sit.skeleton != NULL;
-		if (sig.prev_use_skeleton != sit.use_skeleton) {
+		if (sig.prev_use_skeleton != sit.use_skeleton)
+		{
 			sig.rebind_shader = true;
 			if (!m_bDryRun)
 			{
@@ -80,11 +91,14 @@ void Playback::Playback_Item_SkeletonHandling(Item *ci)
 
 		if (!m_bDryRun)
 		{
-			if (sit.skeleton) {
+			if (sit.skeleton)
+			{
 				glActiveTexture(GL_TEXTURE0 + storage->config.max_texture_image_units - 3);
 				glBindTexture(GL_TEXTURE_2D, sit.skeleton->tex_id);
 				state.using_skeleton = true;
-			} else {
+			}
+			else
+			{
 				state.using_skeleton = false;
 			}
 		} // dry run
@@ -101,23 +115,27 @@ void Playback::Playback_Item_ChangeMaterial(Item *ci)
 	RID material = material_owner->material;
 	sit.material_ptr = storage->material_owner.getornull(material);
 
-	if (material != sig.canvas_last_material || sig.rebind_shader) {
+	if (material != sig.canvas_last_material || sig.rebind_shader)
+	{
 
 		RasterizerStorageGLES2::Shader *shader_ptr = NULL;
 
-		if (sit.material_ptr) {
+		if (sit.material_ptr)
+		{
 			shader_ptr = sit.material_ptr->shader;
 
-			if (shader_ptr && shader_ptr->mode != VS::SHADER_CANVAS_ITEM) {
+			if (shader_ptr && shader_ptr->mode != VS::SHADER_CANVAS_ITEM)
 				shader_ptr = NULL; // not a canvas item shader, don't use.
-			}
 		}
 
 		if (!m_bDryRun)
 		{
-			if (shader_ptr) {
-				if (shader_ptr->canvas_item.uses_screen_texture) {
-					if (!state.canvas_texscreen_used) {
+			if (shader_ptr)
+			{
+				if (shader_ptr->canvas_item.uses_screen_texture)
+				{
+					if (!state.canvas_texscreen_used)
+					{
 						//copy if not copied before
 						_copy_texscreen(Rect2());
 
@@ -125,15 +143,18 @@ void Playback::Playback_Item_ChangeMaterial(Item *ci)
 						//last_blend_mode = last_blend_mode != RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_DISABLED ? last_blend_mode : -1;
 					}
 
-					if (storage->frame.current_rt->copy_screen_effect.color) {
+					if (storage->frame.current_rt->copy_screen_effect.color)
+					{
 						glActiveTexture(GL_TEXTURE0 + storage->config.max_texture_image_units - 4);
 						glBindTexture(GL_TEXTURE_2D, storage->frame.current_rt->copy_screen_effect.color);
 					}
 				}
 
-				if (shader_ptr != sig.shader_cache) {
+				if (shader_ptr != sig.shader_cache)
+				{
 
-					if (shader_ptr->canvas_item.uses_time) {
+					if (shader_ptr->canvas_item.uses_time)
+					{
 						VisualServerRaster::redraw_request();
 					}
 
@@ -146,41 +167,52 @@ void Playback::Playback_Item_ChangeMaterial(Item *ci)
 
 				ShaderLanguage::ShaderNode::Uniform::Hint *texture_hints = shader_ptr->texture_hints.ptrw();
 
-				for (int i = 0; i < tc; i++) {
+				for (int i = 0; i < tc; i++)
+				{
 
 					glActiveTexture(GL_TEXTURE0 + i);
 
 					RasterizerStorageGLES2::Texture *t = storage->texture_owner.getornull(textures[i].second);
 
-					if (!t) {
+					if (!t)
+					{
 
-						switch (texture_hints[i]) {
-						case ShaderLanguage::ShaderNode::Uniform::HINT_BLACK_ALBEDO:
-						case ShaderLanguage::ShaderNode::Uniform::HINT_BLACK: {
+						switch (texture_hints[i])
+						{
+							case ShaderLanguage::ShaderNode::Uniform::HINT_BLACK_ALBEDO:
+							case ShaderLanguage::ShaderNode::Uniform::HINT_BLACK:
+							{
 								glBindTexture(GL_TEXTURE_2D, storage->resources.black_tex);
-							} break;
-						case ShaderLanguage::ShaderNode::Uniform::HINT_ANISO: {
+							}
+							break;
+							case ShaderLanguage::ShaderNode::Uniform::HINT_ANISO:
+							{
 								glBindTexture(GL_TEXTURE_2D, storage->resources.aniso_tex);
-							} break;
-						case ShaderLanguage::ShaderNode::Uniform::HINT_NORMAL: {
+							}
+							break;
+							case ShaderLanguage::ShaderNode::Uniform::HINT_NORMAL:
+							{
 								glBindTexture(GL_TEXTURE_2D, storage->resources.normal_tex);
-							} break;
-						default: {
+							}
+							break;
+							default:
+							{
 								glBindTexture(GL_TEXTURE_2D, storage->resources.white_tex);
-							} break;
+							}
+							break;
 						}
 
 						continue;
 					}
 
-					if (t->redraw_if_visible) {
+					if (t->redraw_if_visible)
 						VisualServerRaster::redraw_request();
-					}
 
 					t = t->get_ptr();
 
 #ifdef TOOLS_ENABLED
-					if (t->detect_normal && texture_hints[i] == ShaderLanguage::ShaderNode::Uniform::HINT_NORMAL) {
+					if (t->detect_normal && texture_hints[i] == ShaderLanguage::ShaderNode::Uniform::HINT_NORMAL)
+					{
 						t->detect_normal(t->detect_normal_ud);
 					}
 #endif
@@ -189,8 +221,9 @@ void Playback::Playback_Item_ChangeMaterial(Item *ci)
 
 					glBindTexture(t->target, t->tex_id);
 				}
-
-			} else {
+			}
+			else
+			{
 				state.canvas_shader.set_custom_shader(0);
 				state.canvas_shader.bind();
 			}
@@ -204,11 +237,9 @@ void Playback::Playback_Item_ChangeMaterial(Item *ci)
 
 		sig.rebind_shader = false;
 	}
-
 }
 
-
-void Playback::Playback_Item_SetBlendModeAndUniforms(Item * ci)
+void Playback::Playback_Item_SetBlendModeAndUniforms(Item *ci)
 {
 	State_ItemGroup &sig = m_State_ItemGroup;
 	const BItemGroup &big = *sig.m_pItemGroup;
@@ -217,7 +248,11 @@ void Playback::Playback_Item_SetBlendModeAndUniforms(Item * ci)
 
 	sit.blend_mode = 0;
 
-	sit.blend_mode = sig.shader_cache ? sig.shader_cache->canvas_item.blend_mode : RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_MIX;
+	if (sig.shader_cache)
+		sit.blend_mode = sig.shader_cache->canvas_item.blend_mode;
+	else
+		sit.blend_mode = RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_MIX;
+
 	sit.unshaded = sig.shader_cache && (sig.shader_cache->canvas_item.light_mode == RasterizerStorageGLES2::Shader::CanvasItem::LIGHT_MODE_UNSHADED || (sit.blend_mode != RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_MIX && sit.blend_mode != RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_PMALPHA));
 
 	if (!m_bDryRun)
@@ -225,25 +260,19 @@ void Playback::Playback_Item_SetBlendModeAndUniforms(Item * ci)
 		if (sig.last_blend_mode != sit.blend_mode)
 			GL_SetState_BlendMode(sit.blend_mode);
 
-
 		if (sit.unshaded)
-		{
 			state.uniforms.final_modulate = ci->final_modulate;
-		}
 		else
-		{
 			state.uniforms.final_modulate = ci->final_modulate * p_modulate;
-		}
 
 		state.uniforms.modelview_matrix = ci->final_transform;
 		state.uniforms.extra_matrix = Transform2D();
 
 		_set_uniforms();
 	} // if dry run
-
 }
 
-void Playback::Playback_Item_RenderCommandsNormal(Item * ci)
+void Playback::Playback_Item_RenderCommandsNormal(Item *ci)
 {
 	State_ItemGroup &sig = m_State_ItemGroup;
 	State_Item &sit = m_State_Item;
@@ -259,7 +288,6 @@ void Playback::Playback_Item_RenderCommandsNormal(Item * ci)
 	}
 
 	sig.rebind_shader = true; // hacked in for now.
-
 }
 
 void Playback::Playback_Item_ReenableScissor()
@@ -269,7 +297,8 @@ void Playback::Playback_Item_ReenableScissor()
 
 	if (!m_bDryRun)
 	{
-		if (sit.reclip) {
+		if (sit.reclip)
+		{
 			glEnable(GL_SCISSOR_TEST);
 			int y = storage->frame.current_rt->height - (sig.current_clip->final_clip_rect.position.y + sig.current_clip->final_clip_rect.size.y);
 			if (storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_VFLIP])
@@ -279,20 +308,20 @@ void Playback::Playback_Item_ReenableScissor()
 	} // dry run
 }
 
-
-void Playback::Playback_Item_ProcessLight(Item * ci, Light * light, bool &light_used, VS::CanvasLightMode &mode)
+void Playback::Playback_Item_ProcessLight(Item *ci, Light *light, bool &light_used, VS::CanvasLightMode &mode)
 {
 	State_ItemGroup &sig = m_State_ItemGroup;
 	const BItemGroup &big = *sig.m_pItemGroup;
 	int p_z = big.p_z;
 	State_Item &sit = m_State_Item;
 
-
-	if (ci->light_mask & light->item_mask && p_z >= light->z_min && p_z <= light->z_max && ci->global_rect_cache.intersects_transformed(light->xform_cache, light->rect_cache)) {
+	if (ci->light_mask & light->item_mask && p_z >= light->z_min && p_z <= light->z_max && ci->global_rect_cache.intersects_transformed(light->xform_cache, light->rect_cache))
+	{
 
 		//intersects this light
 
-		if (!light_used || mode != light->mode) {
+		if (!light_used || mode != light->mode)
+		{
 
 			mode = light->mode;
 
@@ -302,7 +331,8 @@ void Playback::Playback_Item_ProcessLight(Item * ci, Light * light, bool &light_
 			} // dry run
 		}
 
-		if (!light_used) {
+		if (!light_used)
+		{
 
 			if (!m_bDryRun)
 				state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_LIGHTING, true);
@@ -325,9 +355,12 @@ void Playback::Playback_Item_ProcessLight(Item * ci, Light * light, bool &light_
 
 			glActiveTexture(GL_TEXTURE0 + storage->config.max_texture_image_units - 4);
 			RasterizerStorageGLES2::Texture *t = storage->texture_owner.getornull(light->texture);
-			if (!t) {
+			if (!t)
+			{
 				glBindTexture(GL_TEXTURE_2D, storage->resources.white_tex);
-			} else {
+			}
+			else
+			{
 				t = t->get_ptr();
 
 				glBindTexture(t->target, t->tex_id);
@@ -343,22 +376,20 @@ void Playback::Playback_Item_ProcessLight(Item * ci, Light * light, bool &light_
 
 		state.using_light = NULL;
 	}
-
-
 }
 
-void Playback::Playback_Item_ProcessLights(Item * ci)
+void Playback::Playback_Item_ProcessLights(Item *ci)
 {
 	State_ItemGroup &sig = m_State_ItemGroup;
 	const BItemGroup &big = *sig.m_pItemGroup;
 	State_Item &sit = m_State_Item;
 
-	if ((sit.blend_mode == RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_MIX || sit.blend_mode == RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_PMALPHA) && big.p_light && !sit.unshaded) {
+	if ((sit.blend_mode == RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_MIX || sit.blend_mode == RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_PMALPHA) && big.p_light && !sit.unshaded)
+	{
 
 		Light *light = big.p_light;
 		bool light_used = false;
 		VS::CanvasLightMode mode = VS::CANVAS_LIGHT_MODE_ADD;
-
 
 		if (!m_bDryRun)
 		{
@@ -371,7 +402,8 @@ void Playback::Playback_Item_ProcessLights(Item * ci)
 			light = light->next_ptr;
 		}
 
-		if (light_used) {
+		if (light_used)
+		{
 
 			if (!m_bDryRun)
 			{
@@ -382,21 +414,18 @@ void Playback::Playback_Item_ProcessLights(Item * ci)
 			sig.last_blend_mode = -1;
 		}
 	}
-
 }
-
 
 void Playback::Playback_Change_Item(const Batch &batch)
 {
 	Item *ci = batch.change_item.m_pItem;
 
 	// alias
-//	State_ItemGroup &sig = m_State_ItemGroup;
-//	State_Item &sit = m_State_Item;
-//	const BItemGroup &big = *sig.m_pItemGroup;
-//	const Color &p_modulate = big.p_modulate;
-//	int p_z = big.p_z;
-
+	//	State_ItemGroup &sig = m_State_ItemGroup;
+	//	State_Item &sit = m_State_Item;
+	//	const BItemGroup &big = *sig.m_pItemGroup;
+	//	const Color &p_modulate = big.p_modulate;
+	//	int p_z = big.p_z;
 
 	Playback_Item_ChangeScissorItem(ci->final_clip_owner);
 	Playback_Item_CopyBackBuffer(ci);
@@ -406,10 +435,7 @@ void Playback::Playback_Change_Item(const Batch &batch)
 	Playback_Item_RenderCommandsNormal(ci);
 	Playback_Item_ProcessLights(ci);
 	Playback_Item_ReenableScissor();
-
 }
-
-
 
 void Playback::Playback_Change_ItemGroup(const Batch &batch)
 {
@@ -445,7 +471,4 @@ void Playback::Playback_Change_ItemGroup_End(const Batch &batch)
 	} // if not a dry run
 }
 
-
-
-
-} // namespace
+} // namespace Batch

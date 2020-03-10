@@ -1,14 +1,14 @@
 #include "renderer_2d.h"
 #include "core/engine.h"
 
-namespace Batch {
+namespace Batch
+{
 
 Renderer2D::Renderer2D()
 {
 	m_bUseKessel = true;
 	m_bKesselFlash = true;
 }
-
 
 void Renderer2D::canvas_begin()
 {
@@ -25,7 +25,6 @@ void Renderer2D::canvas_render_items_flush()
 {
 	flush();
 }
-
 
 void Renderer2D::canvas_render_items(Item *p_item_list, int p_z, const Color &p_modulate, Light *p_light, const Transform2D &p_base_transform)
 {
@@ -50,13 +49,13 @@ void Renderer2D::flush_do()
 	// feel free to tweak this.
 	// this could use hysteresis, to prevent jumping between methods
 	// .. however probably not necessary
-//	if ((bd.total_color_changes * 4) > (bd.total_quads * 1)) {
-//		// small perf cost versus going straight to colored verts (maybe around 10%)
-//		// however more straightforward
-//		_canvas_batcher.batch_translate_to_colored();
-//	}
+	//	if ((bd.total_color_changes * 4) > (bd.total_quads * 1)) {
+	//		// small perf cost versus going straight to colored verts (maybe around 10%)
+	//		// however more straightforward
+	//		_canvas_batcher.batch_translate_to_colored();
+	//	}
 
-//	batch_upload_buffers();
+	//	batch_upload_buffers();
 
 	flush_render();
 }
@@ -76,28 +75,26 @@ void Renderer2D::flush_render()
 
 		switch (batch.type)
 		{
-		default:
-			break;
-		case Batch::BT_CHANGE_ITEM:
+			default:
+				break;
+			case Batch::BT_CHANGE_ITEM:
 			{
 				Playback_Change_Item(batch);
 			}
 			break;
-		case Batch::BT_CHANGE_ITEM_GROUP:
+			case Batch::BT_CHANGE_ITEM_GROUP:
 			{
 				Playback_Change_ItemGroup(batch);
 			}
 			break;
-		case Batch::BT_CHANGE_ITEM_GROUP_END:
+			case Batch::BT_CHANGE_ITEM_GROUP_END:
 			{
 				Playback_Change_ItemGroup_End(batch);
 			}
 			break;
 		} // switch
 	} // for
-
 }
-
 
 void Renderer2D::flush()
 {
@@ -108,7 +105,4 @@ void Renderer2D::flush()
 	m_Data.Reset_Flush();
 }
 
-
-
-
-} // namespace
+} // namespace Batch
