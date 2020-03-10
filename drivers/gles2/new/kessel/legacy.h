@@ -27,6 +27,15 @@ protected:
 
 	void CanvasShader_SetConditionals_Light(bool has_shadow, Light * light);
 
+	void state_set_final_modulate(const Color &col);
+	void state_set_model_view(const Transform2D &tr);
+	void state_set_extra(const Transform2D &tr);
+
+	void AddItemChangeFlag(ItemChangeFlags cf)
+	{
+		if (m_bDryRun)
+			m_State_Item.m_ChangeFlags |= cf;
+	}
 
 protected:
 	// when filling we do a dry run and don't change GL states,

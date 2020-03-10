@@ -39,8 +39,11 @@ public:
 class State_Item
 {
 public:
+
 	State_Item() { Reset(); }
 	void Reset();
+	void Reset_Item() {m_ChangeFlags = 0;}
+
 	RasterizerStorageGLES2::Skeleton *m_pSkeleton;
 	bool m_bUseSkeleton;
 
@@ -48,6 +51,9 @@ public:
 	int m_iBlendMode;
 	bool m_bReclip;
 	RasterizerStorageGLES2::Material *m_pMaterial;
+
+
+	uint32_t m_ChangeFlags;
 };
 
 } // namespace Batch

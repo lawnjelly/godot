@@ -18,6 +18,18 @@ struct AliasLight {};
 struct AliasItem {};
 ////////////////////////////////////////////////////
 
+enum ItemChangeFlags
+{
+	CF_SCISSOR = 1 << 0,
+	CF_COPY_BACK_BUFFER = 1 << 1,
+	CF_SKELETON = 1 << 2,
+	CF_MATERIAL = 1 << 3,
+	CF_BLEND_MODE = 1 << 4,
+	CF_FINAL_MODULATE = 1 << 5,
+	CF_MODEL_VIEW = 1 << 6,
+	CF_EXTRA = 1 << 7,
+};
+
 
 // pod versions of vector and color and RID, need to be 32 bit for vertex format
 struct BVec2 {

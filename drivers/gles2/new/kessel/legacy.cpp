@@ -3,6 +3,22 @@
 namespace Batch
 {
 
+void Legacy::state_set_final_modulate(const Color &col)
+{
+	state.uniforms.final_modulate = col;
+}
+
+void Legacy::state_set_model_view(const Transform2D &tr)
+{
+	state.uniforms.modelview_matrix = tr;
+}
+
+void Legacy::state_set_extra(const Transform2D &tr)
+{
+	state.uniforms.extra_matrix = tr;
+}
+
+
 void Legacy::GL_SetState_BlendMode(int blend_mode)
 {
 	switch (blend_mode)

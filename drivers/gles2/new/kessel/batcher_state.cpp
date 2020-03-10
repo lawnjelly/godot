@@ -45,6 +45,7 @@ void BatcherState::State_SetScissorItem(Item *pItem)
 	{
 		m_State_ItemGroup.m_pScissorItem = pItem;
 		State_SetScissor(false);
+		AddItemChangeFlag(CF_SCISSOR);
 	}
 }
 
@@ -56,7 +57,10 @@ void BatcherState::State_SetScissor(bool bOn)
 	m_State_ItemGroup.m_bScissorActive = bOn;
 
 	if (m_bDryRun)
+	{
+		AddItemChangeFlag(CF_SCISSOR);
 		return;
+	}
 
 	if (bOn)
 	{
