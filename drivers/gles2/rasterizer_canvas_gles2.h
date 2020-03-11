@@ -137,12 +137,43 @@ public:
 
 	} bdata;
 
+	struct RIState
+	{
+		RIState() {Reset();}
+		void Reset()
+		{
+			current_clip = NULL;
+			shader_cache = NULL;
+			rebind_shader = true;
+			prev_use_skeleton = false;
+			last_blend_mode = -1;
+			canvas_last_material = RID();
+		}
+		Item *current_clip;
+		RasterizerStorageGLES2::Shader *shader_cache;
+		bool rebind_shader;
+		bool prev_use_skeleton;
+		int last_blend_mode;
+		RID canvas_last_material;
+
+		// item group
+		int IG_z;
+		Color IG_modulate;
+		Light * IG_light;
+		Transform2D IG_base_transform;
+	};
 
 
 
 
 
 	virtual void canvas_render_items(Item *p_item_list, int p_z, const Color &p_modulate, Light *p_light, const Transform2D &p_base_transform);
+	void canvas_render_items_implementation(Item *p_item_list, int p_z, const Color &p_modulate, Light *p_light, const Transform2D &p_base_transform);
+	void _canvas_render_item(Item * ci, RIState &ris);
+
+	void join_items(Item *p_item_list, int p_z, const Color &p_modulate, Light *p_light, const Transform2D &p_base_transform);
+	bool try_join_item(Item * p_item);
+
 	_FORCE_INLINE_ void _canvas_item_render_commands(Item *p_item, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material);
 
 	int _batch_canvas_item_prefill(int p_command_start, Item *p_item, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material);
