@@ -74,4 +74,11 @@ public:
 	bool use_nvidia_rect_workaround;
 
 
+	void _set_uniforms();
+
+
+	virtual void canvas_begin();
+	virtual void canvas_end();
+
+	void _bind_quad_buffer();
 };

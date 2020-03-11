@@ -129,10 +129,7 @@ public:
 	virtual void light_internal_update(RID p_rid, Light *p_light);
 	virtual void light_internal_free(RID p_rid);
 
-	void _set_uniforms();
 
-	virtual void canvas_begin();
-	virtual void canvas_end();
 
 	_FORCE_INLINE_ void _draw_gui_primitive(int p_points, const Vector2 *p_vertices, const Color *p_colors, const Vector2 *p_uvs);
 	_FORCE_INLINE_ void _draw_polygon(const int *p_indices, int p_index_count, int p_vertex_count, const Vector2 *p_vertices, const Vector2 *p_uvs, const Color *p_colors, bool p_singlecolor, const float *p_weights = NULL, const int *p_bones = NULL);
@@ -161,7 +158,6 @@ public:
 
 	RasterizerStorageGLES2::Texture *_bind_canvas_texture(const RID &p_texture, const RID &p_normal_map);
 
-	void _bind_quad_buffer();
 	void draw_generic_textured_rect(const Rect2 &p_rect, const Rect2 &p_src);
 	void draw_lens_distortion_rect(const Rect2 &p_rect, float p_k1, float p_k2, const Vector2 &p_eye_center, float p_oversample);
 
