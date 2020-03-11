@@ -80,7 +80,15 @@ public:
 	virtual void canvas_begin();
 	virtual void canvas_end();
 
+	void _draw_gui_primitive(int p_points, const Vector2 *p_vertices, const Color *p_colors, const Vector2 *p_uvs);
+	void _draw_polygon(const int *p_indices, int p_index_count, int p_vertex_count, const Vector2 *p_vertices, const Vector2 *p_uvs, const Color *p_colors, bool p_singlecolor, const float *p_weights = NULL, const int *p_bones = NULL);
+	void _draw_generic(GLuint p_primitive, int p_vertex_count, const Vector2 *p_vertices, const Vector2 *p_uvs, const Color *p_colors, bool p_singlecolor);
+	void _draw_generic_indices(GLuint p_primitive, const int *p_indices, int p_index_count, int p_vertex_count, const Vector2 *p_vertices, const Vector2 *p_uvs, const Color *p_colors, bool p_singlecolor);
+
+
 	void _bind_quad_buffer();
+	void _copy_texscreen(const Rect2 &p_rect);
+	void _copy_screen(const Rect2 &p_rect);
 
 	virtual void draw_window_margins(int *black_margin, RID *black_image);
 	void draw_generic_textured_rect(const Rect2 &p_rect, const Rect2 &p_src);
