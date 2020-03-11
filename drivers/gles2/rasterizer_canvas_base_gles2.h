@@ -84,6 +84,11 @@ public:
 
 	virtual void draw_window_margins(int *black_margin, RID *black_image);
 	void draw_generic_textured_rect(const Rect2 &p_rect, const Rect2 &p_src);
+	void draw_lens_distortion_rect(const Rect2 &p_rect, float p_k1, float p_k2, const Vector2 &p_eye_center, float p_oversample);
+
+	virtual void reset_canvas();
+	virtual void canvas_light_shadow_buffer_update(RID p_buffer, const Transform2D &p_light_xform, int p_light_mask, float p_near, float p_far, LightOccluderInstance *p_occluders, CameraMatrix *p_xform_cache);
+	virtual void canvas_debug_viewport_shadows(Light *p_lights_with_shadow);
 
 	RasterizerStorageGLES2::Texture *_bind_canvas_texture(const RID &p_texture, const RID &p_normal_map);
 
