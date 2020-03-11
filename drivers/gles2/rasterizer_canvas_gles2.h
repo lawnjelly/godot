@@ -37,20 +37,6 @@ class RasterizerSceneGLES2;
 
 class RasterizerCanvasGLES2 : public RasterizerCanvasBaseGLES2 {
 public:
-	enum {
-		INSTANCE_ATTRIB_BASE = 8,
-	};
-
-	struct Uniforms {
-		Transform projection_matrix;
-
-		Transform2D modelview_matrix;
-		Transform2D extra_matrix;
-
-		Color final_modulate;
-
-		float time;
-	};
 
 	// pod versions of vector and color and RID, need to be 32 bit for vertex format
 	struct BatchVector2 {
@@ -116,17 +102,6 @@ public:
 		BatchVector2 tex_pixel_size;
 	};
 
-	struct Data {
-		GLuint canvas_quad_vertices;
-		GLuint polygon_buffer;
-		GLuint polygon_index_buffer;
-
-		uint32_t polygon_buffer_size;
-		uint32_t polygon_index_buffer_size;
-
-		GLuint ninepatch_vertices;
-		GLuint ninepatch_elements;
-	} data;
 
 	struct BatchData {
 		GLuint gl_vertex_buffer;
@@ -148,39 +123,7 @@ public:
 		bool use_batching;
 	} bdata;
 
-	struct State {
-		Uniforms uniforms;
-		bool canvas_texscreen_used;
-		CanvasShaderGLES2 canvas_shader;
-		CanvasShadowShaderGLES2 canvas_shadow_shader;
-		LensDistortedShaderGLES2 lens_shader;
 
-		bool using_texture_rect;
-		bool using_ninepatch;
-		bool using_skeleton;
-
-		Transform2D skeleton_transform;
-		Transform2D skeleton_transform_inverse;
-		Size2i skeleton_texture_size;
-
-		RID current_tex;
-		RID current_normal;
-		RasterizerStorageGLES2::Texture *current_tex_ptr;
-
-		Transform vp;
-		Light *using_light;
-		bool using_shadow;
-		bool using_transparent_rt;
-
-	} state;
-
-	typedef void Texture;
-
-	RasterizerSceneGLES2 *scene_render;
-
-	RasterizerStorageGLES2 *storage;
-
-	bool use_nvidia_rect_workaround;
 
 	virtual RID light_internal_create();
 	virtual void light_internal_update(RID p_rid, Light *p_light);
