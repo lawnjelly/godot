@@ -125,10 +125,6 @@ public:
 
 
 
-	virtual RID light_internal_create();
-	virtual void light_internal_update(RID p_rid, Light *p_light);
-	virtual void light_internal_free(RID p_rid);
-
 
 
 
@@ -147,7 +143,6 @@ public:
 
 
 	void initialize();
-	void finalize();
 
 
 	RasterizerCanvasGLES2();

@@ -76,6 +76,11 @@ public:
 
 	void _set_uniforms();
 
+	virtual RID light_internal_create();
+	virtual void light_internal_update(RID p_rid, Light *p_light);
+	virtual void light_internal_free(RID p_rid);
+
+
 
 	virtual void canvas_begin();
 	virtual void canvas_end();
@@ -100,4 +105,8 @@ public:
 
 	RasterizerStorageGLES2::Texture *_bind_canvas_texture(const RID &p_texture, const RID &p_normal_map);
 
+	void initialize();
+	void finalize();
+
+	RasterizerCanvasBaseGLES2();
 };

@@ -39,16 +39,6 @@
 #define glClearDepth glClearDepthf
 #endif
 
-RID RasterizerCanvasGLES2::light_internal_create() {
-
-	return RID();
-}
-
-void RasterizerCanvasGLES2::light_internal_update(RID p_rid, Light *p_light) {
-}
-
-void RasterizerCanvasGLES2::light_internal_free(RID p_rid) {
-}
 
 
 
@@ -1835,50 +1825,8 @@ void RasterizerCanvasGLES2::canvas_render_items(Item *p_item_list, int p_z, cons
 	state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_SKELETON, false);
 }
 
-
 void RasterizerCanvasGLES2::initialize() {
-
-	// quad buffer
-	{
-		glGenBuffers(1, &data.canvas_quad_vertices);
-		glBindBuffer(GL_ARRAY_BUFFER, data.canvas_quad_vertices);
-
-		const float qv[8] = {
-			0, 0,
-			0, 1,
-			1, 1,
-			1, 0
-		};
-
-		glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 8, qv, GL_STATIC_DRAW);
-
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-	}
-
-	// polygon buffer
-	{
-		uint32_t poly_size = GLOBAL_DEF("rendering/limits/buffers/canvas_polygon_buffer_size_kb", 128);
-		ProjectSettings::get_singleton()->set_custom_property_info("rendering/limits/buffers/canvas_polygon_buffer_size_kb", PropertyInfo(Variant::INT, "rendering/limits/buffers/canvas_polygon_buffer_size_kb", PROPERTY_HINT_RANGE, "0,256,1,or_greater"));
-		poly_size *= 1024;
-		poly_size = MAX(poly_size, (2 + 2 + 4) * 4 * sizeof(float));
-		glGenBuffers(1, &data.polygon_buffer);
-		glBindBuffer(GL_ARRAY_BUFFER, data.polygon_buffer);
-		glBufferData(GL_ARRAY_BUFFER, poly_size, NULL, GL_DYNAMIC_DRAW);
-
-		data.polygon_buffer_size = poly_size;
-
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-		uint32_t index_size = GLOBAL_DEF("rendering/limits/buffers/canvas_polygon_index_buffer_size_kb", 128);
-		ProjectSettings::get_singleton()->set_custom_property_info("rendering/limits/buffers/canvas_polygon_index_buffer_size_kb", PropertyInfo(Variant::INT, "rendering/limits/buffers/canvas_polygon_index_buffer_size_kb", PROPERTY_HINT_RANGE, "0,256,1,or_greater"));
-		index_size *= 1024; // kb
-		glGenBuffers(1, &data.polygon_index_buffer);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, data.polygon_index_buffer);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, index_size, NULL, GL_DYNAMIC_DRAW);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-
-		data.polygon_index_buffer_size = index_size;
-	}
+	RasterizerCanvasBaseGLES2::initialize();
 
 	// batch buffer
 	{
@@ -1946,98 +1894,9 @@ void RasterizerCanvasGLES2::initialize() {
 		glBufferData(GL_ELEMENT_ARRAY_BUFFER, bdata.index_buffer_size_bytes, &indices[0], GL_STATIC_DRAW);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	}
-
-	// ninepatch buffers
-	{
-		// array buffer
-		glGenBuffers(1, &data.ninepatch_vertices);
-		glBindBuffer(GL_ARRAY_BUFFER, data.ninepatch_vertices);
-
-		glBufferData(GL_ARRAY_BUFFER, sizeof(float) * (16 + 16) * 2, NULL, GL_DYNAMIC_DRAW);
-
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-		// element buffer
-		glGenBuffers(1, &data.ninepatch_elements);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, data.ninepatch_elements);
-
-#define _EIDX(y, x) (y * 4 + x)
-		uint8_t elems[3 * 2 * 9] = {
-
-			// first row
-
-			_EIDX(0, 0), _EIDX(0, 1), _EIDX(1, 1),
-			_EIDX(1, 1), _EIDX(1, 0), _EIDX(0, 0),
-
-			_EIDX(0, 1), _EIDX(0, 2), _EIDX(1, 2),
-			_EIDX(1, 2), _EIDX(1, 1), _EIDX(0, 1),
-
-			_EIDX(0, 2), _EIDX(0, 3), _EIDX(1, 3),
-			_EIDX(1, 3), _EIDX(1, 2), _EIDX(0, 2),
-
-			// second row
-
-			_EIDX(1, 0), _EIDX(1, 1), _EIDX(2, 1),
-			_EIDX(2, 1), _EIDX(2, 0), _EIDX(1, 0),
-
-			// the center one would be here, but we'll put it at the end
-			// so it's easier to disable the center and be able to use
-			// one draw call for both
-
-			_EIDX(1, 2), _EIDX(1, 3), _EIDX(2, 3),
-			_EIDX(2, 3), _EIDX(2, 2), _EIDX(1, 2),
-
-			// third row
-
-			_EIDX(2, 0), _EIDX(2, 1), _EIDX(3, 1),
-			_EIDX(3, 1), _EIDX(3, 0), _EIDX(2, 0),
-
-			_EIDX(2, 1), _EIDX(2, 2), _EIDX(3, 2),
-			_EIDX(3, 2), _EIDX(3, 1), _EIDX(2, 1),
-
-			_EIDX(2, 2), _EIDX(2, 3), _EIDX(3, 3),
-			_EIDX(3, 3), _EIDX(3, 2), _EIDX(2, 2),
-
-			// center field
-
-			_EIDX(1, 1), _EIDX(1, 2), _EIDX(2, 2),
-			_EIDX(2, 2), _EIDX(2, 1), _EIDX(1, 1)
-		};
-#undef _EIDX
-
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(elems), elems, GL_STATIC_DRAW);
-
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	}
-
-	state.canvas_shadow_shader.init();
-
-	state.canvas_shader.init();
-
-	state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_TEXTURE_RECT, true);
-	state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_RGBA_SHADOWS, storage->config.use_rgba_2d_shadows);
-
-	state.canvas_shader.bind();
-
-	state.lens_shader.init();
-
-	state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_PIXEL_SNAP, GLOBAL_DEF("rendering/quality/2d/use_pixel_snap", false));
-
-	state.using_light = NULL;
-	state.using_transparent_rt = false;
-	state.using_skeleton = false;
-}
-
-void RasterizerCanvasGLES2::finalize() {
 }
 
 RasterizerCanvasGLES2::RasterizerCanvasGLES2() {
-#ifdef GLES_OVER_GL
-	use_nvidia_rect_workaround = GLOBAL_GET("rendering/quality/2d/gles2_use_nvidia_rect_flicker_workaround");
-#else
-	// Not needed (a priori) on GLES devices
-	use_nvidia_rect_workaround = false;
-#endif
 
 	// turn off batching in the editor until it is considered stable
 	// (if the editor can't start, you can't change the use_batching project setting!)
