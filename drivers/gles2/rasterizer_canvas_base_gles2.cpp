@@ -106,6 +106,161 @@ void RasterizerCanvasBaseGLES2::canvas_end() {
 	state.using_transparent_rt = false;
 }
 
+void RasterizerCanvasBaseGLES2::draw_generic_textured_rect(const Rect2 &p_rect, const Rect2 &p_src) {
+
+	state.canvas_shader.set_uniform(CanvasShaderGLES2::DST_RECT, Color(p_rect.position.x, p_rect.position.y, p_rect.size.x, p_rect.size.y));
+	state.canvas_shader.set_uniform(CanvasShaderGLES2::SRC_RECT, Color(p_src.position.x, p_src.position.y, p_src.size.x, p_src.size.y));
+
+	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+}
+
+
+RasterizerStorageGLES2::Texture *RasterizerCanvasBaseGLES2::_bind_canvas_texture(const RID &p_texture, const RID &p_normal_map) {
+
+	RasterizerStorageGLES2::Texture *tex_return = NULL;
+
+	if (p_texture.is_valid()) {
+
+		RasterizerStorageGLES2::Texture *texture = storage->texture_owner.getornull(p_texture);
+
+		if (!texture) {
+			state.current_tex = RID();
+			state.current_tex_ptr = NULL;
+
+			glActiveTexture(GL_TEXTURE0 + storage->config.max_texture_image_units - 1);
+			glBindTexture(GL_TEXTURE_2D, storage->resources.white_tex);
+
+		} else {
+
+			if (texture->redraw_if_visible) {
+				VisualServerRaster::redraw_request();
+			}
+
+			texture = texture->get_ptr();
+
+			if (texture->render_target) {
+				texture->render_target->used_in_frame = true;
+			}
+
+			glActiveTexture(GL_TEXTURE0 + storage->config.max_texture_image_units - 1);
+			glBindTexture(GL_TEXTURE_2D, texture->tex_id);
+
+			state.current_tex = p_texture;
+			state.current_tex_ptr = texture;
+
+			tex_return = texture;
+		}
+	} else {
+		state.current_tex = RID();
+		state.current_tex_ptr = NULL;
+
+		glActiveTexture(GL_TEXTURE0 + storage->config.max_texture_image_units - 1);
+		glBindTexture(GL_TEXTURE_2D, storage->resources.white_tex);
+	}
+
+	if (p_normal_map == state.current_normal) {
+		//do none
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::USE_DEFAULT_NORMAL, state.current_normal.is_valid());
+
+	} else if (p_normal_map.is_valid()) {
+
+		RasterizerStorageGLES2::Texture *normal_map = storage->texture_owner.getornull(p_normal_map);
+
+		if (!normal_map) {
+			state.current_normal = RID();
+			glActiveTexture(GL_TEXTURE0 + storage->config.max_texture_image_units - 2);
+			glBindTexture(GL_TEXTURE_2D, storage->resources.normal_tex);
+			state.canvas_shader.set_uniform(CanvasShaderGLES2::USE_DEFAULT_NORMAL, false);
+
+		} else {
+
+			if (normal_map->redraw_if_visible) { //check before proxy, because this is usually used with proxies
+				VisualServerRaster::redraw_request();
+			}
+
+			normal_map = normal_map->get_ptr();
+
+			glActiveTexture(GL_TEXTURE0 + storage->config.max_texture_image_units - 2);
+			glBindTexture(GL_TEXTURE_2D, normal_map->tex_id);
+			state.current_normal = p_normal_map;
+			state.canvas_shader.set_uniform(CanvasShaderGLES2::USE_DEFAULT_NORMAL, true);
+		}
+
+	} else {
+
+		state.current_normal = RID();
+		glActiveTexture(GL_TEXTURE0 + storage->config.max_texture_image_units - 2);
+		glBindTexture(GL_TEXTURE_2D, storage->resources.normal_tex);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::USE_DEFAULT_NORMAL, false);
+	}
+
+	return tex_return;
+}
+
+void RasterizerCanvasBaseGLES2::draw_window_margins(int *black_margin, RID *black_image) {
+
+	Vector2 window_size = OS::get_singleton()->get_window_size();
+	int window_h = window_size.height;
+	int window_w = window_size.width;
+
+	glBindFramebuffer(GL_FRAMEBUFFER, storage->system_fbo);
+	glViewport(0, 0, window_size.width, window_size.height);
+	canvas_begin();
+
+	if (black_image[MARGIN_LEFT].is_valid()) {
+		_bind_canvas_texture(black_image[MARGIN_LEFT], RID());
+		Size2 sz(storage->texture_get_width(black_image[MARGIN_LEFT]), storage->texture_get_height(black_image[MARGIN_LEFT]));
+		draw_generic_textured_rect(Rect2(0, 0, black_margin[MARGIN_LEFT], window_h), Rect2(0, 0, sz.x, sz.y));
+	} else if (black_margin[MARGIN_LEFT]) {
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, storage->resources.black_tex);
+
+		draw_generic_textured_rect(Rect2(0, 0, black_margin[MARGIN_LEFT], window_h), Rect2(0, 0, 1, 1));
+	}
+
+	if (black_image[MARGIN_RIGHT].is_valid()) {
+		_bind_canvas_texture(black_image[MARGIN_RIGHT], RID());
+		Size2 sz(storage->texture_get_width(black_image[MARGIN_RIGHT]), storage->texture_get_height(black_image[MARGIN_RIGHT]));
+		draw_generic_textured_rect(Rect2(window_w - black_margin[MARGIN_RIGHT], 0, black_margin[MARGIN_RIGHT], window_h), Rect2(0, 0, sz.x, sz.y));
+	} else if (black_margin[MARGIN_RIGHT]) {
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, storage->resources.black_tex);
+
+		draw_generic_textured_rect(Rect2(window_w - black_margin[MARGIN_RIGHT], 0, black_margin[MARGIN_RIGHT], window_h), Rect2(0, 0, 1, 1));
+	}
+
+	if (black_image[MARGIN_TOP].is_valid()) {
+		_bind_canvas_texture(black_image[MARGIN_TOP], RID());
+
+		Size2 sz(storage->texture_get_width(black_image[MARGIN_TOP]), storage->texture_get_height(black_image[MARGIN_TOP]));
+		draw_generic_textured_rect(Rect2(0, 0, window_w, black_margin[MARGIN_TOP]), Rect2(0, 0, sz.x, sz.y));
+
+	} else if (black_margin[MARGIN_TOP]) {
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, storage->resources.black_tex);
+
+		draw_generic_textured_rect(Rect2(0, 0, window_w, black_margin[MARGIN_TOP]), Rect2(0, 0, 1, 1));
+	}
+
+	if (black_image[MARGIN_BOTTOM].is_valid()) {
+
+		_bind_canvas_texture(black_image[MARGIN_BOTTOM], RID());
+
+		Size2 sz(storage->texture_get_width(black_image[MARGIN_BOTTOM]), storage->texture_get_height(black_image[MARGIN_BOTTOM]));
+		draw_generic_textured_rect(Rect2(0, window_h - black_margin[MARGIN_BOTTOM], window_w, black_margin[MARGIN_BOTTOM]), Rect2(0, 0, sz.x, sz.y));
+
+	} else if (black_margin[MARGIN_BOTTOM]) {
+
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, storage->resources.black_tex);
+
+		draw_generic_textured_rect(Rect2(0, window_h - black_margin[MARGIN_BOTTOM], window_w, black_margin[MARGIN_BOTTOM]), Rect2(0, 0, 1, 1));
+	}
+
+	canvas_end();
+}
+
+
 void RasterizerCanvasBaseGLES2::_bind_quad_buffer() {
 	glBindBuffer(GL_ARRAY_BUFFER, data.canvas_quad_vertices);
 	glEnableVertexAttribArray(VS::ARRAY_VERTEX);

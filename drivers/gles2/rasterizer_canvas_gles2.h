@@ -156,15 +156,12 @@ public:
 
 	virtual void reset_canvas();
 
-	RasterizerStorageGLES2::Texture *_bind_canvas_texture(const RID &p_texture, const RID &p_normal_map);
 
-	void draw_generic_textured_rect(const Rect2 &p_rect, const Rect2 &p_src);
 	void draw_lens_distortion_rect(const Rect2 &p_rect, float p_k1, float p_k2, const Vector2 &p_eye_center, float p_oversample);
 
 	void initialize();
 	void finalize();
 
-	virtual void draw_window_margins(int *black_margin, RID *black_image);
 
 	RasterizerCanvasGLES2();
 };

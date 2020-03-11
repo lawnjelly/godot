@@ -81,4 +81,10 @@ public:
 	virtual void canvas_end();
 
 	void _bind_quad_buffer();
+
+	virtual void draw_window_margins(int *black_margin, RID *black_image);
+	void draw_generic_textured_rect(const Rect2 &p_rect, const Rect2 &p_src);
+
+	RasterizerStorageGLES2::Texture *_bind_canvas_texture(const RID &p_texture, const RID &p_normal_map);
+
 };
