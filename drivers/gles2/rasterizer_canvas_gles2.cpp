@@ -1427,7 +1427,7 @@ void RasterizerCanvasGLES2::_canvas_item_render_commands(Item *p_item, Item *cur
 	} // while there are still more batches to fill
 }
 
-bool RasterizerCanvasGLES2::try_join_item(Item * p_item)
+bool RasterizerCanvasGLES2::_try_join_item(Item * ci, RIState &ris)
 {
 
 	return false;
@@ -1439,6 +1439,21 @@ void RasterizerCanvasGLES2::join_items(Item *p_item_list, int p_z, const Color &
 	bdata.items_joined.reset();
 	bdata.item_refs.reset();
 
+	RIState ris;
+	ris.IG_z = p_z;
+	ris.IG_modulate = p_modulate;
+	ris.IG_light = p_light;
+	ris.IG_base_transform = p_base_transform;
+
+
+	while (p_item_list) {
+
+		Item *ci = p_item_list;
+
+		_try_join_item(ci, ris);
+
+		p_item_list = p_item_list->next;
+	}
 
 }
 
@@ -1455,6 +1470,43 @@ void RasterizerCanvasGLES2::canvas_render_items(Item *p_item_list, int p_z, cons
 	join_items(p_item_list, p_z, p_modulate, p_light, p_base_transform);
 	canvas_render_items_implementation(p_item_list, p_z, p_modulate, p_light, p_base_transform);
 }
+
+
+void RasterizerCanvasGLES2::canvas_render_items_implementation(Item *p_item_list, int p_z, const Color &p_modulate, Light *p_light, const Transform2D &p_base_transform) {
+
+	RIState ris;
+	ris.IG_z = p_z;
+	ris.IG_modulate = p_modulate;
+	ris.IG_light = p_light;
+	ris.IG_base_transform = p_base_transform;
+
+	state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_SKELETON, false);
+
+	state.current_tex = RID();
+	state.current_tex_ptr = NULL;
+	state.current_normal = RID();
+	state.canvas_texscreen_used = false;
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, storage->resources.white_tex);
+
+	while (p_item_list) {
+
+		Item *ci = p_item_list;
+
+		_canvas_render_item(ci, ris);
+
+
+		p_item_list = p_item_list->next;
+	}
+
+	if (ris.current_clip) {
+		glDisable(GL_SCISSOR_TEST);
+	}
+
+	state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_SKELETON, false);
+}
+
 
 void RasterizerCanvasGLES2::_canvas_render_item(Item * ci, RIState &ris)
 {
@@ -1821,50 +1873,6 @@ void RasterizerCanvasGLES2::_canvas_render_item(Item * ci, RIState &ris)
 }
 
 
-void RasterizerCanvasGLES2::canvas_render_items_implementation(Item *p_item_list, int p_z, const Color &p_modulate, Light *p_light, const Transform2D &p_base_transform) {
-
-	RIState ris;
-	ris.IG_z = p_z;
-	ris.IG_modulate = p_modulate;
-	ris.IG_light = p_light;
-	ris.IG_base_transform = p_base_transform;
-
-	//Item *current_clip = NULL;
-
-	//RasterizerStorageGLES2::Shader *shader_cache = NULL;
-
-	//bool rebind_shader = true;
-	//bool prev_use_skeleton = false;
-	state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_SKELETON, false);
-
-	state.current_tex = RID();
-	state.current_tex_ptr = NULL;
-	state.current_normal = RID();
-	state.canvas_texscreen_used = false;
-
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, storage->resources.white_tex);
-
-	//int last_blend_mode = -1;
-
-	//RID canvas_last_material = RID();
-
-	while (p_item_list) {
-
-		Item *ci = p_item_list;
-
-		_canvas_render_item(ci, ris);
-
-
-		p_item_list = p_item_list->next;
-	}
-
-	if (ris.current_clip) {
-		glDisable(GL_SCISSOR_TEST);
-	}
-
-	state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_SKELETON, false);
-}
 
 void RasterizerCanvasGLES2::initialize() {
 	RasterizerCanvasBaseGLES2::initialize();

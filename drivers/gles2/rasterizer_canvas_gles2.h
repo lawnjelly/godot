@@ -172,7 +172,7 @@ public:
 	void _canvas_render_item(Item * ci, RIState &ris);
 
 	void join_items(Item *p_item_list, int p_z, const Color &p_modulate, Light *p_light, const Transform2D &p_base_transform);
-	bool try_join_item(Item * p_item);
+	bool _try_join_item(Item * ci, RIState &ris);
 
 	_FORCE_INLINE_ void _canvas_item_render_commands(Item *p_item, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material);
 
