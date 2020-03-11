@@ -39,7 +39,7 @@
 #define glClearDepth glClearDepthf
 #endif
 
-
+//#define KESSEL_FLASH
 
 
 RasterizerStorageGLES2::Texture *RasterizerCanvasGLES2::_get_canvas_texture(const RID &p_texture) const {
@@ -576,7 +576,7 @@ void RasterizerCanvasGLES2::_canvas_item_render_commands(Item *p_item, Item *cur
 		use_batching = bdata.use_batching;
 	}
 
-	Item::Command **commands = p_item->commands.ptrw();
+	Item::Command * const *commands = p_item->commands.ptr();
 
 	// while there are still more batches to fill...
 	// we may have to do this multiple times because there is a limit of 65535
@@ -1430,6 +1430,13 @@ void RasterizerCanvasGLES2::_canvas_item_render_commands(Item *p_item, Item *cur
 
 
 void RasterizerCanvasGLES2::canvas_render_items(Item *p_item_list, int p_z, const Color &p_modulate, Light *p_light, const Transform2D &p_base_transform) {
+
+#ifdef KESSEL_FLASH
+	if ((Engine::get_singleton()->get_frames_drawn() % 2) == 0)
+		bdata.use_batching = true;
+	else
+		bdata.use_batching = false;
+#endif
 
 	Item *current_clip = NULL;
 

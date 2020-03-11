@@ -102,6 +102,16 @@ public:
 		BatchVector2 tex_pixel_size;
 	};
 
+	// batch item may represent 1 or more items
+	struct BItemJoined {
+		uint32_t first_item;
+		uint32_t num_items;
+	};
+
+	struct BItemRef
+	{
+		Item * m_pItem;
+	};
 
 	struct BatchData {
 		GLuint gl_vertex_buffer;
@@ -121,6 +131,10 @@ public:
 
 		bool use_colored_vertices;
 		bool use_batching;
+
+		RasterizerArray<BItemJoined> items_joined;
+		RasterizerArray<BItemRef> item_refs;
+
 	} bdata;
 
 
@@ -128,6 +142,7 @@ public:
 
 
 
+	virtual void canvas_render_items(Item *p_item_list, int p_z, const Color &p_modulate, Light *p_light, const Transform2D &p_base_transform);
 	_FORCE_INLINE_ void _canvas_item_render_commands(Item *p_item, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material);
 
 	int _batch_canvas_item_prefill(int p_command_start, Item *p_item, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material);
@@ -139,7 +154,6 @@ public:
 	BatchVertex *_batch_vert_request_new() { return bdata.vertices.request(); }
 	Batch *_batch_request_new(bool p_blank = true);
 
-	virtual void canvas_render_items(Item *p_item_list, int p_z, const Color &p_modulate, Light *p_light, const Transform2D &p_base_transform);
 
 
 	void initialize();
