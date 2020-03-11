@@ -1520,6 +1520,8 @@ bool RasterizerCanvasGLES2::_try_join_item(Item * ci, RIState &ris)
 		join = false;
 	}
 
+	GOT TO HERE
+
 	RasterizerStorageGLES2::Skeleton *skeleton = NULL;
 
 	{
