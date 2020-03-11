@@ -31,18 +31,11 @@
 #ifndef RASTERIZERCANVASGLES2_H
 #define RASTERIZERCANVASGLES2_H
 
-#include "rasterizer_array.h"
-#include "rasterizer_storage_gles2.h"
-#include "servers/visual/rasterizer.h"
-
-#include "shaders/canvas.glsl.gen.h"
-#include "shaders/lens_distorted.glsl.gen.h"
-
-#include "shaders/canvas_shadow.glsl.gen.h"
+#include "rasterizer_canvas_base_gles2.h"
 
 class RasterizerSceneGLES2;
 
-class RasterizerCanvasGLES2 : public RasterizerCanvas {
+class RasterizerCanvasGLES2 : public RasterizerCanvasBaseGLES2 {
 public:
 	enum {
 		INSTANCE_ATTRIB_BASE = 8,
