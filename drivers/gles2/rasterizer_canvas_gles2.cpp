@@ -1554,6 +1554,7 @@ bool RasterizerCanvasGLES2::_try_join_item(Item * ci, RIState &ris)
 
 	if (material != ris.canvas_last_material || ris.rebind_shader) {
 
+		join = false;
 		RasterizerStorageGLES2::Shader *shader_ptr = NULL;
 
 		if (material_ptr) {
@@ -1567,83 +1568,12 @@ bool RasterizerCanvasGLES2::_try_join_item(Item * ci, RIState &ris)
 		if (shader_ptr) {
 			if (shader_ptr->canvas_item.uses_screen_texture) {
 				if (!state.canvas_texscreen_used) {
+					join = false;
 					//copy if not copied before
-					_copy_texscreen(Rect2());
-
-					// blend mode will have been enabled so make sure we disable it again later on
-					//last_blend_mode = last_blend_mode != RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_DISABLED ? last_blend_mode : -1;
-				}
-
-				if (storage->frame.current_rt->copy_screen_effect.color) {
-					glActiveTexture(GL_TEXTURE0 + storage->config.max_texture_image_units - 4);
-					glBindTexture(GL_TEXTURE_2D, storage->frame.current_rt->copy_screen_effect.color);
+					//_copy_texscreen(Rect2());
 				}
 			}
-
-			if (shader_ptr != ris.shader_cache) {
-
-				if (shader_ptr->canvas_item.uses_time) {
-					VisualServerRaster::redraw_request();
-				}
-
-				state.canvas_shader.set_custom_shader(shader_ptr->custom_code_id);
-				state.canvas_shader.bind();
-			}
-
-			int tc = material_ptr->textures.size();
-			Pair<StringName, RID> *textures = material_ptr->textures.ptrw();
-
-			ShaderLanguage::ShaderNode::Uniform::Hint *texture_hints = shader_ptr->texture_hints.ptrw();
-
-			for (int i = 0; i < tc; i++) {
-
-				glActiveTexture(GL_TEXTURE0 + i);
-
-				RasterizerStorageGLES2::Texture *t = storage->texture_owner.getornull(textures[i].second);
-
-				if (!t) {
-
-					switch (texture_hints[i]) {
-						case ShaderLanguage::ShaderNode::Uniform::HINT_BLACK_ALBEDO:
-						case ShaderLanguage::ShaderNode::Uniform::HINT_BLACK: {
-							glBindTexture(GL_TEXTURE_2D, storage->resources.black_tex);
-						} break;
-						case ShaderLanguage::ShaderNode::Uniform::HINT_ANISO: {
-							glBindTexture(GL_TEXTURE_2D, storage->resources.aniso_tex);
-						} break;
-						case ShaderLanguage::ShaderNode::Uniform::HINT_NORMAL: {
-							glBindTexture(GL_TEXTURE_2D, storage->resources.normal_tex);
-						} break;
-						default: {
-							glBindTexture(GL_TEXTURE_2D, storage->resources.white_tex);
-						} break;
-					}
-
-					continue;
-				}
-
-				if (t->redraw_if_visible) {
-					VisualServerRaster::redraw_request();
-				}
-
-				t = t->get_ptr();
-
-#ifdef TOOLS_ENABLED
-				if (t->detect_normal && texture_hints[i] == ShaderLanguage::ShaderNode::Uniform::HINT_NORMAL) {
-					t->detect_normal(t->detect_normal_ud);
-				}
-#endif
-				if (t->render_target)
-					t->render_target->used_in_frame = true;
-
-				glBindTexture(t->target, t->tex_id);
-			}
-
-		} else {
-			state.canvas_shader.set_custom_shader(0);
-			state.canvas_shader.bind();
 		}
-		state.canvas_shader.use_material((void *)material_ptr);
 
 		ris.shader_cache = shader_ptr;
 
