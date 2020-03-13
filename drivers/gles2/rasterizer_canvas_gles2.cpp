@@ -1520,8 +1520,6 @@ bool RasterizerCanvasGLES2::_try_join_item(Item * ci, RIState &ris)
 		join = false;
 	}
 
-	GOT TO HERE
-
 	RasterizerStorageGLES2::Skeleton *skeleton = NULL;
 
 	{
@@ -1531,22 +1529,18 @@ bool RasterizerCanvasGLES2::_try_join_item(Item * ci, RIState &ris)
 			if (!skeleton->use_2d) {
 				skeleton = NULL;
 			} else {
-				state.skeleton_transform = ris.IG_base_transform * skeleton->base_transform_2d;
-				state.skeleton_transform_inverse = state.skeleton_transform.affine_inverse();
-				state.skeleton_texture_size = Vector2(skeleton->size * 2, 0);
 			}
 		}
 
 		bool use_skeleton = skeleton != NULL;
 		if (ris.prev_use_skeleton != use_skeleton) {
 			ris.rebind_shader = true;
-			state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_SKELETON, use_skeleton);
 			ris.prev_use_skeleton = use_skeleton;
+			join = false;
 		}
 
 		if (skeleton) {
-			glActiveTexture(GL_TEXTURE0 + storage->config.max_texture_image_units - 3);
-			glBindTexture(GL_TEXTURE_2D, skeleton->tex_id);
+			join = false;
 			state.using_skeleton = true;
 		} else {
 			state.using_skeleton = false;
