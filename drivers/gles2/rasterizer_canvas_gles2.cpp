@@ -1587,68 +1587,22 @@ bool RasterizerCanvasGLES2::_try_join_item(Item * ci, RIState &ris)
 	bool reclip = false;
 
 	if (ris.last_blend_mode != blend_mode) {
-
-		switch (blend_mode) {
-
-			case RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_MIX: {
-				glBlendEquation(GL_FUNC_ADD);
-				if (storage->frame.current_rt && storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_TRANSPARENT]) {
-					glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-				} else {
-					glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE);
-				}
-
-			} break;
-			case RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_ADD: {
-
-				glBlendEquation(GL_FUNC_ADD);
-				if (storage->frame.current_rt && storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_TRANSPARENT]) {
-					glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_SRC_ALPHA, GL_ONE);
-				} else {
-					glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ZERO, GL_ONE);
-				}
-
-			} break;
-			case RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_SUB: {
-
-				glBlendEquation(GL_FUNC_REVERSE_SUBTRACT);
-				if (storage->frame.current_rt && storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_TRANSPARENT]) {
-					glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_SRC_ALPHA, GL_ONE);
-				} else {
-					glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ZERO, GL_ONE);
-				}
-			} break;
-			case RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_MUL: {
-				glBlendEquation(GL_FUNC_ADD);
-				if (storage->frame.current_rt && storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_TRANSPARENT]) {
-					glBlendFuncSeparate(GL_DST_COLOR, GL_ZERO, GL_DST_ALPHA, GL_ZERO);
-				} else {
-					glBlendFuncSeparate(GL_DST_COLOR, GL_ZERO, GL_ZERO, GL_ONE);
-				}
-			} break;
-			case RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_PMALPHA: {
-				glBlendEquation(GL_FUNC_ADD);
-				if (storage->frame.current_rt && storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_TRANSPARENT]) {
-					glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-				} else {
-					glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE);
-				}
-			} break;
-		}
+		join = false;
 	}
 
-	state.uniforms.final_modulate = unshaded ? ci->final_modulate : Color(ci->final_modulate.r * ris.IG_modulate.r, ci->final_modulate.g * ris.IG_modulate.g, ci->final_modulate.b * ris.IG_modulate.b, ci->final_modulate.a * ris.IG_modulate.a);
+//	state.uniforms.final_modulate = unshaded ? ci->final_modulate : Color(ci->final_modulate.r * ris.IG_modulate.r, ci->final_modulate.g * ris.IG_modulate.g, ci->final_modulate.b * ris.IG_modulate.b, ci->final_modulate.a * ris.IG_modulate.a);
 
-	state.uniforms.modelview_matrix = ci->final_transform;
-	state.uniforms.extra_matrix = Transform2D();
+//	state.uniforms.modelview_matrix = ci->final_transform;
+//	state.uniforms.extra_matrix = Transform2D();
 
-	_set_uniforms();
+//	_set_uniforms();
 
-	if (unshaded || (state.uniforms.final_modulate.a > 0.001 && (!ris.shader_cache || ris.shader_cache->canvas_item.light_mode != RasterizerStorageGLES2::Shader::CanvasItem::LIGHT_MODE_LIGHT_ONLY) && !ci->light_masked))
-		_canvas_item_render_commands(ci, NULL, reclip, material_ptr);
+//	if (unshaded || (state.uniforms.final_modulate.a > 0.001 && (!ris.shader_cache || ris.shader_cache->canvas_item.light_mode != RasterizerStorageGLES2::Shader::CanvasItem::LIGHT_MODE_LIGHT_ONLY) && !ci->light_masked))
+//		_canvas_item_render_commands(ci, NULL, reclip, material_ptr);
 
+	// this will screw up all joins, remove?
 	ris.rebind_shader = true; // hacked in for now.
-
+/*
 	if ((blend_mode == RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_MIX || blend_mode == RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_PMALPHA) && ris.IG_light && !unshaded) {
 
 		Light *light = ris.IG_light;
@@ -1746,39 +1700,12 @@ bool RasterizerCanvasGLES2::_try_join_item(Item * ci, RIState &ris)
 			state.canvas_shader.bind();
 
 			ris.last_blend_mode = -1;
-
-			/*
-			//this is set again, so it should not be needed anyway?
-			state.canvas_item_modulate = unshaded ? ci->final_modulate : Color(
-						ci->final_modulate.r * p_modulate.r,
-						ci->final_modulate.g * p_modulate.g,
-						ci->final_modulate.b * p_modulate.b,
-						ci->final_modulate.a * p_modulate.a );
-
-
-			state.canvas_shader.set_uniform(CanvasShaderGLES2::MODELVIEW_MATRIX,state.final_transform);
-			state.canvas_shader.set_uniform(CanvasShaderGLES2::EXTRA_MATRIX,Transform2D());
-			state.canvas_shader.set_uniform(CanvasShaderGLES2::FINAL_MODULATE,state.canvas_item_modulate);
-
-			glBlendEquation(GL_FUNC_ADD);
-
-			if (storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_TRANSPARENT]) {
-				glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-			} else {
-				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-			}
-
-			//@TODO RESET canvas_blend_mode
-			*/
 		}
 	}
+*/
 
 	if (reclip) {
-		glEnable(GL_SCISSOR_TEST);
-		int y = storage->frame.current_rt->height - (ris.current_clip->final_clip_rect.position.y + ris.current_clip->final_clip_rect.size.y);
-		if (storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_VFLIP])
-			y = ris.current_clip->final_clip_rect.position.y;
-		glScissor(ris.current_clip->final_clip_rect.position.x, y, ris.current_clip->final_clip_rect.size.width, ris.current_clip->final_clip_rect.size.height);
+		join = false;
 	}
 
 
