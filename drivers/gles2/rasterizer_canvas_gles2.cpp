@@ -188,6 +188,13 @@ RasterizerCanvasGLES2::Batch *RasterizerCanvasGLES2::_batch_request_new(bool p_b
 	return batch;
 }
 
+
+bool RasterizerCanvasGLES2::_batch_canvas_joined_item_prefill(int &command_start, Item *p_item, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material)
+{
+	return false;
+}
+
+
 // returns the command we got up to .. we may have to call this multiple times because there is a limit of 65535
 // verts referenced in the index buffer
 int RasterizerCanvasGLES2::_batch_canvas_item_prefill(int p_command_start, Item *p_item, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material) {
@@ -563,10 +570,6 @@ void RasterizerCanvasGLES2::_batch_render_rects(const Batch &batch, RasterizerSt
 }
 
 
-void RasterizerCanvasGLES2::_canvas_joined_item_render_commands(const BItemJoined &bij, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material)
-{
-
-}
 
 
 void RasterizerCanvasGLES2::_render_batches(Item::Command * const *commands, int first_item_ref_id, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material)
@@ -1408,6 +1411,44 @@ void RasterizerCanvasGLES2::_render_batches(Item::Command * const *commands, int
 }
 
 
+void RasterizerCanvasGLES2::_canvas_joined_item_render_commands(const BItemJoined &bij, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material)
+{
+	// to start with we will allow using the legacy non-batched method
+	bool use_batching = false;
+	use_batching = bdata.use_batching;
+
+	Item * item = 0;
+
+	for (int i=0; i<bij.num_items; i++)
+	{
+		item = bdata.item_refs[bij.first_item + i].m_pItem;
+
+		int command_count = item->commands.size();
+		int command_start = 0;
+
+		while (command_start < command_count) {
+			// fill as many batches as possible (until all done, or the vertex buffer is full)
+			bool bFull = _batch_canvas_joined_item_prefill(command_start, item, current_clip, reclip, p_material);
+
+			if (bFull)
+			{
+				// flush
+				_flush_render_batches(item, current_clip, reclip, p_material);
+			}
+		}
+	}
+
+	// flush if any left
+	if (item)
+		_flush_render_batches(item, current_clip, reclip, p_material);
+}
+
+
+void RasterizerCanvasGLES2::_flush_render_batches(Item *p_item, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material)
+{
+}
+
+
 void RasterizerCanvasGLES2::_canvas_item_render_commands(Item *p_item, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material) {
 
 	int command_count = p_item->commands.size();
@@ -1529,8 +1570,8 @@ void RasterizerCanvasGLES2::canvas_render_items_implementation(Item *p_item_list
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, storage->resources.white_tex);
 
-	if (0)
-//	if (bdata.use_batching)
+//	if (0)
+	if (bdata.use_batching)
 	{
 		for (int j=0; j<bdata.items_joined.size(); j++)
 		{
