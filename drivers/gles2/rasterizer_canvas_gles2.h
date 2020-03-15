@@ -80,10 +80,11 @@ public:
 		enum CommandType : uint32_t {
 			BT_DEFAULT,
 			BT_RECT,
+			BT_CHANGE_ITEM,
 		};
 
 		CommandType type;
-		uint32_t first_command;
+		uint32_t first_command; // also item reference number
 		uint32_t num_commands;
 		uint32_t first_quad;
 		uint32_t batch_texture_id;
@@ -170,11 +171,15 @@ public:
 	virtual void canvas_render_items(Item *p_item_list, int p_z, const Color &p_modulate, Light *p_light, const Transform2D &p_base_transform);
 	void canvas_render_items_implementation(Item *p_item_list, int p_z, const Color &p_modulate, Light *p_light, const Transform2D &p_base_transform);
 	void _canvas_render_item(Item * ci, RIState &ris);
+	void _canvas_render_joined_item(const BItemJoined &bij, RIState &ris);
 
 	void join_items(Item *p_item_list, int p_z, const Color &p_modulate, Light *p_light, const Transform2D &p_base_transform);
 	bool _try_join_item(Item * ci, RIState &ris);
 
 	_FORCE_INLINE_ void _canvas_item_render_commands(Item *p_item, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material);
+	void _canvas_joined_item_render_commands(const BItemJoined &bij, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material);
+
+	void _render_batches(Item::Command * const *commands, int first_item_ref_id, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material);
 
 	int _batch_canvas_item_prefill(int p_command_start, Item *p_item, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material);
 	void _batch_translate_to_colored();

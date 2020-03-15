@@ -71,6 +71,16 @@ public:
 
 	void reset() { _size = 0; }
 
+	T * request_with_grow() {
+		T * p = request();
+		if (!p)
+		{
+			grow();
+			return request_with_grow();
+		}
+		return p;
+	}
+
 	// none of that inefficient pass by value stuff here, thanks
 	T *request() {
 		if (_size < _max_size) {
@@ -112,6 +122,9 @@ public:
 	// to ensure there is no data to copy
 	void grow() {
 		unsigned int new_max_size = _max_size * 2;
+		if (!new_max_size)
+			new_max_size = 1;
+
 		T *new_list = memnew_arr(T, new_max_size);
 
 		// copy .. pod types only
