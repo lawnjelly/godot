@@ -105,8 +105,8 @@ public:
 
 	// batch item may represent 1 or more items
 	struct BItemJoined {
-		uint32_t first_item;
-		uint32_t num_items;
+		uint32_t first_item_ref;
+		uint32_t num_item_refs;
 	};
 
 	struct BItemRef
@@ -136,6 +136,13 @@ public:
 		RasterizerArray<BItemJoined> items_joined;
 		RasterizerArray<BItemRef> item_refs;
 
+		// counts
+		int total_quads;
+
+		// we keep a record of how many color changes caused new batches
+		// if the colors are causing an excessive number of batches, we switch
+		// to alternate batching method and add color to the vertex format.
+		int total_color_changes;
 	} bdata;
 
 	struct RIState

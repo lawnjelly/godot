@@ -189,6 +189,7 @@ RasterizerCanvasGLES2::Batch *RasterizerCanvasGLES2::_batch_request_new(bool p_b
 }
 
 
+// re-rentrant
 bool RasterizerCanvasGLES2::_batch_canvas_joined_item_prefill(int &command_start, Item *p_item, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material)
 {
 	return false;
@@ -1419,9 +1420,9 @@ void RasterizerCanvasGLES2::_canvas_joined_item_render_commands(const BItemJoine
 
 	Item * item = 0;
 
-	for (int i=0; i<bij.num_items; i++)
+	for (int i=0; i<bij.num_item_refs; i++)
 	{
-		item = bdata.item_refs[bij.first_item + i].m_pItem;
+		item = bdata.item_refs[bij.first_item_ref + i].m_pItem;
 
 		int command_count = item->commands.size();
 		int command_start = 0;
@@ -1446,6 +1447,28 @@ void RasterizerCanvasGLES2::_canvas_joined_item_render_commands(const BItemJoine
 
 void RasterizerCanvasGLES2::_flush_render_batches(Item *p_item, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material)
 {
+	// some heuristic to decide whether to use colored verts.
+	// feel free to tweak this.
+	// this could use hysteresis, to prevent jumping between methods
+	// .. however probably not necessary
+	if ((bdata.total_color_changes * 4) > (bdata.total_quads * 3)) {
+		bdata.use_colored_vertices = true;
+
+		// small perf cost versus going straight to colored verts (maybe around 10%)
+		// however more straightforward
+		_batch_translate_to_colored();
+	} else {
+		bdata.use_colored_vertices = false;
+	}
+
+
+	// zero all the batch data ready for a new run
+	bdata.batches.reset();
+	bdata.batch_textures.reset();
+	bdata.vertices.reset();
+
+	bdata.total_quads = 0;
+	bdata.total_color_changes = 0;
 }
 
 
@@ -1516,8 +1539,8 @@ void RasterizerCanvasGLES2::join_items(Item *p_item_list, int p_z, const Color &
 		if (!join)
 		{
 			j = bdata.items_joined.request_with_grow();
-			j->first_item = bdata.item_refs.size();
-			j->num_items = 1;
+			j->first_item_ref = bdata.item_refs.size();
+			j->num_item_refs = 1;
 
 			// add the reference
 			BItemRef * r = bdata.item_refs.request_with_grow();
@@ -1526,7 +1549,7 @@ void RasterizerCanvasGLES2::join_items(Item *p_item_list, int p_z, const Color &
 		else
 		{
 			CRASH_COND(j == 0);
-			j->num_items += 1;
+			j->num_item_refs += 1;
 
 			BItemRef * r = bdata.item_refs.request_with_grow();
 			r->m_pItem = ci;
@@ -2173,7 +2196,7 @@ void RasterizerCanvasGLES2::_canvas_render_item(Item * ci, RIState &ris)
 void RasterizerCanvasGLES2::_canvas_render_joined_item(const BItemJoined &bij, RIState &ris)
 {
 	// all the joined items will share the same state with the first item
-	Item * ci = bdata.item_refs[bij.first_item].m_pItem;
+	Item * ci = bdata.item_refs[bij.first_item_ref].m_pItem;
 
 	if (ris.current_clip != ci->final_clip_owner) {
 
