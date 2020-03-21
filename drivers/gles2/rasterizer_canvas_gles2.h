@@ -172,7 +172,12 @@ public:
 	};
 
 
-
+	struct FillState
+	{
+		void Reset() {curr_batch = 0; batch_tex_id = -1;}
+		Batch * curr_batch;
+		int batch_tex_id;
+	};
 
 
 	virtual void canvas_render_items(Item *p_item_list, int p_z, const Color &p_modulate, Light *p_light, const Transform2D &p_base_transform);
@@ -189,7 +194,7 @@ public:
 	void _render_batches(Item::Command * const *commands, int first_item_ref_id, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material);
 
 
-	bool _batch_canvas_joined_item_prefill(int &r_command_start, Item *p_item, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material);
+	bool _batch_canvas_joined_item_prefill(FillState &fill_state, int &r_command_start, Item *p_item, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material);
 	void _flush_render_batches(Item *p_item, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material);
 
 
@@ -203,10 +208,11 @@ public:
 	Batch *_batch_request_new(bool p_blank = true);
 
 
+private:
+	bool _detect_batch_break(Item * ci);
 
+public:
 	void initialize();
-
-
 	RasterizerCanvasGLES2();
 };
 

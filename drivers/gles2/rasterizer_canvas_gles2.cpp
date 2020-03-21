@@ -190,15 +190,15 @@ RasterizerCanvasGLES2::Batch *RasterizerCanvasGLES2::_batch_request_new(bool p_b
 
 
 // re-rentrant
-bool RasterizerCanvasGLES2::_batch_canvas_joined_item_prefill(int &r_command_start, Item *p_item, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material)
+bool RasterizerCanvasGLES2::_batch_canvas_joined_item_prefill(FillState &fill_state, int &r_command_start, Item *p_item, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material)
 {
 	// we will prefill batches and vertices ready for sending in one go to the vertex buffer
 	int command_count = p_item->commands.size();
 	Item::Command * const *commands = p_item->commands.ptr();
 
-	Batch *curr_batch = 0;
-	int batch_tex_id = -1;
-//	int quad_count = 0;
+	// this must be re-entrant
+//	Batch *curr_batch = 0;
+//	int batch_tex_id = -1;
 
 	// we keep a record of how many color changes caused new batches
 	// if the colors are causing an excessive number of batches, we switch
@@ -208,8 +208,11 @@ bool RasterizerCanvasGLES2::_batch_canvas_joined_item_prefill(int &r_command_sta
 	Vector2 texpixel_size(1, 1);
 
 	// start batch is a dummy batch (tex id -1) .. could be made more efficient
-	curr_batch = _batch_request_new();
-	curr_batch->type = Batch::BT_DEFAULT;
+	if (!fill_state.curr_batch)
+	{
+		fill_state.curr_batch = _batch_request_new();
+		fill_state.curr_batch->type = Batch::BT_DEFAULT;
+	}
 
 	// we need to return which command we got up to, so
 	// store this outside the loop
@@ -223,14 +226,14 @@ bool RasterizerCanvasGLES2::_batch_canvas_joined_item_prefill(int &r_command_sta
 		switch (command->type) {
 
 			default: {
-				if (curr_batch->type == Batch::BT_DEFAULT) {
-					curr_batch->num_commands++;
+				if (fill_state.curr_batch->type == Batch::BT_DEFAULT) {
+					fill_state.curr_batch->num_commands++;
 				} else {
 					// end previous batch, start new one
-					curr_batch = _batch_request_new();
-					curr_batch->type = Batch::BT_DEFAULT;
-					curr_batch->first_command = command_num;
-					curr_batch->num_commands = 1;
+					fill_state.curr_batch = _batch_request_new();
+					fill_state.curr_batch->type = Batch::BT_DEFAULT;
+					fill_state.curr_batch->first_command = command_num;
+					fill_state.curr_batch->num_commands = 1;
 				}
 			} break;
 			case Item::Command::TYPE_RECT: {
@@ -243,8 +246,8 @@ bool RasterizerCanvasGLES2::_batch_canvas_joined_item_prefill(int &r_command_sta
 				// we build a list of texture combinations and do this once off.
 				// This means we have a potentially rather slow step to identify which texture combo
 				// using the RIDs.
-				int old_bti = batch_tex_id;
-				batch_tex_id = _batch_find_or_create_tex(rect->texture, rect->normal_map, rect->flags & CANVAS_RECT_TILE, old_bti);
+				int old_bti = fill_state.batch_tex_id;
+				fill_state.batch_tex_id = _batch_find_or_create_tex(rect->texture, rect->normal_map, rect->flags & CANVAS_RECT_TILE, old_bti);
 
 				// try to create vertices BEFORE creating a batch,
 				// because if the vertex buffer is full, we need to finish this
@@ -260,32 +263,32 @@ bool RasterizerCanvasGLES2::_batch_canvas_joined_item_prefill(int &r_command_sta
 				bool change_batch = false;
 
 				// conditions for creating a new batch
-				if ((curr_batch->type != Batch::BT_RECT) || (old_bti != batch_tex_id)) {
+				if ((fill_state.curr_batch->type != Batch::BT_RECT) || (old_bti != fill_state.batch_tex_id)) {
 					change_batch = true;
 				}
 				// we need to treat color change separately because we need to count these
 				// to decide whether to switch on the fly to colored vertices.
-				else if (!curr_batch->color.equals(col)) {
+				else if (!fill_state.curr_batch->color.equals(col)) {
 					change_batch = true;
 					bdata.total_color_changes++;
 				}
 
 				if (change_batch) {
 					// put the tex pixel size  in a local (less verbose and can be a register)
-					bdata.batch_textures[batch_tex_id].tex_pixel_size.to(texpixel_size);
+					bdata.batch_textures[fill_state.batch_tex_id].tex_pixel_size.to(texpixel_size);
 
 					// open new batch (this should never fail, it dynamically grows)
-					curr_batch = _batch_request_new(false);
+					fill_state.curr_batch = _batch_request_new(false);
 
-					curr_batch->type = Batch::BT_RECT;
-					curr_batch->color.set(col);
-					curr_batch->batch_texture_id = batch_tex_id;
-					curr_batch->first_command = command_num;
-					curr_batch->num_commands = 1;
-					curr_batch->first_quad = bdata.total_quads;
+					fill_state.curr_batch->type = Batch::BT_RECT;
+					fill_state.curr_batch->color.set(col);
+					fill_state.curr_batch->batch_texture_id = fill_state.batch_tex_id;
+					fill_state.curr_batch->first_command = command_num;
+					fill_state.curr_batch->num_commands = 1;
+					fill_state.curr_batch->first_quad = bdata.total_quads;
 				} else {
 					// we could alternatively do the count when closing a batch .. perhaps more efficient
-					curr_batch->num_commands++;
+					fill_state.curr_batch->num_commands++;
 				}
 
 				// fill the quad geometry
@@ -1590,6 +1593,9 @@ void RasterizerCanvasGLES2::_canvas_joined_item_render_commands(const BItemJoine
 
 	Item * item = 0;
 
+	FillState fill_state;
+	fill_state.Reset();
+
 	for (int i=0; i<bij.num_item_refs; i++)
 	{
 		item = bdata.item_refs[bij.first_item_ref + i].m_pItem;
@@ -1599,19 +1605,25 @@ void RasterizerCanvasGLES2::_canvas_joined_item_render_commands(const BItemJoine
 
 		while (command_start < command_count) {
 			// fill as many batches as possible (until all done, or the vertex buffer is full)
-			bool bFull = _batch_canvas_joined_item_prefill(command_start, item, current_clip, reclip, p_material);
+			bool bFull = _batch_canvas_joined_item_prefill(fill_state, command_start, item, current_clip, reclip, p_material);
 
 			if (bFull)
 			{
 				// flush
 				_flush_render_batches(item, current_clip, reclip, p_material);
+				fill_state.Reset();
 			}
 		}
 	}
 
 	// flush if any left
 	if (item)
+	{
+		// always pass first item
+		item = bdata.item_refs[bij.first_item_ref].m_pItem;
+
 		_flush_render_batches(item, current_clip, reclip, p_material);
+	}
 }
 
 
@@ -1636,6 +1648,7 @@ void RasterizerCanvasGLES2::_flush_render_batches(Item *p_item, Item *current_cl
 	_batch_upload_buffers();
 
 	Item::Command * const *commands = p_item->commands.ptr();
+	//int s = p_item->commands.size();
 
 	_render_batches(commands, 0, current_clip, reclip, p_material);
 
@@ -1881,6 +1894,7 @@ bool RasterizerCanvasGLES2::_try_join_item(Item * ci, RIState &ris)
 
 	if (ris.last_blend_mode != blend_mode) {
 		join = false;
+		ris.last_blend_mode = blend_mode;
 	}
 
 //	state.uniforms.final_modulate = unshaded ? ci->final_modulate : Color(ci->final_modulate.r * ris.IG_modulate.r, ci->final_modulate.g * ris.IG_modulate.g, ci->final_modulate.b * ris.IG_modulate.b, ci->final_modulate.a * ris.IG_modulate.a);
@@ -1894,7 +1908,9 @@ bool RasterizerCanvasGLES2::_try_join_item(Item * ci, RIState &ris)
 //		_canvas_item_render_commands(ci, NULL, reclip, material_ptr);
 
 	// this will screw up all joins, remove?
-	ris.rebind_shader = true; // hacked in for now.
+//	ris.rebind_shader = true; // hacked in for now.
+
+
 /*
 	if ((blend_mode == RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_MIX || blend_mode == RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_PMALPHA) && ris.IG_light && !unshaded) {
 
@@ -2001,8 +2017,50 @@ bool RasterizerCanvasGLES2::_try_join_item(Item * ci, RIState &ris)
 		join = false;
 	}
 
+	// non rects will break the batching anyway, we don't want to record item changes, detect this
+	if (join)
+	{
+		if (_detect_batch_break(ci))
+			join = false;
+	} // if join
 
 	return join;
+}
+
+
+bool RasterizerCanvasGLES2::_detect_batch_break(Item * ci)
+{
+//	return true;
+
+	int command_count = ci->commands.size();
+
+	if (command_count > 1)
+	{
+		return true;
+	}
+	else
+	{
+		Item::Command * const *commands = ci->commands.ptr();
+
+		// do as many commands as possible until the vertex buffer will be full up
+		for (int command_num = 0; command_num < command_count; command_num++) {
+
+			Item::Command *command = commands[command_num];
+
+			switch (command->type) {
+
+				default: {
+					return true;
+				} break;
+				case Item::Command::TYPE_RECT: {
+				} break;
+			} // switch
+
+		} // for through commands
+
+	} // else
+
+	return false;
 }
 
 
