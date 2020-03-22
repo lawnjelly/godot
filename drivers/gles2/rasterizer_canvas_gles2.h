@@ -107,6 +107,10 @@ public:
 	struct BItemJoined {
 		uint32_t first_item_ref;
 		uint32_t num_item_refs;
+
+		// we are always splitting items with lots of commands,
+		// and items with unhandled primitives (default)
+		bool use_hardware_transform() const {return num_item_refs == 1;}
 	};
 
 	struct BItemRef
@@ -174,9 +178,11 @@ public:
 
 	struct FillState
 	{
-		void Reset() {curr_batch = 0; batch_tex_id = -1;}
+		void Reset() {curr_batch = 0; batch_tex_id = -1; use_hardware_transform = true; texpixel_size = Vector2(1, 1);}
 		Batch * curr_batch;
 		int batch_tex_id;
+		bool use_hardware_transform;
+		Vector2 texpixel_size;
 	};
 
 
@@ -210,6 +216,33 @@ public:
 
 private:
 	bool _detect_batch_break(Item * ci);
+
+	void software_transform_vert(BatchVector2 &v, const Transform2D &tr) const
+	{
+		Vector2 vc(v.x, v.y);
+		vc = tr.xform(vc);
+		v.set(vc);
+	}
+
+
+	void software_transform_vert(Vector2 &v, const Transform2D &tr) const
+	{
+		v = tr.xform(v);
+	}
+
+
+	void software_translate_vert(Vector2 &v, const Transform2D &tr) const
+	{
+		v.x += tr.elements[2].x;
+		v.y += tr.elements[2].y;
+	}
+
+	void software_translate_rect(Rect2 &rect, const Transform2D &tr) const
+	{
+		rect.position.x += tr.elements[2].x;
+		rect.position.y += tr.elements[2].y;
+	}
+
 
 public:
 	void initialize();

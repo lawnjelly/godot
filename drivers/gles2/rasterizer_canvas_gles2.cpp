@@ -200,12 +200,19 @@ bool RasterizerCanvasGLES2::_batch_canvas_joined_item_prefill(FillState &fill_st
 //	Batch *curr_batch = 0;
 //	int batch_tex_id = -1;
 
+	Transform2D transform;
+	if (!fill_state.use_hardware_transform)
+	{
+		transform = p_item->final_transform;
+	}
+
+
 	// we keep a record of how many color changes caused new batches
 	// if the colors are causing an excessive number of batches, we switch
 	// to alternate batching method and add color to the vertex format.
 	//int color_changes = 0;
 
-	Vector2 texpixel_size(1, 1);
+	Vector2 texpixel_size = fill_state.texpixel_size;
 
 	// start batch is a dummy batch (tex id -1) .. could be made more efficient
 	if (!fill_state.curr_batch)
@@ -277,6 +284,9 @@ bool RasterizerCanvasGLES2::_batch_canvas_joined_item_prefill(FillState &fill_st
 					// put the tex pixel size  in a local (less verbose and can be a register)
 					bdata.batch_textures[fill_state.batch_tex_id].tex_pixel_size.to(texpixel_size);
 
+					// need to preserve texpixel_size between items
+					fill_state.texpixel_size = texpixel_size;
+
 					// open new batch (this should never fail, it dynamically grows)
 					fill_state.curr_batch = _batch_request_new(false);
 
@@ -292,7 +302,13 @@ bool RasterizerCanvasGLES2::_batch_canvas_joined_item_prefill(FillState &fill_st
 				}
 
 				// fill the quad geometry
-				const Vector2 &mins = rect->rect.position;
+				Vector2 mins = rect->rect.position;
+
+				if (!fill_state.use_hardware_transform)
+				{
+					software_transform_vert(mins, transform);
+				}
+
 				Vector2 maxs = mins + rect->rect.size;
 
 				// just aliases
@@ -322,8 +338,18 @@ bool RasterizerCanvasGLES2::_batch_canvas_joined_item_prefill(FillState &fill_st
 					SWAP(bB->pos, bC->pos);
 				}
 
+//				if (!fill_state.use_hardware_transform)
+//				{
+//					software_transform_vert(bA->pos, transform);
+//					software_transform_vert(bB->pos, transform);
+//					software_transform_vert(bC->pos, transform);
+//					software_transform_vert(bD->pos, transform);
+//				}
+
+
 				// uvs
 				Rect2 src_rect = (rect->flags & CANVAS_RECT_REGION) ? Rect2(rect->source.position * texpixel_size, rect->source.size * texpixel_size) : Rect2(0, 0, 1, 1);
+//				Rect2 src_rect = Rect2(0, 0, 1, 1);
 
 				// 10% faster calculating the max first
 				Vector2 pos_max = src_rect.position + src_rect.size;
@@ -1595,6 +1621,7 @@ void RasterizerCanvasGLES2::_canvas_joined_item_render_commands(const BItemJoine
 
 	FillState fill_state;
 	fill_state.Reset();
+	fill_state.use_hardware_transform = bij.use_hardware_transform();
 
 	for (int i=0; i<bij.num_item_refs; i++)
 	{
@@ -2651,7 +2678,10 @@ void RasterizerCanvasGLES2::_canvas_render_joined_item(const BItemJoined &bij, R
 
 	state.uniforms.final_modulate = unshaded ? ci->final_modulate : Color(ci->final_modulate.r * ris.IG_modulate.r, ci->final_modulate.g * ris.IG_modulate.g, ci->final_modulate.b * ris.IG_modulate.b, ci->final_modulate.a * ris.IG_modulate.a);
 
-	state.uniforms.modelview_matrix = ci->final_transform;
+	if (!bij.use_hardware_transform())
+		state.uniforms.modelview_matrix = Transform2D();
+	else
+		state.uniforms.modelview_matrix = ci->final_transform;
 	state.uniforms.extra_matrix = Transform2D();
 
 	_set_uniforms();
