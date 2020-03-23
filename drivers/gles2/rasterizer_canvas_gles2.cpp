@@ -268,7 +268,9 @@ bool RasterizerCanvasGLES2::_batch_canvas_joined_item_prefill(FillState &fill_st
 				BatchVertex *bvs = bdata.vertices.request_four();
 				if (!bvs) {
 					// run out of space in the vertex buffer .. finish this function and draw what we have so far
-					goto cleanup;
+					// return where we got to
+					r_command_start = command_num;
+					return true;
 				}
 
 				bool change_batch = false;
