@@ -204,6 +204,10 @@ bool RasterizerCanvasGLES2::_batch_canvas_joined_item_prefill(FillState &fill_st
 	if (!fill_state.use_hardware_transform)
 	{
 		transform = p_item->final_transform;
+
+		// test
+		//transform.elements[2] = Vector2(320, 320);
+		//print_line("software trans : " + String(Variant(transform.elements[2])));
 	}
 
 
@@ -304,10 +308,10 @@ bool RasterizerCanvasGLES2::_batch_canvas_joined_item_prefill(FillState &fill_st
 				// fill the quad geometry
 				Vector2 mins = rect->rect.position;
 
-				if (!fill_state.use_hardware_transform)
-				{
-					software_transform_vert(mins, transform);
-				}
+//				if (!fill_state.use_hardware_transform)
+//				{
+//					software_transform_vert(mins, transform);
+//				}
 
 				Vector2 maxs = mins + rect->rect.size;
 
@@ -338,13 +342,13 @@ bool RasterizerCanvasGLES2::_batch_canvas_joined_item_prefill(FillState &fill_st
 					SWAP(bB->pos, bC->pos);
 				}
 
-//				if (!fill_state.use_hardware_transform)
-//				{
-//					software_transform_vert(bA->pos, transform);
-//					software_transform_vert(bB->pos, transform);
-//					software_transform_vert(bC->pos, transform);
-//					software_transform_vert(bD->pos, transform);
-//				}
+				if (!fill_state.use_hardware_transform)
+				{
+					software_transform_vert(bA->pos, transform);
+					software_transform_vert(bB->pos, transform);
+					software_transform_vert(bC->pos, transform);
+					software_transform_vert(bD->pos, transform);
+				}
 
 
 				// uvs
@@ -1746,11 +1750,23 @@ void RasterizerCanvasGLES2::join_items(Item *p_item_list, int p_z, const Color &
 
 	BItemJoined * j = 0;
 
+	bool batch_break = false;
+
 	while (p_item_list) {
 
 		Item *ci = p_item_list;
 
-		bool join = _try_join_item(ci, ris);
+		bool join;
+
+		if (batch_break)
+		{
+			join = false;
+			batch_break = false;
+		}
+		else
+		{
+			join = _try_join_item(ci, ris, batch_break);
+		}
 
 		// assume the first item will always return no join
 		if (!join)
@@ -1838,8 +1854,10 @@ void RasterizerCanvasGLES2::canvas_render_items_implementation(Item *p_item_list
 
 // this function should duplicate the logic in _canvas_render_item, to decide whether items are similar enough to join
 // i.e. no state changes.
-bool RasterizerCanvasGLES2::_try_join_item(Item * ci, RIState &ris)
+bool RasterizerCanvasGLES2::_try_join_item(Item * ci, RIState &ris, bool &r_batch_break)
 {
+//	return false;
+	r_batch_break = false;
 	bool join = true;
 
 	if (ris.current_clip != ci->final_clip_owner) {
@@ -2045,10 +2063,13 @@ bool RasterizerCanvasGLES2::_try_join_item(Item * ci, RIState &ris)
 	}
 
 	// non rects will break the batching anyway, we don't want to record item changes, detect this
-	if (join)
+	//if (join)
 	{
 		if (_detect_batch_break(ci))
+		{
 			join = false;
+			r_batch_break = true;
+		}
 	} // if join
 
 	return join;
@@ -2080,6 +2101,9 @@ bool RasterizerCanvasGLES2::_detect_batch_break(Item * ci)
 					return true;
 				} break;
 				case Item::Command::TYPE_RECT: {
+//					Item::CommandRect *r = static_cast<Item::CommandRect *>(command);
+//					if (r->texture == RID())
+//						return true;
 				} break;
 			} // switch
 
@@ -2457,6 +2481,11 @@ void RasterizerCanvasGLES2::_canvas_render_item(Item * ci, RIState &ris)
 
 void RasterizerCanvasGLES2::_canvas_render_joined_item(const BItemJoined &bij, RIState &ris)
 {
+	// test
+	//if (bij.num_item_refs <= 1)
+	//	return;
+
+
 	// all the joined items will share the same state with the first item
 	Item * ci = bdata.item_refs[bij.first_item_ref].m_pItem;
 
