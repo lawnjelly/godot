@@ -1681,7 +1681,7 @@ void RasterizerCanvasGLES2::_flush_render_batches(Item *p_item, Item *current_cl
 	_batch_upload_buffers();
 
 	Item::Command * const *commands = p_item->commands.ptr();
-	//int s = p_item->commands.size();
+	int s = p_item->commands.size();
 
 	_render_batches(commands, 0, current_clip, reclip, p_material);
 
@@ -1762,8 +1762,12 @@ void RasterizerCanvasGLES2::join_items(Item *p_item_list, int p_z, const Color &
 
 		if (batch_break)
 		{
+			// always start a new batch
 			join = false;
-			batch_break = false;
+
+			// could be another batch break?
+			_try_join_item(ci, ris, batch_break);
+			//batch_break = false;
 		}
 		else
 		{
@@ -1859,6 +1863,7 @@ void RasterizerCanvasGLES2::canvas_render_items_implementation(Item *p_item_list
 bool RasterizerCanvasGLES2::_try_join_item(Item * ci, RIState &ris, bool &r_batch_break)
 {
 //	return false;
+
 	r_batch_break = false;
 	bool join = true;
 
@@ -2080,9 +2085,9 @@ bool RasterizerCanvasGLES2::_try_join_item(Item * ci, RIState &ris, bool &r_batc
 
 bool RasterizerCanvasGLES2::_detect_batch_break(Item * ci)
 {
-//	return true;
-
 	int command_count = ci->commands.size();
+
+//	CRASH_COND(command_count == 0);
 
 	if (command_count > 1)
 	{
@@ -2868,6 +2873,7 @@ void RasterizerCanvasGLES2::initialize() {
 		// Note this determines the memory use by the vertex buffer vector. max quads (65536/4)-1
 		// but can be reduced to save memory if really required (will result in more batches though)
 		int max_quads = (65536 / 4) - 1;
+		//max_quads = 16;
 
 		uint32_t sizeof_batch_vert = sizeof(BatchVertex);
 
