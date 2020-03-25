@@ -1968,10 +1968,22 @@ bool RasterizerCanvasGLES2::_try_join_item(Item * ci, RIState &ris, bool &r_batc
 
 	if ((blend_mode == RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_MIX || blend_mode == RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_PMALPHA) && ris.IG_light && !unshaded) {
 
-		Light *light = ris.IG_light;
+		// we cannot join lit items easily.
+		// it is possible, but not if they overlap, because
+		// a + light_blend + b + light_blend IS NOT THE SAME AS
+		// a + b + light_blend
+		join = false;
 
-		if (light)
-			join = false;
+		// just an alias
+//		Light *light = ris.IG_light;
+
+//		if (ci->final_modulate != ris.final_modulate)
+//		{
+
+//			// keep track of the final modulate color state used by lighting ..
+//			// if this changes between items, cannot join
+//			ris.final_modulate = ci->final_modulate;
+//		}
 
 //		bool light_used = false;
 //		VS::CanvasLightMode mode = VS::CANVAS_LIGHT_MODE_ADD;

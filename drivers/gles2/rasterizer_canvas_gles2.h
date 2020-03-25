@@ -179,6 +179,8 @@ public:
 		bool prev_use_skeleton;
 		int last_blend_mode;
 		RID canvas_last_material;
+		// used for lights, per item .. doesn't need to be reset? will always be set on first lit item
+		//Color final_modulate;
 
 		// item group
 		int IG_z;
