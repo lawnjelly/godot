@@ -119,6 +119,16 @@ public:
 	};
 
 	struct BatchData {
+		void reset_flush()
+		{
+			batches.reset();
+			batch_textures.reset();
+			vertices.reset();
+
+			total_quads = 0;
+			total_color_changes = 0;
+		}
+
 		GLuint gl_vertex_buffer;
 		GLuint gl_index_buffer;
 

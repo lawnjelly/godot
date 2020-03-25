@@ -223,11 +223,14 @@ bool RasterizerCanvasGLES2::_batch_canvas_joined_item_prefill(FillState &fill_st
 	{
 		fill_state.curr_batch = _batch_request_new();
 		fill_state.curr_batch->type = Batch::BT_DEFAULT;
+		fill_state.curr_batch->first_command = r_command_start;
 	}
 
 	// we need to return which command we got up to, so
 	// store this outside the loop
 	int command_num;
+
+	print_line("_batch_canvas_joined_item_prefill : from " + itos(r_command_start) + " to " + itos(command_count));
 
 	// do as many commands as possible until the vertex buffer will be full up
 	for (command_num = r_command_start; command_num < command_count; command_num++) {
@@ -1614,6 +1617,8 @@ void RasterizerCanvasGLES2::_render_batches(Item::Command * const *commands, int
 		}
 	}
 
+	// zero all the batch data ready for a new run
+	bdata.reset_flush();
 }
 
 
@@ -1662,6 +1667,8 @@ void RasterizerCanvasGLES2::_canvas_joined_item_render_commands(const BItemJoine
 
 void RasterizerCanvasGLES2::_flush_render_batches(Item *p_item, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material)
 {
+	print_line("_flush_render_batches");
+
 	// some heuristic to decide whether to use colored verts.
 	// feel free to tweak this.
 	// this could use hysteresis, to prevent jumping between methods
@@ -1684,14 +1691,6 @@ void RasterizerCanvasGLES2::_flush_render_batches(Item *p_item, Item *current_cl
 	int s = p_item->commands.size();
 
 	_render_batches(commands, 0, current_clip, reclip, p_material);
-
-	// zero all the batch data ready for a new run
-	bdata.batches.reset();
-	bdata.batch_textures.reset();
-	bdata.vertices.reset();
-
-	bdata.total_quads = 0;
-	bdata.total_color_changes = 0;
 }
 
 
@@ -1809,7 +1808,9 @@ void RasterizerCanvasGLES2::canvas_render_items(Item *p_item_list, int p_z, cons
 		bdata.use_batching = false;
 #endif
 
-	join_items(p_item_list, p_z, p_modulate, p_light, p_base_transform);
+	if (bdata.use_batching)
+		join_items(p_item_list, p_z, p_modulate, p_light, p_base_transform);
+
 	canvas_render_items_implementation(p_item_list, p_z, p_modulate, p_light, p_base_transform);
 }
 
@@ -2101,6 +2102,7 @@ bool RasterizerCanvasGLES2::_detect_batch_break(Item * ci)
 		for (int command_num = 0; command_num < command_count; command_num++) {
 
 			Item::Command *command = commands[command_num];
+			CRASH_COND(!command);
 
 			switch (command->type) {
 
