@@ -108,6 +108,8 @@ public:
 		uint32_t first_item_ref;
 		uint32_t num_item_refs;
 
+		Rect2 bounding_rect;
+
 		// we are always splitting items with lots of commands,
 		// and items with unhandled primitives (default)
 		bool use_hardware_transform() const {return num_item_refs == 1;}

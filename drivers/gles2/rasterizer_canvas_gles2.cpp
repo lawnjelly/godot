@@ -39,7 +39,7 @@
 #define glClearDepth glClearDepthf
 #endif
 
-//#define KESSEL_FLASH
+#define KESSEL_FLASH
 
 
 RasterizerStorageGLES2::Texture *RasterizerCanvasGLES2::_get_canvas_texture(const RID &p_texture) const {
@@ -1779,6 +1779,7 @@ void RasterizerCanvasGLES2::join_items(Item *p_item_list, int p_z, const Color &
 			j = bdata.items_joined.request_with_grow();
 			j->first_item_ref = bdata.item_refs.size();
 			j->num_item_refs = 1;
+			j->bounding_rect = ci->global_rect_cache;
 
 			// add the reference
 			BItemRef * r = bdata.item_refs.request_with_grow();
@@ -1788,6 +1789,7 @@ void RasterizerCanvasGLES2::join_items(Item *p_item_list, int p_z, const Color &
 		{
 			CRASH_COND(j == 0);
 			j->num_item_refs += 1;
+			j->bounding_rect = j->bounding_rect.merge(ci->global_rect_cache);
 
 			BItemRef * r = bdata.item_refs.request_with_grow();
 			r->m_pItem = ci;
@@ -1863,7 +1865,7 @@ void RasterizerCanvasGLES2::canvas_render_items_implementation(Item *p_item_list
 // i.e. no state changes.
 bool RasterizerCanvasGLES2::_try_join_item(Item * ci, RIState &ris, bool &r_batch_break)
 {
-//	return false;
+	//return false;
 
 	r_batch_break = false;
 	bool join = true;
@@ -1964,107 +1966,110 @@ bool RasterizerCanvasGLES2::_try_join_item(Item * ci, RIState &ris, bool &r_batc
 //	ris.rebind_shader = true; // hacked in for now.
 
 
-/*
 	if ((blend_mode == RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_MIX || blend_mode == RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_PMALPHA) && ris.IG_light && !unshaded) {
 
 		Light *light = ris.IG_light;
-		bool light_used = false;
-		VS::CanvasLightMode mode = VS::CANVAS_LIGHT_MODE_ADD;
-		state.uniforms.final_modulate = ci->final_modulate; // remove the canvas modulate
 
-		while (light) {
+		if (light)
+			join = false;
 
-			if (ci->light_mask & light->item_mask && ris.IG_z >= light->z_min && ris.IG_z <= light->z_max && ci->global_rect_cache.intersects_transformed(light->xform_cache, light->rect_cache)) {
+//		bool light_used = false;
+//		VS::CanvasLightMode mode = VS::CANVAS_LIGHT_MODE_ADD;
+//		state.uniforms.final_modulate = ci->final_modulate; // remove the canvas modulate
 
-				//intersects this light
+//		while (light) {
 
-				if (!light_used || mode != light->mode) {
+//			if (ci->light_mask & light->item_mask && ris.IG_z >= light->z_min && ris.IG_z <= light->z_max && ci->global_rect_cache.intersects_transformed(light->xform_cache, light->rect_cache)) {
 
-					mode = light->mode;
+//				//intersects this light
 
-					switch (mode) {
+//				if (!light_used || mode != light->mode) {
 
-						case VS::CANVAS_LIGHT_MODE_ADD: {
-							glBlendEquation(GL_FUNC_ADD);
-							glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+//					mode = light->mode;
 
-						} break;
-						case VS::CANVAS_LIGHT_MODE_SUB: {
-							glBlendEquation(GL_FUNC_REVERSE_SUBTRACT);
-							glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-						} break;
-						case VS::CANVAS_LIGHT_MODE_MIX:
-						case VS::CANVAS_LIGHT_MODE_MASK: {
-							glBlendEquation(GL_FUNC_ADD);
-							glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+//					switch (mode) {
 
-						} break;
-					}
-				}
+//						case VS::CANVAS_LIGHT_MODE_ADD: {
+//							glBlendEquation(GL_FUNC_ADD);
+//							glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 
-				if (!light_used) {
+//						} break;
+//						case VS::CANVAS_LIGHT_MODE_SUB: {
+//							glBlendEquation(GL_FUNC_REVERSE_SUBTRACT);
+//							glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+//						} break;
+//						case VS::CANVAS_LIGHT_MODE_MIX:
+//						case VS::CANVAS_LIGHT_MODE_MASK: {
+//							glBlendEquation(GL_FUNC_ADD);
+//							glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-					state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_LIGHTING, true);
-					light_used = true;
-				}
+//						} break;
+//					}
+//				}
 
-				bool has_shadow = light->shadow_buffer.is_valid() && ci->light_mask & light->item_shadow_mask;
+//				if (!light_used) {
 
-				state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_SHADOWS, has_shadow);
-				if (has_shadow) {
-					state.canvas_shader.set_conditional(CanvasShaderGLES2::SHADOW_USE_GRADIENT, light->shadow_gradient_length > 0);
-					state.canvas_shader.set_conditional(CanvasShaderGLES2::SHADOW_FILTER_NEAREST, light->shadow_filter == VS::CANVAS_LIGHT_FILTER_NONE);
-					state.canvas_shader.set_conditional(CanvasShaderGLES2::SHADOW_FILTER_PCF3, light->shadow_filter == VS::CANVAS_LIGHT_FILTER_PCF3);
-					state.canvas_shader.set_conditional(CanvasShaderGLES2::SHADOW_FILTER_PCF5, light->shadow_filter == VS::CANVAS_LIGHT_FILTER_PCF5);
-					state.canvas_shader.set_conditional(CanvasShaderGLES2::SHADOW_FILTER_PCF7, light->shadow_filter == VS::CANVAS_LIGHT_FILTER_PCF7);
-					state.canvas_shader.set_conditional(CanvasShaderGLES2::SHADOW_FILTER_PCF9, light->shadow_filter == VS::CANVAS_LIGHT_FILTER_PCF9);
-					state.canvas_shader.set_conditional(CanvasShaderGLES2::SHADOW_FILTER_PCF13, light->shadow_filter == VS::CANVAS_LIGHT_FILTER_PCF13);
-				}
+//					state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_LIGHTING, true);
+//					light_used = true;
+//				}
 
-				state.canvas_shader.bind();
-				state.using_light = light;
-				state.using_shadow = has_shadow;
+//				bool has_shadow = light->shadow_buffer.is_valid() && ci->light_mask & light->item_shadow_mask;
 
-				//always re-set uniforms, since light parameters changed
-				_set_uniforms();
-				state.canvas_shader.use_material((void *)material_ptr);
+//				state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_SHADOWS, has_shadow);
+//				if (has_shadow) {
+//					state.canvas_shader.set_conditional(CanvasShaderGLES2::SHADOW_USE_GRADIENT, light->shadow_gradient_length > 0);
+//					state.canvas_shader.set_conditional(CanvasShaderGLES2::SHADOW_FILTER_NEAREST, light->shadow_filter == VS::CANVAS_LIGHT_FILTER_NONE);
+//					state.canvas_shader.set_conditional(CanvasShaderGLES2::SHADOW_FILTER_PCF3, light->shadow_filter == VS::CANVAS_LIGHT_FILTER_PCF3);
+//					state.canvas_shader.set_conditional(CanvasShaderGLES2::SHADOW_FILTER_PCF5, light->shadow_filter == VS::CANVAS_LIGHT_FILTER_PCF5);
+//					state.canvas_shader.set_conditional(CanvasShaderGLES2::SHADOW_FILTER_PCF7, light->shadow_filter == VS::CANVAS_LIGHT_FILTER_PCF7);
+//					state.canvas_shader.set_conditional(CanvasShaderGLES2::SHADOW_FILTER_PCF9, light->shadow_filter == VS::CANVAS_LIGHT_FILTER_PCF9);
+//					state.canvas_shader.set_conditional(CanvasShaderGLES2::SHADOW_FILTER_PCF13, light->shadow_filter == VS::CANVAS_LIGHT_FILTER_PCF13);
+//				}
 
-				glActiveTexture(GL_TEXTURE0 + storage->config.max_texture_image_units - 4);
-				RasterizerStorageGLES2::Texture *t = storage->texture_owner.getornull(light->texture);
-				if (!t) {
-					glBindTexture(GL_TEXTURE_2D, storage->resources.white_tex);
-				} else {
-					t = t->get_ptr();
+//				state.canvas_shader.bind();
+//				state.using_light = light;
+//				state.using_shadow = has_shadow;
 
-					glBindTexture(t->target, t->tex_id);
-				}
+//				//always re-set uniforms, since light parameters changed
+//				_set_uniforms();
+//				state.canvas_shader.use_material((void *)material_ptr);
 
-				glActiveTexture(GL_TEXTURE0);
-				_canvas_item_render_commands(ci, NULL, reclip, material_ptr); //redraw using light
+//				glActiveTexture(GL_TEXTURE0 + storage->config.max_texture_image_units - 4);
+//				RasterizerStorageGLES2::Texture *t = storage->texture_owner.getornull(light->texture);
+//				if (!t) {
+//					glBindTexture(GL_TEXTURE_2D, storage->resources.white_tex);
+//				} else {
+//					t = t->get_ptr();
 
-				state.using_light = NULL;
-			}
+//					glBindTexture(t->target, t->tex_id);
+//				}
 
-			light = light->next_ptr;
-		}
+//				glActiveTexture(GL_TEXTURE0);
+//				_canvas_item_render_commands(ci, NULL, reclip, material_ptr); //redraw using light
 
-		if (light_used) {
+//				state.using_light = NULL;
+//			}
 
-			state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_LIGHTING, false);
-			state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_SHADOWS, false);
-			state.canvas_shader.set_conditional(CanvasShaderGLES2::SHADOW_FILTER_NEAREST, false);
-			state.canvas_shader.set_conditional(CanvasShaderGLES2::SHADOW_FILTER_PCF3, false);
-			state.canvas_shader.set_conditional(CanvasShaderGLES2::SHADOW_FILTER_PCF5, false);
-			state.canvas_shader.set_conditional(CanvasShaderGLES2::SHADOW_FILTER_PCF7, false);
-			state.canvas_shader.set_conditional(CanvasShaderGLES2::SHADOW_FILTER_PCF9, false);
-			state.canvas_shader.set_conditional(CanvasShaderGLES2::SHADOW_FILTER_PCF13, false);
+//			light = light->next_ptr;
+//		}
 
-			state.canvas_shader.bind();
+//		if (light_used) {
 
-			ris.last_blend_mode = -1;
-		}
+//			state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_LIGHTING, false);
+//			state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_SHADOWS, false);
+//			state.canvas_shader.set_conditional(CanvasShaderGLES2::SHADOW_FILTER_NEAREST, false);
+//			state.canvas_shader.set_conditional(CanvasShaderGLES2::SHADOW_FILTER_PCF3, false);
+//			state.canvas_shader.set_conditional(CanvasShaderGLES2::SHADOW_FILTER_PCF5, false);
+//			state.canvas_shader.set_conditional(CanvasShaderGLES2::SHADOW_FILTER_PCF7, false);
+//			state.canvas_shader.set_conditional(CanvasShaderGLES2::SHADOW_FILTER_PCF9, false);
+//			state.canvas_shader.set_conditional(CanvasShaderGLES2::SHADOW_FILTER_PCF13, false);
+
+//			state.canvas_shader.bind();
+
+//			ris.last_blend_mode = -1;
+//		}
 	}
-*/
+
 
 	if (reclip) {
 		join = false;
@@ -2738,7 +2743,12 @@ void RasterizerCanvasGLES2::_canvas_render_joined_item(const BItemJoined &bij, R
 
 		while (light) {
 
-			if (ci->light_mask & light->item_mask && ris.IG_z >= light->z_min && ris.IG_z <= light->z_max && ci->global_rect_cache.intersects_transformed(light->xform_cache, light->rect_cache)) {
+//			if (ci->light_mask & light->item_mask && ris.IG_z >= light->z_min && ris.IG_z <= light->z_max && ci->global_rect_cache.intersects_transformed(light->xform_cache, light->rect_cache)) {
+			// use the bounding rect of the joined items, NOT only the bounding rect of the first item.
+			// note this is a cost of batching, the light culling will be less effective
+			if (ci->light_mask & light->item_mask && ris.IG_z >= light->z_min && ris.IG_z <= light->z_max && bij.bounding_rect.intersects_transformed(light->xform_cache, light->rect_cache)) {
+
+			//if (ci->light_mask & light->item_mask && ris.IG_z >= light->z_min && ris.IG_z <= light->z_max) {
 
 				//intersects this light
 
