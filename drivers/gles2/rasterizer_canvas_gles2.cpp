@@ -230,7 +230,7 @@ bool RasterizerCanvasGLES2::_batch_canvas_joined_item_prefill(FillState &fill_st
 	// store this outside the loop
 	int command_num;
 
-	print_line("_batch_canvas_joined_item_prefill : from " + itos(r_command_start) + " to " + itos(command_count));
+	//print_line("_batch_canvas_joined_item_prefill : from " + itos(r_command_start) + " to " + itos(command_count));
 
 	// do as many commands as possible until the vertex buffer will be full up
 	for (command_num = r_command_start; command_num < command_count; command_num++) {
@@ -395,7 +395,7 @@ bool RasterizerCanvasGLES2::_batch_canvas_joined_item_prefill(FillState &fill_st
 	}
 
 	// gotos are cool, never use goto kids
-cleanup:;
+//cleanup:;
 
 	// return where we got to
 	r_command_start = command_num;
@@ -1667,7 +1667,7 @@ void RasterizerCanvasGLES2::_canvas_joined_item_render_commands(const BItemJoine
 
 void RasterizerCanvasGLES2::_flush_render_batches(Item *p_item, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material)
 {
-	print_line("_flush_render_batches");
+	//print_line("_flush_render_batches");
 
 	// some heuristic to decide whether to use colored verts.
 	// feel free to tweak this.
@@ -1688,7 +1688,7 @@ void RasterizerCanvasGLES2::_flush_render_batches(Item *p_item, Item *current_cl
 	_batch_upload_buffers();
 
 	Item::Command * const *commands = p_item->commands.ptr();
-	int s = p_item->commands.size();
+	//int s = p_item->commands.size();
 
 	_render_batches(commands, 0, current_clip, reclip, p_material);
 }
