@@ -39,6 +39,10 @@
 #define glClearDepth glClearDepthf
 #endif
 
+// For debugging, if this is defined, it will flash on alternate frames
+// between the non-batched renderer and the batched renderer,
+// in order to find regressions.
+// This should not be defined except during development.
 //#define KESSEL_FLASH
 
 

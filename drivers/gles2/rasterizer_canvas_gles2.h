@@ -44,7 +44,6 @@ class RasterizerCanvasGLES2 : public RasterizerCanvasBaseGLES2 {
 		TM_TRANSLATE,
 	};
 
-public:
 	// pod versions of vector and color and RID, need to be 32 bit for vertex format
 	struct BatchVector2 {
 		float x, y;
@@ -206,29 +205,28 @@ public:
 		Vector2 texpixel_size;
 	};
 
-
+public:
 	virtual void canvas_render_items(Item *p_item_list, int p_z, const Color &p_modulate, Light *p_light, const Transform2D &p_base_transform);
+private:
 	void _canvas_render_item(Item * ci, RIState &ris);
 	_FORCE_INLINE_ void _canvas_item_render_commands(Item *p_item, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material);
 
 
 
+	// high level batch funcs
 	void canvas_render_items_implementation(Item *p_item_list, int p_z, const Color &p_modulate, Light *p_light, const Transform2D &p_base_transform);
 	void _canvas_render_joined_item(const BItemJoined &bij, RIState &ris);
 	void join_items(Item *p_item_list, int p_z, const Color &p_modulate, Light *p_light, const Transform2D &p_base_transform);
 	bool _try_join_item(Item * ci, RIState &ris, bool &r_batch_break);
-
 	void _canvas_joined_item_render_commands(const BItemJoined &bij, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material);
-
 	void _render_batches(Item::Command * const *commands, int first_item_ref_id, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material);
-
 	bool _batch_canvas_joined_item_prefill(FillState &fill_state, int &r_command_start, Item *p_item, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material);
 	void _flush_render_batches(Item *p_item, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material);
 
 
 
 
-
+	// low level batch funcs
 	int _batch_canvas_item_prefill(int p_command_start, Item *p_item, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material);
 	void _batch_translate_to_colored();
 	_FORCE_INLINE_ int _batch_find_or_create_tex(const RID &p_texture, const RID &p_normal, bool p_tile, int p_previous_match);
@@ -242,59 +240,51 @@ public:
 private:
 	bool _detect_batch_break(Item * ci);
 
-	void software_transform_vert(BatchVector2 &v, const Transform2D &tr) const
-	{
-		Vector2 vc(v.x, v.y);
-		vc = tr.xform(vc);
-		v.set(vc);
-	}
-
-
-	void software_transform_vert(Vector2 &v, const Transform2D &tr) const
-	{
-		v = tr.xform(v);
-	}
-
-
-	void software_translate_vert(Vector2 &v, const Transform2D &tr) const
-	{
-		v.x += tr.elements[2].x;
-		v.y += tr.elements[2].y;
-	}
-
-	void software_translate_rect(Rect2 &rect, const Transform2D &tr) const
-	{
-		rect.position.x += tr.elements[2].x;
-		rect.position.y += tr.elements[2].y;
-	}
-
-	TransformMode	_find_transform_mode(bool p_use_hardware_transform, const Transform2D &p_tr, Transform2D &r_tr) const
-	{
-		if (!p_use_hardware_transform)
-		{
-			r_tr = p_tr;
-
-			// decided whether to do translate only for software transform
-			if ((p_tr.elements[0].x == 1.0) &&
-			(p_tr.elements[0].y == 0.0) &&
-			(p_tr.elements[1].x == 0.0) &&
-			(p_tr.elements[1].y == 1.0))
-			{
-				return TM_TRANSLATE;
-			}
-			else
-			{
-				return TM_ALL;
-			}
-		}
-
-		return TM_NONE;
-	}
-
+	void software_transform_vert(BatchVector2 &v, const Transform2D &tr) const;
+	void software_transform_vert(Vector2 &v, const Transform2D &tr) const;
+	TransformMode	_find_transform_mode(bool p_use_hardware_transform, const Transform2D &p_tr, Transform2D &r_tr) const;
 
 public:
 	void initialize();
 	RasterizerCanvasGLES2();
 };
+
+//////////////////////////////////////////////////////////////
+
+inline void RasterizerCanvasGLES2::software_transform_vert(BatchVector2 &v, const Transform2D &tr) const
+{
+	Vector2 vc(v.x, v.y);
+	vc = tr.xform(vc);
+	v.set(vc);
+}
+
+inline void RasterizerCanvasGLES2::software_transform_vert(Vector2 &v, const Transform2D &tr) const
+{
+	v = tr.xform(v);
+}
+
+inline RasterizerCanvasGLES2::TransformMode	RasterizerCanvasGLES2::_find_transform_mode(bool p_use_hardware_transform, const Transform2D &p_tr, Transform2D &r_tr) const
+{
+	if (!p_use_hardware_transform)
+	{
+		r_tr = p_tr;
+
+		// decided whether to do translate only for software transform
+		if ((p_tr.elements[0].x == 1.0) &&
+		(p_tr.elements[0].y == 0.0) &&
+		(p_tr.elements[1].x == 0.0) &&
+		(p_tr.elements[1].y == 1.0))
+		{
+			return TM_TRANSLATE;
+		}
+		else
+		{
+			return TM_ALL;
+		}
+	}
+
+	return TM_NONE;
+}
+
 
 #endif // RASTERIZERCANVASGLES2_H
