@@ -2921,7 +2921,7 @@ void RasterizerCanvasGLES2::initialize() {
 		// Note this determines the memory use by the vertex buffer vector. max quads (65536/4)-1
 		// but can be reduced to save memory if really required (will result in more batches though)
 		int max_quads = (65536 / 4) - 1;
-		//max_quads = 16;
+//		max_quads = 64;
 
 		uint32_t sizeof_batch_vert = sizeof(BatchVertex);
 
@@ -2993,5 +2993,5 @@ RasterizerCanvasGLES2::RasterizerCanvasGLES2() {
 	}
 
 	// force on
-	bdata.use_batching = true;
+	bdata.use_batching = false;
 }
