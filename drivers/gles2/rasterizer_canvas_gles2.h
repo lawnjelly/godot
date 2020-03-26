@@ -169,6 +169,7 @@ class RasterizerCanvasGLES2 : public RasterizerCanvasBaseGLES2 {
 		int total_color_changes;
 	} bdata;
 
+	// RenderItemState
 	struct RIState
 	{
 		RIState()
