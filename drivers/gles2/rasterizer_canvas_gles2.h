@@ -221,7 +221,6 @@ private:
 	void flush_render_batches(Item *p_item, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material);
 
 	// low level batch funcs
-	int _batch_canvas_item_prefill(int p_command_start, Item *p_item, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material);
 	void _batch_translate_to_colored();
 	_FORCE_INLINE_ int _batch_find_or_create_tex(const RID &p_texture, const RID &p_normal, bool p_tile, int p_previous_match);
 	RasterizerStorageGLES2::Texture *_get_canvas_texture(const RID &p_texture) const;

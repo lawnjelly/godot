@@ -380,201 +380,6 @@ bool RasterizerCanvasGLES2::prefill_joined_item(FillState &fill_state, int &r_co
 	return false;
 }
 
-// returns the command we got up to .. we may have to call this multiple times because there is a limit of 65535
-// verts referenced in the index buffer
-int RasterizerCanvasGLES2::_batch_canvas_item_prefill(int p_command_start, Item *p_item, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material) {
-	// zero all the batch data ready for a new run
-	bdata.batches.reset();
-	bdata.batch_textures.reset();
-	bdata.vertices.reset();
-
-	// we will prefill batches and vertices ready for sending in one go to the vertex buffer
-	int command_count = p_item->commands.size();
-	Item::Command **commands = p_item->commands.ptrw();
-
-	Batch *curr_batch = 0;
-	int batch_tex_id = -1;
-	int quad_count = 0;
-
-	// we keep a record of how many color changes caused new batches
-	// if the colors are causing an excessive number of batches, we switch
-	// to alternate batching method and add color to the vertex format.
-	int color_changes = 0;
-
-	Vector2 texpixel_size(1, 1);
-
-	// start batch is a dummy batch (tex id -1) .. could be made more efficient
-	curr_batch = _batch_request_new();
-	curr_batch->type = Batch::BT_DEFAULT;
-
-	// we need to return which command we got up to, so
-	// store this outside the loop
-	int command_num;
-
-	// do as many commands as possible until the vertex buffer will be full up
-	for (command_num = p_command_start; command_num < command_count; command_num++) {
-
-		Item::Command *command = commands[command_num];
-
-		switch (command->type) {
-
-			default: {
-				if (curr_batch->type == Batch::BT_DEFAULT) {
-					curr_batch->num_commands++;
-				} else {
-					// end previous batch, start new one
-					curr_batch = _batch_request_new();
-					curr_batch->type = Batch::BT_DEFAULT;
-					curr_batch->first_command = command_num;
-					curr_batch->num_commands = 1;
-				}
-			} break;
-			case Item::Command::TYPE_RECT: {
-
-				Item::CommandRect *rect = static_cast<Item::CommandRect *>(command);
-
-				const Color &col = rect->modulate;
-
-				// instead of doing all the texture preparation for EVERY rect,
-				// we build a list of texture combinations and do this once off.
-				// This means we have a potentially rather slow step to identify which texture combo
-				// using the RIDs.
-				int old_bti = batch_tex_id;
-				batch_tex_id = _batch_find_or_create_tex(rect->texture, rect->normal_map, rect->flags & CANVAS_RECT_TILE, old_bti);
-
-				// try to create vertices BEFORE creating a batch,
-				// because if the vertex buffer is full, we need to finish this
-				// function, draw what we have so far, and then start a new set of batches
-
-				// request FOUR vertices at a time, this is more efficient
-				BatchVertex *bvs = bdata.vertices.request_four();
-				if (!bvs) {
-					// run out of space in the vertex buffer .. finish this function and draw what we have so far
-					goto cleanup;
-				}
-
-				bool change_batch = false;
-
-				// conditions for creating a new batch
-				if ((curr_batch->type != Batch::BT_RECT) || (old_bti != batch_tex_id)) {
-					change_batch = true;
-				}
-				// we need to treat color change separately because we need to count these
-				// to decide whether to switch on the fly to colored vertices.
-				else if (!curr_batch->color.equals(col)) {
-					change_batch = true;
-					color_changes++;
-				}
-
-				if (change_batch) {
-					// put the tex pixel size  in a local (less verbose and can be a register)
-					bdata.batch_textures[batch_tex_id].tex_pixel_size.to(texpixel_size);
-
-					// open new batch (this should never fail, it dynamically grows)
-					curr_batch = _batch_request_new(false);
-
-					curr_batch->type = Batch::BT_RECT;
-					curr_batch->color.set(col);
-					curr_batch->batch_texture_id = batch_tex_id;
-					curr_batch->first_command = command_num;
-					curr_batch->num_commands = 1;
-					curr_batch->first_quad = quad_count;
-				} else {
-					// we could alternatively do the count when closing a batch .. perhaps more efficient
-					curr_batch->num_commands++;
-				}
-
-				// fill the quad geometry
-				const Vector2 &mins = rect->rect.position;
-				Vector2 maxs = mins + rect->rect.size;
-
-				// just aliases
-				BatchVertex *bA = &bvs[0];
-				BatchVertex *bB = &bvs[1];
-				BatchVertex *bC = &bvs[2];
-				BatchVertex *bD = &bvs[3];
-
-				bA->pos.x = mins.x;
-				bA->pos.y = mins.y;
-
-				bB->pos.x = maxs.x;
-				bB->pos.y = mins.y;
-
-				bC->pos.x = maxs.x;
-				bC->pos.y = maxs.y;
-
-				bD->pos.x = mins.x;
-				bD->pos.y = maxs.y;
-
-				if (rect->rect.size.x < 0) {
-					SWAP(bA->pos, bB->pos);
-					SWAP(bC->pos, bD->pos);
-				}
-				if (rect->rect.size.y < 0) {
-					SWAP(bA->pos, bD->pos);
-					SWAP(bB->pos, bC->pos);
-				}
-
-				// uvs
-				Rect2 src_rect = (rect->flags & CANVAS_RECT_REGION) ? Rect2(rect->source.position * texpixel_size, rect->source.size * texpixel_size) : Rect2(0, 0, 1, 1);
-
-				// 10% faster calculating the max first
-				Vector2 pos_max = src_rect.position + src_rect.size;
-				Vector2 uvs[4] = {
-					src_rect.position,
-					Vector2(pos_max.x, src_rect.position.y),
-					pos_max,
-					Vector2(src_rect.position.x, pos_max.y),
-				};
-
-				if (rect->flags & CANVAS_RECT_TRANSPOSE) {
-					SWAP(uvs[1], uvs[3]);
-				}
-
-				if (rect->flags & CANVAS_RECT_FLIP_H) {
-					SWAP(uvs[0], uvs[1]);
-					SWAP(uvs[2], uvs[3]);
-				}
-				if (rect->flags & CANVAS_RECT_FLIP_V) {
-					SWAP(uvs[0], uvs[3]);
-					SWAP(uvs[1], uvs[2]);
-				}
-
-				bA->uv.set(uvs[0]);
-				bB->uv.set(uvs[1]);
-				bC->uv.set(uvs[2]);
-				bD->uv.set(uvs[3]);
-
-				// increment quad count
-				quad_count++;
-
-			} break;
-		}
-	}
-
-	// gotos are cool, never use goto kids
-cleanup:;
-
-	// some heuristic to decide whether to use colored verts.
-	// feel free to tweak this.
-	// this could use hysteresis, to prevent jumping between methods
-	// .. however probably not necessary
-	if ((color_changes * 4) > (quad_count * 1)) {
-		bdata.use_colored_vertices = true;
-
-		// small perf cost versus going straight to colored verts (maybe around 10%)
-		// however more straightforward
-		_batch_translate_to_colored();
-	} else {
-		bdata.use_colored_vertices = false;
-	}
-
-	// important, we return how far we got through the commands.
-	// We may not yet have reached the end, the vertex buffer may be full,
-	// and need a draw / reset / fill / rinse repeat
-	return command_num;
-}
-
 // convert the stupidly high amount of batches (each with its own color)
 // to larger batches where the color is stored in the verts instead...
 // There is a trade off. Non colored verts are smaller so work faster, but
@@ -1657,28 +1462,13 @@ void RasterizerCanvasGLES2::_canvas_item_render_commands(Item *p_item, Item *cur
 	int command_count = p_item->commands.size();
 	int command_start = 0;
 
-	// to start with we will allow using the legacy non-batched method
-	bool use_batching = false;
-
-	// special case (for now), single item, always use legacy because it can use the uniform path
-	// which is faster for single quads
-	if (command_count > 1) {
-		use_batching = bdata.use_batching;
-	}
-
 	Item::Command *const *commands = p_item->commands.ptr();
 
 	// while there are still more batches to fill...
 	// we may have to do this multiple times because there is a limit of 65535
 	// verts referenced in the index buffer (each potential run of this loop)
 	while (command_start < command_count) {
-		if (use_batching) {
-			// fill as many batches as possible (until all done, or the vertex buffer is full)
-			command_start = _batch_canvas_item_prefill(command_start, p_item, current_clip, reclip, p_material);
-
-			// send buffers to opengl
-			_batch_upload_buffers();
-		} else {
+		{
 			// legacy .. just create one massive batch and render everything as before
 			bdata.batches.reset();
 			Batch *batch = _batch_request_new();
@@ -2898,5 +2688,5 @@ RasterizerCanvasGLES2::RasterizerCanvasGLES2() {
 	}
 
 	// force on
-	//bdata.use_batching = true;
+	bdata.use_batching = true;
 }
