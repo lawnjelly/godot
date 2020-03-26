@@ -302,9 +302,10 @@ bool RasterizerCanvasGLES2::_batch_canvas_joined_item_prefill(FillState &fill_st
 				if ((fill_state.curr_batch->type != Batch::BT_RECT) || (old_bti != fill_state.batch_tex_id)) {
 					change_batch = true;
 				}
+
 				// we need to treat color change separately because we need to count these
 				// to decide whether to switch on the fly to colored vertices.
-				else if (!fill_state.curr_batch->color.equals(col)) {
+				if (!fill_state.curr_batch->color.equals(col)) {
 					change_batch = true;
 					bdata.total_color_changes++;
 				}
@@ -2979,12 +2980,12 @@ void RasterizerCanvasGLES2::initialize() {
 
 RasterizerCanvasGLES2::RasterizerCanvasGLES2() {
 
+	bdata.use_batching = GLOBAL_GET("rendering/quality/2d/use_batching");
+
 	// turn off batching in the editor until it is considered stable
 	// (if the editor can't start, you can't change the use_batching project setting!)
 	if (Engine::get_singleton()->is_editor_hint()) {
 		bdata.use_batching = false;
-	} else {
-		bdata.use_batching = GLOBAL_GET("rendering/quality/2d/use_batching");
 	}
 
 	// force on
