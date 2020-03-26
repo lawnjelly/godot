@@ -210,20 +210,15 @@ private:
 	void _canvas_render_item(Item * ci, RIState &ris);
 	_FORCE_INLINE_ void _canvas_item_render_commands(Item *p_item, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material);
 
-
-
 	// high level batch funcs
 	void canvas_render_items_implementation(Item *p_item_list, int p_z, const Color &p_modulate, Light *p_light, const Transform2D &p_base_transform);
-	void _canvas_render_joined_item(const BItemJoined &bij, RIState &ris);
+	void render_joined_item(const BItemJoined &bij, RIState &ris);
 	void join_items(Item *p_item_list, int p_z, const Color &p_modulate, Light *p_light, const Transform2D &p_base_transform);
-	bool _try_join_item(Item * ci, RIState &ris, bool &r_batch_break);
-	void _canvas_joined_item_render_commands(const BItemJoined &bij, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material);
-	void _render_batches(Item::Command * const *commands, int first_item_ref_id, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material);
-	bool _batch_canvas_joined_item_prefill(FillState &fill_state, int &r_command_start, Item *p_item, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material);
-	void _flush_render_batches(Item *p_item, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material);
-
-
-
+	bool try_join_item(Item * ci, RIState &ris, bool &r_batch_break);
+	void render_joined_item_commands(const BItemJoined &bij, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material);
+	void render_batches(Item::Command * const *commands, int first_item_ref_id, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material);
+	bool prefill_joined_item(FillState &fill_state, int &r_command_start, Item *p_item, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material);
+	void flush_render_batches(Item *p_item, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material);
 
 	// low level batch funcs
 	int _batch_canvas_item_prefill(int p_command_start, Item *p_item, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material);
@@ -232,15 +227,13 @@ private:
 	RasterizerStorageGLES2::Texture *_get_canvas_texture(const RID &p_texture) const;
 	void _batch_upload_buffers();
 	void _batch_render_rects(const Batch &batch, RasterizerStorageGLES2::Material *p_material);
-	BatchVertex *_batch_vert_request_new() { return bdata.vertices.request(); }
+	BatchVertex *_batch_vertex_request_new() { return bdata.vertices.request(); }
 	Batch *_batch_request_new(bool p_blank = true);
 
 
-private:
 	bool _detect_batch_break(Item * ci);
-
-	void software_transform_vert(BatchVector2 &v, const Transform2D &tr) const;
-	void software_transform_vert(Vector2 &v, const Transform2D &tr) const;
+	void _software_transform_vertex(BatchVector2 &v, const Transform2D &tr) const;
+	void _software_transform_vertex(Vector2 &v, const Transform2D &tr) const;
 	TransformMode	_find_transform_mode(bool p_use_hardware_transform, const Transform2D &p_tr, Transform2D &r_tr) const;
 
 public:
@@ -250,14 +243,14 @@ public:
 
 //////////////////////////////////////////////////////////////
 
-inline void RasterizerCanvasGLES2::software_transform_vert(BatchVector2 &v, const Transform2D &tr) const
+inline void RasterizerCanvasGLES2::_software_transform_vertex(BatchVector2 &v, const Transform2D &tr) const
 {
 	Vector2 vc(v.x, v.y);
 	vc = tr.xform(vc);
 	v.set(vc);
 }
 
-inline void RasterizerCanvasGLES2::software_transform_vert(Vector2 &v, const Transform2D &tr) const
+inline void RasterizerCanvasGLES2::_software_transform_vertex(Vector2 &v, const Transform2D &tr) const
 {
 	v = tr.xform(v);
 }

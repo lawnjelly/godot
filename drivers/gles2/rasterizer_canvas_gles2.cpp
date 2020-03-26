@@ -187,7 +187,7 @@ RasterizerCanvasGLES2::Batch *RasterizerCanvasGLES2::_batch_request_new(bool p_b
 }
 
 // This function may be called MULTIPLE TIMES for each item, so needs to record how far it has got
-bool RasterizerCanvasGLES2::_batch_canvas_joined_item_prefill(FillState &fill_state, int &r_command_start, Item *p_item, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material) {
+bool RasterizerCanvasGLES2::prefill_joined_item(FillState &fill_state, int &r_command_start, Item *p_item, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material) {
 	// we will prefill batches and vertices ready for sending in one go to the vertex buffer
 	int command_count = p_item->commands.size();
 	Item::Command *const *commands = p_item->commands.ptr();
@@ -295,7 +295,7 @@ bool RasterizerCanvasGLES2::_batch_canvas_joined_item_prefill(FillState &fill_st
 				Vector2 mins = rect->rect.position;
 
 				if (transform_mode == TM_TRANSLATE) {
-					software_transform_vert(mins, transform);
+					_software_transform_vertex(mins, transform);
 				}
 
 				Vector2 maxs = mins + rect->rect.size;
@@ -328,10 +328,10 @@ bool RasterizerCanvasGLES2::_batch_canvas_joined_item_prefill(FillState &fill_st
 				}
 
 				if (transform_mode == TM_ALL) {
-					software_transform_vert(bA->pos, transform);
-					software_transform_vert(bB->pos, transform);
-					software_transform_vert(bC->pos, transform);
-					software_transform_vert(bD->pos, transform);
+					_software_transform_vertex(bA->pos, transform);
+					_software_transform_vertex(bB->pos, transform);
+					_software_transform_vertex(bC->pos, transform);
+					_software_transform_vertex(bD->pos, transform);
 				}
 
 				// uvs
@@ -754,7 +754,7 @@ void RasterizerCanvasGLES2::_batch_render_rects(const Batch &batch, RasterizerSt
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
 
-void RasterizerCanvasGLES2::_render_batches(Item::Command *const *commands, int first_item_ref_id, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material) {
+void RasterizerCanvasGLES2::render_batches(Item::Command *const *commands, int first_item_ref_id, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material) {
 	//	Item *p_item = 0;
 	//	Item::Command * const *commands = p_item->commands.ptr();
 	//	Item::Command * const *commands = 0;
@@ -1588,7 +1588,7 @@ void RasterizerCanvasGLES2::_render_batches(Item::Command *const *commands, int 
 	bdata.reset_flush();
 }
 
-void RasterizerCanvasGLES2::_canvas_joined_item_render_commands(const BItemJoined &bij, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material) {
+void RasterizerCanvasGLES2::render_joined_item_commands(const BItemJoined &bij, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material) {
 	// to start with we will allow using the legacy non-batched method
 	bool use_batching = false;
 	use_batching = bdata.use_batching;
@@ -1607,11 +1607,11 @@ void RasterizerCanvasGLES2::_canvas_joined_item_render_commands(const BItemJoine
 
 		while (command_start < command_count) {
 			// fill as many batches as possible (until all done, or the vertex buffer is full)
-			bool bFull = _batch_canvas_joined_item_prefill(fill_state, command_start, item, current_clip, reclip, p_material);
+			bool bFull = prefill_joined_item(fill_state, command_start, item, current_clip, reclip, p_material);
 
 			if (bFull) {
 				// flush
-				_flush_render_batches(item, current_clip, reclip, p_material);
+				flush_render_batches(item, current_clip, reclip, p_material);
 				fill_state.reset();
 			}
 		}
@@ -1622,11 +1622,11 @@ void RasterizerCanvasGLES2::_canvas_joined_item_render_commands(const BItemJoine
 		// always pass first item
 		item = bdata.item_refs[bij.first_item_ref].m_pItem;
 
-		_flush_render_batches(item, current_clip, reclip, p_material);
+		flush_render_batches(item, current_clip, reclip, p_material);
 	}
 }
 
-void RasterizerCanvasGLES2::_flush_render_batches(Item *p_item, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material) {
+void RasterizerCanvasGLES2::flush_render_batches(Item *p_item, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material) {
 	//print_line("_flush_render_batches");
 
 	// some heuristic to decide whether to use colored verts.
@@ -1649,7 +1649,7 @@ void RasterizerCanvasGLES2::_flush_render_batches(Item *p_item, Item *current_cl
 	Item::Command *const *commands = p_item->commands.ptr();
 	//int s = p_item->commands.size();
 
-	_render_batches(commands, 0, current_clip, reclip, p_material);
+	render_batches(commands, 0, current_clip, reclip, p_material);
 }
 
 void RasterizerCanvasGLES2::_canvas_item_render_commands(Item *p_item, Item *current_clip, bool &reclip, RasterizerStorageGLES2::Material *p_material) {
@@ -1689,7 +1689,7 @@ void RasterizerCanvasGLES2::_canvas_item_render_commands(Item *p_item, Item *cur
 			command_start = command_count;
 		}
 
-		_render_batches(commands, 0, current_clip, reclip, p_material);
+		render_batches(commands, 0, current_clip, reclip, p_material);
 
 	} // while there are still more batches to fill
 }
@@ -1719,10 +1719,10 @@ void RasterizerCanvasGLES2::join_items(Item *p_item_list, int p_z, const Color &
 			join = false;
 
 			// could be another batch break?
-			_try_join_item(ci, ris, batch_break);
+			try_join_item(ci, ris, batch_break);
 			//batch_break = false;
 		} else {
-			join = _try_join_item(ci, ris, batch_break);
+			join = try_join_item(ci, ris, batch_break);
 		}
 
 		// assume the first item will always return no join
@@ -1787,7 +1787,7 @@ void RasterizerCanvasGLES2::canvas_render_items_implementation(Item *p_item_list
 
 	if (bdata.use_batching) {
 		for (int j = 0; j < bdata.items_joined.size(); j++) {
-			_canvas_render_joined_item(bdata.items_joined[j], ris);
+			render_joined_item(bdata.items_joined[j], ris);
 		}
 	} else {
 		while (p_item_list) {
@@ -1809,7 +1809,7 @@ void RasterizerCanvasGLES2::canvas_render_items_implementation(Item *p_item_list
 // It should duplicate the logic in _canvas_render_item,
 // to decide whether items are similar enough to join
 // i.e. no state differences between the 2 items.
-bool RasterizerCanvasGLES2::_try_join_item(Item *ci, RIState &ris, bool &r_batch_break) {
+bool RasterizerCanvasGLES2::try_join_item(Item *ci, RIState &ris, bool &r_batch_break) {
 	//return false;
 
 	// if there are any state changes we change join to false
@@ -2443,7 +2443,7 @@ void RasterizerCanvasGLES2::_canvas_render_item(Item *ci, RIState &ris) {
 	}
 }
 
-void RasterizerCanvasGLES2::_canvas_render_joined_item(const BItemJoined &bij, RIState &ris) {
+void RasterizerCanvasGLES2::render_joined_item(const BItemJoined &bij, RIState &ris) {
 
 	// all the joined items will share the same state with the first item
 	Item *ci = bdata.item_refs[bij.first_item_ref].m_pItem;
@@ -2675,7 +2675,7 @@ void RasterizerCanvasGLES2::_canvas_render_joined_item(const BItemJoined &bij, R
 	_set_uniforms();
 
 	if (unshaded || (state.uniforms.final_modulate.a > 0.001 && (!ris.shader_cache || ris.shader_cache->canvas_item.light_mode != RasterizerStorageGLES2::Shader::CanvasItem::LIGHT_MODE_LIGHT_ONLY) && !ci->light_masked))
-		_canvas_joined_item_render_commands(bij, NULL, reclip, material_ptr);
+		render_joined_item_commands(bij, NULL, reclip, material_ptr);
 
 	ris.rebind_shader = true; // hacked in for now.
 
@@ -2756,7 +2756,7 @@ void RasterizerCanvasGLES2::_canvas_render_joined_item(const BItemJoined &bij, R
 				}
 
 				glActiveTexture(GL_TEXTURE0);
-				_canvas_joined_item_render_commands(bij, NULL, reclip, material_ptr); //redraw using light
+				render_joined_item_commands(bij, NULL, reclip, material_ptr); //redraw using light
 
 				state.using_light = NULL;
 			}
