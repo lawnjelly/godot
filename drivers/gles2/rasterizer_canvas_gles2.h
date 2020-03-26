@@ -36,8 +36,15 @@
 class RasterizerSceneGLES2;
 
 class RasterizerCanvasGLES2 : public RasterizerCanvasBaseGLES2 {
-public:
 
+	enum TransformMode
+	{
+		TM_NONE,
+		TM_ALL,
+		TM_TRANSLATE,
+	};
+
+public:
 	// pod versions of vector and color and RID, need to be 32 bit for vertex format
 	struct BatchVector2 {
 		float x, y;
@@ -259,6 +266,29 @@ private:
 	{
 		rect.position.x += tr.elements[2].x;
 		rect.position.y += tr.elements[2].y;
+	}
+
+	TransformMode	_find_transform_mode(bool p_use_hardware_transform, const Transform2D &p_tr, Transform2D &r_tr) const
+	{
+		if (!p_use_hardware_transform)
+		{
+			r_tr = p_tr;
+
+			// decided whether to do translate only for software transform
+			if ((p_tr.elements[0].x == 1.0) &&
+			(p_tr.elements[0].y == 0.0) &&
+			(p_tr.elements[1].x == 0.0) &&
+			(p_tr.elements[1].y == 1.0))
+			{
+				return TM_TRANSLATE;
+			}
+			else
+			{
+				return TM_ALL;
+			}
+		}
+
+		return TM_NONE;
 	}
 
 

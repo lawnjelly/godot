@@ -39,7 +39,7 @@
 #define glClearDepth glClearDepthf
 #endif
 
-#define KESSEL_FLASH
+//#define KESSEL_FLASH
 
 
 RasterizerStorageGLES2::Texture *RasterizerCanvasGLES2::_get_canvas_texture(const RID &p_texture) const {
@@ -201,14 +201,34 @@ bool RasterizerCanvasGLES2::_batch_canvas_joined_item_prefill(FillState &fill_st
 //	int batch_tex_id = -1;
 
 	Transform2D transform;
-	if (!fill_state.use_hardware_transform)
-	{
-		transform = p_item->final_transform;
+	TransformMode transform_mode = _find_transform_mode(fill_state.use_hardware_transform, p_item->final_transform, transform);
 
-		// test
-		//transform.elements[2] = Vector2(320, 320);
-		//print_line("software trans : " + String(Variant(transform.elements[2])));
-	}
+//	if (!fill_state.use_hardware_transform)
+//	{
+//		transform = p_item->final_transform;
+
+//		// decided whether to do translate only for software transform
+//		if ((transform.elements[0].x == 1.0) &&
+//		(transform.elements[0].y == 0.0) &&
+//		(transform.elements[1].x == 0.0) &&
+//		(transform.elements[1].y == 1.0))
+//		{
+//			transform_mode = TM_TRANSLATE;
+//		}
+//		else
+//		{
+//			transform_mode = TM_ALL;
+//		}
+
+
+//		// test
+//		//transform.elements[2] = Vector2(320, 320);
+//		//print_line("software trans : " + String(Variant(transform.elements[2])));
+//	}
+//	else
+//	{
+//		transform_mode = TM_NONE;
+//	}
 
 
 	// we keep a record of how many color changes caused new batches
@@ -313,10 +333,10 @@ bool RasterizerCanvasGLES2::_batch_canvas_joined_item_prefill(FillState &fill_st
 				// fill the quad geometry
 				Vector2 mins = rect->rect.position;
 
-//				if (!fill_state.use_hardware_transform)
-//				{
-//					software_transform_vert(mins, transform);
-//				}
+				if (transform_mode == TM_TRANSLATE)
+				{
+					software_transform_vert(mins, transform);
+				}
 
 				Vector2 maxs = mins + rect->rect.size;
 
@@ -347,14 +367,13 @@ bool RasterizerCanvasGLES2::_batch_canvas_joined_item_prefill(FillState &fill_st
 					SWAP(bB->pos, bC->pos);
 				}
 
-				if (!fill_state.use_hardware_transform)
+				if (transform_mode == TM_ALL)
 				{
 					software_transform_vert(bA->pos, transform);
 					software_transform_vert(bB->pos, transform);
 					software_transform_vert(bC->pos, transform);
 					software_transform_vert(bD->pos, transform);
 				}
-
 
 				// uvs
 				Rect2 src_rect = (rect->flags & CANVAS_RECT_REGION) ? Rect2(rect->source.position * texpixel_size, rect->source.size * texpixel_size) : Rect2(0, 0, 1, 1);
