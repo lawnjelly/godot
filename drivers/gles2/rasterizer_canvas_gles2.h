@@ -37,6 +37,9 @@ class RasterizerSceneGLES2;
 
 class RasterizerCanvasGLES2 : public RasterizerCanvasBaseGLES2 {
 
+	// used to determine whether we use hardware transform (none)
+	// software transform all verts, or software transform just a translate
+	// (no rotate or scale)
 	enum TransformMode
 	{
 		TM_NONE,
@@ -86,7 +89,6 @@ class RasterizerCanvasGLES2 : public RasterizerCanvasBaseGLES2 {
 		enum CommandType : uint32_t {
 			BT_DEFAULT,
 			BT_RECT,
-			BT_CHANGE_ITEM,
 		};
 
 		CommandType type;
@@ -169,8 +171,7 @@ class RasterizerCanvasGLES2 : public RasterizerCanvasBaseGLES2 {
 
 	struct RIState
 	{
-		RIState() {Reset();}
-		void Reset()
+		RIState()
 		{
 			current_clip = NULL;
 			shader_cache = NULL;
@@ -185,10 +186,8 @@ class RasterizerCanvasGLES2 : public RasterizerCanvasBaseGLES2 {
 		bool prev_use_skeleton;
 		int last_blend_mode;
 		RID canvas_last_material;
-		// used for lights, per item .. doesn't need to be reset? will always be set on first lit item
-		//Color final_modulate;
 
-		// item group
+		// IG is item group (data over a single call to canvas_render_items)
 		int IG_z;
 		Color IG_modulate;
 		Light * IG_light;
@@ -198,7 +197,7 @@ class RasterizerCanvasGLES2 : public RasterizerCanvasBaseGLES2 {
 
 	struct FillState
 	{
-		void Reset() {curr_batch = 0; batch_tex_id = -1; use_hardware_transform = true; texpixel_size = Vector2(1, 1);}
+		void reset() {curr_batch = 0; batch_tex_id = -1; use_hardware_transform = true; texpixel_size = Vector2(1, 1);}
 		Batch * curr_batch;
 		int batch_tex_id;
 		bool use_hardware_transform;
