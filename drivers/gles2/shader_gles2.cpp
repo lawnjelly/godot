@@ -289,6 +289,8 @@ ShaderGLES2::Version *ShaderGLES2::get_current_version() {
 			glDeleteShader(v.vert_id);
 			glDeleteProgram(v.id);
 			v.id = 0;
+
+			CRASH_COND(true);
 		}
 
 		ERR_FAIL_V(NULL);

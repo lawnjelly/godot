@@ -1012,9 +1012,45 @@ void RasterizerCanvasGLES2::render_batches(Item::Command *const *p_commands, Ite
 									}
 
 									Size2 texpixel_size(1.0 / tex->width, 1.0 / tex->height);
-									Rect2 src_rect = (r->flags & CANVAS_RECT_REGION) ? Rect2(r->source.position * texpixel_size, r->source.size * texpixel_size) : Rect2(0, 0, 1, 1);
+									Rect2 src_rect;
+									if (r->flags & CANVAS_RECT_REGION)
+									{
+										src_rect = Rect2(r->source.position, r->source.size);
+
+										if (src_rect.size.x < 0.0)
+											src_rect.position.x -= src_rect.size.x;
+
+										if (src_rect.size.y < 0.0)
+											src_rect.position.y -= src_rect.size.y;
+
+										src_rect.position *= texpixel_size;
+										src_rect.size *= texpixel_size;
+
+										// test
+										//src_rect = Rect2(0, 0, 1, 1);
+//										src_rect.position.y += src_rect.size.y;
+//										src_rect.size.y *= -1.0f;
+									}
+									else
+									{
+										src_rect = Rect2(0, 0, 1, 1);
+									}
+									//= (r->flags & CANVAS_RECT_REGION) ? Rect2(r->source.position * texpixel_size, r->source.size * texpixel_size) : Rect2(0, 0, 1, 1);
 
 									Rect2 dst_rect = Rect2(r->rect.position, r->rect.size);
+
+
+//									print_line("src_rect : " + String(Variant(src_rect)));
+//									print_line("dst_rect : " + String(Variant(dst_rect)));
+
+//									if (dst_rect.size.width < 0) {
+//										dst_rect.position.x += dst_rect.size.width;
+//										dst_rect.size.width *= -1;
+//									}
+//									if (dst_rect.size.height < 0) {
+//										dst_rect.position.y += dst_rect.size.height;
+//										dst_rect.size.height *= -1;
+//									}
 
 									if (dst_rect.size.width < 0) {
 										dst_rect.position.x += dst_rect.size.width;
@@ -1025,17 +1061,63 @@ void RasterizerCanvasGLES2::render_batches(Item::Command *const *p_commands, Ite
 										dst_rect.size.height *= -1;
 									}
 
+
+									if (r->flags & CANVAS_RECT_TRANSPOSE) {
+										dst_rect.size.x *= -1; // Encoding in the dst_rect.z uniform
+										if (r->flags & CANVAS_RECT_FLIP_V) {
+											src_rect.position.x += src_rect.size.x;
+											src_rect.size.x *= -1;
+										}
+
+										if (r->flags & CANVAS_RECT_FLIP_H) {
+											src_rect.position.y += src_rect.size.y;
+											src_rect.size.y *= -1;
+										}
+									}
+									else
+									{
+										if (r->flags & CANVAS_RECT_FLIP_H) {
+											src_rect.position.x += src_rect.size.x;
+											src_rect.size.x *= -1;
+										}
+
+										if (r->flags & CANVAS_RECT_FLIP_V) {
+											src_rect.position.y += src_rect.size.y;
+											src_rect.size.y *= -1;
+										}
+									}
+
+
+									// flip y
+									//src_rect.position.y -= src_rect.size.y;
+									//src_rect.size.y *= -1;
+
+									// test
+//									if ((Engine::get_singleton()->get_frames_drawn() % 2) == 0)
+//									{
+//										src_rect.position.y += src_rect.size.y;
+//										src_rect.size.y *= -1;
+//									}
+//										src_rect = Rect2(0, 1, 1, -1);
+//									else
+//										src_rect = Rect2(0, 0, 1, 1);
+
+									/*
 									if (r->flags & CANVAS_RECT_FLIP_H) {
+										src_rect.position.x += src_rect.size.x;
 										src_rect.size.x *= -1;
 									}
 
 									if (r->flags & CANVAS_RECT_FLIP_V) {
+										src_rect.position.y += src_rect.size.y;
 										src_rect.size.y *= -1;
 									}
+									*/
 
-									if (r->flags & CANVAS_RECT_TRANSPOSE) {
-										dst_rect.size.x *= -1; // Encoding in the dst_rect.z uniform
-									}
+//									if (r->flags & CANVAS_RECT_TRANSPOSE) {
+//										dst_rect.size.x *= -1; // Encoding in the dst_rect.z uniform
+//									}
+
 
 									state.canvas_shader.set_uniform(CanvasShaderGLES2::COLOR_TEXPIXEL_SIZE, texpixel_size);
 

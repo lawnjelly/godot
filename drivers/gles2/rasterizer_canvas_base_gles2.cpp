@@ -885,12 +885,20 @@ void RasterizerCanvasBaseGLES2::initialize() {
 		glGenBuffers(1, &data.canvas_quad_vertices);
 		glBindBuffer(GL_ARRAY_BUFFER, data.canvas_quad_vertices);
 
+		// orig
 		const float qv[8] = {
 			0, 0,
 			0, 1,
 			1, 1,
 			1, 0
 		};
+
+//		const float qv[8] = {
+//			1, 0,
+//			1, 1,
+//			0, 1,
+//			0, 0
+//		};
 
 		glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 8, qv, GL_STATIC_DRAW);
 

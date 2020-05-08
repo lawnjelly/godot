@@ -419,7 +419,16 @@ void RasterizerGLES2::blit_render_target_to_screen(RID p_render_target, const Re
 
 	// TODO normals
 
-	canvas->draw_generic_textured_rect(p_screen_rect, Rect2(0, 0, 1, -1));
+	// orig
+	//canvas->draw_generic_textured_rect(p_screen_rect, Rect2(0, 0, 1, -1));
+
+	// upside down testing
+	Rect2 r(0, 1, 1, -1);
+//	if ((Engine::get_singleton()->get_frames_drawn() % 3) == 0)
+		canvas->draw_generic_textured_rect(p_screen_rect, r);
+//	else
+//		canvas->draw_generic_textured_rect(p_screen_rect, Rect2(0, 0, 1, 1));
+
 
 	glBindTexture(GL_TEXTURE_2D, 0);
 	canvas->canvas_end();

@@ -129,11 +129,37 @@ void main() {
 
 #ifdef USE_TEXTURE_RECT
 
-	if (dst_rect.z < 0.0) { // Transpose is encoded as negative dst_rect.z
-		uv = src_rect.xy + abs(src_rect.zw) * vertex.yx;
+//	if (dst_rect.z < 0.0) { // Transpose is encoded as negative dst_rect.z
+//		uv = src_rect.xy + abs(src_rect.zw) * vertex.yx;
+//	} else {
+//		uv = src_rect.xy + abs(src_rect.zw) * vertex;
+//	}
+
+	if (dst_rect.z < 0.0) {
+		uv = src_rect.xy + ((src_rect.zw) * vertex.yx);
 	} else {
-		uv = src_rect.xy + abs(src_rect.zw) * vertex;
+		uv = src_rect.xy + ((src_rect.zw) * vertex.xy);
+
+//		uv *= 0.001;
+//		uv = vec2(0, 1) + (vec2(1, -1) * vertex.xy);
+
+
+		//uv.x = src_rect.x + ((src_rect.z) * vertex.x);
+		//uv.y = src_rect.y + (((src_rect.w * 0.5) + 0.5) * vertex.y);
+
+
+		//uv = src_rect.xy + ((src_rect.zw * vec2(-1, 1)) * vertex);
+		//uv = src_rect.xy + (( (src_rect.zw * vec2(0.01, 0.01)) + vec2(1, 1)) * vertex);
 	}
+
+//	if (dst_rect.z < 0.0) { // Transpose is encoded as negative dst_rect.z
+//		uv = src_rect.xy + (src_rect.zw) * vertex.yx;
+//	} else {
+//		uv = src_rect.xy + (src_rect.zw) * vertex;
+//	}
+
+
+//	uv = src_rect.xy + (src_rect.zw * vertex.xy);
 
 	vec4 outvec = vec4(0.0, 0.0, 0.0, 1.0);
 
@@ -143,9 +169,46 @@ void main() {
 	// But it doesn't.
 	// I don't know why, will need to investigate further.
 
-	outvec.xy = dst_rect.xy + abs(dst_rect.zw) * select(vertex, vec2(1.0, 1.0) - vertex, lessThan(src_rect.zw, vec2(0.0, 0.0)));
+//	bvec2 lt = lessThan(src_rect.zw, vec2(0.0, 0.0));
 
-	// outvec.xy = dst_rect.xy + abs(dst_rect.zw) * vertex;
+//	if (!lt.x)
+//	{
+//		outvec.x = dst_rect.x + abs(dst_rect.z) * vertex.x;
+//	}
+//	else
+//	{
+//		outvec.x = dst_rect.x + abs(dst_rect.z) * (1.0 - vertex.x);
+//	}
+
+//	if (!lt.y)
+//	{
+//		outvec.y = dst_rect.y + abs(dst_rect.w) * vertex.y;
+//	}
+//	else
+//	{
+//		outvec.y = dst_rect.y + abs(dst_rect.w) * (1.0 - vertex.y);
+//	}
+
+
+
+
+//	if (src_rect.z >= 0.0)
+//	{
+//		outvec.xy = dst_rect.xy + abs(dst_rect.zw) * vertex;
+//	}
+//	else
+//	{
+//		outvec.xy = dst_rect.xy + abs(dst_rect.zw) * (vec2(vertex.x, 1.0 - vertex.y));
+//	}
+
+
+//	outvec.xy = dst_rect.xy + abs(dst_rect.zw) * select(vertex, vec2(1.0, 1.0) - vertex, lessThan(src_rect.zw, vec2(0.0, 0.0)));
+
+	outvec.xy = dst_rect.xy + (abs(dst_rect.zw) * vertex.xy);
+
+	// gles3 version
+	//highp vec4 outvec = vec4(dst_rect.xy + abs(dst_rect.zw) * mix(vertex, vec2(1.0, 1.0) - vertex, lessThan(src_rect.zw, vec2(0.0, 0.0))), 0.0, 1.0);
+
 #else
 	vec4 outvec = vec4(vertex.xy, 0.0, 1.0);
 
