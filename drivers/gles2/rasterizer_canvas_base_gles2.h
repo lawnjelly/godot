@@ -31,7 +31,7 @@
 #ifndef RASTERIZERCANVASBASEGLES2_H
 #define RASTERIZERCANVASBASEGLES2_H
 
-#include "rasterizer_array_gles2.h"
+#include "drivers/gles_common/rasterizer_array.h"
 #include "rasterizer_storage_gles2.h"
 #include "servers/visual/rasterizer.h"
 

@@ -1,7 +1,7 @@
 #pragma once
 
 /*************************************************************************/
-/*  rasterizer_array_gles2.h                                             */
+/*  rasterizer_array.h                                                   */
 /*************************************************************************/
 /*                       This file is part of:                           */
 /*                           GODOT ENGINE                                */
@@ -42,14 +42,14 @@
 #include <string.h>
 
 template <class T>
-class RasterizerArrayGLES2 {
+class RasterizerArray {
 public:
-	RasterizerArrayGLES2() {
+	RasterizerArray() {
 		_list = 0;
 		_size = 0;
 		_max_size = 0;
 	}
-	~RasterizerArrayGLES2() { free(); }
+	~RasterizerArray() { free(); }
 
 	_FORCE_INLINE_ T &operator[](unsigned int ui) { return _list[ui]; }
 	_FORCE_INLINE_ const T &operator[](unsigned int ui) const { return _list[ui]; }
@@ -109,7 +109,7 @@ public:
 	_FORCE_INLINE_ int max_size() const { return _max_size; }
 	_FORCE_INLINE_ const T *get_data() const { return _list; }
 
-	bool copy_from(const RasterizerArrayGLES2<T> &o) {
+	bool copy_from(const RasterizerArray<T> &o) {
 		// no resizing done here, it should be done manually
 		if (o.size() > _max_size)
 			return false;
@@ -148,9 +148,9 @@ private:
 };
 
 template <class T>
-class RasterizerArray_non_pod_GLES2 {
+class RasterizerArray_non_pod {
 public:
-	RasterizerArray_non_pod_GLES2() {
+	RasterizerArray_non_pod() {
 		_size = 0;
 	}
 

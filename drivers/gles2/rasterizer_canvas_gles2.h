@@ -181,19 +181,19 @@ class RasterizerCanvasGLES2 : public RasterizerCanvasBaseGLES2 {
 		uint32_t index_buffer_size_units;
 		uint32_t index_buffer_size_bytes;
 
-		RasterizerArrayGLES2<BatchVertex> vertices;
-		RasterizerArrayGLES2<BatchVertexColored> vertices_colored;
-		RasterizerArrayGLES2<Batch> batches;
-		RasterizerArrayGLES2<Batch> batches_temp; // used for translating to colored vertex batches
-		RasterizerArray_non_pod_GLES2<BatchTex> batch_textures; // the only reason this is non-POD is because of RIDs
+		RasterizerArray<BatchVertex> vertices;
+		RasterizerArray<BatchVertexColored> vertices_colored;
+		RasterizerArray<Batch> batches;
+		RasterizerArray<Batch> batches_temp; // used for translating to colored vertex batches
+		RasterizerArray_non_pod<BatchTex> batch_textures; // the only reason this is non-POD is because of RIDs
 
 		bool use_colored_vertices;
 
-		RasterizerArrayGLES2<BItemJoined> items_joined;
-		RasterizerArrayGLES2<BItemRef> item_refs;
+		RasterizerArray<BItemJoined> items_joined;
+		RasterizerArray<BItemRef> item_refs;
 
 		// items are sorted prior to joining
-		RasterizerArrayGLES2<BSortItem> sort_items;
+		RasterizerArray<BSortItem> sort_items;
 
 		// counts
 		int total_quads;
