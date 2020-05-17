@@ -1,22 +1,3 @@
-#pragma once
-
-#include "core/math/vector2.h"
-#include "core/color.h"
-#include "core/ustring.h"
-#include "servers/visual/rasterizer.h"
-#include "rasterizer_array.h"
-
-
-// We are using the curiously recurring template pattern
-// https://en.wikipedia.org/wiki/Curiously_recurring_template_pattern
-// For static polymorphism.
-
-#define PREAMBLE template <class T, typename T_STORAGE>
-#define TDECLARE RasterizerCanvasBatcherBase<T, T_STORAGE>
-
-PREAMBLE
-class RasterizerCanvasBatcherBase
-{
 public:
 	// used to determine whether we use hardware transform (none)
 	// software transform all verts, or software transform just a translate
@@ -56,7 +37,18 @@ public:
 			return (r == p_c.r) && (g == p_c.g) && (b == p_c.b) && (a == p_c.a);
 		}
 		const float *get_data() const { return &r; }
-		String to_string() const;
+		String to_string() const
+		{
+			String sz = "{";
+			const float *data = get_data();
+			for (int c = 0; c < 4; c++) {
+				float f = data[c];
+				int val = ((f * 255.0f) + 0.5f);
+				sz += String(Variant(val)) + " ";
+			}
+			sz += "}";
+			return sz;
+		}
 	};
 
 	struct BatchVertex {
@@ -144,7 +136,41 @@ public:
 
 
 	struct BatchData {
-		BatchData();
+		BatchData()
+		{
+			reset_flush();
+			gl_vertex_buffer = 0;
+			gl_index_buffer = 0;
+			max_quads = 0;
+			vertex_buffer_size_units = 0;
+			vertex_buffer_size_bytes = 0;
+			index_buffer_size_units = 0;
+			index_buffer_size_bytes = 0;
+			use_colored_vertices = false;
+			settings_use_batching = false;
+			settings_max_join_item_commands = 0;
+			settings_colored_vertex_format_threshold = 0.0f;
+			settings_batch_buffer_num_verts = 0;
+			scissor_threshold_area = 0.0f;
+			joined_item_batch_flags = 0;
+			diagnose_frame = false;
+			next_diagnose_tick = 10000;
+			diagnose_frame_number = 9999999999; // some high number
+			join_across_z_indices = true;
+			settings_item_reordering_lookahead = 0;
+
+			settings_use_batching_original_choice = false;
+			settings_flash_batching = false;
+			settings_diagnose_frame = false;
+			settings_scissor_lights = false;
+			settings_scissor_threshold = -1.0f;
+			settings_use_single_rect_fallback = false;
+			settings_light_max_join_items = 16;
+
+			stats_items_sorted = 0;
+			stats_light_items_joined = 0;
+		}
+
 		void reset_flush() {
 			batches.reset();
 			batch_textures.reset();
@@ -232,7 +258,21 @@ public:
 
 	struct RenderItemState {
 		RenderItemState() { reset(); }
-		void reset();
+		void reset()
+		{
+			current_clip = nullptr;
+			shader_cache = nullptr;
+			rebind_shader = true;
+			prev_use_skeleton = false;
+			last_blend_mode = -1;
+			canvas_last_material = RID();
+			item_group_z = 0;
+			item_group_light = nullptr;
+			final_modulate = Color(-1.0, -1.0, -1.0, -1.0); // just something unlikely
+
+			joined_item = nullptr;
+		}
+
 		RasterizerCanvas::Item *current_clip;
 		typename T_STORAGE::Shader *shader_cache;
 		bool rebind_shader;
@@ -274,73 +314,3 @@ public:
 		int transform_extra_command_number_p1; // plus one to allow fast checking against zero
 		Transform2D transform_combined; // final * extra
 	};
-
-};
-
-
-PREAMBLE
-void TDECLARE::RenderItemState::reset() {
-	current_clip = nullptr;
-	shader_cache = nullptr;
-	rebind_shader = true;
-	prev_use_skeleton = false;
-	last_blend_mode = -1;
-	canvas_last_material = RID();
-	item_group_z = 0;
-	item_group_light = nullptr;
-	final_modulate = Color(-1.0, -1.0, -1.0, -1.0); // just something unlikely
-
-	joined_item = nullptr;
-}
-
-// just translate the color into something easily readable and not too verbose
-PREAMBLE
-String TDECLARE::BatchColor::to_string() const {
-	String sz = "{";
-	const float *data = get_data();
-	for (int c = 0; c < 4; c++) {
-		float f = data[c];
-		int val = ((f * 255.0f) + 0.5f);
-		sz += String(Variant(val)) + " ";
-	}
-	sz += "}";
-	return sz;
-}
-
-PREAMBLE
-TDECLARE::BatchData::BatchData() {
-	reset_flush();
-	gl_vertex_buffer = 0;
-	gl_index_buffer = 0;
-	max_quads = 0;
-	vertex_buffer_size_units = 0;
-	vertex_buffer_size_bytes = 0;
-	index_buffer_size_units = 0;
-	index_buffer_size_bytes = 0;
-	use_colored_vertices = false;
-	settings_use_batching = false;
-	settings_max_join_item_commands = 0;
-	settings_colored_vertex_format_threshold = 0.0f;
-	settings_batch_buffer_num_verts = 0;
-	scissor_threshold_area = 0.0f;
-	joined_item_batch_flags = 0;
-	diagnose_frame = false;
-	next_diagnose_tick = 10000;
-	diagnose_frame_number = 9999999999; // some high number
-	join_across_z_indices = true;
-	settings_item_reordering_lookahead = 0;
-
-	settings_use_batching_original_choice = false;
-	settings_flash_batching = false;
-	settings_diagnose_frame = false;
-	settings_scissor_lights = false;
-	settings_scissor_threshold = -1.0f;
-	settings_use_single_rect_fallback = false;
-	settings_light_max_join_items = 16;
-
-	stats_items_sorted = 0;
-	stats_light_items_joined = 0;
-}
-
-#undef PREAMBLE
-#undef TDECLARE

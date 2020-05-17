@@ -48,13 +48,12 @@ public:
 private:
 	// legacy codepath .. to remove after testing
 	void _canvas_render_item(Item *p_ci, RenderItemState &r_ris);
-	_FORCE_INLINE_ void _canvas_item_render_commands(Item *p_item, Item *p_current_clip, bool &r_reclip, RasterizerStorageGLES2::Material *p_material);
+	void _canvas_item_render_commands(Item *p_item, Item *p_current_clip, bool &r_reclip, RasterizerStorageGLES2::Material *p_material);
 
 	// high level batch funcs
 	void canvas_render_items_implementation(Item *p_item_list, int p_z, const Color &p_modulate, Light *p_light, const Transform2D &p_base_transform);
 	void render_joined_item(const BItemJoined &p_bij, RenderItemState &r_ris);
 	void record_items(Item *p_item_list, int p_z);
-	void join_items(Item *p_item_list, int p_z);
 	void join_sorted_items();
 	bool try_join_item(Item *p_ci, RenderItemState &r_ris, bool &r_batch_break);
 	void render_joined_item_commands(const BItemJoined &p_bij, Item *p_current_clip, bool &r_reclip, RasterizerStorageGLES2::Material *p_material, bool p_lit);
@@ -77,15 +76,9 @@ private:
 	TransformMode _find_transform_mode(const Transform2D &p_tr) const;
 	_FORCE_INLINE_ void _prefill_default_batch(FillState &r_fill_state, int p_command_num, const Item &p_item);
 
-	// sorting
-	void sort_items();
-	bool sort_items_from(int p_start);
-	bool _sort_items_match(const BSortItem &p_a, const BSortItem &p_b) const;
-
 	// light scissoring
-	bool _light_find_intersection(const Rect2 &p_item_rect, const Transform2D &p_light_xform, const Rect2 &p_light_rect, Rect2 &r_cliprect) const;
 	bool _light_scissor_begin(const Rect2 &p_item_rect, const Transform2D &p_light_xform, const Rect2 &p_light_rect) const;
-	void _calculate_scissor_threshold_area();
+//	void _calculate_scissor_threshold_area();
 
 	// no need to compile these in in release, they are unneeded outside the editor and only add to executable size
 #ifdef DEBUG_ENABLED
@@ -194,33 +187,5 @@ _FORCE_INLINE_ RasterizerCanvasGLES2::TransformMode RasterizerCanvasGLES2::_find
 	return TM_ALL;
 }
 
-_FORCE_INLINE_ bool RasterizerCanvasGLES2::_sort_items_match(const BSortItem &p_a, const BSortItem &p_b) const {
-	const Item *a = p_a.item;
-	const Item *b = p_b.item;
-
-	if (b->commands.size() != 1)
-		return false;
-
-	// tested outside function
-	//	if (a->commands.size() != 1)
-	//		return false;
-
-	const Item::Command &cb = *b->commands[0];
-	if (cb.type != Item::Command::TYPE_RECT)
-		return false;
-
-	const Item::Command &ca = *a->commands[0];
-	// tested outside function
-	//	if (ca.type != Item::Command::TYPE_RECT)
-	//		return false;
-
-	const Item::CommandRect *rect_a = static_cast<const Item::CommandRect *>(&ca);
-	const Item::CommandRect *rect_b = static_cast<const Item::CommandRect *>(&cb);
-
-	if (rect_a->texture != rect_b->texture)
-		return false;
-
-	return true;
-}
 
 #endif // RASTERIZERCANVASGLES2_H
