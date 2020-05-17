@@ -38,6 +38,8 @@ class RasterizerSceneGLES2;
 
 class RasterizerCanvasGLES2 : public RasterizerCanvasBaseGLES2, public RasterizerCanvasBatcher<RasterizerCanvasGLES2, RasterizerStorageGLES2> {
 
+	friend class RasterizerCanvasBatcher;
+
 public:
 	virtual void canvas_render_items_begin(const Color &p_modulate, Light *p_light, const Transform2D &p_base_transform);
 	virtual void canvas_render_items_end();
@@ -76,15 +78,16 @@ private:
 	TransformMode _find_transform_mode(const Transform2D &p_tr) const;
 	_FORCE_INLINE_ void _prefill_default_batch(FillState &r_fill_state, int p_command_num, const Item &p_item);
 
-	// light scissoring
-	bool _light_scissor_begin(const Rect2 &p_item_rect, const Transform2D &p_light_xform, const Rect2 &p_light_rect) const;
-//	void _calculate_scissor_threshold_area();
+	// funcs used from rasterizer_canvas_batcher template
+	void gl_enable_scissor(int p_x, int p_y, int p_width, int p_height) const;
+	void gl_disable_scissor() const;
 
 	// no need to compile these in in release, they are unneeded outside the editor and only add to executable size
 #ifdef DEBUG_ENABLED
 	void diagnose_batches(Item::Command *const *p_commands);
 	String get_command_type_string(const Item::Command &p_command) const;
 #endif
+
 
 public:
 	void initialize();

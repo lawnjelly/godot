@@ -1,3 +1,39 @@
+bool _light_scissor_begin(const Rect2 &p_item_rect, const Transform2D &p_light_xform, const Rect2 &p_light_rect) const {
+
+	float area_item = p_item_rect.size.x * p_item_rect.size.y; // double check these are always positive
+
+	// quick reject .. the area of pixels saved can never be more than the area of the item
+	if (area_item < bdata.scissor_threshold_area) {
+		return false;
+	}
+
+	Rect2 cliprect;
+	if (!_light_find_intersection(p_item_rect, p_light_xform, p_light_rect, cliprect)) {
+		// should not really occur .. but just in case
+		cliprect = Rect2(0, 0, 0, 0);
+	} else {
+		// some conditions not to scissor
+		// determine the area (fill rate) that will be saved
+		float area_cliprect = cliprect.size.x * cliprect.size.y;
+		float area_saved = area_item - area_cliprect;
+
+		// if area saved is too small, don't scissor
+		if (area_saved < bdata.scissor_threshold_area) {
+			return false;
+		}
+	}
+
+//	int rw = static_cast<T*>(this)->storage->frame.current_rt->width;
+	int rh = static_cast<const T*>(this)->storage->frame.current_rt->height;
+
+	int y = rh - (cliprect.position.y + cliprect.size.y);
+	if (static_cast<const T*>(this)->storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_VFLIP])
+		y = cliprect.position.y;
+	static_cast<const T*>(this)->gl_enable_scissor(cliprect.position.x, y, cliprect.size.width, cliprect.size.height);
+
+	return true;
+}
+
 bool _light_find_intersection(const Rect2 &p_item_rect, const Transform2D &p_light_xform, const Rect2 &p_light_rect, Rect2 &r_cliprect) const {
 	// transform light to world space (note this is done in the earlier intersection test, so could
 	// be made more efficient)
