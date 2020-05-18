@@ -45,98 +45,6 @@ static const GLenum gl_primitive[] = {
 	GL_TRIANGLE_FAN
 };
 
-/*
-RasterizerStorageGLES2::Texture *RasterizerCanvasGLES2::_get_canvas_texture(const RID &p_texture) const {
-	if (p_texture.is_valid()) {
-
-		RasterizerStorageGLES2::Texture *texture = storage->texture_owner.getornull(p_texture);
-
-		if (texture) {
-			return texture->get_ptr();
-		}
-	}
-
-	return 0;
-}
-
-int RasterizerCanvasGLES2::_batch_find_or_create_tex(const RID &p_texture, const RID &p_normal, bool p_tile, int p_previous_match) {
-
-	// optimization .. in 99% cases the last matched value will be the same, so no need to traverse the list
-	if (p_previous_match > 0) // if it is zero, it will get hit first in the linear search anyway
-	{
-		const BatchTex &batch_texture = bdata.batch_textures[p_previous_match];
-
-		// note for future reference, if RID implementation changes, this could become more expensive
-		if ((batch_texture.RID_texture == p_texture) && (batch_texture.RID_normal == p_normal)) {
-			// tiling mode must also match
-			bool tiles = batch_texture.tile_mode != BatchTex::TILE_OFF;
-
-			if (tiles == p_tile)
-				// match!
-				return p_previous_match;
-		}
-	}
-
-	// not the previous match .. we will do a linear search ... slower, but should happen
-	// not very often except with non-batchable runs, which are going to be slow anyway
-	// n.b. could possibly be replaced later by a fast hash table
-	for (int n = 0; n < bdata.batch_textures.size(); n++) {
-		const BatchTex &batch_texture = bdata.batch_textures[n];
-		if ((batch_texture.RID_texture == p_texture) && (batch_texture.RID_normal == p_normal)) {
-
-			// tiling mode must also match
-			bool tiles = batch_texture.tile_mode != BatchTex::TILE_OFF;
-
-			if (tiles == p_tile)
-				// match!
-				return n;
-		}
-	}
-
-	// pushing back from local variable .. not ideal but has to use a Vector because non pod
-	// due to RIDs
-	BatchTex new_batch_tex;
-	new_batch_tex.RID_texture = p_texture;
-	new_batch_tex.RID_normal = p_normal;
-
-	// get the texture
-	RasterizerStorageGLES2::Texture *texture = _get_canvas_texture(p_texture);
-
-	if (texture) {
-		new_batch_tex.tex_pixel_size.x = 1.0 / texture->width;
-		new_batch_tex.tex_pixel_size.y = 1.0 / texture->height;
-	} else {
-		// maybe doesn't need doing...
-		new_batch_tex.tex_pixel_size.x = 1.0;
-		new_batch_tex.tex_pixel_size.y = 1.0;
-	}
-
-	if (p_tile) {
-		if (texture) {
-			// default
-			new_batch_tex.tile_mode = BatchTex::TILE_NORMAL;
-
-			// no hardware support for non power of 2 tiling
-			if (!storage->config.support_npot_repeat_mipmap) {
-				if (next_power_of_2(texture->alloc_width) != (unsigned int)texture->alloc_width && next_power_of_2(texture->alloc_height) != (unsigned int)texture->alloc_height) {
-					new_batch_tex.tile_mode = BatchTex::TILE_FORCE_REPEAT;
-				}
-			}
-		} else {
-			// this should not happen?
-			new_batch_tex.tile_mode = BatchTex::TILE_OFF;
-		}
-	} else {
-		new_batch_tex.tile_mode = BatchTex::TILE_OFF;
-	}
-
-	// push back
-	bdata.batch_textures.push_back(new_batch_tex);
-
-	return bdata.batch_textures.size() - 1;
-}
-*/
-
 void RasterizerCanvasGLES2::_batch_upload_buffers() {
 
 	// noop?
@@ -159,6 +67,7 @@ void RasterizerCanvasGLES2::_batch_upload_buffers() {
 }
 
 
+/*
 // This function may be called MULTIPLE TIMES for each item, so needs to record how far it has got
 bool RasterizerCanvasGLES2::prefill_joined_item(FillState &r_fill_state, int &r_command_start, Item *p_item, Item *p_current_clip, bool &r_reclip, RasterizerStorageGLES2::Material *p_material) {
 	// we will prefill batches and vertices ready for sending in one go to the vertex buffer
@@ -407,6 +316,7 @@ bool RasterizerCanvasGLES2::prefill_joined_item(FillState &r_fill_state, int &r_
 
 	return false;
 }
+*/
 
 void RasterizerCanvasGLES2::_batch_render_rects(const Batch &p_batch, RasterizerStorageGLES2::Material *p_material) {
 
@@ -1333,110 +1243,6 @@ void RasterizerCanvasGLES2::render_batches(Item::Command *const *p_commands, Ite
 	bdata.reset_flush();
 }
 
-void RasterizerCanvasGLES2::render_joined_item_commands(const BItemJoined &p_bij, Item *p_current_clip, bool &r_reclip, RasterizerStorageGLES2::Material *p_material, bool p_lit) {
-
-	Item *item = 0;
-	Item *first_item = bdata.item_refs[p_bij.first_item_ref].item;
-
-	FillState fill_state;
-	fill_state.reset();
-	fill_state.use_hardware_transform = p_bij.use_hardware_transform();
-	fill_state.extra_matrix_sent = false;
-
-	// in the special case of custom shaders that read from VERTEX (i.e. vertex position)
-	// we want to disable software transform of extra matrix
-	if (bdata.joined_item_batch_flags & RasterizerStorageGLES2::Shader::CanvasItem::PREVENT_VERTEX_BAKING) {
-		fill_state.extra_matrix_sent = true;
-	}
-
-	for (unsigned int i = 0; i < p_bij.num_item_refs; i++) {
-		const BItemRef &ref = bdata.item_refs[p_bij.first_item_ref + i];
-		item = ref.item;
-
-		if (!p_lit) {
-			// if not lit we use the complex calculated final modulate
-			fill_state.final_modulate = ref.final_modulate;
-		} else {
-			// if lit we ignore canvas modulate and just use the item modulate
-			fill_state.final_modulate = item->final_modulate;
-		}
-
-		int command_count = item->commands.size();
-		int command_start = 0;
-
-		// ONCE OFF fill state setup, that will be retained over multiple calls to
-		// prefill_joined_item()
-		fill_state.transform_combined = item->final_transform;
-
-		// decide the initial transform mode, and make a backup
-		// in orig_transform_mode in case we need to switch back
-		if (!fill_state.use_hardware_transform) {
-			fill_state.transform_mode = _find_transform_mode(fill_state.transform_combined);
-		} else {
-			fill_state.transform_mode = TM_NONE;
-		}
-		fill_state.orig_transform_mode = fill_state.transform_mode;
-
-		// keep track of when we added an extra matrix
-		// so we can defer sending until we see a default command
-		fill_state.transform_extra_command_number_p1 = 0;
-
-		while (command_start < command_count) {
-			// fill as many batches as possible (until all done, or the vertex buffer is full)
-			bool bFull = prefill_joined_item(fill_state, command_start, item, p_current_clip, r_reclip, p_material);
-
-			if (bFull) {
-				// always pass first item (commands for default are always first item)
-				flush_render_batches(first_item, p_current_clip, r_reclip, p_material);
-				fill_state.reset();
-			}
-		}
-	}
-
-	// flush if any left
-	flush_render_batches(first_item, p_current_clip, r_reclip, p_material);
-}
-
-void RasterizerCanvasGLES2::flush_render_batches(Item *p_first_item, Item *p_current_clip, bool &r_reclip, RasterizerStorageGLES2::Material *p_material) {
-
-	// some heuristic to decide whether to use colored verts.
-	// feel free to tweak this.
-	// this could use hysteresis, to prevent jumping between methods
-	// .. however probably not necessary
-	bdata.use_colored_vertices = false;
-
-	// only check whether to convert if there are quads (prevent divide by zero)
-	// and we haven't decided to prevent color baking (due to e.g. MODULATE
-	// being used in a shader)
-	if (bdata.total_quads && !(bdata.joined_item_batch_flags & RasterizerStorageGLES2::Shader::CanvasItem::PREVENT_COLOR_BAKING)) {
-		// minus 1 to prevent single primitives (ratio 1.0) always being converted to colored..
-		// in that case it is slightly cheaper to just have the color as part of the batch
-		float ratio = (float)(bdata.total_color_changes - 1) / (float)bdata.total_quads;
-
-		// use bigger than or equal so that 0.0 threshold can force always using colored verts
-		if (ratio >= bdata.settings_colored_vertex_format_threshold) {
-			bdata.use_colored_vertices = true;
-
-			// small perf cost versus going straight to colored verts (maybe around 10%)
-			// however more straightforward
-			_batch_translate_to_colored();
-		}
-	}
-
-	// send buffers to opengl
-	_batch_upload_buffers();
-
-	Item::Command *const *commands = p_first_item->commands.ptr();
-
-#ifdef DEBUG_ENABLED
-	if (bdata.diagnose_frame) {
-		diagnose_batches(commands);
-	}
-#endif
-
-	render_batches(commands, p_current_clip, r_reclip, p_material);
-}
-
 void RasterizerCanvasGLES2::_canvas_item_render_commands(Item *p_item, Item *p_current_clip, bool &r_reclip, RasterizerStorageGLES2::Material *p_material) {
 
 	int command_count = p_item->commands.size();
@@ -1461,77 +1267,6 @@ void RasterizerCanvasGLES2::record_items(Item *p_item_list, int p_z) {
 
 		p_item_list = p_item_list->next;
 	}
-}
-
-void RasterizerCanvasGLES2::join_sorted_items() {
-	sort_items();
-
-	int z = VS::CANVAS_ITEM_Z_MIN;
-	_render_item_state.item_group_z = z;
-
-	for (int s = 0; s < bdata.sort_items.size(); s++) {
-		const BSortItem &si = bdata.sort_items[s];
-		Item *ci = si.item;
-
-		// change z?
-		if (si.z_index != z) {
-			z = si.z_index;
-
-			// may not be required
-			_render_item_state.item_group_z = z;
-
-			// if z ranged lights are present, sometimes we have to disable joining over z_indices.
-			// we do this here.
-			// Note this restriction may be able to be relaxed with light bitfields, investigate!
-			if (!bdata.join_across_z_indices) {
-				_render_item_state.join_batch_break = true;
-			}
-		}
-
-		bool join;
-
-		if (_render_item_state.join_batch_break) {
-			// always start a new batch for this item
-			join = false;
-
-			// could be another batch break (i.e. prevent NEXT item from joining this)
-			// so we still need to run try_join_item
-			// even though we know join is false.
-			// also we need to run try_join_item for every item because it keeps the state up to date,
-			// if we didn't run it the state would be out of date.
-			try_join_item(ci, _render_item_state, _render_item_state.join_batch_break);
-		} else {
-			join = try_join_item(ci, _render_item_state, _render_item_state.join_batch_break);
-		}
-
-		// assume the first item will always return no join
-		if (!join) {
-			_render_item_state.joined_item = bdata.items_joined.request_with_grow();
-			_render_item_state.joined_item->first_item_ref = bdata.item_refs.size();
-			_render_item_state.joined_item->num_item_refs = 1;
-			_render_item_state.joined_item->bounding_rect = ci->global_rect_cache;
-			_render_item_state.joined_item->z_index = z;
-			_render_item_state.joined_item->flags = bdata.joined_item_batch_flags;
-
-			// add the reference
-			BItemRef *r = bdata.item_refs.request_with_grow();
-			r->item = ci;
-			// we are storing final_modulate in advance per item reference
-			// for baking into vertex colors.
-			// this may not be ideal... as we are increasing the size of item reference,
-			// but it is stupidly complex to calculate later, which would probably be slower.
-			r->final_modulate = _render_item_state.final_modulate;
-		} else {
-			CRASH_COND(_render_item_state.joined_item == 0);
-			_render_item_state.joined_item->num_item_refs += 1;
-			_render_item_state.joined_item->bounding_rect = _render_item_state.joined_item->bounding_rect.merge(ci->global_rect_cache);
-
-			BItemRef *r = bdata.item_refs.request_with_grow();
-			r->item = ci;
-			r->final_modulate = _render_item_state.final_modulate;
-		}
-
-	} // for s through sort items
 }
 
 void RasterizerCanvasGLES2::canvas_end() {
