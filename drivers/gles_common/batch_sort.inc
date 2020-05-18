@@ -1,3 +1,14 @@
+void record_items(RasterizerCanvas::Item *p_item_list, int p_z) {
+	while (p_item_list) {
+		BSortItem *s = bdata.sort_items.request_with_grow();
+
+		s->item = p_item_list;
+		s->z_index = p_z;
+
+		p_item_list = p_item_list->next;
+	}
+}
+
 void join_sorted_items() {
 	sort_items();
 

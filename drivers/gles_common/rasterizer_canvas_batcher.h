@@ -1,5 +1,7 @@
 #pragma once
 
+#include "core/os/os.h"
+
 // We are using the curiously recurring template pattern
 // https://en.wikipedia.org/wiki/Curiously_recurring_template_pattern
 // For static polymorphism.
@@ -24,6 +26,7 @@ class RasterizerCanvasBatcher// : public RasterizerCanvasBatcherBase<T, T_STORAG
 #include "batch_fill.inc"
 #include "batch_render.inc"
 #include "batch_try.inc"
+#include "batch_canvas.inc"
 
 	// no need to compile these in in release, they are unneeded outside the editor and only add to executable size
 #ifdef DEBUG_ENABLED

@@ -352,3 +352,19 @@ void render_joined_item_commands(const BItemJoined &p_bij, RasterizerCanvas::Ite
 	// flush if any left
 	flush_render_batches(first_item, p_current_clip, r_reclip, p_material);
 }
+
+// legacy
+void _canvas_item_render_commands(RasterizerCanvas::Item *p_item, RasterizerCanvas::Item *p_current_clip, bool &r_reclip, typename T_STORAGE::Material *p_material) {
+
+	int command_count = p_item->commands.size();
+
+	RasterizerCanvas::Item::Command *const *commands = p_item->commands.ptr();
+
+	// legacy .. just create one massive batch and render everything as before
+	bdata.batches.reset();
+	Batch *batch = _batch_request_new();
+	batch->type = Batch::BT_DEFAULT;
+	batch->num_commands = command_count;
+
+	get_this()->render_batches(commands, p_current_clip, r_reclip, p_material);
+}
