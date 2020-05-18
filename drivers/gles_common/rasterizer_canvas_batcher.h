@@ -19,7 +19,14 @@ class RasterizerCanvasBatcher// : public RasterizerCanvasBatcherBase<T, T_STORAG
 #include "batch_structs.inc"
 #include "batch_sort.inc"
 #include "batch_lights.inc"
+#include "batch_transform.inc"
+#include "batch_misc.inc"
+#include "batch_fill.inc"
 
+	// no need to compile these in in release, they are unneeded outside the editor and only add to executable size
+#ifdef DEBUG_ENABLED
+#include "batch_diagnose.inc"
+#endif
 };
 
 
