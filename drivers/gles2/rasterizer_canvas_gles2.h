@@ -64,9 +64,8 @@ private:
 	void flush_render_batches(Item *p_first_item, Item *p_current_clip, bool &r_reclip, RasterizerStorageGLES2::Material *p_material);
 
 	// low level batch funcs
-	void _batch_translate_to_colored();
-	_FORCE_INLINE_ int _batch_find_or_create_tex(const RID &p_texture, const RID &p_normal, bool p_tile, int p_previous_match);
-	RasterizerStorageGLES2::Texture *_get_canvas_texture(const RID &p_texture) const;
+//	_FORCE_INLINE_ int _batch_find_or_create_tex(const RID &p_texture, const RID &p_normal, bool p_tile, int p_previous_match);
+//	RasterizerStorageGLES2::Texture *_get_canvas_texture(const RID &p_texture) const;
 	void _batch_upload_buffers();
 	void _batch_render_rects(const Batch &p_batch, RasterizerStorageGLES2::Material *p_material);
 

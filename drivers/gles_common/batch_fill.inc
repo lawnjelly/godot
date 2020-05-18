@@ -69,3 +69,94 @@ void _prefill_default_batch(FillState &r_fill_state, int p_command_num, const Ra
 		r_fill_state.curr_batch->num_commands = 1;
 	}
 }
+
+int _batch_find_or_create_tex(const RID &p_texture, const RID &p_normal, bool p_tile, int p_previous_match) {
+
+	// optimization .. in 99% cases the last matched value will be the same, so no need to traverse the list
+	if (p_previous_match > 0) // if it is zero, it will get hit first in the linear search anyway
+	{
+		const BatchTex &batch_texture = bdata.batch_textures[p_previous_match];
+
+		// note for future reference, if RID implementation changes, this could become more expensive
+		if ((batch_texture.RID_texture == p_texture) && (batch_texture.RID_normal == p_normal)) {
+			// tiling mode must also match
+			bool tiles = batch_texture.tile_mode != BatchTex::TILE_OFF;
+
+			if (tiles == p_tile)
+				// match!
+				return p_previous_match;
+		}
+	}
+
+	// not the previous match .. we will do a linear search ... slower, but should happen
+	// not very often except with non-batchable runs, which are going to be slow anyway
+	// n.b. could possibly be replaced later by a fast hash table
+	for (int n = 0; n < bdata.batch_textures.size(); n++) {
+		const BatchTex &batch_texture = bdata.batch_textures[n];
+		if ((batch_texture.RID_texture == p_texture) && (batch_texture.RID_normal == p_normal)) {
+
+			// tiling mode must also match
+			bool tiles = batch_texture.tile_mode != BatchTex::TILE_OFF;
+
+			if (tiles == p_tile)
+				// match!
+				return n;
+		}
+	}
+
+	// pushing back from local variable .. not ideal but has to use a Vector because non pod
+	// due to RIDs
+	BatchTex new_batch_tex;
+	new_batch_tex.RID_texture = p_texture;
+	new_batch_tex.RID_normal = p_normal;
+
+	// get the texture
+	typename T_STORAGE::Texture *texture = _get_canvas_texture(p_texture);
+
+	if (texture) {
+		new_batch_tex.tex_pixel_size.x = 1.0 / texture->width;
+		new_batch_tex.tex_pixel_size.y = 1.0 / texture->height;
+	} else {
+		// maybe doesn't need doing...
+		new_batch_tex.tex_pixel_size.x = 1.0;
+		new_batch_tex.tex_pixel_size.y = 1.0;
+	}
+
+	if (p_tile) {
+		if (texture) {
+			// default
+			new_batch_tex.tile_mode = BatchTex::TILE_NORMAL;
+
+			// no hardware support for non power of 2 tiling
+			if (!get_storage()->config.support_npot_repeat_mipmap) {
+				if (next_power_of_2(texture->alloc_width) != (unsigned int)texture->alloc_width && next_power_of_2(texture->alloc_height) != (unsigned int)texture->alloc_height) {
+					new_batch_tex.tile_mode = BatchTex::TILE_FORCE_REPEAT;
+				}
+			}
+		} else {
+			// this should not happen?
+			new_batch_tex.tile_mode = BatchTex::TILE_OFF;
+		}
+	} else {
+		new_batch_tex.tile_mode = BatchTex::TILE_OFF;
+	}
+
+	// push back
+	bdata.batch_textures.push_back(new_batch_tex);
+
+	return bdata.batch_textures.size() - 1;
+}
+
+typename T_STORAGE::Texture *_get_canvas_texture(const RID &p_texture) const {
+	if (p_texture.is_valid()) {
+
+		typename T_STORAGE::Texture *texture = get_storage()->texture_owner.getornull(p_texture);
+
+		if (texture) {
+			return texture->get_ptr();
+		}
+	}
+
+	return 0;
+}
+

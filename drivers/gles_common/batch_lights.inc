@@ -23,13 +23,12 @@ bool _light_scissor_begin(const Rect2 &p_item_rect, const Transform2D &p_light_x
 		}
 	}
 
-//	int rw = static_cast<T*>(this)->storage->frame.current_rt->width;
-	int rh = static_cast<const T*>(this)->storage->frame.current_rt->height;
+	int rh = get_storage()->frame.current_rt->height;
 
 	int y = rh - (cliprect.position.y + cliprect.size.y);
-	if (static_cast<const T*>(this)->storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_VFLIP])
+	if (get_storage()->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_VFLIP])
 		y = cliprect.position.y;
-	static_cast<const T*>(this)->gl_enable_scissor(cliprect.position.x, y, cliprect.size.width, cliprect.size.height);
+	get_this()->gl_enable_scissor(cliprect.position.x, y, cliprect.size.width, cliprect.size.height);
 
 	return true;
 }
@@ -80,8 +79,8 @@ void _calculate_scissor_threshold_area() {
 		bdata.scissor_threshold_area = -1.0f; // will always pass
 	} else {
 		// in pixels
-		int w = static_cast<T*>(this)->storage->frame.current_rt->width;
-		int h = static_cast<T*>(this)->storage->frame.current_rt->height;
+		int w = get_storage()->frame.current_rt->width;
+		int h = get_storage()->frame.current_rt->height;
 
 		int screen_area = w * h;
 
