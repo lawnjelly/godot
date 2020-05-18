@@ -70,8 +70,6 @@ private:
 	void _batch_upload_buffers();
 	void _batch_render_rects(const Batch &p_batch, RasterizerStorageGLES2::Material *p_material);
 
-	bool _detect_batch_break(Item *p_ci);
-
 	// funcs used from rasterizer_canvas_batcher template
 	void gl_enable_scissor(int p_x, int p_y, int p_width, int p_height) const;
 	void gl_disable_scissor() const;
