@@ -2093,9 +2093,6 @@ void RasterizerCanvasGLES2::initialize() {
 
 	batch_initialize();
 
-
-
-
 	// just reserve some space (may not be needed as we are orphaning, but hey ho)
 	glGenBuffers(1, &bdata.gl_vertex_buffer);
 
