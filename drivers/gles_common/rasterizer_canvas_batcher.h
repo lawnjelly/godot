@@ -2,6 +2,7 @@
 
 #include "core/os/os.h"
 #include "core/project_settings.h"
+#include "rasterizer_array.h"
 
 // We are using the curiously recurring template pattern
 // https://en.wikipedia.org/wiki/Curiously_recurring_template_pattern
