@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/os/os.h"
+#include "core/project_settings.h"
 
 // We are using the curiously recurring template pattern
 // https://en.wikipedia.org/wiki/Curiously_recurring_template_pattern
@@ -18,6 +19,7 @@
 PREAMBLE
 class RasterizerCanvasBatcher// : public RasterizerCanvasBatcherBase<T, T_STORAGE>
 {
+#include "batch_initialize.inc"
 #include "batch_structs.inc"
 #include "batch_sort.inc"
 #include "batch_lights.inc"

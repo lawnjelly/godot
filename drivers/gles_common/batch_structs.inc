@@ -314,3 +314,5 @@ public:
 		int transform_extra_command_number_p1; // plus one to allow fast checking against zero
 		Transform2D transform_combined; // final * extra
 	};
+
+	bool use_nvidia_rect_workaround;
