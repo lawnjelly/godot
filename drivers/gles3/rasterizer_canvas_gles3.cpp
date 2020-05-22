@@ -302,7 +302,7 @@ void RasterizerCanvasGLES3::_canvas_render_item(Item *p_ci, RenderItemState &r_r
 		state.canvas_shader.set_uniform(CanvasShaderGLES3::SCREEN_PIXEL_SIZE, Vector2(1.0, 1.0));
 	}
 	if (unshaded || (state.canvas_item_modulate.a > 0.001 && (!r_ris.shader_cache || r_ris.shader_cache->canvas_item.light_mode != RasterizerStorageGLES3::Shader::CanvasItem::LIGHT_MODE_LIGHT_ONLY) && !p_ci->light_masked))
-		_canvas_item_render_commands(p_ci, r_ris.current_clip, reclip);
+		_canvas_item_render_commands(p_ci, r_ris.current_clip, reclip, nullptr);
 
 	if ((blend_mode == RasterizerStorageGLES3::Shader::CanvasItem::BLEND_MODE_MIX || blend_mode == RasterizerStorageGLES3::Shader::CanvasItem::BLEND_MODE_PMALPHA) && r_ris.item_group_light && !unshaded) {
 
@@ -401,7 +401,7 @@ void RasterizerCanvasGLES3::_canvas_render_item(Item *p_ci, RenderItemState &r_r
 				}
 
 				glActiveTexture(GL_TEXTURE0);
-				_canvas_item_render_commands(ci, current_clip, reclip); //redraw using light
+				_canvas_item_render_commands(p_ci, r_ris.current_clip, reclip, nullptr); //redraw using light
 			}
 
 			light = light->next_ptr;
@@ -458,6 +458,12 @@ void RasterizerCanvasGLES3::_canvas_render_item(Item *p_ci, RenderItemState &r_r
 	}
 
 }
+
+void RasterizerCanvasGLES3::render_batches(Item::Command *const *p_commands, Item *p_current_clip, bool &r_reclip, RasterizerStorageGLES3::Material *p_material)
+{
+
+}
+
 
 void RasterizerCanvasGLES3::render_joined_item(const BItemJoined &p_bij, RenderItemState &r_ris)
 {

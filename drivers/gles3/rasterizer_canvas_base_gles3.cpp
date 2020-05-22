@@ -697,6 +697,7 @@ void RasterizerCanvasBaseGLES3::render_rect_nvidia_workaround(const Item::Comman
 	}
 }
 
+/*
 void RasterizerCanvasBaseGLES3::_canvas_item_render_commands(Item *p_item, Item *current_clip, bool &reclip) {
 
 	int cc = p_item->commands.size();
@@ -1335,6 +1336,7 @@ void RasterizerCanvasBaseGLES3::_canvas_item_render_commands(Item *p_item, Item 
 		}
 	}
 }
+*/
 
 void RasterizerCanvasBaseGLES3::_copy_texscreen(const Rect2 &p_rect) {
 
@@ -1414,6 +1416,7 @@ void RasterizerCanvasBaseGLES3::_copy_texscreen(const Rect2 &p_rect) {
 	glEnable(GL_BLEND);
 }
 
+/*
 void RasterizerCanvasBaseGLES3::canvas_render_items(Item *p_item_list, int p_z, const Color &p_modulate, Light *p_light, const Transform2D &p_transform) {
 
 	Item *current_clip = NULL;
@@ -1788,9 +1791,9 @@ void RasterizerCanvasBaseGLES3::canvas_render_items(Item *p_item_list, int p_z, 
 						glActiveTexture(GL_TEXTURE0 + storage->config.max_texture_image_units - 2);
 						glBindTexture(GL_TEXTURE_2D, cls->distance);
 
-						/*canvas_shader.set_uniform(CanvasShaderGLES3::SHADOW_MATRIX,light->shadow_matrix_cache);
-						canvas_shader.set_uniform(CanvasShaderGLES3::SHADOW_ESM_MULTIPLIER,light->shadow_esm_mult);
-						canvas_shader.set_uniform(CanvasShaderGLES3::LIGHT_SHADOW_COLOR,light->shadow_color);*/
+//						canvas_shader.set_uniform(CanvasShaderGLES3::SHADOW_MATRIX,light->shadow_matrix_cache);
+//						canvas_shader.set_uniform(CanvasShaderGLES3::SHADOW_ESM_MULTIPLIER,light->shadow_esm_mult);
+//						canvas_shader.set_uniform(CanvasShaderGLES3::LIGHT_SHADOW_COLOR,light->shadow_color);
 					}
 
 					glActiveTexture(GL_TEXTURE0 + storage->config.max_texture_image_units - 1);
@@ -1825,29 +1828,27 @@ void RasterizerCanvasBaseGLES3::canvas_render_items(Item *p_item_list, int p_z, 
 
 				last_blend_mode = -1;
 
-				/*
-				//this is set again, so it should not be needed anyway?
-				state.canvas_item_modulate = unshaded ? ci->final_modulate : Color(
-							ci->final_modulate.r * p_modulate.r,
-							ci->final_modulate.g * p_modulate.g,
-							ci->final_modulate.b * p_modulate.b,
-							ci->final_modulate.a * p_modulate.a );
+//				//this is set again, so it should not be needed anyway?
+//				state.canvas_item_modulate = unshaded ? ci->final_modulate : Color(
+//							ci->final_modulate.r * p_modulate.r,
+//							ci->final_modulate.g * p_modulate.g,
+//							ci->final_modulate.b * p_modulate.b,
+//							ci->final_modulate.a * p_modulate.a );
 
 
-				state.canvas_shader.set_uniform(CanvasShaderGLES3::MODELVIEW_MATRIX,state.final_transform);
-				state.canvas_shader.set_uniform(CanvasShaderGLES3::EXTRA_MATRIX,Transform2D());
-				state.canvas_shader.set_uniform(CanvasShaderGLES3::FINAL_MODULATE,state.canvas_item_modulate);
+//				state.canvas_shader.set_uniform(CanvasShaderGLES3::MODELVIEW_MATRIX,state.final_transform);
+//				state.canvas_shader.set_uniform(CanvasShaderGLES3::EXTRA_MATRIX,Transform2D());
+//				state.canvas_shader.set_uniform(CanvasShaderGLES3::FINAL_MODULATE,state.canvas_item_modulate);
 
-				glBlendEquation(GL_FUNC_ADD);
+//				glBlendEquation(GL_FUNC_ADD);
 
-				if (storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_TRANSPARENT]) {
-					glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-				} else {
-					glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-				}
+//				if (storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_TRANSPARENT]) {
+//					glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+//				} else {
+//					glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+//				}
 
-				//@TODO RESET canvas_blend_mode
-				*/
+//				//@TODO RESET canvas_blend_mode
 			}
 		}
 
@@ -1875,6 +1876,7 @@ void RasterizerCanvasBaseGLES3::canvas_render_items(Item *p_item_list, int p_z, 
 	state.canvas_shader.set_conditional(CanvasShaderGLES3::USE_LIGHTING, false);
 	state.canvas_shader.set_conditional(CanvasShaderGLES3::USE_SHADOWS, false);
 }
+*/
 
 void RasterizerCanvasBaseGLES3::canvas_debug_viewport_shadows(Light *p_lights_with_shadow) {
 
