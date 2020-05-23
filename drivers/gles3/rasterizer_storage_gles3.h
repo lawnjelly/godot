@@ -84,6 +84,7 @@ public:
 
 		bool srgb_decode_supported;
 
+		bool support_npot_repeat_mipmap;
 		bool texture_float_linear_supported;
 		bool framebuffer_float_supported;
 		bool framebuffer_half_float_supported;
@@ -454,6 +455,15 @@ public:
 			};
 
 			int light_mode;
+
+			// these flags are specifically for batching
+			// some of the logic is thus in rasterizer_storage.cpp
+			// we could alternatively set bitflags for each 'uses' and test on the fly
+			enum BatchFlags {
+				PREVENT_COLOR_BAKING = 1 << 0,
+				PREVENT_VERTEX_BAKING = 1 << 1,
+			};
+			unsigned int batch_flags;
 
 			bool uses_screen_texture;
 			bool uses_screen_uv;

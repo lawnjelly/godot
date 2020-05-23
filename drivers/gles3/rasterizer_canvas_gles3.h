@@ -27,6 +27,7 @@ private:
 	// low level batch funcs
 	void _batch_upload_buffers();
 	void _batch_render_rects(const Batch &p_batch, RasterizerStorageGLES3::Material *p_material);
+	void _batch_render_rects_test(const Batch &p_batch, RasterizerStorageGLES3::Material *p_material);
 
 	// funcs used from rasterizer_canvas_batcher template
 	void gl_enable_scissor(int p_x, int p_y, int p_width, int p_height) const;
