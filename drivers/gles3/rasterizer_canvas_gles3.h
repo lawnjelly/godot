@@ -6,6 +6,14 @@
 class RasterizerCanvasGLES3 : public RasterizerCanvasBaseGLES3, public RasterizerCanvasBatcher<RasterizerCanvasGLES3, RasterizerStorageGLES3>
 {
 	friend class RasterizerCanvasBatcher;
+
+private:
+	struct BatchGLData
+	{
+		// for batching
+		GLuint batch_vertex_array[2];
+	} batch_gl_data;
+
 public:
 	virtual void canvas_render_items_begin(const Color &p_modulate, Light *p_light, const Transform2D &p_base_transform);
 	virtual void canvas_render_items_end();
@@ -32,6 +40,8 @@ private:
 	// funcs used from rasterizer_canvas_batcher template
 	void gl_enable_scissor(int p_x, int p_y, int p_width, int p_height) const;
 	void gl_disable_scissor() const;
+
+	void gl_checkerror();
 
 public:
 	void initialize();

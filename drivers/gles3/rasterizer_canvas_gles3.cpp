@@ -34,6 +34,13 @@ void RasterizerCanvasGLES3::canvas_render_items(Item *p_item_list, int p_z, cons
 	batch_canvas_render_items(p_item_list, p_z, p_modulate, p_light, p_base_transform);
 }
 
+void RasterizerCanvasGLES3::gl_checkerror()
+{
+	GLenum e = glGetError();
+	CRASH_COND(e != GL_NO_ERROR);
+}
+
+
 void RasterizerCanvasGLES3::gl_enable_scissor(int p_x, int p_y, int p_width, int p_height) const {
 	glEnable(GL_SCISSOR_TEST);
 	glScissor(p_x, p_y, p_width, p_height);
@@ -477,7 +484,7 @@ void RasterizerCanvasGLES3::render_batches(Item::Command *const *p_commands, Ite
 
 		switch (batch.type) {
 			case Batch::BT_RECT: {
-				_batch_render_rects_test(batch, p_material);
+				_batch_render_rects(batch, p_material);
 			} break;
 			default: {
 				int end_command = batch.first_command + batch.num_commands;
@@ -1639,6 +1646,7 @@ void RasterizerCanvasGLES3::canvas_render_items_implementation(Item *p_item_list
 
 void RasterizerCanvasGLES3::_batch_upload_buffers() {
 
+//	return;
 	// noop?
 	if (!bdata.vertices.size())
 		return;
@@ -1756,19 +1764,24 @@ void RasterizerCanvasGLES3::_batch_render_rects_test(const Batch &p_batch, Raste
 void RasterizerCanvasGLES3::_batch_render_rects(const Batch &p_batch, RasterizerStorageGLES3::Material *p_material) {
 	ERR_FAIL_COND(p_batch.num_commands <= 0);
 
-	const bool &colored_verts = bdata.use_colored_vertices;
-	int sizeof_vert;
-	if (!colored_verts) {
-		sizeof_vert = sizeof(BatchVertex);
-	} else {
-		sizeof_vert = sizeof(BatchVertexColored);
-	}
+
 
 	_set_texture_rect_mode(false);
 //	state.canvas_shader.set_conditional(CanvasShaderGLES3::USE_TEXTURE_RECT, false);
 
 //	state.canvas_shader.set_uniform(CanvasShaderGLES3::CLIP_RECT_UV, p_rect->flags & CANVAS_RECT_CLIP_UV);
 	state.canvas_shader.set_uniform(CanvasShaderGLES3::CLIP_RECT_UV, false);
+
+	const bool &colored_verts = bdata.use_colored_vertices;
+	int sizeof_vert;
+	if (!colored_verts) {
+		glBindVertexArray(batch_gl_data.batch_vertex_array[0]);
+		//sizeof_vert = sizeof(BatchVertex);
+	} else {
+		glBindVertexArray(batch_gl_data.batch_vertex_array[1]);
+		//sizeof_vert = sizeof(BatchVertexColored);
+	}
+
 
 //	if (state.canvas_shader.bind()) {
 //		_set_uniforms();
@@ -1781,9 +1794,16 @@ void RasterizerCanvasGLES3::_batch_render_rects(const Batch &p_batch, Rasterizer
 	_bind_canvas_texture(tex.RID_texture, tex.RID_normal);
 
 	// bind the index and vertex buffer
-	glBindBuffer(GL_ARRAY_BUFFER, bdata.gl_vertex_buffer);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bdata.gl_index_buffer);
+//	glBindBuffer(GL_ARRAY_BUFFER, bdata.gl_vertex_buffer);
+//	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bdata.gl_index_buffer);
 
+	// upload test
+//	glBufferData(GL_ARRAY_BUFFER, sizeof(BatchVertex) * bdata.vertices.size(), bdata.vertices.get_data(), GL_DYNAMIC_DRAW);
+//	int version = 0;
+//	version |= 2; // uvs
+//	glBindVertexArray(data.polygon_buffer_quad_arrays[version]);
+
+/*
 	uint64_t pointer = 0;
 	glVertexAttribPointer(VS::ARRAY_VERTEX, 2, GL_FLOAT, GL_FALSE, sizeof_vert, (const void *)pointer);
 
@@ -1799,7 +1819,7 @@ void RasterizerCanvasGLES3::_batch_render_rects(const Batch &p_batch, Rasterizer
 		glVertexAttribPointer(VS::ARRAY_COLOR, 4, GL_FLOAT, GL_FALSE, sizeof_vert, CAST_INT_TO_UCHAR_PTR(pointer + (4 * 4)));
 		glEnableVertexAttribArray(VS::ARRAY_COLOR);
 	}
-
+*/
 	switch (tex.tile_mode) {
 //		case BatchTex::TILE_FORCE_REPEAT: {
 //			state.canvas_shader.set_conditional(CanvasShaderGLES3::USE_FORCE_REPEAT, true);
@@ -1823,7 +1843,14 @@ void RasterizerCanvasGLES3::_batch_render_rects(const Batch &p_batch, Rasterizer
 	int num_elements = p_batch.num_commands * 6;
 	glDrawElements(GL_TRIANGLES, num_elements, GL_UNSIGNED_SHORT, (void *)offset);
 
+//	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+
 	storage->info.render._2d_draw_call_count++;
+
+	glBindVertexArray(0);
+
+//	gl_checkerror();
+
 
 	switch (tex.tile_mode) {
 //		case BatchTex::TILE_FORCE_REPEAT: {
@@ -1837,15 +1864,18 @@ void RasterizerCanvasGLES3::_batch_render_rects(const Batch &p_batch, Rasterizer
 		} break;
 	}
 
+	/*
 	glDisableVertexAttribArray(VS::ARRAY_TEX_UV);
 	glDisableVertexAttribArray(VS::ARRAY_COLOR);
 
 	// may not be necessary .. state change optimization still TODO
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	*/
 }
 
 void RasterizerCanvasGLES3::initialize() {
+	gl_checkerror();
 	RasterizerCanvasBaseGLES3::initialize();
 
 	batch_initialize();
@@ -1885,6 +1915,46 @@ void RasterizerCanvasGLES3::initialize() {
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
 	} // only if there is a vertex buffer (batching is on)
+
+	// vertex array objects
+	for (int vao=0; vao<2; vao++)
+	{
+		bool colored_verts = vao == 1;
+
+		int sizeof_vert;
+		if (!colored_verts) {
+			sizeof_vert = sizeof(BatchVertex);
+		} else {
+			sizeof_vert = sizeof(BatchVertexColored);
+		}
+
+
+		glGenVertexArrays(1, &batch_gl_data.batch_vertex_array[vao]);
+		glBindVertexArray(batch_gl_data.batch_vertex_array[vao]);
+		glBindBuffer(GL_ARRAY_BUFFER, bdata.gl_vertex_buffer);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bdata.gl_index_buffer);
+
+		uint64_t pointer = 0;
+		glEnableVertexAttribArray(VS::ARRAY_VERTEX);
+		glVertexAttribPointer(VS::ARRAY_VERTEX, 2, GL_FLOAT, GL_FALSE, sizeof_vert, (const void *)pointer);
+
+		// always send UVs, even within a texture specified because a shader can still use UVs
+		glEnableVertexAttribArray(VS::ARRAY_TEX_UV);
+		glVertexAttribPointer(VS::ARRAY_TEX_UV, 2, GL_FLOAT, GL_FALSE, sizeof_vert, CAST_INT_TO_UCHAR_PTR(pointer + (2 * 4)));
+
+		// color
+		if (!colored_verts) {
+	//		glDisableVertexAttribArray(VS::ARRAY_COLOR);
+	//		glVertexAttrib4fv(VS::ARRAY_COLOR, p_batch.color.get_data());
+		} else {
+			glEnableVertexAttribArray(VS::ARRAY_COLOR);
+			glVertexAttribPointer(VS::ARRAY_COLOR, 4, GL_FLOAT, GL_FALSE, sizeof_vert, CAST_INT_TO_UCHAR_PTR(pointer + (4 * 4)));
+		}
+
+		glBindVertexArray(0);
+	} // for vao
+	gl_checkerror();
+
 }
 
 RasterizerCanvasGLES3::RasterizerCanvasGLES3() {
