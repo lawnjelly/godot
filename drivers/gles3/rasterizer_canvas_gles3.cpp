@@ -1764,8 +1764,6 @@ void RasterizerCanvasGLES3::_batch_render_rects_test(const Batch &p_batch, Raste
 void RasterizerCanvasGLES3::_batch_render_rects(const Batch &p_batch, RasterizerStorageGLES3::Material *p_material) {
 	ERR_FAIL_COND(p_batch.num_commands <= 0);
 
-
-
 	_set_texture_rect_mode(false);
 //	state.canvas_shader.set_conditional(CanvasShaderGLES3::USE_TEXTURE_RECT, false);
 
@@ -1820,6 +1818,12 @@ void RasterizerCanvasGLES3::_batch_render_rects(const Batch &p_batch, Rasterizer
 		glEnableVertexAttribArray(VS::ARRAY_COLOR);
 	}
 */
+
+	if (!colored_verts) {
+		glDisableVertexAttribArray(VS::ARRAY_COLOR);
+		glVertexAttrib4fv(VS::ARRAY_COLOR, p_batch.color.get_data());
+	}
+
 	switch (tex.tile_mode) {
 //		case BatchTex::TILE_FORCE_REPEAT: {
 //			state.canvas_shader.set_conditional(CanvasShaderGLES3::USE_FORCE_REPEAT, true);
