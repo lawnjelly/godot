@@ -13,6 +13,10 @@ public:
 	
 	// returns triangle ID (or -1) and barycentric coords
 	int IntersectRay(const Ray &r, float &u, float &v, float &w) const;
+	void FindUVsBarycentric(int tri, Vector2 &uvs, float u, float v, float w) const
+	{
+		m_UVTris[tri].FindUVBarycentric(uvs, u, v, w);
+	}
 
 private:
 	void Transform_Verts(const PoolVector<Vector3> &ptsLocal, PoolVector<Vector3> &ptsWorld, const Transform &tr) const;
@@ -28,5 +32,7 @@ private:
 
 
 };
+
+
 
 }

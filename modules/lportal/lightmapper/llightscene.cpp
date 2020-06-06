@@ -5,7 +5,15 @@ using namespace LM;
 
 int LightScene::IntersectRay(const Ray &r, float &u, float &v, float &w) const
 {
-
+	float t;
+	for (int n=0; n<m_Tris.size(); n++)
+	{
+		if (r.TestIntersect(m_Tris[n], t))
+		{
+			r.FindIntersect(m_Tris[n], t, u, v, w);
+			return n;
+		}
+	}
 
 	return -1;
 }
