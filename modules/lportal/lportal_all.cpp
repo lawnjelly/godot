@@ -32,4 +32,7 @@
 #include "lmain_camera.cpp"
 #include "larea.cpp"
 #include "ldae_exporter.cpp"
+#include "lightmapper/llightmapper.cpp"
+#include "lightmapper/llightscene.cpp"
+#include "lightmapper/llighttracer.cpp"
 

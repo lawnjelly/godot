@@ -34,7 +34,7 @@ public:
 	// note this is not available in Godot Vector
 	T& operator[](unsigned int ui)
 	{
-		assert (ui < m_iSize);
+		assert (ui < (unsigned int) m_iSize);
 		return m_Vec[ui];
 	}
 
@@ -67,7 +67,7 @@ public:
 		m_iSize = s;
 
 		// if compacting is not desired, no need to shrink vector
-		if (m_iSize < m_Vec.size())
+		if (m_iSize < (int) m_Vec.size())
 		{
 			if (!bCompact)
 			{
@@ -95,7 +95,7 @@ public:
 	T * request()
 	{
 		m_iSize++;
-		if (m_iSize >= m_Vec.size())
+		if (m_iSize >=(int) m_Vec.size())
 			grow();
 
 		return &m_Vec[m_iSize-1];
@@ -113,7 +113,7 @@ public:
 	{
 		int size_p1 = m_iSize+1;
 
-		if (size_p1 < m_Vec.size())
+		if (size_p1 < (int) m_Vec.size())
 		{
 			int size = m_iSize;
 			m_iSize = size_p1;
@@ -132,7 +132,7 @@ public:
 	void copy_from(const LVector<T> &o)
 	{
 		// make sure enough space
-		if (o.size() > m_Vec.size())
+		if (o.size() > (int) m_Vec.size())
 		{
 			reserve(o.size());
 		}
@@ -149,7 +149,7 @@ public:
 	void copy_from(const Vector<T> &o)
 	{
 		// make sure enough space
-		if (o.size() > m_Vec.size())
+		if (o.size() > (int) m_Vec.size())
 		{
 			reserve(o.size());
 		}
