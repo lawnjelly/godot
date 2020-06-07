@@ -3,19 +3,31 @@
 
 using namespace LM;
 
-int LightScene::IntersectRay(const Ray &r, float &u, float &v, float &w) const
+int LightScene::IntersectRay(const Ray &r, float &u, float &v, float &w, float &nearest_t) const
 {
-	float t;
+	nearest_t = FLT_MAX;
+	int nearest_tri = -1;
+
 	for (int n=0; n<m_Tris.size(); n++)
 	{
+		float t = 0.0f;
 		if (r.TestIntersect(m_Tris[n], t))
 		{
-			r.FindIntersect(m_Tris[n], t, u, v, w);
-			return n;
+			if (t < nearest_t)
+			{
+				nearest_t = t;
+				nearest_tri = n;
+			}
 		}
 	}
 
-	return -1;
+
+	if (nearest_tri != -1)
+	{
+		r.FindIntersect(m_Tris[nearest_tri], nearest_t, u, v, w);
+	}
+
+	return nearest_tri;
 }
 
 
