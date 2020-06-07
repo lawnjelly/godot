@@ -2,7 +2,33 @@
 
 using namespace LM;
 
-bool LightMapper::LightmapMesh(const MeshInstance &mi, Image &output_image)
+void LLightMapper::_bind_methods()
+{
+	// main functions
+	ClassDB::bind_method(D_METHOD("lightmap_mesh", "mesh_instance", "output_image"), &LLightMapper::lightmap_mesh);
+
+}
+
+bool LLightMapper::lightmap_mesh(Node * pMeshInstance, Object * pOutputImage)
+{
+	MeshInstance * pMI = Object::cast_to<MeshInstance>(pMeshInstance);
+	if (!pMI)
+	{
+		WARN_PRINT("lightmap_mesh : not a mesh instance");
+		return false;
+	}
+
+	Image * pIm = Object::cast_to<Image>(pOutputImage);
+	if (!pIm)
+	{
+		WARN_PRINT("lightmap_mesh : not an image");
+		return false;
+	}
+
+	return LightmapMesh(*pMI, *pIm);
+}
+
+bool LLightMapper::LightmapMesh(const MeshInstance &mi, Image &output_image)
 {
 	m_iWidth = output_image.get_width();
 	m_iHeight = output_image.get_height();
@@ -15,7 +41,7 @@ bool LightMapper::LightmapMesh(const MeshInstance &mi, Image &output_image)
 	return true;
 }
 
-void LightMapper::WriteOutputImage(Image &output_image)
+void LLightMapper::WriteOutputImage(Image &output_image)
 {
 	output_image.lock();
 
@@ -39,16 +65,16 @@ void LightMapper::WriteOutputImage(Image &output_image)
 	output_image.unlock();
 }
 
-void LightMapper::ProcessLight()
+void LLightMapper::ProcessLight()
 {
 	Ray r;
-	r.o = Vector3(0, 20, 0);
+	r.o = Vector3(0, 5, 0);
 
 	// each ray
-	for (int n=0; n<128; n++)
+	for (int n=0; n<10000; n++)
 	{
 		r.d.x = Math::random(-1.0f, 1.0f);
-		r.d.y = Math::random(-1.0f, 1.0f);
+		r.d.y = Math::random(-1.0f, -1.0f);
 		r.d.z = Math::random(-1.0f, 1.0f);
 
 		// unlikely
@@ -56,8 +82,8 @@ void LightMapper::ProcessLight()
 			continue;
 
 		r.d.normalize();
-		float u, v, w;
-		int tri = m_Scene.IntersectRay(r, u, v, w);
+		float u, v, w, t;
+		int tri = m_Scene.IntersectRay(r, u, v, w, t);
 
 		// nothing hit
 		if (tri == -1)
@@ -75,7 +101,14 @@ void LightMapper::ProcessLight()
 		float * pf = m_Image_L.Get(tx, ty);
 		if (!pf)
 			continue;
-		*pf = 1.0f;
+
+		// scale according to distance
+		t /= 10.0f;
+		t = 1.0f - t;
+		if (t < 0.0f)
+			t = 0.0f;
+
+		*pf = t;
 	}
 }
 
