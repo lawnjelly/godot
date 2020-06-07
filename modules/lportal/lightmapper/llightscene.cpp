@@ -31,7 +31,7 @@ int LightScene::IntersectRay(const Ray &r, float &u, float &v, float &w, float &
 }
 
 
-void LightScene::Create(const MeshInstance &mi)
+void LightScene::Create(const MeshInstance &mi, int width, int height)
 {
 	Ref<Mesh> rmesh = mi.get_mesh();
 	Array arrays = rmesh->surface_get_arrays(0);
@@ -51,29 +51,65 @@ void LightScene::Create(const MeshInstance &mi)
 	int nTris = m_Inds.size() / 3;
 	m_Tris.resize(nTris);
 	m_UVTris.resize(nTris);
+	m_TriUVaabbs.resize(nTris);
 
 	int i = 0;
 	for (int n=0; n<nTris; n++)
 	{
 		Tri &t = m_Tris[n];
 		UVTri &uvt = m_UVTris[n];
+		Rect2 &aabb = m_TriUVaabbs[n];
 
 		int ind = m_Inds[i++];
 		t.pos[0] = m_ptPositions[ind];
 		uvt.uv[0] = m_UVs[ind];
+		aabb = Rect2(uvt.uv[0], Vector2(0, 0));
 
 		ind = m_Inds[i++];
 		t.pos[1] = m_ptPositions[ind];
 		uvt.uv[1] = m_UVs[ind];
+		aabb.expand_to(uvt.uv[1]);
 
 		ind = m_Inds[i++];
 		t.pos[2] = m_ptPositions[ind];
 		uvt.uv[2] = m_UVs[ind];
+		aabb.expand_to(uvt.uv[2]);
+
+		// convert aabb from 0-1 to texels
+//		aabb.position.x *= width;
+//		aabb.position.y *= height;
+//		aabb.size.x *= width;
+//		aabb.size.y *= height;
+
+		// expand aabb just a tad
+		aabb.expand(Vector2(0.01, 0.01));
 	}
 
 
 }
 
+int LightScene::FindTriAtUV(float x, float y, float &u, float &v, float &w) const
+{
+	for (int n=0; n<m_UVTris.size(); n++)
+	{
+		// check aabb
+		const Rect2 &aabb = m_TriUVaabbs[n];
+		if (!aabb.has_point(Point2(x, y)))
+			continue;
+
+		const UVTri &tri = m_UVTris[n];
+
+		if (tri.ContainsPoint(Vector2(x, y)))
+		{
+			// find barycentric coords
+			tri.FindBarycentricCoords(Vector2(x, y), u, v, w);
+
+			return n+1; // plus 1 based
+		}
+	}
+
+	return 0;
+}
 
 
 void LightScene::Transform_Verts(const PoolVector<Vector3> &ptsLocal, PoolVector<Vector3> &ptsWorld, const Transform &tr) const

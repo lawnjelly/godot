@@ -16,11 +16,19 @@ private:
 	bool LightmapMesh(const MeshInstance &mi, Image &output_image);
 
 private:
+	void ProcessTexels();
 	void ProcessLight();
+	void ProcessTexel(int x, int y);
+	void PrepareImageMaps();
+	void ProcessRay(LM::Ray &r);
+
 	void WriteOutputImage(Image &output_image);
 
 	// luminosity
 	LM::LightImage<float> m_Image_L;
+	LM::LightImage<uint32_t> m_Image_ID_p1;
+	LM::LightImage<Vector3> m_Image_Barycentric;
+
 	int m_iWidth;
 	int m_iHeight;
 
