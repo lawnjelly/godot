@@ -1,4 +1,5 @@
 #include "llightmapper.h"
+#include "ldilate.h"
 
 using namespace LM;
 
@@ -42,12 +43,16 @@ bool LLightMapper::LightmapMesh(const MeshInstance &mi, Image &output_image)
 	m_Image_ID_p1.Create(m_iWidth, m_iHeight);
 	m_Image_Barycentric.Create(m_iWidth, m_iHeight);
 
+	print_line("Scene Create");
 	m_Scene.Create(mi, m_iWidth, m_iHeight);
 
+	print_line("PrepareImageMaps");
 	PrepareImageMaps();
+	print_line("ProcessTexels");
 	ProcessTexels();
 
 //	ProcessLight();
+	print_line("WriteOutputImage");
 	WriteOutputImage(output_image);
 	return true;
 }
@@ -73,6 +78,18 @@ void LLightMapper::PrepareImageMaps()
 
 void LLightMapper::WriteOutputImage(Image &output_image)
 {
+	Dilate<float> dilate;
+//	dilate.DilateImage(m_Image_L, m_Image_ID_p1);
+
+	// test
+//	int test_size = 7;
+//	LightImage<float> imf;
+//	imf.Create(test_size, test_size);
+//	LightImage<uint32_t> imi;
+//	imi.Create(test_size, test_size);
+//	imi.GetItem(3, 3) = 255;
+//	dilate.DilateImage(imf, imi);
+
 	output_image.lock();
 
 	for (int y=0; y<m_iHeight; y++)
@@ -82,13 +99,20 @@ void LLightMapper::WriteOutputImage(Image &output_image)
 			const float * pf = m_Image_L.Get(x, y);
 			assert (pf);
 			float f = *pf;
-//			f *= 255.0f;
-//			f += 0.5f;
-//			int v = f;
-//			if (v < 0) v = 0;
-//			if (v > 255) v = 255;
+
+//			f = 0.0f;
+//				f = 1.0f;
+
 
 			output_image.set_pixel(x, y, Color(f, f, f, 255));
+//			if (m_Image_ID_p1.GetItem(x, y))
+//			{
+//				output_image.set_pixel(x, y, Color(f, f, f, 255));
+//			}
+//			else
+//			{
+//				output_image.set_pixel(x, y, Color(0, 0, 0, 255));
+//			}
 		}
 	}
 
@@ -99,6 +123,9 @@ void LLightMapper::ProcessTexels()
 {
 	for (int y=0; y<m_iHeight; y++)
 	{
+		if ((y % 10) == 0)
+			print_line("\tTexels line " + itos(y));
+
 		for (int x=0; x<m_iWidth; x++)
 		{
 			ProcessTexel(x, y);
