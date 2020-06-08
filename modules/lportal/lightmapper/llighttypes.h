@@ -2,6 +2,19 @@
 
 namespace LM
 {
+
+class Vec2_i16
+{
+public:
+	Vec2_i16() {}
+	Vec2_i16(int xx, int yy) {x = xx; y = yy;}
+	int16_t x;
+	int16_t y;
+	void Set(int xx, int yy) {x = xx; y = yy;}
+	bool IsZero() const {return (x == 0) && (y == 0);}
+	bool IsNonZero() const {return !IsZero();}
+};
+
 class Tri
 {
 public:

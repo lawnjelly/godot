@@ -59,6 +59,7 @@ public:
 	void reserve(int s)
 	{
 		m_Vec.resize(s);
+		m_iSize = 0;
 	}
 
 	void resize(int s, bool bCompact = false)
@@ -106,7 +107,9 @@ public:
 		int new_size = m_Vec.size() * 2;
 		if (!new_size) new_size = 1;
 
-		reserve(new_size);
+		int s = m_iSize;
+		resize(new_size);
+		m_iSize = s;
 	}
 
 	void push_back(const T &t)
@@ -134,7 +137,7 @@ public:
 		// make sure enough space
 		if (o.size() > (int) m_Vec.size())
 		{
-			reserve(o.size());
+			resize(o.size());
 		}
 
 		clear();
@@ -151,7 +154,7 @@ public:
 		// make sure enough space
 		if (o.size() > (int) m_Vec.size())
 		{
-			reserve(o.size());
+			resize(o.size());
 		}
 
 		clear();
@@ -179,6 +182,33 @@ public:
 
 		return -1; // not found
 	}
+
+	void delete_items_first(unsigned int uiNumItems)
+	{
+		if (uiNumItems < size())
+		{
+			unsigned int num_to_move = size() - uiNumItems;
+
+			if (num_to_move)
+			{
+				memmove(&m_Vec[0], &m_Vec[uiNumItems], num_to_move * sizeof (T));
+			}
+			m_iSize -= uiNumItems;
+		}
+		else
+		{
+			if (uiNumItems == size())
+			{
+				clear();
+			}
+			else
+			{
+				assert (0 && "delete_items_first : Not enough items");
+			}
+		}
+
+	}
+
 
 	LVector()
 	{
