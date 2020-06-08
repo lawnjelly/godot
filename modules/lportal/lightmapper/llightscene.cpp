@@ -52,28 +52,33 @@ void LightScene::Create(const MeshInstance &mi, int width, int height)
 	m_Tris.resize(nTris);
 	m_UVTris.resize(nTris);
 	m_TriUVaabbs.resize(nTris);
+	m_TriPos_aabbs.resize(nTris);
 
 	int i = 0;
 	for (int n=0; n<nTris; n++)
 	{
 		Tri &t = m_Tris[n];
 		UVTri &uvt = m_UVTris[n];
-		Rect2 &aabb = m_TriUVaabbs[n];
+		Rect2 &rect = m_TriUVaabbs[n];
+		AABB &aabb = m_TriPos_aabbs[n];
 
 		int ind = m_Inds[i++];
 		t.pos[0] = m_ptPositions[ind];
 		uvt.uv[0] = m_UVs[ind];
-		aabb = Rect2(uvt.uv[0], Vector2(0, 0));
+		rect = Rect2(uvt.uv[0], Vector2(0, 0));
+		aabb.position = t.pos[0];
 
 		ind = m_Inds[i++];
 		t.pos[1] = m_ptPositions[ind];
 		uvt.uv[1] = m_UVs[ind];
-		aabb.expand_to(uvt.uv[1]);
+		rect.expand_to(uvt.uv[1]);
+		aabb.expand_to(t.pos[1]);
 
 		ind = m_Inds[i++];
 		t.pos[2] = m_ptPositions[ind];
 		uvt.uv[2] = m_UVs[ind];
-		aabb.expand_to(uvt.uv[2]);
+		rect.expand_to(uvt.uv[2]);
+		aabb.expand_to(t.pos[2]);
 
 		// convert aabb from 0-1 to texels
 //		aabb.position.x *= width;
@@ -82,10 +87,10 @@ void LightScene::Create(const MeshInstance &mi, int width, int height)
 //		aabb.size.y *= height;
 
 		// expand aabb just a tad
-		aabb.expand(Vector2(0.01, 0.01));
+		rect.expand(Vector2(0.01, 0.01));
 	}
 
-
+	m_Tracer.Create(*this);
 }
 
 int LightScene::FindTriAtUV(float x, float y, float &u, float &v, float &w) const

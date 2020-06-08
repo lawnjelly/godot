@@ -2,6 +2,7 @@
 
 #include "../lvector.h"
 #include "llighttypes.h"
+#include "llighttracer.h"
 
 namespace LM
 {
@@ -9,6 +10,7 @@ namespace LM
 class LightScene
 {
 	friend class LLightMapper;
+	friend class LightTracer;
 public:
 	void Create(const MeshInstance &mi, int width, int height);
 	
@@ -31,9 +33,12 @@ private:
 
 	LVector<UVTri> m_UVTris;
 	LVector<Rect2> m_TriUVaabbs;
+	LVector<AABB> m_TriPos_aabbs;
+	LightTracer m_Tracer;
 
 public:
 	LVector<Tri> m_Tris;
+
 
 };
 
