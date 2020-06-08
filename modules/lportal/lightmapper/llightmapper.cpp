@@ -59,9 +59,11 @@ void LLightMapper::PrepareImageMaps()
 	{
 		for (int x=0; x<m_iWidth; x++)
 		{
+			// use the texel centre!
 			// find the triangle at this UV
-			float u = x / (float) m_iWidth;
-			float v = y / (float) m_iHeight;
+			float u = (x + 0.5f) / (float) m_iWidth;
+			float v = (y + 0.5f) / (float) m_iHeight;
+
 
 			Vector3 &bary = *m_Image_Barycentric.Get(x, y);
 			*m_Image_ID_p1.Get(x, y) = m_Scene.FindTriAtUV(u, v, bary.x, bary.y, bary.z);
