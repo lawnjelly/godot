@@ -3,6 +3,13 @@
 namespace LM
 {
 
+class Vec3i
+{
+public:
+	int32_t x, y, z;
+	void Set(int xx, int yy, int zz) {x = xx; y = yy; z = zz;}
+};
+
 class Vec2_i16
 {
 public:
