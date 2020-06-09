@@ -15,7 +15,11 @@ public:
 	void Create(const MeshInstance &mi, int width, int height);
 	
 	// returns triangle ID (or -1) and barycentric coords
-	int IntersectRay(const Ray &r, float &u, float &v, float &w, float &nearest_t) const;
+	int IntersectRay(const Ray &r, float &u, float &v, float &w, float &nearest_t);
+
+	int IntersectRay_old(const Ray &ray, float &u, float &v, float &w, float &nearest_t) const;
+
+
 	void FindUVsBarycentric(int tri, Vector2 &uvs, float u, float v, float w) const
 	{
 		m_UVTris[tri].FindUVBarycentric(uvs, u, v, w);

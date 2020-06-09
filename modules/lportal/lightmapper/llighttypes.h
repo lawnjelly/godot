@@ -6,6 +6,8 @@ namespace LM
 class Vec3i
 {
 public:
+	Vec3i() {}
+	Vec3i(int xx, int yy, int zz) {x = xx; y = yy; z = zz;}
 	int32_t x, y, z;
 	void Set(int xx, int yy, int zz) {x = xx; y = yy; z = zz;}
 };

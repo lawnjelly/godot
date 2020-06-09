@@ -1,5 +1,6 @@
 #include "llightmapper.h"
 #include "ldilate.h"
+#include "core/os/os.h"
 
 using namespace LM;
 
@@ -124,7 +125,10 @@ void LLightMapper::ProcessTexels()
 	for (int y=0; y<m_iHeight; y++)
 	{
 		if ((y % 10) == 0)
+		{
 			print_line("\tTexels line " + itos(y));
+			OS::get_singleton()->delay_usec(1);
+		}
 
 		for (int x=0; x<m_iWidth; x++)
 		{
@@ -161,6 +165,10 @@ void LLightMapper::ProcessRay(LM::Ray &r)
 	// unlikely
 	if (r.d.x == 0.0f && r.d.y == 0.0f && r.d.z == 0.0f)
 		return;
+
+	// test
+//	r.d = Vector3(0, -1, 0);
+//	r.d = Vector3(-2.87, -5.0 + 0.226, 4.076);
 
 	r.d.normalize();
 	float u, v, w, t;
