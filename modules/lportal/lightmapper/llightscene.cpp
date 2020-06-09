@@ -3,7 +3,51 @@
 
 using namespace LM;
 
-int LightScene::IntersectRay(const Ray &r, float &u, float &v, float &w, float &nearest_t) const
+int LightScene::IntersectRay(const Ray &ray, float &u, float &v, float &w, float &nearest_t)
+{
+	nearest_t = FLT_MAX;
+	int nearest_tri = -1;
+
+	Ray voxel_ray;
+	Vec3i ptVoxel;
+
+	// prepare voxel trace
+	if (!m_Tracer.RayTrace_Start(ray, voxel_ray, ptVoxel))
+		return nearest_tri;
+
+	int count = 0;
+	while (true)
+	{
+		if (!m_Tracer.RayTrace(voxel_ray, voxel_ray, ptVoxel))
+			break;
+		count++;
+	}
+
+	int nHits = m_Tracer.m_TriHits.size();
+	for (int n=0; n<nHits; n++)
+	{
+		unsigned int tri_id = m_Tracer.m_TriHits[n];
+
+		float t = 0.0f;
+		if (ray.TestIntersect(m_Tris[tri_id], t))
+		{
+			if (t < nearest_t)
+			{
+				nearest_t = t;
+				nearest_tri = tri_id;
+			}
+		}
+	}
+
+	if (nearest_tri != -1)
+	{
+		ray.FindIntersect(m_Tris[nearest_tri], nearest_t, u, v, w);
+	}
+
+	return nearest_tri;
+}
+
+int LightScene::IntersectRay_old(const Ray &r, float &u, float &v, float &w, float &nearest_t) const
 {
 	nearest_t = FLT_MAX;
 	int nearest_tri = -1;
