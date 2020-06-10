@@ -20,7 +20,7 @@ private:
 	void ProcessLight();
 	void ProcessTexel(int x, int y);
 	void PrepareImageMaps();
-	void ProcessRay(LM::Ray &r);
+	void ProcessRay(LM::Ray &r, int dest_tri_id = 0, const Vector2i * pUV = 0);
 
 	void WriteOutputImage(Image &output_image);
 
@@ -33,6 +33,9 @@ private:
 	int m_iHeight;
 
 	LM::LightScene m_Scene;
+
+	// for stats
+	int m_iNumTests;
 
 protected:
 	static void _bind_methods();

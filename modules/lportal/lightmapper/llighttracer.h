@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../lvector.h"
+#include "../lbitfield_dynamic.h"
 #include "core/math/aabb.h"
 #include "llighttypes.h"
 
@@ -48,6 +49,8 @@ private:
 
 	LVector<Voxel> m_Voxels;
 	LVector<AABB> m_VoxelBounds;
+	Lawn::LBitField_Dynamic m_BFTrisHit;
+	int m_iNumTris;
 
 	// slightly expanded
 	AABB m_SceneWorldBound;
@@ -76,6 +79,20 @@ private:
 	Vector3 m_VoxelSize;
 	int m_iNumVoxels;
 	Plane m_VoxelPlanes[6];
+
+	void IntersectAAPlane(const Ray &ray, int axis, Vector3 &pt, float &nearest_hit, int plane_id, int &nearest_plane_id) const
+	{
+		if (ray.IntersectAAPlane(axis, pt))
+		{
+			Vector3 offset = (pt - ray.o);
+			float dist = offset.length_squared();
+			if (dist < nearest_hit)
+			{
+				nearest_hit = dist;
+				nearest_plane_id = plane_id;
+			}
+		}
+	}
 
 	bool IntersectRayAABB(const Ray &ray, const AABB &aabb, Vector3 &ptInter);
 	void IntersectPlane(const Ray &ray, int plane_id, Vector3 &ptIntersect, float constant, float &nearest_hit, int &nearest_plane_id)

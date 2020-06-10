@@ -7,6 +7,7 @@ using namespace LM;
 void LightTracer::Create(const LightScene &scene)
 {
 	m_pScene = &scene;
+	m_iNumTris = m_pScene->m_Tris.size();
 
 	// precalc voxel planes
 	m_VoxelPlanes[0].normal = Vector3(-1, 0, 0);
@@ -18,13 +19,14 @@ void LightTracer::Create(const LightScene &scene)
 
 	CalculateWorldBound();
 
-	m_Dims.Set(10, 1, 10);
+	m_Dims.Set(40, 10, 40);
 
 	m_iNumVoxels = m_Dims.x * m_Dims.y * m_Dims.z;
 	m_DimsXTimesY = m_Dims.x * m_Dims.y;
 
 	m_Voxels.resize(m_iNumVoxels);
 	m_VoxelBounds.resize(m_iNumVoxels);
+	m_BFTrisHit.Create(m_iNumTris);
 
 	m_VoxelSize.x = m_SceneWorldBound.size.x / m_Dims.x;
 	m_VoxelSize.y = m_SceneWorldBound.size.y / m_Dims.y;
@@ -65,6 +67,8 @@ bool LightTracer::RayTrace_Start(Ray ray, Ray &voxel_ray, Vec3i &start_voxel)
 		ray.o = clip;
 	}
 
+	m_BFTrisHit.Blank();
+
 	voxel_ray.o = ray.o - m_SceneWorldBound.position;
 	voxel_ray.o.x /= m_VoxelSize.x;
 	voxel_ray.o.y /= m_VoxelSize.y;
@@ -83,6 +87,12 @@ bool LightTracer::RayTrace_Start(Ray ray, Ray &voxel_ray, Vec3i &start_voxel)
 	// out of bounds?
 	bool within = VoxelWithinBounds(start_voxel);
 
+	// instead of trying to calculate these on the fly with intersection
+	// tests we can use simple linear addition to calculate them all quickly.
+	if (within)
+	{
+		//PrecalcRayCuttingPoints(voxel_ray);
+	}
 //	if (within)
 //		DebugCheckPointInVoxel(voxel_ray.o, start_voxel);
 
@@ -103,7 +113,7 @@ void LightTracer::DebugCheckWorldPointInVoxel(Vector3 pt, const Vec3i &ptVoxel)
 
 bool LightTracer::RayTrace(const Ray &ray_orig, Ray &ray_out, Vec3i &ptVoxel)
 {
-//	m_TriHits.clear();
+	m_TriHits.clear();
 
 	if (!VoxelWithinBounds(ptVoxel))
 		return false;
@@ -117,7 +127,11 @@ bool LightTracer::RayTrace(const Ray &ray_orig, Ray &ray_out, Vec3i &ptVoxel)
 
 	for (int n=0; n<vox.m_TriIDs.size(); n++)
 	{
-		m_TriHits.push_back(vox.m_TriIDs[n]);
+		unsigned int id = vox.m_TriIDs[n];
+
+		// check bitfield, the tri may already have been added
+		if (m_BFTrisHit.CheckAndSet(id))
+			m_TriHits.push_back(id);
 	}
 
 	// PLANES are in INTEGER space (voxel space)
@@ -134,21 +148,71 @@ bool LightTracer::RayTrace(const Ray &ray_orig, Ray &ray_out, Vec3i &ptVoxel)
 	float nearest_hit = FLT_MAX;
 	int nearest_hit_plane = -1;
 
+//#define OLD_PLANE_METHOD
+
 	// planes from constants
 	if (dir.x >= 0.0f)
+	{
+#ifdef OLD_PLANE_METHOD
 		IntersectPlane(ray_orig, 0, ptIntersect[0], -maxs.x, nearest_hit, nearest_hit_plane);
+#else
+		// test new routine
+		ptIntersect[0].x = maxs.x;
+		IntersectAAPlane(ray_orig, 0, ptIntersect[0], nearest_hit, 0, nearest_hit_plane);
+#endif
+	}
 	else
+	{
+#ifdef OLD_PLANE_METHOD
 		IntersectPlane(ray_orig, 1, ptIntersect[0], mins.x, nearest_hit, nearest_hit_plane);
+#else
+		// test new routine
+		ptIntersect[0].x = mins.x;
+		IntersectAAPlane(ray_orig, 0, ptIntersect[0], nearest_hit, 1, nearest_hit_plane);
+#endif
+	}
 
 	if (dir.y >= 0.0f)
+	{
+#ifdef OLD_PLANE_METHOD
 		IntersectPlane(ray_orig, 2, ptIntersect[1], -maxs.y, nearest_hit, nearest_hit_plane);
+#else
+		// test new routine
+		ptIntersect[1].y = maxs.y;
+		IntersectAAPlane(ray_orig, 1, ptIntersect[1], nearest_hit, 2, nearest_hit_plane);
+#endif
+	}
 	else
+	{
+#ifdef OLD_PLANE_METHOD
 		IntersectPlane(ray_orig, 3, ptIntersect[1], mins.y, nearest_hit, nearest_hit_plane);
+#else
+		// test new routine
+		ptIntersect[1].y = mins.y;
+		IntersectAAPlane(ray_orig, 1, ptIntersect[1], nearest_hit, 3, nearest_hit_plane);
+#endif
+	}
 
 	if (dir.z >= 0.0f)
+	{
+#ifdef OLD_PLANE_METHOD
 		IntersectPlane(ray_orig, 4, ptIntersect[2], -maxs.z, nearest_hit, nearest_hit_plane);
+#else
+		// test new routine
+		ptIntersect[2].z = maxs.z;
+		IntersectAAPlane(ray_orig, 2, ptIntersect[2], nearest_hit, 4, nearest_hit_plane);
+#endif
+	}
 	else
+	{
+#ifdef OLD_PLANE_METHOD
 		IntersectPlane(ray_orig, 5, ptIntersect[2], mins.z, nearest_hit, nearest_hit_plane);
+#else
+		// test new routine
+		ptIntersect[2].z = mins.z;
+		IntersectAAPlane(ray_orig, 2, ptIntersect[2], nearest_hit, 5, nearest_hit_plane);
+#endif
+	}
 
 	// ray out
 	ray_out.d = ray_orig.d;
@@ -182,10 +246,12 @@ bool LightTracer::RayTrace(const Ray &ray_orig, Ray &ray_out, Vec3i &ptVoxel)
 	return true;
 }
 
+
+
+
 void LightTracer::FillVoxels()
 {
 	print_line("FillVoxels");
-	int nTris = m_pScene->m_TriPos_aabbs.size();
 	int count = 0;
 	for (int z=0; z<m_Dims.z; z++)
 	{
@@ -197,10 +263,10 @@ void LightTracer::FillVoxels()
 				AABB aabb = m_VoxelBounds[count++];
 
 				// expand the aabb just a little to account for float error
-				aabb.grow_by(0.01f);
+				aabb.grow_by(0.001f);
 
 				// find all tris within
-				for (int t=0; t<nTris; t++)
+				for (int t=0; t<m_iNumTris; t++)
 				{
 					if (m_pScene->m_TriPos_aabbs[t].intersects(aabb))
 					{
@@ -219,15 +285,14 @@ void LightTracer::FillVoxels()
 
 void LightTracer::CalculateWorldBound()
 {
-	int nTris = m_pScene->m_Tris.size();
-	if (!nTris)
+	if (!m_iNumTris)
 		return;
 
 	AABB &aabb = m_SceneWorldBound;
 	aabb.position = m_pScene->m_Tris[0].pos[0];
 	aabb.size = Vector3(0, 0, 0);
 
-	for (int n=0; n<m_pScene->m_Tris.size(); n++)
+	for (int n=0; n<m_iNumTris; n++)
 	{
 		const Tri &tri = m_pScene->m_Tris[n];
 		aabb.expand_to(tri.pos[0]);
