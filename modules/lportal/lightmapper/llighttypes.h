@@ -31,6 +31,13 @@ public:
 
 	void FindBarycentric(const Vector3 &pt, float &u, float &v, float &w) const;
 	void InterpolateBarycentric(Vector3 &pt, float u, float v, float w) const;
+	void FindNormal(Vector3 &norm, float u, float v, float w) const
+	{
+		Vector3 e0 = pos[1] - pos[0];
+		Vector3 e1 = pos[2] - pos[1];
+		norm = -e0.cross(e1);
+		norm.normalize();
+	}
 };
 
 
