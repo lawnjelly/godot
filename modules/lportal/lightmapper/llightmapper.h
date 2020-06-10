@@ -10,7 +10,7 @@ class LLightMapper : public Spatial
 {
 	GDCLASS(LLightMapper, Spatial);
 public:
-	bool lightmap_mesh(Node * pMeshInstance, Object * pOutputImage);
+	bool lightmap_mesh(Node * pMeshInstance, Object * pOutputImage, int num_rays, float power);
 
 private:
 	bool LightmapMesh(const MeshInstance &mi, Image &output_image);
@@ -20,7 +20,7 @@ private:
 	void ProcessLight();
 	void ProcessTexel(int x, int y);
 	void PrepareImageMaps();
-	void ProcessRay(LM::Ray &r, int dest_tri_id = 0, const Vector2i * pUV = 0);
+	void ProcessRay(const LM::Ray &r, int depth, float power, int dest_tri_id = 0, const Vector2i * pUV = 0);
 
 	void WriteOutputImage(Image &output_image);
 
@@ -36,6 +36,11 @@ private:
 
 	// for stats
 	int m_iNumTests;
+
+
+	// params
+	int m_Settings_NumRays;
+	float m_Settings_RayPower;
 
 protected:
 	static void _bind_methods();

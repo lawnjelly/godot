@@ -7,12 +7,15 @@ using namespace LM;
 void LLightMapper::_bind_methods()
 {
 	// main functions
-	ClassDB::bind_method(D_METHOD("lightmap_mesh", "mesh_instance", "output_image"), &LLightMapper::lightmap_mesh);
+	ClassDB::bind_method(D_METHOD("lightmap_mesh", "mesh_instance", "output_image", "num_rays", "ray_power"), &LLightMapper::lightmap_mesh);
 
 }
 
-bool LLightMapper::lightmap_mesh(Node * pMeshInstance, Object * pOutputImage)
+bool LLightMapper::lightmap_mesh(Node * pMeshInstance, Object * pOutputImage, int num_rays, float power)
 {
+	m_Settings_NumRays = num_rays;
+	m_Settings_RayPower = power;
+
 	MeshInstance * pMI = Object::cast_to<MeshInstance>(pMeshInstance);
 	if (!pMI)
 	{
@@ -61,12 +64,12 @@ bool LLightMapper::LightmapMesh(const MeshInstance &mi, Image &output_image)
 
 	print_line("ProcessTexels");
 	before = OS::get_singleton()->get_ticks_msec();
-	ProcessTexels();
+	//ProcessTexels();
+	ProcessLight();
 	after = OS::get_singleton()->get_ticks_msec();
 	print_line("ProcessTexels took " + itos(after -before) + " ms");
 
 
-//	ProcessLight();
 	print_line("WriteOutputImage");
 	before = OS::get_singleton()->get_ticks_msec();
 	WriteOutputImage(output_image);
@@ -181,16 +184,26 @@ void LLightMapper::ProcessTexel(int x, int y)
 	Vector3 pos;
 	m_Scene.m_Tris[tri].InterpolateBarycentric(pos, bary.x, bary.y, bary.z);
 
-	Ray r;
-	r.o = Vector3(0, 5, 0);
-	Vector3 offset = pos - r.o;
-	r.d = offset;
-
 	Vector2i tex_uv = Vector2i(x, y);
-	ProcessRay(r, tri, &tex_uv);
+
+	Ray r;
+
+	int range = 0;
+	float scale = 0.2f;
+	for (int y=-range; y<=range; y++)
+	{
+		for (int x=-range; x<=range; x++)
+		{
+			r.o = Vector3(x * scale, 5, y * scale);
+			Vector3 offset = pos - r.o;
+			r.d = offset;
+			r.d.normalize();
+			ProcessRay(r, 0, m_Settings_RayPower, tri, &tex_uv);
+		}
+	}
 }
 
-void LLightMapper::ProcessRay(LM::Ray &r, int dest_tri_id, const Vector2i * pUV)
+void LLightMapper::ProcessRay(const LM::Ray &r, int depth, float power, int dest_tri_id, const Vector2i * pUV)
 {
 	// unlikely
 	if (r.d.x == 0.0f && r.d.y == 0.0f && r.d.z == 0.0f)
@@ -200,7 +213,7 @@ void LLightMapper::ProcessRay(LM::Ray &r, int dest_tri_id, const Vector2i * pUV)
 //	r.d = Vector3(0, -1, 0);
 //	r.d = Vector3(-2.87, -5.0 + 0.226, 4.076);
 
-	r.d.normalize();
+//	r.d.normalize();
 	float u, v, w, t;
 	int tri = m_Scene.IntersectRay(r, u, v, w, t, m_iNumTests);
 
@@ -211,6 +224,7 @@ void LLightMapper::ProcessRay(LM::Ray &r, int dest_tri_id, const Vector2i * pUV)
 	// convert barycentric to uv coords in the lightmap
 	Vector2 uv;
 	m_Scene.FindUVsBarycentric(tri, uv, u, v, w);
+//	m_UVTris[tri].FindUVBarycentric(uvs, u, v, w);
 
 	// texel address
 	int tx = uv.x * m_iWidth;
@@ -235,7 +249,29 @@ void LLightMapper::ProcessRay(LM::Ray &r, int dest_tri_id, const Vector2i * pUV)
 		t = 0.0f;
 	t *= 2.0f;
 
-	*pf = t;
+	t = power;
+//	if (t > *pf)
+
+	if (depth > 0)
+		*pf += t;
+
+	// bounce and lower power
+
+	if (depth <= 0)
+	{
+		Vector3 pos;
+		const Tri &triangle = m_Scene.m_Tris[tri];
+		triangle.InterpolateBarycentric(pos, u, v, w);
+		Vector3 norm;
+		triangle.FindNormal(norm, u, v, w);
+
+		Vector3 cross = r.d.cross(norm);
+		Ray new_ray;
+		new_ray.d = norm;
+		//new_ray.d = r.d.cross(cross);
+		new_ray.o = pos + (norm * 0.01f);
+		ProcessRay(new_ray, depth+1, power * 0.5f);
+	}
 
 }
 
@@ -245,14 +281,22 @@ void LLightMapper::ProcessLight()
 	Ray r;
 	r.o = Vector3(0, 5, 0);
 
+	const float range = 2.0f;
+
 	// each ray
-	for (int n=0; n<100000; n++)
+	for (int n=0; n<m_Settings_NumRays; n++)
 	{
+		float x = Math::random(-range, range);
+		float y = Math::random(-range, range);
+		r.o = Vector3(x, 5, y);
+
+
 		r.d.x = Math::random(-1.0f, 1.0f);
 		r.d.y = Math::random(-1.0f, -0.7f);
 		r.d.z = Math::random(-1.0f, 1.0f);
+		r.d.normalize();
 
-		ProcessRay(r);
+		ProcessRay(r, 0, m_Settings_RayPower);
 	}
 }
 
