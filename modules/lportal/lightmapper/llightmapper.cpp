@@ -32,6 +32,8 @@ bool LLightMapper::lightmap_mesh(Node * pMeshInstance, Object * pOutputImage)
 
 bool LLightMapper::LightmapMesh(const MeshInstance &mi, Image &output_image)
 {
+	uint32_t before, after;
+
 	m_iWidth = output_image.get_width();
 	m_iHeight = output_image.get_height();
 
@@ -45,21 +47,42 @@ bool LLightMapper::LightmapMesh(const MeshInstance &mi, Image &output_image)
 	m_Image_Barycentric.Create(m_iWidth, m_iHeight);
 
 	print_line("Scene Create");
+	before = OS::get_singleton()->get_ticks_msec();
 	m_Scene.Create(mi, m_iWidth, m_iHeight);
+	after = OS::get_singleton()->get_ticks_msec();
+	print_line("SceneCreate took " + itos(after -before) + " ms");
 
 	print_line("PrepareImageMaps");
+	before = OS::get_singleton()->get_ticks_msec();
 	PrepareImageMaps();
+	after = OS::get_singleton()->get_ticks_msec();
+	print_line("PrepareImageMaps took " + itos(after -before) + " ms");
+
+
 	print_line("ProcessTexels");
+	before = OS::get_singleton()->get_ticks_msec();
 	ProcessTexels();
+	after = OS::get_singleton()->get_ticks_msec();
+	print_line("ProcessTexels took " + itos(after -before) + " ms");
+
 
 //	ProcessLight();
 	print_line("WriteOutputImage");
+	before = OS::get_singleton()->get_ticks_msec();
 	WriteOutputImage(output_image);
+	after = OS::get_singleton()->get_ticks_msec();
+	print_line("WriteOutputImage took " + itos(after -before) + " ms");
 	return true;
 }
 
 void LLightMapper::PrepareImageMaps()
 {
+	m_Image_ID_p1.Blank();
+
+	// rasterize each triangle in turn
+	m_Scene.RasterizeTriangleIDs(m_Image_ID_p1, m_Image_Barycentric);
+
+	/*
 	// go through each texel
 	for (int y=0; y<m_iHeight; y++)
 	{
@@ -75,12 +98,13 @@ void LLightMapper::PrepareImageMaps()
 			*m_Image_ID_p1.Get(x, y) = m_Scene.FindTriAtUV(u, v, bary.x, bary.y, bary.z);
 		}
 	}
+	*/
 }
 
 void LLightMapper::WriteOutputImage(Image &output_image)
 {
 	Dilate<float> dilate;
-//	dilate.DilateImage(m_Image_L, m_Image_ID_p1);
+//	dilate.DilateImage(m_Image_L, m_Image_ID_p1, 256);
 
 	// test
 //	int test_size = 7;
@@ -122,6 +146,8 @@ void LLightMapper::WriteOutputImage(Image &output_image)
 
 void LLightMapper::ProcessTexels()
 {
+	m_iNumTests = 0;
+
 	for (int y=0; y<m_iHeight; y++)
 	{
 		if ((y % 10) == 0)
@@ -135,6 +161,9 @@ void LLightMapper::ProcessTexels()
 			ProcessTexel(x, y);
 		}
 	}
+
+	m_iNumTests /= (m_iHeight * m_iWidth);
+	print_line("average num tests : " + itos(m_iNumTests));
 }
 
 
@@ -157,10 +186,11 @@ void LLightMapper::ProcessTexel(int x, int y)
 	Vector3 offset = pos - r.o;
 	r.d = offset;
 
-	ProcessRay(r);
+	Vector2i tex_uv = Vector2i(x, y);
+	ProcessRay(r, tri, &tex_uv);
 }
 
-void LLightMapper::ProcessRay(LM::Ray &r)
+void LLightMapper::ProcessRay(LM::Ray &r, int dest_tri_id, const Vector2i * pUV)
 {
 	// unlikely
 	if (r.d.x == 0.0f && r.d.y == 0.0f && r.d.z == 0.0f)
@@ -172,7 +202,7 @@ void LLightMapper::ProcessRay(LM::Ray &r)
 
 	r.d.normalize();
 	float u, v, w, t;
-	int tri = m_Scene.IntersectRay(r, u, v, w, t);
+	int tri = m_Scene.IntersectRay(r, u, v, w, t, m_iNumTests);
 
 	// nothing hit
 	if (tri == -1)
@@ -185,6 +215,13 @@ void LLightMapper::ProcessRay(LM::Ray &r)
 	// texel address
 	int tx = uv.x * m_iWidth;
 	int ty = uv.y * m_iHeight;
+
+	// override?
+	if (pUV && tri == dest_tri_id)
+	{
+		tx = pUV->x;
+		ty = pUV->y;
+	}
 
 	// could be off the image
 	float * pf = m_Image_L.Get(tx, ty);

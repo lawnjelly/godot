@@ -3,7 +3,7 @@
 
 using namespace LM;
 
-int LightScene::IntersectRay(const Ray &ray, float &u, float &v, float &w, float &nearest_t)
+int LightScene::IntersectRay(const Ray &ray, float &u, float &v, float &w, float &nearest_t, int &num_tests)
 {
 	nearest_t = FLT_MAX;
 	int nearest_tri = -1;
@@ -15,29 +15,57 @@ int LightScene::IntersectRay(const Ray &ray, float &u, float &v, float &w, float
 	if (!m_Tracer.RayTrace_Start(ray, voxel_ray, ptVoxel))
 		return nearest_tri;
 
-	int count = 0;
+	bool bFirstHit = false;
+	Vec3i ptVoxelFirstHit;
+
 	while (true)
 	{
+		Vec3i ptVoxelBefore = ptVoxel;
+
 		if (!m_Tracer.RayTrace(voxel_ray, voxel_ray, ptVoxel))
 			break;
-		count++;
-	}
 
-	int nHits = m_Tracer.m_TriHits.size();
-	for (int n=0; n<nHits; n++)
-	{
-		unsigned int tri_id = m_Tracer.m_TriHits[n];
-
-		float t = 0.0f;
-		if (ray.TestIntersect(m_Tris[tri_id], t))
+		// trace after every voxel
+		int nHits = m_Tracer.m_TriHits.size();
+		for (int n=0; n<nHits; n++)
 		{
-			if (t < nearest_t)
+			unsigned int tri_id = m_Tracer.m_TriHits[n];
+
+			float t = 0.0f;
+			if (ray.TestIntersect(m_Tris[tri_id], t))
 			{
-				nearest_t = t;
-				nearest_tri = tri_id;
+				if (t < nearest_t)
+				{
+					nearest_t = t;
+					nearest_tri = tri_id;
+				}
 			}
 		}
-	}
+
+		// count number of tests for stats
+		num_tests += nHits;
+
+		// first hit?
+		if (!bFirstHit)
+		{
+			if (nearest_tri != -1)
+			{
+				bFirstHit = true;
+				ptVoxelFirstHit = ptVoxelBefore;
+			}
+		}
+		else
+		{
+			// out of range of first voxel?
+			if (abs(ptVoxel.x - ptVoxelFirstHit.x) > 1)
+				break;
+			if (abs(ptVoxel.y - ptVoxelFirstHit.y) > 1)
+				break;
+			if (abs(ptVoxel.z - ptVoxelFirstHit.z) > 1)
+				break;
+		}
+
+	} // while
 
 	if (nearest_tri != -1)
 	{
@@ -137,6 +165,54 @@ void LightScene::Create(const MeshInstance &mi, int width, int height)
 	m_Tracer.Create(*this);
 }
 
+void LightScene::RasterizeTriangleIDs(LightImage<uint32_t> &im_p1, LightImage<Vector3> &im_bary)
+{
+	int width = im_p1.GetWidth();
+	int height = im_p1.GetHeight();
+
+	for (int n=0; n<m_UVTris.size(); n++)
+	{
+		const Rect2 &aabb = m_TriUVaabbs[n];
+		const UVTri &tri = m_UVTris[n];
+
+		int min_x = aabb.position.x * width;
+		int min_y = aabb.position.y * height;
+		int max_x = (aabb.position.x + aabb.size.x) * width;
+		int max_y = (aabb.position.y + aabb.size.y) * height;
+
+		// add a bit for luck
+		min_x--; min_y--; max_x++; max_y++;
+
+		// clamp
+		min_x = CLAMP(min_x, 0, width);
+		min_y = CLAMP(min_y, 0, height);
+		max_x = CLAMP(max_x, 0, width);
+		max_y = CLAMP(max_y, 0, height);
+
+		for (int y=min_y; y<max_y; y++)
+		{
+			for (int x=min_x; x<max_x; x++)
+			{
+				float s = (x + 0.5f) / (float) width;
+				float t = (y + 0.5f) / (float) height;
+
+				if (tri.ContainsPoint(Vector2(s, t)))
+				{
+					im_p1.GetItem(x, y) = n+1;
+
+					// find barycentric coords
+					float u,v,w;
+					tri.FindBarycentricCoords(Vector2(s, t), u, v, w);
+					Vector3 &bary = im_bary.GetItem(x, y);
+					bary =Vector3(u,v,w);
+				}
+
+			} // for x
+		} // for y
+	} // for tri
+}
+
+/*
 int LightScene::FindTriAtUV(float x, float y, float &u, float &v, float &w) const
 {
 	for (int n=0; n<m_UVTris.size(); n++)
@@ -159,7 +235,7 @@ int LightScene::FindTriAtUV(float x, float y, float &u, float &v, float &w) cons
 
 	return 0;
 }
-
+*/
 
 void LightScene::Transform_Verts(const PoolVector<Vector3> &ptsLocal, PoolVector<Vector3> &ptsWorld, const Transform &tr) const
 {

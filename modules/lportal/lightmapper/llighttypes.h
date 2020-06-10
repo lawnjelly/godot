@@ -42,6 +42,7 @@ public:
 
 	bool TestIntersect(const Tri &tri, float &t) const;
 	void FindIntersect(const Tri &tri, float t, float &u, float &v, float &w) const;
+	bool IntersectAAPlane(int axis, Vector3 &pt, float epsilon = 0.0001f) const;
 
 };
 
@@ -163,6 +164,69 @@ inline void Ray::FindIntersect(const Tri &tri, float t, float &u, float &v, floa
 {
 	Vector3 pt = o + (d * t);
 	tri.FindBarycentric(pt, u, v, w);
+}
+
+// returns false if doesn't cut x.
+// the relevant axis should be filled on entry (0 is x, 1 is y, 2 is z) with the axis aligned plane constant.
+bool Ray::IntersectAAPlane(int axis, Vector3 &pt, float epsilon) const
+{
+	// x(t) = o.x + (d.x * t)
+	// y(t) = o.y + (d.y * t)
+	// z(t) = o.z + (d.z * t)
+
+	// solve for x
+	// find t
+	// d.x * t = x(t) - o.x
+	// t = (x(t) - o.x) / d.x
+
+	// just aliases
+//	const Vector3 &o = ray.o;
+//	const Vector3 &d = ray.d;
+
+	switch (axis)
+	{
+	case 0:
+		{
+			if (fabsf(d.x) < epsilon)
+				return false;
+
+			float t = pt.x - o.x;
+			t /= d.x;
+
+			pt.y = o.y + (d.y * t);
+			pt.z = o.z + (d.z * t);
+		}
+		break;
+	case 1:
+		{
+			if (fabsf(d.y) < epsilon)
+				return false;
+
+			float t = pt.y - o.y;
+			t /= d.y;
+
+			pt.x = o.x + (d.x * t);
+			pt.z = o.z + (d.z * t);
+		}
+		break;
+	case 2:
+		{
+			if (fabsf(d.z) < epsilon)
+				return false;
+
+			float t = pt.z - o.z;
+			t /= d.z;
+
+			// now we have t, we can calculate y and z
+			pt.x = o.x + (d.x * t);
+			pt.y = o.y + (d.y * t);
+		}
+		break;
+	default:
+		break;
+	}
+
+	return true;
 }
 
 

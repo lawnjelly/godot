@@ -13,7 +13,7 @@ namespace LM
 template <class T> class Dilate
 {
 public:
-	bool DilateImage(LightImage<T> &im, const LightImage <uint32_t> &orig_mask)
+	bool DilateImage(LightImage<T> &im, const LightImage <uint32_t> &orig_mask, unsigned int uiMaxDist)
 	{
 		print_line("Dilating image");
 
@@ -33,7 +33,7 @@ public:
 		}
 
 		LightImage<Vec2_i16> source_pts;
-		Run(mask, &source_pts, 4);
+		Run(mask, &source_pts, uiMaxDist);
 
 		ConvertFinalImage(im);
 		return true;
