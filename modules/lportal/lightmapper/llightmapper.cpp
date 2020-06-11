@@ -1,6 +1,7 @@
 #include "llightmapper.h"
 #include "ldilate.h"
 #include "core/os/os.h"
+#include "scene/3d/light.h"
 
 using namespace LM;
 
@@ -33,9 +34,55 @@ bool LLightMapper::lightmap_mesh(Node * pMeshInstance, Object * pOutputImage, in
 	return LightmapMesh(*pMI, *pIm);
 }
 
+void LLightMapper::FindLights(const MeshInstance &mi)
+{
+	// find lights that are children of the mesh instance
+	int nChildren = mi.get_child_count();
+	for (int n=0; n<nChildren; n++)
+	{
+		Node * pChild = mi.get_child(n);
+
+		Light * pLight = Object::cast_to<Light>(pChild);
+		if (!pLight)
+			continue;
+
+		LLight * l = m_Lights.request();
+		l->m_pLight = pLight;
+		// get global transform only works if glight is in the tree
+		Transform trans = pLight->get_global_transform();
+		l->pos = trans.origin;
+		l->dir = -trans.basis.get_axis(2); // or possibly get_axis .. z is what we want
+		l->dir.normalize();
+
+		trans = pLight->get_transform();
+		l->scale = trans.basis.get_scale();
+
+		l->energy = pLight->get_param(Light::PARAM_ENERGY);
+		l->indirect_energy = pLight->get_param(Light::PARAM_INDIRECT_ENERGY);
+		l->range = pLight->get_param(Light::PARAM_RANGE);
+		l->spot_angle = pLight->get_param(Light::PARAM_SPOT_ANGLE);
+
+		DirectionalLight * pDLight = Object::cast_to<DirectionalLight>(pChild);
+		if (pDLight)
+			l->type = LLight::LT_DIRECTIONAL;
+
+		SpotLight * pSLight = Object::cast_to<SpotLight>(pChild);
+		if (pSLight)
+			l->type = LLight::LT_SPOT;
+
+		OmniLight * pOLight = Object::cast_to<OmniLight>(pChild);
+		if (pOLight)
+			l->type = LLight::LT_OMNI;
+
+	}
+
+}
+
+
 bool LLightMapper::LightmapMesh(const MeshInstance &mi, Image &output_image)
 {
 	uint32_t before, after;
+	FindLights(mi);
 
 	m_iWidth = output_image.get_width();
 	m_iHeight = output_image.get_height();
@@ -65,7 +112,10 @@ bool LLightMapper::LightmapMesh(const MeshInstance &mi, Image &output_image)
 	print_line("ProcessTexels");
 	before = OS::get_singleton()->get_ticks_msec();
 	//ProcessTexels();
-	ProcessLight();
+	for (int n=0; n<m_Lights.size(); n++)
+	{
+		ProcessLight(n);
+	}
 	after = OS::get_singleton()->get_ticks_msec();
 	print_line("ProcessTexels took " + itos(after -before) + " ms");
 
@@ -257,7 +307,7 @@ void LLightMapper::ProcessRay(const LM::Ray &r, int depth, float power, int dest
 
 	// bounce and lower power
 
-	if (depth <= 0)
+	if (depth < 2)
 	{
 		Vector3 pos;
 		const Tri &triangle = m_Scene.m_Tris[tri];
@@ -279,38 +329,89 @@ void LLightMapper::ProcessRay(const LM::Ray &r, int depth, float power, int dest
 //			Vector3 temp = r.d.cross(norm);
 //			new_ray.d = norm.cross(temp);
 
-			// BOUNCING
-			new_ray.d = r.d - (2.0f * (dot * norm));
+			// BOUNCING - mirror
+			//new_ray.d = r.d - (2.0f * (dot * norm));
+
+			// random hemisphere
+			const float range = 1.0f;
+			while (true)
+			{
+				new_ray.d.x = Math::random(-range, range);
+				new_ray.d.y = Math::random(-range, range);
+				new_ray.d.z = Math::random(-range, range);
+
+				float sl = new_ray.d.length_squared();
+				if (sl > 0.0001f)
+				{
+					break;
+				}
+			}
+			// compare direction to normal, if opposite, flip it
+			if (new_ray.d.dot(norm) < 0.0f)
+				new_ray.d = -new_ray.d;
+
 
 			new_ray.o = pos + (norm * 0.01f);
-			ProcessRay(new_ray, depth+1, power * 0.5f);
+			ProcessRay(new_ray, depth+1, power * 0.4f);
 		} // in opposite directions
 	}
 
 }
 
 
-void LLightMapper::ProcessLight()
+void LLightMapper::ProcessLight(int light_id)
 {
-	Ray r;
-	r.o = Vector3(0, 5, 0);
+	const LLight &light = m_Lights[light_id];
 
-	const float range = 2.0f;
+	Ray r;
+//	r.o = Vector3(0, 5, 0);
+
+//	float range = light.scale.x;
+//	const float range = 2.0f;
+
+	// the power should depend on the volume, with 1x1x1 being normal power
+//	float power = light.scale.x * light.scale.y * light.scale.z;
+	float power = light.energy;
+	power *= m_Settings_RayPower;
+
+
 
 	// each ray
 	for (int n=0; n<m_Settings_NumRays; n++)
 	{
-		float x = Math::random(-range, range);
-		float y = Math::random(-range, range);
-		r.o = Vector3(x, 5, y);
+		r.o = light.pos;
+
+		switch (light.type)
+		{
+		case LLight::LT_SPOT:
+			{
+				r.d = light.dir;
+				float spot_ball = 0.2f;
+				float x = Math::random(-spot_ball, spot_ball);
+				float y = Math::random(-spot_ball, spot_ball);
+				float z = Math::random(-spot_ball, spot_ball);
+				r.d += Vector3(x, y, z);
+				r.d.normalize();
+			}
+			break;
+		default:
+			{
+				float x = Math::random(-light.scale.x, light.scale.x);
+				float y = Math::random(-light.scale.y, light.scale.y);
+				float z = Math::random(-light.scale.z, light.scale.z);
+				r.o += Vector3(x, y, z);
 
 
-		r.d.x = Math::random(-1.0f, 1.0f);
-		r.d.y = Math::random(-1.0f, -0.7f);
-		r.d.z = Math::random(-1.0f, 1.0f);
+				r.d.x = Math::random(-1.0f, 1.0f);
+		//		r.d.y = Math::random(-1.0f, -0.7f);
+				r.d.y = Math::random(-1.0f, 1.0f);
+				r.d.z = Math::random(-1.0f, 1.0f);
+			}
+			break;
+		}
 		r.d.normalize();
 
-		ProcessRay(r, 0, m_Settings_RayPower);
+		ProcessRay(r, 0, power);
 	}
 }
 
