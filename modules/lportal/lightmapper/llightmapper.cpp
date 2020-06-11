@@ -252,7 +252,7 @@ void LLightMapper::ProcessRay(const LM::Ray &r, int depth, float power, int dest
 	t = power;
 //	if (t > *pf)
 
-	if (depth > 0)
+//	if (depth > 0)
 		*pf += t;
 
 	// bounce and lower power
@@ -262,15 +262,29 @@ void LLightMapper::ProcessRay(const LM::Ray &r, int depth, float power, int dest
 		Vector3 pos;
 		const Tri &triangle = m_Scene.m_Tris[tri];
 		triangle.InterpolateBarycentric(pos, u, v, w);
-		Vector3 norm;
-		triangle.FindNormal(norm, u, v, w);
 
-		Vector3 cross = r.d.cross(norm);
-		Ray new_ray;
-		new_ray.d = norm;
-		//new_ray.d = r.d.cross(cross);
-		new_ray.o = pos + (norm * 0.01f);
-		ProcessRay(new_ray, depth+1, power * 0.5f);
+		Vector3 norm;
+		const Tri &triangle_normal = m_Scene.m_TriNormals[tri];
+		triangle_normal.InterpolateBarycentric(norm, u, v, w);
+		norm.normalize();
+
+		// first dot
+		float dot = norm.dot(r.d);
+		if (dot <= 0.0f)
+		{
+
+			Ray new_ray;
+
+			// SLIDING
+//			Vector3 temp = r.d.cross(norm);
+//			new_ray.d = norm.cross(temp);
+
+			// BOUNCING
+			new_ray.d = r.d - (2.0f * (dot * norm));
+
+			new_ray.o = pos + (norm * 0.01f);
+			ProcessRay(new_ray, depth+1, power * 0.5f);
+		} // in opposite directions
 	}
 
 }
