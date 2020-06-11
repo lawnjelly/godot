@@ -8,6 +8,27 @@
 
 class LLightMapper : public Spatial
 {
+	class LLight
+	{
+	public:
+		enum LType
+		{
+			LT_OMNI,
+			LT_SPOT,
+			LT_DIRECTIONAL,
+		};
+
+		LType type;
+		Vector3 pos;
+		Vector3 dir;
+		Vector3 scale;
+		float energy;
+		float indirect_energy;
+		float range;
+		float spot_angle;
+		Light * m_pLight;
+	};
+
 	GDCLASS(LLightMapper, Spatial);
 public:
 	bool lightmap_mesh(Node * pMeshInstance, Object * pOutputImage, int num_rays, float power);
@@ -16,8 +37,9 @@ private:
 	bool LightmapMesh(const MeshInstance &mi, Image &output_image);
 
 private:
+	void FindLights(const MeshInstance &mi);
 	void ProcessTexels();
-	void ProcessLight();
+	void ProcessLight(int light_id);
 	void ProcessTexel(int x, int y);
 	void PrepareImageMaps();
 	void ProcessRay(const LM::Ray &r, int depth, float power, int dest_tri_id = 0, const Vector2i * pUV = 0);
@@ -33,6 +55,7 @@ private:
 	int m_iHeight;
 
 	LM::LightScene m_Scene;
+	LVector<LLight> m_Lights;
 
 	// for stats
 	int m_iNumTests;
