@@ -45,6 +45,7 @@ private:
 
 public:
 	LVector<Tri> m_Tris;
+	LVector<Tri> m_TriNormals;
 
 
 };
