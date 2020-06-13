@@ -13,6 +13,17 @@ class LightScene
 	friend class LLightMapper;
 	friend class LightTracer;
 public:
+
+	// each texel can have more than 1 triangle crossing it.
+	// this is important for sub texel anti-aliasing, so we need a quick record
+	// of all the triangles to test
+	struct TexelTriList
+	{
+		enum {MAX_TRIS = 11};
+		uint32_t tri_ids[MAX_TRIS];
+		uint32_t num_tris;
+	};
+
 	void Create(const MeshInstance &mi, int width, int height);
 	
 	// returns triangle ID (or -1) and barycentric coords
