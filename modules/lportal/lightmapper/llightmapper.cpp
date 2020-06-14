@@ -3,25 +3,116 @@
 #include "core/os/os.h"
 #include "scene/3d/light.h"
 
+#define LIGHTMAP_STRINGIFY(x) #x
+#define LIGHTMAP_TOSTRING(x) LIGHTMAP_STRINGIFY(x)
+
 using namespace LM;
 
 void LLightMapper::_bind_methods()
 {
+	BIND_ENUM_CONSTANT(LLightMapper::MODE_FORWARD);
+	BIND_ENUM_CONSTANT(LLightMapper::MODE_BACKWARD);
+
 	// main functions
-	ClassDB::bind_method(D_METHOD("lightmap_mesh", "mesh_instance", "output_image", "num_rays", "ray_power", "bounce_power"), &LLightMapper::lightmap_mesh);
+	ClassDB::bind_method(D_METHOD("lightmap_mesh", "mesh_instance", "lights_root_node", "output_image"), &LLightMapper::lightmap_mesh);
+	ClassDB::bind_method(D_METHOD("lightmap_set_params", "num_rays", "ray_power", "bounce_power"), &LLightMapper::lightmap_set_params);
+
+
+	ClassDB::bind_method(D_METHOD("set_mode", "mode"), &LLightMapper::set_mode);
+	ClassDB::bind_method(D_METHOD("get_mode"), &LLightMapper::get_mode);
+//	ClassDB::bind_method(D_METHOD("set_mesh_path", "path"), &LLightMapper::set_mesh_path);
+//	ClassDB::bind_method(D_METHOD("get_mesh_path"), &LLightMapper::get_mesh_path);
+//	ClassDB::bind_method(D_METHOD("set_lights_path", "path"), &LLightMapper::set_lights_path);
+//	ClassDB::bind_method(D_METHOD("get_lights_path"), &LLightMapper::get_lights_path);
+
+//	ClassDB::bind_method(D_METHOD("set_num_rays", "num_rays"), &LLightMapper::set_num_rays);
+//	ClassDB::bind_method(D_METHOD("get_num_rays"), &LLightMapper::get_num_rays);
+//	ClassDB::bind_method(D_METHOD("set_num_bounces", "num_bounces"), &LLightMapper::set_num_bounces);
+//	ClassDB::bind_method(D_METHOD("get_num_bounces"), &LLightMapper::get_num_bounces);
+
+//	ClassDB::bind_method(D_METHOD("set_ray_power", "ray_power"), &LLightMapper::set_ray_power);
+//	ClassDB::bind_method(D_METHOD("get_ray_power"), &LLightMapper::get_ray_power);
+//	ClassDB::bind_method(D_METHOD("set_num_bounces", "num_bounces"), &LLightMapper::set_num_bounces);
+//	ClassDB::bind_method(D_METHOD("get_num_bounces"), &LLightMapper::get_num_bounces);
+
+#define LIMPL_PROPERTY(P_TYPE, P_NAME, P_SET, P_GET) ClassDB::bind_method(D_METHOD(LIGHTMAP_TOSTRING(P_SET), LIGHTMAP_TOSTRING(P_NAME)), &LLightMapper::P_SET);\
+ClassDB::bind_method(D_METHOD(LIGHTMAP_TOSTRING(P_GET)), &LLightMapper::P_GET);\
+ADD_PROPERTY(PropertyInfo(P_TYPE, LIGHTMAP_TOSTRING(P_NAME)), LIGHTMAP_TOSTRING(P_SET), LIGHTMAP_TOSTRING(P_GET));
+
+
+	LIMPL_PROPERTY(Variant::NODE_PATH, mesh, set_mesh_path, get_mesh_path);
+	LIMPL_PROPERTY(Variant::NODE_PATH, lights, set_lights_path, get_lights_path);
+
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "mode", PROPERTY_HINT_ENUM, "Forward,Backward"), "set_mode", "get_mode");
+	ADD_GROUP("Params", "");
+
+	LIMPL_PROPERTY(Variant::INT, num_rays, set_num_rays, get_num_rays);
+	LIMPL_PROPERTY(Variant::INT, num_bounces, set_num_bounces, get_num_bounces);
+	LIMPL_PROPERTY(Variant::REAL, ray_power, set_ray_power, get_ray_power);
+	LIMPL_PROPERTY(Variant::REAL, bounce_power, set_bounce_power, get_bounce_power);
+
+
+//	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "mesh"), "set_mesh_path", "get_mesh_path");
+//	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "lights"), "set_lights_path", "get_lights_path");
+//	ADD_PROPERTY(PropertyInfo(Variant::INT, "num_rays"), "set_num_rays", "get_num_rays");
+//	ADD_PROPERTY(PropertyInfo(Variant::REAL, "ray_power"), "set_ray_power", "get_ray_power");
+//	ADD_PROPERTY(PropertyInfo(Variant::INT, "num_bounces"), "set_num_bounces", "get_num_bounces");
+//	ADD_PROPERTY(PropertyInfo(Variant::REAL, "bounce_power"), "set_bounce_power", "get_bounce_power");
+}
+
+LLightMapper::LLightMapper()
+{
+	m_Settings_NumRays = 1;
+	m_Settings_NumBounces = 1;
+	m_Settings_RayPower = 0.01f;
+	m_Settings_BouncePower = 0.1f;
+	m_Settings_Mode = MODE_FORWARD;
 
 }
 
-bool LLightMapper::lightmap_mesh(Node * pMeshInstance, Object * pOutputImage, int num_rays, float power, float bounce_power)
+void LLightMapper::set_mode(LLightMapper::eMode p_mode) {m_Settings_Mode = p_mode;}
+LLightMapper::eMode LLightMapper::get_mode() const {return m_Settings_Mode;}
+
+void LLightMapper::set_mesh_path(const NodePath &p_path) {m_Settings_Path_Mesh = p_path;}
+NodePath LLightMapper::get_mesh_path() const {return m_Settings_Path_Mesh;}
+void LLightMapper::set_lights_path(const NodePath &p_path)  {m_Settings_Path_Lights = p_path;}
+NodePath LLightMapper::get_lights_path() const {return m_Settings_Path_Lights;}
+
+void LLightMapper::set_num_rays(int num_rays) {m_Settings_NumRays = num_rays;}
+int LLightMapper::get_num_rays() const {return m_Settings_NumRays;}
+
+void LLightMapper::set_num_bounces(int num_bounces) {m_Settings_NumBounces = num_bounces;}
+int LLightMapper::get_num_bounces() const {return m_Settings_NumBounces;}
+
+void LLightMapper::set_ray_power(float ray_power) {m_Settings_RayPower = ray_power;}
+float LLightMapper::get_ray_power() const {return m_Settings_RayPower;}
+
+void LLightMapper::set_bounce_power(float bounce_power) {m_Settings_BouncePower = bounce_power;}
+float LLightMapper::get_bounce_power() const {return m_Settings_BouncePower;}
+
+
+void LLightMapper::lightmap_set_params(int num_rays, float power, float bounce_power)
 {
 	m_Settings_NumRays = num_rays;
 	m_Settings_RayPower = power;
 	m_Settings_BouncePower = bounce_power / num_rays;
+}
+
+
+bool LLightMapper::lightmap_mesh(Node * pMeshInstance, Node * pLightRoot, Object * pOutputImage)
+{
 
 	MeshInstance * pMI = Object::cast_to<MeshInstance>(pMeshInstance);
 	if (!pMI)
 	{
 		WARN_PRINT("lightmap_mesh : not a mesh instance");
+		return false;
+	}
+
+	Spatial * pLR = Object::cast_to<Spatial>(pLightRoot);
+	if (!pLR)
+	{
+		WARN_PRINT("lightmap_mesh : lights root is not a spatial");
 		return false;
 	}
 
@@ -32,62 +123,70 @@ bool LLightMapper::lightmap_mesh(Node * pMeshInstance, Object * pOutputImage, in
 		return false;
 	}
 
-	return LightmapMesh(*pMI, *pIm);
+
+
+	return LightmapMesh(*pMI, *pLR, *pIm);
 }
 
-void LLightMapper::FindLights(const MeshInstance &mi)
+void LLightMapper::FindLight(const Node * pNode)
 {
-	// find lights that are children of the mesh instance
-	int nChildren = mi.get_child_count();
+	const Light * pLight = Object::cast_to<const Light>(pNode);
+	if (!pLight)
+		return;
+
+	// is it visible?
+	if (!pLight->is_visible_in_tree())
+		return;
+
+	LLight * l = m_Lights.request();
+	l->m_pLight = pLight;
+	// get global transform only works if glight is in the tree
+	Transform trans = pLight->get_global_transform();
+	l->pos = trans.origin;
+	l->dir = -trans.basis.get_axis(2); // or possibly get_axis .. z is what we want
+	l->dir.normalize();
+
+	trans = pLight->get_transform();
+	l->scale = trans.basis.get_scale();
+
+	l->energy = pLight->get_param(Light::PARAM_ENERGY);
+	l->indirect_energy = pLight->get_param(Light::PARAM_INDIRECT_ENERGY);
+	l->range = pLight->get_param(Light::PARAM_RANGE);
+	l->spot_angle = pLight->get_param(Light::PARAM_SPOT_ANGLE);
+
+	const DirectionalLight * pDLight = Object::cast_to<DirectionalLight>(pLight);
+	if (pDLight)
+		l->type = LLight::LT_DIRECTIONAL;
+
+	const SpotLight * pSLight = Object::cast_to<SpotLight>(pLight);
+	if (pSLight)
+		l->type = LLight::LT_SPOT;
+
+	const OmniLight * pOLight = Object::cast_to<OmniLight>(pLight);
+	if (pOLight)
+		l->type = LLight::LT_OMNI;
+
+}
+
+
+void LLightMapper::FindLights_Recursive(const Node * pNode)
+{
+	FindLight(pNode);
+
+	int nChildren = pNode->get_child_count();
+
 	for (int n=0; n<nChildren; n++)
 	{
-		Node * pChild = mi.get_child(n);
-
-		Light * pLight = Object::cast_to<Light>(pChild);
-		if (!pLight)
-			continue;
-
-		// is it visible?
-		if (!pLight->is_visible_in_tree())
-			continue;
-
-		LLight * l = m_Lights.request();
-		l->m_pLight = pLight;
-		// get global transform only works if glight is in the tree
-		Transform trans = pLight->get_global_transform();
-		l->pos = trans.origin;
-		l->dir = -trans.basis.get_axis(2); // or possibly get_axis .. z is what we want
-		l->dir.normalize();
-
-		trans = pLight->get_transform();
-		l->scale = trans.basis.get_scale();
-
-		l->energy = pLight->get_param(Light::PARAM_ENERGY);
-		l->indirect_energy = pLight->get_param(Light::PARAM_INDIRECT_ENERGY);
-		l->range = pLight->get_param(Light::PARAM_RANGE);
-		l->spot_angle = pLight->get_param(Light::PARAM_SPOT_ANGLE);
-
-		DirectionalLight * pDLight = Object::cast_to<DirectionalLight>(pChild);
-		if (pDLight)
-			l->type = LLight::LT_DIRECTIONAL;
-
-		SpotLight * pSLight = Object::cast_to<SpotLight>(pChild);
-		if (pSLight)
-			l->type = LLight::LT_SPOT;
-
-		OmniLight * pOLight = Object::cast_to<OmniLight>(pChild);
-		if (pOLight)
-			l->type = LLight::LT_OMNI;
-
+		Node * pChild = pNode->get_child(n);
+		FindLights_Recursive(pChild);
 	}
-
 }
 
 
-bool LLightMapper::LightmapMesh(const MeshInstance &mi, Image &output_image)
+bool LLightMapper::LightmapMesh(const MeshInstance &mi, const Spatial &light_root, Image &output_image)
 {
 	uint32_t before, after;
-	FindLights(mi);
+	FindLights_Recursive(&light_root);
 
 	m_iWidth = output_image.get_width();
 	m_iHeight = output_image.get_height();

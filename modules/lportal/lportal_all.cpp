@@ -35,4 +35,5 @@
 #include "lightmapper/llightmapper.cpp"
 #include "lightmapper/llightscene.cpp"
 #include "lightmapper/llighttracer.cpp"
+#include "lightmapper/llightmapper_editor_plugin.cpp"
 
