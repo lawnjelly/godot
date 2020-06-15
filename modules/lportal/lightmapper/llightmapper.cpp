@@ -8,14 +8,21 @@
 
 using namespace LM;
 
+LLightMapper::BakeBeginFunc LLightMapper::bake_begin_function = NULL;
+LLightMapper::BakeStepFunc LLightMapper::bake_step_function = NULL;
+LLightMapper::BakeEndFunc LLightMapper::bake_end_function = NULL;
+
+
 void LLightMapper::_bind_methods()
 {
 	BIND_ENUM_CONSTANT(LLightMapper::MODE_FORWARD);
 	BIND_ENUM_CONSTANT(LLightMapper::MODE_BACKWARD);
 
 	// main functions
-	ClassDB::bind_method(D_METHOD("lightmap_mesh", "mesh_instance", "lights_root_node", "output_image"), &LLightMapper::lightmap_mesh);
-	ClassDB::bind_method(D_METHOD("lightmap_set_params", "num_rays", "ray_power", "bounce_power"), &LLightMapper::lightmap_set_params);
+//	ClassDB::bind_method(D_METHOD("lightmap_mesh", "mesh_instance", "lights_root_node", "output_image"), &LLightMapper::lightmap_mesh);
+//	ClassDB::bind_method(D_METHOD("lightmap_set_params", "num_rays", "ray_power", "bounce_power"), &LLightMapper::lightmap_set_params);
+	ClassDB::bind_method(D_METHOD("lightmap_bake"), &LLightMapper::lightmap_bake);
+	ClassDB::bind_method(D_METHOD("lightmap_bake_to_image", "output_image"), &LLightMapper::lightmap_bake_to_image);
 
 
 	ClassDB::bind_method(D_METHOD("set_mode", "mode"), &LLightMapper::set_mode);
@@ -44,8 +51,16 @@ ADD_PROPERTY(PropertyInfo(P_TYPE, LIGHTMAP_TOSTRING(P_NAME)), LIGHTMAP_TOSTRING(
 	LIMPL_PROPERTY(Variant::NODE_PATH, lights, set_lights_path, get_lights_path);
 
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "mode", PROPERTY_HINT_ENUM, "Forward,Backward"), "set_mode", "get_mode");
-	ADD_GROUP("Params", "");
+	ADD_GROUP("Size", "");
 
+	LIMPL_PROPERTY(Variant::INT, tex_width, set_tex_width, get_tex_width);
+	LIMPL_PROPERTY(Variant::INT, tex_height, set_tex_height, get_tex_height);
+
+	ADD_GROUP("Dynamic Range", "");
+	LIMPL_PROPERTY(Variant::BOOL, normalize, set_normalize, get_normalize);
+	LIMPL_PROPERTY(Variant::REAL, normalize_bias, set_normalize_bias, get_normalize_bias);
+
+	ADD_GROUP("Params", "");
 	LIMPL_PROPERTY(Variant::INT, num_rays, set_num_rays, get_num_rays);
 	LIMPL_PROPERTY(Variant::INT, num_bounces, set_num_bounces, get_num_bounces);
 	LIMPL_PROPERTY(Variant::REAL, ray_power, set_ray_power, get_ray_power);
@@ -68,6 +83,11 @@ LLightMapper::LLightMapper()
 	m_Settings_BouncePower = 0.1f;
 	m_Settings_Mode = MODE_FORWARD;
 
+	m_Settings_TexWidth = 128;
+	m_Settings_TexHeight = 128;
+
+	m_Settings_Normalize = true;
+	m_Settings_NormalizeBias = 1.0f;
 }
 
 void LLightMapper::set_mode(LLightMapper::eMode p_mode) {m_Settings_Mode = p_mode;}
@@ -90,12 +110,74 @@ float LLightMapper::get_ray_power() const {return m_Settings_RayPower;}
 void LLightMapper::set_bounce_power(float bounce_power) {m_Settings_BouncePower = bounce_power;}
 float LLightMapper::get_bounce_power() const {return m_Settings_BouncePower;}
 
+void LLightMapper::set_tex_width(int width) {m_Settings_TexWidth = width;}
+int LLightMapper::get_tex_width() const {return m_Settings_TexWidth;}
 
-void LLightMapper::lightmap_set_params(int num_rays, float power, float bounce_power)
+void LLightMapper::set_tex_height(int height) {m_Settings_TexHeight = height;}
+int LLightMapper::get_tex_height() const {return m_Settings_TexHeight;}
+
+void LLightMapper::set_normalize(bool norm) {m_Settings_Normalize = norm;}
+bool LLightMapper::get_normalize() const {return m_Settings_Normalize;}
+
+void LLightMapper::set_normalize_bias(float bias) {m_Settings_NormalizeBias = bias;}
+float LLightMapper::get_normalize_bias() const {return m_Settings_NormalizeBias;}
+
+
+//void LLightMapper::lightmap_set_params(int num_rays, float power, float bounce_power)
+//{
+//	m_Settings_NumRays = num_rays;
+//	m_Settings_RayPower = power;
+//	m_Settings_BouncePower = bounce_power / num_rays;
+//}
+
+
+bool LLightMapper::lightmap_bake()
 {
-	m_Settings_NumRays = num_rays;
-	m_Settings_RayPower = power;
-	m_Settings_BouncePower = bounce_power / num_rays;
+	// bake to a file
+//	Ref<Image> image;
+	Ref<Image> image = memnew(Image(m_Settings_TexWidth, m_Settings_TexHeight, false, Image::FORMAT_RGBA8));
+//	image.instance();
+//	Ref<Image>im = memnew(Image);
+//	image->create(128, 128, false, Image::FORMAT_RGBA8);
+
+	lightmap_bake_to_image(image.ptr());
+
+	// save the image
+	image->save_png("lightmap.png");
+
+	return true;
+}
+
+bool LLightMapper::lightmap_bake_to_image(Object * pOutputImage)
+{
+	// get the mesh instance and light root
+	if (!has_node(m_Settings_Path_Mesh))
+	{
+		WARN_PRINT("lightmap_bake : mesh path is invalid");
+		return false;
+	}
+
+	MeshInstance * pMeshInstance = Object::cast_to<MeshInstance>(get_node(m_Settings_Path_Mesh));
+	if (!pMeshInstance)
+	{
+		WARN_PRINT("lightmap_bake : mesh path is not a mesh instance");
+		return false;
+	}
+
+	if (!has_node(m_Settings_Path_Lights))
+	{
+		WARN_PRINT("lightmap_bake : lights path is invalid");
+		return false;
+	}
+
+	Node * pLightRoot = Object::cast_to<Node>(get_node(m_Settings_Path_Lights));
+	if (!pLightRoot)
+	{
+		WARN_PRINT("lightmap_bake : lights path is not a node");
+		return false;
+	}
+
+	return lightmap_mesh(pMeshInstance, pLightRoot, pOutputImage);
 }
 
 
@@ -123,9 +205,18 @@ bool LLightMapper::lightmap_mesh(Node * pMeshInstance, Node * pLightRoot, Object
 		return false;
 	}
 
+	m_iHeight = pIm->get_height();
 
+	if (bake_begin_function) {
+		bake_begin_function(m_iHeight);
+	}
 
-	return LightmapMesh(*pMI, *pLR, *pIm);
+	bool res = LightmapMesh(*pMI, *pLR, *pIm);
+
+	if (bake_end_function) {
+		bake_end_function();
+	}
+	return res;
 }
 
 void LLightMapper::FindLight(const Node * pNode)
@@ -185,6 +276,8 @@ void LLightMapper::FindLights_Recursive(const Node * pNode)
 
 bool LLightMapper::LightmapMesh(const MeshInstance &mi, const Spatial &light_root, Image &output_image)
 {
+	m_bCancel = false;
+
 	uint32_t before, after;
 	FindLights_Recursive(&light_root);
 
@@ -208,12 +301,17 @@ bool LLightMapper::LightmapMesh(const MeshInstance &mi, const Spatial &light_roo
 	after = OS::get_singleton()->get_ticks_msec();
 	print_line("SceneCreate took " + itos(after -before) + " ms");
 
+	if (m_bCancel)
+		return false;
+
 	print_line("PrepareImageMaps");
 	before = OS::get_singleton()->get_ticks_msec();
 	PrepareImageMaps();
 	after = OS::get_singleton()->get_ticks_msec();
 	print_line("PrepareImageMaps took " + itos(after -before) + " ms");
 
+	if (m_bCancel)
+		return false;
 
 	print_line("ProcessTexels");
 	before = OS::get_singleton()->get_ticks_msec();
@@ -225,6 +323,8 @@ bool LLightMapper::LightmapMesh(const MeshInstance &mi, const Spatial &light_roo
 	after = OS::get_singleton()->get_ticks_msec();
 	print_line("ProcessTexels took " + itos(after -before) + " ms");
 
+	if (m_bCancel)
+		return false;
 
 	print_line("WriteOutputImage");
 	before = OS::get_singleton()->get_ticks_msec();
@@ -260,6 +360,42 @@ void LLightMapper::PrepareImageMaps()
 	*/
 }
 
+void LLightMapper::Normalize()
+{
+	if (!m_Settings_Normalize)
+		return;
+
+	int nPixels = m_Image_L.GetNumPixels();
+	float fmax = 0.0f;
+
+	// first find the max
+	for (int n=0; n<nPixels; n++)
+	{
+		float f = *m_Image_L.Get(n);
+		if (f > fmax)
+			fmax = f;
+	}
+
+	if (fmax < 0.001f)
+	{
+		WARN_PRINT_ONCE("LLightMapper::Normalize : values too small to normalize");
+		return;
+	}
+
+	// multiplier to normal is 1.0f / fmax
+	float mult = 1.0f / fmax;
+
+	// apply bias
+	mult *= m_Settings_NormalizeBias;
+
+	// apply multiplier
+	for (int n=0; n<nPixels; n++)
+	{
+		float &f = *m_Image_L.Get(n);
+		f *= mult;
+	}
+}
+
 void LLightMapper::WriteOutputImage(Image &output_image)
 {
 	Dilate<float> dilate;
@@ -273,6 +409,8 @@ void LLightMapper::WriteOutputImage(Image &output_image)
 //	imi.Create(test_size, test_size);
 //	imi.GetItem(3, 3) = 255;
 //	dilate.DilateImage(imf, imi);
+
+	Normalize();
 
 	output_image.lock();
 
@@ -314,6 +452,12 @@ void LLightMapper::ProcessTexels_Bounce()
 		{
 			print_line("\tTexels bounce line " + itos(y));
 			OS::get_singleton()->delay_usec(1);
+
+			if (bake_step_function) {
+				m_bCancel = bake_step_function(y, String("Process TexelsBounce: ") + " (" + itos(y) + ")");
+				if (m_bCancel)
+					return;
+			}
 		}
 
 		for (int x=0; x<m_iWidth; x++)
@@ -349,6 +493,12 @@ void LLightMapper::ProcessTexels()
 		{
 			print_line("\tTexels line " + itos(y));
 			OS::get_singleton()->delay_usec(1);
+
+			if (bake_step_function) {
+				m_bCancel = bake_step_function(y, String("Process Texels: ") + " (" + itos(y) + ")");
+				if (m_bCancel)
+					return;
+			}
 		}
 
 		for (int x=0; x<m_iWidth; x++)
