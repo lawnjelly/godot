@@ -2,6 +2,10 @@
 
 void LLightMapperEditorPlugin::_bake() {
 
+	if (lightmap)
+	{
+		lightmap->lightmap_bake();
+	}
 	/*
 	if (lightmap) {
 		BakedLightmap::BakeError err;
@@ -89,9 +93,9 @@ LLightMapperEditorPlugin::LLightMapperEditorPlugin(EditorNode *p_node) {
 	add_control_to_container(CONTAINER_SPATIAL_EDITOR_MENU, bake);
 	lightmap = NULL;
 
-	BakedLightmap::bake_begin_function = bake_func_begin;
-	BakedLightmap::bake_step_function = bake_func_step;
-	BakedLightmap::bake_end_function = bake_func_end;
+	LLightMapper::bake_begin_function = bake_func_begin;
+	LLightMapper::bake_step_function = bake_func_step;
+	LLightMapper::bake_end_function = bake_func_end;
 }
 
 LLightMapperEditorPlugin::~LLightMapperEditorPlugin() {

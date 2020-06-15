@@ -37,8 +37,17 @@ public:
 		MODE_BACKWARD,
 	};
 
-	void lightmap_set_params(int num_rays, float power, float bounce_power);
+	typedef void (*BakeBeginFunc)(int);
+	typedef bool (*BakeStepFunc)(int, const String &);
+	typedef void (*BakeEndFunc)();
+	static BakeBeginFunc bake_begin_function;
+	static BakeStepFunc bake_step_function;
+	static BakeEndFunc bake_end_function;
+
+//	void lightmap_set_params(int num_rays, float power, float bounce_power);
 	bool lightmap_mesh(Node * pMeshInstance, Node * pLightRoot, Object * pOutputImage);
+	bool lightmap_bake();
+	bool lightmap_bake_to_image(Object * pOutputImage);
 
 	void set_mode(LLightMapper::eMode p_mode);
 	LLightMapper::eMode get_mode() const;
@@ -60,6 +69,19 @@ public:
 	void set_bounce_power(float bounce_power);
 	float get_bounce_power() const;
 
+	void set_tex_width(int width);
+	int get_tex_width() const;
+
+	void set_tex_height(int height);
+	int get_tex_height() const;
+
+	void set_normalize(bool norm);
+	bool get_normalize() const;
+
+	void set_normalize_bias(float bias);
+	float get_normalize_bias() const;
+
+
 private:
 	bool LightmapMesh(const MeshInstance &mi, const Spatial &light_root, Image &output_image);
 
@@ -79,6 +101,7 @@ private:
 
 	void ProcessTexels_Bounce();
 	float ProcessTexel_Bounce(int x, int y);
+	void Normalize();
 
 	void WriteOutputImage(Image &output_image);
 
@@ -100,6 +123,8 @@ private:
 	// for stats
 	int m_iNumTests;
 
+	// if user cancels bake in editor
+	bool m_bCancel;
 
 	// params
 	int m_Settings_NumRays;
@@ -107,6 +132,12 @@ private:
 	float m_Settings_RayPower;
 	float m_Settings_BouncePower;
 	eMode m_Settings_Mode;
+
+	int m_Settings_TexWidth;
+	int m_Settings_TexHeight;
+
+	bool m_Settings_Normalize;
+	float m_Settings_NormalizeBias;
 
 	NodePath m_Settings_Path_Mesh;
 	NodePath m_Settings_Path_Lights;
