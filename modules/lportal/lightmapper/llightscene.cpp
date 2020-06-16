@@ -103,14 +103,29 @@ int LightScene::IntersectRay_old(const Ray &r, float &u, float &v, float &w, flo
 }
 
 
-void LightScene::Create(const MeshInstance &mi, int width, int height)
+bool LightScene::Create(const MeshInstance &mi, int width, int height)
 {
 	Ref<Mesh> rmesh = mi.get_mesh();
 	Array arrays = rmesh->surface_get_arrays(0);
+	if (!arrays.size())
+		return false;
+
 	PoolVector<Vector3> verts = arrays[VS::ARRAY_VERTEX];
+	if (!verts.size())
+		return false;
 	PoolVector<Vector3> norms = arrays[VS::ARRAY_NORMAL];
+	if (!norms.size())
+		return false;
+
 	m_UVs = arrays[VS::ARRAY_TEX_UV];
+	if (!m_UVs.size())
+		m_UVs = arrays[VS::ARRAY_TEX_UV2];
+	if (!m_UVs.size())
+		return false;
+
 	m_Inds = arrays[VS::ARRAY_INDEX];
+	if (!m_Inds.size())
+		return false;
 
 	// we need to get the vert positions and normals from local space to world space to match up with the
 	// world space coords in the merged mesh
@@ -168,6 +183,8 @@ void LightScene::Create(const MeshInstance &mi, int width, int height)
 	}
 
 	m_Tracer.Create(*this);
+
+	return true;
 }
 
 void LightScene::RasterizeTriangleIDs(LightImage<uint32_t> &im_p1, LightImage<Vector3> &im_bary)

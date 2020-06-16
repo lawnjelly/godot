@@ -116,6 +116,7 @@ private:
 
 	int m_iWidth;
 	int m_iHeight;
+	int m_iNumRays; // this will be modified from the settings_numrays
 
 	LM::LightScene m_Scene;
 	LVector<LLight> m_Lights;
@@ -125,6 +126,7 @@ private:
 
 	// if user cancels bake in editor
 	bool m_bCancel;
+
 
 	// params
 	int m_Settings_NumRays;

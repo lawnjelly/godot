@@ -24,7 +24,7 @@ public:
 		uint32_t num_tris;
 	};
 
-	void Create(const MeshInstance &mi, int width, int height);
+	bool Create(const MeshInstance &mi, int width, int height);
 	
 	// returns triangle ID (or -1) and barycentric coords
 	int IntersectRay(const Ray &r, float &u, float &v, float &w, float &nearest_t, int &num_tests);
