@@ -27,6 +27,10 @@ void LLightMapper::_bind_methods()
 
 	ClassDB::bind_method(D_METHOD("set_mode", "mode"), &LLightMapper::set_mode);
 	ClassDB::bind_method(D_METHOD("get_mode"), &LLightMapper::get_mode);
+
+	ClassDB::bind_method(D_METHOD("set_image_filename", "filename"), &LLightMapper::set_image_filename);
+	ClassDB::bind_method(D_METHOD("get_image_filename"), &LLightMapper::get_image_filename);
+
 //	ClassDB::bind_method(D_METHOD("set_mesh_path", "path"), &LLightMapper::set_mesh_path);
 //	ClassDB::bind_method(D_METHOD("get_mesh_path"), &LLightMapper::get_mesh_path);
 //	ClassDB::bind_method(D_METHOD("set_lights_path", "path"), &LLightMapper::set_lights_path);
@@ -47,24 +51,27 @@ ClassDB::bind_method(D_METHOD(LIGHTMAP_TOSTRING(P_GET)), &LLightMapper::P_GET);\
 ADD_PROPERTY(PropertyInfo(P_TYPE, LIGHTMAP_TOSTRING(P_NAME)), LIGHTMAP_TOSTRING(P_SET), LIGHTMAP_TOSTRING(P_GET));
 
 
+	ADD_GROUP("Paths", "");
 	LIMPL_PROPERTY(Variant::NODE_PATH, mesh, set_mesh_path, get_mesh_path);
 	LIMPL_PROPERTY(Variant::NODE_PATH, lights, set_lights_path, get_lights_path);
+	ADD_PROPERTY(PropertyInfo(Variant::STRING, "image_filename", PROPERTY_HINT_FILE, "*.png"), "set_image_filename", "get_image_filename");
 
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "mode", PROPERTY_HINT_ENUM, "Forward,Backward"), "set_mode", "get_mode");
 	ADD_GROUP("Size", "");
 
 	LIMPL_PROPERTY(Variant::INT, tex_width, set_tex_width, get_tex_width);
 	LIMPL_PROPERTY(Variant::INT, tex_height, set_tex_height, get_tex_height);
 
-	ADD_GROUP("Dynamic Range", "");
-	LIMPL_PROPERTY(Variant::BOOL, normalize, set_normalize, get_normalize);
-	LIMPL_PROPERTY(Variant::REAL, normalize_bias, set_normalize_bias, get_normalize_bias);
-
 	ADD_GROUP("Params", "");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "mode", PROPERTY_HINT_ENUM, "Forward,Backward"), "set_mode", "get_mode");
 	LIMPL_PROPERTY(Variant::INT, num_rays, set_num_rays, get_num_rays);
 	LIMPL_PROPERTY(Variant::INT, num_bounces, set_num_bounces, get_num_bounces);
 	LIMPL_PROPERTY(Variant::REAL, ray_power, set_ray_power, get_ray_power);
 	LIMPL_PROPERTY(Variant::REAL, bounce_power, set_bounce_power, get_bounce_power);
+
+	ADD_GROUP("Dynamic Range", "");
+	LIMPL_PROPERTY(Variant::BOOL, normalize, set_normalize, get_normalize);
+	LIMPL_PROPERTY(Variant::REAL, normalize_bias, set_normalize_bias, get_normalize_bias);
+
 
 
 //	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "mesh"), "set_mesh_path", "get_mesh_path");
@@ -123,6 +130,8 @@ bool LLightMapper::get_normalize() const {return m_Settings_Normalize;}
 void LLightMapper::set_normalize_bias(float bias) {m_Settings_NormalizeBias = bias;}
 float LLightMapper::get_normalize_bias() const {return m_Settings_NormalizeBias;}
 
+void LLightMapper::set_image_filename(const String &p_filename) {m_Settings_ImageFilename = p_filename;}
+String LLightMapper::get_image_filename() const {return m_Settings_ImageFilename;}
 
 //void LLightMapper::lightmap_set_params(int num_rays, float power, float bounce_power)
 //{
@@ -134,6 +143,9 @@ float LLightMapper::get_normalize_bias() const {return m_Settings_NormalizeBias;
 
 bool LLightMapper::lightmap_bake()
 {
+	if (m_Settings_ImageFilename == "")
+		return false;
+
 	// bake to a file
 //	Ref<Image> image;
 	Ref<Image> image = memnew(Image(m_Settings_TexWidth, m_Settings_TexHeight, false, Image::FORMAT_RGBA8));
@@ -144,7 +156,9 @@ bool LLightMapper::lightmap_bake()
 	lightmap_bake_to_image(image.ptr());
 
 	// save the image
-	image->save_png("lightmap.png");
+	image->save_png(m_Settings_ImageFilename);
+
+	ResourceLoader::import(m_Settings_ImageFilename);
 
 	return true;
 }

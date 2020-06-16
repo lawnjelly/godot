@@ -81,6 +81,9 @@ public:
 	void set_normalize_bias(float bias);
 	float get_normalize_bias() const;
 
+	void set_image_filename(const String &p_filename);
+	String get_image_filename() const;
+
 
 private:
 	bool LightmapMesh(const MeshInstance &mi, const Spatial &light_root, Image &output_image);
@@ -143,6 +146,7 @@ private:
 
 	NodePath m_Settings_Path_Mesh;
 	NodePath m_Settings_Path_Lights;
+	String m_Settings_ImageFilename;
 
 protected:
 	LLightMapper();
