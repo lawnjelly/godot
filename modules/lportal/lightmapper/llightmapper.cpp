@@ -77,6 +77,7 @@ ADD_PROPERTY(PropertyInfo(P_TYPE, LIGHTMAP_TOSTRING(P_NAME)), LIGHTMAP_TOSTRING(
 
 LLightMapper::LLightMapper()
 {
+	m_iNumRays = 1;
 	m_Settings_NumRays = 1;
 	m_Settings_NumBounces = 1;
 	m_Settings_RayPower = 0.01f;
@@ -205,10 +206,25 @@ bool LLightMapper::lightmap_mesh(Node * pMeshInstance, Node * pLightRoot, Object
 		return false;
 	}
 
+	// get the output dimensions before starting, because we need this
+	// to determine number of rays, and the progress range
+	m_iWidth = pIm->get_width();
 	m_iHeight = pIm->get_height();
+	m_iNumRays = m_Settings_NumRays;
+
+	int nTexels = m_iWidth * m_iHeight;
+	int progress_range = m_iHeight;
+
+	// set num rays depending on method
+	if (m_Settings_Mode == MODE_FORWARD)
+	{
+		// the num rays / texel. This is per light!
+		m_iNumRays *= nTexels;
+		progress_range = m_iNumRays;
+	}
 
 	if (bake_begin_function) {
-		bake_begin_function(m_iHeight);
+		bake_begin_function(progress_range);
 	}
 
 	bool res = LightmapMesh(*pMI, *pLR, *pIm);
@@ -281,9 +297,6 @@ bool LLightMapper::LightmapMesh(const MeshInstance &mi, const Spatial &light_roo
 	uint32_t before, after;
 	FindLights_Recursive(&light_root);
 
-	m_iWidth = output_image.get_width();
-	m_iHeight = output_image.get_height();
-
 	if (m_iWidth <= 0)
 		return false;
 	if (m_iHeight <= 0)
@@ -297,7 +310,8 @@ bool LLightMapper::LightmapMesh(const MeshInstance &mi, const Spatial &light_roo
 
 	print_line("Scene Create");
 	before = OS::get_singleton()->get_ticks_msec();
-	m_Scene.Create(mi, m_iWidth, m_iHeight);
+	if (!m_Scene.Create(mi, m_iWidth, m_iHeight))
+		return false;
 	after = OS::get_singleton()->get_ticks_msec();
 	print_line("SceneCreate took " + itos(after -before) + " ms");
 
@@ -315,11 +329,15 @@ bool LLightMapper::LightmapMesh(const MeshInstance &mi, const Spatial &light_roo
 
 	print_line("ProcessTexels");
 	before = OS::get_singleton()->get_ticks_msec();
-	ProcessTexels();
-//	for (int n=0; n<m_Lights.size(); n++)
-//	{
-//		ProcessLight(n);
-//	}
+	if (m_Settings_Mode == MODE_BACKWARD)
+		ProcessTexels();
+	else
+	{
+		for (int n=0; n<m_Lights.size(); n++)
+		{
+			ProcessLight(n);
+		}
+	}
 	after = OS::get_singleton()->get_ticks_msec();
 	print_line("ProcessTexels took " + itos(after -before) + " ms");
 
@@ -487,6 +505,12 @@ void LLightMapper::ProcessTexels()
 {
 	m_iNumTests = 0;
 
+
+#ifdef _OPENMP
+#pragma message ("_OPENMP defined")
+//#pragma omp parallel
+#endif
+//    #pragma omp parallel for
 	for (int y=0; y<m_iHeight; y++)
 	{
 		if ((y % 10) == 0)
@@ -824,8 +848,18 @@ void LLightMapper::ProcessLight(int light_id)
 
 
 	// each ray
-	for (int n=0; n<m_Settings_NumRays; n++)
+	for (int n=0; n<m_iNumRays; n++)
 	{
+		if ((n % 10000) == 0)
+		{
+			if (bake_step_function)
+			{
+				m_bCancel = bake_step_function(n, String("Process Rays: ") + " (" + itos(n) + ")");
+				if (m_bCancel)
+					return;
+			}
+		}
+
 		r.o = light.pos;
 
 		switch (light.type)
