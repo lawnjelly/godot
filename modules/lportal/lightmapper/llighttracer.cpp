@@ -2,7 +2,19 @@
 #include "llightscene.h"
 
 
+
 using namespace LM;
+
+void LightTracer::Reset()
+{
+	m_Voxels.clear();
+	m_VoxelBounds.clear();
+	m_BFTrisHit.Blank();
+	m_iNumTris = 0;
+
+
+}
+
 
 void LightTracer::Create(const LightScene &scene)
 {
@@ -114,6 +126,14 @@ void LightTracer::DebugCheckWorldPointInVoxel(Vector3 pt, const Vec3i &ptVoxel)
 bool LightTracer::RayTrace(const Ray &ray_orig, Ray &ray_out, Vec3i &ptVoxel)
 {
 	m_TriHits.clear();
+
+#ifdef LIGHTTRACER_IGNORE_VOXELS
+	for (int n=0; n<m_iNumTris; n++)
+	{
+		m_TriHits.push_back(n);
+	}
+	return true;
+#endif
 
 	if (!VoxelWithinBounds(ptVoxel))
 		return false;

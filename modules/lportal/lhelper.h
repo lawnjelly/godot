@@ -48,7 +48,7 @@ public:
 	bool MergeSOBs(LRoomManager &manager, MeshInstance * pMerged, bool bLightmapUnwrap = true);
 
 	// take the UV2 coords from the merged mesh and attach these to the SOB meshes
-	bool UnMergeSOBs(LRoomManager &manager, MeshInstance * pMerged);
+	bool UnMergeSOBs(LRoomManager &manager, const MeshInstance * pMerged);
 
 	void SetUnMergeParams(float thresh_dist, float thresh_dot);
 

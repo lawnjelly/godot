@@ -140,7 +140,7 @@ void LHelper::SetUnMergeParams(float thresh_dist, float thresh_dot)
 }
 
 // take the UV2 coords from the merged mesh and attach these to the SOB meshes
-bool LHelper::UnMergeSOBs(LRoomManager &manager, MeshInstance * pMerged)
+bool LHelper::UnMergeSOBs(LRoomManager &manager, const MeshInstance * pMerged)
 {
 	if (!pMerged)
 	{
@@ -693,6 +693,26 @@ bool LHelper::MergeSOBs(LRoomManager &manager, MeshInstance * pMerged, bool bLig
 
 	pMerged->set_mesh(am);
 
+
+	////////////////////////////////////
+	// do some assert checks for the xatlas version
+//	{
+//	Ref<Mesh> rmesh = pMerged->get_mesh();
+//	Array arrays = rmesh->surface_get_arrays(0);
+//	PoolVector<Vector3> verts = arrays[VS::ARRAY_VERTEX];
+//	PoolVector<Vector3> norms = arrays[VS::ARRAY_NORMAL];
+//	PoolVector<Vector2> uv1s = arrays[VS::ARRAY_TEX_UV];
+//	PoolVector<Vector2> uv2s = arrays[VS::ARRAY_TEX_UV2];
+//	PoolVector<int> inds = arrays[VS::ARRAY_INDEX];
+
+//	int nVerts = verts.size();
+//	int nInds = inds.size();
+//	int nUV2s = uv2s.size();
+//	int nUVs = uv1s.size();
+//	int nFaces = nInds / 3;
+//	}
+////////////////////////////////////
+
 	//DebugCountUVs(*pMerged);
 
 
@@ -842,6 +862,15 @@ void LHelper::Merge_MI(const MeshInstance &mi, PoolVector<Vector3> &verts, PoolV
 	PoolVector<int> p_indices = arrays[VS::ARRAY_INDEX];
 	//PoolVector<int>::Read ir = mesh_indices.read();
 
+	// no normals, can't do
+	if (!p_normals.size())
+	{
+		//assert (0);
+		WARN_PRINT_ONCE("Merge_MI : mesh with no normals, ignoring");
+		return;
+	}
+
+
 	// the first index of this mesh is offset from the verts we already have stored in the merged mesh
 	int first_index = verts.size();
 
@@ -872,7 +901,7 @@ void LHelper::Merge_MI(const MeshInstance &mi, PoolVector<Vector3> &verts, PoolV
 }
 
 
-extern bool (*array_mesh_lightmap_unwrap_callback)(float p_texel_size, const float *p_vertices, const float *p_normals, int p_vertex_count, const int *p_indices, const int *p_face_materials, int p_index_count, float **r_uv, int **r_vertex, int *r_vertex_count, int **r_index, int *r_index_count, int *r_size_hint_x, int *r_size_hint_y);
+//extern bool (*array_mesh_lightmap_unwrap_callback)(float p_texel_size, const float *p_vertices, const float *p_normals, int p_vertex_count, const int *p_indices, const int *p_face_materials, int p_index_count, float **r_uv, int **r_vertex, int *r_vertex_count, int **r_index, int *r_index_count, int *r_size_hint_x, int *r_size_hint_y);
 
 /*
 bool LHelper::LightmapUnwrap(const PoolVector<Vector3> &p_verts, const PoolVector<Vector3> &p_normals, const PoolVector<int> &p_inds, PoolVector<Vector2> &r_uvs)

@@ -29,6 +29,7 @@ class Tri
 public:
 	Vector3 pos[3];
 
+	void FlipWinding() {Vector3 temp = pos[0]; pos[0] = pos[2]; pos[2] = temp;}
 	void FindBarycentric(const Vector3 &pt, float &u, float &v, float &w) const;
 	void InterpolateBarycentric(Vector3 &pt, float u, float v, float w) const;
 	void FindNormal(Vector3 &norm, float u, float v, float w) const
@@ -74,9 +75,16 @@ class UVTri
 public:
 	Vector2 uv[3];
 
+	void FlipWinding() {Vector2 temp = uv[0]; uv[0] = uv[2]; uv[2] = temp;}
 	void FindUVBarycentric(Vector2 &res, float u, float v, float w) const;
 	bool ContainsPoint(const Vector2 &pt, float epsilon = 0.0f) const;
 	void FindBarycentricCoords(const Vector2 &pt, float &u, float &v, float &w) const;
+	bool IsWindingCW() const {return CalculateTwiceArea() < 0.0f;}
+	float CalculateTwiceArea() const
+	{
+		const Vector2 &a = uv[0]; const Vector2  &b = uv[1]; const Vector2 &c = uv[2];
+		return (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y);
+	}
 };
 
 

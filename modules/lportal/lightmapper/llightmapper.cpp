@@ -304,8 +304,15 @@ void LLightMapper::FindLights_Recursive(const Node * pNode)
 }
 
 
+void LLightMapper::Reset()
+{
+	m_Lights.delete_all();
+	m_Scene.Reset();
+}
+
 bool LLightMapper::LightmapMesh(const MeshInstance &mi, const Spatial &light_root, Image &output_image)
 {
+	Reset();
 	m_bCancel = false;
 
 	uint32_t before, after;
@@ -431,7 +438,7 @@ void LLightMapper::Normalize()
 void LLightMapper::WriteOutputImage(Image &output_image)
 {
 	Dilate<float> dilate;
-	dilate.DilateImage(m_Image_L, m_Image_ID_p1, 256);
+//	dilate.DilateImage(m_Image_L, m_Image_ID_p1, 256);
 
 	// test
 //	int test_size = 7;
@@ -444,6 +451,34 @@ void LLightMapper::WriteOutputImage(Image &output_image)
 
 	Normalize();
 
+	////
+	// write some debug
+	output_image.lock();
+	Color cols[1024];
+	for (int n=0; n<m_Scene.GetNumTris(); n++)
+	{
+		if (n == 1024)
+			break;
+
+		cols[n] = Color(Math::randf(), Math::randf(), Math::randf(), 1.0f);
+	}
+	cols[0] = Color(0, 0, 0, 1.0f);
+
+	for (int y=0; y<m_iHeight; y++)
+	{
+		for (int x=0; x<m_iWidth; x++)
+		{
+			int coln = m_Image_ID_p1.GetItem(x, y) % 1024;
+
+			output_image.set_pixel(x, y, cols[coln]);
+		}
+	}
+
+	output_image.unlock();
+	output_image.save_png("tri_ids.png");
+
+
+	// final version
 	output_image.lock();
 
 	for (int y=0; y<m_iHeight; y++)

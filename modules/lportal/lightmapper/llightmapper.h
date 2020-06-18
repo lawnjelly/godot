@@ -87,6 +87,7 @@ public:
 
 private:
 	bool LightmapMesh(const MeshInstance &mi, const Spatial &light_root, Image &output_image);
+	void Reset();
 
 private:
 	void FindLights_Recursive(const Node * pNode);
