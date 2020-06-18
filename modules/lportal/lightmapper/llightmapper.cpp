@@ -51,22 +51,30 @@ ClassDB::bind_method(D_METHOD(LIGHTMAP_TOSTRING(P_GET)), &LLightMapper::P_GET);\
 ADD_PROPERTY(PropertyInfo(P_TYPE, LIGHTMAP_TOSTRING(P_NAME)), LIGHTMAP_TOSTRING(P_SET), LIGHTMAP_TOSTRING(P_GET));
 
 
-	ADD_GROUP("Paths", "");
+	ADD_GROUP("Main", "");
 	LIMPL_PROPERTY(Variant::NODE_PATH, mesh, set_mesh_path, get_mesh_path);
 	LIMPL_PROPERTY(Variant::NODE_PATH, lights, set_lights_path, get_lights_path);
 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "image_filename", PROPERTY_HINT_FILE, "*.png"), "set_image_filename", "get_image_filename");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "mode", PROPERTY_HINT_ENUM, "Forward,Backward"), "set_mode", "get_mode");
 
 	ADD_GROUP("Size", "");
 
 	LIMPL_PROPERTY(Variant::INT, tex_width, set_tex_width, get_tex_width);
 	LIMPL_PROPERTY(Variant::INT, tex_height, set_tex_height, get_tex_height);
 
-	ADD_GROUP("Params", "");
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "mode", PROPERTY_HINT_ENUM, "Forward,Backward"), "set_mode", "get_mode");
-	LIMPL_PROPERTY(Variant::INT, num_rays, set_num_rays, get_num_rays);
-	LIMPL_PROPERTY(Variant::INT, num_bounces, set_num_bounces, get_num_bounces);
-	LIMPL_PROPERTY(Variant::REAL, ray_power, set_ray_power, get_ray_power);
-	LIMPL_PROPERTY(Variant::REAL, bounce_power, set_bounce_power, get_bounce_power);
+	ADD_GROUP("Forward Parameters", "");
+	LIMPL_PROPERTY(Variant::INT, f_num_rays, set_forward_num_rays, get_forward_num_rays);
+	LIMPL_PROPERTY(Variant::INT, f_num_bounces, set_forward_num_bounces, get_forward_num_bounces);
+	LIMPL_PROPERTY(Variant::REAL, f_ray_power, set_forward_ray_power, get_forward_ray_power);
+	LIMPL_PROPERTY(Variant::REAL, f_bounce_power, set_forward_bounce_power, get_forward_bounce_power);
+	LIMPL_PROPERTY(Variant::REAL, f_bounce_directionality, set_forward_bounce_directionality, get_forward_bounce_directionality);
+
+	ADD_GROUP("Backward Parameters", "");
+	LIMPL_PROPERTY(Variant::INT, b_num_initial_rays, set_backward_num_rays, get_backward_num_rays);
+	LIMPL_PROPERTY(Variant::INT, b_num_bounce_rays, set_backward_num_bounce_rays, get_backward_num_bounce_rays);
+	LIMPL_PROPERTY(Variant::INT, b_num_bounces, set_backward_num_bounces, get_backward_num_bounces);
+	LIMPL_PROPERTY(Variant::REAL, b_ray_power, set_backward_ray_power, get_backward_ray_power);
+	LIMPL_PROPERTY(Variant::REAL, b_bounce_power, set_backward_bounce_power, get_backward_bounce_power);
 
 	ADD_GROUP("Dynamic Range", "");
 	LIMPL_PROPERTY(Variant::BOOL, normalize, set_normalize, get_normalize);
@@ -85,10 +93,18 @@ ADD_PROPERTY(PropertyInfo(P_TYPE, LIGHTMAP_TOSTRING(P_NAME)), LIGHTMAP_TOSTRING(
 LLightMapper::LLightMapper()
 {
 	m_iNumRays = 1;
-	m_Settings_NumRays = 1;
-	m_Settings_NumBounces = 1;
-	m_Settings_RayPower = 0.01f;
-	m_Settings_BouncePower = 0.1f;
+	m_Settings_Forward_NumRays = 1;
+	m_Settings_Forward_NumBounces = 1;
+	m_Settings_Forward_RayPower = 0.01f;
+	m_Settings_Forward_BouncePower = 0.5f;
+	m_Settings_Forward_BounceDirectionality = 0.5f;
+
+	m_Settings_Backward_NumRays = 1;
+	m_Settings_Backward_NumBounceRays = 1;
+	m_Settings_Backward_NumBounces = 1;
+	m_Settings_Backward_RayPower = 0.01f;
+	m_Settings_Backward_BouncePower = 0.5f;
+
 	m_Settings_Mode = MODE_FORWARD;
 
 	m_Settings_TexWidth = 128;
@@ -106,17 +122,37 @@ NodePath LLightMapper::get_mesh_path() const {return m_Settings_Path_Mesh;}
 void LLightMapper::set_lights_path(const NodePath &p_path)  {m_Settings_Path_Lights = p_path;}
 NodePath LLightMapper::get_lights_path() const {return m_Settings_Path_Lights;}
 
-void LLightMapper::set_num_rays(int num_rays) {m_Settings_NumRays = num_rays;}
-int LLightMapper::get_num_rays() const {return m_Settings_NumRays;}
+void LLightMapper::set_forward_num_rays(int num_rays) {m_Settings_Forward_NumRays = num_rays;}
+int LLightMapper::get_forward_num_rays() const {return m_Settings_Forward_NumRays;}
 
-void LLightMapper::set_num_bounces(int num_bounces) {m_Settings_NumBounces = num_bounces;}
-int LLightMapper::get_num_bounces() const {return m_Settings_NumBounces;}
+void LLightMapper::set_forward_num_bounces(int num_bounces) {m_Settings_Forward_NumBounces = num_bounces;}
+int LLightMapper::get_forward_num_bounces() const {return m_Settings_Forward_NumBounces;}
 
-void LLightMapper::set_ray_power(float ray_power) {m_Settings_RayPower = ray_power;}
-float LLightMapper::get_ray_power() const {return m_Settings_RayPower;}
+void LLightMapper::set_forward_ray_power(float ray_power) {m_Settings_Forward_RayPower = ray_power;}
+float LLightMapper::get_forward_ray_power() const {return m_Settings_Forward_RayPower;}
 
-void LLightMapper::set_bounce_power(float bounce_power) {m_Settings_BouncePower = bounce_power;}
-float LLightMapper::get_bounce_power() const {return m_Settings_BouncePower;}
+void LLightMapper::set_forward_bounce_power(float bounce_power) {m_Settings_Forward_BouncePower = bounce_power;}
+float LLightMapper::get_forward_bounce_power() const {return m_Settings_Forward_BouncePower;}
+
+void LLightMapper::set_forward_bounce_directionality(float bounce_dir) {m_Settings_Forward_BounceDirectionality = bounce_dir;}
+float LLightMapper::get_forward_bounce_directionality() const {return m_Settings_Forward_BounceDirectionality;}
+
+////////////////////////////
+void LLightMapper::set_backward_num_rays(int num_rays) {m_Settings_Backward_NumRays = num_rays;}
+int LLightMapper::get_backward_num_rays() const {return m_Settings_Backward_NumRays;}
+
+void LLightMapper::set_backward_num_bounce_rays(int num_rays) {m_Settings_Backward_NumBounceRays = num_rays;}
+int LLightMapper::get_backward_num_bounce_rays() const {return m_Settings_Backward_NumBounceRays;}
+
+void LLightMapper::set_backward_num_bounces(int num_bounces) {m_Settings_Backward_NumBounces = num_bounces;}
+int LLightMapper::get_backward_num_bounces() const {return m_Settings_Backward_NumBounces;}
+
+void LLightMapper::set_backward_ray_power(float ray_power) {m_Settings_Backward_RayPower = ray_power;}
+float LLightMapper::get_backward_ray_power() const {return m_Settings_Backward_RayPower;}
+
+void LLightMapper::set_backward_bounce_power(float bounce_power) {m_Settings_Backward_BouncePower = bounce_power;}
+float LLightMapper::get_backward_bounce_power() const {return m_Settings_Backward_BouncePower;}
+////////////////////////////
 
 void LLightMapper::set_tex_width(int width) {m_Settings_TexWidth = width;}
 int LLightMapper::get_tex_width() const {return m_Settings_TexWidth;}
@@ -135,9 +171,9 @@ String LLightMapper::get_image_filename() const {return m_Settings_ImageFilename
 
 //void LLightMapper::lightmap_set_params(int num_rays, float power, float bounce_power)
 //{
-//	m_Settings_NumRays = num_rays;
-//	m_Settings_RayPower = power;
-//	m_Settings_BouncePower = bounce_power / num_rays;
+//	m_Settings_Forward_NumRays = num_rays;
+//	m_Settings_Forward_RayPower = power;
+//	m_Settings_Forward_BouncePower = bounce_power / num_rays;
 //}
 
 
@@ -224,7 +260,7 @@ bool LLightMapper::lightmap_mesh(Node * pMeshInstance, Node * pLightRoot, Object
 	// to determine number of rays, and the progress range
 	m_iWidth = pIm->get_width();
 	m_iHeight = pIm->get_height();
-	m_iNumRays = m_Settings_NumRays;
+	m_iNumRays = m_Settings_Forward_NumRays;
 
 	int nTexels = m_iWidth * m_iHeight;
 	int progress_range = m_iHeight;
@@ -255,9 +291,13 @@ void LLightMapper::FindLight(const Node * pNode)
 	if (!pLight)
 		return;
 
-	// is it visible?
-	if (!pLight->is_visible_in_tree())
+	// visibility or bake mode?
+	if (pLight->get_bake_mode() == Light::BAKE_DISABLED)
 		return;
+
+	// is it visible?
+//	if (!pLight->is_visible_in_tree())
+//		return;
 
 	LLight * l = m_Lights.request();
 	l->m_pLight = pLight;
@@ -312,6 +352,11 @@ void LLightMapper::Reset()
 
 bool LLightMapper::LightmapMesh(const MeshInstance &mi, const Spatial &light_root, Image &output_image)
 {
+	// print out settings
+	print_line("Lightmap mesh");
+	print_line("\tnum_bounces " + itos(m_Settings_Forward_NumBounces));
+	print_line("\tbounce_power " + String(Variant(m_Settings_Forward_BouncePower)));
+
 	Reset();
 	m_bCancel = false;
 
@@ -517,8 +562,8 @@ void LLightMapper::ProcessTexels_Bounce()
 	{
 		if ((y % 10) == 0)
 		{
-			print_line("\tTexels bounce line " + itos(y));
-			OS::get_singleton()->delay_usec(1);
+//			print_line("\tTexels bounce line " + itos(y));
+//			OS::get_singleton()->delay_usec(1);
 
 			if (bake_step_function) {
 				m_bCancel = bake_step_function(y, String("Process TexelsBounce: ") + " (" + itos(y) + ")");
@@ -542,7 +587,7 @@ void LLightMapper::ProcessTexels_Bounce()
 		for (int x=0; x<m_iWidth; x++)
 		{
 			float f = m_Image_L.GetItem(x, y);
-			f += (m_Image_L_mirror.GetItem(x, y) * m_Settings_BouncePower);
+			f += (m_Image_L_mirror.GetItem(x, y) * m_Settings_Backward_BouncePower);
 			m_Image_L.GetItem(x, y) = f;
 		}
 	}
@@ -564,8 +609,8 @@ void LLightMapper::ProcessTexels()
 	{
 		if ((y % 10) == 0)
 		{
-			print_line("\tTexels line " + itos(y));
-			OS::get_singleton()->delay_usec(1);
+			//print_line("\tTexels line " + itos(y));
+			//OS::get_singleton()->delay_usec(1);
 
 			if (bake_step_function) {
 				m_bCancel = bake_step_function(y, String("Process Texels: ") + " (" + itos(y) + ")");
@@ -583,10 +628,13 @@ void LLightMapper::ProcessTexels()
 	m_iNumTests /= (m_iHeight * m_iWidth);
 	print_line("average num tests : " + itos(m_iNumTests));
 
-	ProcessTexels_Bounce();
+	for (int b=0; b<m_Settings_Backward_NumBounces; b++)
+	{
+		ProcessTexels_Bounce();
+	}
 }
 
-float LLightMapper::ProcessTexel_Light(int light_id, const Vector3 &ptDest, uint32_t tri_ignore)
+float LLightMapper::ProcessTexel_Light(int light_id, const Vector3 &ptDest, const Vector3 &ptNormal, uint32_t tri_ignore)
 {
 	const LLight &light = m_Lights[light_id];
 
@@ -599,9 +647,9 @@ float LLightMapper::ProcessTexel_Light(int light_id, const Vector3 &ptDest, uint
 	// the power should depend on the volume, with 1x1x1 being normal power
 //	float power = light.scale.x * light.scale.y * light.scale.z;
 	float power = light.energy;
-	power *= m_Settings_RayPower;
+	power *= m_Settings_Backward_RayPower;
 
-	int nSamples = m_Settings_NumRays;
+	int nSamples = m_Settings_Backward_NumRays;
 
 	// total light hitting texel
 	float fTotal = 0.0f;
@@ -645,7 +693,19 @@ float LLightMapper::ProcessTexel_Light(int light_id, const Vector3 &ptDest, uint
 		// nothing hit
 		if ((tri == -1) || (tri == tri_ignore))
 		{
-			fTotal += power;
+			// for backward tracing, first pass, this is a special case, because we DO
+			// take account of distance to the light, and normal, in order to simulate the effects
+			// of the likelihood of 'catching' a ray. In forward tracing this happens by magic.
+			float dist = (r.o - ptDest).length();
+			float local_power = power * InverseSquareDropoff(dist);
+
+			// take into account normal
+			float dot = r.d.dot(ptNormal);
+			dot = fabs(dot);
+
+			local_power *= dot;
+
+			fTotal += local_power;
 		}
 	}
 
@@ -675,7 +735,7 @@ float LLightMapper::ProcessTexel_Bounce(int x, int y)
 
 	float fTotal = 0.0f;
 
-	int nSamples = m_Settings_NumRays;
+	int nSamples = m_Settings_Backward_NumBounceRays;
 	for (int n=0; n<nSamples; n++)
 	{
 		// bounce
@@ -691,29 +751,18 @@ float LLightMapper::ProcessTexel_Bounce(int x, int y)
 			//new_ray.d = r.d - (2.0f * (dot * norm));
 
 			// random hemisphere
-			const float range = 1.0f;
-			while (true)
-			{
-				r.d.x = Math::random(-range, range);
-				r.d.y = Math::random(-range, range);
-				r.d.z = Math::random(-range, range);
+			RandomUnitDir(r.d);
 
-				float sl = r.d.length_squared();
-				if (sl > 0.0001f)
-				{
-					break;
-				}
-			}
 			// compare direction to normal, if opposite, flip it
 			if (r.d.dot(norm) < 0.0f)
 				r.d = -r.d;
 
-
+			// add a little epsilon to prevent self intersection
 			r.o = pos + (norm * 0.01f);
 			//ProcessRay(new_ray, depth+1, power * 0.4f);
 
 			// collision detect
-			r.d.normalize();
+			//r.d.normalize();
 			float u, v, w, t;
 			int tri_hit = m_Scene.IntersectRay(r, u, v, w, t, m_iNumTests);
 
@@ -737,7 +786,7 @@ float LLightMapper::ProcessTexel_Bounce(int x, int y)
 			}
 	}
 
-	return fTotal;
+	return fTotal / nSamples;
 }
 
 void LLightMapper::ProcessSubTexel(float fx, float fy)
@@ -759,6 +808,10 @@ void LLightMapper::ProcessTexel(int tx, int ty)
 	Vector3 pos;
 	m_Scene.m_Tris[tri].InterpolateBarycentric(pos, bary.x, bary.y, bary.z);
 
+	Vector3 normal;
+	m_Scene.m_TriNormals[tri].InterpolateBarycentric(normal, bary.x, bary.y, bary.z);
+
+
 	//Vector2i tex_uv = Vector2i(x, y);
 
 	// could be off the image
@@ -768,7 +821,7 @@ void LLightMapper::ProcessTexel(int tx, int ty)
 
 	for (int l=0; l<m_Lights.size(); l++)
 	{
-		float power = ProcessTexel_Light(l, pos, tri);
+		float power = ProcessTexel_Light(l, pos, normal, tri);
 		*pfTexel += power;
 	}
 }
@@ -827,7 +880,7 @@ void LLightMapper::ProcessRay(LM::Ray r, int depth, float power, int dest_tri_id
 
 	// bounce and lower power
 
-	if (depth < 2)
+	if (depth < m_Settings_Forward_NumBounces)
 	{
 		Vector3 pos;
 		const Tri &triangle = m_Scene.m_Tris[tri];
@@ -850,29 +903,31 @@ void LLightMapper::ProcessRay(LM::Ray r, int depth, float power, int dest_tri_id
 //			new_ray.d = norm.cross(temp);
 
 			// BOUNCING - mirror
-			//new_ray.d = r.d - (2.0f * (dot * norm));
+			Vector3 mirror_dir = r.d - (2.0f * (dot * norm));
 
 			// random hemisphere
 			const float range = 1.0f;
+			Vector3 hemi_dir;
 			while (true)
 			{
-				new_ray.d.x = Math::random(-range, range);
-				new_ray.d.y = Math::random(-range, range);
-				new_ray.d.z = Math::random(-range, range);
+				hemi_dir.x = Math::random(-range, range);
+				hemi_dir.y = Math::random(-range, range);
+				hemi_dir.z = Math::random(-range, range);
 
-				float sl = new_ray.d.length_squared();
+				float sl = hemi_dir.length_squared();
 				if (sl > 0.0001f)
 				{
 					break;
 				}
 			}
 			// compare direction to normal, if opposite, flip it
-			if (new_ray.d.dot(norm) < 0.0f)
-				new_ray.d = -new_ray.d;
+			if (hemi_dir.dot(norm) < 0.0f)
+				hemi_dir = -hemi_dir;
 
+			new_ray.d = hemi_dir.linear_interpolate(mirror_dir, m_Settings_Forward_BounceDirectionality);
 
 			new_ray.o = pos + (norm * 0.01f);
-			ProcessRay(new_ray, depth+1, power * 0.4f);
+			ProcessRay(new_ray, depth+1, power * m_Settings_Forward_BouncePower);
 		} // in opposite directions
 	}
 
@@ -892,7 +947,7 @@ void LLightMapper::ProcessLight(int light_id)
 	// the power should depend on the volume, with 1x1x1 being normal power
 //	float power = light.scale.x * light.scale.y * light.scale.z;
 	float power = light.energy;
-	power *= m_Settings_RayPower;
+	power *= m_Settings_Forward_RayPower;
 
 
 
@@ -926,16 +981,17 @@ void LLightMapper::ProcessLight(int light_id)
 			break;
 		default:
 			{
-				float x = Math::random(-light.scale.x, light.scale.x);
-				float y = Math::random(-light.scale.y, light.scale.y);
-				float z = Math::random(-light.scale.z, light.scale.z);
-				r.o += Vector3(x, y, z);
+				Vector3 offset;
+				RandomUnitDir(offset);
+				offset *= light.scale;
+				r.o += offset;
 
+//				float x = Math::random(-light.scale.x, light.scale.x);
+//				float y = Math::random(-light.scale.y, light.scale.y);
+//				float z = Math::random(-light.scale.z, light.scale.z);
+//				r.o += Vector3(x, y, z);
 
-				r.d.x = Math::random(-1.0f, 1.0f);
-		//		r.d.y = Math::random(-1.0f, -0.7f);
-				r.d.y = Math::random(-1.0f, 1.0f);
-				r.d.z = Math::random(-1.0f, 1.0f);
+				RandomUnitDir(r.d);
 			}
 			break;
 		}
