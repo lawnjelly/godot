@@ -297,7 +297,7 @@ void LightScene::RasterizeTriangleIDs(LightImage<uint32_t> &im_p1, LightImage<Ve
 					if (id_p1)
 					{
 						debug_overlap_count++;
-						if (debug_overlap_count == 1)
+						if (debug_overlap_count == 64)
 						{
 							print_line("overlap detected");
 						}
