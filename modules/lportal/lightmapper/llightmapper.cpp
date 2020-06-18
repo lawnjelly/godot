@@ -63,17 +63,17 @@ ADD_PROPERTY(PropertyInfo(P_TYPE, LIGHTMAP_TOSTRING(P_NAME)), LIGHTMAP_TOSTRING(
 	LIMPL_PROPERTY(Variant::INT, tex_height, set_tex_height, get_tex_height);
 
 	ADD_GROUP("Forward Parameters", "");
-	LIMPL_PROPERTY(Variant::INT, f_num_rays, set_forward_num_rays, get_forward_num_rays);
-	LIMPL_PROPERTY(Variant::INT, f_num_bounces, set_forward_num_bounces, get_forward_num_bounces);
+	LIMPL_PROPERTY(Variant::INT, f_rays, set_forward_num_rays, get_forward_num_rays);
 	LIMPL_PROPERTY(Variant::REAL, f_ray_power, set_forward_ray_power, get_forward_ray_power);
+	LIMPL_PROPERTY(Variant::INT, f_bounces, set_forward_num_bounces, get_forward_num_bounces);
 	LIMPL_PROPERTY(Variant::REAL, f_bounce_power, set_forward_bounce_power, get_forward_bounce_power);
 	LIMPL_PROPERTY(Variant::REAL, f_bounce_directionality, set_forward_bounce_directionality, get_forward_bounce_directionality);
 
 	ADD_GROUP("Backward Parameters", "");
-	LIMPL_PROPERTY(Variant::INT, b_num_initial_rays, set_backward_num_rays, get_backward_num_rays);
-	LIMPL_PROPERTY(Variant::INT, b_num_bounce_rays, set_backward_num_bounce_rays, get_backward_num_bounce_rays);
-	LIMPL_PROPERTY(Variant::INT, b_num_bounces, set_backward_num_bounces, get_backward_num_bounces);
+	LIMPL_PROPERTY(Variant::INT, b_initial_rays, set_backward_num_rays, get_backward_num_rays);
 	LIMPL_PROPERTY(Variant::REAL, b_ray_power, set_backward_ray_power, get_backward_ray_power);
+	LIMPL_PROPERTY(Variant::INT, b_bounce_rays, set_backward_num_bounce_rays, get_backward_num_bounce_rays);
+	LIMPL_PROPERTY(Variant::INT, b_bounces, set_backward_num_bounces, get_backward_num_bounces);
 	LIMPL_PROPERTY(Variant::REAL, b_bounce_power, set_backward_bounce_power, get_backward_bounce_power);
 
 	ADD_GROUP("Dynamic Range", "");
@@ -483,7 +483,7 @@ void LLightMapper::Normalize()
 void LLightMapper::WriteOutputImage(Image &output_image)
 {
 	Dilate<float> dilate;
-//	dilate.DilateImage(m_Image_L, m_Image_ID_p1, 256);
+	dilate.DilateImage(m_Image_L, m_Image_ID_p1, 256);
 
 	// test
 //	int test_size = 7;

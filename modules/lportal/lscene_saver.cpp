@@ -29,5 +29,8 @@ bool LSceneSaver::SaveScene(Node * pNode, String szFilename)
 	ResourceSaver rs;
 	rs.save(szFilename, ps);
 
+	// reimport
+//	ResourceLoader::import(szFilename);
+
 	return true;
 }
