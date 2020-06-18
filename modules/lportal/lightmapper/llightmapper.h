@@ -57,17 +57,39 @@ public:
 	void set_lights_path(const NodePath &p_path);
 	NodePath get_lights_path() const;
 
-	void set_num_rays(int num_rays);
-	int get_num_rays() const;
+	////////////////////////////
+	void set_forward_num_rays(int num_rays);
+	int get_forward_num_rays() const;
 
-	void set_num_bounces(int num_bounces);
-	int get_num_bounces() const;
+	void set_forward_num_bounces(int num_bounces);
+	int get_forward_num_bounces() const;
 
-	void set_ray_power(float ray_power);
-	float get_ray_power() const;
+	void set_forward_ray_power(float ray_power);
+	float get_forward_ray_power() const;
 
-	void set_bounce_power(float bounce_power);
-	float get_bounce_power() const;
+	void set_forward_bounce_power(float bounce_power);
+	float get_forward_bounce_power() const;
+
+	void set_forward_bounce_directionality(float bounce_dir);
+	float get_forward_bounce_directionality() const;
+
+	////////////////////////////
+	void set_backward_num_rays(int num_rays);
+	int get_backward_num_rays() const;
+
+	void set_backward_num_bounce_rays(int num_rays);
+	int get_backward_num_bounce_rays() const;
+
+	void set_backward_num_bounces(int num_bounces);
+	int get_backward_num_bounces() const;
+
+	void set_backward_ray_power(float ray_power);
+	float get_backward_ray_power() const;
+
+	void set_backward_bounce_power(float bounce_power);
+	float get_backward_bounce_power() const;
+////////////////////////////
+
 
 	void set_tex_width(int width);
 	int get_tex_width() const;
@@ -101,13 +123,14 @@ private:
 	void ProcessTexels();
 	void ProcessTexel(int tx, int ty);
 	void ProcessSubTexel(float fx, float fy);
-	float ProcessTexel_Light(int light_id, const Vector3 &ptDest, uint32_t tri_ignore);
+	float ProcessTexel_Light(int light_id, const Vector3 &ptDest, const Vector3 &ptNormal, uint32_t tri_ignore);
 
 	void ProcessTexels_Bounce();
 	float ProcessTexel_Bounce(int x, int y);
 	void Normalize();
 
 	void WriteOutputImage(Image &output_image);
+	void RandomUnitDir(Vector3 &dir) const;
 
 	// luminosity
 	LM::LightImage<float> m_Image_L;
@@ -133,10 +156,19 @@ private:
 
 
 	// params
-	int m_Settings_NumRays;
-	int m_Settings_NumBounces;
-	float m_Settings_RayPower;
-	float m_Settings_BouncePower;
+	int m_Settings_Forward_NumRays;
+	int m_Settings_Forward_NumBounces;
+	float m_Settings_Forward_RayPower;
+	float m_Settings_Forward_BouncePower;
+	float m_Settings_Forward_BounceDirectionality;
+
+	int m_Settings_Backward_NumRays;
+	int m_Settings_Backward_NumBounceRays;
+	int m_Settings_Backward_NumBounces;
+	float m_Settings_Backward_RayPower;
+	float m_Settings_Backward_BouncePower;
+
+
 	eMode m_Settings_Mode;
 
 	int m_Settings_TexWidth;
@@ -152,6 +184,35 @@ private:
 protected:
 	LLightMapper();
 	static void _bind_methods();
+
+private:
+	float InverseSquareDropoff(float dist) const
+	{
+		dist *= 0.2f;
+		dist += 0.282f;
+		// 4 PI = 12.5664
+		float area = 4.0f * Math_PI * (dist * dist);
+		return 1.0f / area;
+	}
 };
+
+
+inline void LLightMapper::RandomUnitDir(Vector3 &dir) const
+{
+	while (true)
+	{
+		dir.x = Math::random(-1.0f, 1.0f);
+		dir.y = Math::random(-1.0f, 1.0f);
+		dir.z = Math::random(-1.0f, 1.0f);
+
+		float l = dir.length();
+		if (l > 0.001f)
+		{
+			dir /= l;
+			return;
+		}
+	}
+}
+
 
 VARIANT_ENUM_CAST(LLightMapper::eMode);
