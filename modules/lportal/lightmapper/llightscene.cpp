@@ -1,6 +1,9 @@
 #include "llightscene.h"
 #include "scene/3d/mesh_instance.h"
 
+
+//#define LLIGHTSCENE_VERBOSE
+
 using namespace LM;
 
 int LightScene::IntersectRay(const Ray &ray, float &u, float &v, float &w, float &nearest_t, int &num_tests)
@@ -65,6 +68,10 @@ int LightScene::IntersectRay(const Ray &ray, float &u, float &v, float &w, float
 				break;
 		}
 
+#ifdef LIGHTTRACER_IGNORE_VOXELS
+		break;
+#endif
+
 	} // while
 
 	if (nearest_tri != -1)
@@ -100,6 +107,23 @@ int LightScene::IntersectRay_old(const Ray &r, float &u, float &v, float &w, flo
 	}
 
 	return nearest_tri;
+}
+
+void LightScene::Reset()
+{
+	m_ptPositions.resize(0);
+	m_ptNormals.resize(0);
+	m_UVs.resize(0);
+	m_Inds.resize(0);
+
+	m_UVTris.clear();
+	m_TriUVaabbs.clear();
+	m_TriPos_aabbs.clear();
+	m_Tracer.Reset();
+
+	m_Tris.clear();
+	m_TriNormals.clear();
+
 }
 
 
@@ -151,26 +175,71 @@ bool LightScene::Create(const MeshInstance &mi, int width, int height)
 		Rect2 &rect = m_TriUVaabbs[n];
 		AABB &aabb = m_TriPos_aabbs[n];
 
-		int ind = m_Inds[i++];
-		t.pos[0] = m_ptPositions[ind];
-		tri_norm.pos[0] = m_ptNormals[ind];
-		uvt.uv[0] = m_UVs[ind];
-		rect = Rect2(uvt.uv[0], Vector2(0, 0));
-		aabb.position = t.pos[0];
+		int ind = m_Inds[i];
+		rect = Rect2(m_UVs[ind], Vector2(0, 0));
+		aabb.position = m_ptPositions[ind];
 
-		ind = m_Inds[i++];
-		t.pos[1] = m_ptPositions[ind];
-		tri_norm.pos[1] = m_ptNormals[ind];
-		uvt.uv[1] = m_UVs[ind];
-		rect.expand_to(uvt.uv[1]);
-		aabb.expand_to(t.pos[1]);
+		for (int c=0; c<3; c++)
+		{
+			ind = m_Inds[i++];
 
-		ind = m_Inds[i++];
-		t.pos[2] = m_ptPositions[ind];
-		tri_norm.pos[2] = m_ptNormals[ind];
-		uvt.uv[2] = m_UVs[ind];
-		rect.expand_to(uvt.uv[2]);
-		aabb.expand_to(t.pos[2]);
+			t.pos[c] = m_ptPositions[ind];
+			tri_norm.pos[c] = m_ptNormals[ind];
+			uvt.uv[c] = m_UVs[ind];
+			//rect = Rect2(uvt.uv[0], Vector2(0, 0));
+			rect.expand_to(uvt.uv[c]);
+			//aabb.position = t.pos[0];
+			aabb.expand_to(t.pos[c]);
+		}
+
+		// make sure winding is standard in UV space
+		if (uvt.IsWindingCW())
+		{
+			uvt.FlipWinding();
+			t.FlipWinding();
+			tri_norm.FlipWinding();
+		}
+
+//		ind = m_Inds[i++];
+
+//		t.pos[1] = m_ptPositions[ind];
+//		tri_norm.pos[1] = m_ptNormals[ind];
+//		uvt.uv[1] = m_UVs[ind];
+//		rect.expand_to(uvt.uv[1]);
+//		aabb.expand_to(t.pos[1]);
+
+//		ind = m_Inds[i++];
+
+//		t.pos[2] = m_ptPositions[ind];
+//		tri_norm.pos[2] = m_ptNormals[ind];
+//		uvt.uv[2] = m_UVs[ind];
+//		rect.expand_to(uvt.uv[2]);
+//		aabb.expand_to(t.pos[2]);
+
+#ifdef LLIGHTSCENE_VERBOSE
+		String sz;
+		sz = "found triangle : ";
+		for (int s=0; s<3; s++)
+		{
+			sz += "(" + String(t.pos[s]) + ") ... ";
+		}
+		print_line(sz);
+		sz = "\tnormal : ";
+		for (int s=0; s<3; s++)
+		{
+			sz += "(" + String(tri_norm.pos[s]) + ") ... ";
+		}
+		print_line(sz);
+
+		sz = "\t\tUV : ";
+		for (int s=0; s<3; s++)
+		{
+			sz += "(" + String(uvt.uv[s]) + ") ... ";
+		}
+		print_line(sz);
+
+#endif
+
 
 		// convert aabb from 0-1 to texels
 //		aabb.position.x *= width;
@@ -211,6 +280,8 @@ void LightScene::RasterizeTriangleIDs(LightImage<uint32_t> &im_p1, LightImage<Ve
 		max_x = CLAMP(max_x, 0, width);
 		max_y = CLAMP(max_y, 0, height);
 
+		int debug_overlap_count = 0;
+
 		for (int y=min_y; y<max_y; y++)
 		{
 			for (int x=min_x; x<max_x; x++)
@@ -220,7 +291,20 @@ void LightScene::RasterizeTriangleIDs(LightImage<uint32_t> &im_p1, LightImage<Ve
 
 				if (tri.ContainsPoint(Vector2(s, t)))
 				{
-					im_p1.GetItem(x, y) = n+1;
+					uint32_t &id_p1 = im_p1.GetItem(x, y);
+
+					// hopefully this was 0 before
+					if (id_p1)
+					{
+						debug_overlap_count++;
+						if (debug_overlap_count == 1)
+						{
+							print_line("overlap detected");
+						}
+					}
+
+					// save new id
+					id_p1 = n+1;
 
 					// find barycentric coords
 					float u,v,w;
