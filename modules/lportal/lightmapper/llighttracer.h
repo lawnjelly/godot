@@ -5,6 +5,8 @@
 #include "core/math/aabb.h"
 #include "llighttypes.h"
 
+//#define LIGHTTRACER_IGNORE_VOXELS
+
 
 namespace LM
 {
@@ -20,6 +22,7 @@ public:
 class LightTracer
 {
 public:
+	void Reset();
 	void Create(const LightScene &scene);
 
 	bool RayTrace_Start(Ray ray, Ray &voxel_ray, Vec3i &start_voxel);

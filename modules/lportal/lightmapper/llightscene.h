@@ -24,6 +24,7 @@ public:
 		uint32_t num_tris;
 	};
 
+	void Reset();
 	bool Create(const MeshInstance &mi, int width, int height);
 	
 	// returns triangle ID (or -1) and barycentric coords
@@ -39,6 +40,7 @@ public:
 
 	// setup
 	void RasterizeTriangleIDs(LightImage<uint32_t> &im_p1, LightImage<Vector3> &im_bary);
+	int GetNumTris() const {return m_UVTris.size();}
 
 private:
 	void Transform_Verts(const PoolVector<Vector3> &ptsLocal, PoolVector<Vector3> &ptsWorld, const Transform &tr) const;
