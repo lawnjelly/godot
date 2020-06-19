@@ -1,5 +1,6 @@
 #include "llightscene.h"
 #include "scene/3d/mesh_instance.h"
+#include "llighttests_simd.h"
 
 
 //#define LLIGHTSCENE_VERBOSE
@@ -10,9 +11,33 @@ void LightScene::ProcessVoxelHits(const Ray &ray, float &r_nearest_t, int &r_nea
 {
 	// trace after every voxel
 	int nHits = m_Tracer.m_TriHits.size();
+	int nStart = 0;
 
+#ifdef LLIGHTMAPPER_USE_SIMD
+	LightTests_SIMD simd;
 
-	for (int n=0; n<nHits; n++)
+	// groups of 4
+	int quads = nHits / 4;
+
+	for (int q=0; q<quads; q++)
+	{
+		// get pointers to 4 triangles
+		const Tri * pTris[4];
+		for (int n=0; n<4; n++)
+		{
+			unsigned int tri_id = m_Tracer.m_TriHits[nStart++];
+			pTris[n] = &m_Tris_EdgeForm[tri_id];
+		}
+
+		// test 4
+//		int test[4];
+		simd.TestIntersect4(pTris, ray, r_nearest_t, r_nearest_tri);
+	}
+
+#endif
+
+	// leftovers
+	for (int n=nStart; n<nHits; n++)
 	{
 		unsigned int tri_id = m_Tracer.m_TriHits[n];
 
