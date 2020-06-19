@@ -6,6 +6,30 @@
 
 using namespace LM;
 
+void LightScene::ProcessVoxelHits(const Ray &ray, float &r_nearest_t, int &r_nearest_tri)
+{
+	// trace after every voxel
+	int nHits = m_Tracer.m_TriHits.size();
+
+
+	for (int n=0; n<nHits; n++)
+	{
+		unsigned int tri_id = m_Tracer.m_TriHits[n];
+
+		float t = 0.0f;
+//			if (ray.TestIntersect(m_Tris[tri_id], t))
+		if (ray.TestIntersect_EdgeForm(m_Tris_EdgeForm[tri_id], t))
+		{
+			if (t < r_nearest_t)
+			{
+				r_nearest_t = t;
+				r_nearest_tri = tri_id;
+			}
+		}
+	}
+
+}
+
 int LightScene::IntersectRay(const Ray &ray, float &u, float &v, float &w, float &nearest_t, int &num_tests)
 {
 	nearest_t = FLT_MAX;
@@ -28,25 +52,11 @@ int LightScene::IntersectRay(const Ray &ray, float &u, float &v, float &w, float
 		if (!m_Tracer.RayTrace(voxel_ray, voxel_ray, ptVoxel))
 			break;
 
-		// trace after every voxel
-		int nHits = m_Tracer.m_TriHits.size();
-		for (int n=0; n<nHits; n++)
-		{
-			unsigned int tri_id = m_Tracer.m_TriHits[n];
-
-			float t = 0.0f;
-			if (ray.TestIntersect(m_Tris[tri_id], t))
-			{
-				if (t < nearest_t)
-				{
-					nearest_t = t;
-					nearest_tri = tri_id;
-				}
-			}
-		}
+		ProcessVoxelHits(ray, nearest_t, nearest_tri);
 
 		// count number of tests for stats
-		num_tests += nHits;
+//		int nHits = m_Tracer.m_TriHits.size();
+//		num_tests += nHits;
 
 		// first hit?
 		if (!bFirstHit)
@@ -123,6 +133,7 @@ void LightScene::Reset()
 
 	m_Tris.clear();
 	m_TriNormals.clear();
+	m_Tris_EdgeForm.clear();
 
 }
 
@@ -160,8 +171,11 @@ bool LightScene::Create(const MeshInstance &mi, int width, int height)
 
 	// convert to longhand non indexed versions
 	int nTris = m_Inds.size() / 3;
+
 	m_Tris.resize(nTris);
 	m_TriNormals.resize(nTris);
+	m_Tris_EdgeForm.resize(nTris);
+
 	m_UVTris.resize(nTris);
 	m_TriUVaabbs.resize(nTris);
 	m_TriPos_aabbs.resize(nTris);
@@ -171,6 +185,7 @@ bool LightScene::Create(const MeshInstance &mi, int width, int height)
 	{
 		Tri &t = m_Tris[n];
 		Tri &tri_norm = m_TriNormals[n];
+		Tri &tri_edge = m_Tris_EdgeForm[n];
 		UVTri &uvt = m_UVTris[n];
 		Rect2 &rect = m_TriUVaabbs[n];
 		AABB &aabb = m_TriPos_aabbs[n];
@@ -200,21 +215,15 @@ bool LightScene::Create(const MeshInstance &mi, int width, int height)
 			tri_norm.FlipWinding();
 		}
 
-//		ind = m_Inds[i++];
-
-//		t.pos[1] = m_ptPositions[ind];
-//		tri_norm.pos[1] = m_ptNormals[ind];
-//		uvt.uv[1] = m_UVs[ind];
-//		rect.expand_to(uvt.uv[1]);
-//		aabb.expand_to(t.pos[1]);
-
-//		ind = m_Inds[i++];
-
-//		t.pos[2] = m_ptPositions[ind];
-//		tri_norm.pos[2] = m_ptNormals[ind];
-//		uvt.uv[2] = m_UVs[ind];
-//		rect.expand_to(uvt.uv[2]);
-//		aabb.expand_to(t.pos[2]);
+		// calculate edge form
+		{
+			// b - a
+			tri_edge.pos[0] = t.pos[1] - t.pos[0];
+			// c - a
+			tri_edge.pos[1] = t.pos[2] - t.pos[0];
+			// a
+			tri_edge.pos[2] = t.pos[0];
+		}
 
 #ifdef LLIGHTSCENE_VERBOSE
 		String sz;

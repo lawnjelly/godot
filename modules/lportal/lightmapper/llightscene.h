@@ -45,6 +45,7 @@ public:
 private:
 	void Transform_Verts(const PoolVector<Vector3> &ptsLocal, PoolVector<Vector3> &ptsWorld, const Transform &tr) const;
 	void Transform_Norms(const PoolVector<Vector3> &normsLocal, PoolVector<Vector3> &normsWorld, const Transform &tr) const;
+	void ProcessVoxelHits(const Ray &ray, float &r_nearest_t, int &r_nearest_tri);
 
 	PoolVector<Vector3> m_ptPositions;
 	PoolVector<Vector3> m_ptNormals;
@@ -60,7 +61,9 @@ public:
 	LVector<Tri> m_Tris;
 	LVector<Tri> m_TriNormals;
 
-
+	// we maintain a list of tris in the form of 2 edges plus a point. These
+	// are precalculated as they are used in the intersection test.
+	LVector<Tri> m_Tris_EdgeForm;
 };
 
 
