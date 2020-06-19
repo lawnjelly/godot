@@ -49,6 +49,8 @@ public:
 	Vector3 d; // direction
 
 	bool TestIntersect(const Tri &tri, float &t) const;
+	bool TestIntersect_EdgeForm(const Tri &tri_edge, float &t) const;
+
 	void FindIntersect(const Tri &tri, float t, float &u, float &v, float &w) const;
 	bool IntersectAAPlane(int axis, Vector3 &pt, float epsilon = 0.0001f) const;
 
@@ -126,15 +128,15 @@ inline void UVTri::FindBarycentricCoords(const Vector2 &pt, float &u, float &v, 
 	const Vector2 &b = uv[1];
 	const Vector2 &c = uv[2];
 	Vector2 v0 = b - a, v1 = c - a, v2 = pt - a;
-    float d00 = v0.dot(v0);
-    float d01 = v0.dot(v1);
-    float d11 = v1.dot(v1);
-    float d20 = v2.dot(v0);
-    float d21 = v2.dot(v1);
-    float invDenom = 1.0f / (d00 * d11 - d01 * d01);
-    v = (d11 * d20 - d01 * d21) * invDenom;
-    w = (d00 * d21 - d01 * d20) * invDenom;
-    u = 1.0f - v - w;
+	float d00 = v0.dot(v0);
+	float d01 = v0.dot(v1);
+	float d11 = v1.dot(v1);
+	float d20 = v2.dot(v0);
+	float d21 = v2.dot(v1);
+	float invDenom = 1.0f / (d00 * d11 - d01 * d01);
+	v = (d11 * d20 - d01 * d21) * invDenom;
+	w = (d00 * d21 - d01 * d20) * invDenom;
+	u = 1.0f - v - w;
 }
 
 
@@ -152,15 +154,15 @@ inline void Tri::FindBarycentric(const Vector3 &pt, float &u, float &v, float &w
 
 	// we can alternatively precache
 	Vector3 v0 = b - a, v1 = c - a, v2 = pt - a;
-    float d00 = v0.dot(v0);
-    float d01 = v0.dot(v1);
-    float d11 = v1.dot(v1);
-    float d20 = v2.dot(v0);
-    float d21 = v2.dot(v1);
-    float invDenom = 1.0f / (d00 * d11 - d01 * d01);
-    v = (d11 * d20 - d01 * d21) * invDenom;
-    w = (d00 * d21 - d01 * d20) * invDenom;
-    u = 1.0f - v - w;
+	float d00 = v0.dot(v0);
+	float d01 = v0.dot(v1);
+	float d11 = v1.dot(v1);
+	float d20 = v2.dot(v0);
+	float d21 = v2.dot(v1);
+	float invDenom = 1.0f / (d00 * d11 - d01 * d01);
+	v = (d11 * d20 - d01 * d21) * invDenom;
+	w = (d00 * d21 - d01 * d20) * invDenom;
+	u = 1.0f - v - w;
 }
 
 inline void Tri::InterpolateBarycentric(Vector3 &pt, float u, float v, float w) const
@@ -195,8 +197,8 @@ bool Ray::IntersectAAPlane(int axis, Vector3 &pt, float epsilon) const
 	// t = (x(t) - o.x) / d.x
 
 	// just aliases
-//	const Vector3 &o = ray.o;
-//	const Vector3 &d = ray.d;
+	//	const Vector3 &o = ray.o;
+	//	const Vector3 &d = ray.d;
 
 	switch (axis)
 	{
@@ -245,22 +247,61 @@ bool Ray::IntersectAAPlane(int axis, Vector3 &pt, float epsilon) const
 }
 
 
+// same as below but with edges pre calced
+inline bool Ray::TestIntersect_EdgeForm(const Tri &tri_edge, float &t) const
+{
+	//Edge1, Edge2
+	const Vector3 &e1 = tri_edge.pos[0];
+	const Vector3 &e2 = tri_edge.pos[1];
+	const Vector3 &a = tri_edge.pos[2];
+
+	const float cfEpsilon = 0.000001f;
+	Vector3 P, Q, T;
+	float det, inv_det, u, v;
+
+	//Begin calculating determinant - also used to calculate u parameter
+	P = d.cross(e2);
+
+	//if determinant is near zero, ray lies in plane of triangle
+	det = e1.dot(P);
+
+	//NOT CULLING
+	if(det > -cfEpsilon && det < cfEpsilon) return false;//IR_NONE;
+	inv_det = 1.f / det;
+
+	//calculate distance from V1 to ray origin
+	T = o - a;
+
+	//Calculate u parameter and test bound
+	u = T.dot(P) * inv_det;
+
+	//The intersection lies outside of the triangle
+	if(u < 0.f || u > 1.f) return false; // IR_NONE;
+
+	//Prepare to test v parameter
+	Q = T.cross(e1);
+
+	//Calculate V parameter and test bound
+	v = d.dot(Q) * inv_det;
+
+	//The intersection lies outside of the triangle
+	if(v < 0.f || u + v  > 1.f) return false; //IR_NONE;
+
+	t = e2.dot(Q) * inv_det;
+
+	if(t > cfEpsilon)
+	{ //ray intersection
+		//	*out = t;
+		return true; //IR_HIT;
+	}
+
+	// No hit, no win
+	return false; //IR_BEHIND;
+}
+
+// moller and trumbore test (actually calculated uv and t but we are not returning uv)
 inline bool Ray::TestIntersect(const Tri &tri, float &t) const
 {
-	//	int triangle_intersection( const Vec3   V1,  // Triangle vertices
-	//	const Vec3   V2,
-	//	const Vec3   V3,
-	//	const Vec3    O,  //Ray origin
-	//	const Vec3    D,  //Ray direction
-	//	float* out )
-	//	{
-
-	// V1  = a
-	// V2 = b
-	// V3 = c
-	// O = ray.a
-	// D = ray.b
-
 	const Vector3 &a = tri.pos[0];
 	const Vector3 &b = tri.pos[1];
 	const Vector3 &c = tri.pos[2];
@@ -306,9 +347,10 @@ inline bool Ray::TestIntersect(const Tri &tri, float &t) const
 
 	t = e2.dot(Q) * inv_det;
 
-	if(t > cfEpsilon) { //ray intersection
-	//	*out = t;
-	return true; //IR_HIT;
+	if(t > cfEpsilon)
+	{ //ray intersection
+		//	*out = t;
+		return true; //IR_HIT;
 	}
 
 	// No hit, no win
