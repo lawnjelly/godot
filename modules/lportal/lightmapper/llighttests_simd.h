@@ -10,7 +10,7 @@ namespace LM
 class LightTests_SIMD
 {
 public:
-	void TestIntersect4(const Tri *tris[4], const Ray &ray, float &r_nearest_t, int &r_nearest_tri) const;
+	bool TestIntersect4(const Tri *tris[4], const Ray &ray, float &r_nearest_t, int &r_winner) const;
 
 
 };
