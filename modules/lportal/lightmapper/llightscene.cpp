@@ -13,25 +13,90 @@ void LightScene::ProcessVoxelHits(const Ray &ray, float &r_nearest_t, int &r_nea
 	int nHits = m_Tracer.m_TriHits.size();
 	int nStart = 0;
 
+//#define LLIGHTMAPPED_DEBUG_COMPARE_SIMD
+
 #ifdef LLIGHTMAPPER_USE_SIMD
 	LightTests_SIMD simd;
 
 	// groups of 4
 	int quads = nHits / 4;
 
+
 	for (int q=0; q<quads; q++)
 	{
 		// get pointers to 4 triangles
 		const Tri * pTris[4];
+#if LLIGHTMAPPED_DEBUG_COMPARE_SIMD
+		float nearest_ref_dist = FLT_MAX;
+		int ref_winner_tri_id = -1;
+		int ref_winner_n = -1;
+#endif
+
 		for (int n=0; n<4; n++)
 		{
 			unsigned int tri_id = m_Tracer.m_TriHits[nStart++];
+
+#if LLIGHTMAPPED_DEBUG_COMPARE_SIMD
+			float t = 0.0f;
+			print_line ("ref input triangle" + itos(n));
+			const Tri &ref_input_tri = m_Tris_EdgeForm[tri_id];
+			String sz = "\t";
+			for (int abc=0; abc<3; abc++)
+			{
+				sz += "(" + String(Variant(ref_input_tri.pos[abc])) + ") ";
+			}
+			print_line(sz);
+
+			if (ray.TestIntersect_EdgeForm(ref_input_tri, t))
+			{
+				if (t < nearest_ref_dist)
+				{
+					nearest_ref_dist = t;
+					ref_winner_tri_id = tri_id;
+					ref_winner_n = n;
+				}
+			}
+#endif
+
 			pTris[n] = &m_Tris_EdgeForm[tri_id];
 		}
 
+		// compare with old
+
 		// test 4
 //		int test[4];
-		simd.TestIntersect4(pTris, ray, r_nearest_t, r_nearest_tri);
+		int winner;
+		if (simd.TestIntersect4(pTris, ray, r_nearest_t, winner))
+		{
+			int winner_tri_index = nStart-4 + winner;
+			int winner_tri = m_Tracer.m_TriHits[winner_tri_index];
+
+			/*
+			// test assert condition
+			if (winner_tri != ref_winner_tri_id)
+			{
+				// do again to debug
+				float test_nearest_t = FLT_MAX;
+				simd.TestIntersect4(pTris, ray, test_nearest_t, winner);
+
+				// repeat reference test
+				int ref_start = nStart-4;
+				for (int n=0; n<4; n++)
+				{
+					unsigned int tri_id = m_Tracer.m_TriHits[ref_start++];
+
+					float t = 0.0f;
+					ray.TestIntersect_EdgeForm(m_Tris_EdgeForm[tri_id], t);
+
+				}
+			}
+			*/
+
+
+			r_nearest_tri = winner_tri;
+		}
+
+//		assert (r_nearest_t <= (nearest_ref_dist+0.001f));
 	}
 
 #endif

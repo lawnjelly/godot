@@ -1,5 +1,7 @@
 #pragma once
 
+#include "core/math/vector3.h"
+
 namespace LM
 {
 
