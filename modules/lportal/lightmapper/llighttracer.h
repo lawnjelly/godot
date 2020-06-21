@@ -4,6 +4,7 @@
 #include "../lbitfield_dynamic.h"
 #include "core/math/aabb.h"
 #include "llighttypes.h"
+#include "llighttests_simd.h"
 
 //#define LIGHTTRACER_IGNORE_VOXELS
 
@@ -16,7 +17,13 @@ class LightScene;
 class Voxel
 {
 public:
+	void Reset() {m_TriIDs.clear();}
 	LVector<uint32_t> m_TriIDs;
+
+	// a COPY of the triangles in SIMD format, edge form
+	// contiguous in memory for faster testing
+//	LVector<PackedTriangles> m_PackedTriangles;
+//	int m_iNumTriangles;
 };
 
 class LightTracer

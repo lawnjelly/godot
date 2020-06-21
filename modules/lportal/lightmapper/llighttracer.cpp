@@ -7,8 +7,8 @@ using namespace LM;
 
 void LightTracer::Reset()
 {
-	m_Voxels.clear();
-	m_VoxelBounds.clear();
+	m_Voxels.clear(true);
+	m_VoxelBounds.clear(true);
 	m_BFTrisHit.Blank();
 	m_iNumTris = 0;
 
@@ -271,7 +271,9 @@ bool LightTracer::RayTrace(const Ray &ray_orig, Ray &ray_out, Vec3i &ptVoxel)
 
 void LightTracer::FillVoxels()
 {
-	print_line("FillVoxels");
+	print_line("FillVoxels : Num AABBs " + itos(m_pScene->m_TriPos_aabbs.size()));
+	print_line("NumTris " + itos (m_iNumTris));
+
 	int count = 0;
 	for (int z=0; z<m_Dims.z; z++)
 	{
@@ -280,10 +282,17 @@ void LightTracer::FillVoxels()
 			for (int x=0; x<m_Dims.x; x++)
 			{
 				Voxel &vox = m_Voxels[count];
+				vox.Reset();
 				AABB aabb = m_VoxelBounds[count++];
 
 				// expand the aabb just a little to account for float error
 				aabb.grow_by(0.001f);
+
+
+//				if ((z == 1) && (y == 1) && (x == 0))
+//				{
+//					print_line("AABB voxel is " + String(Variant(aabb)));
+//				}
 
 				// find all tris within
 				for (int t=0; t<m_iNumTris; t++)
@@ -292,10 +301,18 @@ void LightTracer::FillVoxels()
 					{
 						// add tri to voxel
 						vox.m_TriIDs.push_back(t);
+
+//						if ((z == 1) && (y == 1) && (x == 0))
+//						{
+//							print_line("tri " + itos (t) + " AABB " + String(Variant(m_pScene->m_TriPos_aabbs[t])));
+//						}
 					}
 				}
 
-				//print_line("\tvoxel line x " + itos(x) + ", " + itos(vox.m_TriIDs.size()) + " tris.");
+//				if ((z == 1) && (y == 1) && (x == 0))
+//				{
+//					print_line("\tvoxel line x " + itos(x) + ", " + itos(vox.m_TriIDs.size()) + " tris.");
+//				}
 			} // for x
 		} // for y
 	} // for z
