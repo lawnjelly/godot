@@ -13,65 +13,67 @@ void LightScene::ProcessVoxelHits(const Ray &ray, float &r_nearest_t, int &r_nea
 	int nHits = m_Tracer.m_TriHits.size();
 	int nStart = 0;
 
-//#define LLIGHTMAPPED_DEBUG_COMPARE_SIMD
+	//#define LLIGHTMAPPED_DEBUG_COMPARE_SIMD
 
 #ifdef LLIGHTMAPPER_USE_SIMD
-	LightTests_SIMD simd;
-
-	// groups of 4
-	int quads = nHits / 4;
-
-
-	for (int q=0; q<quads; q++)
+	if (m_bUseSIMD)
 	{
-		// get pointers to 4 triangles
-		const Tri * pTris[4];
+		LightTests_SIMD simd;
+
+		// groups of 4
+		int quads = nHits / 4;
+
+
+		for (int q=0; q<quads; q++)
+		{
+			// get pointers to 4 triangles
+			const Tri * pTris[4];
 #if LLIGHTMAPPED_DEBUG_COMPARE_SIMD
-		float nearest_ref_dist = FLT_MAX;
-		int ref_winner_tri_id = -1;
-		int ref_winner_n = -1;
+			float nearest_ref_dist = FLT_MAX;
+			int ref_winner_tri_id = -1;
+			int ref_winner_n = -1;
 #endif
 
-		for (int n=0; n<4; n++)
-		{
-			unsigned int tri_id = m_Tracer.m_TriHits[nStart++];
+			for (int n=0; n<4; n++)
+			{
+				unsigned int tri_id = m_Tracer.m_TriHits[nStart++];
 
 #if LLIGHTMAPPED_DEBUG_COMPARE_SIMD
-			float t = 0.0f;
-			print_line ("ref input triangle" + itos(n));
-			const Tri &ref_input_tri = m_Tris_EdgeForm[tri_id];
-			String sz = "\t";
-			for (int abc=0; abc<3; abc++)
-			{
-				sz += "(" + String(Variant(ref_input_tri.pos[abc])) + ") ";
-			}
-			print_line(sz);
-
-			if (ray.TestIntersect_EdgeForm(ref_input_tri, t))
-			{
-				if (t < nearest_ref_dist)
+				float t = 0.0f;
+				print_line ("ref input triangle" + itos(n));
+				const Tri &ref_input_tri = m_Tris_EdgeForm[tri_id];
+				String sz = "\t";
+				for (int abc=0; abc<3; abc++)
 				{
-					nearest_ref_dist = t;
-					ref_winner_tri_id = tri_id;
-					ref_winner_n = n;
+					sz += "(" + String(Variant(ref_input_tri.pos[abc])) + ") ";
 				}
-			}
+				print_line(sz);
+
+				if (ray.TestIntersect_EdgeForm(ref_input_tri, t))
+				{
+					if (t < nearest_ref_dist)
+					{
+						nearest_ref_dist = t;
+						ref_winner_tri_id = tri_id;
+						ref_winner_n = n;
+					}
+				}
 #endif
 
-			pTris[n] = &m_Tris_EdgeForm[tri_id];
-		}
+				pTris[n] = &m_Tris_EdgeForm[tri_id];
+			}
 
-		// compare with old
+			// compare with old
 
-		// test 4
-//		int test[4];
-		int winner;
-		if (simd.TestIntersect4(pTris, ray, r_nearest_t, winner))
-		{
-			int winner_tri_index = nStart-4 + winner;
-			int winner_tri = m_Tracer.m_TriHits[winner_tri_index];
+			// test 4
+			//		int test[4];
+			int winner;
+			if (simd.TestIntersect4(pTris, ray, r_nearest_t, winner))
+			{
+				int winner_tri_index = nStart-4 + winner;
+				int winner_tri = m_Tracer.m_TriHits[winner_tri_index];
 
-			/*
+				/*
 			// test assert condition
 			if (winner_tri != ref_winner_tri_id)
 			{
@@ -93,12 +95,13 @@ void LightScene::ProcessVoxelHits(const Ray &ray, float &r_nearest_t, int &r_nea
 			*/
 
 
-			r_nearest_tri = winner_tri;
+				r_nearest_tri = winner_tri;
+			}
+
+			//		assert (r_nearest_t <= (nearest_ref_dist+0.001f));
 		}
 
-//		assert (r_nearest_t <= (nearest_ref_dist+0.001f));
-	}
-
+	} // if use SIMD
 #endif
 
 	// leftovers
@@ -107,7 +110,7 @@ void LightScene::ProcessVoxelHits(const Ray &ray, float &r_nearest_t, int &r_nea
 		unsigned int tri_id = m_Tracer.m_TriHits[n];
 
 		float t = 0.0f;
-//			if (ray.TestIntersect(m_Tris[tri_id], t))
+		//			if (ray.TestIntersect(m_Tris[tri_id], t))
 		if (ray.TestIntersect_EdgeForm(m_Tris_EdgeForm[tri_id], t))
 		{
 			if (t < r_nearest_t)
@@ -145,8 +148,8 @@ int LightScene::IntersectRay(const Ray &ray, float &u, float &v, float &w, float
 		ProcessVoxelHits(ray, nearest_t, nearest_tri);
 
 		// count number of tests for stats
-//		int nHits = m_Tracer.m_TriHits.size();
-//		num_tests += nHits;
+				int nHits = m_Tracer.m_TriHits.size();
+				num_tests += nHits;
 
 		// first hit?
 		if (!bFirstHit)
@@ -216,20 +219,22 @@ void LightScene::Reset()
 	m_UVs.resize(0);
 	m_Inds.resize(0);
 
-	m_UVTris.clear();
-	m_TriUVaabbs.clear();
-	m_TriPos_aabbs.clear();
+	m_UVTris.clear(true);
+	m_TriUVaabbs.clear(true);
+	m_TriPos_aabbs.clear(true);
 	m_Tracer.Reset();
 
-	m_Tris.clear();
-	m_TriNormals.clear();
-	m_Tris_EdgeForm.clear();
+	m_Tris.clear(true);
+	m_TriNormals.clear(true);
+	m_Tris_EdgeForm.clear(true);
 
 }
 
 
 bool LightScene::Create(const MeshInstance &mi, int width, int height)
 {
+	m_bUseSIMD = true;
+
 	Ref<Mesh> rmesh = mi.get_mesh();
 	Array arrays = rmesh->surface_get_arrays(0);
 	if (!arrays.size())
@@ -283,6 +288,7 @@ bool LightScene::Create(const MeshInstance &mi, int width, int height)
 		int ind = m_Inds[i];
 		rect = Rect2(m_UVs[ind], Vector2(0, 0));
 		aabb.position = m_ptPositions[ind];
+		aabb.size = Vector3(0, 0, 0);
 
 		for (int c=0; c<3; c++)
 		{
@@ -341,10 +347,10 @@ bool LightScene::Create(const MeshInstance &mi, int width, int height)
 
 
 		// convert aabb from 0-1 to texels
-//		aabb.position.x *= width;
-//		aabb.position.y *= height;
-//		aabb.size.x *= width;
-//		aabb.size.y *= height;
+		//		aabb.position.x *= width;
+		//		aabb.position.y *= height;
+		//		aabb.size.x *= width;
+		//		aabb.size.y *= height;
 
 		// expand aabb just a tad
 		rect.expand(Vector2(0.01, 0.01));

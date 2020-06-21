@@ -51,8 +51,6 @@ public:
 			compact();
 	}
 
-	void delete_all(bool bCompact = false) {clear(bCompact);}
-
 	void compact()
 	{
 		m_Vec.resize(m_iSize);
