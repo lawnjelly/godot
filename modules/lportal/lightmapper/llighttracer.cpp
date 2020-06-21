@@ -123,7 +123,8 @@ void LightTracer::DebugCheckWorldPointInVoxel(Vector3 pt, const Vec3i &ptVoxel)
 }
 
 
-bool LightTracer::RayTrace(const Ray &ray_orig, Ray &ray_out, Vec3i &ptVoxel)
+//bool LightTracer::RayTrace(const Ray &ray_orig, Ray &ray_out, Vec3i &ptVoxel)
+const Voxel * LightTracer::RayTrace(const Ray &ray_orig, Ray &ray_out, Vec3i &ptVoxel)
 {
 	m_TriHits.clear();
 
@@ -136,7 +137,7 @@ bool LightTracer::RayTrace(const Ray &ray_orig, Ray &ray_out, Vec3i &ptVoxel)
 #endif
 
 	if (!VoxelWithinBounds(ptVoxel))
-		return false;
+		return 0;
 
 	// debug check
 	DebugCheckLocalPointInVoxel(ray_orig.o, ptVoxel);
@@ -144,14 +145,18 @@ bool LightTracer::RayTrace(const Ray &ray_orig, Ray &ray_out, Vec3i &ptVoxel)
 	// add the tris in this voxel
 	int iVoxelNum = GetVoxelNum(ptVoxel);
 	const Voxel &vox = m_Voxels[iVoxelNum];
+	const Voxel * pCurrVoxel = &vox;
 
-	for (int n=0; n<vox.m_TriIDs.size(); n++)
+	if (!m_bSIMD)
 	{
-		unsigned int id = vox.m_TriIDs[n];
+		for (int n=0; n<vox.m_TriIDs.size(); n++)
+		{
+			unsigned int id = vox.m_TriIDs[n];
 
-		// check bitfield, the tri may already have been added
-		if (m_BFTrisHit.CheckAndSet(id))
-			m_TriHits.push_back(id);
+			// check bitfield, the tri may already have been added
+			if (m_BFTrisHit.CheckAndSet(id))
+				m_TriHits.push_back(id);
+		}
 	}
 
 	// PLANES are in INTEGER space (voxel space)
@@ -263,7 +268,7 @@ bool LightTracer::RayTrace(const Ray &ray_orig, Ray &ray_out, Vec3i &ptVoxel)
 		break;
 	}
 
-	return true;
+	return pCurrVoxel;
 }
 
 
@@ -300,7 +305,8 @@ void LightTracer::FillVoxels()
 					if (m_pScene->m_TriPos_aabbs[t].intersects(aabb))
 					{
 						// add tri to voxel
-						vox.m_TriIDs.push_back(t);
+						//vox.m_TriIDs.push_back(t);
+						vox.AddTriangle(m_pScene->m_Tris_EdgeForm[t], t);
 
 //						if ((z == 1) && (y == 1) && (x == 0))
 //						{

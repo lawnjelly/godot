@@ -22,8 +22,25 @@ public:
 
 	// a COPY of the triangles in SIMD format, edge form
 	// contiguous in memory for faster testing
-//	LVector<PackedTriangles> m_PackedTriangles;
-//	int m_iNumTriangles;
+	LVector<PackedTriangles> m_PackedTriangles;
+	int m_iNumTriangles;
+
+	void AddTriangle(const Tri &tri, uint32_t tri_id)
+	{
+		m_TriIDs.push_back(tri_id);
+		uint32_t packed = m_iNumTriangles / 4;
+		uint32_t mod = m_iNumTriangles % 4;
+		if (packed >= m_PackedTriangles.size())
+		{
+			PackedTriangles * pNew = m_PackedTriangles.request();
+			pNew->Create();
+		}
+
+		// fill the relevant packed triangle
+		PackedTriangles &tris = m_PackedTriangles[packed];
+		tris.Set(mod, tri);
+		m_iNumTriangles++;
+	}
 };
 
 class LightTracer
@@ -33,8 +50,10 @@ public:
 	void Create(const LightScene &scene);
 
 	bool RayTrace_Start(Ray ray, Ray &voxel_ray, Vec3i &start_voxel);
-	bool RayTrace(const Ray &ray_orig, Ray &ray_out, Vec3i &ptVoxel);
+	const Voxel * RayTrace(const Ray &ray_orig, Ray &ray_out, Vec3i &ptVoxel);
 	LVector<uint32_t> m_TriHits;
+
+	bool m_bSIMD;
 
 private:
 	void CalculateWorldBound();
