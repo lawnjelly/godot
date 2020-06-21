@@ -7,7 +7,112 @@
 
 using namespace LM;
 
-void LightScene::ProcessVoxelHits(const Ray &ray, float &r_nearest_t, int &r_nearest_tri)
+void LightScene::ProcessVoxelHits(const Ray &ray, const PackedRay &pray, const Voxel &voxel, float &r_nearest_t, int &r_nearest_tri)
+{
+	//#define LLIGHTMAPPED_DEBUG_COMPARE_SIMD
+
+//	float record_nearest_t = r_nearest_t;
+//	int record_nearest_tri = r_nearest_tri;
+
+#ifdef LLIGHTMAPPER_USE_SIMD
+	if (m_bUseSIMD)
+	{
+		//LightTests_SIMD simd;
+
+		// groups of 4
+		int quads = voxel.m_PackedTriangles.size();
+
+
+		for (int q=0; q<quads; q++)
+		{
+			// get pointers to 4 triangles
+			const PackedTriangles & ptris = voxel.m_PackedTriangles[q];
+			// compare with old
+
+			// test 4
+			//		int test[4];
+			int winner;
+
+			if (pray.Intersect(ptris, r_nearest_t, winner))
+//			if (simd.TestIntersect4_Packed(ptris, ray, r_nearest_t, winner))
+			{
+				int winner_tri_index = (q * 4) + winner;
+				//int winner_tri = m_Tracer.m_TriHits[winner_tri_index];
+				int winner_tri = voxel.m_TriIDs[winner_tri_index];
+
+				/*
+			// test assert condition
+			if (winner_tri != ref_winner_tri_id)
+			{
+				// do again to debug
+				float test_nearest_t = FLT_MAX;
+				simd.TestIntersect4(pTris, ray, test_nearest_t, winner);
+
+				// repeat reference test
+				int ref_start = nStart-4;
+				for (int n=0; n<4; n++)
+				{
+					unsigned int tri_id = m_Tracer.m_TriHits[ref_start++];
+
+					float t = 0.0f;
+					ray.TestIntersect_EdgeForm(m_Tris_EdgeForm[tri_id], t);
+
+				}
+			}
+			*/
+
+
+				r_nearest_tri = winner_tri;
+			}
+
+			//		assert (r_nearest_t <= (nearest_ref_dist+0.001f));
+		}
+
+		// print result
+//		if (r_nearest_tri != -1)
+//			print_line("SIMD\tr_nearest_tri " + itos (r_nearest_tri) + " dist " + String(Variant(r_nearest_t)));
+
+		return;
+	} // if use SIMD
+#endif
+
+	// trace after every voxel
+	int nHits = m_Tracer.m_TriHits.size();
+	int nStart = 0;
+
+
+	// just for debugging do whole test again
+//	int simd_nearest_tri = r_nearest_tri;
+//	r_nearest_t = record_nearest_t;
+//	r_nearest_tri = record_nearest_tri;
+
+	// leftovers
+	for (int n=nStart; n<nHits; n++)
+	{
+		unsigned int tri_id = m_Tracer.m_TriHits[n];
+
+		float t = 0.0f;
+		//			if (ray.TestIntersect(m_Tris[tri_id], t))
+		if (ray.TestIntersect_EdgeForm(m_Tris_EdgeForm[tri_id], t))
+		{
+			if (t < r_nearest_t)
+			{
+				r_nearest_t = t;
+				r_nearest_tri = tri_id;
+			}
+		}
+	}
+
+	// print result
+//	if (r_nearest_tri != -1)
+//		print_line("REF\tr_nearest_tri " + itos (r_nearest_tri) + " dist " + String(Variant(r_nearest_t)));
+
+//	assert (r_nearest_tri == simd_nearest_tri);
+}
+
+
+
+void LightScene::ProcessVoxelHits_Old(const Ray &ray, const Voxel &voxel, float &r_nearest_t, int &r_nearest_tri)
 {
 	// trace after every voxel
 	int nHits = m_Tracer.m_TriHits.size();
@@ -123,6 +228,7 @@ void LightScene::ProcessVoxelHits(const Ray &ray, float &r_nearest_t, int &r_nea
 
 }
 
+
 int LightScene::IntersectRay(const Ray &ray, float &u, float &v, float &w, float &nearest_t, int &num_tests)
 {
 	nearest_t = FLT_MAX;
@@ -138,14 +244,20 @@ int LightScene::IntersectRay(const Ray &ray, float &u, float &v, float &w, float
 	bool bFirstHit = false;
 	Vec3i ptVoxelFirstHit;
 
+	// create the packed ray as a once off and reuse it for each voxel
+	PackedRay pray;
+	pray.Create(ray);
+
 	while (true)
 	{
 		Vec3i ptVoxelBefore = ptVoxel;
 
-		if (!m_Tracer.RayTrace(voxel_ray, voxel_ray, ptVoxel))
+		const Voxel * pVoxel = m_Tracer.RayTrace(voxel_ray, voxel_ray, ptVoxel);
+//		if (!m_Tracer.RayTrace(voxel_ray, voxel_ray, ptVoxel))
+		if (!pVoxel)
 			break;
 
-		ProcessVoxelHits(ray, nearest_t, nearest_tri);
+		ProcessVoxelHits(ray, pray, *pVoxel, nearest_t, nearest_tri);
 
 		// count number of tests for stats
 				int nHits = m_Tracer.m_TriHits.size();

@@ -280,11 +280,13 @@ bool LLightMapper::lightmap_mesh(Node * pMeshInstance, Node * pLightRoot, Object
 	// do twice to test SIMD
 	uint32_t beforeA = OS::get_singleton()->get_ticks_msec();
 	m_Scene.m_bUseSIMD = true;
+	m_Scene.m_Tracer.m_bSIMD = true;
 	bool res = LightmapMesh(*pMI, *pLR, *pIm);
 	uint32_t afterA = OS::get_singleton()->get_ticks_msec();
 
 	uint32_t beforeB = OS::get_singleton()->get_ticks_msec();
 	m_Scene.m_bUseSIMD = false;
+	m_Scene.m_Tracer.m_bSIMD = false;
 	res = LightmapMesh(*pMI, *pLR, *pIm);
 	uint32_t afterB = OS::get_singleton()->get_ticks_msec();
 
@@ -515,6 +517,8 @@ void LLightMapper::WriteOutputImage(Image &output_image)
 
 	////
 	// write some debug
+//#define LLIGHTMAPPER_OUTPUT_TRIIDS
+#ifdef LLIGHTMAPPER_OUTPUT_TRIIDS
 	output_image.lock();
 	Color cols[1024];
 	for (int n=0; n<m_Scene.GetNumTris(); n++)
@@ -538,7 +542,7 @@ void LLightMapper::WriteOutputImage(Image &output_image)
 
 	output_image.unlock();
 	output_image.save_png("tri_ids.png");
-
+#endif
 
 	// final version
 	output_image.lock();

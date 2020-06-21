@@ -45,7 +45,8 @@ public:
 private:
 	void Transform_Verts(const PoolVector<Vector3> &ptsLocal, PoolVector<Vector3> &ptsWorld, const Transform &tr) const;
 	void Transform_Norms(const PoolVector<Vector3> &normsLocal, PoolVector<Vector3> &normsWorld, const Transform &tr) const;
-	void ProcessVoxelHits(const Ray &ray, float &r_nearest_t, int &r_nearest_tri);
+	void ProcessVoxelHits(const Ray &ray, const PackedRay &pray, const Voxel &voxel, float &r_nearest_t, int &r_nearest_tri);
+	void ProcessVoxelHits_Old(const Ray &ray, const Voxel &voxel, float &r_nearest_t, int &r_nearest_tri);
 
 	PoolVector<Vector3> m_ptPositions;
 	PoolVector<Vector3> m_ptNormals;
@@ -55,9 +56,10 @@ private:
 	LVector<UVTri> m_UVTris;
 	LVector<Rect2> m_TriUVaabbs;
 	LVector<AABB> m_TriPos_aabbs;
-	LightTracer m_Tracer;
 
 public:
+	LightTracer m_Tracer;
+
 	LVector<Tri> m_Tris;
 	LVector<Tri> m_TriNormals;
 
