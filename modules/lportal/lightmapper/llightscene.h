@@ -64,6 +64,8 @@ public:
 	// we maintain a list of tris in the form of 2 edges plus a point. These
 	// are precalculated as they are used in the intersection test.
 	LVector<Tri> m_Tris_EdgeForm;
+
+	bool m_bUseSIMD;
 };
 
 

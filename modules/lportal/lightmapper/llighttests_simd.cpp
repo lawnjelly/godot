@@ -1,5 +1,4 @@
 #include "llighttests_simd.h"
-#include <emmintrin.h>
 
 
 //#define LLIGHTMAPPER_SIMD_REFERENCE
@@ -15,13 +14,13 @@ union my128
 	__m128 q;
 };
 
-struct PackedTriangles
-{
-	__m128 e1[3];
-	__m128 e2[3];
-	__m128 v0[3];
-	__m128 inactiveMask; // Required. We cant always have 8 triangles per packet.
-};
+//struct PackedTriangles
+//{
+//	__m128 e1[3];
+//	__m128 e2[3];
+//	__m128 v0[3];
+//	__m128 inactiveMask; // Required. We cant always have 8 triangles per packet.
+//};
 
 struct PackedIntersectionResult
 {
@@ -197,11 +196,11 @@ bool PackedRay::intersect(const PackedTriangles& packedTris, float &nearest_dist
 	//Begin calculating determinant - also used to calculate u parameter
 	// P
 	__m128 q[3];
-	multi_cross(q, m_direction, packedTris.e2);
+	multi_cross(q, m_direction, &packedTris.e2[0].mm128);
 
 	//if determinant is near zero, ray lies in plane of triangle
 	// det
-	__m128 a = multi_dot(packedTris.e1, q);
+	__m128 a = multi_dot(&packedTris.e1[0].mm128, q);
 
 	// reject based on det being close to zero
 	// NYI
@@ -212,7 +211,7 @@ bool PackedRay::intersect(const PackedTriangles& packedTris, float &nearest_dist
 	// distance from v1 to ray origin
 	// T
 	__m128 s[3];
-	multi_sub(s, m_origin, packedTris.v0);
+	multi_sub(s, m_origin, &packedTris.v0[0].mm128);
 
 	// Calculate u parameter and test bound
 	__m128 u = _mm_mul_ps(f, multi_dot(s, q));
@@ -223,7 +222,7 @@ bool PackedRay::intersect(const PackedTriangles& packedTris, float &nearest_dist
 	// Prepare to test v parameter
 	// Q
 	__m128 r[3];
-	multi_cross(r, s, packedTris.e1);
+	multi_cross(r, s, &packedTris.e1[0].mm128);
 
 	// calculate V parameter and test bound
 	// v
@@ -233,7 +232,7 @@ bool PackedRay::intersect(const PackedTriangles& packedTris, float &nearest_dist
 	// NYI
 
 	// t
-	__m128 t = _mm_mul_ps(f, multi_dot(packedTris.e2, r));
+	__m128 t = _mm_mul_ps(f, multi_dot(&packedTris.e2[0].mm128, r));
 
 	// if t > epsilon, hit
 
@@ -309,17 +308,17 @@ bool LightTests_SIMD::TestIntersect4(const Tri *tris[4], const Ray &ray, float &
 	for (int m=0; m<3; m++)
 	{
 		// NOTE : set ps takes input IN REVERSE!!!!
-		ptris.e1[m] = _mm_set_ps(tris[3]->pos[0].coord[m],
+		ptris.e1[m].mm128 = _mm_set_ps(tris[3]->pos[0].coord[m],
 		tris[2]->pos[0].coord[m],
 		tris[1]->pos[0].coord[m],
 		tris[0]->pos[0].coord[m]);
 
-		ptris.e2[m] = _mm_set_ps(tris[3]->pos[1].coord[m],
+		ptris.e2[m].mm128 = _mm_set_ps(tris[3]->pos[1].coord[m],
 		tris[2]->pos[1].coord[m],
 		tris[1]->pos[1].coord[m],
 		tris[0]->pos[1].coord[m]);
 
-		ptris.v0[m] = _mm_set_ps(tris[3]->pos[2].coord[m],
+		ptris.v0[m].mm128 = _mm_set_ps(tris[3]->pos[2].coord[m],
 		tris[2]->pos[2].coord[m],
 		tris[1]->pos[2].coord[m],
 		tris[0]->pos[2].coord[m]);

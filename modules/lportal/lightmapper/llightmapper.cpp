@@ -277,7 +277,19 @@ bool LLightMapper::lightmap_mesh(Node * pMeshInstance, Node * pLightRoot, Object
 		bake_begin_function(progress_range);
 	}
 
+	// do twice to test SIMD
+	uint32_t beforeA = OS::get_singleton()->get_ticks_msec();
+	m_Scene.m_bUseSIMD = true;
 	bool res = LightmapMesh(*pMI, *pLR, *pIm);
+	uint32_t afterA = OS::get_singleton()->get_ticks_msec();
+
+	uint32_t beforeB = OS::get_singleton()->get_ticks_msec();
+	m_Scene.m_bUseSIMD = false;
+	res = LightmapMesh(*pMI, *pLR, *pIm);
+	uint32_t afterB = OS::get_singleton()->get_ticks_msec();
+
+	print_line("SIMD version took : " + itos(afterA - beforeA));
+	print_line("reference version took : " + itos(afterB- beforeB));
 
 	if (bake_end_function) {
 		bake_end_function();
@@ -346,7 +358,7 @@ void LLightMapper::FindLights_Recursive(const Node * pNode)
 
 void LLightMapper::Reset()
 {
-	m_Lights.delete_all();
+	m_Lights.clear(true);
 	m_Scene.Reset();
 }
 
@@ -362,6 +374,7 @@ bool LLightMapper::LightmapMesh(const MeshInstance &mi, const Spatial &light_roo
 
 	uint32_t before, after;
 	FindLights_Recursive(&light_root);
+	print_line("Found " + itos (m_Lights.size()) + " lights.");
 
 	if (m_iWidth <= 0)
 		return false;
@@ -415,6 +428,10 @@ bool LLightMapper::LightmapMesh(const MeshInstance &mi, const Spatial &light_roo
 	WriteOutputImage(output_image);
 	after = OS::get_singleton()->get_ticks_msec();
 	print_line("WriteOutputImage took " + itos(after -before) + " ms");
+
+	// clear everything out of ram as no longer needed
+	Reset();
+
 	return true;
 }
 
@@ -625,8 +642,8 @@ void LLightMapper::ProcessTexels()
 		}
 	}
 
-	m_iNumTests /= (m_iHeight * m_iWidth);
-	print_line("average num tests : " + itos(m_iNumTests));
+//	m_iNumTests /= (m_iHeight * m_iWidth);
+	print_line("num tests : " + itos(m_iNumTests));
 
 	for (int b=0; b<m_Settings_Backward_NumBounces; b++)
 	{
