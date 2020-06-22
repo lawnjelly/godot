@@ -31,11 +31,12 @@ void LightScene::ProcessVoxelHits(const Ray &ray, const PackedRay &pray, const V
 
 			// test 4
 			//		int test[4];
-			int winner;
+			int winner = pray.Intersect(ptris, r_nearest_t);
 
-			if (pray.Intersect(ptris, r_nearest_t, winner))
-//			if (simd.TestIntersect4_Packed(ptris, ray, r_nearest_t, winner))
+			if (winner != 0)
+			//if (pray.Intersect(ptris, r_nearest_t, winner))
 			{
+				winner--;
 				int winner_tri_index = (q * 4) + winner;
 				//int winner_tri = m_Tracer.m_TriHits[winner_tri_index];
 				int winner_tri = voxel.m_TriIDs[winner_tri_index];
@@ -343,7 +344,7 @@ void LightScene::Reset()
 }
 
 
-bool LightScene::Create(const MeshInstance &mi, int width, int height)
+bool LightScene::Create(const MeshInstance &mi, int width, int height, const Vec3i &voxel_dims)
 {
 	m_bUseSIMD = true;
 
@@ -468,7 +469,7 @@ bool LightScene::Create(const MeshInstance &mi, int width, int height)
 		rect.expand(Vector2(0.01, 0.01));
 	}
 
-	m_Tracer.Create(*this);
+	m_Tracer.Create(*this, voxel_dims);
 
 	return true;
 }

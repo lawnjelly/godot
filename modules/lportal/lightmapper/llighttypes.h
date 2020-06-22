@@ -12,6 +12,8 @@ public:
 	Vec3i(int xx, int yy, int zz) {x = xx; y = yy; z = zz;}
 	int32_t x, y, z;
 	void Set(int xx, int yy, int zz) {x = xx; y = yy; z = zz;}
+	void Set(const Vector3 &p) {x = (int) (p.x + 0.5f); y = (int) (p.y + 0.5f); z = (int) (p.z + 0.5f);}
+	void To(Vector3 &p) const {p.x = x; p.y = y; p.z = z;}
 };
 
 class Vec2_i16

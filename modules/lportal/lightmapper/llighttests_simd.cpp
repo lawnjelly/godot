@@ -64,7 +64,8 @@ void PackedRay::Create(const Ray &ray)
 }
 
 
-bool PackedRay::Intersect(const PackedTriangles& packedTris, float &nearest_dist, int &r_winner) const
+// returns winner index +1, or zero if no hit
+int PackedRay::Intersect(const PackedTriangles& packedTris, float &nearest_dist) const
 {
 	//Begin calculating determinant - also used to calculate u parameter
 	// P
@@ -123,28 +124,44 @@ bool PackedRay::Intersect(const PackedTriangles& packedTris, float &nearest_dist
 	failed = _mm_or_ps(failed, _mm_cmpge_ps(_mm_add_ps(u, v), oneM128));
 	failed = _mm_or_ps(failed, _mm_cmple_ps(t, zeroM128));
 	//    failed = _mm_or_ps(failed, _mm_cmpge_ps(t, m_length));
-	//failed = _mm_or_ps(failed, packedTris.inactiveMask);
+	failed = _mm_or_ps(failed, packedTris.inactiveMask.mm128);
 
-	// use simplified way of getting results
-	uint32_t * pResults = (uint32_t*) &failed;
-	float * pT = (float*) &t;
+	// test against minimum t .. not sure if this will speed up or not.
+//	__m128 m_nearest_dist = _mm_set1_ps(nearest_dist);
+//	failed = _mm_or_ps(failed, _mm_cmpge_ps(t, m_nearest_dist));
 
-	bool bHit  = false;
-	for (int n=0; n<4; n++)
+	//bool bHit  = false;
+	int mask = _mm_movemask_ps(failed);
+    if (mask != 15) // first 4 bits set
 	{
-		// hit!
-		if (!pResults[n] && n<packedTris.num_tris)
-		{
-			if (pT[n] < nearest_dist)
-			{
-				nearest_dist = pT[n];
-				r_winner = n;
-				bHit = true;
-			}
-		}
-	}
+		// there is at least one winner, so no need to set this
+		int winner = 0;
 
-	return bHit;
+		float * pT = (float*) &t;
+
+		// use simplified way of getting results
+		uint32_t * pResults = (uint32_t*) &failed;
+
+		for (int n=0; n<4; n++)
+		{
+			// hit!
+	//		if (!pResults[n] && n<packedTris.num_tris)
+			if (!pResults[n])
+			{
+				if (pT[n] < nearest_dist)
+				{
+					nearest_dist = pT[n];
+					//r_winner = n;
+					winner = n+1;
+					//bHit = true;
+				}
+			}
+		} // for n
+
+		return winner;
+	} // mask
+
+	return 0;
 
 	/*
 	__m128 tResults = _mm256_blendv_ps(t, minusOneM256, failed);
@@ -184,7 +201,15 @@ bool LightTests_SIMD::TestIntersect4_Packed(const PackedTriangles &ptris, const 
 	pray.m_direction[1].mm128 = _mm_set1_ps(ray.d.y);
 	pray.m_direction[2].mm128 = _mm_set1_ps(ray.d.z);
 
-	return pray.Intersect(ptris, r_nearest_t, r_winner);
+	r_winner = pray.Intersect(ptris, r_nearest_t);
+	if (r_winner)
+	{
+		r_winner--;
+		return true;
+	}
+
+	return false;
+//	return pray.Intersect(ptris, r_nearest_t, r_winner);
 }
 
 
@@ -230,3 +255,122 @@ bool LightTests_SIMD::TestIntersect4(const Tri *tris[4], const Ray &ray, float &
 }
 
 } // namespace
+
+
+/*
+#define LLIGHT_SIMD_CASE(INDEX) {float check_dist = pT[INDEX];\
+if (check_dist < nearest_dist)\
+{\
+nearest_dist = check_dist;\
+winner = INDEX+1;\
+}\
+}
+
+		mask = (mask ^ 15) & 15;
+
+		// use the mask to switch
+		// reverse order?
+		switch (mask)
+		{
+		default:
+			{
+				// should never happen
+				winner = 0;
+			}
+			break;
+		case 1:
+			{
+				LLIGHT_SIMD_CASE(0)
+			}
+			break;
+		case 2:
+			{
+				LLIGHT_SIMD_CASE(1)
+			}
+			break;
+		case 3:
+			{
+				LLIGHT_SIMD_CASE(0)
+				LLIGHT_SIMD_CASE(1)
+			}
+			break;
+		case 4:
+			{
+				LLIGHT_SIMD_CASE(2)
+			}
+			break;
+		case 5:
+			{
+				LLIGHT_SIMD_CASE(2)
+				LLIGHT_SIMD_CASE(0)
+			}
+			break;
+		case 6:
+			{
+				LLIGHT_SIMD_CASE(2)
+				LLIGHT_SIMD_CASE(1)
+			}
+			break;
+		case 7:
+			{
+				LLIGHT_SIMD_CASE(2)
+				LLIGHT_SIMD_CASE(1)
+				LLIGHT_SIMD_CASE(0)
+			}
+			break;
+		case 8:
+			{
+				LLIGHT_SIMD_CASE(3)
+			}
+			break;
+		case 9:
+			{
+				LLIGHT_SIMD_CASE(3)
+				LLIGHT_SIMD_CASE(0)
+			}
+			break;
+		case 10:
+			{
+				LLIGHT_SIMD_CASE(3)
+				LLIGHT_SIMD_CASE(1)
+			}
+			break;
+		case 11:
+			{
+				LLIGHT_SIMD_CASE(3)
+				LLIGHT_SIMD_CASE(1)
+				LLIGHT_SIMD_CASE(0)
+			}
+			break;
+		case 12:
+			{
+				LLIGHT_SIMD_CASE(3)
+				LLIGHT_SIMD_CASE(2)
+			}
+			break;
+		case 13:
+			{
+				LLIGHT_SIMD_CASE(3)
+				LLIGHT_SIMD_CASE(2)
+				LLIGHT_SIMD_CASE(0)
+			}
+			break;
+		case 14:
+			{
+				LLIGHT_SIMD_CASE(3)
+				LLIGHT_SIMD_CASE(2)
+				LLIGHT_SIMD_CASE(1)
+			}
+			break;
+		case 15:
+			{
+				LLIGHT_SIMD_CASE(3)
+				LLIGHT_SIMD_CASE(2)
+				LLIGHT_SIMD_CASE(1)
+				LLIGHT_SIMD_CASE(0)
+			}
+			break;
+		}
+
+#undef LLIGHT_SIMD_CASE
+*/
