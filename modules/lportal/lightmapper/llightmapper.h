@@ -97,6 +97,9 @@ public:
 	void set_tex_height(int height);
 	int get_tex_height() const;
 
+	void set_voxel_dims(const Vector3 &dims);
+	Vector3 get_voxel_dims() const;
+
 	void set_normalize(bool norm);
 	bool get_normalize() const;
 
@@ -170,6 +173,7 @@ private:
 
 
 	eMode m_Settings_Mode;
+	LM::Vec3i m_Settings_VoxelDims;
 
 	int m_Settings_TexWidth;
 	int m_Settings_TexHeight;
