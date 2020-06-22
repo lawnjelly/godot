@@ -61,6 +61,7 @@ ADD_PROPERTY(PropertyInfo(P_TYPE, LIGHTMAP_TOSTRING(P_NAME)), LIGHTMAP_TOSTRING(
 
 	LIMPL_PROPERTY(Variant::INT, tex_width, set_tex_width, get_tex_width);
 	LIMPL_PROPERTY(Variant::INT, tex_height, set_tex_height, get_tex_height);
+	LIMPL_PROPERTY(Variant::VECTOR3, voxel_grid, set_voxel_dims, get_voxel_dims);
 
 	ADD_GROUP("Forward Parameters", "");
 	LIMPL_PROPERTY(Variant::INT, f_rays, set_forward_num_rays, get_forward_num_rays);
@@ -109,6 +110,7 @@ LLightMapper::LLightMapper()
 
 	m_Settings_TexWidth = 128;
 	m_Settings_TexHeight = 128;
+	m_Settings_VoxelDims.Set(20, 6, 20);
 
 	m_Settings_Normalize = true;
 	m_Settings_NormalizeBias = 1.0f;
@@ -159,6 +161,9 @@ int LLightMapper::get_tex_width() const {return m_Settings_TexWidth;}
 
 void LLightMapper::set_tex_height(int height) {m_Settings_TexHeight = height;}
 int LLightMapper::get_tex_height() const {return m_Settings_TexHeight;}
+
+void LLightMapper::set_voxel_dims(const Vector3 &dims) {m_Settings_VoxelDims.Set(dims);}
+Vector3 LLightMapper::get_voxel_dims() const {Vector3 p; m_Settings_VoxelDims.To(p); return p;}
 
 void LLightMapper::set_normalize(bool norm) {m_Settings_Normalize = norm;}
 bool LLightMapper::get_normalize() const {return m_Settings_Normalize;}
@@ -287,7 +292,7 @@ bool LLightMapper::lightmap_mesh(Node * pMeshInstance, Node * pLightRoot, Object
 	uint32_t beforeB = OS::get_singleton()->get_ticks_msec();
 	m_Scene.m_bUseSIMD = false;
 	m_Scene.m_Tracer.m_bSIMD = false;
-	res = LightmapMesh(*pMI, *pLR, *pIm);
+	//res = LightmapMesh(*pMI, *pLR, *pIm);
 	uint32_t afterB = OS::get_singleton()->get_ticks_msec();
 
 	print_line("SIMD version took : " + itos(afterA - beforeA));
@@ -391,7 +396,7 @@ bool LLightMapper::LightmapMesh(const MeshInstance &mi, const Spatial &light_roo
 
 	print_line("Scene Create");
 	before = OS::get_singleton()->get_ticks_msec();
-	if (!m_Scene.Create(mi, m_iWidth, m_iHeight))
+	if (!m_Scene.Create(mi, m_iWidth, m_iHeight, m_Settings_VoxelDims))
 		return false;
 	after = OS::get_singleton()->get_ticks_msec();
 	print_line("SceneCreate took " + itos(after -before) + " ms");
@@ -709,7 +714,17 @@ float LLightMapper::ProcessTexel_Light(int light_id, const Vector3 &ptDest, cons
 		// collision detect
 		r.d.normalize();
 		float u, v, w, t;
+
+		m_Scene.m_Tracer.m_bUseSDF = true;
 		int tri = m_Scene.IntersectRay(r, u, v, w, t, m_iNumTests);
+//		m_Scene.m_Tracer.m_bUseSDF = false;
+//		int tri2 = m_Scene.IntersectRay(r, u, v, w, t, m_iNumTests);
+//		if (tri != tri2)
+//		{
+//			// repeat SDF version
+//			m_Scene.m_Tracer.m_bUseSDF = true;
+//			int tri = m_Scene.IntersectRay(r, u, v, w, t, m_iNumTests);
+//		}
 
 		// nothing hit
 		if ((tri == -1) || (tri == tri_ignore))

@@ -5,6 +5,7 @@
 #include "core/math/aabb.h"
 #include "llighttypes.h"
 #include "llighttests_simd.h"
+#include <limits.h>
 
 //#define LIGHTTRACER_IGNORE_VOXELS
 
@@ -17,13 +18,14 @@ class LightScene;
 class Voxel
 {
 public:
-	void Reset() {m_TriIDs.clear();}
+	void Reset() {m_TriIDs.clear(); m_PackedTriangles.clear(); m_iNumTriangles = 0; m_SDF = UINT_MAX;}
 	LVector<uint32_t> m_TriIDs;
 
 	// a COPY of the triangles in SIMD format, edge form
 	// contiguous in memory for faster testing
 	LVector<PackedTriangles> m_PackedTriangles;
 	int m_iNumTriangles;
+	unsigned int m_SDF; // measured in voxels
 
 	void AddTriangle(const Tri &tri, uint32_t tri_id)
 	{
@@ -41,23 +43,40 @@ public:
 		tris.Set(mod, tri);
 		m_iNumTriangles++;
 	}
+	void Finalize()
+	{
+		uint32_t packed = m_iNumTriangles / 4;
+		uint32_t mod = m_iNumTriangles % 4;
+		if (mod)
+		{
+			PackedTriangles &tris = m_PackedTriangles[packed];
+			tris.Finalize(mod);
+		}
+		if (m_iNumTriangles)
+			m_SDF = 0; // seed the SDF
+	}
 };
 
 class LightTracer
 {
 public:
 	void Reset();
-	void Create(const LightScene &scene);
+	void Create(const LightScene &scene, const Vec3i &voxel_dims);
 
 	bool RayTrace_Start(Ray ray, Ray &voxel_ray, Vec3i &start_voxel);
 	const Voxel * RayTrace(const Ray &ray_orig, Ray &ray_out, Vec3i &ptVoxel);
 	LVector<uint32_t> m_TriHits;
 
 	bool m_bSIMD;
+	bool m_bUseSDF;
 
 private:
 	void CalculateWorldBound();
 	void FillVoxels();
+	void CalculateSDF();
+	void Debug_SaveSDF();
+	void CalculateSDF_Voxel(const Vec3i &ptCentre);
+	void CalculateSDF_AssessNeighbour(const Vec3i &pt, unsigned int &min_SDF);
 	bool VoxelWithinBounds(Vec3i v) const
 	{
 		if (v.x < 0) return false;
@@ -97,6 +116,12 @@ private:
 	}
 
 	const Voxel &GetVoxel(const Vec3i &pos) const
+	{
+		int v = GetVoxelNum(pos);
+		assert (v < m_iNumVoxels);
+		return m_Voxels[v];
+	}
+	Voxel &GetVoxel(const Vec3i &pos)
 	{
 		int v = GetVoxelNum(pos);
 		assert (v < m_iNumVoxels);

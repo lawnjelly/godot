@@ -1,5 +1,6 @@
 #include "llighttracer.h"
 #include "llightscene.h"
+#include "core/os/os.h"
 
 
 
@@ -16,8 +17,10 @@ void LightTracer::Reset()
 }
 
 
-void LightTracer::Create(const LightScene &scene)
+void LightTracer::Create(const LightScene &scene, const Vec3i &voxel_dims)
 {
+	m_bUseSDF = true;
+
 	m_pScene = &scene;
 	m_iNumTris = m_pScene->m_Tris.size();
 
@@ -31,7 +34,7 @@ void LightTracer::Create(const LightScene &scene)
 
 	CalculateWorldBound();
 
-	m_Dims.Set(40, 10, 40);
+	m_Dims = voxel_dims;
 
 	m_iNumVoxels = m_Dims.x * m_Dims.y * m_Dims.z;
 	m_DimsXTimesY = m_Dims.x * m_Dims.y;
@@ -110,6 +113,9 @@ bool LightTracer::RayTrace_Start(Ray ray, Ray &voxel_ray, Vec3i &start_voxel)
 
 	// debug check the voxel number and bounding box are correct
 
+//	if (m_bUseSDF)
+//		print_line("Ray start");
+
 
 	return within;
 }
@@ -159,11 +165,54 @@ const Voxel * LightTracer::RayTrace(const Ray &ray_orig, Ray &ray_out, Vec3i &pt
 		}
 	}
 
+//#define LLIGHT_USE_SDF
+#ifdef LLIGHT_USE_SDF
+	int sdf = vox.m_SDF;
+
+	sdf-= 1;
+	if (sdf >= 0)
+	{
+		;
+	}
+	else
+	{
+		sdf = 0;
+	}
+//	sdf = 0;
+
+	if (!m_bUseSDF)
+	{
+		sdf = 0;
+	}
+
+//		print_line("\tvoxel (" + itos(ptVoxel.x) + " " + itos(ptVoxel.y) + " " + itos(ptVoxel.z) +
+//		"),	SDF " + itos(vox.m_SDF) + " num_tris " + itos (vox.m_iNumTriangles) + ", jump " + itos(sdf));
+
+
+
+	int change_withsdf = sdf + 1;
+
+//	sdf = 0;
+	// SDF is now how many planes to cross.
+
 	// PLANES are in INTEGER space (voxel space)
 	// attempt to cross out of planes
 //	const AABB &bb = m_VoxelBounds[iVoxelNum];
+	Vector3 mins = Vector3(ptVoxel.x-sdf, ptVoxel.y-sdf, ptVoxel.z-sdf);
+	Vector3 maxs = mins + Vector3(change_withsdf, change_withsdf, change_withsdf);
+
+	// add a bit of bias to ensure we cross the boundary into another voxel and don't get float error
+	// (note we may also have to catch triangles slightly outside the voxel to compensate for this)
+	const float plane_bias = 0.001f;
+	Vector3 plane_bias3 = Vector3(plane_bias, plane_bias, plane_bias);
+	mins -= plane_bias3;
+	maxs += plane_bias3;
+#else
 	Vector3 mins = Vector3(ptVoxel.x, ptVoxel.y, ptVoxel.z);
 	Vector3 maxs = mins + Vector3(1, 1, 1);
+#endif
+
+
 //	const Vector3 &mins = bb.position;
 //	Vector3 maxs = bb.position + bb.size;
 	const Vector3 &dir = ray_orig.d;
@@ -173,75 +222,59 @@ const Voxel * LightTracer::RayTrace(const Ray &ray_orig, Ray &ray_out, Vec3i &pt
 	float nearest_hit = FLT_MAX;
 	int nearest_hit_plane = -1;
 
-//#define OLD_PLANE_METHOD
+	//Vector3 ptBias;
 
 	// planes from constants
 	if (dir.x >= 0.0f)
 	{
-#ifdef OLD_PLANE_METHOD
-		IntersectPlane(ray_orig, 0, ptIntersect[0], -maxs.x, nearest_hit, nearest_hit_plane);
-#else
-		// test new routine
 		ptIntersect[0].x = maxs.x;
 		IntersectAAPlane(ray_orig, 0, ptIntersect[0], nearest_hit, 0, nearest_hit_plane);
-#endif
+		//ptBias.x = 0.5f;
 	}
 	else
 	{
-#ifdef OLD_PLANE_METHOD
-		IntersectPlane(ray_orig, 1, ptIntersect[0], mins.x, nearest_hit, nearest_hit_plane);
-#else
-		// test new routine
 		ptIntersect[0].x = mins.x;
 		IntersectAAPlane(ray_orig, 0, ptIntersect[0], nearest_hit, 1, nearest_hit_plane);
-#endif
+		//ptBias.x = -0.5f;
 	}
 
 	if (dir.y >= 0.0f)
 	{
-#ifdef OLD_PLANE_METHOD
-		IntersectPlane(ray_orig, 2, ptIntersect[1], -maxs.y, nearest_hit, nearest_hit_plane);
-#else
-		// test new routine
 		ptIntersect[1].y = maxs.y;
 		IntersectAAPlane(ray_orig, 1, ptIntersect[1], nearest_hit, 2, nearest_hit_plane);
-#endif
+		//ptBias.y = 0.5f;
 	}
 	else
 	{
-#ifdef OLD_PLANE_METHOD
-		IntersectPlane(ray_orig, 3, ptIntersect[1], mins.y, nearest_hit, nearest_hit_plane);
-#else
-		// test new routine
 		ptIntersect[1].y = mins.y;
 		IntersectAAPlane(ray_orig, 1, ptIntersect[1], nearest_hit, 3, nearest_hit_plane);
-#endif
+		//ptBias.y = -0.5f;
 	}
 
 	if (dir.z >= 0.0f)
 	{
-#ifdef OLD_PLANE_METHOD
-		IntersectPlane(ray_orig, 4, ptIntersect[2], -maxs.z, nearest_hit, nearest_hit_plane);
-#else
-		// test new routine
 		ptIntersect[2].z = maxs.z;
 		IntersectAAPlane(ray_orig, 2, ptIntersect[2], nearest_hit, 4, nearest_hit_plane);
-#endif
+		//ptBias.z = 0.5f;
 	}
 	else
 	{
-#ifdef OLD_PLANE_METHOD
-		IntersectPlane(ray_orig, 5, ptIntersect[2], mins.z, nearest_hit, nearest_hit_plane);
-#else
-		// test new routine
 		ptIntersect[2].z = mins.z;
 		IntersectAAPlane(ray_orig, 2, ptIntersect[2], nearest_hit, 5, nearest_hit_plane);
-#endif
+		//ptBias.z = -0.5f;
 	}
 
 	// ray out
 	ray_out.d = ray_orig.d;
 	ray_out.o = ptIntersect[nearest_hit_plane/2];
+
+#ifdef LLIGHT_USE_SDF
+	const Vector3 out = ray_out.o;// + ptBias;
+	ptVoxel.x = floorf(out.x);
+	ptVoxel.y = floorf(out.y);
+	ptVoxel.z = floorf(out.z);
+#else
+
 
 	switch (nearest_hit_plane)
 	{
@@ -268,10 +301,115 @@ const Voxel * LightTracer::RayTrace(const Ray &ray_orig, Ray &ray_out, Vec3i &pt
 		break;
 	}
 
+#endif
 	return pCurrVoxel;
 }
 
 
+void LightTracer::Debug_SaveSDF()
+{
+	int width = m_Dims.x;
+	int height = m_Dims.z;
+
+	Ref<Image> image = memnew(Image(width, height, false, Image::FORMAT_RGBA8));
+	image->lock();
+	int y = m_Dims.y-1;
+
+	for (int z=0; z<m_Dims.z; z++)
+	{
+//		for (int y=0; y<m_Dims.y; y++)
+//		{
+			for (int x=0; x<m_Dims.x; x++)
+			{
+				Vec3i pt;
+				pt.Set(x, y, z);
+
+				int sdf = GetVoxel(pt).m_SDF;
+				float f = sdf * 0.25f;
+				image->set_pixel(x, z, Color(f, f, f, 1.0f));
+			}
+//		}
+	}
+
+	image->unlock();
+	image->save_png("sdf.png");
+
+}
+
+void LightTracer::CalculateSDF()
+{
+	print_line("Calculating SDF");
+
+	// look at the surrounding neighbours. We should be at a minimum, the lowest neighbour +1
+	int iters = m_Dims.x;
+	if (m_Dims.y > iters) iters = m_Dims.y;
+	if (m_Dims.z > iters) iters = m_Dims.z;
+
+	for (int i=0; i<iters; i++)
+	{
+
+		// SDF is seeded with zero in the filled voxels
+		for (int z=0; z<m_Dims.z; z++)
+		{
+			for (int y=0; y<m_Dims.y; y++)
+			{
+				for (int x=0; x<m_Dims.x; x++)
+				{
+					Vec3i pt;
+					pt.Set(x, y, z);
+					CalculateSDF_Voxel(pt);
+				}
+			}
+		}
+
+	} // for iteration
+
+	// debug print sdf
+//	Debug_SaveSDF();
+
+}
+
+void LightTracer::CalculateSDF_AssessNeighbour(const Vec3i &pt, unsigned int &min_SDF)
+{
+	// on map?
+	if (!VoxelWithinBounds(pt))
+		return;
+
+	const Voxel &vox = GetVoxel(pt);
+	if (vox.m_SDF < min_SDF)
+		min_SDF = vox.m_SDF;
+}
+
+void LightTracer::CalculateSDF_Voxel(const Vec3i &ptCentre)
+{
+	Voxel &vox = GetVoxel(ptCentre);
+
+
+	unsigned int lowest = UINT_MAX-1;
+
+		for (int nz=-1; nz<=1; nz++)
+		{
+			for (int ny=-1; ny<=1; ny++)
+			{
+				for (int nx=-1; nx<=1; nx++)
+				{
+					if ((nx == 0) && (ny == 0) && (nz == 0))
+					{
+					}
+					else
+					{
+						Vec3i pt;
+						pt.Set(ptCentre.x + nx, ptCentre.y + ny, ptCentre.z + nz);
+						CalculateSDF_AssessNeighbour(pt, lowest);
+					}
+				} // for nx
+			} // for ny
+		} // for nz
+
+	lowest += 1;
+	if (vox.m_SDF > lowest)
+		vox.m_SDF = lowest;
+}
 
 
 void LightTracer::FillVoxels()
@@ -314,6 +452,7 @@ void LightTracer::FillVoxels()
 //						}
 					}
 				}
+				vox.Finalize();
 
 //				if ((z == 1) && (y == 1) && (x == 0))
 //				{
@@ -323,6 +462,7 @@ void LightTracer::FillVoxels()
 		} // for y
 	} // for z
 
+	CalculateSDF();
 }
 
 

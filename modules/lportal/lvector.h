@@ -34,13 +34,17 @@ public:
 	// note this is not available in Godot Vector
 	T& operator[](unsigned int ui)
 	{
+#ifdef DEBUG_ENABLED
 		assert (ui < (unsigned int) m_iSize);
+#endif
 		return m_Vec[ui];
 	}
 
 	const T& operator[](unsigned int ui) const
 	{
+#ifdef DEBUG_ENABLED
 		assert (ui < (unsigned int) m_iSize);
+#endif
 		return m_Vec[ui];
 	}
 
@@ -81,7 +85,9 @@ public:
 
 	void set(unsigned int ui, const T &t)
 	{
+#ifdef DEBUG_ENABLED
 		assert (ui < (unsigned int) m_iSize);
+#endif
 		m_Vec[ui] = t;
 	}
 
