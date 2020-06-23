@@ -367,6 +367,7 @@ void LLightMapper::Reset()
 {
 	m_Lights.clear(true);
 	m_Scene.Reset();
+	m_RayBank.Reset();
 }
 
 bool LLightMapper::LightmapMesh(const MeshInstance &mi, const Spatial &light_root, Image &output_image)
@@ -398,6 +399,9 @@ bool LLightMapper::LightmapMesh(const MeshInstance &mi, const Spatial &light_roo
 	before = OS::get_singleton()->get_ticks_msec();
 	if (!m_Scene.Create(mi, m_iWidth, m_iHeight, m_Settings_VoxelDims))
 		return false;
+
+	m_RayBank.Create(m_Settings_VoxelDims, m_Scene);
+
 	after = OS::get_singleton()->get_ticks_msec();
 	print_line("SceneCreate took " + itos(after -before) + " ms");
 

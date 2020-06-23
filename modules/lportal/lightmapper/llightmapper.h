@@ -4,6 +4,7 @@
 #include "scene/3d/mesh_instance.h"
 #include "llightscene.h"
 #include "llightimage.h"
+#include "lraybank.h"
 
 
 class LLightMapper : public Spatial
@@ -149,6 +150,7 @@ private:
 	int m_iNumRays; // this will be modified from the settings_numrays
 
 	LM::LightScene m_Scene;
+	LM::RayBank m_RayBank;
 	LVector<LLight> m_Lights;
 
 	// for stats

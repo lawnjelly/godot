@@ -5,6 +5,7 @@
 namespace LM
 {
 
+
 class Vec3i
 {
 public:
@@ -59,6 +60,23 @@ public:
 	bool IntersectAAPlane(int axis, Vector3 &pt, float epsilon = 0.0001f) const;
 
 };
+
+// a ray in flight .. in the ray bank to be processed
+struct FHit
+{
+	// texel hit points
+	uint16_t tx, ty;
+	float power;
+};
+
+struct FRay
+{
+	enum {FRAY_MAX_HITS = 4};
+	Ray ray;
+	FHit hits[FRAY_MAX_HITS];
+	int nHits;
+};
+
 
 class Line2
 {
