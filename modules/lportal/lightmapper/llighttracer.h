@@ -107,6 +107,13 @@ private:
 
 	const LightScene * m_pScene;
 
+	Vec3i m_Dims;
+	int m_DimsXTimesY;
+	Vector3 m_VoxelSize;
+	int m_iNumVoxels;
+	Plane m_VoxelPlanes[6];
+
+
 	int GetVoxelNum(const Vec3i &pos) const
 	{
 		int v = pos.z * m_DimsXTimesY;
@@ -128,11 +135,6 @@ private:
 		return m_Voxels[v];
 	}
 
-	Vec3i m_Dims;
-	int m_DimsXTimesY;
-	Vector3 m_VoxelSize;
-	int m_iNumVoxels;
-	Plane m_VoxelPlanes[6];
 
 	void IntersectAAPlane(const Ray &ray, int axis, Vector3 &pt, float &nearest_hit, int plane_id, int &nearest_plane_id) const
 	{
