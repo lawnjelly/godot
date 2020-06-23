@@ -338,6 +338,8 @@ void LightTracer::Debug_SaveSDF()
 
 void LightTracer::CalculateSDF()
 {
+	return;
+
 	print_line("Calculating SDF");
 
 	// look at the surrounding neighbours. We should be at a minimum, the lowest neighbour +1
