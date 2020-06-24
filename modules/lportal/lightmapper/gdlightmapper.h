@@ -10,16 +10,16 @@ class LLightMapper : public Spatial
 public:
 	enum eMode
 	{
-		MODE_FORWARD,
-		MODE_BACKWARD,
+		MODE_FORWARD = LM::LightMapper::LMMODE_FORWARD,
+		MODE_BACKWARD = LM::LightMapper::LMMODE_BACKWARD,
 	};
 
 	bool lightmap_mesh(Node * pMeshInstance, Node * pLightRoot, Object * pOutputImage);
 	bool lightmap_bake();
 	bool lightmap_bake_to_image(Object * pOutputImage);
 
-	void set_mode(LightMapper::eMode p_mode);
-	LightMapper::eMode get_mode() const;
+	void set_mode(LLightMapper::eMode p_mode);
+	LLightMapper::eMode get_mode() const;
 
 	void set_mesh_path(const NodePath &p_path);
 	NodePath get_mesh_path() const;
@@ -79,7 +79,7 @@ public:
 	String get_image_filename() const;
 
 private:
-	LightMapper m_LM;
+	LM::LightMapper m_LM;
 
 protected:
 	static void _bind_methods();

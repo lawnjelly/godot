@@ -2,6 +2,7 @@
 
 #include "llighttypes.h"
 #include "../lvector.h"
+#include "llightmapper_base.h"
 
 
 namespace LM
@@ -12,7 +13,7 @@ struct RB_Voxel
 	LVector<FRay> m_Rays;
 };
 
-class RayBank
+class RayBank : public LightMapper_Base
 {
 public:
 	void RayBank_Reset();

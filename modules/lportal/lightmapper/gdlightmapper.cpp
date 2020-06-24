@@ -57,8 +57,8 @@ ADD_PROPERTY(PropertyInfo(P_TYPE, LIGHTMAP_TOSTRING(P_NAME)), LIGHTMAP_TOSTRING(
 	LIMPL_PROPERTY(Variant::REAL, normalize_bias, set_normalize_bias, get_normalize_bias);
 }
 
-void LLightMapper::set_mode(LightMapper::eMode p_mode) {m_LM.m_Settings_Mode = p_mode;}
-LightMapper::eMode LLightMapper::get_mode() const {return m_LM.m_Settings_Mode;}
+void LLightMapper::set_mode(LLightMapper::eMode p_mode) {m_LM.m_Settings_Mode = (LM::LightMapper::eLMMode) p_mode;}
+LLightMapper::eMode LLightMapper::get_mode() const {return (LLightMapper::eMode) m_LM.m_Settings_Mode;}
 
 void LLightMapper::set_mesh_path(const NodePath &p_path) {m_LM.m_Settings_Path_Mesh = p_path;}
 NodePath LLightMapper::get_mesh_path() const {return m_LM.m_Settings_Path_Mesh;}
