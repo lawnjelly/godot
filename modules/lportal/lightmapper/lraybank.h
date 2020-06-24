@@ -15,17 +15,23 @@ struct RB_Voxel
 class RayBank
 {
 public:
-	void Reset();
-	void Create(Vec3i voxel_dims, LightScene &light_scene);
+	void RayBank_Reset();
+	void RayBank_Create();
+
+	FRay * RayBank_RequestNewRay(const Ray &ray, const Vec3i * pStartVoxel);
+
 
 private:
 
-	Vec3i m_Dims;
-	int m_DimsXTimesY;
-	int m_iNumVoxels;
-	LVector<RB_Voxel> m_Voxels;
+//	Vec3i m_Dims;
+//	int m_DimsXTimesY;
+//	int m_iNumVoxels;
+	struct RayBank_Data
+	{
+		LVector<RB_Voxel> m_Voxels;
+	} m_Data_RB;
 
-	LightScene * m_pLightScene;
+//	LightScene * m_pLightScene;
 };
 
 

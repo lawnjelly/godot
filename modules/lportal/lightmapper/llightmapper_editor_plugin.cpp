@@ -93,9 +93,9 @@ LLightMapperEditorPlugin::LLightMapperEditorPlugin(EditorNode *p_node) {
 	add_control_to_container(CONTAINER_SPATIAL_EDITOR_MENU, bake);
 	lightmap = NULL;
 
-	LLightMapper::bake_begin_function = bake_func_begin;
-	LLightMapper::bake_step_function = bake_func_step;
-	LLightMapper::bake_end_function = bake_func_end;
+	LightMapper::bake_begin_function = bake_func_begin;
+	LightMapper::bake_step_function = bake_func_step;
+	LightMapper::bake_end_function = bake_func_end;
 }
 
 LLightMapperEditorPlugin::~LLightMapperEditorPlugin() {

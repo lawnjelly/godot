@@ -4,7 +4,7 @@
 
 #include "core/class_db.h"
 #include "lroom_manager.h"
-#include "lightmapper/llightmapper.h"
+#include "lightmapper/gdlightmapper.h"
 #include "lightmapper/llightmapper_editor_plugin.h"
 
 

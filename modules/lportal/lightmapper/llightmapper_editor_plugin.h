@@ -3,7 +3,7 @@
 
 #include "editor/editor_node.h"
 #include "editor/editor_plugin.h"
-#include "llightmapper.h"
+#include "gdlightmapper.h"
 #include "scene/resources/material.h"
 
 class LLightMapperEditorPlugin : public EditorPlugin {
