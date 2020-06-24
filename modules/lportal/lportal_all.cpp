@@ -34,6 +34,7 @@
 #include "ldae_exporter.cpp"
 #include "lightmapper/gdlightmapper.cpp"
 #include "lightmapper/llightmapper.cpp"
+#include "lightmapper/llightmapper_base.cpp"
 #include "lightmapper/llightscene.cpp"
 #include "lightmapper/llighttracer.cpp"
 #include "lightmapper/llightmapper_editor_plugin.cpp"
