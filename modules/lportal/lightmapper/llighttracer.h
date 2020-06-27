@@ -60,6 +60,8 @@ public:
 class LightTracer
 {
 public:
+	friend class RayBank;
+
 	void Reset();
 	void Create(const LightScene &scene, const Vec3i &voxel_dims);
 

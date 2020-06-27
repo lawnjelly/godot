@@ -82,7 +82,7 @@ bool LightTracer::RayTrace_Start(Ray ray, Ray &voxel_ray, Vec3i &start_voxel)
 		ray.o = clip;
 	}
 
-	m_BFTrisHit.Blank();
+//	m_BFTrisHit.Blank();
 
 	voxel_ray.o = ray.o - m_SceneWorldBound.position;
 	voxel_ray.o.x /= m_VoxelSize.x;
@@ -97,7 +97,7 @@ bool LightTracer::RayTrace_Start(Ray ray, Ray &voxel_ray, Vec3i &start_voxel)
 	start_voxel.y = voxel_ray.o.y;
 	start_voxel.z = voxel_ray.o.z;
 
-	m_TriHits.clear();
+//	m_TriHits.clear();
 
 	// out of bounds?
 	bool within = VoxelWithinBounds(start_voxel);
@@ -132,7 +132,7 @@ void LightTracer::DebugCheckWorldPointInVoxel(Vector3 pt, const Vec3i &ptVoxel)
 //bool LightTracer::RayTrace(const Ray &ray_orig, Ray &ray_out, Vec3i &ptVoxel)
 const Voxel * LightTracer::RayTrace(const Ray &ray_orig, Ray &ray_out, Vec3i &ptVoxel)
 {
-	m_TriHits.clear();
+	//m_TriHits.clear();
 
 #ifdef LIGHTTRACER_IGNORE_VOXELS
 	for (int n=0; n<m_iNumTris; n++)
@@ -155,6 +155,7 @@ const Voxel * LightTracer::RayTrace(const Ray &ray_orig, Ray &ray_out, Vec3i &pt
 
 	if (!m_bSIMD)
 	{
+		/*
 		for (int n=0; n<vox.m_TriIDs.size(); n++)
 		{
 			unsigned int id = vox.m_TriIDs[n];
@@ -163,6 +164,7 @@ const Voxel * LightTracer::RayTrace(const Ray &ray_orig, Ray &ray_out, Vec3i &pt
 			if (m_BFTrisHit.CheckAndSet(id))
 				m_TriHits.push_back(id);
 		}
+		*/
 	}
 
 //#define LLIGHT_USE_SDF

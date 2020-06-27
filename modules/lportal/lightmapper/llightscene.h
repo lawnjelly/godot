@@ -4,6 +4,7 @@
 #include "llighttypes.h"
 #include "llighttracer.h"
 #include "llightimage.h"
+#include "scene/3d/mesh_instance.h"
 
 namespace LM
 {
