@@ -1,5 +1,7 @@
 #include "llightmapper.h"
 
+//#include <omp.h>
+
 namespace LM {
 
 bool LightMapper::lightmap_mesh(MeshInstance * pMI, Spatial * pLR, Image * pIm)
@@ -51,6 +53,7 @@ void LightMapper::Reset()
 {
 	m_Lights.clear(true);
 	m_Scene.Reset();
+	RayBank_Reset();
 }
 
 bool LightMapper::LightmapMesh(const MeshInstance &mi, const Spatial &light_root, Image &output_image)
@@ -83,6 +86,8 @@ bool LightMapper::LightmapMesh(const MeshInstance &mi, const Spatial &light_root
 	if (!m_Scene.Create(mi, m_iWidth, m_iHeight, m_Settings_VoxelDims))
 		return false;
 
+	RayBank_Create();
+
 	after = OS::get_singleton()->get_ticks_msec();
 	print_line("SceneCreate took " + itos(after -before) + " ms");
 
@@ -107,7 +112,13 @@ bool LightMapper::LightmapMesh(const MeshInstance &mi, const Spatial &light_root
 		for (int n=0; n<m_Lights.size(); n++)
 		{
 			ProcessLight(n);
-		}
+
+			for (int b=0; b<m_Settings_Forward_NumBounces+1; b++)
+			{
+				RayBank_Process();
+				RayBank_Flush();
+			} // for bounce
+		} // for light
 	}
 	after = OS::get_singleton()->get_ticks_msec();
 	print_line("ProcessTexels took " + itos(after -before) + " ms");
@@ -581,7 +592,9 @@ void LightMapper::ProcessLight(int light_id)
 		}
 		//r.d.normalize();
 
-		ProcessRay(r, 0, power);
+		RayBank_RequestNewRay(r, m_Settings_Forward_NumBounces, power, 0);
+
+//		ProcessRay(r, 0, power);
 	}
 }
 

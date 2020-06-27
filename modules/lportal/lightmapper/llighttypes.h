@@ -64,17 +64,21 @@ public:
 // a ray in flight .. in the ray bank to be processed
 struct FHit
 {
+	void SetNoHit() {tx = UINT16_MAX;}
+	bool IsNoHit() const {return tx == UINT16_MAX;}
 	// texel hit points
 	uint16_t tx, ty;
-	float power;
 };
 
 struct FRay
 {
-	enum {FRAY_MAX_HITS = 4};
+//	enum {FRAY_MAX_HITS = 4};
 	Ray ray;
-	FHit hits[FRAY_MAX_HITS];
-	int nHits;
+//	FHit hits[FRAY_MAX_HITS];
+//	int num_hits;
+	int num_bounces_left;
+	float power;
+	FHit hit;
 };
 
 
