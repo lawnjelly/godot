@@ -1,6 +1,7 @@
 #pragma once
 
 #include "scene/3d/spatial.h"
+#include "scene/3d/light.h"
 #include "scene/3d/mesh_instance.h"
 #include "llightscene.h"
 #include "llightimage.h"
@@ -77,19 +78,19 @@ protected:
 
 protected:
 	// luminosity
-	LM::LightImage<float> m_Image_L;
+	LightImage<float> m_Image_L;
 
 	// for bounces
-	LM::LightImage<float> m_Image_L_mirror;
+	LightImage<float> m_Image_L_mirror;
 
-	LM::LightImage<uint32_t> m_Image_ID_p1;
-	LM::LightImage<Vector3> m_Image_Barycentric;
+	LightImage<uint32_t> m_Image_ID_p1;
+	LightImage<Vector3> m_Image_Barycentric;
 
 	int m_iWidth;
 	int m_iHeight;
 	int m_iNumRays; // this will be modified from the settings_numrays
 
-	LM::LightScene m_Scene;
+	LightScene m_Scene;
 	LVector<LLight> m_Lights;
 
 	// for stats
@@ -118,7 +119,7 @@ public:
 
 
 	eLMMode m_Settings_Mode;
-	LM::Vec3i m_Settings_VoxelDims;
+	Vec3i m_Settings_VoxelDims;
 
 	int m_Settings_TexWidth;
 	int m_Settings_TexHeight;
@@ -139,7 +140,7 @@ protected:
 		dist *= 0.2f;
 		dist += 0.282f;
 		// 4 PI = 12.5664
-		float area = 4.0f * Math_PI * (dist * dist);
+		float area = 4.0f * ((float) Math_PI) * (dist * dist);
 		return 1.0f / area;
 	}
 };
