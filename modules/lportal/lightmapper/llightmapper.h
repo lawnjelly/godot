@@ -16,11 +16,8 @@ private:
 	void Reset();
 
 private:
-	//void FindLights_Recursive(const Node * pNode);
-	//void FindLight(const Node * pNode);
-
-	void ProcessLight(int light_id);
-//	void PrepareImageMaps();
+	void ProcessLights();
+	void ProcessLight(int light_id, int num_rays);
 	void ProcessRay(LM::Ray r, int depth, float power, int dest_tri_id = 0, const Vector2i * pUV = 0);
 
 
@@ -31,11 +28,9 @@ private:
 
 	void ProcessTexels_Bounce();
 	float ProcessTexel_Bounce(int x, int y);
-//	void Normalize();
 
-//	void WriteOutputImage(Image &output_image);
-//	void RandomUnitDir(Vector3 &dir) const;
-
+	const int m_iRaysPerSection = 1024 * 1024 * 4; // 64
+	// 1024*1024 is 46 megs
 };
 
 

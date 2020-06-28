@@ -146,10 +146,13 @@ void RayBank::RayBank_Process()
 			{
 				int section_start = s * section_size;
 
-				for (int n=0; n<section_size; n++)
-				{
-					RayBank_ProcessRay_MT(n, section_start);
-				}
+
+				thread_process_array(section_size, this, &RayBank::RayBank_ProcessRay_MT, section_start);
+
+//				for (int n=0; n<section_size; n++)
+//				{
+//					RayBank_ProcessRay_MT(n, section_start);
+//				}
 			}
 
 			leftover_start = num_sections * section_size;
@@ -181,11 +184,27 @@ void RayBank::RayBank_Process()
 	}
 }
 
+void RayBank::RayBank_CheckVoxelsClear()
+{
+#ifdef DEBUG_ENABLED
+	int nVoxels = GetTracer().m_iNumVoxels;
+	LVector<RB_Voxel> &voxelsr = m_Data_RB.GetVoxels_Read();
+	LVector<RB_Voxel> &voxelsw = m_Data_RB.GetVoxels_Write();
+
+	for (int v=0; v<nVoxels; v++)
+	{
+		RB_Voxel & voxr = voxelsr[v];
+		assert (voxr.m_Rays.size() == 0);
+		RB_Voxel & voxw = voxelsw[v];
+		assert (voxw.m_Rays.size() == 0);
+	}
+#endif
+}
+
 // flush ray results to the lightmap
 void RayBank::RayBank_Flush()
 {
 	int nVoxels = GetTracer().m_iNumVoxels;
-
 	LVector<RB_Voxel> &voxels = m_Data_RB.GetVoxels_Read();
 
 	for (int v=0; v<nVoxels; v++)

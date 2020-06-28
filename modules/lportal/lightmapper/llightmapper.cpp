@@ -20,7 +20,7 @@ bool LightMapper::lightmap_mesh(MeshInstance * pMI, Spatial * pLR, Image * pIm)
 	{
 		// the num rays / texel. This is per light!
 		m_iNumRays *= nTexels;
-		progress_range = m_iNumRays;
+		progress_range = m_iNumRays / m_iRaysPerSection;
 	}
 
 	if (bake_begin_function) {
@@ -109,16 +109,7 @@ bool LightMapper::LightmapMesh(const MeshInstance &mi, const Spatial &light_root
 		ProcessTexels();
 	else
 	{
-		for (int n=0; n<m_Lights.size(); n++)
-		{
-			ProcessLight(n);
-
-			for (int b=0; b<m_Settings_Forward_NumBounces+1; b++)
-			{
-				RayBank_Process();
-				RayBank_Flush();
-			} // for bounce
-		} // for light
+		ProcessLights();
 	}
 	after = OS::get_singleton()->get_ticks_msec();
 	print_line("ProcessTexels took " + itos(after -before) + " ms");
@@ -528,8 +519,58 @@ void LightMapper::ProcessRay(LM::Ray r, int depth, float power, int dest_tri_id,
 
 }
 
+void LightMapper::ProcessLights()
+{
+//	const int rays_per_section = 1024 * 16;
 
-void LightMapper::ProcessLight(int light_id)
+	int num_sections = m_iNumRays / m_iRaysPerSection;
+
+	for (int n=0; n<m_Lights.size(); n++)
+	{
+		for (int s=0; s<num_sections; s++)
+		{
+			// double check the voxels are clear
+#ifdef DEBUG_ENABLED
+			//RayBank_CheckVoxelsClear();
+#endif
+
+			if ((s % 1) == 0)
+			{
+				if (bake_step_function)
+				{
+					m_bCancel = bake_step_function(s, String("Process Light Section: ") + " (" + itos(s) + ")");
+					if (m_bCancel)
+						return;
+				}
+			}
+
+
+			ProcessLight(n, m_iRaysPerSection);
+
+			for (int b=0; b<m_Settings_Forward_NumBounces+1; b++)
+			{
+				RayBank_Process();
+				RayBank_Flush();
+			} // for bounce
+		} // for section
+
+		// left over
+		{
+			int num_leftover = m_iNumRays - (num_sections * m_iRaysPerSection);
+			ProcessLight(n, num_leftover);
+
+			for (int b=0; b<m_Settings_Forward_NumBounces+1; b++)
+			{
+				RayBank_Process();
+				RayBank_Flush();
+			} // for bounce
+		}
+
+	} // for light
+
+}
+
+void LightMapper::ProcessLight(int light_id, int num_rays)
 {
 	const LLight &light = m_Lights[light_id];
 
@@ -547,17 +588,17 @@ void LightMapper::ProcessLight(int light_id)
 
 
 	// each ray
-	for (int n=0; n<m_iNumRays; n++)
+	for (int n=0; n<num_rays; n++)
 	{
-		if ((n % 10000) == 0)
-		{
-			if (bake_step_function)
-			{
-				m_bCancel = bake_step_function(n, String("Process Rays: ") + " (" + itos(n) + ")");
-				if (m_bCancel)
-					return;
-			}
-		}
+//		if ((n % 10000) == 0)
+//		{
+//			if (bake_step_function)
+//			{
+//				m_bCancel = bake_step_function(n, String("Process Rays: ") + " (" + itos(n) + ")");
+//				if (m_bCancel)
+//					return;
+//			}
+//		}
 
 		r.o = light.pos;
 
