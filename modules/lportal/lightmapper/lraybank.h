@@ -28,6 +28,7 @@ public:
 	// flush ray results to the lightmap
 	void RayBank_Flush();
 
+	void RayBank_CheckVoxelsClear();
 private:
 	// used for below multithread routine
 	RB_Voxel * m_pCurrentThreadVoxel;
