@@ -38,7 +38,7 @@ void RayBank::RayBank_Create()
 
 
 // either we know the start voxel or we find it during this routine (or it doesn't cut the world)
-FRay * RayBank::RayBank_RequestNewRay(Ray ray, int num_bounces_left, float power, const Vec3i * pStartVoxel)
+FRay * RayBank::RayBank_RequestNewRay(Ray ray, int num_rays_left, float power, const Vec3i * pStartVoxel)
 {
 	// if we don't know the start voxel
 	Vec3i ptStartVoxel;
@@ -90,7 +90,7 @@ FRay * RayBank::RayBank_RequestNewRay(Ray ray, int num_bounces_left, float power
 
 	fray->ray = ray;
 	fray->hit.SetNoHit();
-	fray->num_bounces_left = num_bounces_left;
+	fray->num_rays_left = num_rays_left;
 	fray->power = power;
 
 	return fray;
@@ -132,20 +132,35 @@ void RayBank::RayBank_Process()
 
 		m_pCurrentThreadVoxel = &vox;
 
-		const int section_size = 1024 * 96;
+		//const int section_size = 1024 * 96;
+		int section_size = num_rays / 8;
 
-		int num_sections = num_rays / section_size;
-		for (int s=0; s<num_sections; s++)
+		int leftover_start = 0;
+
+		// not worth doing multithread below a certain size
+		// because of threading overhead
+		if (section_size >= 64)
 		{
-			int section_start = s * section_size;
-
-//			thread_process_array(section_size, this, &RayBank::RayBank_ProcessRay_MT, section_start);
-
-			for (int n=0; n<section_size; n++)
+			int num_sections = num_rays / section_size;
+			for (int s=0; s<num_sections; s++)
 			{
-				RayBank_ProcessRay_MT(n, section_start);
+				int section_start = s * section_size;
+
+				for (int n=0; n<section_size; n++)
+				{
+					RayBank_ProcessRay_MT(n, section_start);
+				}
 			}
+
+			leftover_start = num_sections * section_size;
 		}
+
+		// leftovers
+		for (int n=leftover_start; n<num_rays; n++)
+		{
+			RayBank_ProcessRay_MT(n, 0);
+		}
+
 
 /*
 		for (int n=0; n<vox.m_Rays.size(); n++)
@@ -196,13 +211,23 @@ void RayBank::RayBank_FlushRay(RB_Voxel &vox, int ray_id)
 {
 	const FRay &fray= vox.m_Rays[ray_id];
 
+	// bounces first
+	if (fray.num_rays_left)
+	{
+		RayBank_RequestNewRay(fray.ray, fray.num_rays_left, fray.power * m_Settings_Forward_BouncePower, 0);
+	}
+
+	// now write the hit to the lightmap
 	const FHit &hit = fray.hit;
 	if (hit.IsNoHit())
 		return;
 
 	float * pf = m_Image_L.Get(hit.tx, hit.ty);
-	if (!pf)
-		return; // should never happen
+#ifdef DEBUG_ENABLED
+	assert (pf);
+#endif
+//	if (!pf)
+//		return; // should never happen
 
 	*pf += fray.power;
 }
@@ -218,12 +243,12 @@ void RayBank::RayBank_ProcessRay_MT(uint32_t ray_id, int start_ray)
 	Ray r = fray.ray;
 
 	// each evaluation
-//	fray.num_rays_left -= 1;
+	fray.num_rays_left -= 1;
 
 	// unlikely
 	if (r.d.x == 0.0f && r.d.y == 0.0f && r.d.z == 0.0f)
 	{
-//		RayBank_EndRay(fray);
+		fray.num_rays_left = 0;
 		return;
 	}
 
@@ -234,7 +259,21 @@ void RayBank::RayBank_ProcessRay_MT(uint32_t ray_id, int start_ray)
 	// nothing hit
 	if (tri == -1)
 	{
-		//RayBank_EndRay(fray);
+		fray.num_rays_left = 0;
+		return;
+	}
+
+	// hit the back of a face? if so terminate ray
+	Vector3 face_normal;
+	const Tri &triangle_normal = m_Scene.m_TriNormals[tri];
+	triangle_normal.InterpolateBarycentric(face_normal, u, v, w);
+	face_normal.normalize();
+
+	// first dot
+	float dot = face_normal.dot(r.d);
+	if (dot >= 0.0f)
+	{
+		fray.num_rays_left = 0;
 		return;
 	}
 
@@ -256,7 +295,7 @@ void RayBank::RayBank_ProcessRay_MT(uint32_t ray_id, int start_ray)
 	// could be off the image
 	if (!m_Image_L.IsWithin(tx, ty))
 	{
-		//RayBank_EndRay(fray);
+		fray.num_rays_left = 0;
 		return;
 	}
 
@@ -294,20 +333,20 @@ void RayBank::RayBank_ProcessRay_MT(uint32_t ray_id, int start_ray)
 
 	// bounce and lower power
 
-	if (fray.num_bounces_left)
+	if (fray.num_rays_left)
 	{
 		Vector3 pos;
 		const Tri &triangle = m_Scene.m_Tris[tri];
 		triangle.InterpolateBarycentric(pos, u, v, w);
 
-		Vector3 norm;
-		const Tri &triangle_normal = m_Scene.m_TriNormals[tri];
-		triangle_normal.InterpolateBarycentric(norm, u, v, w);
-		norm.normalize();
+//		Vector3 norm;
+//		const Tri &triangle_normal = m_Scene.m_TriNormals[tri];
+//		triangle_normal.InterpolateBarycentric(norm, u, v, w);
+//		face_normal.normalize();
 
 		// first dot
-		float dot = norm.dot(r.d);
-		if (dot <= 0.0f)
+//		float dot = face_normal.dot(r.d);
+//		if (dot <= 0.0f)
 		{
 
 			Ray new_ray;
@@ -317,7 +356,7 @@ void RayBank::RayBank_ProcessRay_MT(uint32_t ray_id, int start_ray)
 //			new_ray.d = norm.cross(temp);
 
 			// BOUNCING - mirror
-			Vector3 mirror_dir = r.d - (2.0f * (dot * norm));
+			Vector3 mirror_dir = r.d - (2.0f * (dot * face_normal));
 
 			// random hemisphere
 			const float range = 1.0f;
@@ -335,24 +374,24 @@ void RayBank::RayBank_ProcessRay_MT(uint32_t ray_id, int start_ray)
 				}
 			}
 			// compare direction to normal, if opposite, flip it
-			if (hemi_dir.dot(norm) < 0.0f)
+			if (hemi_dir.dot(face_normal) < 0.0f)
 				hemi_dir = -hemi_dir;
 
 			new_ray.d = hemi_dir.linear_interpolate(mirror_dir, m_Settings_Forward_BounceDirectionality);
 
-			new_ray.o = pos + (norm * 0.01f);
+			new_ray.o = pos + (face_normal * 0.01f);
 
 			// copy the info to the existing fray
-			//fray.ray = new_ray;
+			fray.ray = new_ray;
 			//fray.power *= m_Settings_Forward_BouncePower;
 
+			return;
 //			return true;
-			RayBank_RequestNewRay(new_ray, fray.num_bounces_left-1, fray.power * m_Settings_Forward_BouncePower, 0);
+//			RayBank_RequestNewRay(new_ray, fray.num_rays_left, fray.power * m_Settings_Forward_BouncePower, 0);
 		} // in opposite directions
 //		else
 //		{ // if normal in same direction as ray
-//			RayBank_EndRay(fray);
-//			return false;
+//			fray.num_rays_left = 0;
 //		}
 	} // if there are bounces left
 

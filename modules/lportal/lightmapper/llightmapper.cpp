@@ -592,7 +592,7 @@ void LightMapper::ProcessLight(int light_id)
 		}
 		//r.d.normalize();
 
-		RayBank_RequestNewRay(r, m_Settings_Forward_NumBounces, power, 0);
+		RayBank_RequestNewRay(r, m_Settings_Forward_NumBounces + 1, power, 0);
 
 //		ProcessRay(r, 0, power);
 	}

@@ -76,7 +76,7 @@ struct FRay
 	Ray ray;
 //	FHit hits[FRAY_MAX_HITS];
 //	int num_hits;
-	int num_bounces_left;
+	int num_rays_left;
 	float power;
 	FHit hit;
 };
