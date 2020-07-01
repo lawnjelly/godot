@@ -24,6 +24,9 @@ LightMapper_Base::LightMapper_Base()
 	m_Settings_Backward_RayPower = 0.01f;
 	m_Settings_Backward_BouncePower = 0.5f;
 
+	m_Settings_AO_Range = 24.0f;
+	m_Settings_AO_Samples = 64;
+
 	m_Settings_Mode = LMMODE_FORWARD;
 
 	m_Settings_TexWidth = 128;
@@ -99,9 +102,10 @@ void LightMapper_Base::FindLights_Recursive(const Node * pNode)
 void LightMapper_Base::PrepareImageMaps()
 {
 	m_Image_ID_p1.Blank();
+	m_Image_ID2_p1.Blank();
 
 	// rasterize each triangle in turn
-	m_Scene.RasterizeTriangleIDs(m_Image_ID_p1, m_Image_Barycentric);
+	m_Scene.RasterizeTriangleIDs(m_Image_ID_p1, m_Image_ID2_p1, m_Image_Barycentric);
 
 	/*
 	// go through each texel
@@ -160,6 +164,10 @@ void LightMapper_Base::Normalize()
 
 void LightMapper_Base::WriteOutputImage(Image &output_image)
 {
+	// for testing copy AO to L
+	m_Image_AO.CopyTo(m_Image_L);
+
+
 	Dilate<float> dilate;
 	dilate.DilateImage(m_Image_L, m_Image_ID_p1, 256);
 

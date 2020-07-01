@@ -7,7 +7,7 @@
 
 using namespace LM;
 
-void LightScene::ProcessVoxelHits(const Ray &ray, const PackedRay &pray, const Voxel &voxel, float &r_nearest_t, int &r_nearest_tri)
+void LightScene::ProcessVoxelHits(const Ray &ray, const PackedRay &pray, const Voxel &voxel, float &r_nearest_t, int &r_nearest_tri)//, int ignore_triangle_id_p1)
 {
 	//#define LLIGHTMAPPED_DEBUG_COMPARE_SIMD
 
@@ -22,16 +22,43 @@ void LightScene::ProcessVoxelHits(const Ray &ray, const PackedRay &pray, const V
 		// groups of 4
 		int quads = voxel.m_PackedTriangles.size();
 
+		// special case of ignore triangles being set
+//		int ignore_quad = -1;
+//		int ignore_quad_index;
+//		if (ignore_triangle_id_p1)
+//		{
+//			int test_tri_id = ignore_triangle_id_p1-1;
+
+//			for (int n=0; n<voxel.m_iNumTriangles; n++)
+//			{
+//				if (voxel.m_TriIDs[n] == test_tri_id)
+//				{
+//					// found
+//					ignore_quad = n / 4;
+//					ignore_quad_index = n % 4;
+//				}
+//			}
+//		}
 
 		for (int q=0; q<quads; q++)
 		{
 			// get pointers to 4 triangles
 			const PackedTriangles & ptris = voxel.m_PackedTriangles[q];
-			// compare with old
 
-			// test 4
-			//		int test[4];
-			int winner = pray.Intersect(ptris, r_nearest_t);
+			//  we need to deal with the special case of the ignore_triangle being set. This will normally only occur on the first voxel.
+			int winner;
+			// if there is no ignore triangle, or the quad is not the one with the ignore triangle, do the fast path
+//			if ((!ignore_triangle_id_p1) || (q != ignore_quad))
+//			{
+				winner = pray.Intersect(ptris, r_nearest_t);
+//			}
+//			else
+//			{
+//				// slow path
+//				PackedTriangles pcopy = ptris;
+//				pcopy.MakeInactive(ignore_quad_index);
+//				winner = pray.Intersect(pcopy, r_nearest_t);
+//			}
 
 			if (winner != 0)
 			//if (pray.Intersect(ptris, r_nearest_t, winner))
@@ -230,7 +257,7 @@ void LightScene::ProcessVoxelHits_Old(const Ray &ray, const Voxel &voxel, float 
 }
 
 
-int LightScene::IntersectRay(const Ray &ray, float &u, float &v, float &w, float &nearest_t, int &num_tests)
+int LightScene::IntersectRay(const Ray &ray, float &u, float &v, float &w, float &nearest_t, const Vec3i * pVoxelRange, int &num_tests)//, int ignore_tri_p1)
 {
 	nearest_t = FLT_MAX;
 	int nearest_tri = -1;
@@ -244,6 +271,13 @@ int LightScene::IntersectRay(const Ray &ray, float &u, float &v, float &w, float
 
 	bool bFirstHit = false;
 	Vec3i ptVoxelFirstHit;
+
+	// if we have specified a (optional) maximum range for the trace in voxels
+	Vec3i ptVoxelStart;
+	if (pVoxelRange)
+	{
+		ptVoxelStart = ptVoxel;
+	}
 
 	// create the packed ray as a once off and reuse it for each voxel
 	PackedRay pray;
@@ -271,6 +305,19 @@ int LightScene::IntersectRay(const Ray &ray, float &u, float &v, float &w, float
 			{
 				bFirstHit = true;
 				ptVoxelFirstHit = ptVoxelBefore;
+			}
+			else
+			{
+				// check for voxel range
+				if (pVoxelRange)
+				{
+					if (abs(ptVoxel.x - ptVoxelStart.x) > pVoxelRange->x)
+						break;
+					if (abs(ptVoxel.y - ptVoxelStart.y) > pVoxelRange->y)
+						break;
+					if (abs(ptVoxel.z - ptVoxelStart.z) > pVoxelRange->z)
+						break;
+				} // if voxel range
 			}
 		}
 		else
@@ -474,7 +521,7 @@ bool LightScene::Create(const MeshInstance &mi, int width, int height, const Vec
 	return true;
 }
 
-void LightScene::RasterizeTriangleIDs(LightImage<uint32_t> &im_p1, LightImage<Vector3> &im_bary)
+void LightScene::RasterizeTriangleIDs(LightImage<uint32_t> &im_p1, LightImage<uint32_t> &im2_p1, LightImage<Vector3> &im_bary)
 {
 	int width = im_p1.GetWidth();
 	int height = im_p1.GetHeight();
@@ -519,6 +566,9 @@ void LightScene::RasterizeTriangleIDs(LightImage<uint32_t> &im_p1, LightImage<Ve
 						{
 							print_line("overlap detected");
 						}
+
+						// store the overlapped ID in a second map
+						im2_p1.GetItem(x, y) = id_p1;
 					}
 
 					// save new id

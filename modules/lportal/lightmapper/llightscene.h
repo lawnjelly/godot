@@ -29,7 +29,7 @@ public:
 	bool Create(const MeshInstance &mi, int width, int height, const Vec3i &voxel_dims);
 	
 	// returns triangle ID (or -1) and barycentric coords
-	int IntersectRay(const Ray &r, float &u, float &v, float &w, float &nearest_t, int &num_tests);
+	int IntersectRay(const Ray &r, float &u, float &v, float &w, float &nearest_t, const Vec3i * pVoxelRange, int &num_tests);//, int ignore_tri_p1 = 0);
 	int IntersectRay_old(const Ray &ray, float &u, float &v, float &w, float &nearest_t) const;
 
 
@@ -40,13 +40,13 @@ public:
 	//int FindTriAtUV(float x, float y, float &u, float &v, float &w) const;
 
 	// setup
-	void RasterizeTriangleIDs(LightImage<uint32_t> &im_p1, LightImage<Vector3> &im_bary);
+	void RasterizeTriangleIDs(LightImage<uint32_t> &im_p1, LightImage<uint32_t> &im2_p1, LightImage<Vector3> &im_bary);
 	int GetNumTris() const {return m_UVTris.size();}
 
 private:
 	void Transform_Verts(const PoolVector<Vector3> &ptsLocal, PoolVector<Vector3> &ptsWorld, const Transform &tr) const;
 	void Transform_Norms(const PoolVector<Vector3> &normsLocal, PoolVector<Vector3> &normsWorld, const Transform &tr) const;
-	void ProcessVoxelHits(const Ray &ray, const PackedRay &pray, const Voxel &voxel, float &r_nearest_t, int &r_nearest_tri);
+	void ProcessVoxelHits(const Ray &ray, const PackedRay &pray, const Voxel &voxel, float &r_nearest_t, int &r_nearest_tri); // int ignore_triangle_id_p1);
 	void ProcessVoxelHits_Old(const Ray &ray, const Voxel &voxel, float &r_nearest_t, int &r_nearest_tri);
 
 	PoolVector<Vector3> m_ptPositions;
@@ -54,11 +54,13 @@ private:
 	PoolVector<Vector2> m_UVs;
 	PoolVector<int> m_Inds;
 
-	LVector<UVTri> m_UVTris;
 	LVector<Rect2> m_TriUVaabbs;
 	LVector<AABB> m_TriPos_aabbs;
 
+protected:
 public:
+	LVector<UVTri> m_UVTris;
+
 	LightTracer m_Tracer;
 
 	LVector<Tri> m_Tris;

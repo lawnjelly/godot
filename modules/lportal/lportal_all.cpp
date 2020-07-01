@@ -40,4 +40,5 @@
 #include "lightmapper/llightmapper_editor_plugin.cpp"
 #include "lightmapper/llighttests_simd.cpp"
 #include "lightmapper/lraybank.cpp"
+#include "lightmapper/lqmc.cpp"
 
