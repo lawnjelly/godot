@@ -44,6 +44,10 @@ struct PackedTriangles
 			inactiveMask.v[n] = 1.0f;
 		}
 	}
+	void MakeInactive(int which)
+	{
+		inactiveMask.v[which] = 1.0f;
+	}
 
 	void Set_e1(int which_tri, const Tri &tri) {for (int m=0; m<3; m++) {e1[m].v[which_tri] = tri.pos[0].coord[m];} }
 	void Set_e2(int which_tri, const Tri &tri) {for (int m=0; m<3; m++) {e2[m].v[which_tri] = tri.pos[1].coord[m];} }

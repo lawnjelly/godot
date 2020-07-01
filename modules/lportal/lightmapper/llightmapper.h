@@ -23,11 +23,15 @@ private:
 
 	void ProcessTexels();
 	void ProcessTexel(int tx, int ty);
-	void ProcessSubTexel(float fx, float fy);
 	float ProcessTexel_Light(int light_id, const Vector3 &ptDest, const Vector3 &ptNormal, uint32_t tri_ignore);
 
 	void ProcessTexels_Bounce();
 	float ProcessTexel_Bounce(int x, int y);
+
+	void ProcessAO();
+	void ProcessAO_Texel(int tx, int ty);
+	float CalculateAO(int tx, int ty, uint32_t tri0, uint32_t tri1_p1);
+//	float CalculateAO(const Vector3 &ptStart, const Vector3 &ptNormal, uint32_t tri0, uint32_t tri1_p1);
 
 	const int m_iRaysPerSection = 1024 * 1024 * 4; // 64
 	// 1024*1024 is 46 megs
