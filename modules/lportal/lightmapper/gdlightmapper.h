@@ -57,8 +57,14 @@ public:
 
 	void set_backward_bounce_power(float bounce_power);
 	float get_backward_bounce_power() const;
-////////////////////////////
+	////////////////////////////
 
+	void set_ao_range(float ao_range);
+	float get_ao_range() const;
+
+	void set_ao_num_samples(int ao_num_samples);
+	int get_ao_num_samples() const;
+	////////////////////////////
 
 	void set_tex_width(int width);
 	int get_tex_width() const;

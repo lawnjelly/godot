@@ -65,6 +65,11 @@ public:
 	void Reset();
 	void Create(const LightScene &scene, const Vec3i &voxel_dims);
 
+
+	// translate a real world distance into a number of voxels in each direction
+	// (this can be used to limit the distance in ray traces)
+	void GetDistanceInVoxels(float dist, Vec3i &ptVoxelDist) const;
+
 	bool RayTrace_Start(Ray ray, Ray &voxel_ray, Vec3i &start_voxel);
 	const Voxel * RayTrace(const Ray &ray_orig, Ray &ray_out, Vec3i &ptVoxel);
 	LVector<uint32_t> m_TriHits;

@@ -5,6 +5,7 @@
 #include "scene/3d/mesh_instance.h"
 #include "llightscene.h"
 #include "llightimage.h"
+#include "lqmc.h"
 
 namespace LM {
 
@@ -83,7 +84,13 @@ protected:
 	// for bounces
 	LightImage<float> m_Image_L_mirror;
 
+	// ambient occlusion
+	LightImage<float> m_Image_AO;
+
+	// just in case of overlapping triangles, for anti aliasing we will maintain 2 lists of triangles per pixel
 	LightImage<uint32_t> m_Image_ID_p1;
+	LightImage<uint32_t> m_Image_ID2_p1;
+
 	LightImage<Vector3> m_Image_Barycentric;
 
 	int m_iWidth;
@@ -92,6 +99,8 @@ protected:
 
 	LightScene m_Scene;
 	LVector<LLight> m_Lights;
+
+	QMC m_QMC;
 
 	// for stats
 	int m_iNumTests;
@@ -117,6 +126,8 @@ public:
 	float m_Settings_Backward_RayPower;
 	float m_Settings_Backward_BouncePower;
 
+	int m_Settings_AO_Samples;
+	float m_Settings_AO_Range;
 
 	eLMMode m_Settings_Mode;
 	Vec3i m_Settings_VoxelDims;
@@ -144,6 +155,7 @@ protected:
 		return 1.0f / area;
 	}
 };
+
 
 
 inline void LightMapper_Base::RandomUnitDir(Vector3 &dir) const

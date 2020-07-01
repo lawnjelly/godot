@@ -75,6 +75,16 @@ public:
 		return true;
 	}
 
+	void CopyTo(LightImage<T> &dest) const
+	{
+		assert (dest.GetNumPixels() == GetNumPixels());
+
+		for (unsigned int n=0; n<m_uiNumPixels; n++)
+		{
+			dest.m_Pixels[n] = m_Pixels[n];
+		}
+	}
+
 private:
 	uint32_t GetPixelNum(uint32_t x, uint32_t y) const
 	{
