@@ -268,21 +268,51 @@ float LightMapper::CalculateAO(int tx, int ty, uint32_t tri0, uint32_t tri1_p1)
 		st.x /= m_iWidth;
 		st.y /= m_iHeight;
 
+		// barycentric coords.
+		float u,v,w;
+
 		// find which triangle
 		uint32_t tri = tri0; // default
 		const UVTri * pUVTri = &m_Scene.m_UVTris[tri0];
-		if (tri1_p1)
+		pUVTri->FindBarycentricCoords(st, u, v, w);
+
+		// not in first, try second
+		if (!BarycentricInside(u, v, w))
 		{
-			if (!pUVTri->ContainsPoint(st))
+			bool bInside = false;
+
+			// try other tri
+			if (tri1_p1)
 			{
-				// assume it is in the other tri
 				tri = tri1_p1 - 1;
 				pUVTri = &m_Scene.m_UVTris[tri];
+				pUVTri->FindBarycentricCoords(st, u, v, w);
+
+				if (BarycentricInside(u, v, w))
+				{
+					bInside = true;
+				}
+			}
+
+			if (!bInside)
+			{
+				// try another sample
+				n--;
+				continue;
 			}
 		}
-		// barycentric coords.
-		float u,v,w;
-		pUVTri->FindBarycentricCoords(st, u, v, w);
+
+//		if (tri1_p1)
+//		{
+//			if (!pUVTri->ContainsPoint(st))
+//			{
+//				// assume it is in the other tri
+//				tri = tri1_p1 - 1;
+//				pUVTri = &m_Scene.m_UVTris[tri];
+//			}
+//		}
+
+
 
 		// calculate world position ray origin from barycentric
 		m_Scene.m_Tris[tri].InterpolateBarycentric(r.o, u, v, w);

@@ -115,6 +115,16 @@ public:
 	}
 };
 
+bool BarycentricInside(float u, float v, float w)
+{
+	if ((u < 0.0f) || (u > 1.0f) ||
+	(v < 0.0f) || (v > 1.0f) ||
+	(w < 0.0f) || (w > 1.0f))
+		return false;
+
+	return true;
+}
+
 
 inline bool UVTri::ContainsPoint(const Vector2 &pt, float epsilon) const
 {
