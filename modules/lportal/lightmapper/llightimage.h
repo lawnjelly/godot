@@ -8,13 +8,14 @@ namespace LM
 template <class T> class LightImage
 {
 public:
-	void Create(uint32_t width, uint32_t height)
+	void Create(uint32_t width, uint32_t height, bool blank = true)
 	{
 		m_uiWidth = width;
 		m_uiHeight = height;
 		m_uiNumPixels = width * height;
 		m_Pixels.resize(m_uiNumPixels);
-		Blank();
+		if (blank)
+			Blank();
 	}
 
 	T * Get(uint32_t p)

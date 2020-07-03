@@ -5,6 +5,12 @@
 namespace LM
 {
 
+struct MiniList
+{
+	uint32_t first;
+	uint32_t num;
+};
+
 
 class Vec3i
 {
@@ -36,6 +42,7 @@ public:
 
 	void FlipWinding() {Vector3 temp = pos[0]; pos[0] = pos[2]; pos[2] = temp;}
 	void FindBarycentric(const Vector3 &pt, float &u, float &v, float &w) const;
+	void InterpolateBarycentric(Vector3 &pt, const Vector3 &bary) const {InterpolateBarycentric(pt, bary.x, bary.y, bary.z);}
 	void InterpolateBarycentric(Vector3 &pt, float u, float v, float w) const;
 	void FindNormal(Vector3 &norm, float u, float v, float w) const
 	{
@@ -104,8 +111,11 @@ public:
 	Vector2 uv[3];
 
 	void FlipWinding() {Vector2 temp = uv[0]; uv[0] = uv[2]; uv[2] = temp;}
+	void FindUVBarycentric(Vector2 &res, const Vector3 &bary) const {FindUVBarycentric(res, bary.x, bary.y, bary.z);}
 	void FindUVBarycentric(Vector2 &res, float u, float v, float w) const;
 	bool ContainsPoint(const Vector2 &pt, float epsilon = 0.0f) const;
+	bool ContainsTexel(int tx, int ty, int width, int height) const;
+
 	void FindBarycentricCoords(const Vector2 &pt, float &u, float &v, float &w) const;
 	bool IsWindingCW() const {return CalculateTwiceArea() < 0.0f;}
 	float CalculateTwiceArea() const
@@ -125,6 +135,33 @@ bool BarycentricInside(float u, float v, float w)
 	return true;
 }
 
+// somewhat more complicated test to try and get all the tris that hit any part of the texel.
+// really this should be a box / tri test.
+inline bool UVTri::ContainsTexel(int tx, int ty, int width, int height) const
+{
+	float unit_x = 1.0f / width;
+	float unit_y = 1.0f / height;
+	float fx = tx * unit_x;
+	float fy = ty * unit_y;
+	float half_x = unit_x * 0.5f;
+	float half_y = unit_y * 0.5f;
+
+	// centre first as most likely
+	if (ContainsPoint(Vector2(fx + half_x, fy + half_y)))
+		return true;
+
+	// 4 corners
+	if (ContainsPoint(Vector2(fx, fy)))
+		return true;
+	if (ContainsPoint(Vector2(fx + unit_x, fy + unit_y)))
+		return true;
+	if (ContainsPoint(Vector2(fx + unit_x, fy)))
+		return true;
+	if (ContainsPoint(Vector2(fx, fy + unit_y)))
+		return true;
+
+	return false;
+}
 
 inline bool UVTri::ContainsPoint(const Vector2 &pt, float epsilon) const
 {
