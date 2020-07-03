@@ -63,6 +63,9 @@ bool xatlas_mesh_lightmap_unwrap_callback(float p_texel_size, const float *p_ver
 	pack_options.blockAlign = true;
 	pack_options.texelsPerUnit = 1.0 / p_texel_size;
 
+	// lawnjelly override
+	pack_options.padding = 4;
+
 	xatlas::Atlas *atlas = xatlas::Create();
 
 	xatlas::AddMeshError err = xatlas::AddMesh(atlas, input_mesh, 1);
