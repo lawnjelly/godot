@@ -425,6 +425,7 @@ float LightMapper::CalculateAO(int tx, int ty)//, uint32_t tri0, uint32_t tri1_p
 
 	// each ray
 	int nSamplesCounted = 0;
+//	int nAttempts = nSamples * 10;
 	for (int n=0; n<nSamples; n++)
 	{
 
@@ -476,6 +477,8 @@ float LightMapper::CalculateAO(int tx, int ty)//, uint32_t tri0, uint32_t tri1_p
 		// try another sample
 		if (!bInside)
 		{
+			// if not inside any, just use the nearest. ?
+
 			//n--;
 			continue;
 		}
@@ -591,10 +594,17 @@ float LightMapper::CalculateAO(int tx, int ty)//, uint32_t tri0, uint32_t tri1_p
 
 	fTotal /= range;
 
-	if (nSamplesCounted)
+	if (nSamplesCounted > (nSamples / 2))
 		fTotal = (float) nHits / nSamplesCounted;
 	else
 	{
+		// none counted, mark this texel as not hit, and allow dilation to cover it.
+		// basically this texel is right on the edge, and random samples within the texel weren't enough to hit
+		// the uv triangle. We don't want to sample outside the triangle, because the position will be outside,
+		// and we could get artifacts. So either we clamp samples to the uvtriangle, or we dilate.
+
+		// we are banditing the p1, but temporary, this should be changed so as not to interfere with the lightmapping
+		m_Image_ID_p1.GetItem(tx, ty) = 0;
 		//print_line("none_counted");
 	}
 

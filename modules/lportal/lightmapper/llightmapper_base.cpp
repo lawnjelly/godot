@@ -208,7 +208,7 @@ void LightMapper_Base::WriteOutputImage(Image &output_image)
 
 
 	Dilate<float> dilate;
-//	dilate.DilateImage(m_Image_L, m_Image_ID_p1, 256);
+	dilate.DilateImage(m_Image_L, m_Image_ID_p1, 256);
 
 	// test
 //	int test_size = 7;
