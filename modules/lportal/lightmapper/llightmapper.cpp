@@ -12,20 +12,20 @@ bool LightMapper::lightmap_mesh(MeshInstance * pMI, Spatial * pLR, Image * pIm)
 	m_iHeight = pIm->get_height();
 	m_iNumRays = m_Settings_Forward_NumRays;
 
-	int nTexels = m_iWidth * m_iHeight;
-	int progress_range = m_iHeight;
+//	int nTexels = m_iWidth * m_iHeight;
+//	int progress_range = m_iHeight;
 
 	// set num rays depending on method
-	if (m_Settings_Mode == LMMODE_FORWARD)
-	{
-		// the num rays / texel. This is per light!
-		m_iNumRays *= nTexels;
-		progress_range = m_iNumRays / m_iRaysPerSection;
-	}
+//	if (m_Settings_Mode == LMMODE_FORWARD)
+//	{
+//		// the num rays / texel. This is per light!
+//		m_iNumRays *= nTexels;
+//		progress_range = m_iNumRays / m_iRaysPerSection;
+//	}
 
-	if (bake_begin_function) {
-		bake_begin_function(progress_range);
-	}
+//	if (bake_begin_function) {
+//		bake_begin_function(progress_range);
+//	}
 
 	// do twice to test SIMD
 	uint32_t beforeA = OS::get_singleton()->get_ticks_msec();
@@ -43,9 +43,9 @@ bool LightMapper::lightmap_mesh(MeshInstance * pMI, Spatial * pLR, Image * pIm)
 	print_line("SIMD version took : " + itos(afterA - beforeA));
 	print_line("reference version took : " + itos(afterB- beforeB));
 
-	if (bake_end_function) {
-		bake_end_function();
-	}
+//	if (bake_end_function) {
+//		bake_end_function();
+//	}
 	return res;
 }
 
@@ -83,7 +83,14 @@ bool LightMapper::LightmapMesh(const MeshInstance &mi, const Spatial &light_root
 
 	m_Image_ID_p1.Create(m_iWidth, m_iHeight);
 	m_Image_ID2_p1.Create(m_iWidth, m_iHeight);
+
+	m_Image_TriIDs.Create(m_iWidth, m_iHeight);
+	m_TriIDs.clear(true);
+
 	m_Image_Barycentric.Create(m_iWidth, m_iHeight);
+
+	m_Image_Cuts.Create(m_iWidth, m_iHeight);
+	m_CuttingTris.clear(true);
 
 	print_line("Scene Create");
 	before = OS::get_singleton()->get_ticks_msec();
@@ -182,28 +189,181 @@ void LightMapper::ProcessTexels_Bounce()
 }
 
 
+void LightMapper::ProcessAO_Triangle(int tri_id)
+{
+//	int width = m_iWidth;
+//	int height = m_iHeight;
+
+//	const Rect2 &aabb = m_Scene.m_TriUVaabbs[tri_id];
+	const UVTri &tri = m_Scene.m_UVTris[tri_id];
+
+//	int min_x = aabb.position.x * width;
+//	int min_y = aabb.position.y * height;
+//	int max_x = (aabb.position.x + aabb.size.x) * width;
+//	int max_y = (aabb.position.y + aabb.size.y) * height;
+
+//	// add a bit for luck
+//	min_x--; min_y--; max_x++; max_y++;
+
+//	// clamp
+//	min_x = CLAMP(min_x, 0, width);
+//	min_y = CLAMP(min_y, 0, height);
+//	max_x = CLAMP(max_x, 0, width);
+//	max_y = CLAMP(max_y, 0, height);
+
+	// calculate the area of the triangle
+	float area = fabsf(tri.CalculateTwiceArea());
+
+	int nSamples = area * 1000000.0f * m_Settings_AO_Samples;
+	Vector3 bary;
+
+	for (int n=0; n<nSamples; n++)
+	{
+		RandomBarycentric(bary);
+		ProcessAO_Sample(bary, tri_id, tri);
+	}
+}
+
+void LightMapper::ProcessAO_Sample(const Vector3 &bary, int tri_id, const UVTri &uvtri)
+{
+	float range = m_Settings_AO_Range;
+
+	// get the texel (this may need adjustment)
+	Vector2 uv;
+	uvtri.FindUVBarycentric(uv, bary);
+	int tx = uv.x * m_iWidth;
+	int ty = uv.y * m_iHeight;
+
+	// outside? (should not happen, but just in case)
+	if (!m_Image_L.IsWithin(tx, ty))
+		return;
+
+	// find position
+	const Tri &tri_pos = m_Scene.m_Tris[tri_id];
+	Vector3 pos;
+	tri_pos.InterpolateBarycentric(pos, bary);
+
+	// find normal
+	const Tri &tri_norm = m_Scene.m_TriNormals[tri_id];
+	Vector3 norm;
+	tri_norm.InterpolateBarycentric(norm, bary);
+	norm.normalize();
+
+	Vector3 push = norm * 0.005f;
+
+	Ray r;
+	r.o = pos + push;
+//	r.d = norm;
+
+	//////
+
+			RandomUnitDir(r.d);
+	//		m_QMC.QMCRandomUnitDir(r.d, n);
+			//m_QMC.QMCRandomUnitDir(r.d, nSamplesCounted-1);
+
+			// clip?
+			float dot = r.d.dot(norm);
+			if (dot < 0.0f)
+			{
+				// make dot always positive for calculations as to the weight given to this hit
+				//dot = -dot;
+				r.d = -r.d;
+			}
+
+			// prevent parallel lines
+			r.d += push;
+		//	r.d = ptNormal;
+
+			// collision detect
+			r.d.normalize();
+
+	/////
+
+
+
+	float t, u, v, w;
+	m_Scene.m_Tracer.m_bUseSDF = true;
+	int tri_hit = m_Scene.IntersectRay(r, u, v, w, t, &m_Scene.m_VoxelRange, m_iNumTests);
+
+	if (tri_hit != -1)
+	{
+		// scale the occlusion by distance t
+		t = range - t;
+		if (t > 0.0f)
+		{
+			//t *= dot;
+
+//				t /= range;
+
+			//fTotal += t;
+//			if (t > fTotal)
+//				fTotal = t;
+
+//			nHits++;
+
+			float * pfTexel = m_Image_AO.Get(tx, ty);
+			*pfTexel += 1.0f / 64.0f;
+		}
+	}
+}
+
 void LightMapper::ProcessAO()
 {
+	if (bake_begin_function) {
+		bake_begin_function(m_iHeight);
+	}
+
+
+	// find the max range in voxels. This can be used to speed up the ray trace
+	const float range = m_Settings_AO_Range;
+	m_Scene.m_Tracer.GetDistanceInVoxels(range, m_Scene.m_VoxelRange);
+
+//	for (int t=0; t<m_Scene.m_Tris.size(); t++)
+//	{
+//		ProcessAO_Triangle(t);
+//	}
+
+//	Normalize_AO();
+
 	for (int y=0; y<m_iHeight; y++)
 	{
-//		if ((y % 10) == 0)
-//		{
-//			if (bake_step_function) {
-//				m_bCancel = bake_step_function(y, String("Process Texels: ") + " (" + itos(y) + ")");
-//				if (m_bCancel)
-//					return;
-//			}
-//		}
+		if ((y % 10) == 0)
+		{
+			if (bake_step_function) {
+				m_bCancel = bake_step_function(y, String("Process Texels: ") + " (" + itos(y) + ")");
+				if (m_bCancel)
+					return;
+			}
+		}
 
 		for (int x=0; x<m_iWidth; x++)
 		{
 			ProcessAO_Texel(x, y);
 		}
 	}
+
+
+	if (bake_end_function) {
+		bake_end_function();
+	}
 }
 
 void LightMapper::ProcessTexels()
 {
+	// set num rays depending on method
+//	if (m_Settings_Mode == LMMODE_FORWARD)
+//	{
+//		// the num rays / texel. This is per light!
+//		m_iNumRays *= nTexels;
+//		progress_range = m_iNumRays / m_iRaysPerSection;
+//	}
+
+	if (bake_begin_function) {
+		int progress_range = m_iHeight;
+		bake_begin_function(progress_range);
+	}
+
+
 	m_iNumTests = 0;
 
 	for (int y=0; y<m_iHeight; y++)
@@ -226,6 +386,8 @@ void LightMapper::ProcessTexels()
 		}
 	}
 
+
+
 //	m_iNumTests /= (m_iHeight * m_iWidth);
 	print_line("num tests : " + itos(m_iNumTests));
 
@@ -233,36 +395,53 @@ void LightMapper::ProcessTexels()
 	{
 		ProcessTexels_Bounce();
 	}
+
+	if (bake_end_function) {
+		bake_end_function();
+	}
 }
 
 
-float LightMapper::CalculateAO(int tx, int ty, uint32_t tri0, uint32_t tri1_p1)
+float LightMapper::CalculateAO(int tx, int ty)//, uint32_t tri0, uint32_t tri1_p1)
 {
-//	Vector3 push = ptNormal * 0.005f;
-
 	Ray r;
-//	r.o = ptStart + push;
-
 	int nSamples = m_Settings_AO_Samples;
 
 	// total occlusion
-	float fTotal = 0.0f;
+	float fTotal = 1.0f;
 
 	const float range = m_Settings_AO_Range;
 
 	// find the max range in voxels. This can be used to speed up the ray trace
-	Vec3i voxel_range;
-	m_Scene.m_Tracer.GetDistanceInVoxels(range, voxel_range);
+	Vec3i voxel_range = m_Scene.m_VoxelRange;
+//	m_Scene.m_Tracer.GetDistanceInVoxels(range, voxel_range);
+
+	// preget the minilist of all triangles affecting this texel
+	const MiniList &ml = m_Image_TriIDs.GetItem(tx, ty);
+	if (!ml.num)
+		return 0.0f; // nothing to do, no tris on this texel
 
 	int nHits = 0;
+
 	// each ray
+	int nSamplesCounted = 0;
 	for (int n=0; n<nSamples; n++)
 	{
+
 		// anti aliasing.
 		// 1 pick a float position within the texel
 		Vector2 st;
-		st.x = Math::randf() + tx;
-		st.y = Math::randf() + ty;
+		if (n)
+		{
+			st.x = Math::randf() + tx;
+			st.y = Math::randf() + ty;
+		}
+		else
+		{
+			// fix first to centre of texel
+			st.x = 0.5f + tx;
+			st.y = 0.5f + ty;
+		}
 
 		// has to be ranged 0 to 1
 		st.x /= m_iWidth;
@@ -271,6 +450,38 @@ float LightMapper::CalculateAO(int tx, int ty, uint32_t tri0, uint32_t tri1_p1)
 		// barycentric coords.
 		float u,v,w;
 
+		// new minilist
+		uint32_t tri_id;
+		const UVTri * pUVTri;
+		bool bInside = false;
+
+		for (uint32_t i=0; i<ml.num; i++)
+		{
+			tri_id = m_TriIDs[ml.first + i];
+			pUVTri = &m_Scene.m_UVTris[tri_id];
+
+			// only allow 1 tri
+//			if (tri_id != 0)
+//				continue;
+
+			// within?
+			pUVTri->FindBarycentricCoords(st, u, v, w);
+			if (BarycentricInside(u, v, w))
+			{
+				bInside = true;
+				break;
+			}
+		}
+
+		// try another sample
+		if (!bInside)
+		{
+			//n--;
+			continue;
+		}
+		nSamplesCounted++;
+
+/*
 		// find which triangle
 		uint32_t tri = tri0; // default
 		const UVTri * pUVTri = &m_Scene.m_UVTris[tri0];
@@ -301,6 +512,7 @@ float LightMapper::CalculateAO(int tx, int ty, uint32_t tri0, uint32_t tri1_p1)
 				continue;
 			}
 		}
+		*/
 
 //		if (tri1_p1)
 //		{
@@ -315,18 +527,19 @@ float LightMapper::CalculateAO(int tx, int ty, uint32_t tri0, uint32_t tri1_p1)
 
 
 		// calculate world position ray origin from barycentric
-		m_Scene.m_Tris[tri].InterpolateBarycentric(r.o, u, v, w);
+		m_Scene.m_Tris[tri_id].InterpolateBarycentric(r.o, u, v, w);
 
 		Vector3 ptNormal;
-		m_Scene.m_TriNormals[tri].InterpolateBarycentric(ptNormal, u, v, w);
+		m_Scene.m_TriNormals[tri_id].InterpolateBarycentric(ptNormal, u, v, w);
 
 		Vector3 push = ptNormal * 0.005f;
 
 		// push ray origin
 		r.o += push;
 
-		//RandomUnitDir(r.d);
+//		RandomUnitDir(r.d);
 		m_QMC.QMCRandomUnitDir(r.d, n);
+		//m_QMC.QMCRandomUnitDir(r.d, nSamplesCounted-1);
 
 		// clip?
 		float dot = r.d.dot(ptNormal);
@@ -339,7 +552,7 @@ float LightMapper::CalculateAO(int tx, int ty, uint32_t tri0, uint32_t tri1_p1)
 
 		// prevent parallel lines
 		r.d += push;
-//		r.d = ptNormal;
+	//	r.d = ptNormal;
 
 		// collision detect
 		r.d.normalize();
@@ -350,22 +563,8 @@ float LightMapper::CalculateAO(int tx, int ty, uint32_t tri0, uint32_t tri1_p1)
 		int tri_hit = m_Scene.IntersectRay(r, u, v, w, t, &voxel_range, m_iNumTests);
 
 		// nothing hit
-//		if ((tri == -1) || (tri == (int) tri_ignore))
 		if (tri_hit == -1)
 		{
-//			// for backward tracing, first pass, this is a special case, because we DO
-//			// take account of distance to the light, and normal, in order to simulate the effects
-//			// of the likelihood of 'catching' a ray. In forward tracing this happens by magic.
-//			float dist = (r.o - ptDest).length();
-//			float local_power = power * InverseSquareDropoff(dist);
-
-//			// take into account normal
-//			float dot = r.d.dot(ptNormal);
-//			dot = fabs(dot);
-
-//			local_power *= dot;
-
-//			fTotal += local_power;
 		}
 		else
 		{
@@ -392,7 +591,15 @@ float LightMapper::CalculateAO(int tx, int ty, uint32_t tri0, uint32_t tri1_p1)
 
 	fTotal /= range;
 
-	fTotal = (float) nHits / nSamples;
+	if (nSamplesCounted)
+		fTotal = (float) nHits / nSamplesCounted;
+	else
+	{
+		//print_line("none_counted");
+	}
+
+//	fTotal = (float) nHits / nSamples;
+
 
 	// save in the texel
 	// should be scaled between 0 and 1
@@ -685,22 +892,22 @@ float LightMapper::ProcessTexel_Bounce(int x, int y)
 void LightMapper::ProcessAO_Texel(int tx, int ty)
 {
 	// find triangle
-	uint32_t tri = *m_Image_ID_p1.Get(tx, ty);
-	if (!tri)
-		return;
-	tri--; // plus one based
+//	uint32_t tri = *m_Image_ID_p1.Get(tx, ty);
+//	if (!tri)
+//		return;
+//	tri--; // plus one based
 
 	// may be more than 1 triangle on this texel
-	uint32_t tri2 = *m_Image_ID2_p1.Get(tx, ty);
+//	uint32_t tri2 = *m_Image_ID2_p1.Get(tx, ty);
 
 	// barycentric
-	const Vector3 &bary = *m_Image_Barycentric.Get(tx, ty);
+//	const Vector3 &bary = *m_Image_Barycentric.Get(tx, ty);
 
-	Vector3 pos;
-	m_Scene.m_Tris[tri].InterpolateBarycentric(pos, bary.x, bary.y, bary.z);
+//	Vector3 pos;
+//	m_Scene.m_Tris[tri].InterpolateBarycentric(pos, bary.x, bary.y, bary.z);
 
-	Vector3 normal;
-	m_Scene.m_TriNormals[tri].InterpolateBarycentric(normal, bary.x, bary.y, bary.z);
+//	Vector3 normal;
+//	m_Scene.m_TriNormals[tri].InterpolateBarycentric(normal, bary.x, bary.y, bary.z);
 
 	// could be off the image
 	float * pfTexel = m_Image_AO.Get(tx, ty);
@@ -709,7 +916,8 @@ void LightMapper::ProcessAO_Texel(int tx, int ty)
 #endif
 
 //	float power = CalculateAO(pos, normal, tri, tri2);
-	float power = CalculateAO(tx, ty, tri, tri2);
+//	float power = CalculateAO(tx, ty, tri, tri2);
+	float power = CalculateAO(tx, ty);
 	*pfTexel = power;
 }
 
@@ -858,6 +1066,11 @@ void LightMapper::ProcessLights()
 
 	int num_sections = m_iNumRays / m_iRaysPerSection;
 
+	if (bake_begin_function) {
+		bake_begin_function(num_sections);
+	}
+
+
 	for (int n=0; n<m_Lights.size(); n++)
 	{
 		for (int s=0; s<num_sections; s++)
@@ -900,6 +1113,10 @@ void LightMapper::ProcessLights()
 		}
 
 	} // for light
+
+	if (bake_end_function) {
+		bake_end_function();
+	}
 
 }
 

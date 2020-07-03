@@ -6,8 +6,12 @@
 #include "llightimage.h"
 #include "scene/3d/mesh_instance.h"
 
+
+
 namespace LM
 {
+
+class LightMapper_Base;
 
 class LightScene
 {
@@ -40,10 +44,12 @@ public:
 	//int FindTriAtUV(float x, float y, float &u, float &v, float &w) const;
 
 	// setup
-	void RasterizeTriangleIDs(LightImage<uint32_t> &im_p1, LightImage<uint32_t> &im2_p1, LightImage<Vector3> &im_bary);
+	void RasterizeTriangleIDs(LightMapper_Base &base, LightImage<uint32_t> &im_p1, LightImage<uint32_t> &im2_p1, LightImage<Vector3> &im_bary);
 	int GetNumTris() const {return m_UVTris.size();}
 
 private:
+	void FindCuts(LightMapper_Base &base);
+
 	void Transform_Verts(const PoolVector<Vector3> &ptsLocal, PoolVector<Vector3> &ptsWorld, const Transform &tr) const;
 	void Transform_Norms(const PoolVector<Vector3> &normsLocal, PoolVector<Vector3> &normsWorld, const Transform &tr) const;
 	void ProcessVoxelHits(const Ray &ray, const PackedRay &pray, const Voxel &voxel, float &r_nearest_t, int &r_nearest_tri); // int ignore_triangle_id_p1);
@@ -69,6 +75,8 @@ public:
 	// we maintain a list of tris in the form of 2 edges plus a point. These
 	// are precalculated as they are used in the intersection test.
 	LVector<Tri> m_Tris_EdgeForm;
+
+	Vec3i m_VoxelRange;
 
 	bool m_bUseSIMD;
 };

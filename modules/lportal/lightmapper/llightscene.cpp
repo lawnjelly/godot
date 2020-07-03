@@ -1,6 +1,8 @@
 #include "llightscene.h"
 #include "scene/3d/mesh_instance.h"
 #include "llighttests_simd.h"
+#include "llightmapper_base.h"
+#include "llighttypes.h"
 
 
 //#define LLIGHTSCENE_VERBOSE
@@ -521,10 +523,15 @@ bool LightScene::Create(const MeshInstance &mi, int width, int height, const Vec
 	return true;
 }
 
-void LightScene::RasterizeTriangleIDs(LightImage<uint32_t> &im_p1, LightImage<uint32_t> &im2_p1, LightImage<Vector3> &im_bary)
+void LightScene::RasterizeTriangleIDs(LightMapper_Base &base, LightImage<uint32_t> &im_p1, LightImage<uint32_t> &im2_p1, LightImage<Vector3> &im_bary)
 {
 	int width = im_p1.GetWidth();
 	int height = im_p1.GetHeight();
+
+	// create a temporary image of vectors to store the triangles per texel
+	LightImage<Vector<uint32_t> > temp_image_tris;
+	temp_image_tris.Create(width, height, false);
+
 
 	for (int n=0; n<m_UVTris.size(); n++)
 	{
@@ -554,8 +561,16 @@ void LightScene::RasterizeTriangleIDs(LightImage<uint32_t> &im_p1, LightImage<ui
 				float s = (x + 0.5f) / (float) width;
 				float t = (y + 0.5f) / (float) height;
 
-				if (tri.ContainsPoint(Vector2(s, t)))
+//				if ((x == 26) && (y == 25))
+//				{
+//					print_line("testing");
+//				}
+
+				//if (tri.ContainsPoint(Vector2(s, t)))
+				if (tri.ContainsTexel(x, y, width , height))
 				{
+					temp_image_tris.GetItem(x, y).push_back(n);
+
 					uint32_t &id_p1 = im_p1.GetItem(x, y);
 
 					// hopefully this was 0 before
@@ -584,7 +599,44 @@ void LightScene::RasterizeTriangleIDs(LightImage<uint32_t> &im_p1, LightImage<ui
 			} // for x
 		} // for y
 	} // for tri
+
+
+	// translate temporary image vectors into mini lists
+	for (int y=0; y<height; y++)
+	{
+		for (int x=0; x<width; x++)
+		{
+				MiniList &ml = base.m_Image_TriIDs.GetItem(x, y);
+				ml.first = base.m_TriIDs.size();
+
+				const Vector<uint32_t> &vec = temp_image_tris.GetItem(x, y);
+
+				for (int n=0; n<vec.size(); n++)
+				{
+					base.m_TriIDs.push_back(vec[n]);
+					ml.num += 1;
+				}
+
+//				if (!ml.num)
+//				{
+//					ml.first = base.m_TriIDs.size();
+//				}
+//				BUG IS THESE ARE NOT CONTIGUOUS
+//				ml.num += 1;
+//				base.m_TriIDs.push_back(n);
+		} // for x
+	} // for y
+
+
+	FindCuts(base);
 }
+
+
+void LightScene::FindCuts(LightMapper_Base &base)
+{
+	// go through for each texel, and find cutting tris
+}
+
 
 /*
 int LightScene::FindTriAtUV(float x, float y, float &u, float &v, float &w) const

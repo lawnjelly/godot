@@ -11,7 +11,8 @@ namespace LM {
 
 class LightMapper_Base
 {
-//	friend class ::LLightMapper_Base;
+	friend class LightScene;
+
 protected:
 	class LLight
 	{
@@ -49,33 +50,17 @@ public:
 	static BakeStepFunc bake_step_function;
 	static BakeEndFunc bake_end_function;
 
-	// main function called from the godot class
-//	bool lightmap_mesh(MeshInstance * pMI, Spatial * pLR, Image * pIm);
-
-//private:
-//	bool LightmapMesh(const MeshInstance &mi, const Spatial &light_root, Image &output_image);
-//	void Reset();
-
 protected:
 	void FindLights_Recursive(const Node * pNode);
 	void FindLight(const Node * pNode);
 
-//	void ProcessLight(int light_id);
 	void PrepareImageMaps();
-//	void ProcessRay(LM::Ray r, int depth, float power, int dest_tri_id = 0, const Vector2i * pUV = 0);
-
-
-//	void ProcessTexels();
-//	void ProcessTexel(int tx, int ty);
-//	void ProcessSubTexel(float fx, float fy);
-//	float ProcessTexel_Light(int light_id, const Vector3 &ptDest, const Vector3 &ptNormal, uint32_t tri_ignore);
-
-//	void ProcessTexels_Bounce();
-//	float ProcessTexel_Bounce(int x, int y);
 	void Normalize();
+	void Normalize_AO();
 
 	void WriteOutputImage(Image &output_image);
 	void RandomUnitDir(Vector3 &dir) const;
+	void RandomBarycentric(Vector3 &bary) const;
 
 protected:
 	// luminosity
@@ -91,7 +76,15 @@ protected:
 	LightImage<uint32_t> m_Image_ID_p1;
 	LightImage<uint32_t> m_Image_ID2_p1;
 
+	// store multiple triangles per texel
+	LightImage<MiniList> m_Image_TriIDs;
+	LVector<uint32_t> m_TriIDs;
+
 	LightImage<Vector3> m_Image_Barycentric;
+
+	// triangles that cut texels (prevent shadow leaks)
+	LightImage<MiniList> m_Image_Cuts;
+	LVector<uint32_t> m_CuttingTris;
 
 	int m_iWidth;
 	int m_iHeight;
@@ -156,6 +149,16 @@ protected:
 	}
 };
 
+inline void LightMapper_Base::RandomBarycentric(Vector3 &bary) const
+{
+	float r1 = Math::randf();
+	float r2 = Math::randf();
+	float sqrt_r1 = sqrtf(r1);
+
+	bary.x = 1.0f - sqrt_r1;
+	bary.y = r2 * sqrt_r1;
+	bary.z = 1.0f - bary.x - bary.y;
+}
 
 
 inline void LightMapper_Base::RandomUnitDir(Vector3 &dir) const

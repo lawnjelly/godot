@@ -105,7 +105,7 @@ void LightMapper_Base::PrepareImageMaps()
 	m_Image_ID2_p1.Blank();
 
 	// rasterize each triangle in turn
-	m_Scene.RasterizeTriangleIDs(m_Image_ID_p1, m_Image_ID2_p1, m_Image_Barycentric);
+	m_Scene.RasterizeTriangleIDs(*this, m_Image_ID_p1, m_Image_ID2_p1, m_Image_Barycentric);
 
 	/*
 	// go through each texel
@@ -124,6 +124,45 @@ void LightMapper_Base::PrepareImageMaps()
 		}
 	}
 	*/
+}
+
+void LightMapper_Base::Normalize_AO()
+{
+	int nPixels = m_Image_AO.GetNumPixels();
+	float fmax = 0.0f;
+
+	// first find the max
+	for (int n=0; n<nPixels; n++)
+	{
+		float f = *m_Image_AO.Get(n);
+		if (f > fmax)
+			fmax = f;
+	}
+
+	if (fmax < 0.001f)
+	{
+		WARN_PRINT_ONCE("LightMapper_Base::Normalize_AO : values too small to normalize");
+		return;
+	}
+
+	// multiplier to normal is 1.0f / fmax
+	float mult = 1.0f / fmax;
+
+	// apply bias
+	//mult *= m_Settings_NormalizeBias;
+
+	// apply multiplier
+	for (int n=0; n<nPixels; n++)
+	{
+		float &f = *m_Image_AO.Get(n);
+		f *= mult;
+
+		// negate AO
+		f = 1.0f - f;
+		if (f < 0.0f)
+			f = 0.0f;
+	}
+
 }
 
 void LightMapper_Base::Normalize()
@@ -169,7 +208,7 @@ void LightMapper_Base::WriteOutputImage(Image &output_image)
 
 
 	Dilate<float> dilate;
-	dilate.DilateImage(m_Image_L, m_Image_ID_p1, 256);
+//	dilate.DilateImage(m_Image_L, m_Image_ID_p1, 256);
 
 	// test
 //	int test_size = 7;
