@@ -10,7 +10,7 @@ class QMC
 {
 	enum
 	{
-		NUM_VARIATIONS = 64
+		NUM_VARIATIONS = 1024
 	};
 
 	struct Sample
