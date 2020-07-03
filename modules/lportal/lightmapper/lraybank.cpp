@@ -107,6 +107,7 @@ void RayBank::RayBank_Process()
 
 	//thread_process_array(width, this, &VoxelLightBaker::_lightmap_bake_point, &lightmap_ptr[i * width]);
 
+	int nCores = OS::get_singleton()->get_processor_count();
 
 	for (int v=0; v<nVoxels; v++)
 	{
@@ -133,7 +134,7 @@ void RayBank::RayBank_Process()
 		m_pCurrentThreadVoxel = &vox;
 
 		//const int section_size = 1024 * 96;
-		int section_size = num_rays / 8;
+		int section_size = num_rays / nCores;
 
 		int leftover_start = 0;
 

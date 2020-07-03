@@ -30,7 +30,11 @@ private:
 
 	void ProcessAO();
 	void ProcessAO_Texel(int tx, int ty);
-	float CalculateAO(int tx, int ty, uint32_t tri0, uint32_t tri1_p1);
+	float CalculateAO(int tx, int ty);
+
+	void ProcessAO_Triangle(int tri_id);
+	void ProcessAO_Sample(const Vector3 &bary, int tri_id, const UVTri &uvtri);
+
 //	float CalculateAO(const Vector3 &ptStart, const Vector3 &ptNormal, uint32_t tri0, uint32_t tri1_p1);
 
 	const int m_iRaysPerSection = 1024 * 1024 * 4; // 64

@@ -28,7 +28,7 @@ public:
 	void QMCRandomUnitDir(Vector3 &dir, int count);
 
 private:
-	void GenerateSample(Group &group, int sample);
+	void GenerateVariation(Group &group, int var);
 	void RandomUnitDir(Vector3 &dir) const;
 
 	int m_CurrentVariation;

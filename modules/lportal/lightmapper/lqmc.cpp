@@ -8,9 +8,9 @@ void QMC::Create(int num_samples)
 	m_CurrentVariation = 0;
 	m_Group.m_Samples.resize(num_samples);
 
-	for (int n=0; n<num_samples; n++)
+	for (int n=0; n<NUM_VARIATIONS; n++)
 	{
-		GenerateSample(m_Group, n);
+		GenerateVariation(m_Group, n);
 	}
 
 }
@@ -33,12 +33,15 @@ void QMC::RandomUnitDir(Vector3 &dir) const
 	}
 }
 
-void QMC::GenerateSample(Group &group, int sample)
+void QMC::GenerateVariation(Group &group, int var)
 {
+	int nSamples = m_Group.m_Samples.size();
+
 	const int nTestSamples = 8;
 	Vector3 tests[nTestSamples];
+	float dots[nTestSamples];
 
-	for (int var=0; var<NUM_VARIATIONS; var++)
+	for (int s=0; s<nSamples; s++)
 	{
 		// choose some random test directions
 		for (int n=0; n<nTestSamples; n++)
@@ -48,37 +51,55 @@ void QMC::GenerateSample(Group &group, int sample)
 
 		// find the best
 		int best_t = 0;
-		float best_dot = 1.0f;
+
+		// blank dots
+		for (int d=0; d<nTestSamples; d++)
+		{
+			dots[d] = -1.0f;
+		}
 
 		// compare to all the rest
-		for (int n=0; n<sample-1; n++)
+		for (int n=0; n<s-1; n++)
 		{
 			const Vector3 &existing_dir = group.m_Samples[n].dir[var];
 
 			for (int t=0; t<nTestSamples; t++)
 			{
 				float dot = existing_dir.dot(tests[t]);
-				if (dot < best_dot)
+
+				if (dot > dots[t])
 				{
-					best_dot = dot;
-					best_t = t;
+					dots[t] = dot;
 				}
 			}
 		}
 
+		// find the best test
+		for (int t=0; t<nTestSamples; t++)
+		{
+			if (dots[t] < dots[best_t])
+			{
+				best_t = t;
+			}
+		}
+
 		// now we know the best, add it to the list
-		group.m_Samples[sample].dir[var] = tests[best_t];
+		group.m_Samples[s].dir[var] = tests[best_t];
 	} // for variation
 }
 
 void QMC::QMCRandomUnitDir(Vector3 &dir, int count)
 {
-	dir = m_Group.m_Samples[count].dir[m_CurrentVariation];
-	m_CurrentVariation++;
+	if (count == 0)
+	{
+		m_CurrentVariation++;
 
-	// wraparound
-	if (m_CurrentVariation >= NUM_VARIATIONS)
-		m_CurrentVariation = 0;
+		// wraparound
+		if (m_CurrentVariation >= NUM_VARIATIONS)
+			m_CurrentVariation = 0;
+	}
+
+	dir = m_Group.m_Samples[count].dir[m_CurrentVariation];
 }
 
 
