@@ -265,8 +265,17 @@ void LightMapper_Base::WriteOutputImage(Image &output_image)
 			float gamma = 1.0f / 2.2f;
 			f = powf(f, gamma);
 
-			output_image.set_pixel(x, y, Color(f, f, f, 255));
-//			if (m_Image_ID_p1.GetItem(x, y))
+			output_image.set_pixel(x, y, Color(f, f, f, 1));
+
+			// debug mark the dilated pixels
+//#define MARK_DILATED
+#ifdef MARK_DILATED
+			if (!m_Image_ID_p1.GetItem(x, y))
+			{
+				output_image.set_pixel(x, y, Color(1.0f, 0.33f, 0.66f, 1));
+			}
+#endif
+			//			if (m_Image_ID_p1.GetItem(x, y))
 //			{
 //				output_image.set_pixel(x, y, Color(f, f, f, 255));
 //			}

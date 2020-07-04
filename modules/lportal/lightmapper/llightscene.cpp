@@ -532,6 +532,8 @@ void LightScene::RasterizeTriangleIDs(LightMapper_Base &base, LightImage<uint32_
 	LightImage<Vector<uint32_t> > temp_image_tris;
 	temp_image_tris.Create(width, height, false);
 
+//	LightImage<Vector<uint32_t> > temp_image_cutting_tris;
+//	temp_image_cutting_tris.Create(width, height, false);
 
 	for (int n=0; n<m_UVTris.size(); n++)
 	{
@@ -632,9 +634,104 @@ void LightScene::RasterizeTriangleIDs(LightMapper_Base &base, LightImage<uint32_
 }
 
 
+void LightScene::FindCuts_Texel(LightMapper_Base &base, int tx, int ty, int tri_id, const Vector3 &bary)
+{
+	// pos and normal
+	Vector3 pos;
+
+	const Tri &tri_pos = m_Tris[tri_id];
+	tri_pos.InterpolateBarycentric(pos, bary);
+
+	// FIXME - use facenormal, NOT interpolated normal.
+	Vector3 norm;
+	m_TriNormals[tri_id].InterpolateBarycentric(norm, bary);
+	norm.normalize();
+
+	// push the pos out a little to prevent self intersection
+	Vector3 push = norm * 0.005f;
+	pos += push;
+
+	// tangent
+	Vector3 edge = tri_pos.pos[1] - tri_pos.pos[0];
+	float edge_length = edge.length();
+	if (edge_length < 0.0001f)
+		return;
+
+	// normalize
+	edge *= 1.0f / edge_length;
+
+	Vector3 tangent = edge.cross(norm);
+
+	// now we want to do tangent traces out from the pos, in order to find cutting triangles
+	Ray r;
+	r.o = pos;
+	r.d = edge;
+	FindCuts_TangentTrace(base, tx, ty, r);
+	r.d = -edge;
+	FindCuts_TangentTrace(base, tx, ty, r);
+	r.d = tangent;
+	FindCuts_TangentTrace(base, tx, ty, r);
+	r.d = -tangent;
+	FindCuts_TangentTrace(base, tx, ty, r);
+}
+
+void LightScene::FindCuts_TangentTrace(LightMapper_Base &base, int tx, int ty, Ray r)
+{
+	// backup the ray just a smidgen to allow for floating point error at the centre
+	r.o -= (r.d * 0.0001f);
+
+	// relies on the tracing all being setup, so findcuts should be run AFTER setting everything else up.
+	float u, v, w, t;
+	int num_tests = 0;
+	int tri_id = IntersectRay(r, u, v, w, t, 0, num_tests);
+
+	if (tri_id == -1)
+		return;
+
+	// hit a tri! add to the cuts if within range.
+	// just use a fixed range to start
+	if (t > 0.05f)
+		return;
+
+	MiniList &ml = base.m_Image_Cuts.GetItem(tx, ty);
+	if (!ml.num)
+	{
+		ml.first = base.m_CuttingTris.size();
+	}
+	ml.num += 1;
+	base.m_CuttingTris.push_back(tri_id);
+
+	// make texel dilatable
+	//base.m_Image_ID_p1.GetItem(tx, ty) = 0;
+}
+
 void LightScene::FindCuts(LightMapper_Base &base)
 {
 	// go through for each texel, and find cutting tris
+	int width = base.m_iWidth;
+	int height = base.m_iHeight;
+
+	for (int y=0; y<height; y++)
+	{
+		for (int x=0; x<width; x++)
+		{
+//			if ((x == 442) && (y == 529))
+//			{
+//				print_line("test");
+//			}
+
+			// just using the default uvtri, and barycentrics.
+			int tri_id = base.m_Image_ID_p1.GetItem(x, y);
+			if (tri_id)
+			{
+				// plus one based
+				tri_id--;
+				const Vector3 &bary = base.m_Image_Barycentric.GetItem(x, y);
+
+				FindCuts_Texel(base, x, y, tri_id, bary);
+			}
+		}
+	}
 }
 
 
