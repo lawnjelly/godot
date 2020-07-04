@@ -49,6 +49,8 @@ public:
 
 private:
 	void FindCuts(LightMapper_Base &base);
+	void FindCuts_Texel(LightMapper_Base &base, int tx, int ty, int tri_id, const Vector3 &bary);
+	void FindCuts_TangentTrace(LightMapper_Base &base, int tx, int ty, Ray r);
 
 	void Transform_Verts(const PoolVector<Vector3> &ptsLocal, PoolVector<Vector3> &ptsWorld, const Transform &tr) const;
 	void Transform_Norms(const PoolVector<Vector3> &normsLocal, PoolVector<Vector3> &normsWorld, const Transform &tr) const;
