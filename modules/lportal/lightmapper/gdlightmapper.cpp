@@ -55,6 +55,7 @@ ADD_PROPERTY(PropertyInfo(P_TYPE, LIGHTMAP_TOSTRING(P_NAME)), LIGHTMAP_TOSTRING(
 	ADD_GROUP("Ambient Occlusion", "");
 	LIMPL_PROPERTY(Variant::INT, ao_samples, set_ao_num_samples, get_ao_num_samples);
 	LIMPL_PROPERTY(Variant::REAL, ao_range, set_ao_range, get_ao_range);
+	LIMPL_PROPERTY(Variant::REAL, ao_cut_range, set_ao_cut_range, get_ao_cut_range);
 
 
 	ADD_GROUP("Dynamic Range", "");
@@ -104,6 +105,9 @@ float LLightMapper::get_backward_bounce_power() const {return m_LM.m_Settings_Ba
 
 void LLightMapper::set_ao_range(float ao_range) {m_LM.m_Settings_AO_Range = ao_range;}
 float LLightMapper::get_ao_range() const {return m_LM.m_Settings_AO_Range;}
+
+void LLightMapper::set_ao_cut_range(float ao_cut_range) {m_LM.m_Settings_AO_CutRange = ao_cut_range;}
+float LLightMapper::get_ao_cut_range() const {return m_LM.m_Settings_AO_CutRange;}
 
 void LLightMapper::set_ao_num_samples(int ao_num_samples) {m_LM.m_Settings_AO_Samples = ao_num_samples;}
 int LLightMapper::get_ao_num_samples() const {return m_LM.m_Settings_AO_Samples;}

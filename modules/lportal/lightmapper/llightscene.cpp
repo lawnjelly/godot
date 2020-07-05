@@ -385,10 +385,12 @@ void LightScene::Reset()
 	m_TriUVaabbs.clear(true);
 	m_TriPos_aabbs.clear(true);
 	m_Tracer.Reset();
+	m_Tri_TexelSizeWorldSpace.clear(true);
 
 	m_Tris.clear(true);
 	m_TriNormals.clear(true);
 	m_Tris_EdgeForm.clear(true);
+	m_TriPlanes.clear(true);
 
 }
 
@@ -432,10 +434,12 @@ bool LightScene::Create(const MeshInstance &mi, int width, int height, const Vec
 	m_Tris.resize(nTris);
 	m_TriNormals.resize(nTris);
 	m_Tris_EdgeForm.resize(nTris);
+	m_TriPlanes.resize(nTris);
 
 	m_UVTris.resize(nTris);
 	m_TriUVaabbs.resize(nTris);
 	m_TriPos_aabbs.resize(nTris);
+	m_Tri_TexelSizeWorldSpace.resize(nTris);
 
 	int i = 0;
 	for (int n=0; n<nTris; n++)
@@ -443,6 +447,7 @@ bool LightScene::Create(const MeshInstance &mi, int width, int height, const Vec
 		Tri &t = m_Tris[n];
 		Tri &tri_norm = m_TriNormals[n];
 		Tri &tri_edge = m_Tris_EdgeForm[n];
+		Plane &tri_plane = m_TriPlanes[n];
 		UVTri &uvt = m_UVTris[n];
 		Rect2 &rect = m_TriUVaabbs[n];
 		AABB &aabb = m_TriPos_aabbs[n];
@@ -464,6 +469,10 @@ bool LightScene::Create(const MeshInstance &mi, int width, int height, const Vec
 			//aabb.position = t.pos[0];
 			aabb.expand_to(t.pos[c]);
 		}
+
+		// plane - calculate normal BEFORE changing winding into UV space
+		// because the normal is determined by the winding in world space
+		tri_plane = Plane(t.pos[0], t.pos[1], t.pos[2], CLOCKWISE);
 
 		// make sure winding is standard in UV space
 		if (uvt.IsWindingCW())
@@ -516,11 +525,56 @@ bool LightScene::Create(const MeshInstance &mi, int width, int height, const Vec
 
 		// expand aabb just a tad
 		rect.expand(Vector2(0.01, 0.01));
+
+		CalculateTriTexelSize(n, width, height);
 	}
 
 	m_Tracer.Create(*this, voxel_dims);
 
 	return true;
+}
+
+// note this is assuming 1:1 aspect ratio lightmaps. This could do x and y size separately,
+// but more complex.
+void LightScene::CalculateTriTexelSize(int tri_id, int width, int height)
+{
+	const Tri &tri = m_Tris[tri_id];
+	const UVTri &uvtri = m_UVTris[tri_id];
+
+	// length of edges in world space
+	float l0 = (tri.pos[1] - tri.pos[0]).length();
+	float l1 = (tri.pos[2] - tri.pos[0]).length();
+
+	// texel edge lengths
+	Vector2 te0 = uvtri.uv[1] - uvtri.uv[0];
+	Vector2 te1 = uvtri.uv[2] - uvtri.uv[0];
+
+	// convert texel edges from uvs to texels
+	te0.x *= width;
+	te0.y *= height;
+	te1.x *= width;
+	te1.y *= height;
+
+	// texel edge lengths
+	float tl0 = te0.length();
+	float tl1 = te1.length();
+
+	// default
+	float texel_size = 1.0f;
+
+	if (tl0 >= tl1)
+	{
+		// check for divide by zero
+		if (tl0 > 0.00001f)
+			texel_size = l0 / tl0;
+	}
+	else
+	{
+		if (tl1 > 0.00001f)
+			texel_size = l1 / tl1;
+	}
+
+	m_Tri_TexelSizeWorldSpace[tri_id] = texel_size;
 }
 
 void LightScene::RasterizeTriangleIDs(LightMapper_Base &base, LightImage<uint32_t> &im_p1, LightImage<uint32_t> &im2_p1, LightImage<Vector3> &im_bary)
@@ -636,16 +690,21 @@ void LightScene::RasterizeTriangleIDs(LightMapper_Base &base, LightImage<uint32_
 
 void LightScene::FindCuts_Texel(LightMapper_Base &base, int tx, int ty, int tri_id, const Vector3 &bary)
 {
+//	if ((tx == 3) && (ty == 17))
+//	{
+//		print_line("test");
+//	}
+
+
 	// pos and normal
 	Vector3 pos;
-
 	const Tri &tri_pos = m_Tris[tri_id];
 	tri_pos.InterpolateBarycentric(pos, bary);
 
-	// FIXME - use facenormal, NOT interpolated normal.
-	Vector3 norm;
-	m_TriNormals[tri_id].InterpolateBarycentric(norm, bary);
-	norm.normalize();
+	// use facenormal, NOT interpolated normal.
+	Vector3 norm = m_TriPlanes[tri_id].normal;
+//	m_TriNormals[tri_id].InterpolateBarycentric(norm, bary);
+//	norm.normalize();
 
 	// push the pos out a little to prevent self intersection
 	Vector3 push = norm * 0.005f;
@@ -662,20 +721,39 @@ void LightScene::FindCuts_Texel(LightMapper_Base &base, int tx, int ty, int tri_
 
 	Vector3 tangent = edge.cross(norm);
 
+	// use the texel_size to determine the max distance to trace
+	float texel_size = m_Tri_TexelSizeWorldSpace[tri_id];
+	texel_size *= base.m_Settings_AO_CutRange;
+
 	// now we want to do tangent traces out from the pos, in order to find cutting triangles
 	Ray r;
 	r.o = pos;
 	r.d = edge;
-	FindCuts_TangentTrace(base, tx, ty, r);
+	FindCuts_TangentTrace(base, tx, ty, r, texel_size);
 	r.d = -edge;
-	FindCuts_TangentTrace(base, tx, ty, r);
+	FindCuts_TangentTrace(base, tx, ty, r, texel_size);
 	r.d = tangent;
-	FindCuts_TangentTrace(base, tx, ty, r);
+	FindCuts_TangentTrace(base, tx, ty, r, texel_size);
 	r.d = -tangent;
-	FindCuts_TangentTrace(base, tx, ty, r);
+	FindCuts_TangentTrace(base, tx, ty, r, texel_size);
+
+	// try the edge and tangent at 45 degrees
+	Vector3 edge45 = (edge + tangent).normalized();
+	Vector3 tangent45 = (-edge + tangent).normalized();
+	edge = edge45;
+	tangent = tangent45;
+	r.d = edge;
+	FindCuts_TangentTrace(base, tx, ty, r, texel_size);
+	r.d = -edge;
+	FindCuts_TangentTrace(base, tx, ty, r, texel_size);
+	r.d = tangent;
+	FindCuts_TangentTrace(base, tx, ty, r, texel_size);
+	r.d = -tangent;
+	FindCuts_TangentTrace(base, tx, ty, r, texel_size);
+
 }
 
-void LightScene::FindCuts_TangentTrace(LightMapper_Base &base, int tx, int ty, Ray r)
+void LightScene::FindCuts_TangentTrace(LightMapper_Base &base, int tx, int ty, Ray r, float max_dist)
 {
 	// backup the ray just a smidgen to allow for floating point error at the centre
 	r.o -= (r.d * 0.0001f);
@@ -690,7 +768,7 @@ void LightScene::FindCuts_TangentTrace(LightMapper_Base &base, int tx, int ty, R
 
 	// hit a tri! add to the cuts if within range.
 	// just use a fixed range to start
-	if (t > 0.05f)
+	if (t > max_dist) // 0.05f
 		return;
 
 	MiniList &ml = base.m_Image_Cuts.GetItem(tx, ty);
@@ -698,6 +776,17 @@ void LightScene::FindCuts_TangentTrace(LightMapper_Base &base, int tx, int ty, R
 	{
 		ml.first = base.m_CuttingTris.size();
 	}
+	else
+	{
+		// is this triangle already in the list?
+		for (uint32_t n=0; n<ml.num; n++)
+		{
+			if (base.m_CuttingTris[ml.first + n] == tri_id)
+				return;
+		}
+	}
+
+	// not in the list .. add
 	ml.num += 1;
 	base.m_CuttingTris.push_back(tri_id);
 
