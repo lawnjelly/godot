@@ -50,7 +50,8 @@ public:
 private:
 	void FindCuts(LightMapper_Base &base);
 	void FindCuts_Texel(LightMapper_Base &base, int tx, int ty, int tri_id, const Vector3 &bary);
-	void FindCuts_TangentTrace(LightMapper_Base &base, int tx, int ty, Ray r);
+	void FindCuts_TangentTrace(LightMapper_Base &base, int tx, int ty, Ray r, float max_dist);
+	void CalculateTriTexelSize(int tri_id, int width, int height);
 
 	void Transform_Verts(const PoolVector<Vector3> &ptsLocal, PoolVector<Vector3> &ptsWorld, const Transform &tr) const;
 	void Transform_Norms(const PoolVector<Vector3> &normsLocal, PoolVector<Vector3> &normsWorld, const Transform &tr) const;
@@ -65,6 +66,9 @@ private:
 	LVector<Rect2> m_TriUVaabbs;
 	LVector<AABB> m_TriPos_aabbs;
 
+	// precalculate these .. useful for finding cutting tris.
+	LVector<float> m_Tri_TexelSizeWorldSpace;
+
 protected:
 public:
 	LVector<UVTri> m_UVTris;
@@ -73,6 +77,8 @@ public:
 
 	LVector<Tri> m_Tris;
 	LVector<Tri> m_TriNormals;
+
+	LVector<Plane> m_TriPlanes;
 
 	// we maintain a list of tris in the form of 2 edges plus a point. These
 	// are precalculated as they are used in the intersection test.

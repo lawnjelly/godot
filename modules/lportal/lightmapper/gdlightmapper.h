@@ -62,6 +62,9 @@ public:
 	void set_ao_range(float ao_range);
 	float get_ao_range() const;
 
+	void set_ao_cut_range(float ao_cut_range);
+	float get_ao_cut_range() const;
+
 	void set_ao_num_samples(int ao_num_samples);
 	int get_ao_num_samples() const;
 	////////////////////////////
