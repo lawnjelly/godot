@@ -26,6 +26,7 @@ LightMapper_Base::LightMapper_Base()
 
 	m_Settings_AO_Range = 24.0f;
 	m_Settings_AO_Samples = 64;
+	m_Settings_AO_CutRange = 0.05f;
 
 	m_Settings_Mode = LMMODE_FORWARD;
 
@@ -265,14 +266,17 @@ void LightMapper_Base::WriteOutputImage(Image &output_image)
 			float gamma = 1.0f / 2.2f;
 			f = powf(f, gamma);
 
-			output_image.set_pixel(x, y, Color(f, f, f, 1));
+
+			Color col;
+			col = Color(f, f, f, 1);
+
 
 			// debug mark the dilated pixels
-//#define MARK_DILATED
+#define MARK_DILATED
 #ifdef MARK_DILATED
 			if (!m_Image_ID_p1.GetItem(x, y))
 			{
-				output_image.set_pixel(x, y, Color(1.0f, 0.33f, 0.66f, 1));
+				col = Color(1.0f, 0.33f, 0.66f, 1);
 			}
 #endif
 			//			if (m_Image_ID_p1.GetItem(x, y))
@@ -283,6 +287,18 @@ void LightMapper_Base::WriteOutputImage(Image &output_image)
 //			{
 //				output_image.set_pixel(x, y, Color(0, 0, 0, 255));
 //			}
+
+			// visual cuts
+//			if (m_Image_Cuts.GetItem(x, y).num)
+//			{
+//				col = Color(1.0f, 0.33f, 0.66f, 1);
+//			}
+//			else
+//			{
+//				col = Color(0, 0, 0, 1);
+//			}
+
+			output_image.set_pixel(x, y, col);
 		}
 	}
 

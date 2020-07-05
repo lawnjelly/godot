@@ -401,9 +401,59 @@ void LightMapper::ProcessTexels()
 	}
 }
 
+bool LightMapper::ProcessAO_BehindCuts(const MiniList &ml, const Vector2 &st, int main_tri_id_p1)
+{
+	if (!ml.num)
+		return false;
+
+	if (!main_tri_id_p1)
+		return false;
+
+	int tri_id = main_tri_id_p1-1;
+
+	// calculate sample position in world space.
+	Vector3 bary;
+	const UVTri * pUVTri = &m_Scene.m_UVTris[tri_id];
+	pUVTri->FindBarycentricCoords(st, bary);
+
+	// this bary could be outside the triangle, but hey ho, this main triangle is
+	// where the cuts are based on.
+	const Tri &main_tri = m_Scene.m_Tris[tri_id];
+	Vector3 ptSampleWorld;
+	main_tri.InterpolateBarycentric(ptSampleWorld, bary);
+
+
+	int behind = 0;
+
+	for (int c=0; c<ml.num; c++)
+	{
+		int cut_tri_id = m_CuttingTris[ml.first + c];
+
+		// must be in front of any cutting triangles
+		// (assuming we don't have any super thin walls)
+		const Plane &cut_plane = m_Scene.m_TriPlanes[cut_tri_id];
+
+		float dist = cut_plane.distance_to(ptSampleWorld);
+//		if (cut_plane.distance_to(ptSampleWorld) <= 0.00001f)
+		if (dist <= 0.00001f)
+			behind++;
+	}
+
+	if (behind == ml.num)
+		return true;
+
+	return false;
+}
+
 
 float LightMapper::CalculateAO(int tx, int ty)//, uint32_t tri0, uint32_t tri1_p1)
 {
+	if ((tx == 3) && (ty == 5))
+	{
+		print_line("test");
+	}
+
+
 	Ray r;
 	int nSamples = m_Settings_AO_Samples;
 
@@ -421,10 +471,21 @@ float LightMapper::CalculateAO(int tx, int ty)//, uint32_t tri0, uint32_t tri1_p
 	if (!ml.num)
 		return 0.0f; // nothing to do, no tris on this texel
 
+	const MiniList &ml_cuts = m_Image_Cuts.GetItem(tx, ty);
+
+	// debug
+//	if (!ml_cuts.num)
+//		return 0.0f;
+
+	// main triangle on this texel
+	int main_tri_id_p1 = m_Image_ID_p1.GetItem(tx, ty);
+
+
 	int nHits = 0;
 
 	// each ray
 	int nSamplesCounted = 0;
+	int nDebugCutPassed = 0;
 //	int nAttempts = nSamples * 10;
 	for (int n=0; n<nSamples; n++)
 	{
@@ -447,6 +508,14 @@ float LightMapper::CalculateAO(int tx, int ty)//, uint32_t tri0, uint32_t tri1_p
 		// has to be ranged 0 to 1
 		st.x /= m_iWidth;
 		st.y /= m_iHeight;
+
+		// check against cutting tris.
+		if (ProcessAO_BehindCuts(ml_cuts, st, main_tri_id_p1))
+		{
+			continue;
+		}
+		nDebugCutPassed++;
+
 
 		// barycentric coords.
 		float u,v,w;
@@ -482,7 +551,110 @@ float LightMapper::CalculateAO(int tx, int ty)//, uint32_t tri0, uint32_t tri1_p
 			//n--;
 			continue;
 		}
+
+		// check against cutting tris.
+//		if (ProcessAO_BehindCuts(ml_cuts, st, main_tri_id_p1))
+//		{
+//			continue;
+//		}
+
+
 		nSamplesCounted++;
+
+
+
+
+		// calculate world position ray origin from barycentric
+		m_Scene.m_Tris[tri_id].InterpolateBarycentric(r.o, u, v, w);
+
+		Vector3 ptNormal;
+		m_Scene.m_TriNormals[tri_id].InterpolateBarycentric(ptNormal, u, v, w);
+
+		Vector3 push = ptNormal * 0.005f;
+
+		// push ray origin
+		r.o += push;
+
+//		RandomUnitDir(r.d);
+		m_QMC.QMCRandomUnitDir(r.d, n);
+		//m_QMC.QMCRandomUnitDir(r.d, nSamplesCounted-1);
+
+		// clip?
+		float dot = r.d.dot(ptNormal);
+		if (dot < 0.0f)
+		{
+			// make dot always positive for calculations as to the weight given to this hit
+			//dot = -dot;
+			r.d = -r.d;
+		}
+
+		// prevent parallel lines
+		r.d += push;
+	//	r.d = ptNormal;
+
+		// collision detect
+		r.d.normalize();
+		float t;
+
+		m_Scene.m_Tracer.m_bUseSDF = true;
+		int tri_hit = m_Scene.IntersectRay(r, u, v, w, t, &voxel_range, m_iNumTests);
+
+		// nothing hit
+		if (tri_hit != -1)
+		{
+			// scale the occlusion by distance t
+			// t was dist squared
+			//t = sqrt(t);
+			t = range - t;
+			if (t > 0.0f)
+			{
+				//t *= dot;
+//				t /= range;
+				//fTotal += t;
+				if (t > fTotal)
+					fTotal = t;
+
+				nHits++;
+			}
+		}
+	}
+
+	// debug output number of samples counted
+	//return (float) nDebugCutPassed / nSamples;
+
+
+	fTotal /= range;
+
+//	if (nSamplesCounted > (nSamples / 2))
+	if (nSamplesCounted > 4)
+		fTotal = (float) nHits / nSamplesCounted;
+	else
+	{
+		// none counted, mark this texel as not hit, and allow dilation to cover it.
+		// basically this texel is right on the edge, and random samples within the texel weren't enough to hit
+		// the uv triangle. We don't want to sample outside the triangle, because the position will be outside,
+		// and we could get artifacts. So either we clamp samples to the uvtriangle, or we dilate.
+
+		// we are banditing the p1, but temporary, this should be changed so as not to interfere with the lightmapping
+		m_Image_ID_p1.GetItem(tx, ty) = 0;
+		//print_line("none_counted");
+	}
+
+//	fTotal = (float) nHits / nSamples;
+
+
+	// save in the texel
+	// should be scaled between 0 and 1
+//	fTotal /= nSamples * range;
+
+	fTotal = 1.0f - (fTotal * 1.0f);
+
+	if (fTotal < 0.0f)
+		fTotal = 0.0f;
+
+	return fTotal;
+}
+
 
 /*
 		// find which triangle
@@ -527,101 +699,6 @@ float LightMapper::CalculateAO(int tx, int ty)//, uint32_t tri0, uint32_t tri1_p
 //			}
 //		}
 
-
-
-		// calculate world position ray origin from barycentric
-		m_Scene.m_Tris[tri_id].InterpolateBarycentric(r.o, u, v, w);
-
-		Vector3 ptNormal;
-		m_Scene.m_TriNormals[tri_id].InterpolateBarycentric(ptNormal, u, v, w);
-
-		Vector3 push = ptNormal * 0.005f;
-
-		// push ray origin
-		r.o += push;
-
-//		RandomUnitDir(r.d);
-		m_QMC.QMCRandomUnitDir(r.d, n);
-		//m_QMC.QMCRandomUnitDir(r.d, nSamplesCounted-1);
-
-		// clip?
-		float dot = r.d.dot(ptNormal);
-		if (dot < 0.0f)
-		{
-			// make dot always positive for calculations as to the weight given to this hit
-			//dot = -dot;
-			r.d = -r.d;
-		}
-
-		// prevent parallel lines
-		r.d += push;
-	//	r.d = ptNormal;
-
-		// collision detect
-		r.d.normalize();
-//		float u, v, w, t;
-		float t;
-
-		m_Scene.m_Tracer.m_bUseSDF = true;
-		int tri_hit = m_Scene.IntersectRay(r, u, v, w, t, &voxel_range, m_iNumTests);
-
-		// nothing hit
-		if (tri_hit == -1)
-		{
-		}
-		else
-		{
-			// scale the occlusion by distance t
-
-			// t was dist squared
-			//t = sqrt(t);
-
-			t = range - t;
-			if (t > 0.0f)
-			{
-				//t *= dot;
-
-//				t /= range;
-
-				//fTotal += t;
-				if (t > fTotal)
-					fTotal = t;
-
-				nHits++;
-			}
-		}
-	}
-
-	fTotal /= range;
-
-	if (nSamplesCounted > (nSamples / 2))
-		fTotal = (float) nHits / nSamplesCounted;
-	else
-	{
-		// none counted, mark this texel as not hit, and allow dilation to cover it.
-		// basically this texel is right on the edge, and random samples within the texel weren't enough to hit
-		// the uv triangle. We don't want to sample outside the triangle, because the position will be outside,
-		// and we could get artifacts. So either we clamp samples to the uvtriangle, or we dilate.
-
-		// we are banditing the p1, but temporary, this should be changed so as not to interfere with the lightmapping
-		m_Image_ID_p1.GetItem(tx, ty) = 0;
-		//print_line("none_counted");
-	}
-
-//	fTotal = (float) nHits / nSamples;
-
-
-	// save in the texel
-	// should be scaled between 0 and 1
-//	fTotal /= nSamples * range;
-
-	fTotal = 1.0f - (fTotal * 1.0f);
-
-	if (fTotal < 0.0f)
-		fTotal = 0.0f;
-
-	return fTotal;
-}
 
 /*
 float LightMapper::CalculateAO(const Vector3 &ptStart, const Vector3 &ptNormal, uint32_t tri0, uint32_t tri1_p1)
@@ -901,6 +978,13 @@ float LightMapper::ProcessTexel_Bounce(int x, int y)
 
 void LightMapper::ProcessAO_Texel(int tx, int ty)
 {
+//	if ((tx == 3) && (ty == 17))
+//	{
+//		print_line("test");
+//	}
+
+
+
 	// find triangle
 //	uint32_t tri = *m_Image_ID_p1.Get(tx, ty);
 //	if (!tri)

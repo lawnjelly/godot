@@ -117,6 +117,7 @@ public:
 	bool ContainsTexel(int tx, int ty, int width, int height) const;
 
 	void FindBarycentricCoords(const Vector2 &pt, float &u, float &v, float &w) const;
+	void FindBarycentricCoords(const Vector2 &pt, Vector3 &bary) const {FindBarycentricCoords(pt, bary.x, bary.y, bary.z);}
 	bool IsWindingCW() const {return CalculateTwiceArea() < 0.0f;}
 	float CalculateTwiceArea() const
 	{
