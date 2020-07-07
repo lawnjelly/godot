@@ -83,7 +83,7 @@ protected:
 	LightImage<Vector3> m_Image_Barycentric;
 
 	// triangles that cut texels (prevent shadow leaks)
-	LightImage<MiniList> m_Image_Cuts;
+	LightImage<MiniList_Cuts> m_Image_Cuts;
 	LVector<uint32_t> m_CuttingTris;
 
 	int m_iWidth;

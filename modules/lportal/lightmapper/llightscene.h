@@ -51,6 +51,8 @@ private:
 	void FindCuts(LightMapper_Base &base);
 	void FindCuts_Texel(LightMapper_Base &base, int tx, int ty, int tri_id, const Vector3 &bary);
 	void FindCuts_TangentTrace(LightMapper_Base &base, int tx, int ty, Ray r, float max_dist);
+
+
 	void CalculateTriTexelSize(int tri_id, int width, int height);
 
 	void Transform_Verts(const PoolVector<Vector3> &ptsLocal, PoolVector<Vector3> &ptsWorld, const Transform &tr) const;

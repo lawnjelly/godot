@@ -272,7 +272,7 @@ void LightMapper_Base::WriteOutputImage(Image &output_image)
 
 
 			// debug mark the dilated pixels
-#define MARK_DILATED
+//#define MARK_DILATED
 #ifdef MARK_DILATED
 			if (!m_Image_ID_p1.GetItem(x, y))
 			{
@@ -296,6 +296,20 @@ void LightMapper_Base::WriteOutputImage(Image &output_image)
 //			else
 //			{
 //				col = Color(0, 0, 0, 1);
+//			}
+
+			// visualize concave
+//			const MiniList_Cuts &cuts = m_Image_Cuts.GetItem(x, y);
+//			if (cuts.num == 2)
+//			{
+//				if (cuts.convex)
+//				{
+//					col = Color(1.0f, 0, 0, 1);
+//				}
+//				else
+//				{
+//					col = Color(0, 0, 1, 1);
+//				}
 //			}
 
 			output_image.set_pixel(x, y, col);
