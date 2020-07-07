@@ -25,7 +25,12 @@ class QMC
 
 public:
 	void Create(int num_samples);
-	void QMCRandomUnitDir(Vector3 &dir, int count);
+	void QMCRandomUnitDir(Vector3 &dir, int count, int variation)
+	{
+		dir = m_Group.m_Samples[count].dir[variation];
+	}
+	int GetNextVariation(int previous) const;
+	int RandomVariation() const;
 
 private:
 	void GenerateVariation(Group &group, int var);
