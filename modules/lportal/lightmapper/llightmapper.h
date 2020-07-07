@@ -31,7 +31,7 @@ private:
 	void ProcessAO();
 	void ProcessAO_Texel(int tx, int ty);
 	float CalculateAO(int tx, int ty);
-	bool ProcessAO_BehindCuts(const MiniList &ml, const Vector2 &st, int main_tri_id_p1);
+	bool ProcessAO_InFrontCuts(const MiniList_Cuts &ml, const Vector2 &st, int main_tri_id_p1);
 
 	void ProcessAO_Triangle(int tri_id);
 	void ProcessAO_Sample(const Vector3 &bary, int tri_id, const UVTri &uvtri);
