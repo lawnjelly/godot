@@ -283,7 +283,7 @@ void LightMapper::ProcessAO_Sample(const Vector3 &bary, int tri_id, const UVTri 
 
 	float t, u, v, w;
 	m_Scene.m_Tracer.m_bUseSDF = true;
-	int tri_hit = m_Scene.IntersectRay(r, u, v, w, t, &m_Scene.m_VoxelRange, m_iNumTests);
+	int tri_hit = m_Scene.FindIntersect_Ray(r, u, v, w, t, &m_Scene.m_VoxelRange, m_iNumTests);
 
 	if (tri_hit != -1)
 	{
@@ -627,7 +627,14 @@ float LightMapper::CalculateAO(int tx, int ty)//, uint32_t tri0, uint32_t tri1_p
 		float t;
 
 		m_Scene.m_Tracer.m_bUseSDF = true;
-		int tri_hit = m_Scene.IntersectRay(r, u, v, w, t, &voxel_range, m_iNumTests);
+
+		if (m_Scene.TestIntersect_Ray(r, m_Settings_AO_Range, voxel_range))
+		{
+			nHits++;
+		}
+
+/*
+		int tri_hit = m_Scene.FindIntersect_Ray(r, u, v, w, t, &voxel_range, m_iNumTests);
 
 		// nothing hit
 		if (tri_hit != -1)
@@ -647,13 +654,14 @@ float LightMapper::CalculateAO(int tx, int ty)//, uint32_t tri0, uint32_t tri1_p
 				nHits++;
 			}
 		}
+			*/
 	}
 
 	// debug output number of samples counted
 	//return (float) nDebugCutPassed / nSamples;
 
 
-	fTotal /= range;
+//	fTotal /= range;
 
 //	if (nSamplesCounted > (nSamples / 2))
 	if (nSamplesCounted > 1)
@@ -896,7 +904,7 @@ float LightMapper::ProcessTexel_Light(int light_id, const Vector3 &ptDest, const
 		float u, v, w, t;
 
 		m_Scene.m_Tracer.m_bUseSDF = true;
-		int tri = m_Scene.IntersectRay(r, u, v, w, t, nullptr, m_iNumTests);
+		int tri = m_Scene.FindIntersect_Ray(r, u, v, w, t, nullptr, m_iNumTests);
 //		m_Scene.m_Tracer.m_bUseSDF = false;
 //		int tri2 = m_Scene.IntersectRay(r, u, v, w, t, m_iNumTests);
 //		if (tri != tri2)
@@ -980,7 +988,7 @@ float LightMapper::ProcessTexel_Bounce(int x, int y)
 			// collision detect
 			//r.d.normalize();
 			float u, v, w, t;
-			int tri_hit = m_Scene.IntersectRay(r, u, v, w, t, nullptr, m_iNumTests);
+			int tri_hit = m_Scene.FindIntersect_Ray(r, u, v, w, t, nullptr, m_iNumTests);
 
 			// nothing hit
 			if ((tri_hit != -1) && (tri_hit != tri_source))
@@ -1089,7 +1097,7 @@ void LightMapper::ProcessRay(LM::Ray r, int depth, float power, int dest_tri_id,
 
 	r.d.normalize();
 	float u, v, w, t;
-	int tri = m_Scene.IntersectRay(r, u, v, w, t, nullptr, m_iNumTests);
+	int tri = m_Scene.FindIntersect_Ray(r, u, v, w, t, nullptr, m_iNumTests);
 
 	// nothing hit
 	if (tri == -1)
