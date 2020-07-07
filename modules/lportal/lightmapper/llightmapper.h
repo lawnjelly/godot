@@ -29,8 +29,9 @@ private:
 	float ProcessTexel_Bounce(int x, int y);
 
 	void ProcessAO();
-	void ProcessAO_Texel(int tx, int ty);
-	float CalculateAO(int tx, int ty);
+	void ProcessAO_LineMT(uint32_t y_offset, int y_section_start);
+	void ProcessAO_Texel(int tx, int ty, int qmc_variation);
+	float CalculateAO(int tx, int ty, int qmc_variation);
 	bool ProcessAO_InFrontCuts(const MiniList_Cuts &ml, const Vector2 &st, int main_tri_id_p1);
 
 	void ProcessAO_Triangle(int tri_id);
