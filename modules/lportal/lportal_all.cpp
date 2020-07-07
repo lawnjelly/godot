@@ -41,4 +41,6 @@
 #include "lightmapper/llighttests_simd.cpp"
 #include "lightmapper/lraybank.cpp"
 #include "lightmapper/lqmc.cpp"
+#include "lightmapper/lambient_occlusion.cpp"
+
 

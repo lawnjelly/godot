@@ -25,7 +25,7 @@ class QMC
 
 public:
 	void Create(int num_samples);
-	void QMCRandomUnitDir(Vector3 &dir, int count, int variation)
+	void QMCRandomUnitDir(Vector3 &dir, int count, int variation) const
 	{
 		dir = m_Group.m_Samples[count].dir[variation];
 	}
