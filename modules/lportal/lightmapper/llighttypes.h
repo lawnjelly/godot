@@ -134,6 +134,8 @@ public:
 	}
 };
 
+
+
 bool BarycentricInside(float u, float v, float w)
 {
 	if ((u < 0.0f) || (u > 1.0f) ||
@@ -143,6 +145,12 @@ bool BarycentricInside(float u, float v, float w)
 
 	return true;
 }
+
+bool BarycentricInside(const Vector3 &bary)
+{
+	return BarycentricInside(bary.x, bary.y, bary.z);
+}
+
 
 // somewhat more complicated test to try and get all the tris that hit any part of the texel.
 // really this should be a box / tri test.
