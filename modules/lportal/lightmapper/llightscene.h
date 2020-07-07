@@ -33,7 +33,11 @@ public:
 	bool Create(const MeshInstance &mi, int width, int height, const Vec3i &voxel_dims);
 	
 	// returns triangle ID (or -1) and barycentric coords
-	int IntersectRay(const Ray &r, float &u, float &v, float &w, float &nearest_t, const Vec3i * pVoxelRange, int &num_tests);//, int ignore_tri_p1 = 0);
+	int FindIntersect_Ray(const Ray &ray, float &u, float &v, float &w, float &nearest_t, const Vec3i * pVoxelRange, int &num_tests);//, int ignore_tri_p1 = 0);
+
+	// simple test returns true if any collision
+	bool TestIntersect_Ray(const Ray &ray, float max_dist, const Vec3i &voxel_range);
+
 	int IntersectRay_old(const Ray &ray, float &u, float &v, float &w, float &nearest_t) const;
 
 
@@ -59,6 +63,9 @@ private:
 	void Transform_Norms(const PoolVector<Vector3> &normsLocal, PoolVector<Vector3> &normsWorld, const Transform &tr) const;
 	void ProcessVoxelHits(const Ray &ray, const PackedRay &pray, const Voxel &voxel, float &r_nearest_t, int &r_nearest_tri); // int ignore_triangle_id_p1);
 	void ProcessVoxelHits_Old(const Ray &ray, const Voxel &voxel, float &r_nearest_t, int &r_nearest_tri);
+
+	bool TestVoxelHits(const Ray &ray, const PackedRay &pray, const Voxel &voxel, float max_dist);
+
 
 	PoolVector<Vector3> m_ptPositions;
 	PoolVector<Vector3> m_ptNormals;

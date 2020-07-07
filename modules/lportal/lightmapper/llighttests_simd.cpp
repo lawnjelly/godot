@@ -64,6 +64,83 @@ void PackedRay::Create(const Ray &ray)
 }
 
 
+// returns true if a hit
+bool PackedRay::IntersectTest(const PackedTriangles& packedTris, float max_dist) const
+{
+	//Begin calculating determinant - also used to calculate u parameter
+	// P
+	__m128 q[3];
+	multi_cross(q, &m_direction[0].mm128, &packedTris.e2[0].mm128);
+
+	//if determinant is near zero, ray lies in plane of triangle
+	// det
+	__m128 a = multi_dot(&packedTris.e1[0].mm128, q);
+
+	// reject based on det being close to zero
+	// NYI
+
+	// inv_det
+	__m128 f = _mm_div_ps(oneM128, a);
+
+	// distance from v1 to ray origin
+	// T
+	__m128 s[3];
+	multi_sub(s, &m_origin[0].mm128, &packedTris.v0[0].mm128);
+
+	// Calculate u parameter and test bound
+	__m128 u = _mm_mul_ps(f, multi_dot(s, q));
+
+	// the intersection lies outside triangle
+	// NYI
+
+	// Prepare to test v parameter
+	// Q
+	__m128 r[3];
+	multi_cross(r, s, &packedTris.e1[0].mm128);
+
+	// calculate V parameter and test bound
+	// v
+	__m128 v = _mm_mul_ps(f, multi_dot(&m_direction[0].mm128, r));
+
+	// intersection outside of triangles?
+	// NYI
+
+	// t
+	__m128 t = _mm_mul_ps(f, multi_dot(&packedTris.e2[0].mm128, r));
+
+	// if t > epsilon, hit
+
+	// Failure conditions
+	// determinant close to zero?
+	__m128 failed = _mm_and_ps(_mm_cmpge_ps(a, negativeEpsilonM128), _mm_cmple_ps(a, positiveEpsilonM128));
+
+	//    __m128 failed = _mm_and_ps(
+	//        _mm_cmp(a, negativeEpsilonM256, _CMP_GT_OQ),
+	//        cmp(a, positiveEpsilonM256, _CMP_LT_OQ)
+	//    );
+
+	failed = _mm_or_ps(failed, _mm_cmple_ps(u, zeroM128));
+	failed = _mm_or_ps(failed, _mm_cmple_ps(v, zeroM128));
+	failed = _mm_or_ps(failed, _mm_cmpge_ps(_mm_add_ps(u, v), oneM128));
+	failed = _mm_or_ps(failed, _mm_cmple_ps(t, zeroM128));
+	//    failed = _mm_or_ps(failed, _mm_cmpge_ps(t, m_length));
+	failed = _mm_or_ps(failed, packedTris.inactiveMask.mm128);
+
+	// test against minimum t .. not sure if this will speed up or not.
+	__m128 m_max_dist = _mm_set1_ps(max_dist);
+	failed = _mm_or_ps(failed, _mm_cmpge_ps(t, m_max_dist));
+
+	//bool bHit  = false;
+	int mask = _mm_movemask_ps(failed);
+    if (mask != 15) // first 4 bits set
+	{
+		return true;
+	} // mask
+
+	return false;
+}
+
+
 // returns winner index +1, or zero if no hit
 int PackedRay::Intersect(const PackedTriangles& packedTris, float &nearest_dist) const
 {

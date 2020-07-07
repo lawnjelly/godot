@@ -63,6 +63,7 @@ struct PackedRay
 
 	void Create(const Ray &ray);
 	int Intersect(const PackedTriangles& packedTris, float &nearest_dist) const;
+	bool IntersectTest(const PackedTriangles& packedTris, float max_dist) const;
 };
 
 

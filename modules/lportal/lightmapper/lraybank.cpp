@@ -274,7 +274,7 @@ void RayBank::RayBank_ProcessRay_MT(uint32_t ray_id, int start_ray)
 
 	r.d.normalize();
 	float u, v, w, t;
-	int tri = m_Scene.IntersectRay(r, u, v, w, t, nullptr, m_iNumTests);
+	int tri = m_Scene.FindIntersect_Ray(r, u, v, w, t, nullptr, m_iNumTests);
 
 	// nothing hit
 	if (tri == -1)
