@@ -1,4 +1,5 @@
 #include "llightmapper.h"
+#include "core/os/threaded_array_processor.h"
 
 //#include <omp.h>
 
@@ -313,6 +314,7 @@ void LightMapper::ProcessAO()
 		bake_begin_function(m_iHeight);
 	}
 
+	int qmc_variation = 0;
 
 	// find the max range in voxels. This can be used to speed up the ray trace
 	const float range = m_Settings_AO_Range;
@@ -325,33 +327,80 @@ void LightMapper::ProcessAO()
 
 //	Normalize_AO();
 
-	for (int y=0; y<m_iHeight; y++)
+	int nCores = OS::get_singleton()->get_processor_count();
+//	int nSections = m_iHeight / (nCores * 2);
+	int nSections = m_iHeight / 64;
+	int y_section_size = m_iHeight / nSections;
+	int leftover_start = y_section_size * nSections;
+
+	for (int s=0; s<nSections; s++)
 	{
-		if ((y % 10) == 0)
-		{
-			if (bake_step_function) {
-				m_bCancel = bake_step_function(y, String("Process Texels: ") + " (" + itos(y) + ")");
-				if (m_bCancel)
-				{
-					if (bake_end_function) {
-						bake_end_function();
-					}
-					return;
+		int y_section_start = s * y_section_size;
+
+		if (bake_step_function) {
+			m_bCancel = bake_step_function(y_section_start, String("Process Texels: ") + " (" + itos(y_section_start) + ")");
+			if (m_bCancel)
+			{
+				if (bake_end_function) {
+					bake_end_function();
 				}
+				return;
 			}
 		}
 
-		for (int x=0; x<m_iWidth; x++)
-		{
-			ProcessAO_Texel(x, y);
-		}
+		thread_process_array(y_section_size, this, &LightMapper::ProcessAO_LineMT, y_section_start);
 	}
+
+	// leftovers
+	int nLeftover = m_iHeight - leftover_start;
+
+	if (nLeftover)
+		thread_process_array(nLeftover, this, &LightMapper::ProcessAO_LineMT, leftover_start);
+
+
+//	for (int y=leftover_start; y<m_iHeight; y++)
+//	{
+//		if ((y % 10) == 0)
+//		{
+//			if (bake_step_function) {
+//				m_bCancel = bake_step_function(y, String("Process Texels: ") + " (" + itos(y) + ")");
+//				if (m_bCancel)
+//				{
+//					if (bake_end_function) {
+//						bake_end_function();
+//					}
+//					return;
+//				}
+//			}
+//		}
+
+//		for (int x=0; x<m_iWidth; x++)
+//		{
+//			qmc_variation = m_QMC.GetNextVariation(qmc_variation);
+//			ProcessAO_Texel(x, y, qmc_variation);
+//		}
+//	}
 
 
 	if (bake_end_function) {
 		bake_end_function();
 	}
 }
+
+void LightMapper::ProcessAO_LineMT(uint32_t y_offset, int y_section_start)
+{
+	int ty = y_section_start + y_offset;
+
+	// seed based on the line
+	int qmc_variation = m_QMC.RandomVariation();
+
+	for (int x=0; x<m_iWidth; x++)
+	{
+		qmc_variation = m_QMC.GetNextVariation(qmc_variation);
+		ProcessAO_Texel(x, ty, qmc_variation);
+	}
+}
+
 
 void LightMapper::ProcessTexels()
 {
@@ -476,7 +525,7 @@ bool LightMapper::ProcessAO_InFrontCuts(const MiniList_Cuts &ml, const Vector2 &
 }
 
 
-float LightMapper::CalculateAO(int tx, int ty)//, uint32_t tri0, uint32_t tri1_p1)
+float LightMapper::CalculateAO(int tx, int ty, int qmc_variation)//, uint32_t tri0, uint32_t tri1_p1)
 {
 //	if ((tx == 22) && (ty == 2))
 //	{
@@ -606,8 +655,7 @@ float LightMapper::CalculateAO(int tx, int ty)//, uint32_t tri0, uint32_t tri1_p
 		r.o += push;
 
 //		RandomUnitDir(r.d);
-		m_QMC.QMCRandomUnitDir(r.d, n);
-		//m_QMC.QMCRandomUnitDir(r.d, nSamplesCounted-1);
+		m_QMC.QMCRandomUnitDir(r.d, n, qmc_variation);
 
 		// clip?
 		float dot = r.d.dot(ptNormal);
@@ -1014,7 +1062,7 @@ float LightMapper::ProcessTexel_Bounce(int x, int y)
 }
 
 
-void LightMapper::ProcessAO_Texel(int tx, int ty)
+void LightMapper::ProcessAO_Texel(int tx, int ty, int qmc_variation)
 {
 //	if ((tx == 3) && (ty == 17))
 //	{
@@ -1049,7 +1097,7 @@ void LightMapper::ProcessAO_Texel(int tx, int ty)
 
 //	float power = CalculateAO(pos, normal, tri, tri2);
 //	float power = CalculateAO(tx, ty, tri, tri2);
-	float power = CalculateAO(tx, ty);
+	float power = CalculateAO(tx, ty, qmc_variation);
 	*pfTexel = power;
 }
 

@@ -88,19 +88,34 @@ void QMC::GenerateVariation(Group &group, int var)
 	} // for variation
 }
 
-void QMC::QMCRandomUnitDir(Vector3 &dir, int count)
+int QMC::RandomVariation() const
 {
-	if (count == 0)
-	{
-		m_CurrentVariation++;
-
-		// wraparound
-		if (m_CurrentVariation >= NUM_VARIATIONS)
-			m_CurrentVariation = 0;
-	}
-
-	dir = m_Group.m_Samples[count].dir[m_CurrentVariation];
+	return Math::rand() % NUM_VARIATIONS;
 }
+
+int QMC::GetNextVariation(int previous) const
+{
+	int next = previous +1;
+	if (next >= NUM_VARIATIONS)
+		next = 0;
+
+	return next;
+}
+
+
+//void QMC::QMCRandomUnitDir(Vector3 &dir, int count, int variation)
+//{
+//	if (count == 0)
+//	{
+//		m_CurrentVariation++;
+
+//		// wraparound
+//		if (m_CurrentVariation >= NUM_VARIATIONS)
+//			m_CurrentVariation = 0;
+//	}
+
+//	dir = m_Group.m_Samples[count].dir[m_CurrentVariation];
+//}
 
 
 } // namespace
