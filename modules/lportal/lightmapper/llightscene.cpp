@@ -690,7 +690,7 @@ void LightScene::RasterizeTriangleIDs(LightMapper_Base &base, LightImage<uint32_
 
 void LightScene::FindCuts_Texel(LightMapper_Base &base, int tx, int ty, int tri_id, const Vector3 &bary)
 {
-//	if ((tx == 3) && (ty == 17))
+//	if ((tx == 31) && (ty == 44))
 //	{
 //		print_line("test");
 //	}
@@ -703,8 +703,10 @@ void LightScene::FindCuts_Texel(LightMapper_Base &base, int tx, int ty, int tri_
 
 	// use facenormal, NOT interpolated normal.
 	Vector3 norm = m_TriPlanes[tri_id].normal;
-//	m_TriNormals[tri_id].InterpolateBarycentric(norm, bary);
-//	norm.normalize();
+
+//	Vector3 norm2;
+//	m_TriNormals[tri_id].InterpolateBarycentric(norm2, bary);
+//	norm2.normalize();
 
 	// push the pos out a little to prevent self intersection
 	Vector3 push = norm * 0.005f;
@@ -751,6 +753,22 @@ void LightScene::FindCuts_Texel(LightMapper_Base &base, int tx, int ty, int tri_
 	r.d = -tangent;
 	FindCuts_TangentTrace(base, tx, ty, r, texel_size);
 
+
+	// debug
+//#ifdef DEBUG_ENABLED
+	MiniList_Cuts &ml = base.m_Image_Cuts.GetItem(tx, ty);
+	if (ml.num)
+	{
+		String sz;
+		sz = itos (tx) + ", " + itos(ty) + " numcuts " +itos(ml.num);
+		for (int c=0; c<ml.num; c++)
+		{
+			int cuttri_id = base.m_CuttingTris[ml.first + c];
+			sz += "\n\t" + String(Variant(m_TriPlanes[cuttri_id].normal));
+		}
+		print_line( sz);
+	}
+//#endif
 }
 
 void LightScene::FindCuts_TangentTrace(LightMapper_Base &base, int tx, int ty, Ray r, float max_dist)
@@ -771,7 +789,16 @@ void LightScene::FindCuts_TangentTrace(LightMapper_Base &base, int tx, int ty, R
 	if (t > max_dist) // 0.05f
 		return;
 
-	MiniList &ml = base.m_Image_Cuts.GetItem(tx, ty);
+	// compare dot products - this may not be necessary
+	const Plane &cutting_plane = m_TriPlanes[tri_id];
+	float dot = r.d.dot(cutting_plane.normal);
+
+	// ignore if triangle is parallel
+	if (fabs(dot) < 0.001f)
+		return;
+
+
+	MiniList_Cuts &ml = base.m_Image_Cuts.GetItem(tx, ty);
 	if (!ml.num)
 	{
 		ml.first = base.m_CuttingTris.size();
@@ -781,14 +808,73 @@ void LightScene::FindCuts_TangentTrace(LightMapper_Base &base, int tx, int ty, R
 		// is this triangle already in the list?
 		for (uint32_t n=0; n<ml.num; n++)
 		{
-			if (base.m_CuttingTris[ml.first + n] == tri_id)
+			int existing_tri_id = base.m_CuttingTris[ml.first + n];
+
+			if (existing_tri_id == tri_id)
 				return;
+
+			// is this triangle parallel to existing triangle in list?
+			float dot = m_TriPlanes[existing_tri_id].normal.dot(cutting_plane.normal);
+			if (dot >= 0.99f)
+			{
+				//print_line("ignoring parallel cutting plane " + itos (tx) + ", " + itos(ty));
+				// parallel, don't add 2nd
+				return;
+			}
+
+			// opposite, cancel out, delete the existing triangle
+			if (dot <= -0.99f)
+			{
+				//print_line("removing cancelled opposite cutting planes " + itos (tx) + ", " + itos(ty));
+
+				// last in list?
+				if (n == ml.num-1)
+				{
+					ml.num -= 1;
+					return;
+				}
+
+				// not the last .. more complicated
+				base.m_CuttingTris[ml.first + n] = base.m_CuttingTris[ml.first + ml.num-1];
+				base.m_CuttingTris.remove_last();
+				ml.num -= 1;
+				return;
+			}
 		}
 	}
 
 	// not in the list .. add
 	ml.num += 1;
 	base.m_CuttingTris.push_back(tri_id);
+
+
+	// when there is more than 1 cut, we need to know whether the triangle cuts
+	// form a concave, or a convex profile.
+	if (ml.num == 1)
+	{
+		ml.convex = 0;
+	}
+	else
+	{
+		// only take into account 2 cuts, above that, all bets are off
+		uint32_t tri0_id = base.m_CuttingTris[ml.first];
+		uint32_t tri1_id = base.m_CuttingTris[ml.first+1];
+
+		Tri tri1 = m_Tris[tri1_id];
+
+		// find centroid
+		Vector3 ptCentre = (tri1.pos[0] + tri1.pos[1] + tri1.pos[2]) / 3;
+
+		// is the centre behind, or in front of the first plane?
+		const Plane &plane0 = m_TriPlanes[tri0_id];
+		float dist = plane0.distance_to(ptCentre);
+
+		if (dist >= 0.0f)
+			ml.convex = 0;
+		else
+			ml.convex = 1;
+	}
+
 
 	// make texel dilatable
 	//base.m_Image_ID_p1.GetItem(tx, ty) = 0;
@@ -800,8 +886,26 @@ void LightScene::FindCuts(LightMapper_Base &base)
 	int width = base.m_iWidth;
 	int height = base.m_iHeight;
 
+	if (base.bake_begin_function) {
+		base.bake_begin_function(height);
+	}
+
+
 	for (int y=0; y<height; y++)
 	{
+
+		if ((y % 10) == 0)
+		{
+			if (base.bake_step_function) {
+				base.m_bCancel = base.bake_step_function(y, String("FindCuts: ") + " (" + itos(y) + ")");
+				if (base.m_bCancel)
+				{
+					base.bake_end_function();
+					return;
+				}
+			}
+		}
+
 		for (int x=0; x<width; x++)
 		{
 //			if ((x == 442) && (y == 529))
@@ -821,6 +925,11 @@ void LightScene::FindCuts(LightMapper_Base &base)
 			}
 		}
 	}
+
+	if (base.bake_end_function) {
+		base.bake_end_function();
+	}
+
 }
 
 

@@ -99,6 +99,12 @@ public:
 		m_iSize--;
 	}
 
+	void remove_last()
+	{
+		if (m_iSize)
+			m_iSize--;
+	}
+
 	T * request()
 	{
 		m_iSize++;
@@ -117,6 +123,7 @@ public:
 		resize(new_size);
 		m_iSize = s;
 	}
+
 
 	void push_back(const T &t)
 	{

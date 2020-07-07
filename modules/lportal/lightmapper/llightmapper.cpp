@@ -332,7 +332,12 @@ void LightMapper::ProcessAO()
 			if (bake_step_function) {
 				m_bCancel = bake_step_function(y, String("Process Texels: ") + " (" + itos(y) + ")");
 				if (m_bCancel)
+				{
+					if (bake_end_function) {
+						bake_end_function();
+					}
 					return;
+				}
 			}
 		}
 
@@ -376,7 +381,11 @@ void LightMapper::ProcessTexels()
 			if (bake_step_function) {
 				m_bCancel = bake_step_function(y, String("Process Texels: ") + " (" + itos(y) + ")");
 				if (m_bCancel)
+				{
+					if (bake_end_function)
+						bake_end_function();
 					return;
+				}
 			}
 		}
 
@@ -401,13 +410,13 @@ void LightMapper::ProcessTexels()
 	}
 }
 
-bool LightMapper::ProcessAO_BehindCuts(const MiniList &ml, const Vector2 &st, int main_tri_id_p1)
+bool LightMapper::ProcessAO_InFrontCuts(const MiniList_Cuts &ml, const Vector2 &st, int main_tri_id_p1)
 {
 	if (!ml.num)
-		return false;
+		return true;
 
 	if (!main_tri_id_p1)
-		return false;
+		return true;
 
 	int tri_id = main_tri_id_p1-1;
 
@@ -423,7 +432,7 @@ bool LightMapper::ProcessAO_BehindCuts(const MiniList &ml, const Vector2 &st, in
 	main_tri.InterpolateBarycentric(ptSampleWorld, bary);
 
 
-	int behind = 0;
+	int infront = 0;
 
 	for (int c=0; c<ml.num; c++)
 	{
@@ -435,11 +444,32 @@ bool LightMapper::ProcessAO_BehindCuts(const MiniList &ml, const Vector2 &st, in
 
 		float dist = cut_plane.distance_to(ptSampleWorld);
 //		if (cut_plane.distance_to(ptSampleWorld) <= 0.00001f)
-		if (dist <= 0.00001f)
-			behind++;
+		if (dist >= 0.00001f)
+			infront++;
 	}
 
-	if (behind == ml.num)
+	/*
+	if (ml.num == 2)
+	{
+		if (ml.convex)
+		{
+			// convex, must be ahead of 1 or more
+			if (infront >= 1)
+				return true;
+		}
+		else
+		{
+			// concave, must be behind both (assuming 2)
+			// not handled otherwise.
+			if (infront == 2)
+				return true;
+		}
+
+		return false;
+	}
+	*/
+
+	if (infront == ml.num)
 		return true;
 
 	return false;
@@ -448,10 +478,10 @@ bool LightMapper::ProcessAO_BehindCuts(const MiniList &ml, const Vector2 &st, in
 
 float LightMapper::CalculateAO(int tx, int ty)//, uint32_t tri0, uint32_t tri1_p1)
 {
-	if ((tx == 3) && (ty == 5))
-	{
-		print_line("test");
-	}
+//	if ((tx == 22) && (ty == 2))
+//	{
+//		print_line("test");
+//	}
 
 
 	Ray r;
@@ -471,7 +501,7 @@ float LightMapper::CalculateAO(int tx, int ty)//, uint32_t tri0, uint32_t tri1_p
 	if (!ml.num)
 		return 0.0f; // nothing to do, no tris on this texel
 
-	const MiniList &ml_cuts = m_Image_Cuts.GetItem(tx, ty);
+	const MiniList_Cuts &ml_cuts = m_Image_Cuts.GetItem(tx, ty);
 
 	// debug
 //	if (!ml_cuts.num)
@@ -510,7 +540,7 @@ float LightMapper::CalculateAO(int tx, int ty)//, uint32_t tri0, uint32_t tri1_p
 		st.y /= m_iHeight;
 
 		// check against cutting tris.
-		if (ProcessAO_BehindCuts(ml_cuts, st, main_tri_id_p1))
+		if (!ProcessAO_InFrontCuts(ml_cuts, st, main_tri_id_p1))
 		{
 			continue;
 		}
@@ -626,7 +656,7 @@ float LightMapper::CalculateAO(int tx, int ty)//, uint32_t tri0, uint32_t tri1_p
 	fTotal /= range;
 
 //	if (nSamplesCounted > (nSamples / 2))
-	if (nSamplesCounted > 4)
+	if (nSamplesCounted > 1)
 		fTotal = (float) nHits / nSamplesCounted;
 	else
 	{
@@ -1180,7 +1210,11 @@ void LightMapper::ProcessLights()
 				{
 					m_bCancel = bake_step_function(s, String("Process Light Section: ") + " (" + itos(s) + ")");
 					if (m_bCancel)
+					{
+						if (bake_end_function)
+							bake_end_function();
 						return;
+					}
 				}
 			}
 
