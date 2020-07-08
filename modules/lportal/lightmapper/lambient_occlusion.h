@@ -18,16 +18,13 @@ protected:
 	};
 
 
-	enum {MAX_COMPLEX_AO_TEXEL_SAMPLES = 8};
+	enum {MAX_COMPLEX_AO_TEXEL_SAMPLES = 16};
 
 	void ProcessAO();
 	void ProcessAO_LineMT(uint32_t y_offset, int y_section_start);
 	void ProcessAO_Texel(int tx, int ty, int qmc_variation);
 	float CalculateAO(int tx, int ty, int qmc_variation, const MiniList &ml);
 	float CalculateAO_Complex(int tx, int ty, int qmc_variation, const MiniList &ml);
-	float CalculateAO_Old(int tx, int ty, int qmc_variation);
-
-	bool ProcessAO_InFrontCuts(const MiniList_Cuts &ml, const Vector2 &st, int main_tri_id_p1);
 
 	void ProcessAO_Triangle(int tri_id);
 	void ProcessAO_Sample(const Vector3 &bary, int tri_id, const UVTri &uvtri);
