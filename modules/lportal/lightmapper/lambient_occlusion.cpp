@@ -4,7 +4,7 @@ namespace LM {
 
 void AmbientOcclusion::ProcessAO_Texel(int tx, int ty, int qmc_variation)
 {
-//	if ((tx == 41) && (ty == 44))
+//	if ((tx == 77) && (ty == 221))
 //		print_line("test");
 
 	const MiniList &ml = m_Image_TriIDs.GetItem(tx, ty);
@@ -14,7 +14,7 @@ void AmbientOcclusion::ProcessAO_Texel(int tx, int ty, int qmc_variation)
 	// could be off the image
 	float * pfTexel = m_Image_AO.Get(tx, ty);
 
-	float power;
+	float power = 0.0f;
 
 	// simple or complex? (are there cuts on this texel)
 	if (!m_Image_Cuts.GetItem(tx, ty))
@@ -39,7 +39,7 @@ void AmbientOcclusion::ProcessAO()
 	const float range = m_Settings_AO_Range;
 	m_Scene.m_Tracer.GetDistanceInVoxels(range, m_Scene.m_VoxelRange);
 
-#define LAMBIENT_OCCLUSION_USE_THREADS
+//#define LAMBIENT_OCCLUSION_USE_THREADS
 #ifdef LAMBIENT_OCCLUSION_USE_THREADS
 //	int nCores = OS::get_singleton()->get_processor_count();
 	int nSections = m_iHeight / 64;
@@ -247,6 +247,9 @@ int AmbientOcclusion::AO_FindSamplePoints(int tx, int ty, const MiniList &ml, AO
 
 		// construct a random ray to test
 		AO_RandomRay(r, ptNormal);
+
+		// test force
+		r.d = Vector3(0,1, 0);
 
 		// test ray
 		if (m_Scene.TestIntersect_Ray(r, m_Settings_AO_Range, m_Scene.m_VoxelRange, true))
