@@ -272,7 +272,7 @@ void LightMapper_Base::WriteOutputImage(Image &output_image)
 
 
 			// debug mark the dilated pixels
-//#define MARK_DILATED
+#define MARK_DILATED
 #ifdef MARK_DILATED
 			if (!m_Image_ID_p1.GetItem(x, y))
 			{
