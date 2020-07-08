@@ -125,6 +125,7 @@ public:
 
 	eLMMode m_Settings_Mode;
 	Vec3i m_Settings_VoxelDims;
+	float m_Settings_SurfaceBias;
 
 	int m_Settings_TexWidth;
 	int m_Settings_TexHeight;

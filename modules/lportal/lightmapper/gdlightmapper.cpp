@@ -31,6 +31,7 @@ ADD_PROPERTY(PropertyInfo(P_TYPE, LIGHTMAP_TOSTRING(P_NAME)), LIGHTMAP_TOSTRING(
 	LIMPL_PROPERTY(Variant::NODE_PATH, lights, set_lights_path, get_lights_path);
 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "image_filename", PROPERTY_HINT_FILE, "*.png"), "set_image_filename", "get_image_filename");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "mode", PROPERTY_HINT_ENUM, "Forward,Backward"), "set_mode", "get_mode");
+	LIMPL_PROPERTY(Variant::REAL, surface_bias, set_surface_bias, get_surface_bias);
 
 	ADD_GROUP("Size", "");
 
@@ -122,6 +123,9 @@ int LLightMapper::get_tex_height() const {return m_LM.m_Settings_TexHeight;}
 
 void LLightMapper::set_voxel_dims(const Vector3 &dims) {m_LM.m_Settings_VoxelDims.Set(dims);}
 Vector3 LLightMapper::get_voxel_dims() const {Vector3 p; m_LM.m_Settings_VoxelDims.To(p); return p;}
+
+void LLightMapper::set_surface_bias(float bias) {m_LM.m_Settings_SurfaceBias = bias;}
+float LLightMapper::get_surface_bias() const {return m_LM.m_Settings_SurfaceBias;}
 
 void LLightMapper::set_normalize(bool norm) {m_LM.m_Settings_Normalize = norm;}
 bool LLightMapper::get_normalize() const {return m_LM.m_Settings_Normalize;}
