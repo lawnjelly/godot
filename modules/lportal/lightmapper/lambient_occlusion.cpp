@@ -4,6 +4,9 @@ namespace LM {
 
 void AmbientOcclusion::ProcessAO_Texel(int tx, int ty, int qmc_variation)
 {
+	if ((tx == 41) && (ty == 44))
+		print_line("test");
+
 	const MiniList &ml = m_Image_TriIDs.GetItem(tx, ty);
 	if (!ml.num)
 		return; // no triangles in this UV
@@ -318,6 +321,7 @@ float AmbientOcclusion::CalculateAO(int tx, int ty, int qmc_variation, const Min
 	Vec3i voxel_range = m_Scene.m_VoxelRange;
 
 	int nHits = 0;
+	int nSamplesInside = 0;
 
 	for (int n=0; n<nSamples; n++)
 	{
@@ -330,6 +334,8 @@ float AmbientOcclusion::CalculateAO(int tx, int ty, int qmc_variation, const Min
 		Vector3 bary;
 		if (!AO_FindTexelTriangle(ml, st, tri_inside_id, bary))
 			continue;
+
+		nSamplesInside++;
 
 		// calculate world position ray origin from barycentric
 		m_Scene.m_Tris[tri_inside_id].InterpolateBarycentric(r.o, bary);
@@ -350,7 +356,7 @@ float AmbientOcclusion::CalculateAO(int tx, int ty, int qmc_variation, const Min
 
 	} // for samples
 
-	float fTotal = (float) nHits / nSamples;
+	float fTotal = (float) nHits / nSamplesInside;
 	fTotal = 1.0f - (fTotal * 1.0f);
 
 	if (fTotal < 0.0f)
@@ -362,9 +368,6 @@ float AmbientOcclusion::CalculateAO(int tx, int ty, int qmc_variation, const Min
 
 float AmbientOcclusion::CalculateAO_Complex(int tx, int ty, int qmc_variation, const MiniList &ml)
 {
-	if ((tx == 50) && (ty == 45))
-		print_line("test");
-
 	// first we need to identify some sample points
 	AOSample samples[MAX_COMPLEX_AO_TEXEL_SAMPLES];
 	int nSampleLocs = AO_FindSamplePoints(tx, ty, ml, samples);
@@ -444,6 +447,11 @@ int AmbientOcclusion::AO_FindSamplePoints(int tx, int ty, const MiniList &ml, AO
 
 		// no hit .. we can use this sample!
 		AOSample &sample = samples[samples_found++];
+
+		// be super careful with this offset.
+		// the find test offsets BACKWARDS to find tris on the floor
+		// the actual ambient test offsets FORWARDS to avoid self intersection.
+		// the ambient test could also use the backface culling test, but this is slower.
 		sample.pos = pos + (ptNormal * 0.005f);
 		sample.uv = st;
 		sample.normal = ptNormal;
