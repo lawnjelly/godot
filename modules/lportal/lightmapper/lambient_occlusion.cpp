@@ -16,8 +16,8 @@ void AmbientOcclusion::ProcessAO_Texel(int tx, int ty, int qmc_variation)
 
 	float power;
 
-	const MiniList_Cuts &ml_cuts = m_Image_Cuts.GetItem(tx, ty);
-	if (!ml_cuts.num)
+	// simple or complex? (are there cuts on this texel)
+	if (!m_Image_Cuts.GetItem(tx, ty))
 	{
 		power = CalculateAO(tx, ty, qmc_variation, ml);
 	}
@@ -26,127 +26,7 @@ void AmbientOcclusion::ProcessAO_Texel(int tx, int ty, int qmc_variation)
 		power = CalculateAO_Complex(tx, ty, qmc_variation, ml);
 	}
 
-
-
 	*pfTexel = power;
-}
-
-void AmbientOcclusion::ProcessAO_Triangle(int tri_id)
-{
-//	int width = m_iWidth;
-//	int height = m_iHeight;
-
-//	const Rect2 &aabb = m_Scene.m_TriUVaabbs[tri_id];
-	const UVTri &tri = m_Scene.m_UVTris[tri_id];
-
-//	int min_x = aabb.position.x * width;
-//	int min_y = aabb.position.y * height;
-//	int max_x = (aabb.position.x + aabb.size.x) * width;
-//	int max_y = (aabb.position.y + aabb.size.y) * height;
-
-//	// add a bit for luck
-//	min_x--; min_y--; max_x++; max_y++;
-
-//	// clamp
-//	min_x = CLAMP(min_x, 0, width);
-//	min_y = CLAMP(min_y, 0, height);
-//	max_x = CLAMP(max_x, 0, width);
-//	max_y = CLAMP(max_y, 0, height);
-
-	// calculate the area of the triangle
-	float area = fabsf(tri.CalculateTwiceArea());
-
-	int nSamples = area * 1000000.0f * m_Settings_AO_Samples;
-	Vector3 bary;
-
-	for (int n=0; n<nSamples; n++)
-	{
-		RandomBarycentric(bary);
-		ProcessAO_Sample(bary, tri_id, tri);
-	}
-}
-
-void AmbientOcclusion::ProcessAO_Sample(const Vector3 &bary, int tri_id, const UVTri &uvtri)
-{
-	float range = m_Settings_AO_Range;
-
-	// get the texel (this may need adjustment)
-	Vector2 uv;
-	uvtri.FindUVBarycentric(uv, bary);
-	int tx = uv.x * m_iWidth;
-	int ty = uv.y * m_iHeight;
-
-	// outside? (should not happen, but just in case)
-	if (!m_Image_L.IsWithin(tx, ty))
-		return;
-
-	// find position
-	const Tri &tri_pos = m_Scene.m_Tris[tri_id];
-	Vector3 pos;
-	tri_pos.InterpolateBarycentric(pos, bary);
-
-	// find normal
-	const Tri &tri_norm = m_Scene.m_TriNormals[tri_id];
-	Vector3 norm;
-	tri_norm.InterpolateBarycentric(norm, bary);
-	norm.normalize();
-
-	Vector3 push = norm * m_Settings_SurfaceBias; //0.005f;
-
-	Ray r;
-	r.o = pos + push;
-//	r.d = norm;
-
-	//////
-
-			RandomUnitDir(r.d);
-	//		m_QMC.QMCRandomUnitDir(r.d, n);
-			//m_QMC.QMCRandomUnitDir(r.d, nSamplesCounted-1);
-
-			// clip?
-			float dot = r.d.dot(norm);
-			if (dot < 0.0f)
-			{
-				// make dot always positive for calculations as to the weight given to this hit
-				//dot = -dot;
-				r.d = -r.d;
-			}
-
-			// prevent parallel lines
-			r.d += push;
-		//	r.d = ptNormal;
-
-			// collision detect
-			r.d.normalize();
-
-	/////
-
-
-
-	float t, u, v, w;
-	m_Scene.m_Tracer.m_bUseSDF = true;
-	int tri_hit = m_Scene.FindIntersect_Ray(r, u, v, w, t, &m_Scene.m_VoxelRange, m_iNumTests);
-
-	if (tri_hit != -1)
-	{
-		// scale the occlusion by distance t
-		t = range - t;
-		if (t > 0.0f)
-		{
-			//t *= dot;
-
-//				t /= range;
-
-			//fTotal += t;
-//			if (t > fTotal)
-//				fTotal = t;
-
-//			nHits++;
-
-			float * pfTexel = m_Image_AO.Get(tx, ty);
-			*pfTexel += 1.0f / 64.0f;
-		}
-	}
 }
 
 void AmbientOcclusion::ProcessAO()
@@ -159,17 +39,9 @@ void AmbientOcclusion::ProcessAO()
 	const float range = m_Settings_AO_Range;
 	m_Scene.m_Tracer.GetDistanceInVoxels(range, m_Scene.m_VoxelRange);
 
-//	for (int t=0; t<m_Scene.m_Tris.size(); t++)
-//	{
-//		ProcessAO_Triangle(t);
-//	}
-
-//	Normalize_AO();
-
 #define LAMBIENT_OCCLUSION_USE_THREADS
 #ifdef LAMBIENT_OCCLUSION_USE_THREADS
 //	int nCores = OS::get_singleton()->get_processor_count();
-//	int nSections = m_iHeight / (nCores * 2);
 	int nSections = m_iHeight / 64;
 	if (!nSections) nSections = 1;
 	int y_section_size = m_iHeight / nSections;
@@ -217,12 +89,6 @@ void AmbientOcclusion::ProcessAO()
 		}
 
 		ProcessAO_LineMT(0, y);
-
-//		for (int x=0; x<m_iWidth; x++)
-//		{
-//			qmc_variation = m_QMC.GetNextVariation(qmc_variation);
-//			ProcessAO_Texel(x, y, qmc_variation);
-//		}
 	}
 #endif
 

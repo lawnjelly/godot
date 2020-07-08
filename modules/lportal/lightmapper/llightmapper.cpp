@@ -91,7 +91,7 @@ bool LightMapper::LightmapMesh(const MeshInstance &mi, const Spatial &light_root
 	m_Image_Barycentric.Create(m_iWidth, m_iHeight);
 
 	m_Image_Cuts.Create(m_iWidth, m_iHeight);
-	m_CuttingTris.clear(true);
+	//m_CuttingTris.clear(true);
 
 	print_line("Scene Create");
 	before = OS::get_singleton()->get_ticks_msec();

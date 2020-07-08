@@ -26,9 +26,6 @@ protected:
 	float CalculateAO(int tx, int ty, int qmc_variation, const MiniList &ml);
 	float CalculateAO_Complex(int tx, int ty, int qmc_variation, const MiniList &ml);
 
-	void ProcessAO_Triangle(int tri_id);
-	void ProcessAO_Sample(const Vector3 &bary, int tri_id, const UVTri &uvtri);
-
 private:
 	int AO_FindSamplePoints(int tx, int ty, const MiniList &ml, AOSample samples[MAX_COMPLEX_AO_TEXEL_SAMPLES]);
 
