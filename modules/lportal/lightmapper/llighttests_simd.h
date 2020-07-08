@@ -37,6 +37,15 @@ struct PackedTriangles
 	void Set(int which_tri, const Tri &tri) {Set_e1(which_tri, tri); Set_e2(which_tri, tri); Set_v0(which_tri, tri);
 //		num_tris = which_tri+1;
 	}
+	void ExtractTriangle(int w, Tri &tri) const // debug
+	{
+		for (int m=0; m<3; m++)
+		{
+			tri.pos[0].coord[m] = e1[m].v[w];
+			tri.pos[1].coord[m] = e2[m].v[w];
+			tri.pos[2].coord[m] = v0[m].v[w];
+		}
+	}
 	void Finalize(int num_tris)
 	{
 		for (int n=num_tris; n<4; n++)
@@ -61,9 +70,13 @@ struct PackedRay
 	u_m128 m_direction[3];
 	u_m128 m_length;
 
+	// debug
+	//Ray m_OrigRay;
+
 	void Create(const Ray &ray);
 	int Intersect(const PackedTriangles& packedTris, float &nearest_dist) const;
 	bool IntersectTest(const PackedTriangles& packedTris, float max_dist) const;
+	bool IntersectTest_CullBackFaces(const PackedTriangles& packedTris, float max_dist) const;
 };
 
 

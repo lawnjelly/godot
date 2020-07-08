@@ -182,7 +182,7 @@ public:
 					continue;
 
 				// do we have a used neighbour?
-				bool bSuitable = false;
+				//bool bSuitable = false;
 
 //#define TEST_NEIGH(a, b) if (image.GetItem(a, b)) {m_Actives.Add(Prim::CoPoint2S(a, b)); bSuitable = true; }
 #define TEST_NEIGH(a, b) if (mask.IsWithin(a, b) && mask.GetItem(a, b)) {m_pSource_pts->GetItem(x, y).Set(a, b);\
