@@ -27,6 +27,7 @@ LightMapper_Base::LightMapper_Base()
 	m_Settings_AO_Range = 2.0f;
 	m_Settings_AO_Samples = 64;
 	m_Settings_AO_CutRange = 1.5f;
+	m_Settings_AO_ReverseBias = 0.005f;
 
 	m_Settings_Mode = LMMODE_FORWARD;
 
