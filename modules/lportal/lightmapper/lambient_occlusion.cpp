@@ -39,7 +39,7 @@ void AmbientOcclusion::ProcessAO()
 	const float range = m_Settings_AO_Range;
 	m_Scene.m_Tracer.GetDistanceInVoxels(range, m_Scene.m_VoxelRange);
 
-//#define LAMBIENT_OCCLUSION_USE_THREADS
+#define LAMBIENT_OCCLUSION_USE_THREADS
 #ifdef LAMBIENT_OCCLUSION_USE_THREADS
 //	int nCores = OS::get_singleton()->get_processor_count();
 	int nSections = m_iHeight / 64;
@@ -175,7 +175,7 @@ float AmbientOcclusion::CalculateAO_Complex(int tx, int ty, int qmc_variation, c
 
 	// if no good samples locs found
 	if (!nSampleLocs)
-		return 1.0f; // could use an intermediate value for texture filtering to look better?
+		return 0.5f; // could use an intermediate value for texture filtering to look better?
 
 	int sample_counter = 0;
 	int nHits = 0;
