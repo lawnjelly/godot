@@ -9,17 +9,53 @@
 
 using namespace LM;
 
-bool LightScene::TestVoxelHits(const Ray &ray, const PackedRay &pray, const Voxel &voxel, float max_dist)
+bool LightScene::TestVoxelHits(const Ray &ray, const PackedRay &pray, const Voxel &voxel, float max_dist, bool bCullBackFaces)
 {
 	int quads = voxel.m_PackedTriangles.size();
 
-	for (int q=0; q<quads; q++)
+	if (!bCullBackFaces)
 	{
-		// get pointers to 4 triangles
-		const PackedTriangles & ptris = voxel.m_PackedTriangles[q];
+		for (int q=0; q<quads; q++)
+		{
+			// get pointers to 4 triangles
+			const PackedTriangles & ptris = voxel.m_PackedTriangles[q];
+			if (pray.IntersectTest(ptris, max_dist))
+				return true;
+		}
+	}
+	else
+	{
+		/*
+		// test backface culling
+		Tri t;
+		t.pos[0] = Vector3(0, 0, 0);
+		t.pos[2] = Vector3(1, 1, 0);
+		t.pos[1] = Vector3(1, 0, 0);
+		t.ConvertToEdgeForm();
+		PackedTriangles pttest;
+		pttest.Create();
+		pttest.Set(0, t);
+		pttest.Set(1, t);
+		pttest.Set(2, t);
+		pttest.Set(3, t);
+		pttest.Finalize(4);
 
-		if (pray.IntersectTest(ptris, max_dist))
-			return true;
+		Ray rtest;
+		rtest.o = Vector3(0.5, 0.4, -1);
+		rtest.d = Vector3(0, 0, 1);
+		PackedRay prtest;
+		prtest.Create(rtest);
+
+		prtest.IntersectTest_CullBackFaces(pttest, 10);
+		*/
+
+		for (int q=0; q<quads; q++)
+		{
+			// get pointers to 4 triangles
+			const PackedTriangles & ptris = voxel.m_PackedTriangles[q];
+			if (pray.IntersectTest_CullBackFaces(ptris, max_dist))
+				return true;
+		}
 	}
 
 	return false;
@@ -275,7 +311,7 @@ void LightScene::ProcessVoxelHits_Old(const Ray &ray, const Voxel &voxel, float 
 
 }
 
-bool LightScene::TestIntersect_Ray(const Ray &ray, float max_dist, const Vec3i &voxel_range)
+bool LightScene::TestIntersect_Ray(const Ray &ray, float max_dist, const Vec3i &voxel_range, bool bCullBackFaces)
 {
 	Ray voxel_ray;
 	Vec3i ptVoxel;
@@ -302,7 +338,7 @@ bool LightScene::TestIntersect_Ray(const Ray &ray, float max_dist, const Vec3i &
 		if (!pVoxel)
 			break;
 
-		if (TestVoxelHits(ray, pray, *pVoxel, max_dist))
+		if (TestVoxelHits(ray, pray, *pVoxel, max_dist, bCullBackFaces))
 			return true;
 
 		// check for voxel range
