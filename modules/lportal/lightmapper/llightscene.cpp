@@ -722,8 +722,8 @@ void LightScene::RasterizeTriangleIDs(LightMapper_Base &base, LightImage<uint32_
 //					print_line("testing");
 //				}
 
-				//if (tri.ContainsPoint(Vector2(s, t)))
-				if (tri.ContainsTexel(x, y, width , height))
+				if (tri.ContainsPoint(Vector2(s, t)))
+				//if (tri.ContainsTexel(x, y, width , height))
 				{
 					temp_image_tris.GetItem(x, y).push_back(n);
 
@@ -784,7 +784,7 @@ void LightScene::RasterizeTriangleIDs(LightMapper_Base &base, LightImage<uint32_
 	} // for y
 
 
-	FindCuts(base);
+	//FindCuts(base);
 }
 
 

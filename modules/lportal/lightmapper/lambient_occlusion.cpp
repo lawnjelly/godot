@@ -17,7 +17,8 @@ void AmbientOcclusion::ProcessAO_Texel(int tx, int ty, int qmc_variation)
 	float power = 0.0f;
 
 	// simple or complex? (are there cuts on this texel)
-	if (!m_Image_Cuts.GetItem(tx, ty))
+	if (1)
+//	if (!m_Image_Cuts.GetItem(tx, ty))
 	{
 		power = CalculateAO(tx, ty, qmc_variation, ml);
 	}
@@ -175,7 +176,11 @@ float AmbientOcclusion::CalculateAO_Complex(int tx, int ty, int qmc_variation, c
 
 	// if no good samples locs found
 	if (!nSampleLocs)
-		return 0.5f; // could use an intermediate value for texture filtering to look better?
+	{
+		// set to dilate
+		m_Image_ID_p1.GetItem(tx, ty) = 0;
+		return 0.5f; // 0.5 could use an intermediate value for texture filtering to look better?
+	}
 
 	int sample_counter = 0;
 	int nHits = 0;
@@ -246,10 +251,7 @@ int AmbientOcclusion::AO_FindSamplePoints(int tx, int ty, const MiniList &ml, AO
 		const Vector3 &ptNormal = m_Scene.m_TriPlanes[tri_inside_id].normal;
 
 		// construct a random ray to test
-		AO_RandomRay(r, ptNormal);
-
-		// test force
-		r.d = Vector3(0,1, 0);
+		AO_FindSamplesRandomRay(r, ptNormal);
 
 		// test ray
 		if (m_Scene.TestIntersect_Ray(r, m_Settings_AO_Range, m_Scene.m_VoxelRange, true))
