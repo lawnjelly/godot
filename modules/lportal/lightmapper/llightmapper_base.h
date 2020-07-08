@@ -121,6 +121,7 @@ public:
 	int m_Settings_AO_Samples;
 	float m_Settings_AO_Range;
 	float m_Settings_AO_CutRange;
+	float m_Settings_AO_ReverseBias;
 
 	eLMMode m_Settings_Mode;
 	Vec3i m_Settings_VoxelDims;

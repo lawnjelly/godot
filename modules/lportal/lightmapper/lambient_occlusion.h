@@ -116,8 +116,9 @@ private:
 		r.d.normalize();
 	}
 
-	void AO_RandomRay(Ray &r, const Vector3 &ptNormal) const
+	void AO_FindSamplesRandomRay(Ray &r, const Vector3 &ptNormal) const
 	{
+		//Vector3 push = ptNormal * m_Settings_AO_ReverseBias; //0.005f;
 		Vector3 push = ptNormal * m_Settings_SurfaceBias; //0.005f;
 
 		// push ray origin
@@ -140,6 +141,8 @@ private:
 
 		// collision detect
 		r.d.normalize();
-	}};
+	}
+
+};
 
 } // namespace
