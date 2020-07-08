@@ -4,8 +4,8 @@ namespace LM {
 
 void AmbientOcclusion::ProcessAO_Texel(int tx, int ty, int qmc_variation)
 {
-	if ((tx == 41) && (ty == 44))
-		print_line("test");
+//	if ((tx == 41) && (ty == 44))
+//		print_line("test");
 
 	const MiniList &ml = m_Image_TriIDs.GetItem(tx, ty);
 	if (!ml.num)
@@ -91,7 +91,7 @@ void AmbientOcclusion::ProcessAO_Sample(const Vector3 &bary, int tri_id, const U
 	tri_norm.InterpolateBarycentric(norm, bary);
 	norm.normalize();
 
-	Vector3 push = norm * 0.005f;
+	Vector3 push = norm * m_Settings_SurfaceBias; //0.005f;
 
 	Ray r;
 	r.o = pos + push;
@@ -452,7 +452,7 @@ int AmbientOcclusion::AO_FindSamplePoints(int tx, int ty, const MiniList &ml, AO
 		// the find test offsets BACKWARDS to find tris on the floor
 		// the actual ambient test offsets FORWARDS to avoid self intersection.
 		// the ambient test could also use the backface culling test, but this is slower.
-		sample.pos = pos + (ptNormal * 0.005f);
+		sample.pos = pos + (ptNormal * m_Settings_SurfaceBias); //0.005f);
 		sample.uv = st;
 		sample.normal = ptNormal;
 		sample.tri_id = tri_inside_id;
@@ -591,7 +591,7 @@ float AmbientOcclusion::CalculateAO_Old(int tx, int ty, int qmc_variation)//, ui
 		Vector3 ptNormal;
 		m_Scene.m_TriNormals[tri_id].InterpolateBarycentric(ptNormal, u, v, w);
 
-		Vector3 push = ptNormal * 0.005f;
+		Vector3 push = ptNormal * m_Settings_SurfaceBias; //0.005f;
 
 		// push ray origin
 		r.o += push;
