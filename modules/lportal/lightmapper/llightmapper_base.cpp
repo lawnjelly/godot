@@ -33,6 +33,7 @@ LightMapper_Base::LightMapper_Base()
 	m_Settings_TexWidth = 128;
 	m_Settings_TexHeight = 128;
 	m_Settings_VoxelDims.Set(20, 6, 20);
+	m_Settings_SurfaceBias = 0.005f;
 
 	m_Settings_Normalize = true;
 	m_Settings_NormalizeBias = 1.0f;

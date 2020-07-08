@@ -79,7 +79,7 @@ private:
 
 	void AO_RandomQMCDirection(Vector3 &dir, const Vector3 &ptNormal, int n, int qmc_variation) const
 	{
-		Vector3 push = ptNormal * 0.005f;
+		Vector3 push = ptNormal * m_Settings_SurfaceBias; //0.005f;
 
 		m_QMC.QMCRandomUnitDir(dir, n, qmc_variation);
 
@@ -97,7 +97,7 @@ private:
 
 	void AO_RandomQMCRay(Ray &r, const Vector3 &ptNormal, int n, int qmc_variation) const
 	{
-		Vector3 push = ptNormal * 0.005f;
+		Vector3 push = ptNormal * m_Settings_SurfaceBias; // 0.005f;
 
 		// push ray origin
 		r.o += push;
@@ -124,7 +124,7 @@ private:
 
 	void AO_RandomRay(Ray &r, const Vector3 &ptNormal) const
 	{
-		Vector3 push = ptNormal * 0.005f;
+		Vector3 push = ptNormal * m_Settings_SurfaceBias; //0.005f;
 
 		// push ray origin
 		r.o -= push;

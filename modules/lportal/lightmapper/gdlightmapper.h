@@ -78,6 +78,9 @@ public:
 	void set_voxel_dims(const Vector3 &dims);
 	Vector3 get_voxel_dims() const;
 
+	void set_surface_bias(float bias);
+	float get_surface_bias() const;
+
 	void set_normalize(bool norm);
 	bool get_normalize() const;
 
