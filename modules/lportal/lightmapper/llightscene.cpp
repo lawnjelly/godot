@@ -570,13 +570,6 @@ bool LightScene::Create(const MeshInstance &mi, int width, int height, const Vec
 		// because the normal is determined by the winding in world space
 		tri_plane = Plane(t.pos[0], t.pos[1], t.pos[2], CLOCKWISE);
 
-		// make sure winding is standard in UV space
-		if (uvt.IsWindingCW())
-		{
-			uvt.FlipWinding();
-			t.FlipWinding();
-			tri_norm.FlipWinding();
-		}
 
 		// calculate edge form
 		{
@@ -587,6 +580,17 @@ bool LightScene::Create(const MeshInstance &mi, int width, int height, const Vec
 			// a
 			tri_edge.pos[2] = t.pos[0];
 		}
+
+
+		// ALWAYS DO THE UV WINDING LAST!!
+		// make sure winding is standard in UV space
+		if (uvt.IsWindingCW())
+		{
+			uvt.FlipWinding();
+			t.FlipWinding();
+			tri_norm.FlipWinding();
+		}
+
 
 #ifdef LLIGHTSCENE_VERBOSE
 		String sz;
@@ -827,13 +831,13 @@ void LightScene::FindCuts_Texel(LightMapper_Base &base, int tx, int ty, int tri_
 	Ray r;
 	r.o = pos;
 	r.d = edge;
-	FindCuts_TangentTrace(base, tx, ty, r, texel_size);
+	if (FindCuts_TangentTrace(base, tx, ty, r, texel_size)) return;
 	r.d = -edge;
-	FindCuts_TangentTrace(base, tx, ty, r, texel_size);
+	if (FindCuts_TangentTrace(base, tx, ty, r, texel_size)) return;
 	r.d = tangent;
-	FindCuts_TangentTrace(base, tx, ty, r, texel_size);
+	if (FindCuts_TangentTrace(base, tx, ty, r, texel_size)) return;
 	r.d = -tangent;
-	FindCuts_TangentTrace(base, tx, ty, r, texel_size);
+	if (FindCuts_TangentTrace(base, tx, ty, r, texel_size)) return;
 
 	// try the edge and tangent at 45 degrees
 	Vector3 edge45 = (edge + tangent).normalized();
@@ -841,13 +845,13 @@ void LightScene::FindCuts_Texel(LightMapper_Base &base, int tx, int ty, int tri_
 	edge = edge45;
 	tangent = tangent45;
 	r.d = edge;
-	FindCuts_TangentTrace(base, tx, ty, r, texel_size);
+	if (FindCuts_TangentTrace(base, tx, ty, r, texel_size)) return;
 	r.d = -edge;
-	FindCuts_TangentTrace(base, tx, ty, r, texel_size);
+	if (FindCuts_TangentTrace(base, tx, ty, r, texel_size)) return;
 	r.d = tangent;
-	FindCuts_TangentTrace(base, tx, ty, r, texel_size);
+	if (FindCuts_TangentTrace(base, tx, ty, r, texel_size)) return;
 	r.d = -tangent;
-	FindCuts_TangentTrace(base, tx, ty, r, texel_size);
+	if (FindCuts_TangentTrace(base, tx, ty, r, texel_size)) return;
 
 
 	// debug
