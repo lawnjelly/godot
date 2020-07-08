@@ -52,12 +52,27 @@ public:
 	void FindBarycentric(const Vector3 &pt, float &u, float &v, float &w) const;
 	void InterpolateBarycentric(Vector3 &pt, const Vector3 &bary) const {InterpolateBarycentric(pt, bary.x, bary.y, bary.z);}
 	void InterpolateBarycentric(Vector3 &pt, float u, float v, float w) const;
-	void FindNormal(Vector3 &norm, float u, float v, float w) const
+	void FindNormal_EdgeForm(Vector3 &norm) const
+	{
+		norm = -pos[0].cross(pos[1]);
+		norm.normalize();
+	}
+	void FindNormal(Vector3 &norm) const
 	{
 		Vector3 e0 = pos[1] - pos[0];
 		Vector3 e1 = pos[2] - pos[1];
 		norm = -e0.cross(e1);
 		norm.normalize();
+	}
+	void ConvertToEdgeForm()
+	{
+		Tri t = *this;
+		// b - a
+		pos[0] = t.pos[1] - t.pos[0];
+		// c - a
+		pos[1] = t.pos[2] - t.pos[0];
+		// a
+		pos[2] = t.pos[0];
 	}
 };
 

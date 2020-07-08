@@ -9,6 +9,17 @@ class AmbientOcclusion : public RayBank
 public:
 
 protected:
+	struct AOSample
+	{
+		Vector2 uv;
+		uint32_t tri_id;
+		Vector3 pos;
+		Vector3 normal;
+	};
+
+
+	enum {MAX_COMPLEX_AO_TEXEL_SAMPLES = 8};
+
 	void ProcessAO();
 	void ProcessAO_LineMT(uint32_t y_offset, int y_section_start);
 	void ProcessAO_Texel(int tx, int ty, int qmc_variation);
@@ -20,6 +31,9 @@ protected:
 
 	void ProcessAO_Triangle(int tri_id);
 	void ProcessAO_Sample(const Vector3 &bary, int tri_id, const UVTri &uvtri);
+
+private:
+	int AO_FindSamplePoints(int tx, int ty, const MiniList &ml, AOSample samples[MAX_COMPLEX_AO_TEXEL_SAMPLES]);
 
 
 	void AO_RandomTexelSample(Vector2 &st, int tx, int ty, int n) const
@@ -63,7 +77,25 @@ protected:
 		return false;
 	}
 
-	void AO_RandomRay(Ray &r, const Vector3 &ptNormal, int n, int qmc_variation) const
+	void AO_RandomQMCDirection(Vector3 &dir, const Vector3 &ptNormal, int n, int qmc_variation) const
+	{
+		Vector3 push = ptNormal * 0.005f;
+
+		m_QMC.QMCRandomUnitDir(dir, n, qmc_variation);
+
+		// clip?
+		float dot = dir.dot(ptNormal);
+		if (dot < 0.0f)
+			dir = -dir;
+
+		// prevent parallel lines
+		dir += push;
+
+		// collision detect
+		dir.normalize();
+	}
+
+	void AO_RandomQMCRay(Ray &r, const Vector3 &ptNormal, int n, int qmc_variation) const
 	{
 		Vector3 push = ptNormal * 0.005f;
 
@@ -89,6 +121,31 @@ protected:
 		// collision detect
 		r.d.normalize();
 	}
-};
+
+	void AO_RandomRay(Ray &r, const Vector3 &ptNormal) const
+	{
+		Vector3 push = ptNormal * 0.005f;
+
+		// push ray origin
+		r.o -= push;
+
+		RandomUnitDir(r.d);
+
+		// clip?
+		float dot = r.d.dot(ptNormal);
+		if (dot < 0.0f)
+		{
+			// make dot always positive for calculations as to the weight given to this hit
+			//dot = -dot;
+			r.d = -r.d;
+		}
+
+		// prevent parallel lines
+		r.d += push;
+	//	r.d = ptNormal;
+
+		// collision detect
+		r.d.normalize();
+	}};
 
 } // namespace

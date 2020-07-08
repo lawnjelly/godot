@@ -54,6 +54,8 @@ const __m128 zeroM128 = _mm_set1_ps(0.0f);
 
 void PackedRay::Create(const Ray &ray)
 {
+	//m_OrigRay = ray;
+
 	m_origin[0].mm128 = _mm_set1_ps(ray.o.x);
 	m_origin[1].mm128 = _mm_set1_ps(ray.o.y);
 	m_origin[2].mm128 = _mm_set1_ps(ray.o.z);
@@ -61,6 +63,112 @@ void PackedRay::Create(const Ray &ray)
 	m_direction[0].mm128 = _mm_set1_ps(ray.d.x);
 	m_direction[1].mm128 = _mm_set1_ps(ray.d.y);
 	m_direction[2].mm128 = _mm_set1_ps(ray.d.z);
+}
+
+
+// returns true if a hit
+bool PackedRay::IntersectTest_CullBackFaces(const PackedTriangles& packedTris, float max_dist) const
+{
+	//Begin calculating determinant - also used to calculate u parameter
+	// P
+	__m128 q[3];
+	multi_cross(q, &m_direction[0].mm128, &packedTris.e2[0].mm128);
+
+	//if determinant is near zero, ray lies in plane of triangle
+	// det
+	__m128 a = multi_dot(&packedTris.e1[0].mm128, q);
+
+	// reject based on det being close to zero
+	// NYI
+
+	// inv_det
+	__m128 f = _mm_div_ps(oneM128, a);
+
+	// distance from v1 to ray origin
+	// T
+	__m128 s[3];
+	multi_sub(s, &m_origin[0].mm128, &packedTris.v0[0].mm128);
+
+	// Calculate u parameter and test bound
+	__m128 u = _mm_mul_ps(f, multi_dot(s, q));
+
+	// the intersection lies outside triangle
+	// NYI
+
+	// Prepare to test v parameter
+	// Q
+	__m128 r[3];
+	multi_cross(r, s, &packedTris.e1[0].mm128);
+
+	// calculate V parameter and test bound
+	// v
+	__m128 v = _mm_mul_ps(f, multi_dot(&m_direction[0].mm128, r));
+
+	// intersection outside of triangles?
+	// NYI
+
+	// t
+	__m128 t = _mm_mul_ps(f, multi_dot(&packedTris.e2[0].mm128, r));
+
+	// if t > epsilon, hit
+
+	/////////////////////////////////////////
+	// back face culling.
+	// calculate face normal (not normalized)
+	__m128 face_normals[3];
+	multi_cross(face_normals, &packedTris.e2[0].mm128, &packedTris.e1[0].mm128);
+	// dot ray direction
+	__m128 ray_dot_normal = multi_dot(&m_direction[0].mm128, face_normals);
+	/////////////////////////////////////////
+
+
+	// Failure conditions
+	// determinant close to zero?
+	__m128 nohit = _mm_and_ps(_mm_cmpge_ps(a, negativeEpsilonM128), _mm_cmple_ps(a, positiveEpsilonM128));
+	nohit = _mm_or_ps(nohit, _mm_cmple_ps(u, zeroM128));
+	nohit = _mm_or_ps(nohit, _mm_cmple_ps(v, zeroM128));
+	nohit = _mm_or_ps(nohit, _mm_cmpge_ps(_mm_add_ps(u, v), oneM128));
+	nohit = _mm_or_ps(nohit, _mm_cmple_ps(t, zeroM128));
+	//    failed = _mm_or_ps(failed, _mm_cmpge_ps(t, m_length));
+	nohit = _mm_or_ps(nohit, packedTris.inactiveMask.mm128);
+
+	// test against minimum t .. not sure if this will speed up or not.
+	__m128 m_max_dist = _mm_set1_ps(max_dist);
+	nohit = _mm_or_ps(nohit, _mm_cmpge_ps(t, m_max_dist));
+
+
+	// backface culling - THE BIT OPERATION IS OPPOSITE.
+	// We want to PREVENT failing if the backface is hit.
+	__m128 backface_mask = _mm_cmpge_ps(ray_dot_normal, zeroM128);
+
+	// always let through the bits set in backface mask
+	nohit = _mm_or_ps(nohit, backface_mask);
+
+	int mask = _mm_movemask_ps(nohit);
+    if (mask != 15) // first 4 bits set
+	{
+//		// find normals manually
+//		// there is at least one winner, so no need to set this
+//		int winner = 0;
+
+//		float * pT = (float*) &t;
+//		for (int n=0; n<4; n++)
+//		{
+//			// calculate normal
+//			Tri test_tri;
+//			packedTris.ExtractTriangle(n, test_tri);
+//			Vector3 norm;
+//			test_tri.FindNormal_EdgeForm(norm);
+
+//			float dot = m_OrigRay.d.dot(norm);
+//			m_OrigRay.d.dot(norm);
+
+//		} // for n
+
+		return true;
+	} // mask
+
+	return false;
 }
 
 
@@ -113,12 +221,6 @@ bool PackedRay::IntersectTest(const PackedTriangles& packedTris, float max_dist)
 	// Failure conditions
 	// determinant close to zero?
 	__m128 failed = _mm_and_ps(_mm_cmpge_ps(a, negativeEpsilonM128), _mm_cmple_ps(a, positiveEpsilonM128));
-
-	//    __m128 failed = _mm_and_ps(
-	//        _mm_cmp(a, negativeEpsilonM256, _CMP_GT_OQ),
-	//        cmp(a, positiveEpsilonM256, _CMP_LT_OQ)
-	//    );
-
 	failed = _mm_or_ps(failed, _mm_cmple_ps(u, zeroM128));
 	failed = _mm_or_ps(failed, _mm_cmple_ps(v, zeroM128));
 	failed = _mm_or_ps(failed, _mm_cmpge_ps(_mm_add_ps(u, v), oneM128));

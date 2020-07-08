@@ -36,7 +36,8 @@ public:
 	int FindIntersect_Ray(const Ray &ray, float &u, float &v, float &w, float &nearest_t, const Vec3i * pVoxelRange, int &num_tests);//, int ignore_tri_p1 = 0);
 
 	// simple test returns true if any collision
-	bool TestIntersect_Ray(const Ray &ray, float max_dist, const Vec3i &voxel_range);
+	bool TestIntersect_Ray(const Ray &ray, float max_dist, const Vec3i &voxel_range, bool bCullBackFaces = false);
+
 
 	int IntersectRay_old(const Ray &ray, float &u, float &v, float &w, float &nearest_t) const;
 
@@ -64,7 +65,7 @@ private:
 	void ProcessVoxelHits(const Ray &ray, const PackedRay &pray, const Voxel &voxel, float &r_nearest_t, int &r_nearest_tri); // int ignore_triangle_id_p1);
 	void ProcessVoxelHits_Old(const Ray &ray, const Voxel &voxel, float &r_nearest_t, int &r_nearest_tri);
 
-	bool TestVoxelHits(const Ray &ray, const PackedRay &pray, const Voxel &voxel, float max_dist);
+	bool TestVoxelHits(const Ray &ray, const PackedRay &pray, const Voxel &voxel, float max_dist, bool bCullBackFaces);
 
 
 	PoolVector<Vector3> m_ptPositions;
