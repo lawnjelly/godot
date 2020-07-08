@@ -24,9 +24,9 @@ LightMapper_Base::LightMapper_Base()
 	m_Settings_Backward_RayPower = 0.01f;
 	m_Settings_Backward_BouncePower = 0.5f;
 
-	m_Settings_AO_Range = 24.0f;
+	m_Settings_AO_Range = 2.0f;
 	m_Settings_AO_Samples = 64;
-	m_Settings_AO_CutRange = 0.05f;
+	m_Settings_AO_CutRange = 1.5f;
 
 	m_Settings_Mode = LMMODE_FORWARD;
 
