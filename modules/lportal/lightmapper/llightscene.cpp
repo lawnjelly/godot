@@ -851,23 +851,24 @@ void LightScene::FindCuts_Texel(LightMapper_Base &base, int tx, int ty, int tri_
 
 
 	// debug
-//#ifdef DEBUG_ENABLED
-	MiniList_Cuts &ml = base.m_Image_Cuts.GetItem(tx, ty);
-	if (ml.num)
-	{
-		String sz;
-		sz = itos (tx) + ", " + itos(ty) + " numcuts " +itos(ml.num);
-		for (int c=0; c<ml.num; c++)
-		{
-			int cuttri_id = base.m_CuttingTris[ml.first + c];
-			sz += "\n\t" + String(Variant(m_TriPlanes[cuttri_id].normal));
-		}
-		print_line( sz);
-	}
-//#endif
+#ifdef DEBUG_ENABLED
+//	MiniList_Cuts &ml = base.m_Image_Cuts.GetItem(tx, ty);
+//	if (ml.num)
+//	{
+//		String sz;
+//		sz = itos (tx) + ", " + itos(ty) + " numcuts " +itos(ml.num);
+//		for (int c=0; c<ml.num; c++)
+//		{
+//			int cuttri_id = base.m_CuttingTris[ml.first + c];
+//			sz += "\n\t" + String(Variant(m_TriPlanes[cuttri_id].normal));
+//		}
+//		print_line( sz);
+//	}
+#endif
 }
 
-void LightScene::FindCuts_TangentTrace(LightMapper_Base &base, int tx, int ty, Ray r, float max_dist)
+// returns true if found cut
+bool LightScene::FindCuts_TangentTrace(LightMapper_Base &base, int tx, int ty, Ray r, float max_dist)
 {
 	// backup the ray just a smidgen to allow for floating point error at the centre
 	r.o -= (r.d * 0.0001f);
@@ -878,21 +879,25 @@ void LightScene::FindCuts_TangentTrace(LightMapper_Base &base, int tx, int ty, R
 	int tri_id = FindIntersect_Ray(r, u, v, w, t, 0, num_tests);
 
 	if (tri_id == -1)
-		return;
+		return false;
 
 	// hit a tri! add to the cuts if within range.
 	// just use a fixed range to start
 	if (t > max_dist) // 0.05f
-		return;
+		return false;
 
 	// compare dot products - this may not be necessary
 	const Plane &cutting_plane = m_TriPlanes[tri_id];
 	float dot = r.d.dot(cutting_plane.normal);
 
 	// ignore if triangle is parallel
-	if (fabs(dot) < 0.001f)
-		return;
+	if (fabsf(dot) < 0.001f)
+		return false;
 
+	base.m_Image_Cuts.GetItem(tx, ty) = 1;
+	return true;
+}
+/*
 
 	MiniList_Cuts &ml = base.m_Image_Cuts.GetItem(tx, ty);
 	if (!ml.num)
@@ -975,6 +980,7 @@ void LightScene::FindCuts_TangentTrace(LightMapper_Base &base, int tx, int ty, R
 	// make texel dilatable
 	//base.m_Image_ID_p1.GetItem(tx, ty) = 0;
 }
+*/
 
 void LightScene::FindCuts(LightMapper_Base &base)
 {

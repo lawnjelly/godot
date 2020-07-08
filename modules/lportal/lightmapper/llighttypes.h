@@ -5,14 +5,6 @@
 namespace LM
 {
 
-struct MiniList_Cuts
-{
-	uint32_t first;
-	uint16_t num;
-	uint16_t convex; // bool
-};
-
-
 struct MiniList
 {
 	uint32_t first;
