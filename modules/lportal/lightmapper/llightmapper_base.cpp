@@ -30,6 +30,7 @@ LightMapper_Base::LightMapper_Base()
 	m_Settings_AO_ReverseBias = 0.005f;
 
 	m_Settings_Mode = LMMODE_FORWARD;
+	m_Settings_BakeMode = LMBAKEMODE_AO;
 
 	m_Settings_TexWidth = 128;
 	m_Settings_TexHeight = 128;
@@ -38,6 +39,10 @@ LightMapper_Base::LightMapper_Base()
 
 	m_Settings_Normalize = true;
 	m_Settings_NormalizeBias = 1.0f;
+
+	m_Settings_LightmapIsHDR = false;
+	m_Settings_AmbientIsHDR = false;
+	m_Settings_CombinedIsHDR = false;
 }
 
 
@@ -265,9 +270,11 @@ void LightMapper_Base::WriteOutputImage(Image &output_image)
 			float f = *pf;
 
 			// gamma correction
-			float gamma = 1.0f / 2.2f;
-			f = powf(f, gamma);
-
+			if (!m_Settings_LightmapIsHDR)
+			{
+				float gamma = 1.0f / 2.2f;
+				f = powf(f, gamma);
+			}
 
 			Color col;
 			col = Color(f, f, f, 1);

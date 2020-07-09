@@ -42,6 +42,15 @@ public:
 		LMMODE_BACKWARD,
 	};
 
+	enum eLMBakeMode
+	{
+		LMBAKEMODE_LIGHTMAP,
+		LMBAKEMODE_AO,
+		LMBAKEMODE_MERGE,
+		LMBAKEMODE_COMBINED,
+	};
+
+
 	// these enable feedback in the Godot UI as we bake
 	typedef void (*BakeBeginFunc)(int);
 	typedef bool (*BakeStepFunc)(int, const String &);
@@ -124,6 +133,7 @@ public:
 	float m_Settings_AO_ReverseBias;
 
 	eLMMode m_Settings_Mode;
+	eLMBakeMode m_Settings_BakeMode;
 	Vec3i m_Settings_VoxelDims;
 	float m_Settings_SurfaceBias;
 
@@ -135,7 +145,16 @@ public:
 
 	NodePath m_Settings_Path_Mesh;
 	NodePath m_Settings_Path_Lights;
-	String m_Settings_ImageFilename;
+
+	String m_Settings_LightmapFilename;
+	bool m_Settings_LightmapIsHDR;
+
+	String m_Settings_AmbientFilename;
+	bool m_Settings_AmbientIsHDR;
+
+	String m_Settings_CombinedFilename;
+	bool m_Settings_CombinedIsHDR;
+
 
 	LightMapper_Base();
 protected:

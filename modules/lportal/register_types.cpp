@@ -11,10 +11,10 @@
 void register_lportal_types() {
 
 	ClassDB::register_class<LRoomManager>();
-	ClassDB::register_class<LLightMapper>();
+	ClassDB::register_class<LLightmap>();
 
 #ifdef TOOLS_ENABLED
-    EditorPlugins::add_by_type<LLightMapperEditorPlugin>();
+    EditorPlugins::add_by_type<LLightmapEditorPlugin>();
 #endif
 }
 
