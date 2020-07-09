@@ -72,16 +72,15 @@ void LightTracer::Create(const LightScene &scene, const Vec3i &voxel_dims)
 void LightTracer::GetDistanceInVoxels(float dist, Vec3i &ptVoxelDist) const
 {
 	// note this will screw up with zero voxel size
-#ifdef DEBUG_ENABLED
 	if ((m_VoxelSize.x == 0.0f) || (m_VoxelSize.y == 0.0f) || (m_VoxelSize.z == 0.0f))
 	{
 		ptVoxelDist.Set(0, 0, 0);
 		return;
 	}
-#endif
-	ptVoxelDist.x = (dist / m_VoxelSize.x);//+1;
-	ptVoxelDist.y = (dist / m_VoxelSize.y);//+1;
-	ptVoxelDist.z = (dist / m_VoxelSize.z);//+1;
+
+	ptVoxelDist.x = (dist / m_VoxelSize.x)+1;//+1;
+	ptVoxelDist.y = (dist / m_VoxelSize.y)+1;//+1;
+	ptVoxelDist.z = (dist / m_VoxelSize.z)+1;//+1;
 }
 
 // ray translated to voxel space
