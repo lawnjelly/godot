@@ -5,48 +5,50 @@
 
 namespace LM {
 
-bool LightMapper::lightmap_mesh(MeshInstance * pMI, Spatial * pLR, Image * pIm)
+bool LightMapper::lightmap_mesh(MeshInstance * pMI, Spatial * pLR, Image * pIm_Lightmap, Image * pIm_AO, Image * pIm_Combined)
 {
 	// get the output dimensions before starting, because we need this
 	// to determine number of rays, and the progress range
-	m_iWidth = pIm->get_width();
-	m_iHeight = pIm->get_height();
+	m_iWidth = pIm_Combined->get_width();
+	m_iHeight = pIm_Combined->get_height();
 	m_iNumRays = m_Settings_Forward_NumRays;
 
-//	int nTexels = m_iWidth * m_iHeight;
-//	int progress_range = m_iHeight;
+		int nTexels = m_iWidth * m_iHeight;
+	//	int progress_range = m_iHeight;
 
 	// set num rays depending on method
-//	if (m_Settings_Mode == LMMODE_FORWARD)
-//	{
-//		// the num rays / texel. This is per light!
-//		m_iNumRays *= nTexels;
-//		progress_range = m_iNumRays / m_iRaysPerSection;
-//	}
+		if (m_Settings_Mode == LMMODE_FORWARD)
+		{
+			// the num rays / texel. This is per light!
+			m_iNumRays *= nTexels;
+	//		progress_range = m_iNumRays / m_iRaysPerSection;
+		}
 
-//	if (bake_begin_function) {
-//		bake_begin_function(progress_range);
-//	}
+	//	if (bake_begin_function) {
+	//		bake_begin_function(progress_range);
+	//	}
 
 	// do twice to test SIMD
 	uint32_t beforeA = OS::get_singleton()->get_ticks_msec();
 	m_Scene.m_bUseSIMD = true;
 	m_Scene.m_Tracer.m_bSIMD = true;
-	bool res = LightmapMesh(*pMI, *pLR, *pIm);
+
+	bool res = LightmapMesh(*pMI, *pLR, *pIm_Lightmap, *pIm_AO, *pIm_Combined);
+
 	uint32_t afterA = OS::get_singleton()->get_ticks_msec();
 
-	uint32_t beforeB = OS::get_singleton()->get_ticks_msec();
-	m_Scene.m_bUseSIMD = false;
-	m_Scene.m_Tracer.m_bSIMD = false;
+	//	uint32_t beforeB = OS::get_singleton()->get_ticks_msec();
+	//	m_Scene.m_bUseSIMD = false;
+	//	m_Scene.m_Tracer.m_bSIMD = false;
 	//res = LightmapMesh(*pMI, *pLR, *pIm);
-	uint32_t afterB = OS::get_singleton()->get_ticks_msec();
+	//	uint32_t afterB = OS::get_singleton()->get_ticks_msec();
 
 	print_line("SIMD version took : " + itos(afterA - beforeA));
-	print_line("reference version took : " + itos(afterB- beforeB));
+	//	print_line("reference version took : " + itos(afterB- beforeB));
 
-//	if (bake_end_function) {
-//		bake_end_function();
-//	}
+	//	if (bake_end_function) {
+	//		bake_end_function();
+	//	}
 	return res;
 }
 
@@ -57,90 +59,146 @@ void LightMapper::Reset()
 	RayBank_Reset();
 }
 
-bool LightMapper::LightmapMesh(const MeshInstance &mi, const Spatial &light_root, Image &output_image)
+void LightMapper::Refresh_Process_State()
+{
+	// process states
+	switch (m_Settings_BakeMode)
+	{
+	case LMBAKEMODE_LIGHTMAP:
+		{
+			m_Settings_Process_Lightmap = true;
+			m_Settings_Process_AO = false;
+		}
+		break;
+	case LMBAKEMODE_AO:
+		{
+			m_Settings_Process_Lightmap = false;
+			m_Settings_Process_AO = true;
+		}
+		break;
+	case LMBAKEMODE_MERGE:
+		{
+			m_Settings_Process_Lightmap = false;
+			m_Settings_Process_AO = false;
+		}
+		break;
+	default:
+		{
+			m_Settings_Process_Lightmap = true;
+			m_Settings_Process_AO = true;
+		}
+		break;
+	}
+}
+
+
+bool LightMapper::LightmapMesh(const MeshInstance &mi, const Spatial &light_root, Image &out_image_lightmap, Image &out_image_ao, Image &out_image_combined)
 {
 	// print out settings
 	print_line("Lightmap mesh");
 	print_line("\tnum_bounces " + itos(m_Settings_Forward_NumBounces));
 	print_line("\tbounce_power " + String(Variant(m_Settings_Forward_BouncePower)));
 
+	Refresh_Process_State();
+
 	Reset();
 	m_bCancel = false;
-
-	m_QMC.Create(m_Settings_AO_Samples);
-
-	uint32_t before, after;
-	FindLights_Recursive(&light_root);
-	print_line("Found " + itos (m_Lights.size()) + " lights.");
 
 	if (m_iWidth <= 0)
 		return false;
 	if (m_iHeight <= 0)
 		return false;
 
+	// create stuff used by everything
 	m_Image_L.Create(m_iWidth, m_iHeight);
 	m_Image_L_mirror.Create(m_iWidth, m_iHeight);
 	m_Image_AO.Create(m_iWidth, m_iHeight);
 
-	m_Image_ID_p1.Create(m_iWidth, m_iHeight);
-	m_Image_ID2_p1.Create(m_iWidth, m_iHeight);
+	if (m_Settings_BakeMode != LMBAKEMODE_MERGE)
+	{
+		m_QMC.Create(m_Settings_AO_Samples);
 
-	m_Image_TriIDs.Create(m_iWidth, m_iHeight);
-	m_TriIDs.clear(true);
-
-	m_Image_Barycentric.Create(m_iWidth, m_iHeight);
-
-	m_Image_Cuts.Create(m_iWidth, m_iHeight);
-	//m_CuttingTris.clear(true);
-
-	print_line("Scene Create");
-	before = OS::get_singleton()->get_ticks_msec();
-	if (!m_Scene.Create(mi, m_iWidth, m_iHeight, m_Settings_VoxelDims))
-		return false;
-
-	RayBank_Create();
-
-	after = OS::get_singleton()->get_ticks_msec();
-	print_line("SceneCreate took " + itos(after -before) + " ms");
-
-	if (m_bCancel)
-		return false;
-
-	print_line("PrepareImageMaps");
-	before = OS::get_singleton()->get_ticks_msec();
-	PrepareImageMaps();
-	after = OS::get_singleton()->get_ticks_msec();
-	print_line("PrepareImageMaps took " + itos(after -before) + " ms");
-
-	if (m_bCancel)
-		return false;
-
-	print_line("ProcessAO");
-	before = OS::get_singleton()->get_ticks_msec();
-	ProcessAO();
-	after = OS::get_singleton()->get_ticks_msec();
-	print_line("ProcessAO took " + itos(after -before) + " ms");
+		uint32_t before, after;
+		FindLights_Recursive(&light_root);
+		print_line("Found " + itos (m_Lights.size()) + " lights.");
 
 
-	print_line("ProcessTexels");
-	before = OS::get_singleton()->get_ticks_msec();
-	if (m_Settings_Mode == LMMODE_BACKWARD)
-		ProcessTexels();
+		m_Image_ID_p1.Create(m_iWidth, m_iHeight);
+		m_Image_ID2_p1.Create(m_iWidth, m_iHeight);
+
+		m_Image_TriIDs.Create(m_iWidth, m_iHeight);
+		m_TriIDs.clear(true);
+
+		m_Image_Barycentric.Create(m_iWidth, m_iHeight);
+
+		m_Image_Cuts.Create(m_iWidth, m_iHeight);
+		//m_CuttingTris.clear(true);
+
+		print_line("Scene Create");
+		before = OS::get_singleton()->get_ticks_msec();
+		if (!m_Scene.Create(mi, m_iWidth, m_iHeight, m_Settings_VoxelDims))
+			return false;
+
+		RayBank_Create();
+
+		after = OS::get_singleton()->get_ticks_msec();
+		print_line("SceneCreate took " + itos(after -before) + " ms");
+
+		if (m_bCancel)
+			return false;
+
+		print_line("PrepareImageMaps");
+		before = OS::get_singleton()->get_ticks_msec();
+		PrepareImageMaps();
+		after = OS::get_singleton()->get_ticks_msec();
+		print_line("PrepareImageMaps took " + itos(after -before) + " ms");
+
+		if (m_bCancel)
+			return false;
+
+		if (m_Settings_Process_AO)
+		{
+			print_line("ProcessAO");
+			before = OS::get_singleton()->get_ticks_msec();
+			ProcessAO();
+			after = OS::get_singleton()->get_ticks_msec();
+			print_line("ProcessAO took " + itos(after -before) + " ms");
+		}
+
+
+		if (m_Settings_Process_Lightmap)
+		{
+			print_line("ProcessTexels");
+			before = OS::get_singleton()->get_ticks_msec();
+			if (m_Settings_Mode == LMMODE_BACKWARD)
+				ProcessTexels();
+			else
+			{
+				ProcessLights();
+			}
+			after = OS::get_singleton()->get_ticks_msec();
+			print_line("ProcessTexels took " + itos(after -before) + " ms");
+		}
+
+		if (m_bCancel)
+			return false;
+
+		WriteOutputImage_Lightmap(out_image_lightmap);
+		WriteOutputImage_AO(out_image_ao);
+
+	} // if not just merging
 	else
 	{
-		ProcessLights();
+		// merging, load the lightmap and ao from disk
+		LoadLightmap(out_image_lightmap);
+		LoadAO(out_image_ao);
 	}
-	after = OS::get_singleton()->get_ticks_msec();
-	print_line("ProcessTexels took " + itos(after -before) + " ms");
 
-	if (m_bCancel)
-		return false;
-
-	print_line("WriteOutputImage");
-	before = OS::get_singleton()->get_ticks_msec();
-	WriteOutputImage(output_image);
-	after = OS::get_singleton()->get_ticks_msec();
-	print_line("WriteOutputImage took " + itos(after -before) + " ms");
+	//	print_line("WriteOutputImage");
+	//	before = OS::get_singleton()->get_ticks_msec();
+	Merge_AndWriteOutputImage_Combined(out_image_combined);
+	//	after = OS::get_singleton()->get_ticks_msec();
+	//	print_line("WriteOutputImage took " + itos(after -before) + " ms");
 
 	// clear everything out of ram as no longer needed
 	Reset();
@@ -157,8 +215,8 @@ void LightMapper::ProcessTexels_Bounce()
 	{
 		if ((y % 10) == 0)
 		{
-//			print_line("\tTexels bounce line " + itos(y));
-//			OS::get_singleton()->delay_usec(1);
+			//			print_line("\tTexels bounce line " + itos(y));
+			//			OS::get_singleton()->delay_usec(1);
 
 			if (bake_step_function) {
 				m_bCancel = bake_step_function(y, String("Process TexelsBounce: ") + " (" + itos(y) + ")");
@@ -193,12 +251,12 @@ void LightMapper::ProcessTexels_Bounce()
 void LightMapper::ProcessTexels()
 {
 	// set num rays depending on method
-//	if (m_Settings_Mode == LMMODE_FORWARD)
-//	{
-//		// the num rays / texel. This is per light!
-//		m_iNumRays *= nTexels;
-//		progress_range = m_iNumRays / m_iRaysPerSection;
-//	}
+	//	if (m_Settings_Mode == LMMODE_FORWARD)
+	//	{
+	//		// the num rays / texel. This is per light!
+	//		m_iNumRays *= nTexels;
+	//		progress_range = m_iNumRays / m_iRaysPerSection;
+	//	}
 
 	if (bake_begin_function) {
 		int progress_range = m_iHeight;
@@ -234,7 +292,7 @@ void LightMapper::ProcessTexels()
 
 
 
-//	m_iNumTests /= (m_iHeight * m_iWidth);
+	//	m_iNumTests /= (m_iHeight * m_iWidth);
 	print_line("num tests : " + itos(m_iNumTests));
 
 	for (int b=0; b<m_Settings_Backward_NumBounces; b++)
@@ -253,13 +311,13 @@ float LightMapper::ProcessTexel_Light(int light_id, const Vector3 &ptDest, const
 	const LLight &light = m_Lights[light_id];
 
 	Ray r;
-//	r.o = Vector3(0, 5, 0);
+	//	r.o = Vector3(0, 5, 0);
 
-//	float range = light.scale.x;
-//	const float range = 2.0f;
+	//	float range = light.scale.x;
+	//	const float range = 2.0f;
 
 	// the power should depend on the volume, with 1x1x1 being normal power
-//	float power = light.scale.x * light.scale.y * light.scale.z;
+	//	float power = light.scale.x * light.scale.y * light.scale.z;
 	float power = light.energy;
 	power *= m_Settings_Backward_RayPower;
 
@@ -277,13 +335,13 @@ float LightMapper::ProcessTexel_Light(int light_id, const Vector3 &ptDest, const
 		{
 		case LLight::LT_SPOT:
 			{
-//				r.d = light.dir;
-//				float spot_ball = 0.2f;
-//				float x = Math::random(-spot_ball, spot_ball);
-//				float y = Math::random(-spot_ball, spot_ball);
-//				float z = Math::random(-spot_ball, spot_ball);
-//				r.d += Vector3(x, y, z);
-//				r.d.normalize();
+				//				r.d = light.dir;
+				//				float spot_ball = 0.2f;
+				//				float x = Math::random(-spot_ball, spot_ball);
+				//				float y = Math::random(-spot_ball, spot_ball);
+				//				float z = Math::random(-spot_ball, spot_ball);
+				//				r.d += Vector3(x, y, z);
+				//				r.d.normalize();
 			}
 			break;
 		default:
@@ -305,14 +363,14 @@ float LightMapper::ProcessTexel_Light(int light_id, const Vector3 &ptDest, const
 
 		m_Scene.m_Tracer.m_bUseSDF = true;
 		int tri = m_Scene.FindIntersect_Ray(r, u, v, w, t, nullptr, m_iNumTests);
-//		m_Scene.m_Tracer.m_bUseSDF = false;
-//		int tri2 = m_Scene.IntersectRay(r, u, v, w, t, m_iNumTests);
-//		if (tri != tri2)
-//		{
-//			// repeat SDF version
-//			m_Scene.m_Tracer.m_bUseSDF = true;
-//			int tri = m_Scene.IntersectRay(r, u, v, w, t, m_iNumTests);
-//		}
+		//		m_Scene.m_Tracer.m_bUseSDF = false;
+		//		int tri2 = m_Scene.IntersectRay(r, u, v, w, t, m_iNumTests);
+		//		if (tri != tri2)
+		//		{
+		//			// repeat SDF version
+		//			m_Scene.m_Tracer.m_bUseSDF = true;
+		//			int tri = m_Scene.IntersectRay(r, u, v, w, t, m_iNumTests);
+		//		}
 
 		// nothing hit
 		if ((tri == -1) || (tri == tri_ignore))
@@ -365,49 +423,49 @@ float LightMapper::ProcessTexel_Bounce(int x, int y)
 		// bounce
 
 		// first dot
-			Ray r;
+		Ray r;
 
-			// SLIDING
-//			Vector3 temp = r.d.cross(norm);
-//			new_ray.d = norm.cross(temp);
+		// SLIDING
+		//			Vector3 temp = r.d.cross(norm);
+		//			new_ray.d = norm.cross(temp);
 
-			// BOUNCING - mirror
-			//new_ray.d = r.d - (2.0f * (dot * norm));
+		// BOUNCING - mirror
+		//new_ray.d = r.d - (2.0f * (dot * norm));
 
-			// random hemisphere
-			RandomUnitDir(r.d);
+		// random hemisphere
+		RandomUnitDir(r.d);
 
-			// compare direction to normal, if opposite, flip it
-			if (r.d.dot(norm) < 0.0f)
-				r.d = -r.d;
+		// compare direction to normal, if opposite, flip it
+		if (r.d.dot(norm) < 0.0f)
+			r.d = -r.d;
 
-			// add a little epsilon to prevent self intersection
-			r.o = pos + (norm * 0.01f);
-			//ProcessRay(new_ray, depth+1, power * 0.4f);
+		// add a little epsilon to prevent self intersection
+		r.o = pos + (norm * 0.01f);
+		//ProcessRay(new_ray, depth+1, power * 0.4f);
 
-			// collision detect
-			//r.d.normalize();
-			float u, v, w, t;
-			int tri_hit = m_Scene.FindIntersect_Ray(r, u, v, w, t, nullptr, m_iNumTests);
+		// collision detect
+		//r.d.normalize();
+		float u, v, w, t;
+		int tri_hit = m_Scene.FindIntersect_Ray(r, u, v, w, t, nullptr, m_iNumTests);
 
-			// nothing hit
-			if ((tri_hit != -1) && (tri_hit != tri_source))
+		// nothing hit
+		if ((tri_hit != -1) && (tri_hit != tri_source))
+		{
+			// look up the UV of the tri hit
+			Vector2 uvs;
+			m_Scene.FindUVsBarycentric(tri_hit, uvs, u, v, w);
+
+			// find texel
+			int dx = (uvs.x * m_iWidth); // round?
+			int dy = (uvs.y * m_iHeight);
+
+			if (m_Image_L.IsWithin(dx, dy))
 			{
-				// look up the UV of the tri hit
-				Vector2 uvs;
-				m_Scene.FindUVsBarycentric(tri_hit, uvs, u, v, w);
-
-				// find texel
-				int dx = (uvs.x * m_iWidth); // round?
-				int dy = (uvs.y * m_iHeight);
-
-				if (m_Image_L.IsWithin(dx, dy))
-				{
-					float power = m_Image_L.GetItem(dx, dy);
-					fTotal += power;
-				}
-
+				float power = m_Image_L.GetItem(dx, dy);
+				fTotal += power;
 			}
+
+		}
 	}
 
 	return fTotal / nSamples;
@@ -421,16 +479,16 @@ float LightMapper::ProcessTexel_Bounce(int x, int y)
 
 
 
-	// find triangle
+// find triangle
 //	uint32_t tri = *m_Image_ID_p1.Get(tx, ty);
 //	if (!tri)
 //		return;
 //	tri--; // plus one based
 
-	// may be more than 1 triangle on this texel
+// may be more than 1 triangle on this texel
 //	uint32_t tri2 = *m_Image_ID2_p1.Get(tx, ty);
 
-	// barycentric
+// barycentric
 //	const Vector3 &bary = *m_Image_Barycentric.Get(tx, ty);
 
 //	Vector3 pos;
@@ -479,8 +537,8 @@ void LightMapper::ProcessRay(LM::Ray r, int depth, float power, int dest_tri_id,
 		return;
 
 	// test
-//	r.d = Vector3(0, -1, 0);
-//	r.d = Vector3(-2.87, -5.0 + 0.226, 4.076);
+	//	r.d = Vector3(0, -1, 0);
+	//	r.d = Vector3(-2.87, -5.0 + 0.226, 4.076);
 
 	r.d.normalize();
 	float u, v, w, t;
@@ -493,7 +551,7 @@ void LightMapper::ProcessRay(LM::Ray r, int depth, float power, int dest_tri_id,
 	// convert barycentric to uv coords in the lightmap
 	Vector2 uv;
 	m_Scene.FindUVsBarycentric(tri, uv, u, v, w);
-//	m_UVTris[tri].FindUVBarycentric(uvs, u, v, w);
+	//	m_UVTris[tri].FindUVBarycentric(uvs, u, v, w);
 
 	// texel address
 	int tx = uv.x * m_iWidth;
@@ -519,10 +577,10 @@ void LightMapper::ProcessRay(LM::Ray r, int depth, float power, int dest_tri_id,
 	t *= 2.0f;
 
 	t = power;
-//	if (t > *pf)
+	//	if (t > *pf)
 
-//	if (depth > 0)
-		*pf += t;
+	//	if (depth > 0)
+	*pf += t;
 
 	// bounce and lower power
 
@@ -545,8 +603,8 @@ void LightMapper::ProcessRay(LM::Ray r, int depth, float power, int dest_tri_id,
 			Ray new_ray;
 
 			// SLIDING
-//			Vector3 temp = r.d.cross(norm);
-//			new_ray.d = norm.cross(temp);
+			//			Vector3 temp = r.d.cross(norm);
+			//			new_ray.d = norm.cross(temp);
 
 			// BOUNCING - mirror
 			Vector3 mirror_dir = r.d - (2.0f * (dot * norm));
@@ -581,7 +639,7 @@ void LightMapper::ProcessRay(LM::Ray r, int depth, float power, int dest_tri_id,
 
 void LightMapper::ProcessLights()
 {
-//	const int rays_per_section = 1024 * 16;
+	//	const int rays_per_section = 1024 * 16;
 
 	int num_sections = m_iNumRays / m_iRaysPerSection;
 
@@ -648,13 +706,13 @@ void LightMapper::ProcessLight(int light_id, int num_rays)
 	const LLight &light = m_Lights[light_id];
 
 	Ray r;
-//	r.o = Vector3(0, 5, 0);
+	//	r.o = Vector3(0, 5, 0);
 
-//	float range = light.scale.x;
-//	const float range = 2.0f;
+	//	float range = light.scale.x;
+	//	const float range = 2.0f;
 
 	// the power should depend on the volume, with 1x1x1 being normal power
-//	float power = light.scale.x * light.scale.y * light.scale.z;
+	//	float power = light.scale.x * light.scale.y * light.scale.z;
 	float power = light.energy;
 	power *= m_Settings_Forward_RayPower;
 
@@ -663,15 +721,15 @@ void LightMapper::ProcessLight(int light_id, int num_rays)
 	// each ray
 	for (int n=0; n<num_rays; n++)
 	{
-//		if ((n % 10000) == 0)
-//		{
-//			if (bake_step_function)
-//			{
-//				m_bCancel = bake_step_function(n, String("Process Rays: ") + " (" + itos(n) + ")");
-//				if (m_bCancel)
-//					return;
-//			}
-//		}
+		//		if ((n % 10000) == 0)
+		//		{
+		//			if (bake_step_function)
+		//			{
+		//				m_bCancel = bake_step_function(n, String("Process Rays: ") + " (" + itos(n) + ")");
+		//				if (m_bCancel)
+		//					return;
+		//			}
+		//		}
 
 		r.o = light.pos;
 
@@ -695,10 +753,10 @@ void LightMapper::ProcessLight(int light_id, int num_rays)
 				offset *= light.scale;
 				r.o += offset;
 
-//				float x = Math::random(-light.scale.x, light.scale.x);
-//				float y = Math::random(-light.scale.y, light.scale.y);
-//				float z = Math::random(-light.scale.z, light.scale.z);
-//				r.o += Vector3(x, y, z);
+				//				float x = Math::random(-light.scale.x, light.scale.x);
+				//				float y = Math::random(-light.scale.y, light.scale.y);
+				//				float z = Math::random(-light.scale.z, light.scale.z);
+				//				r.o += Vector3(x, y, z);
 
 				RandomUnitDir(r.d);
 			}
@@ -708,7 +766,7 @@ void LightMapper::ProcessLight(int light_id, int num_rays)
 
 		RayBank_RequestNewRay(r, m_Settings_Forward_NumBounces + 1, power, 0);
 
-//		ProcessRay(r, 0, power);
+		//		ProcessRay(r, 0, power);
 	}
 }
 

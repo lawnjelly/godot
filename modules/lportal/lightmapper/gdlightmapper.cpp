@@ -9,10 +9,10 @@ void LLightmap::_bind_methods()
 	BIND_ENUM_CONSTANT(LLightmap::MODE_FORWARD);
 	BIND_ENUM_CONSTANT(LLightmap::MODE_BACKWARD);
 
+	BIND_ENUM_CONSTANT(LLightmap::BAKEMODE_LIGHTMAP);
 	BIND_ENUM_CONSTANT(LLightmap::BAKEMODE_AO);
 	BIND_ENUM_CONSTANT(LLightmap::BAKEMODE_MERGE);
 	BIND_ENUM_CONSTANT(LLightmap::BAKEMODE_COMBINED);
-	BIND_ENUM_CONSTANT(LLightmap::BAKEMODE_LIGHTMAP);
 
 	// main functions
 	ClassDB::bind_method(D_METHOD("lightmap_bake"), &LLightmap::lightmap_bake);
@@ -85,8 +85,8 @@ ADD_PROPERTY(PropertyInfo(P_TYPE, LIGHTMAP_TOSTRING(P_NAME)), LIGHTMAP_TOSTRING(
 void LLightmap::set_mode(LLightmap::eMode p_mode) {m_LM.m_Settings_Mode = (LM::LightMapper::eLMMode) p_mode;}
 LLightmap::eMode LLightmap::get_mode() const {return (LLightmap::eMode) m_LM.m_Settings_Mode;}
 
-void LLightmap::set_bake_mode(LLightmap::eBakeMode p_mode) {m_LM.m_Settings_Mode = (LM::LightMapper::eLMMode) p_mode;}
-LLightmap::eBakeMode LLightmap::get_bake_mode() const {return (LLightmap::eBakeMode) m_LM.m_Settings_Mode;}
+void LLightmap::set_bake_mode(LLightmap::eBakeMode p_mode) {m_LM.m_Settings_BakeMode = (LM::LightMapper::eLMBakeMode) p_mode;}
+LLightmap::eBakeMode LLightmap::get_bake_mode() const {return (LLightmap::eBakeMode) m_LM.m_Settings_BakeMode;}
 
 void LLightmap::set_mesh_path(const NodePath &p_path) {m_LM.m_Settings_Path_Mesh = p_path;}
 NodePath LLightmap::get_mesh_path() const {return m_LM.m_Settings_Path_Mesh;}
@@ -231,25 +231,51 @@ bool LLightmap::lightmap_bake()
 		image_combined = image;
 	}
 
-	lightmap_bake_to_image(image_lightmap.ptr());
+	lightmap_bake_to_image(image_lightmap.ptr(), image_ao.ptr(), image_combined.ptr());
 
 	// save the images, png or exr
-	if (m_LM.m_Settings_LightmapIsHDR)
+	if (m_LM.m_Settings_Process_Lightmap)
 	{
-		String szGlobalPath = ProjectSettings::get_singleton()->globalize_path(m_LM.m_Settings_LightmapFilename);
-		image_lightmap->save_exr(szGlobalPath, false);
+		if (m_LM.m_Settings_LightmapIsHDR)
+		{
+			String szGlobalPath = ProjectSettings::get_singleton()->globalize_path(m_LM.m_Settings_LightmapFilename);
+			image_lightmap->save_exr(szGlobalPath, false);
+		}
+		else
+		{
+			image_lightmap->save_png(m_LM.m_Settings_LightmapFilename);
+		}
+	}
+
+	if (m_LM.m_Settings_Process_AO)
+	{
+		if (m_LM.m_Settings_AmbientIsHDR)
+		{
+			String szGlobalPath = ProjectSettings::get_singleton()->globalize_path(m_LM.m_Settings_AmbientFilename);
+			image_ao->save_exr(szGlobalPath, false);
+		}
+		else
+		{
+			image_ao->save_png(m_LM.m_Settings_AmbientFilename);
+		}
+	}
+
+	if (m_LM.m_Settings_CombinedIsHDR)
+	{
+		String szGlobalPath = ProjectSettings::get_singleton()->globalize_path(m_LM.m_Settings_CombinedFilename);
+		image_combined->save_exr(szGlobalPath, false);
 	}
 	else
 	{
-		image_lightmap->save_png(m_LM.m_Settings_LightmapFilename);
+		image_combined->save_png(m_LM.m_Settings_CombinedFilename);
 	}
 
-	ResourceLoader::import(m_LM.m_Settings_LightmapFilename);
+	ResourceLoader::import(m_LM.m_Settings_CombinedFilename);
 
 	return true;
 }
 
-bool LLightmap::lightmap_bake_to_image(Object * pOutputImage)
+bool LLightmap::lightmap_bake_to_image(Object * pOutputLightmapImage, Object * pOutputAOImage, Object * pOutputCombinedImage)
 {
 	// get the mesh instance and light root
 	if (!has_node(m_LM.m_Settings_Path_Mesh))
@@ -278,11 +304,11 @@ bool LLightmap::lightmap_bake_to_image(Object * pOutputImage)
 		return false;
 	}
 
-	return lightmap_mesh(pMeshInstance, pLightRoot, pOutputImage);
+	return lightmap_mesh(pMeshInstance, pLightRoot, pOutputLightmapImage, pOutputAOImage, pOutputCombinedImage);
 }
 
 
-bool LLightmap::lightmap_mesh(Node * pMeshInstance, Node * pLightRoot, Object * pOutputImage)
+bool LLightmap::lightmap_mesh(Node * pMeshInstance, Node * pLightRoot, Object * pOutputImage_Lightmap, Object * pOutputImage_AO, Object * pOutputImage_Combined)
 {
 
 	MeshInstance * pMI = Object::cast_to<MeshInstance>(pMeshInstance);
@@ -299,12 +325,27 @@ bool LLightmap::lightmap_mesh(Node * pMeshInstance, Node * pLightRoot, Object * 
 		return false;
 	}
 
-	Image * pIm = Object::cast_to<Image>(pOutputImage);
-	if (!pIm)
+	Image * pIm_Lightmap = Object::cast_to<Image>(pOutputImage_Lightmap);
+	if (!pIm_Lightmap)
 	{
-		WARN_PRINT("lightmap_mesh : not an image");
+		WARN_PRINT("lightmap_mesh : lightmap not an image");
 		return false;
 	}
 
-	return m_LM.lightmap_mesh(pMI, pLR, pIm);
+	Image * pIm_AO = Object::cast_to<Image>(pOutputImage_AO);
+	if (!pIm_AO)
+	{
+		WARN_PRINT("lightmap_mesh : AO not an image");
+		return false;
+	}
+
+	Image * pIm_Combined = Object::cast_to<Image>(pOutputImage_Combined);
+	if (!pIm_Combined)
+	{
+		WARN_PRINT("lightmap_mesh : combined not an image");
+		return false;
+	}
+
+
+	return m_LM.lightmap_mesh(pMI, pLR, pIm_Lightmap, pIm_AO, pIm_Combined);
 }

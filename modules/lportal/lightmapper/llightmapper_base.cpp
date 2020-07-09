@@ -43,6 +43,9 @@ LightMapper_Base::LightMapper_Base()
 	m_Settings_LightmapIsHDR = false;
 	m_Settings_AmbientIsHDR = false;
 	m_Settings_CombinedIsHDR = false;
+
+	m_Settings_Process_Lightmap = true;
+	m_Settings_Process_AO = true;
 }
 
 
@@ -209,12 +212,152 @@ void LightMapper_Base::Normalize()
 	}
 }
 
-void LightMapper_Base::WriteOutputImage(Image &output_image)
+
+void LightMapper_Base::LoadLightmap(Image &image)
 {
-	// for testing copy AO to L
-	m_Image_AO.CopyTo(m_Image_L);
+	assert (image.get_width() == m_iWidth);
+	assert (image.get_height() == m_iHeight);
+
+	Error res = image.load(m_Settings_LightmapFilename);
+	if (res != OK)
+	{
+		WARN_PRINT_ONCE("LoadLightmap failed")
+		return;
+	}
+
+	image.lock();
+	for (int y=0; y<m_iHeight; y++)
+	{
+		for (int x=0; x<m_iWidth; x++)
+		{
+			m_Image_L.GetItem(x, y) = image.get_pixel(x, y).r;
+		}
+	}
+	image.unlock();
+}
+
+void LightMapper_Base::LoadAO(Image &image)
+{
+	assert (image.get_width() == m_iWidth);
+	assert (image.get_height() == m_iHeight);
+
+	Error res = image.load(m_Settings_AmbientFilename);
+	if (res != OK)
+	{
+		WARN_PRINT_ONCE("LoadAO failed")
+		return;
+	}
+
+	image.lock();
+	for (int y=0; y<m_iHeight; y++)
+	{
+		for (int x=0; x<m_iWidth; x++)
+		{
+			m_Image_AO.GetItem(x, y) = image.get_pixel(x, y).r;
+		}
+	}
+	image.unlock();
+}
 
 
+void LightMapper_Base::Merge_AndWriteOutputImage_Combined(Image &image)
+{
+	// assuming both lightmap and AO are already dilated
+	// final version
+	image.lock();
+
+	for (int y=0; y<m_iHeight; y++)
+	{
+		for (int x=0; x<m_iWidth; x++)
+		{
+			float ao = m_Image_AO.GetItem(x, y);
+			float lum = m_Image_L.GetItem(x, y);
+
+			// combined
+			float f;
+			switch (m_Settings_BakeMode)
+			{
+			case LMBAKEMODE_LIGHTMAP:
+				{
+					f = lum;
+				}
+				break;
+			case LMBAKEMODE_AO:
+				{
+					f = ao;
+				}
+				break;
+			default:
+				{
+					f = ao * lum;
+				}
+				break;
+			}
+
+			// gamma correction
+			if (!m_Settings_CombinedIsHDR)
+			{
+				float gamma = 1.0f / 2.2f;
+				f = powf(f, gamma);
+			}
+
+			Color col;
+			col = Color(f, f, f, 1);
+
+			image.set_pixel(x, y, col);
+		}
+	}
+
+	image.unlock();
+}
+
+
+void LightMapper_Base::WriteOutputImage_AO(Image &image)
+{
+	Dilate<float> dilate;
+	dilate.DilateImage(m_Image_AO, m_Image_ID_p1, 256);
+
+	// final version
+	image.lock();
+
+	for (int y=0; y<m_iHeight; y++)
+	{
+		for (int x=0; x<m_iWidth; x++)
+		{
+			const float * pf = m_Image_AO.Get(x, y);
+			assert (pf);
+			float f = *pf;
+
+			// gamma correction
+			if (!m_Settings_AmbientIsHDR)
+			{
+				float gamma = 1.0f / 2.2f;
+				f = powf(f, gamma);
+			}
+
+			Color col;
+			col = Color(f, f, f, 1);
+
+
+			// debug mark the dilated pixels
+//#define MARK_AO_DILATED
+#ifdef MARK_AO_DILATED
+			if (!m_Image_ID_p1.GetItem(x, y))
+			{
+				col = Color(1.0f, 0.33f, 0.66f, 1);
+			}
+#endif
+			image.set_pixel(x, y, col);
+		}
+	}
+
+	image.unlock();
+}
+
+
+
+void LightMapper_Base::WriteOutputImage_Lightmap(Image &image)
+{
 	Dilate<float> dilate;
 	dilate.DilateImage(m_Image_L, m_Image_ID_p1, 256);
 
@@ -259,7 +402,7 @@ void LightMapper_Base::WriteOutputImage(Image &output_image)
 #endif
 
 	// final version
-	output_image.lock();
+	image.lock();
 
 	for (int y=0; y<m_iHeight; y++)
 	{
@@ -321,11 +464,11 @@ void LightMapper_Base::WriteOutputImage(Image &output_image)
 //				}
 //			}
 
-			output_image.set_pixel(x, y, col);
+			image.set_pixel(x, y, col);
 		}
 	}
 
-	output_image.unlock();
+	image.unlock();
 }
 
 

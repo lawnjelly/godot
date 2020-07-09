@@ -733,10 +733,10 @@ void LightScene::RasterizeTriangleIDs(LightMapper_Base &base, LightImage<uint32_
 					if (id_p1)
 					{
 						debug_overlap_count++;
-						if (debug_overlap_count == 64)
-						{
-							print_line("overlap detected");
-						}
+//						if (debug_overlap_count == 64)
+//						{
+//							print_line("overlap detected");
+//						}
 
 						// store the overlapped ID in a second map
 						im2_p1.GetItem(x, y) = id_p1;

@@ -67,7 +67,14 @@ protected:
 	void Normalize();
 	void Normalize_AO();
 
-	void WriteOutputImage(Image &output_image);
+	void WriteOutputImage_Lightmap(Image &image);
+	void WriteOutputImage_AO(Image &image);
+
+	void LoadLightmap(Image &image);
+	void LoadAO(Image &image);
+
+	void Merge_AndWriteOutputImage_Combined(Image &image);
+
 	void RandomUnitDir(Vector3 &dir) const;
 	void RandomBarycentric(Vector3 &bary) const;
 
@@ -155,6 +162,8 @@ public:
 	String m_Settings_CombinedFilename;
 	bool m_Settings_CombinedIsHDR;
 
+	bool m_Settings_Process_Lightmap;
+	bool m_Settings_Process_AO;
 
 	LightMapper_Base();
 protected:
