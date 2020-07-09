@@ -9,10 +9,10 @@ class LightMapper : public AmbientOcclusion
 public:
 
 	// main function called from the godot class
-	bool lightmap_mesh(MeshInstance * pMI, Spatial * pLR, Image * pIm);
+	bool lightmap_mesh(MeshInstance * pMI, Spatial * pLR, Image * pIm_Lightmap, Image * pIm_AO, Image * pIm_Combined);
 
 private:
-	bool LightmapMesh(const MeshInstance &mi, const Spatial &light_root, Image &output_image);
+	bool LightmapMesh(const MeshInstance &mi, const Spatial &light_root, Image &out_image_lightmap, Image &out_image_ao, Image &out_image_combined);
 	void Reset();
 
 private:
@@ -28,6 +28,7 @@ private:
 	void ProcessTexels_Bounce();
 	float ProcessTexel_Bounce(int x, int y);
 
+	void Refresh_Process_State();
 
 //	float CalculateAO(const Vector3 &ptStart, const Vector3 &ptNormal, uint32_t tri0, uint32_t tri1_p1);
 
