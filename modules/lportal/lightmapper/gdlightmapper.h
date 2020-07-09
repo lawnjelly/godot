@@ -4,9 +4,9 @@
 #include "scene/3d/mesh_instance.h"
 #include "llightmapper.h"
 
-class LLightMapper : public Spatial
+class LLightmap : public Spatial
 {
-	GDCLASS(LLightMapper, Spatial);
+	GDCLASS(LLightmap, Spatial);
 public:
 	enum eMode
 	{
@@ -14,12 +14,23 @@ public:
 		MODE_BACKWARD = LM::LightMapper::LMMODE_BACKWARD,
 	};
 
+	enum eBakeMode
+	{
+		BAKEMODE_LIGHTMAP  = LM::LightMapper::LMBAKEMODE_LIGHTMAP,
+		BAKEMODE_AO = LM::LightMapper::LMBAKEMODE_AO,
+		BAKEMODE_MERGE = LM::LightMapper::LMBAKEMODE_MERGE,
+		BAKEMODE_COMBINED = LM::LightMapper::LMBAKEMODE_COMBINED,
+	};
+
 	bool lightmap_mesh(Node * pMeshInstance, Node * pLightRoot, Object * pOutputImage);
 	bool lightmap_bake();
 	bool lightmap_bake_to_image(Object * pOutputImage);
 
-	void set_mode(LLightMapper::eMode p_mode);
-	LLightMapper::eMode get_mode() const;
+	void set_mode(LLightmap::eMode p_mode);
+	LLightmap::eMode get_mode() const;
+
+	void set_bake_mode(LLightmap::eBakeMode p_mode);
+	LLightmap::eBakeMode get_bake_mode() const;
 
 	void set_mesh_path(const NodePath &p_path);
 	NodePath get_mesh_path() const;
@@ -87,8 +98,14 @@ public:
 	void set_normalize_bias(float bias);
 	float get_normalize_bias() const;
 
-	void set_image_filename(const String &p_filename);
-	String get_image_filename() const;
+	void set_lightmap_filename(const String &p_filename);
+	String get_lightmap_filename() const;
+
+	void set_ao_filename(const String &p_filename);
+	String get_ao_filename() const;
+
+	void set_combined_filename(const String &p_filename);
+	String get_combined_filename() const;
 
 private:
 	LM::LightMapper m_LM;
@@ -98,4 +115,5 @@ protected:
 };
 
 
-VARIANT_ENUM_CAST(LLightMapper::eMode);
+VARIANT_ENUM_CAST(LLightmap::eMode);
+VARIANT_ENUM_CAST(LLightmap::eBakeMode);

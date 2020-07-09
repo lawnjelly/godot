@@ -6,11 +6,11 @@
 #include "gdlightmapper.h"
 #include "scene/resources/material.h"
 
-class LLightMapperEditorPlugin : public EditorPlugin {
+class LLightmapEditorPlugin : public EditorPlugin {
 
-	GDCLASS(LLightMapperEditorPlugin, EditorPlugin);
+	GDCLASS(LLightmapEditorPlugin, EditorPlugin);
 
-	LLightMapper *lightmap;
+	LLightmap *lightmap;
 
 	ToolButton *bake;
 	EditorNode *editor;
@@ -26,13 +26,13 @@ protected:
 	static void _bind_methods();
 
 public:
-	virtual String get_name() const { return "LLightMapper"; }
+	virtual String get_name() const { return "LLightmap"; }
 	bool has_main_screen() const { return false; }
 	virtual void edit(Object *p_object);
 	virtual bool handles(Object *p_object) const;
 	virtual void make_visible(bool p_visible);
 
-	LLightMapperEditorPlugin(EditorNode *p_node);
-	~LLightMapperEditorPlugin();
+	LLightmapEditorPlugin(EditorNode *p_node);
+	~LLightmapEditorPlugin();
 };
 
