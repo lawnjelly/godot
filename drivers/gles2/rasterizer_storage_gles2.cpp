@@ -6059,6 +6059,8 @@ void RasterizerStorageGLES2::initialize() {
 	// the use skeleton software path should be used if either float texture is not supported,
 	// OR max_vertex_texture_image_units is zero
 	config.use_skeleton_software = (config.float_texture_supported == false) || (config.max_vertex_texture_image_units == 0);
+	// test
+	config.use_skeleton_software = true;
 
 	shaders.copy.init();
 	shaders.cubemap_filter.init();
