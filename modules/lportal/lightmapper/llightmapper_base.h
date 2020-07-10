@@ -149,6 +149,7 @@ public:
 
 	bool m_Settings_Normalize;
 	float m_Settings_NormalizeBias;
+	float m_Settings_Light_AO_Ratio;
 
 	NodePath m_Settings_Path_Mesh;
 	NodePath m_Settings_Path_Lights;

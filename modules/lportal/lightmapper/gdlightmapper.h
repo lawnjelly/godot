@@ -98,6 +98,9 @@ public:
 	void set_normalize_bias(float bias);
 	float get_normalize_bias() const;
 
+	void set_light_ao_ratio(float ratio);
+	float get_light_ao_ratio() const;
+
 	void set_lightmap_filename(const String &p_filename);
 	String get_lightmap_filename() const;
 
