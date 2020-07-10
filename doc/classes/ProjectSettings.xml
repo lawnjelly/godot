@@ -1164,6 +1164,15 @@
 		<member name="rendering/quality/shadows/filter_mode.mobile" type="int" setter="" getter="" default="0">
 			Lower-end override for [member rendering/quality/shadows/filter_mode] on mobile devices, due to performance concerns or driver support.
 		</member>
+		<member name="rendering/quality/skinning/software_skinning_fallback" type="bool" setter="" getter="" default="true">
+			Allows [MeshInstance] to perform skinning on the CPU when the hardware doesn't support the default GPU skinning process with GLES2.
+			If [code]false[/code], an alternative skinning process on the GPU is used in this case (slower in most cases).
+			See also [member rendering/quality/skinning/force_software_skinning].
+		</member>
+		<member name="rendering/quality/skinning/force_software_skinning" type="bool" setter="" getter="" default="false">
+			Forces [MeshInstance] to always perform skinning on the CPU.
+			See also [member rendering/quality/skinning/software_skinning_fallback].
+		</member>
 		<member name="rendering/quality/subsurface_scattering/follow_surface" type="bool" setter="" getter="" default="false">
 			Improves quality of subsurface scattering, but cost significantly increases.
 		</member>

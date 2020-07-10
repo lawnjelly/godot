@@ -40,12 +40,23 @@ class MeshInstance : public GeometryInstance {
 
 	GDCLASS(MeshInstance, GeometryInstance);
 
+public:
+	enum SoftwareSkinningNormalMode {
+		DONT_TRANSFORM_NORMALS,
+		TRANSFORM_NORMALS,
+		ENSURE_CORRECT_NORMALS,
+	};
+
 protected:
 	Ref<Mesh> mesh;
+	Ref<Mesh> mesh_instance;
 	Ref<Skin> skin;
 	Ref<Skin> skin_internal;
 	Ref<SkinReference> skin_ref;
 	NodePath skeleton_path;
+
+	SoftwareSkinningNormalMode software_skinning_normal_mode;
+	bool software_skinning_bones_ready;
 
 	struct BlendShapeTrack {
 
@@ -62,6 +73,12 @@ protected:
 
 	void _mesh_changed();
 	void _resolve_skeleton_path();
+
+	bool _is_software_skinning_enabled() const;
+	static bool _is_global_software_skinning_enabled();
+
+	void _initialize_skinning(bool p_force_reset = false);
+	void _update_skinning();
 
 protected:
 	bool _set(const StringName &p_name, const Variant &p_value);
@@ -85,6 +102,9 @@ public:
 	void set_surface_material(int p_surface, const Ref<Material> &p_material);
 	Ref<Material> get_surface_material(int p_surface) const;
 
+	void set_software_skinning_normal_mode(SoftwareSkinningNormalMode p_mode);
+	SoftwareSkinningNormalMode get_software_skinning_normal_mode() const;
+
 	Node *create_trimesh_collision_node();
 	void create_trimesh_collision();
 
@@ -99,5 +119,7 @@ public:
 	MeshInstance();
 	~MeshInstance();
 };
+
+VARIANT_ENUM_CAST(MeshInstance::SoftwareSkinningNormalMode);
 
 #endif

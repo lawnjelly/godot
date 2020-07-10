@@ -68,7 +68,20 @@
 		<member name="skin" type="Skin" setter="set_skin" getter="get_skin">
 			Sets the skin to be used by this instance.
 		</member>
+		<member name="software_skinning_normal_mode" type="int" setter="set_software_skinning_normal_mode" getter="get_software_skinning_normal_mode" enum="MeshInstance.SoftwareSkinningNormalMode" default="1">
+			Sets the way normals are transformed when software skinning is used. Values can be set from [enum SoftwareSkinningNormalMode].
+			See also [member ProjectSettings.rendering/quality/skinning/software_skinning_fallback] for details about how software skinning is enabled.
+		</member>
 	</members>
 	<constants>
+		<constant name="DONT_TRANSFORM_NORMALS" value="0" enum="SoftwareSkinningNormalMode">
+			Normals are not transformed when software skinning is used (fastest option).
+		</constant>
+		<constant name="TRANSFORM_NORMALS" value="1" enum="SoftwareSkinningNormalMode">
+			Normals are transformed when software skinning is used (default option).
+		</constant>
+		<constant name="ENSURE_CORRECT_NORMALS" value="2" enum="SoftwareSkinningNormalMode">
+			Normals are transformed when software skinning is used and correct calculations are made for non-uniform scale (slowest option).
+		</constant>
 	</constants>
 </class>

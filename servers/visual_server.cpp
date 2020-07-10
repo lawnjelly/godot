@@ -2432,6 +2432,9 @@ VisualServer::VisualServer() {
 
 	GLOBAL_DEF("rendering/quality/filters/use_nearest_mipmap_filter", false);
 
+	GLOBAL_DEF("rendering/quality/skinning/software_skinning_fallback", true);
+	GLOBAL_DEF("rendering/quality/skinning/force_software_skinning", false);
+
 	GLOBAL_DEF("rendering/batching/options/use_batching", true);
 	GLOBAL_DEF_RST("rendering/batching/options/use_batching_in_editor", true);
 	GLOBAL_DEF("rendering/batching/options/single_rect_fallback", false);
