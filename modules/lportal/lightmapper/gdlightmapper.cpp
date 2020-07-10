@@ -37,6 +37,13 @@ void LLightmap::_bind_methods()
 ClassDB::bind_method(D_METHOD(LIGHTMAP_TOSTRING(P_GET)), &LLightmap::P_GET);\
 ADD_PROPERTY(PropertyInfo(P_TYPE, LIGHTMAP_TOSTRING(P_NAME)), LIGHTMAP_TOSTRING(P_SET), LIGHTMAP_TOSTRING(P_GET));
 
+#define LIMPL_PROPERTY_RANGE(P_TYPE, P_NAME, P_SET, P_GET, P_RANGE_STRING) ClassDB::bind_method(D_METHOD(LIGHTMAP_TOSTRING(P_SET), LIGHTMAP_TOSTRING(P_NAME)), &LLightmap::P_SET);\
+ClassDB::bind_method(D_METHOD(LIGHTMAP_TOSTRING(P_GET)), &LLightmap::P_GET);\
+ADD_PROPERTY(PropertyInfo(P_TYPE, LIGHTMAP_TOSTRING(P_NAME), PROPERTY_HINT_RANGE, P_RANGE_STRING), LIGHTMAP_TOSTRING(P_SET), LIGHTMAP_TOSTRING(P_GET));
+
+
+	//	ADD_PROPERTYI(PropertyInfo(Variant::REAL, "light_specular", PROPERTY_HINT_RANGE, "0,1,0.01"), "set_param", "get_param", PARAM_SPECULAR);
+
 
 	ADD_GROUP("Main", "");
 	LIMPL_PROPERTY(Variant::NODE_PATH, mesh, set_mesh_path, get_mesh_path);
@@ -53,33 +60,35 @@ ADD_PROPERTY(PropertyInfo(P_TYPE, LIGHTMAP_TOSTRING(P_NAME)), LIGHTMAP_TOSTRING(
 
 	ADD_GROUP("Size", "");
 
-	LIMPL_PROPERTY(Variant::INT, tex_width, set_tex_width, get_tex_width);
-	LIMPL_PROPERTY(Variant::INT, tex_height, set_tex_height, get_tex_height);
+	LIMPL_PROPERTY_RANGE(Variant::INT, tex_width, set_tex_width, get_tex_width, "128,8192,128");
+	LIMPL_PROPERTY_RANGE(Variant::INT, tex_height, set_tex_height, get_tex_height, "128,8192,128");
 	LIMPL_PROPERTY(Variant::VECTOR3, voxel_grid, set_voxel_dims, get_voxel_dims);
 
 	ADD_GROUP("Forward Parameters", "");
-	LIMPL_PROPERTY(Variant::INT, f_rays, set_forward_num_rays, get_forward_num_rays);
-	LIMPL_PROPERTY(Variant::REAL, f_ray_power, set_forward_ray_power, get_forward_ray_power);
-	LIMPL_PROPERTY(Variant::INT, f_bounces, set_forward_num_bounces, get_forward_num_bounces);
-	LIMPL_PROPERTY(Variant::REAL, f_bounce_power, set_forward_bounce_power, get_forward_bounce_power);
-	LIMPL_PROPERTY(Variant::REAL, f_bounce_directionality, set_forward_bounce_directionality, get_forward_bounce_directionality);
+	LIMPL_PROPERTY_RANGE(Variant::INT, f_rays, set_forward_num_rays, get_forward_num_rays, "1,4096,1");
+	//LIMPL_PROPERTY_RANGE(Variant::REAL, f_ray_power, set_forward_ray_power, get_forward_ray_power, "0.0,0.1,0.01");
+	LIMPL_PROPERTY_RANGE(Variant::INT, f_bounces, set_forward_num_bounces, get_forward_num_bounces, "0,16,1");
+	LIMPL_PROPERTY_RANGE(Variant::REAL, f_bounce_power, set_forward_bounce_power, get_forward_bounce_power, "0.0,8.0,0.05");
+	LIMPL_PROPERTY_RANGE(Variant::REAL, f_bounce_directionality, set_forward_bounce_directionality, get_forward_bounce_directionality, "0.0,1.0,0.05");
 
 	ADD_GROUP("Backward Parameters", "");
 	LIMPL_PROPERTY(Variant::INT, b_initial_rays, set_backward_num_rays, get_backward_num_rays);
 	LIMPL_PROPERTY(Variant::REAL, b_ray_power, set_backward_ray_power, get_backward_ray_power);
 	LIMPL_PROPERTY(Variant::INT, b_bounce_rays, set_backward_num_bounce_rays, get_backward_num_bounce_rays);
-	LIMPL_PROPERTY(Variant::INT, b_bounces, set_backward_num_bounces, get_backward_num_bounces);
+	LIMPL_PROPERTY_RANGE(Variant::INT, b_bounces, set_backward_num_bounces, get_backward_num_bounces, "0,16,1");
 	LIMPL_PROPERTY(Variant::REAL, b_bounce_power, set_backward_bounce_power, get_backward_bounce_power);
 
 	ADD_GROUP("Ambient Occlusion", "");
-	LIMPL_PROPERTY(Variant::INT, ao_samples, set_ao_num_samples, get_ao_num_samples);
+	LIMPL_PROPERTY_RANGE(Variant::INT, ao_samples, set_ao_num_samples, get_ao_num_samples, "1,2048,1");
 	LIMPL_PROPERTY(Variant::REAL, ao_range, set_ao_range, get_ao_range);
-	LIMPL_PROPERTY(Variant::REAL, ao_cut_range, set_ao_cut_range, get_ao_cut_range);
+//	LIMPL_PROPERTY(Variant::REAL, ao_cut_range, set_ao_cut_range, get_ao_cut_range);
 
 
 	ADD_GROUP("Dynamic Range", "");
 	LIMPL_PROPERTY(Variant::BOOL, normalize, set_normalize, get_normalize);
 	LIMPL_PROPERTY(Variant::REAL, normalize_bias, set_normalize_bias, get_normalize_bias);
+	LIMPL_PROPERTY_RANGE(Variant::REAL, light_ao_ratio, set_light_ao_ratio, get_light_ao_ratio, "0.0,1.0,0.01");
+
 }
 
 void LLightmap::set_mode(LLightmap::eMode p_mode) {m_LM.m_Settings_Mode = (LM::LightMapper::eLMMode) p_mode;}
@@ -153,6 +162,10 @@ bool LLightmap::get_normalize() const {return m_LM.m_Settings_Normalize;}
 
 void LLightmap::set_normalize_bias(float bias) {m_LM.m_Settings_NormalizeBias = bias;}
 float LLightmap::get_normalize_bias() const {return m_LM.m_Settings_NormalizeBias;}
+
+void LLightmap::set_light_ao_ratio(float ratio) {m_LM.m_Settings_Light_AO_Ratio = ratio;}
+float LLightmap::get_light_ao_ratio() const {return m_LM.m_Settings_Light_AO_Ratio;}
+
 
 #define LLIGHTMAP_IMPLEMENT_SETGET_FILENAME(SET_FUNC_NAME, GET_FUNC_NAME, SETTING, SETTING_HDR) void LLightmap::SET_FUNC_NAME(const String &p_filename)\
 {\
