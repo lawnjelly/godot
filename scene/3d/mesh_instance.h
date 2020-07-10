@@ -47,6 +47,8 @@ protected:
 	Ref<SkinReference> skin_ref;
 	NodePath skeleton_path;
 
+	bool software_skinning;
+
 	struct BlendShapeTrack {
 
 		int idx;
@@ -62,6 +64,9 @@ protected:
 
 	void _mesh_changed();
 	void _resolve_skeleton_path();
+
+	void _initialize_skinning(bool p_update_skinning = true);
+	void _update_skinning();
 
 protected:
 	bool _set(const StringName &p_name, const Variant &p_value);
@@ -84,6 +89,9 @@ public:
 	int get_surface_material_count() const;
 	void set_surface_material(int p_surface, const Ref<Material> &p_material);
 	Ref<Material> get_surface_material(int p_surface) const;
+
+	void set_software_skinning(bool p_enabled);
+	bool is_software_skinning_enabled() const;
 
 	Node *create_trimesh_collision_node();
 	void create_trimesh_collision();
