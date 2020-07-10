@@ -39,6 +39,7 @@ LightMapper_Base::LightMapper_Base()
 
 	m_Settings_Normalize = true;
 	m_Settings_NormalizeBias = 1.0f;
+	m_Settings_Light_AO_Ratio = 0.5f;
 
 	m_Settings_LightmapIsHDR = false;
 	m_Settings_AmbientIsHDR = false;
@@ -262,6 +263,9 @@ void LightMapper_Base::LoadAO(Image &image)
 
 void LightMapper_Base::Merge_AndWriteOutputImage_Combined(Image &image)
 {
+	// normalize lightmap on combine
+	Normalize();
+
 	// assuming both lightmap and AO are already dilated
 	// final version
 	image.lock();
@@ -370,7 +374,7 @@ void LightMapper_Base::WriteOutputImage_Lightmap(Image &image)
 //	imi.GetItem(3, 3) = 255;
 //	dilate.DilateImage(imf, imi);
 
-	Normalize();
+//	Normalize();
 
 	////
 	// write some debug
