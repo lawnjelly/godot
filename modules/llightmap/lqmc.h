@@ -1,7 +1,7 @@
 #pragma once
 
 #include "core/math/vector3.h"
-#include "../lvector.h"
+#include "lvector.h"
 
 namespace LM
 {

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../lvector.h"
-#include "../lbitfield_dynamic.h"
+#include "lvector.h"
+#include "lbitfield_dynamic.h"
 #include "core/math/aabb.h"
 #include "llighttypes.h"
 #include "llighttests_simd.h"
@@ -104,7 +104,7 @@ private:
 
 	LVector<Voxel> m_Voxels;
 	LVector<AABB> m_VoxelBounds;
-	Lawn::LBitField_Dynamic m_BFTrisHit;
+	LBitField_Dynamic m_BFTrisHit;
 	int m_iNumTris;
 
 	// slightly expanded
