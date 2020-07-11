@@ -293,7 +293,20 @@ void LightMapper_Base::Merge_AndWriteOutputImage_Combined(Image &image)
 				break;
 			default:
 				{
-					f = ao * lum;
+					float mid = ao * lum;
+
+					if (m_Settings_Light_AO_Ratio < 0.5f)
+					{
+						float r = m_Settings_Light_AO_Ratio / 0.5f;
+						f = (1.0f - r) * ao;
+						f += r * mid;
+					}
+					else
+					{
+						float r = (m_Settings_Light_AO_Ratio-0.5f) / 0.5f;
+						f = (1.0f - r) * mid;
+						f += r * lum;
+					}
 				}
 				break;
 			}
