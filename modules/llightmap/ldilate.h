@@ -1,7 +1,7 @@
 #pragma once
 
 #include "llightimage.h"
-#include "../lvector.h"
+#include "lvector.h"
 #include "llighttypes.h"
 #include <limits.h>
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../lvector.h"
+#include "lvector.h"
 
 namespace LM
 {
