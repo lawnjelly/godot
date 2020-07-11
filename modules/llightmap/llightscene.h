@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../lvector.h"
+#include "lvector.h"
 #include "llighttypes.h"
 #include "llighttracer.h"
 #include "llightimage.h"

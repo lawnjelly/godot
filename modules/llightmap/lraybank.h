@@ -1,7 +1,7 @@
 #pragma once
 
 #include "llighttypes.h"
-#include "../lvector.h"
+#include "lvector.h"
 #include "llightmapper_base.h"
 
 
