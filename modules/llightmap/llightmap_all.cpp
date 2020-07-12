@@ -15,5 +15,7 @@
 #include "lqmc.cpp"
 #include "lambient_occlusion.cpp"
 #include "lbitfield_dynamic.cpp"
+#include "lmerger.cpp"
+
 
 
