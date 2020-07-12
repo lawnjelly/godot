@@ -241,6 +241,15 @@ void MeshInstance::_update_skinning() {
 
 	VisualServer *visual_server = VisualServer::get_singleton();
 
+	// pre get bones
+	int num_bones = visual_server->skeleton_get_bone_count(skeleton);
+	const int SKIN_MAX_BONES = 128;
+	Transform bone_transform[SKIN_MAX_BONES];
+	for (int n=0; n<num_bones; n++)
+	{
+		bone_transform[n] = visual_server->skeleton_bone_get_transform(skeleton, n);
+	}
+
 	// Apply skinning
 	int surface_count = mesh->get_surface_count();
 	for (int surface_index = 0; surface_index < surface_count; ++surface_index) {
@@ -292,25 +301,29 @@ void MeshInstance::_update_skinning() {
 				bone_id[3] = bones_ptr[3];
 			}
 
-			Transform bone_transform[4] = {
-				visual_server->skeleton_bone_get_transform(skeleton, bone_id[0]),
-				visual_server->skeleton_bone_get_transform(skeleton, bone_id[1]),
-				visual_server->skeleton_bone_get_transform(skeleton, bone_id[2]),
-				visual_server->skeleton_bone_get_transform(skeleton, bone_id[3]),
-			};
+//			Transform bone_transform[4] = {
+//				visual_server->skeleton_bone_get_transform(skeleton, bone_id[0]),
+//				visual_server->skeleton_bone_get_transform(skeleton, bone_id[1]),
+//				visual_server->skeleton_bone_get_transform(skeleton, bone_id[2]),
+//				visual_server->skeleton_bone_get_transform(skeleton, bone_id[3]),
+//			};
+			int b0 = bone_id[0];
+			int b1 = bone_id[1];
+			int b2 = bone_id[2];
+			int b3 = bone_id[3];
 
 			Transform transform;
 			transform.origin =
-					bone_weight[0] * bone_transform[0].origin +
-					bone_weight[1] * bone_transform[1].origin +
-					bone_weight[2] * bone_transform[2].origin +
-					bone_weight[3] * bone_transform[3].origin;
+					bone_weight[0] * bone_transform[b0].origin +
+					bone_weight[1] * bone_transform[b1].origin +
+					bone_weight[2] * bone_transform[b2].origin +
+					bone_weight[3] * bone_transform[b3].origin;
 
 			transform.basis =
-					bone_transform[0].basis * bone_weight[0] +
-					bone_transform[1].basis * bone_weight[1] +
-					bone_transform[2].basis * bone_weight[2] +
-					bone_transform[3].basis * bone_weight[3];
+					bone_transform[b0].basis * bone_weight[0] +
+					bone_transform[b1].basis * bone_weight[1] +
+					bone_transform[b2].basis * bone_weight[2] +
+					bone_transform[b3].basis * bone_weight[3];
 
 			Vector3 &vertex = (Vector3 &)buffer_write[vertex_index * stride + offset_vertices];
 			vertex = transform.xform(vertex);
