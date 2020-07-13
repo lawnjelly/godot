@@ -16,6 +16,7 @@
 #include "lambient_occlusion.cpp"
 #include "lbitfield_dynamic.cpp"
 #include "lmerger.cpp"
+#include "lunmerger.cpp"
 
 
 
