@@ -30,7 +30,7 @@ public:
 	};
 
 	void Reset();
-	bool Create(const MeshInstance &mi, int width, int height, const Vec3i &voxel_dims);
+	bool Create(Spatial * pMeshesRoot, int width, int height, const Vec3i &voxel_dims);
 	
 	// returns triangle ID (or -1) and barycentric coords
 	int FindIntersect_Ray(const Ray &ray, float &u, float &v, float &w, float &nearest_t, const Vec3i * pVoxelRange, int &num_tests);//, int ignore_tri_p1 = 0);
@@ -56,6 +56,8 @@ private:
 	void FindCuts(LightMapper_Base &base);
 	void FindCuts_Texel(LightMapper_Base &base, int tx, int ty, int tri_id, const Vector3 &bary);
 	bool FindCuts_TangentTrace(LightMapper_Base &base, int tx, int ty, Ray r, float max_dist);
+	void FindMeshes(Spatial * pNode);
+	bool Create_FromMesh(int mesh_id, int width, int height);
 
 
 	void CalculateTriTexelSize(int tri_id, int width, int height);
@@ -68,13 +70,14 @@ private:
 	bool TestVoxelHits(const Ray &ray, const PackedRay &pray, const Voxel &voxel, float max_dist, bool bCullBackFaces);
 
 
-	PoolVector<Vector3> m_ptPositions;
-	PoolVector<Vector3> m_ptNormals;
-	PoolVector<Vector2> m_UVs;
-	PoolVector<int> m_Inds;
+//	PoolVector<Vector3> m_ptPositions;
+//	PoolVector<Vector3> m_ptNormals;
+	//PoolVector<Vector2> m_UVs;
+	//PoolVector<int> m_Inds;
 
 	LVector<Rect2> m_TriUVaabbs;
 	LVector<AABB> m_TriPos_aabbs;
+	LVector<MeshInstance *> m_Meshes;
 
 	// precalculate these .. useful for finding cutting tris.
 	LVector<float> m_Tri_TexelSizeWorldSpace;
@@ -93,6 +96,9 @@ public:
 	// we maintain a list of tris in the form of 2 edges plus a point. These
 	// are precalculated as they are used in the intersection test.
 	LVector<Tri> m_Tris_EdgeForm;
+
+	// stuff for mapping to original meshes
+	LVector<int> m_Tri_MeshIDs;
 
 	Vec3i m_VoxelRange;
 

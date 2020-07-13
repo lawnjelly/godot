@@ -472,10 +472,10 @@ int LightScene::IntersectRay_old(const Ray &r, float &u, float &v, float &w, flo
 
 void LightScene::Reset()
 {
-	m_ptPositions.resize(0);
-	m_ptNormals.resize(0);
-	m_UVs.resize(0);
-	m_Inds.resize(0);
+//	m_ptPositions.resize(0);
+//	m_ptNormals.resize(0);
+	//m_UVs.resize(0);
+	//m_Inds.resize(0);
 
 	m_UVTris.clear(true);
 	m_TriUVaabbs.clear(true);
@@ -488,12 +488,32 @@ void LightScene::Reset()
 	m_Tris_EdgeForm.clear(true);
 	m_TriPlanes.clear(true);
 
+	m_Meshes.clear(true);
+	m_Tri_MeshIDs.clear(true);
 }
 
-
-bool LightScene::Create(const MeshInstance &mi, int width, int height, const Vec3i &voxel_dims)
+void LightScene::FindMeshes(Spatial * pNode)
 {
-	m_bUseSIMD = true;
+	// mesh instance?
+	MeshInstance * pMI = Object::cast_to<MeshInstance>(pNode);
+	if (pMI)
+	{
+		m_Meshes.push_back(pMI);
+	}
+
+	for (int n=0; n<pNode->get_child_count(); n++)
+	{
+		Spatial * pChild = Object::cast_to<Spatial>(pNode->get_child(n));
+		if (pChild)
+		{
+			FindMeshes(pChild);
+		}
+	}
+}
+
+bool LightScene::Create_FromMesh(int mesh_id, int width, int height)
+{
+	const MeshInstance &mi = *m_Meshes[mesh_id];
 
 	Ref<Mesh> rmesh = mi.get_mesh();
 	Array arrays = rmesh->surface_get_arrays(0);
@@ -507,59 +527,71 @@ bool LightScene::Create(const MeshInstance &mi, int width, int height, const Vec
 	if (!norms.size())
 		return false;
 
-	m_UVs = arrays[VS::ARRAY_TEX_UV];
-	if (!m_UVs.size())
-		m_UVs = arrays[VS::ARRAY_TEX_UV2];
-	if (!m_UVs.size())
+
+	PoolVector<Vector2> uvs = arrays[VS::ARRAY_TEX_UV];
+	if (!uvs.size())
+		uvs = arrays[VS::ARRAY_TEX_UV2];
+
+	if (!uvs.size())
 		return false;
 
-	m_Inds = arrays[VS::ARRAY_INDEX];
-	if (!m_Inds.size())
+	PoolVector<int> inds = arrays[VS::ARRAY_INDEX];
+	if (!inds.size())
 		return false;
 
 	// we need to get the vert positions and normals from local space to world space to match up with the
 	// world space coords in the merged mesh
 	Transform trans = mi.get_global_transform();
 
-	Transform_Verts(verts, m_ptPositions, trans);
-	Transform_Norms(norms, m_ptNormals, trans);
+	PoolVector<Vector3> positions_world;
+	PoolVector<Vector3> normals_world;
+	Transform_Verts(verts, positions_world, trans);
+	Transform_Norms(norms, normals_world, trans);
 
 	// convert to longhand non indexed versions
-	int nTris = m_Inds.size() / 3;
+	int nTris = inds.size() / 3;
+	int nOldTris = m_Tris.size();
+	int nNewTris = nOldTris + nTris;
 
-	m_Tris.resize(nTris);
-	m_TriNormals.resize(nTris);
-	m_Tris_EdgeForm.resize(nTris);
-	m_TriPlanes.resize(nTris);
+	m_Tris.resize(nNewTris);
+	m_TriNormals.resize(nNewTris);
+	m_Tris_EdgeForm.resize(nNewTris);
+	m_TriPlanes.resize(nNewTris);
 
-	m_UVTris.resize(nTris);
-	m_TriUVaabbs.resize(nTris);
-	m_TriPos_aabbs.resize(nTris);
-	m_Tri_TexelSizeWorldSpace.resize(nTris);
+	m_UVTris.resize(nNewTris);
+	m_TriUVaabbs.resize(nNewTris);
+	m_TriPos_aabbs.resize(nNewTris);
+	m_Tri_TexelSizeWorldSpace.resize(nNewTris);
+
+	m_Tri_MeshIDs.resize(nNewTris);
 
 	int i = 0;
 	for (int n=0; n<nTris; n++)
 	{
-		Tri &t = m_Tris[n];
-		Tri &tri_norm = m_TriNormals[n];
-		Tri &tri_edge = m_Tris_EdgeForm[n];
-		Plane &tri_plane = m_TriPlanes[n];
-		UVTri &uvt = m_UVTris[n];
-		Rect2 &rect = m_TriUVaabbs[n];
-		AABB &aabb = m_TriPos_aabbs[n];
+		// adjusted n
+		int an = n + nOldTris;
 
-		int ind = m_Inds[i];
-		rect = Rect2(m_UVs[ind], Vector2(0, 0));
-		aabb.position = m_ptPositions[ind];
+		Tri &t = m_Tris[an];
+		Tri &tri_norm = m_TriNormals[an];
+		Tri &tri_edge = m_Tris_EdgeForm[an];
+		Plane &tri_plane = m_TriPlanes[an];
+		UVTri &uvt = m_UVTris[an];
+		Rect2 &rect = m_TriUVaabbs[an];
+		AABB &aabb = m_TriPos_aabbs[an];
+		m_Tri_MeshIDs[an] = mesh_id;
+
+		int ind = inds[i];
+		rect = Rect2(uvs[ind], Vector2(0, 0));
+		aabb.position = positions_world[ind];
 		aabb.size = Vector3(0, 0, 0);
 
 		for (int c=0; c<3; c++)
 		{
-			ind = m_Inds[i++];
+			ind = inds[i++];
 
-			t.pos[c] = m_ptPositions[ind];
-			tri_norm.pos[c] = m_ptNormals[ind];
-			uvt.uv[c] = m_UVs[ind];
+			t.pos[c] = positions_world[ind];
+			tri_norm.pos[c] = normals_world[ind];
+			uvt.uv[c] = uvs[ind];
 			//rect = Rect2(uvt.uv[0], Vector2(0, 0));
 			rect.expand_to(uvt.uv[c]);
 			//aabb.position = t.pos[0];
@@ -626,7 +658,25 @@ bool LightScene::Create(const MeshInstance &mi, int width, int height, const Vec
 		// expand aabb just a tad
 		rect.expand(Vector2(0.01, 0.01));
 
-		CalculateTriTexelSize(n, width, height);
+		CalculateTriTexelSize(an, width, height);
+	}
+
+
+	return true;
+}
+
+bool LightScene::Create(Spatial * pMeshesRoot, int width, int height, const Vec3i &voxel_dims)
+{
+	m_bUseSIMD = true;
+
+	FindMeshes(pMeshesRoot);
+	if (!m_Meshes.size())
+		return false;
+
+	for (int n=0; n<m_Meshes.size(); n++)
+	{
+		if (!Create_FromMesh(n, width, height))
+			return false;
 	}
 
 	m_Tracer.Create(*this, voxel_dims);

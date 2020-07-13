@@ -25,7 +25,7 @@ bool LightMapper::uv_map_meshes(Spatial * pRoot)
 }
 
 
-bool LightMapper::lightmap_mesh(MeshInstance * pMI, Spatial * pLR, Image * pIm_Lightmap, Image * pIm_AO, Image * pIm_Combined)
+bool LightMapper::lightmap_mesh(Spatial * pMeshesRoot, Spatial * pLR, Image * pIm_Lightmap, Image * pIm_AO, Image * pIm_Combined)
 {
 	// get the output dimensions before starting, because we need this
 	// to determine number of rays, and the progress range
@@ -53,7 +53,7 @@ bool LightMapper::lightmap_mesh(MeshInstance * pMI, Spatial * pLR, Image * pIm_L
 	m_Scene.m_bUseSIMD = true;
 	m_Scene.m_Tracer.m_bSIMD = true;
 
-	bool res = LightmapMesh(*pMI, *pLR, *pIm_Lightmap, *pIm_AO, *pIm_Combined);
+	bool res = LightmapMesh(pMeshesRoot, *pLR, *pIm_Lightmap, *pIm_AO, *pIm_Combined);
 
 	uint32_t afterA = OS::get_singleton()->get_ticks_msec();
 
@@ -112,7 +112,7 @@ void LightMapper::Refresh_Process_State()
 }
 
 
-bool LightMapper::LightmapMesh(const MeshInstance &mi, const Spatial &light_root, Image &out_image_lightmap, Image &out_image_ao, Image &out_image_combined)
+bool LightMapper::LightmapMesh(Spatial * pMeshesRoot, const Spatial &light_root, Image &out_image_lightmap, Image &out_image_ao, Image &out_image_combined)
 {
 	// print out settings
 	print_line("Lightmap mesh");
@@ -156,7 +156,7 @@ bool LightMapper::LightmapMesh(const MeshInstance &mi, const Spatial &light_root
 
 		print_line("Scene Create");
 		before = OS::get_singleton()->get_ticks_msec();
-		if (!m_Scene.Create(mi, m_iWidth, m_iHeight, m_Settings_VoxelDims))
+		if (!m_Scene.Create(pMeshesRoot, m_iWidth, m_iHeight, m_Settings_VoxelDims))
 			return false;
 
 		RayBank_Create();
