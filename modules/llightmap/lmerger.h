@@ -9,7 +9,7 @@ namespace LM {
 class Merger
 {
 public:
-	MeshInstance * lightmap_internal(String szProxyFilename, String szLevelFilename, Spatial * pRoot);
+	MeshInstance * Merge(Spatial * pRoot);
 
 
 private:

@@ -5,7 +5,7 @@ extern bool (*array_mesh_lightmap_unwrap_callback)(float p_texel_size, const flo
 
 namespace LM {
 
-MeshInstance * Merger::lightmap_internal(String szProxyFilename, String szLevelFilename, Spatial * pRoot)
+MeshInstance * Merger::Merge(Spatial * pRoot)
 {
 	FindMeshes(pRoot);
 
