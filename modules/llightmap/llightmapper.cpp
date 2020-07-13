@@ -1,9 +1,29 @@
 #include "llightmapper.h"
 #include "core/os/threaded_array_processor.h"
+#include "lmerger.h"
+#include "lunmerger.h"
 
 //#include <omp.h>
 
 namespace LM {
+
+bool LightMapper::uv_map_meshes(Spatial * pRoot)
+{
+	Merger m;
+	MeshInstance * pMerged = m.Merge(pRoot);
+	if (!pMerged)
+		return false;
+
+	// unmerge
+	UnMerger u;
+	bool res = u.UnMerge(m, *pMerged);
+
+	// delete merged mesh
+	pMerged->queue_delete();
+
+	return res;
+}
+
 
 bool LightMapper::lightmap_mesh(MeshInstance * pMI, Spatial * pLR, Image * pIm_Lightmap, Image * pIm_AO, Image * pIm_Combined)
 {
