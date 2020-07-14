@@ -36,6 +36,8 @@
 #include "scene/resources/material.h"
 #include "scene/scene_string_names.h"
 #include "skeleton.h"
+#include "servers/visual/visual_server_globals.h"
+#include "core/project_settings.h"
 
 bool MeshInstance::_set(const StringName &p_name, const Variant &p_value) {
 
@@ -182,6 +184,11 @@ void MeshInstance::_resolve_skeleton_path() {
 
 void MeshInstance::_initialize_skinning(bool p_update_skinning) {
 	VisualServer *visual_server = VisualServer::get_singleton();
+
+	// this could alternatively be done as a once off, after renderer creation
+	bool request_fallback = VSG::storage->has_os_feature("skinning_fallback");
+	bool  software_fallback = GLOBAL_GET("rendering/quality/skinning/software_skinning_fallback");
+	bool force_software = GLOBAL_GET("rendering/quality/skinning/force_software_skinning");
 
 	if (skin_ref.is_valid() && mesh.is_valid()) {
 		if (software_skinning) {
