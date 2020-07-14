@@ -325,20 +325,26 @@ void MeshInstance::_update_skinning() {
 				bone_ids[3] = bones_ptr[3];
 			}
 
-			Transform vertex_transform;
-			vertex_transform.basis.set_zero();
+			int b0 = bone_ids[0];
+			int b1 = bone_ids[1];
+			int b2 = bone_ids[2];
+			int b3 = bone_ids[3];
 
-			for (int i = 0; i < 4; ++i) {
-				int bone_id = bone_ids[i];
-				ERR_CONTINUE(bone_id > num_bones);
-				const Transform &bone_transform = bone_transforms[bone_id];
-				float bone_weight = bone_weights[i];
-				vertex_transform.origin += bone_weight * bone_transform.origin;
-				vertex_transform.basis += bone_transform.basis * bone_weight;
-			}
+			Transform transform;
+			transform.origin =
+					bone_weights[0] * bone_transforms[b0].origin +
+					bone_weights[1] * bone_transforms[b1].origin +
+					bone_weights[2] * bone_transforms[b2].origin +
+					bone_weights[3] * bone_transforms[b3].origin;
+
+			transform.basis =
+					bone_transforms[b0].basis * bone_weights[0] +
+					bone_transforms[b1].basis * bone_weights[1] +
+					bone_transforms[b2].basis * bone_weights[2] +
+					bone_transforms[b3].basis * bone_weights[3];
 
 			Vector3 &vertex = (Vector3 &)buffer_write[vertex_index * stride + offset_vertices];
-			vertex = vertex_transform.xform(vertex);
+			vertex = transform.xform(vertex);
 		}
 
 		visual_server->mesh_surface_update_region(mesh_rid, surface_index, 0, buffer);
