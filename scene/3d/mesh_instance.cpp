@@ -121,6 +121,8 @@ void MeshInstance::set_mesh(const Ref<Mesh> &p_mesh) {
 		skin_ref->get_skeleton_node()->disconnect("skeleton_updated", this, "_update_skinning");
 	}
 
+	mesh_instance = Ref<Mesh>();
+
 	mesh = p_mesh;
 
 	blend_shape_tracks.clear();
@@ -136,8 +138,6 @@ void MeshInstance::set_mesh(const Ref<Mesh> &p_mesh) {
 
 		mesh->connect(CoreStringNames::get_singleton()->changed, this, SceneStringNames::get_singleton()->_mesh_changed);
 		materials.resize(mesh->get_surface_count());
-
-		set_base(mesh->get_rid());
 
 		_initialize_skinning();
 	} else {
@@ -188,30 +188,31 @@ void MeshInstance::_initialize_skinning(bool p_update_skinning) {
 			ERR_FAIL_COND(!skin_ref->get_skeleton_node());
 			skin_ref->get_skeleton_node()->connect("skeleton_updated", this, "_update_skinning");
 
-			if (mesh->get_blend_shape_count() > 0) {
-				ERR_PRINT("Blend shapes are not supported for software skinning.");
-			}
+			if (mesh_instance.is_null()) {
+				if (mesh->get_blend_shape_count() > 0) {
+					ERR_PRINT("Blend shapes are not supported for software skinning.");
+				}
 
-			Ref<ArrayMesh> array_mesh = mesh;
-			if (array_mesh.is_null()) {
-				ERR_PRINT("Only ArrayMesh is supported for software skinning.");
-			} else {
+				Ref<ArrayMesh> software_mesh;
+				software_mesh.instance();
+
 				// Initialize mesh for dynamic update
-				int surface_count = array_mesh->get_surface_count();
+				int surface_count = mesh->get_surface_count();
 				for (int surface_index = 0; surface_index < surface_count; ++surface_index) {
-					uint32_t format = array_mesh->surface_get_format(0);
+					uint32_t format = mesh->surface_get_format(surface_index);
 					format &= ~Mesh::ARRAY_COMPRESS_VERTEX;
 					format |= Mesh::ARRAY_FLAG_USE_DYNAMIC_UPDATE;
 
-					ERR_FAIL_COND(Mesh::PRIMITIVE_TRIANGLES != array_mesh->surface_get_primitive_type(0));
+					ERR_CONTINUE(Mesh::PRIMITIVE_TRIANGLES != mesh->surface_get_primitive_type(surface_index));
 
-					Array surface_arrays = array_mesh->surface_get_arrays(0);
-					Ref<Material> material = array_mesh->surface_get_material(0);
+					Array surface_arrays = mesh->surface_get_arrays(surface_index);
+					Ref<Material> material = mesh->surface_get_material(surface_index);
 
-					array_mesh->surface_remove(0);
-					array_mesh->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, surface_arrays, Array(), format);
-					array_mesh->surface_set_material(surface_count - 1, material);
+					software_mesh->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, surface_arrays, Array(), format);
+					software_mesh->surface_set_material(surface_index, material);
 				}
+
+				mesh_instance = software_mesh;
 			}
 
 			visual_server->instance_attach_skeleton(get_instance(), RID());
@@ -222,9 +223,25 @@ void MeshInstance::_initialize_skinning(bool p_update_skinning) {
 			}
 		} else {
 			visual_server->instance_attach_skeleton(get_instance(), skin_ref->get_skeleton());
+			mesh_instance = Ref<Mesh>();
 		}
 	} else {
 		visual_server->instance_attach_skeleton(get_instance(), RID());
+		mesh_instance = Ref<Mesh>();
+	}
+
+	RID render_mesh = mesh_instance.is_valid() ? mesh_instance->get_rid() : mesh->get_rid();
+	if (render_mesh != get_base()) {
+		set_base(render_mesh);
+
+		// Update instance materials after switching mesh
+		ERR_FAIL_COND(mesh.is_null());
+		int surface_count = mesh->get_surface_count();
+		for (int surface_index = 0; surface_index < surface_count; ++surface_index) {
+			if (materials[surface_index].is_valid()) {
+				visual_server->instance_set_surface_material(get_instance(), surface_index, materials[surface_index]->get_rid());
+			}
+		}
 	}
 }
 
@@ -235,31 +252,31 @@ void MeshInstance::_update_skinning() {
 	RID skeleton = skin_ref->get_skeleton();
 	ERR_FAIL_COND(!skeleton.is_valid());
 
-	ERR_FAIL_COND(!mesh.is_valid());
-	RID mesh_rid = mesh->get_rid();
+	ERR_FAIL_COND(!mesh_instance.is_valid());
+	RID mesh_rid = mesh_instance->get_rid();
 	ERR_FAIL_COND(!mesh_rid.is_valid());
 
 	VisualServer *visual_server = VisualServer::get_singleton();
 
-	// pre get bones
+	// Prepare bone transforms.
 	int num_bones = visual_server->skeleton_get_bone_count(skeleton);
 	const int SKIN_MAX_BONES = 128;
-	Transform bone_transform[SKIN_MAX_BONES];
-	for (int n=0; n<num_bones; n++)
-	{
-		bone_transform[n] = visual_server->skeleton_bone_get_transform(skeleton, n);
+	ERR_FAIL_COND(num_bones > SKIN_MAX_BONES);
+	Transform bone_transforms[SKIN_MAX_BONES];
+	for (int bone_index = 0; bone_index < num_bones; ++bone_index) {
+		bone_transforms[bone_index] = visual_server->skeleton_bone_get_transform(skeleton, bone_index);
 	}
 
-	// Apply skinning
-	int surface_count = mesh->get_surface_count();
+	// Apply skinning.
+	int surface_count = mesh_instance->get_surface_count();
 	for (int surface_index = 0; surface_index < surface_count; ++surface_index) {
-		uint32_t format = mesh->surface_get_format(surface_index);
+		uint32_t format = mesh_instance->surface_get_format(surface_index);
 
 		ERR_CONTINUE(0 == (format & Mesh::ARRAY_FORMAT_BONES));
 		ERR_CONTINUE(0 == (format & Mesh::ARRAY_FORMAT_WEIGHTS));
 
-		const int vertex_count = mesh->surface_get_array_len(surface_index);
-		const int index_count = mesh->surface_get_array_index_len(surface_index);
+		const int vertex_count = mesh_instance->surface_get_array_len(surface_index);
+		const int index_count = mesh_instance->surface_get_array_index_len(surface_index);
 
 		uint32_t array_offsets[Mesh::ARRAY_MAX];
 		uint32_t stride = visual_server->mesh_surface_make_offsets_from_format(format, vertex_count, index_count, array_offsets);
@@ -271,62 +288,50 @@ void MeshInstance::_update_skinning() {
 		PoolByteArray::Write buffer_write = buffer.write();
 
 		for (int vertex_index = 0; vertex_index < vertex_count; ++vertex_index) {
-			float bone_weight[4];
+			float bone_weights[4];
 			if (format & Mesh::ARRAY_COMPRESS_WEIGHTS) {
 				const uint16_t *weight_ptr = (const uint16_t *)(buffer_write.ptr() + offset_weights + (vertex_index * stride));
-				bone_weight[0] = (weight_ptr[0] / (float)0xFFFF);
-				bone_weight[1] = (weight_ptr[1] / (float)0xFFFF);
-				bone_weight[2] = (weight_ptr[2] / (float)0xFFFF);
-				bone_weight[3] = (weight_ptr[3] / (float)0xFFFF);
+				bone_weights[0] = (weight_ptr[0] / (float)0xFFFF);
+				bone_weights[1] = (weight_ptr[1] / (float)0xFFFF);
+				bone_weights[2] = (weight_ptr[2] / (float)0xFFFF);
+				bone_weights[3] = (weight_ptr[3] / (float)0xFFFF);
 			} else {
 				const float *weight_ptr = (const float *)(buffer_write.ptr() + offset_weights + (vertex_index * stride));
-				bone_weight[0] = weight_ptr[0];
-				bone_weight[1] = weight_ptr[1];
-				bone_weight[2] = weight_ptr[2];
-				bone_weight[3] = weight_ptr[3];
+				bone_weights[0] = weight_ptr[0];
+				bone_weights[1] = weight_ptr[1];
+				bone_weights[2] = weight_ptr[2];
+				bone_weights[3] = weight_ptr[3];
 			}
 
-			int bone_id[4];
+			int bone_ids[4];
 			if (format & Mesh::ARRAY_FLAG_USE_16_BIT_BONES) {
 				const uint16_t *bones_ptr = (const uint16_t *)(buffer_write.ptr() + offset_bones + (vertex_index * stride));
-				bone_id[0] = bones_ptr[0];
-				bone_id[1] = bones_ptr[1];
-				bone_id[2] = bones_ptr[2];
-				bone_id[3] = bones_ptr[3];
+				bone_ids[0] = bones_ptr[0];
+				bone_ids[1] = bones_ptr[1];
+				bone_ids[2] = bones_ptr[2];
+				bone_ids[3] = bones_ptr[3];
 			} else {
 				const uint8_t *bones_ptr = buffer_write.ptr() + offset_bones + (vertex_index * stride);
-				bone_id[0] = bones_ptr[0];
-				bone_id[1] = bones_ptr[1];
-				bone_id[2] = bones_ptr[2];
-				bone_id[3] = bones_ptr[3];
+				bone_ids[0] = bones_ptr[0];
+				bone_ids[1] = bones_ptr[1];
+				bone_ids[2] = bones_ptr[2];
+				bone_ids[3] = bones_ptr[3];
 			}
 
-//			Transform bone_transform[4] = {
-//				visual_server->skeleton_bone_get_transform(skeleton, bone_id[0]),
-//				visual_server->skeleton_bone_get_transform(skeleton, bone_id[1]),
-//				visual_server->skeleton_bone_get_transform(skeleton, bone_id[2]),
-//				visual_server->skeleton_bone_get_transform(skeleton, bone_id[3]),
-//			};
-			int b0 = bone_id[0];
-			int b1 = bone_id[1];
-			int b2 = bone_id[2];
-			int b3 = bone_id[3];
+			Transform vertex_transform;
+			vertex_transform.basis.set_zero();
 
-			Transform transform;
-			transform.origin =
-					bone_weight[0] * bone_transform[b0].origin +
-					bone_weight[1] * bone_transform[b1].origin +
-					bone_weight[2] * bone_transform[b2].origin +
-					bone_weight[3] * bone_transform[b3].origin;
-
-			transform.basis =
-					bone_transform[b0].basis * bone_weight[0] +
-					bone_transform[b1].basis * bone_weight[1] +
-					bone_transform[b2].basis * bone_weight[2] +
-					bone_transform[b3].basis * bone_weight[3];
+			for (int i = 0; i < 4; ++i) {
+				int bone_id = bone_ids[i];
+				ERR_CONTINUE(bone_id > num_bones);
+				const Transform &bone_transform = bone_transforms[bone_id];
+				float bone_weight = bone_weights[i];
+				vertex_transform.origin += bone_weight * bone_transform.origin;
+				vertex_transform.basis += bone_transform.basis * bone_weight;
+			}
 
 			Vector3 &vertex = (Vector3 &)buffer_write[vertex_index * stride + offset_vertices];
-			vertex = transform.xform(vertex);
+			vertex = vertex_transform.xform(vertex);
 		}
 
 		visual_server->mesh_surface_update_region(mesh_rid, surface_index, 0, buffer);
