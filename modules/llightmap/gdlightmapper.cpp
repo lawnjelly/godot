@@ -32,6 +32,9 @@ void LLightmap::_bind_methods()
 	ClassDB::bind_method(D_METHOD("set_combined_filename", "combined_filename"), &LLightmap::set_combined_filename);
 	ClassDB::bind_method(D_METHOD("get_combined_filename"), &LLightmap::get_combined_filename);
 
+	ClassDB::bind_method(D_METHOD("set_uv_filename", "uv_filename"), &LLightmap::set_uv_filename);
+	ClassDB::bind_method(D_METHOD("get_uv_filename"), &LLightmap::get_uv_filename);
+
 
 #define LIMPL_PROPERTY(P_TYPE, P_NAME, P_SET, P_GET) ClassDB::bind_method(D_METHOD(LIGHTMAP_TOSTRING(P_SET), LIGHTMAP_TOSTRING(P_NAME)), &LLightmap::P_SET);\
 ClassDB::bind_method(D_METHOD(LIGHTMAP_TOSTRING(P_GET)), &LLightmap::P_GET);\
@@ -89,6 +92,9 @@ ADD_PROPERTY(PropertyInfo(P_TYPE, LIGHTMAP_TOSTRING(P_NAME), PROPERTY_HINT_RANGE
 	LIMPL_PROPERTY(Variant::REAL, normalize_bias, set_normalize_bias, get_normalize_bias);
 	LIMPL_PROPERTY_RANGE(Variant::REAL, light_ao_ratio, set_light_ao_ratio, get_light_ao_ratio, "0.0,1.0,0.01");
 
+	ADD_GROUP("UV Unwrap", "");
+	LIMPL_PROPERTY_RANGE(Variant::INT, uv_padding, set_uv_padding, get_uv_padding, "0,256,1");
+	ADD_PROPERTY(PropertyInfo(Variant::STRING, "uv_filename", PROPERTY_HINT_FILE, "*.tscn"), "set_uv_filename", "get_uv_filename");
 }
 
 void LLightmap::set_mode(LLightmap::eMode p_mode) {m_LM.m_Settings_Mode = (LM::LightMapper::eLMMode) p_mode;}
@@ -166,6 +172,11 @@ float LLightmap::get_normalize_bias() const {return m_LM.m_Settings_NormalizeBia
 void LLightmap::set_light_ao_ratio(float ratio) {m_LM.m_Settings_Light_AO_Ratio = ratio;}
 float LLightmap::get_light_ao_ratio() const {return m_LM.m_Settings_Light_AO_Ratio;}
 
+void LLightmap::set_uv_filename(const String &p_filename) {m_LM.m_Settings_UVFilename = p_filename;}
+String LLightmap::get_uv_filename() const {return m_LM.m_Settings_UVFilename;}
+
+void LLightmap::set_uv_padding(int pad) {m_LM.m_Settings_UVPadding = pad;}
+int LLightmap::get_uv_padding() const {return m_LM.m_Settings_UVPadding;}
 
 #define LLIGHTMAP_IMPLEMENT_SETGET_FILENAME(SET_FUNC_NAME, GET_FUNC_NAME, SETTING, SETTING_HDR) void LLightmap::SET_FUNC_NAME(const String &p_filename)\
 {\
