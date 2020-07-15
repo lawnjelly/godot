@@ -22,9 +22,11 @@ public:
 		BAKEMODE_COMBINED = LM::LightMapper::LMBAKEMODE_COMBINED,
 	};
 
-	bool lightmap_mesh(Node * pMeshInstance, Node * pLightRoot, Object * pOutputImage_Lightmap, Object * pOutputImage_AO, Object * pOutputImage_Combined);
+	bool lightmap_mesh(Node * pMeshRoot, Node * pLightRoot, Object * pOutputImage_Lightmap, Object * pOutputImage_AO, Object * pOutputImage_Combined);
 	bool lightmap_bake();
 	bool lightmap_bake_to_image(Object * pOutputLightmapImage, Object * pOutputAOImage, Object * pOutputCombinedImage);
+
+	bool uvmap();
 
 	void set_mode(LLightmap::eMode p_mode);
 	LLightmap::eMode get_mode() const;
