@@ -1,5 +1,14 @@
 #include "llightmapper_editor_plugin.h"
 
+void LLightmapEditorPlugin::_uvmap()
+{
+	if (lightmap)
+	{
+		//Node * pSceneRoot = EditorNode::get_singleton()->get_scene_root();
+		lightmap->uvmap();
+	}
+}
+
 void LLightmapEditorPlugin::_bake() {
 
 	if (lightmap)
@@ -50,9 +59,11 @@ void LLightmapEditorPlugin::make_visible(bool p_visible) {
 
 	if (p_visible) {
 		bake->show();
+		uvmap->show();
 	} else {
 
 		bake->hide();
+		uvmap->hide();
 	}
 }
 
@@ -80,6 +91,7 @@ void LLightmapEditorPlugin::bake_func_end() {
 void LLightmapEditorPlugin::_bind_methods() {
 
 	ClassDB::bind_method("_bake", &LLightmapEditorPlugin::_bake);
+	ClassDB::bind_method("_uvmap", &LLightmapEditorPlugin::_uvmap);
 }
 
 LLightmapEditorPlugin::LLightmapEditorPlugin(EditorNode *p_node) {
@@ -92,6 +104,14 @@ LLightmapEditorPlugin::LLightmapEditorPlugin(EditorNode *p_node) {
 	bake->connect("pressed", this, "_bake");
 	add_control_to_container(CONTAINER_SPATIAL_EDITOR_MENU, bake);
 	lightmap = NULL;
+
+	uvmap = memnew(ToolButton);
+	uvmap->set_icon(editor->get_gui_base()->get_icon("Bake", "EditorIcons"));
+	uvmap->set_text(TTR("UV Map"));
+	uvmap->hide();
+	uvmap->connect("pressed", this, "_uvmap");
+	add_control_to_container(CONTAINER_SPATIAL_EDITOR_MENU, uvmap);
+
 
 	LightMapper::bake_begin_function = bake_func_begin;
 	LightMapper::bake_step_function = bake_func_step;
