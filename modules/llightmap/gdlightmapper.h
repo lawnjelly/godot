@@ -112,6 +112,13 @@ public:
 	void set_combined_filename(const String &p_filename);
 	String get_combined_filename() const;
 
+	// UV
+	void set_uv_filename(const String &p_filename);
+	String get_uv_filename() const;
+
+	void set_uv_padding(int pad);
+	int get_uv_padding() const;
+
 private:
 	LM::LightMapper m_LM;
 

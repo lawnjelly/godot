@@ -6,6 +6,8 @@ extern bool (*array_mesh_lightmap_unwrap_callback)(float p_texel_size, const flo
 namespace LM {
 
 
+int Merger::m_iUVPadding = 4;
+
 Node * Merger::FindSceneRoot(Node * pNode) const
 {
 	if (pNode->get_parent())
@@ -17,8 +19,10 @@ Node * Merger::FindSceneRoot(Node * pNode) const
 }
 
 
-MeshInstance * Merger::Merge(Spatial * pRoot)
+MeshInstance * Merger::Merge(Spatial * pRoot, int padding)
 {
+	m_iUVPadding = padding;
+
 	FindMeshes(pRoot);
 
 	MeshInstance * pMerged = memnew(MeshInstance);
@@ -180,8 +184,6 @@ void Merger::FindMeshes(Spatial * pNode)
 	}
 }
 
-
-
 bool Merger::LightmapUnwrap(Ref<ArrayMesh> am, const Transform &trans)
 {
 	array_mesh_lightmap_unwrap_callback = xatlas_unwrap;
@@ -220,7 +222,7 @@ bool Merger::xatlas_unwrap(float p_texel_size, const float *p_vertices, const fl
 	pack_options.maxChartSize = 4096;
 	pack_options.blockAlign = true;
 	pack_options.texelsPerUnit = 1.0 / p_texel_size;
-	pack_options.padding = 4;
+	pack_options.padding = m_iUVPadding; // 4
 
 	xatlas::Atlas *atlas = xatlas::Create();
 	printf("Adding mesh..\n");
