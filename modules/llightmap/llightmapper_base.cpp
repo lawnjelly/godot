@@ -47,6 +47,8 @@ LightMapper_Base::LightMapper_Base()
 
 	m_Settings_Process_Lightmap = true;
 	m_Settings_Process_AO = true;
+
+	m_Settings_UVPadding = 4;
 }
 
 

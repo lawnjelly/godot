@@ -2,15 +2,16 @@
 #include "core/os/threaded_array_processor.h"
 #include "lmerger.h"
 #include "lunmerger.h"
+#include "lscene_saver.h"
+#include "scene/resources/packed_scene.h"
 
-//#include <omp.h>
 
 namespace LM {
 
 bool LightMapper::uv_map_meshes(Spatial * pRoot)
 {
 	Merger m;
-	MeshInstance * pMerged = m.Merge(pRoot);
+	MeshInstance * pMerged = m.Merge(pRoot, m_Settings_UVPadding);
 	if (!pMerged)
 		return false;
 
@@ -20,6 +21,39 @@ bool LightMapper::uv_map_meshes(Spatial * pRoot)
 
 	// delete merged mesh
 	pMerged->queue_delete();
+
+	// if we specified an output file, save
+	if (m_Settings_UVFilename != "")
+	{
+		Node * pOrigOwner = pRoot->get_owner();
+
+		SceneSaver saver;
+		saver.SaveScene(pRoot, m_Settings_UVFilename);
+
+		// delete the orig
+		Node * pParent = pRoot->get_parent();
+
+		// rename the old scene to prevent naming conflict
+		pRoot->set_name("ToBeDeleted");
+		pRoot->queue_delete();
+
+		// now load the new file
+		//ResourceLoader::import(m_Settings_UVFilename);
+
+		Ref<PackedScene> ps = ResourceLoader::load(m_Settings_UVFilename, "PackedScene");
+		if (ps.is_null())
+			return res;
+
+		Node * pFinalScene = ps->instance();
+		if (pFinalScene)
+		{
+			pParent->add_child(pFinalScene);
+
+			// set owners
+			saver.SetOwnerRecursive(pFinalScene, pFinalScene);
+			pFinalScene->set_owner(pOrigOwner);
+		}
+	}
 
 	return res;
 }

@@ -17,6 +17,7 @@
 #include "lbitfield_dynamic.cpp"
 #include "lmerger.cpp"
 #include "lunmerger.cpp"
+#include "lscene_saver.cpp"
 
 
 

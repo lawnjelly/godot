@@ -163,6 +163,9 @@ public:
 	String m_Settings_CombinedFilename;
 	bool m_Settings_CombinedIsHDR;
 
+	String m_Settings_UVFilename;
+	int m_Settings_UVPadding;
+
 	bool m_Settings_Process_Lightmap;
 	bool m_Settings_Process_AO;
 

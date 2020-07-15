@@ -9,7 +9,7 @@ namespace LM {
 class Merger
 {
 public:
-	MeshInstance * Merge(Spatial * pRoot);
+	MeshInstance * Merge(Spatial * pRoot, int padding);
 
 
 private:
@@ -24,6 +24,7 @@ private:
 
 
 public:
+	static int m_iUVPadding;
 	Vector<MeshInstance *> m_Meshes;
 
 };
