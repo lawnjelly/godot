@@ -5,17 +5,47 @@ extern bool (*array_mesh_lightmap_unwrap_callback)(float p_texel_size, const flo
 
 namespace LM {
 
+
+Node * Merger::FindSceneRoot(Node * pNode) const
+{
+	if (pNode->get_parent())
+	{
+		return FindSceneRoot(pNode->get_parent());
+	}
+
+	return pNode;
+}
+
+
 MeshInstance * Merger::Merge(Spatial * pRoot)
 {
 	FindMeshes(pRoot);
 
 	MeshInstance * pMerged = memnew(MeshInstance);
 	pMerged->set_name("lightmap_proxy");
-	pRoot->get_parent_spatial()->add_child(pMerged);
+
+	Spatial * pParent = pRoot->get_parent_spatial();
+	if (!pParent)
+		return 0;
+
+//	Node * pSceneRoot = FindSceneRoot(pParent);
+//	pMerged->set_owner(pSceneRoot);
+
+	pParent->add_child(pMerged);
+
+
+//	print_line(pParent->get_name());
+//	int nChildren = pParent->get_child_count();
+//	for (int n=0; n<nChildren; n++)
+//	{
+//		Node * pChild = pParent->get_child(n);
+//		print_line("\t" + pChild->get_name());
+//	}
 
 	MergeMeshes(*pMerged);
+//	return 0;
 
-	return 0;
+	return pMerged;
 }
 
 
@@ -136,6 +166,7 @@ void Merger::FindMeshes(Spatial * pNode)
 	MeshInstance * pMI = Object::cast_to<MeshInstance>(pNode);
 	if (pMI)
 	{
+		print_line("found mesh : " + pMI->get_name());
 		m_Meshes.push_back(pMI);
 	}
 

@@ -528,9 +528,11 @@ bool LightScene::Create_FromMesh(int mesh_id, int width, int height)
 		return false;
 
 
-	PoolVector<Vector2> uvs = arrays[VS::ARRAY_TEX_UV];
+	PoolVector<Vector2> uvs = arrays[VS::ARRAY_TEX_UV2];
 	if (!uvs.size())
-		uvs = arrays[VS::ARRAY_TEX_UV2];
+	{
+		uvs = arrays[VS::ARRAY_TEX_UV];
+	}
 
 	if (!uvs.size())
 		return false;

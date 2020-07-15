@@ -196,6 +196,18 @@ LLIGHTMAP_IMPLEMENT_SETGET_FILENAME(set_combined_filename, get_combined_filename
 //String LLightmap::get_lightmap_filename() const {return m_LM.m_Settings_LightmapFilename;}
 
 
+bool LLightmap::uvmap()
+{
+	Spatial * pRoot = Object::cast_to<Spatial>(get_node(m_LM.m_Settings_Path_Mesh));
+	if (!pRoot)
+	{
+		WARN_PRINT("uvmap : mesh path is not a spatial");
+		return false;
+	}
+
+	return m_LM.uv_map_meshes(pRoot);
+}
+
 
 bool LLightmap::lightmap_bake()
 {
@@ -297,7 +309,7 @@ bool LLightmap::lightmap_bake_to_image(Object * pOutputLightmapImage, Object * p
 		return false;
 	}
 
-	MeshInstance * pMeshInstance = Object::cast_to<MeshInstance>(get_node(m_LM.m_Settings_Path_Mesh));
+	Spatial * pMeshInstance = Object::cast_to<Spatial>(get_node(m_LM.m_Settings_Path_Mesh));
 	if (!pMeshInstance)
 	{
 		WARN_PRINT("lightmap_bake : mesh path is not a mesh instance");
@@ -321,13 +333,13 @@ bool LLightmap::lightmap_bake_to_image(Object * pOutputLightmapImage, Object * p
 }
 
 
-bool LLightmap::lightmap_mesh(Node * pMeshInstance, Node * pLightRoot, Object * pOutputImage_Lightmap, Object * pOutputImage_AO, Object * pOutputImage_Combined)
+bool LLightmap::lightmap_mesh(Node * pMeshRoot, Node * pLightRoot, Object * pOutputImage_Lightmap, Object * pOutputImage_AO, Object * pOutputImage_Combined)
 {
 
-	MeshInstance * pMI = Object::cast_to<MeshInstance>(pMeshInstance);
+	Spatial * pMI = Object::cast_to<Spatial>(pMeshRoot);
 	if (!pMI)
 	{
-		WARN_PRINT("lightmap_mesh : not a mesh instance");
+		WARN_PRINT("lightmap_mesh : pMeshRoot not a spatial");
 		return false;
 	}
 
