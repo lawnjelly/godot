@@ -28,6 +28,7 @@
 	</methods>
 	<members>
 		<member name="ao_filename" type="String" setter="set_ao_filename" getter="get_ao_filename" default="&quot;&quot;">
+			Filename for ambient occlusion. Must be exr format.
 		</member>
 		<member name="ao_light_ratio" type="float" setter="set_light_ao_ratio" getter="get_light_ao_ratio" default="0.5">
 		</member>
@@ -46,8 +47,19 @@
 		<member name="b_ray_power" type="float" setter="set_backward_ray_power" getter="get_backward_ray_power" default="0.01">
 		</member>
 		<member name="bake_mode" type="int" setter="set_bake_mode" getter="get_bake_mode" enum="LLightmap.eBakeMode" default="1">
+			[b]UVMap[/b] (Warning - destructive. Make sure you understand how this works with a test project beforehand.)
+			[codeblock]This creates a UV mapping in the 2nd uv channel for the meshes, and saves the resulting scene in the uv_filename file. It deletes the old meshes scene, and loads the new uv mapped scene in its place. For safety reasons, it automatically creates a backup of your meshes scene called uvmap_backup.tscn in the root of your project. You are advised to keep a backup of your scene prior to uvmapping in case you want to edit it.[/codeblock]
+			[b]Lightmap[/b]
+			[codeblock]This bakes lighting into the lights exr file, then merges just the lights into the combined final file.[/codeblock]
+			[b]AO[/b]
+			[codeblock]This bakes ambient occlusion into the AO exr file, then merges just the ambient occlusion into the combined final file.[/codeblock]
+			[b]Merge[/b]
+			[codeblock]This quickly merges both the ambient occlusion and lights into the combined final file, allowing you to adjust overall brightness and gamma, and the balance between ambient occlusion and lighting.[/codeblock]
+			[b]Combined[/b]
+			[codeblock]This bakes both lighting and ambient occlusion into their exr files, then merges both into the combined final file. It is usually better to bake AO and lights separately, in order to save time with adjustments.[/codeblock]
 		</member>
 		<member name="combined_filename" type="String" setter="set_combined_filename" getter="get_combined_filename" default="&quot;&quot;">
+			Filename for the final lightmap, combining lights and ambient occlusion (or just one of these). This can be exr format (linear) or png, with gamma applied.
 		</member>
 		<member name="f_bounce_directionality" type="float" setter="set_forward_bounce_directionality" getter="get_forward_bounce_directionality" default="0.5">
 		</member>
