@@ -158,6 +158,40 @@ bool BarycentricInside(const Vector3 &bary)
 	return BarycentricInside(bary.x, bary.y, bary.z);
 }
 
+bool IsMeshInstanceSuitable(const MeshInstance &mi)
+{
+	// must be set to bake in lightmap
+	if (!mi.get_flag(GeometryInstance::FLAG_USE_BAKED_LIGHT))
+		return false;
+
+	Ref<Mesh> rmesh = mi.get_mesh();
+	Array arrays = rmesh->surface_get_arrays(0);
+	if (!arrays.size())
+		return false;
+
+	PoolVector<Vector3> verts = arrays[VS::ARRAY_VERTEX];
+	if (!verts.size())
+		return false;
+
+	PoolVector<Vector3> norms = arrays[VS::ARRAY_NORMAL];
+	if (!norms.size())
+		return false;
+
+	PoolVector<int> indices = arrays[VS::ARRAY_INDEX];
+	if (!indices.size())
+		return false;
+
+	PoolVector<Vector2> uv1s = arrays[VS::ARRAY_TEX_UV];
+	PoolVector<Vector2> uv2s = arrays[VS::ARRAY_TEX_UV2];
+
+	bool uv1 = uv1s.size() != 0;
+	bool uv2 = uv2s.size() != 0;
+
+	if (!uv1 && !uv2)
+		return false;
+
+	return true;
+}
 
 // somewhat more complicated test to try and get all the tris that hit any part of the texel.
 // really this should be a box / tri test.
