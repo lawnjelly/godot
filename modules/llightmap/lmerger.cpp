@@ -170,8 +170,7 @@ void Merger::FindMeshes(Spatial * pNode)
 	MeshInstance * pMI = Object::cast_to<MeshInstance>(pNode);
 	if (pMI)
 	{
-		// must be set to bake in lightmap
-		if (pMI->get_flag(GeometryInstance::FLAG_USE_BAKED_LIGHT))
+		if (IsMeshInstanceSuitable(*pMI))
 		{
 			print_line("found mesh : " + pMI->get_name());
 			m_Meshes.push_back(pMI);
