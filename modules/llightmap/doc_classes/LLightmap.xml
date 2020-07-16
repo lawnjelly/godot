@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="LLightmap" inherits="Spatial" version="3.2">
+	<brief_description>
+	</brief_description>
+	<description>
+	</description>
+	<tutorials>
+	</tutorials>
+	<methods>
+		<method name="lightmap_bake">
+			<return type="bool">
+			</return>
+			<description>
+			</description>
+		</method>
+		<method name="lightmap_bake_to_image">
+			<return type="bool">
+			</return>
+			<argument index="0" name="output_image" type="Object">
+			</argument>
+			<argument index="1" name="arg1" type="Object">
+			</argument>
+			<argument index="2" name="arg2" type="Object">
+			</argument>
+			<description>
+			</description>
+		</method>
+	</methods>
+	<members>
+		<member name="ao_filename" type="String" setter="set_ao_filename" getter="get_ao_filename" default="&quot;&quot;">
+		</member>
+		<member name="ao_light_ratio" type="float" setter="set_light_ao_ratio" getter="get_light_ao_ratio" default="0.5">
+		</member>
+		<member name="ao_range" type="float" setter="set_ao_range" getter="get_ao_range" default="2.0">
+		</member>
+		<member name="ao_samples" type="int" setter="set_ao_num_samples" getter="get_ao_num_samples" default="64">
+		</member>
+		<member name="b_bounce_power" type="float" setter="set_backward_bounce_power" getter="get_backward_bounce_power" default="0.5">
+		</member>
+		<member name="b_bounce_rays" type="int" setter="set_backward_num_bounce_rays" getter="get_backward_num_bounce_rays" default="1">
+		</member>
+		<member name="b_bounces" type="int" setter="set_backward_num_bounces" getter="get_backward_num_bounces" default="0">
+		</member>
+		<member name="b_initial_rays" type="int" setter="set_backward_num_rays" getter="get_backward_num_rays" default="8">
+		</member>
+		<member name="b_ray_power" type="float" setter="set_backward_ray_power" getter="get_backward_ray_power" default="0.01">
+		</member>
+		<member name="bake_mode" type="int" setter="set_bake_mode" getter="get_bake_mode" enum="LLightmap.eBakeMode" default="1">
+		</member>
+		<member name="combined_filename" type="String" setter="set_combined_filename" getter="get_combined_filename" default="&quot;&quot;">
+		</member>
+		<member name="f_bounce_directionality" type="float" setter="set_forward_bounce_directionality" getter="get_forward_bounce_directionality" default="0.5">
+		</member>
+		<member name="f_bounce_power" type="float" setter="set_forward_bounce_power" getter="get_forward_bounce_power" default="0.5">
+		</member>
+		<member name="f_bounces" type="int" setter="set_forward_num_bounces" getter="get_forward_num_bounces" default="0">
+		</member>
+		<member name="f_rays" type="int" setter="set_forward_num_rays" getter="get_forward_num_rays" default="1">
+		</member>
+		<member name="gamma" type="float" setter="set_gamma" getter="get_gamma" default="2.2">
+		</member>
+		<member name="lightmap_filename" type="String" setter="set_lightmap_filename" getter="get_lightmap_filename" default="&quot;&quot;">
+		</member>
+		<member name="lights" type="NodePath" setter="set_lights_path" getter="get_lights_path" default="NodePath(&quot;&quot;)">
+		</member>
+		<member name="meshes" type="NodePath" setter="set_mesh_path" getter="get_mesh_path" default="NodePath(&quot;&quot;)">
+		</member>
+		<member name="mode" type="int" setter="set_mode" getter="get_mode" enum="LLightmap.eMode" default="0">
+		</member>
+		<member name="normalize" type="bool" setter="set_normalize" getter="get_normalize" default="true">
+		</member>
+		<member name="normalize_bias" type="float" setter="set_normalize_bias" getter="get_normalize_bias" default="4.0">
+		</member>
+		<member name="surface_bias" type="float" setter="set_surface_bias" getter="get_surface_bias" default="0.005">
+		</member>
+		<member name="tex_height" type="int" setter="set_tex_height" getter="get_tex_height" default="128">
+		</member>
+		<member name="tex_width" type="int" setter="set_tex_width" getter="get_tex_width" default="128">
+		</member>
+		<member name="uv_filename" type="String" setter="set_uv_filename" getter="get_uv_filename" default="&quot;&quot;">
+		</member>
+		<member name="uv_padding" type="int" setter="set_uv_padding" getter="get_uv_padding" default="4">
+		</member>
+		<member name="voxel_density" type="int" setter="set_voxel_density" getter="get_voxel_density" default="20">
+		</member>
+	</members>
+	<constants>
+		<constant name="LLightmap::MODE_FORWARD" value="0" enum="eMode">
+		</constant>
+		<constant name="LLightmap::MODE_BACKWARD" value="1" enum="eMode">
+		</constant>
+		<constant name="LLightmap::BAKEMODE_UVMAP" value="0" enum="eBakeMode">
+		</constant>
+		<constant name="LLightmap::BAKEMODE_LIGHTMAP" value="1" enum="eBakeMode">
+		</constant>
+		<constant name="LLightmap::BAKEMODE_AO" value="2" enum="eBakeMode">
+		</constant>
+		<constant name="LLightmap::BAKEMODE_MERGE" value="3" enum="eBakeMode">
+		</constant>
+		<constant name="LLightmap::BAKEMODE_COMBINED" value="4" enum="eBakeMode">
+		</constant>
+	</constants>
+</class>
