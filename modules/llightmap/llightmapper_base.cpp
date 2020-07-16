@@ -34,13 +34,13 @@ LightMapper_Base::LightMapper_Base()
 
 	m_Settings_TexWidth = 128;
 	m_Settings_TexHeight = 128;
-	//m_Settings_VoxelDims.Set(20, 6, 20);
 	m_Settings_VoxelDensity = 20;
 	m_Settings_SurfaceBias = 0.005f;
 
 	m_Settings_Normalize = true;
 	m_Settings_NormalizeBias = 4.0f;
 	m_Settings_Light_AO_Ratio = 0.5f;
+	m_Settings_Gamma = 2.2f;
 
 	m_Settings_LightmapIsHDR = false;
 	m_Settings_AmbientIsHDR = false;
@@ -273,6 +273,9 @@ void LightMapper_Base::Merge_AndWriteOutputImage_Combined(Image &image)
 	// final version
 	image.lock();
 
+
+	float gamma = 1.0f / m_Settings_Gamma;
+
 	for (int y=0; y<m_iHeight; y++)
 	{
 		for (int x=0; x<m_iWidth; x++)
@@ -317,7 +320,6 @@ void LightMapper_Base::Merge_AndWriteOutputImage_Combined(Image &image)
 			// gamma correction
 			if (!m_Settings_CombinedIsHDR)
 			{
-				float gamma = 1.0f / 2.2f;
 				f = powf(f, gamma);
 			}
 

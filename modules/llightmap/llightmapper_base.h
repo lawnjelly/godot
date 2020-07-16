@@ -142,7 +142,6 @@ public:
 
 	eLMMode m_Settings_Mode;
 	eLMBakeMode m_Settings_BakeMode;
-	//Vec3i m_Settings_VoxelDims;
 	int m_Settings_VoxelDensity; // number of units on largest axis
 	float m_Settings_SurfaceBias;
 
@@ -152,6 +151,7 @@ public:
 	bool m_Settings_Normalize;
 	float m_Settings_NormalizeBias;
 	float m_Settings_Light_AO_Ratio;
+	float m_Settings_Gamma;
 
 	NodePath m_Settings_Path_Mesh;
 	NodePath m_Settings_Path_Lights;
