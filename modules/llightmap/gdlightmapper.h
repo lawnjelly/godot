@@ -89,9 +89,6 @@ public:
 	void set_tex_height(int height);
 	int get_tex_height() const;
 
-//	void set_voxel_dims(const Vector3 &dims);
-//	Vector3 get_voxel_dims() const;
-
 	void set_voxel_density(int density);
 	int get_voxel_density() const;
 
@@ -106,6 +103,9 @@ public:
 
 	void set_light_ao_ratio(float ratio);
 	float get_light_ao_ratio() const;
+
+	void set_gamma(float gamma);
+	float get_gamma() const;
 
 	void set_lightmap_filename(const String &p_filename);
 	String get_lightmap_filename() const;
