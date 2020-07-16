@@ -190,7 +190,7 @@ bool LightMapper::LightmapMesh(Spatial * pMeshesRoot, const Spatial &light_root,
 
 		print_line("Scene Create");
 		before = OS::get_singleton()->get_ticks_msec();
-		if (!m_Scene.Create(pMeshesRoot, m_iWidth, m_iHeight, m_Settings_VoxelDims))
+		if (!m_Scene.Create(pMeshesRoot, m_iWidth, m_iHeight, m_Settings_VoxelDensity))
 			return false;
 
 		RayBank_Create();

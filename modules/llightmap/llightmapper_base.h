@@ -44,6 +44,7 @@ public:
 
 	enum eLMBakeMode
 	{
+		LMBAKEMODE_UVMAP,
 		LMBAKEMODE_LIGHTMAP,
 		LMBAKEMODE_AO,
 		LMBAKEMODE_MERGE,
@@ -141,7 +142,8 @@ public:
 
 	eLMMode m_Settings_Mode;
 	eLMBakeMode m_Settings_BakeMode;
-	Vec3i m_Settings_VoxelDims;
+	//Vec3i m_Settings_VoxelDims;
+	int m_Settings_VoxelDensity; // number of units on largest axis
 	float m_Settings_SurfaceBias;
 
 	int m_Settings_TexWidth;

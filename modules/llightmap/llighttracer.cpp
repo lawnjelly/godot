@@ -17,7 +17,7 @@ void LightTracer::Reset()
 }
 
 
-void LightTracer::Create(const LightScene &scene, const Vec3i &voxel_dims)
+void LightTracer::Create(const LightScene &scene, int voxel_density)
 {
 	m_bUseSDF = true;
 
@@ -34,7 +34,8 @@ void LightTracer::Create(const LightScene &scene, const Vec3i &voxel_dims)
 
 	CalculateWorldBound();
 
-	m_Dims = voxel_dims;
+	CalculateVoxelDims(voxel_density);
+//	m_Dims = voxel_dims;
 
 	m_iNumVoxels = m_Dims.x * m_Dims.y * m_Dims.z;
 	m_DimsXTimesY = m_Dims.x * m_Dims.y;
@@ -484,6 +485,22 @@ void LightTracer::FillVoxels()
 	CalculateSDF();
 }
 
+void LightTracer::CalculateVoxelDims(int voxel_density)
+{
+	const AABB &aabb = m_SceneWorldBound;
+	float max_length = aabb.get_longest_axis_size();
+
+	m_Dims.x = ((aabb.size.x / max_length) * voxel_density) + 0.01f;
+	m_Dims.y = ((aabb.size.y / max_length) * voxel_density) + 0.01f;
+	m_Dims.z = ((aabb.size.z / max_length) * voxel_density) + 0.01f;
+
+	// minimum of 1
+	m_Dims.x = MAX(m_Dims.x, 1);
+	m_Dims.y = MAX(m_Dims.y, 1);
+	m_Dims.z = MAX(m_Dims.z, 1);
+
+	print_line("voxels dims : " + itos(m_Dims.x) + ", " + itos(m_Dims.y) + ", " + itos (m_Dims.z));
+}
 
 void LightTracer::CalculateWorldBound()
 {

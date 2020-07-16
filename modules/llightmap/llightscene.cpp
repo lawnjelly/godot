@@ -667,7 +667,7 @@ bool LightScene::Create_FromMesh(int mesh_id, int width, int height)
 	return true;
 }
 
-bool LightScene::Create(Spatial * pMeshesRoot, int width, int height, const Vec3i &voxel_dims)
+bool LightScene::Create(Spatial * pMeshesRoot, int width, int height, int voxel_density)
 {
 	m_bUseSIMD = true;
 
@@ -681,7 +681,7 @@ bool LightScene::Create(Spatial * pMeshesRoot, int width, int height, const Vec3
 			return false;
 	}
 
-	m_Tracer.Create(*this, voxel_dims);
+	m_Tracer.Create(*this, voxel_density);
 
 	return true;
 }

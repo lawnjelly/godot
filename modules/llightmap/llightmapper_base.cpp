@@ -13,14 +13,14 @@ LightMapper_Base::LightMapper_Base()
 {
 	m_iNumRays = 1;
 	m_Settings_Forward_NumRays = 1;
-	m_Settings_Forward_NumBounces = 1;
+	m_Settings_Forward_NumBounces = 0;
 	m_Settings_Forward_RayPower = 0.01f;
 	m_Settings_Forward_BouncePower = 0.5f;
 	m_Settings_Forward_BounceDirectionality = 0.5f;
 
-	m_Settings_Backward_NumRays = 1;
+	m_Settings_Backward_NumRays = 8;
 	m_Settings_Backward_NumBounceRays = 1;
-	m_Settings_Backward_NumBounces = 1;
+	m_Settings_Backward_NumBounces = 0;
 	m_Settings_Backward_RayPower = 0.01f;
 	m_Settings_Backward_BouncePower = 0.5f;
 
@@ -30,15 +30,16 @@ LightMapper_Base::LightMapper_Base()
 	m_Settings_AO_ReverseBias = 0.005f;
 
 	m_Settings_Mode = LMMODE_FORWARD;
-	m_Settings_BakeMode = LMBAKEMODE_AO;
+	m_Settings_BakeMode = LMBAKEMODE_LIGHTMAP;
 
 	m_Settings_TexWidth = 128;
 	m_Settings_TexHeight = 128;
-	m_Settings_VoxelDims.Set(20, 6, 20);
+	//m_Settings_VoxelDims.Set(20, 6, 20);
+	m_Settings_VoxelDensity = 20;
 	m_Settings_SurfaceBias = 0.005f;
 
 	m_Settings_Normalize = true;
-	m_Settings_NormalizeBias = 1.0f;
+	m_Settings_NormalizeBias = 4.0f;
 	m_Settings_Light_AO_Ratio = 0.5f;
 
 	m_Settings_LightmapIsHDR = false;
