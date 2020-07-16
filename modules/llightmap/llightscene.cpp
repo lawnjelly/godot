@@ -498,7 +498,11 @@ void LightScene::FindMeshes(Spatial * pNode)
 	MeshInstance * pMI = Object::cast_to<MeshInstance>(pNode);
 	if (pMI)
 	{
-		m_Meshes.push_back(pMI);
+		// must be set to bake in lightmap
+		if (pMI->get_flag(GeometryInstance::FLAG_USE_BAKED_LIGHT))
+		{
+			m_Meshes.push_back(pMI);
+		}
 	}
 
 	for (int n=0; n<pNode->get_child_count(); n++)
