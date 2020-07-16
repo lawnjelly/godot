@@ -177,9 +177,9 @@ bool IsMeshInstanceSuitable(const MeshInstance &mi)
 	if (!norms.size())
 		return false;
 
-	PoolVector<int> indices = arrays[VS::ARRAY_INDEX];
-	if (!indices.size())
-		return false;
+//	PoolVector<int> indices = arrays[VS::ARRAY_INDEX];
+//	if (!indices.size())
+//		return false;
 
 	PoolVector<Vector2> uv1s = arrays[VS::ARRAY_TEX_UV];
 	PoolVector<Vector2> uv2s = arrays[VS::ARRAY_TEX_UV2];
@@ -192,6 +192,27 @@ bool IsMeshInstanceSuitable(const MeshInstance &mi)
 
 	return true;
 }
+
+bool EnsureIndicesValid(PoolVector<int> &indices, int num_verts)
+{
+	// already valid
+	if (indices.size())
+		return true;
+
+	// indices are blank!! let's create some, assuming the mesh is using triangles
+	indices.resize(num_verts);
+	PoolVector<int>::Write write = indices.write();
+	int * pi = write.ptr();
+
+	for (int n=0; n<num_verts; n++)
+	{
+		*pi = n;
+		pi++;
+	}
+
+	return false;
+}
+
 
 // somewhat more complicated test to try and get all the tris that hit any part of the texel.
 // really this should be a box / tri test.

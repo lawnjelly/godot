@@ -23,7 +23,7 @@ bool LightMapper::uv_map_meshes(Spatial * pRoot)
 		return false;
 
 	// test save the merged mesh
-//	saver.SaveScene(pMerged, "res://merged_test.tscn");
+	//saver.SaveScene(pMerged, "res://merged_test.tscn");
 
 	// unmerge
 	UnMerger u;
