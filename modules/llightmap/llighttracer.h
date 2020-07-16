@@ -63,7 +63,8 @@ public:
 	friend class RayBank;
 
 	void Reset();
-	void Create(const LightScene &scene, const Vec3i &voxel_dims);
+//	void Create(const LightScene &scene, const Vec3i &voxel_dims);
+	void Create(const LightScene &scene, int voxel_density);
 
 
 	// translate a real world distance into a number of voxels in each direction
@@ -79,6 +80,7 @@ public:
 
 private:
 	void CalculateWorldBound();
+	void CalculateVoxelDims(int voxel_density);
 	void FillVoxels();
 	void CalculateSDF();
 	void Debug_SaveSDF();

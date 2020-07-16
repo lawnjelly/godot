@@ -9,6 +9,7 @@ void LLightmap::_bind_methods()
 	BIND_ENUM_CONSTANT(LLightmap::MODE_FORWARD);
 	BIND_ENUM_CONSTANT(LLightmap::MODE_BACKWARD);
 
+	BIND_ENUM_CONSTANT(LLightmap::BAKEMODE_UVMAP);
 	BIND_ENUM_CONSTANT(LLightmap::BAKEMODE_LIGHTMAP);
 	BIND_ENUM_CONSTANT(LLightmap::BAKEMODE_AO);
 	BIND_ENUM_CONSTANT(LLightmap::BAKEMODE_MERGE);
@@ -49,23 +50,24 @@ ADD_PROPERTY(PropertyInfo(P_TYPE, LIGHTMAP_TOSTRING(P_NAME), PROPERTY_HINT_RANGE
 
 
 	ADD_GROUP("Main", "");
-	LIMPL_PROPERTY(Variant::NODE_PATH, mesh, set_mesh_path, get_mesh_path);
-	LIMPL_PROPERTY(Variant::NODE_PATH, lights, set_lights_path, get_lights_path);
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "bake_mode", PROPERTY_HINT_ENUM, "UVMap,Lightmap,AO,Merge,Combined"), "set_bake_mode", "get_bake_mode");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "mode", PROPERTY_HINT_ENUM, "Forward,Backward"), "set_mode", "get_mode");
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "bake_mode", PROPERTY_HINT_ENUM, "Lightmap,AO,Merge,Combined"), "set_bake_mode", "get_bake_mode");
-	LIMPL_PROPERTY(Variant::REAL, surface_bias, set_surface_bias, get_surface_bias);
+	LIMPL_PROPERTY(Variant::NODE_PATH, meshes, set_mesh_path, get_mesh_path);
+	LIMPL_PROPERTY(Variant::NODE_PATH, lights, set_lights_path, get_lights_path);
 
 	ADD_GROUP("Files", "");
-	ADD_PROPERTY(PropertyInfo(Variant::STRING, "lightmap_filename", PROPERTY_HINT_FILE, "*.png,*.exr"), "set_lightmap_filename", "get_lightmap_filename");
-	ADD_PROPERTY(PropertyInfo(Variant::STRING, "ao_filename", PROPERTY_HINT_FILE, "*.png,*.exr"), "set_ao_filename", "get_ao_filename");
-	ADD_PROPERTY(PropertyInfo(Variant::STRING, "combined_filename", PROPERTY_HINT_FILE, "*.png,*.exr"), "set_combined_filename", "get_combined_filename");
+	ADD_PROPERTY(PropertyInfo(Variant::STRING, "lightmap_filename", PROPERTY_HINT_SAVE_FILE, "*.exr"), "set_lightmap_filename", "get_lightmap_filename");
+	ADD_PROPERTY(PropertyInfo(Variant::STRING, "ao_filename", PROPERTY_HINT_SAVE_FILE, "*.exr"), "set_ao_filename", "get_ao_filename");
+	ADD_PROPERTY(PropertyInfo(Variant::STRING, "combined_filename", PROPERTY_HINT_SAVE_FILE, "*.png,*.exr"), "set_combined_filename", "get_combined_filename");
 
 
 	ADD_GROUP("Size", "");
 
 	LIMPL_PROPERTY_RANGE(Variant::INT, tex_width, set_tex_width, get_tex_width, "128,8192,128");
 	LIMPL_PROPERTY_RANGE(Variant::INT, tex_height, set_tex_height, get_tex_height, "128,8192,128");
-	LIMPL_PROPERTY(Variant::VECTOR3, voxel_grid, set_voxel_dims, get_voxel_dims);
+//	LIMPL_PROPERTY(Variant::VECTOR3, voxel_grid, set_voxel_dims, get_voxel_dims);
+	LIMPL_PROPERTY(Variant::REAL, surface_bias, set_surface_bias, get_surface_bias);
+	LIMPL_PROPERTY_RANGE(Variant::INT, voxel_density, set_voxel_density, get_voxel_density, "1,512,1");
 
 	ADD_GROUP("Forward Parameters", "");
 	LIMPL_PROPERTY_RANGE(Variant::INT, f_rays, set_forward_num_rays, get_forward_num_rays, "1,4096,1");
@@ -90,11 +92,11 @@ ADD_PROPERTY(PropertyInfo(P_TYPE, LIGHTMAP_TOSTRING(P_NAME), PROPERTY_HINT_RANGE
 	ADD_GROUP("Dynamic Range", "");
 	LIMPL_PROPERTY(Variant::BOOL, normalize, set_normalize, get_normalize);
 	LIMPL_PROPERTY(Variant::REAL, normalize_bias, set_normalize_bias, get_normalize_bias);
-	LIMPL_PROPERTY_RANGE(Variant::REAL, light_ao_ratio, set_light_ao_ratio, get_light_ao_ratio, "0.0,1.0,0.01");
+	LIMPL_PROPERTY_RANGE(Variant::REAL, ao_light_ratio, set_light_ao_ratio, get_light_ao_ratio, "0.0,1.0,0.01");
 
 	ADD_GROUP("UV Unwrap", "");
 	LIMPL_PROPERTY_RANGE(Variant::INT, uv_padding, set_uv_padding, get_uv_padding, "0,256,1");
-	ADD_PROPERTY(PropertyInfo(Variant::STRING, "uv_filename", PROPERTY_HINT_FILE, "*.tscn"), "set_uv_filename", "get_uv_filename");
+	ADD_PROPERTY(PropertyInfo(Variant::STRING, "uv_filename", PROPERTY_HINT_SAVE_FILE, "*.tscn"), "set_uv_filename", "get_uv_filename");
 }
 
 void LLightmap::set_mode(LLightmap::eMode p_mode) {m_LM.m_Settings_Mode = (LM::LightMapper::eLMMode) p_mode;}
@@ -157,8 +159,11 @@ int LLightmap::get_tex_width() const {return m_LM.m_Settings_TexWidth;}
 void LLightmap::set_tex_height(int height) {m_LM.m_Settings_TexHeight = height;}
 int LLightmap::get_tex_height() const {return m_LM.m_Settings_TexHeight;}
 
-void LLightmap::set_voxel_dims(const Vector3 &dims) {m_LM.m_Settings_VoxelDims.Set(dims);}
-Vector3 LLightmap::get_voxel_dims() const {Vector3 p; m_LM.m_Settings_VoxelDims.To(p); return p;}
+//void LLightmap::set_voxel_dims(const Vector3 &dims) {m_LM.m_Settings_VoxelDims.Set(dims);}
+//Vector3 LLightmap::get_voxel_dims() const {Vector3 p; m_LM.m_Settings_VoxelDims.To(p); return p;}
+
+void LLightmap::set_voxel_density(int density) {m_LM.m_Settings_VoxelDensity = density;}
+int LLightmap::get_voxel_density() const {return m_LM.m_Settings_VoxelDensity;}
 
 void LLightmap::set_surface_bias(float bias) {m_LM.m_Settings_SurfaceBias = bias;}
 float LLightmap::get_surface_bias() const {return m_LM.m_Settings_SurfaceBias;}
@@ -195,23 +200,19 @@ LLIGHTMAP_IMPLEMENT_SETGET_FILENAME(set_combined_filename, get_combined_filename
 
 
 #undef LLIGHTMAP_IMPLEMENT_SETGET_FILENAME
-//void LLightmap::set_lightmap_filename(const String &p_filename)
-//{
-//	m_LM.m_Settings_LightmapFilename = p_filename;
-//	// HDR?
-//	if (p_filename.get_extension() == "exr")
-//		m_LM.m_Settings_LightmapIsHDR = true;
-//	else
-//		m_LM.m_Settings_LightmapIsHDR = false;
-//}
-//String LLightmap::get_lightmap_filename() const {return m_LM.m_Settings_LightmapFilename;}
-
 
 bool LLightmap::uvmap()
 {
+	if (!has_node(m_LM.m_Settings_Path_Mesh))
+	{
+		EditorNode::get_singleton()->show_warning(TTR("Meshes nodepath is invalid."));
+		return false;
+	}
+
 	Spatial * pRoot = Object::cast_to<Spatial>(get_node(m_LM.m_Settings_Path_Mesh));
 	if (!pRoot)
 	{
+		EditorNode::get_singleton()->show_warning(TTR("Meshes nodepath is not a spatial."));
 		WARN_PRINT("uvmap : mesh path is not a spatial");
 		return false;
 	}
@@ -222,7 +223,14 @@ bool LLightmap::uvmap()
 
 bool LLightmap::lightmap_bake()
 {
+	if (m_LM.m_Settings_BakeMode == LM::LightMapper_Base::LMBAKEMODE_UVMAP)
+	{
+		return uvmap();
+	}
+
 	if (m_LM.m_Settings_LightmapFilename == "")
+		return false;
+	if (m_LM.m_Settings_CombinedFilename == "")
 		return false;
 
 	// bake to a file
@@ -316,27 +324,27 @@ bool LLightmap::lightmap_bake_to_image(Object * pOutputLightmapImage, Object * p
 	// get the mesh instance and light root
 	if (!has_node(m_LM.m_Settings_Path_Mesh))
 	{
-		WARN_PRINT("lightmap_bake : mesh path is invalid");
+		EditorNode::get_singleton()->show_warning(TTR("Meshes nodepath is invalid."));
 		return false;
 	}
 
 	Spatial * pMeshInstance = Object::cast_to<Spatial>(get_node(m_LM.m_Settings_Path_Mesh));
 	if (!pMeshInstance)
 	{
-		WARN_PRINT("lightmap_bake : mesh path is not a mesh instance");
+		EditorNode::get_singleton()->show_warning(TTR("Meshes nodepath is not a spatial."));
 		return false;
 	}
 
 	if (!has_node(m_LM.m_Settings_Path_Lights))
 	{
-		WARN_PRINT("lightmap_bake : lights path is invalid");
+		EditorNode::get_singleton()->show_warning(TTR("Lights nodepath is invalid."));
 		return false;
 	}
 
 	Node * pLightRoot = Object::cast_to<Node>(get_node(m_LM.m_Settings_Path_Lights));
 	if (!pLightRoot)
 	{
-		WARN_PRINT("lightmap_bake : lights path is not a node");
+		EditorNode::get_singleton()->show_warning(TTR("Lights nodepath is not a node."));
 		return false;
 	}
 
