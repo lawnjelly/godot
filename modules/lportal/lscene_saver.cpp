@@ -5,7 +5,8 @@
 
 void LSceneSaver::SetOwnerRecursive(Node * pNode, Node * pOwner)
 {
-	pNode->set_owner(pOwner);
+	if (pNode != pOwner)
+		pNode->set_owner(pOwner);
 
 	for (int n=0; n<pNode->get_child_count(); n++)
 	{

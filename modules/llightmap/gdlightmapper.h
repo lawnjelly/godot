@@ -16,6 +16,7 @@ public:
 
 	enum eBakeMode
 	{
+		BAKEMODE_UVMAP = LM::LightMapper::LMBAKEMODE_UVMAP,
 		BAKEMODE_LIGHTMAP  = LM::LightMapper::LMBAKEMODE_LIGHTMAP,
 		BAKEMODE_AO = LM::LightMapper::LMBAKEMODE_AO,
 		BAKEMODE_MERGE = LM::LightMapper::LMBAKEMODE_MERGE,
@@ -88,8 +89,11 @@ public:
 	void set_tex_height(int height);
 	int get_tex_height() const;
 
-	void set_voxel_dims(const Vector3 &dims);
-	Vector3 get_voxel_dims() const;
+//	void set_voxel_dims(const Vector3 &dims);
+//	Vector3 get_voxel_dims() const;
+
+	void set_voxel_density(int density);
+	int get_voxel_density() const;
 
 	void set_surface_bias(float bias);
 	float get_surface_bias() const;

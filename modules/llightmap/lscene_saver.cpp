@@ -7,15 +7,17 @@ namespace LM {
 
 void SceneSaver::SetOwnerRecursive(Node * pNode, Node * pOwner)
 {
-	String sz;
-	sz = "node " + pNode->get_name();
-	if (pNode->get_owner())
-	{
-		sz += ", owner was " + pNode->get_owner()->get_name();
-	}
-	print_line(sz);
+//	String sz;
+//	sz = "node " + pNode->get_name();
+//	if (pNode->get_owner())
+//	{
+//		sz += ", owner was " + pNode->get_owner()->get_name();
+//	}
+//	print_line(sz);
 
-	pNode->set_owner(pOwner);
+
+	if (pNode != pOwner)
+		pNode->set_owner(pOwner);
 
 	for (int n=0; n<pNode->get_child_count(); n++)
 	{
