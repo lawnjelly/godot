@@ -10,6 +10,13 @@ namespace LM {
 
 bool LightMapper::uv_map_meshes(Spatial * pRoot)
 {
+	if (!pRoot)
+		return false;
+
+	// first back up the existing meshes scene.
+	SceneSaver saver;
+	saver.SaveScene(pRoot, "res://uvmap_backup.tscn");
+
 	Merger m;
 	MeshInstance * pMerged = m.Merge(pRoot, m_Settings_UVPadding);
 	if (!pMerged)
@@ -27,7 +34,6 @@ bool LightMapper::uv_map_meshes(Spatial * pRoot)
 	{
 		Node * pOrigOwner = pRoot->get_owner();
 
-		SceneSaver saver;
 		saver.SaveScene(pRoot, m_Settings_UVFilename);
 
 		// delete the orig
