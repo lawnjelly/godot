@@ -93,6 +93,7 @@ ADD_PROPERTY(PropertyInfo(P_TYPE, LIGHTMAP_TOSTRING(P_NAME), PROPERTY_HINT_RANGE
 	LIMPL_PROPERTY(Variant::BOOL, normalize, set_normalize, get_normalize);
 	LIMPL_PROPERTY(Variant::REAL, normalize_bias, set_normalize_bias, get_normalize_bias);
 	LIMPL_PROPERTY_RANGE(Variant::REAL, ao_light_ratio, set_light_ao_ratio, get_light_ao_ratio, "0.0,1.0,0.01");
+	LIMPL_PROPERTY_RANGE(Variant::REAL, gamma, set_gamma, get_gamma, "0.01,10.0,0.01");
 
 	ADD_GROUP("UV Unwrap", "");
 	LIMPL_PROPERTY_RANGE(Variant::INT, uv_padding, set_uv_padding, get_uv_padding, "0,256,1");
@@ -176,6 +177,9 @@ float LLightmap::get_normalize_bias() const {return m_LM.m_Settings_NormalizeBia
 
 void LLightmap::set_light_ao_ratio(float ratio) {m_LM.m_Settings_Light_AO_Ratio = ratio;}
 float LLightmap::get_light_ao_ratio() const {return m_LM.m_Settings_Light_AO_Ratio;}
+
+void LLightmap::set_gamma(float gamma) {m_LM.m_Settings_Gamma = gamma;}
+float LLightmap::get_gamma() const {return m_LM.m_Settings_Gamma;}
 
 void LLightmap::set_uv_filename(const String &p_filename) {m_LM.m_Settings_UVFilename = p_filename;}
 String LLightmap::get_uv_filename() const {return m_LM.m_Settings_UVFilename;}
