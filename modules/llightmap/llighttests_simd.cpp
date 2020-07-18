@@ -4,6 +4,20 @@ namespace LM {
 
 #ifdef LLIGHTMAPPER_USE_SIMD
 
+const __m128 oneM128 = _mm_set1_ps(1.0f);
+const __m128 minusOneM128 = _mm_set1_ps(-1.0f);
+const __m128 positiveEpsilonM128 = _mm_set1_ps(0.000001f);
+const __m128 negativeEpsilonM128 = _mm_set1_ps(-0.000001f);
+const __m128 zeroM128 = _mm_set1_ps(0.0f);
+
+//const u_m128 ref_oneM128 = {1.0f, 1.0f, 1.0f, 1.0f};
+//const u_m128 ref_minusOneM128 = {-1.0f, -1.0f, -1.0f, -1.0f};
+//const u_m128 ref_positiveEpsilonM128 = {0.000001f, 0.000001f, 0.000001f, 0.000001f};
+//const u_m128 ref_negativeEpsilonM128 = {-0.000001f, -0.000001f, -0.000001f, -0.000001f};
+//const u_m128 ref_zeroM128 = {0.0f, 0.0f, 0.0f, 0.0f};
+
+
+
 void multi_cross(__m128 result[3], const __m128 a[3], const __m128 b[3])
 {
 	__m128 tmp;
@@ -44,12 +58,6 @@ void multi_sub(__m128 result[3], const __m128 a[3], const __m128 b[3])
 	result[1] = _mm_sub_ps(a[1], b[1]);
 	result[2] = _mm_sub_ps(a[2], b[2]);
 }
-
-const __m128 oneM128 = _mm_set1_ps(1.0f);
-const __m128 minusOneM128 = _mm_set1_ps(-1.0f);
-const __m128 positiveEpsilonM128 = _mm_set1_ps(0.000001f);
-const __m128 negativeEpsilonM128 = _mm_set1_ps(-0.000001f);
-const __m128 zeroM128 = _mm_set1_ps(0.0f);
 
 
 void PackedRay::Create(const Ray &ray)
@@ -222,6 +230,152 @@ bool PackedRay::IntersectTest(const PackedTriangles& packedTris, float max_dist)
 	return false;
 }
 
+/*
+// returns winner index +1, or zero if no hit
+int PackedRay::Intersect_TESTREF(const PackedTriangles& packedTris, float &nearest_dist) const
+{
+	//Begin calculating determinant - also used to calculate u parameter
+	// P
+	u_m128 q[3];
+	u_m128::multi_cross(q, &m_direction[0], &packedTris.e2[0]);
+
+	__m128 SIMD_q[3];
+	multi_cross(SIMD_q, &m_direction[0].mm128, &packedTris.e2[0].mm128);
+
+
+	//if determinant is near zero, ray lies in plane of triangle
+	// det
+	u_m128 a = u_m128::multi_dot(&packedTris.e1[0], q);
+
+
+	__m128 SIMD_a = multi_dot(&packedTris.e1[0].mm128, SIMD_q);
+
+	// reject based on det being close to zero
+	// NYI
+
+	// inv_det
+	u_m128 f = u_m128::div_ps(ref_oneM128, a);
+
+	__m128 SIMD_f = _mm_div_ps(oneM128, SIMD_a);
+
+
+	// distance from v1 to ray origin
+	// T
+	u_m128 s[3];
+	u_m128::multi_sub(s, &m_origin[0], &packedTris.v0[0]);
+
+
+	__m128 SIMD_s[3];
+	multi_sub(SIMD_s, &m_origin[0].mm128, &packedTris.v0[0].mm128);
+
+	// Calculate u parameter and test bound
+	u_m128 u;
+	u_m128 dot_sq;
+	dot_sq = u_m128::multi_dot(s, q);
+	u = u_m128::mul_ps(f, dot_sq);
+
+
+	__m128 SIMD_dot_sq = multi_dot(SIMD_s, SIMD_q);
+	__m128 SIMD_u = _mm_mul_ps(SIMD_f, SIMD_dot_sq);
+
+	// the intersection lies outside triangle
+	// NYI
+
+	// Prepare to test v parameter
+	// Q
+	u_m128 r[3];
+	u_m128::multi_cross(r, s, &packedTris.e1[0]);
+
+	__m128 SIMD_r[3];
+	multi_cross(SIMD_r, SIMD_s, &packedTris.e1[0].mm128);
+
+
+	// calculate V parameter and test bound
+	// v
+	u_m128 dot_dir_r;
+	u_m128 v;
+	dot_dir_r = u_m128::multi_dot(&m_direction[0], r);
+	v = u_m128::mul_ps(f, dot_dir_r);
+
+
+	__m128 SIMD_v = _mm_mul_ps(SIMD_f, multi_dot(&m_direction[0].mm128, SIMD_r));
+
+	// intersection outside of triangles?
+	// NYI
+
+	// t
+	u_m128 t, dot_edge_r;
+	dot_edge_r = u_m128::multi_dot(&packedTris.e2[0], r);
+	t = u_m128::mul_ps(f, dot_edge_r);
+
+
+	__m128 SIMD_t = _mm_mul_ps(SIMD_f, multi_dot(&packedTris.e2[0].mm128, SIMD_r));
+
+	// if t > epsilon, hit
+
+	// Failure conditions
+	// determinant close to zero?
+	u_m128 failed = u_m128::mm_and(u_m128::ref_cmpge_ps(a, ref_negativeEpsilonM128), u_m128::ref_cmple_ps(a, ref_positiveEpsilonM128));
+
+	__m128 SIMD_failed = _mm_and_ps(_mm_cmpge_ps(SIMD_a, negativeEpsilonM128), _mm_cmple_ps(SIMD_a, positiveEpsilonM128));
+
+
+
+	failed = u_m128::mm_or(failed, u_m128::ref_cmple_ps(u, ref_zeroM128));
+	failed = u_m128::mm_or(failed, u_m128::ref_cmple_ps(v, ref_zeroM128));
+	//failed = u_m128::mm_or(failed, u_m128::ref_cmpge_ps(v, ref_zeroM128));
+
+	SIMD_failed = _mm_or_ps(SIMD_failed, _mm_cmple_ps(SIMD_u, zeroM128));
+	SIMD_failed = _mm_or_ps(SIMD_failed, _mm_cmple_ps(SIMD_v, zeroM128));
+
+
+	failed = u_m128::mm_or(failed, u_m128::ref_cmpge_ps(u_m128::add_ps(u, v), ref_oneM128));
+	SIMD_failed = _mm_or_ps(SIMD_failed, _mm_cmpge_ps(_mm_add_ps(SIMD_u, SIMD_v), oneM128));
+
+
+
+	failed = u_m128::mm_or(failed, u_m128::ref_cmple_ps(t, ref_zeroM128));
+	//    failed = _mm_or_ps(failed, _mm_cmpge_ps(t, m_length));
+	failed = u_m128::mm_or(failed, packedTris.inactiveMask);
+
+	// test against minimum t .. not sure if this will speed up or not.
+//	__m128 m_nearest_dist = _mm_set1_ps(nearest_dist);
+//	failed = _mm_or_ps(failed, _mm_cmpge_ps(t, m_nearest_dist));
+
+	//bool bHit  = false;
+	int mask = failed.movemask_ps();
+    if (mask != 15) // first 4 bits set
+	{
+		// there is at least one winner, so no need to set this
+		int winner = 0;
+
+		float * pT = (float*) &t;
+
+		// use simplified way of getting results
+		uint32_t * pResults = (uint32_t*) &failed;
+
+		for (int n=0; n<4; n++)
+		{
+			// hit!
+	//		if (!pResults[n] && n<packedTris.num_tris)
+			if (!pResults[n])
+			{
+				if (pT[n] < nearest_dist)
+				{
+					nearest_dist = pT[n];
+					//r_winner = n;
+					winner = n+1;
+					//bHit = true;
+				}
+			}
+		} // for n
+
+		return winner;
+	} // mask
+
+	return 0;
+}
+*/
 
 // returns winner index +1, or zero if no hit
 int PackedRay::Intersect(const PackedTriangles& packedTris, float &nearest_dist) const
@@ -280,7 +434,9 @@ int PackedRay::Intersect(const PackedTriangles& packedTris, float &nearest_dist)
 
 	failed = _mm_or_ps(failed, _mm_cmple_ps(u, zeroM128));
 	failed = _mm_or_ps(failed, _mm_cmple_ps(v, zeroM128));
+
 	failed = _mm_or_ps(failed, _mm_cmpge_ps(_mm_add_ps(u, v), oneM128));
+
 	failed = _mm_or_ps(failed, _mm_cmple_ps(t, zeroM128));
 	//    failed = _mm_or_ps(failed, _mm_cmpge_ps(t, m_length));
 	failed = _mm_or_ps(failed, packedTris.inactiveMask.mm128);
@@ -355,11 +511,11 @@ bool LightTests_SIMD::TestIntersect4(const Tri *tris[4], const Ray &ray, float &
 
 // REFERENCE IMPLEMENTATION (for non SSE2 CPUs)
 
-const u_m128 oneM128 = {1.0f, 1.0f, 1.0f, 1.0f};
-const u_m128 minusOneM128 = {-1.0f, -1.0f, -1.0f, -1.0f};
-const u_m128 positiveEpsilonM128 = {0.000001f, 0.000001f, 0.000001f, 0.000001f};
-const u_m128 negativeEpsilonM128 = {-0.000001f, -0.000001f, -0.000001f, -0.000001f};
-const u_m128 zeroM128 = {0.0f, 0.0f, 0.0f, 0.0f};
+const u_m128 ref_oneM128 = {{1.0f, 1.0f, 1.0f, 1.0f}};
+const u_m128 ref_minusOneM128 = {{-1.0f, -1.0f, -1.0f, -1.0f}};
+const u_m128 ref_positiveEpsilonM128 = {{0.000001f, 0.000001f, 0.000001f, 0.000001f}};
+const u_m128 ref_negativeEpsilonM128 = {{-0.000001f, -0.000001f, -0.000001f, -0.000001f}};
+const u_m128 ref_zeroM128 = {{0.0f, 0.0f, 0.0f, 0.0f}};
 
 
 void PackedRay::Create(const Ray &ray)
@@ -390,7 +546,7 @@ bool PackedRay::IntersectTest_CullBackFaces(const PackedTriangles& packedTris, f
 	// NYI
 
 	// inv_det
-	u_m128 f = u_m128::div_ps(oneM128, a);
+	u_m128 f = u_m128::div_ps(ref_oneM128, a);
 
 	// distance from v1 to ray origin
 	// T
@@ -400,7 +556,7 @@ bool PackedRay::IntersectTest_CullBackFaces(const PackedTriangles& packedTris, f
 	// Calculate u parameter and test bound
 	u_m128 u;
 	u_m128 dot_sq;
-	dot_sq.multi_dot(s, q);
+	dot_sq = u_m128::multi_dot(s, q);
 	u = u_m128::mul_ps(f, dot_sq);
 
 	// the intersection lies outside triangle
@@ -440,15 +596,13 @@ bool PackedRay::IntersectTest_CullBackFaces(const PackedTriangles& packedTris, f
 
 	// Failure conditions
 	// determinant close to zero?
-	u_m128 failed = u_m128::mm_and(u_m128::ref_cmpge_ps(a, negativeEpsilonM128), u_m128::ref_cmple_ps(a, positiveEpsilonM128));
-	failed = u_m128::mm_or(failed, u_m128::ref_cmple_ps(u, zeroM128));
-	failed = u_m128::mm_or(failed, u_m128::ref_cmple_ps(v, zeroM128));
-
-	failed = u_m128::mm_or(failed, u_m128::ref_cmpge_ps(v, zeroM128));
+	u_m128 failed = u_m128::mm_and(u_m128::ref_cmpge_ps(a, ref_negativeEpsilonM128), u_m128::ref_cmple_ps(a, ref_positiveEpsilonM128));
+	failed = u_m128::mm_or(failed, u_m128::ref_cmple_ps(u, ref_zeroM128));
+	failed = u_m128::mm_or(failed, u_m128::ref_cmple_ps(v, ref_zeroM128));
 
 
-	failed = u_m128::mm_or(failed, u_m128::ref_cmpge_ps(u_m128::add_ps(u, v), oneM128));
-	failed = u_m128::mm_or(failed, u_m128::ref_cmple_ps(t, zeroM128));
+	failed = u_m128::mm_or(failed, u_m128::ref_cmpge_ps(u_m128::add_ps(u, v), ref_oneM128));
+	failed = u_m128::mm_or(failed, u_m128::ref_cmple_ps(t, ref_zeroM128));
 	//    failed = _mm_or_ps(failed, _mm_cmpge_ps(t, m_length));
 	failed = u_m128::mm_or(failed, packedTris.inactiveMask);
 
@@ -458,7 +612,7 @@ bool PackedRay::IntersectTest_CullBackFaces(const PackedTriangles& packedTris, f
 
 	// backface culling - THE BIT OPERATION IS OPPOSITE.
 	// We want to PREVENT failing if the backface is hit.
-	u_m128 backface_mask = u_m128::ref_cmpge_ps(ray_dot_normal, zeroM128);
+	u_m128 backface_mask = u_m128::ref_cmpge_ps(ray_dot_normal, ref_zeroM128);
 
 	// always let through the bits set in backface mask
 	failed = u_m128::mm_or(failed, backface_mask);
@@ -490,7 +644,7 @@ bool PackedRay::IntersectTest(const PackedTriangles& packedTris, float max_dist)
 	// NYI
 
 	// inv_det
-	u_m128 f = u_m128::div_ps(oneM128, a);
+	u_m128 f = u_m128::div_ps(ref_oneM128, a);
 
 	// distance from v1 to ray origin
 	// T
@@ -500,7 +654,7 @@ bool PackedRay::IntersectTest(const PackedTriangles& packedTris, float max_dist)
 	// Calculate u parameter and test bound
 	u_m128 u;
 	u_m128 dot_sq;
-	dot_sq.multi_dot(s, q);
+	dot_sq = u_m128::multi_dot(s, q);
 	u = u_m128::mul_ps(f, dot_sq);
 
 	// the intersection lies outside triangle
@@ -530,15 +684,13 @@ bool PackedRay::IntersectTest(const PackedTriangles& packedTris, float max_dist)
 
 	// Failure conditions
 	// determinant close to zero?
-	u_m128 failed = u_m128::mm_and(u_m128::ref_cmpge_ps(a, negativeEpsilonM128), u_m128::ref_cmple_ps(a, positiveEpsilonM128));
-	failed = u_m128::mm_or(failed, u_m128::ref_cmple_ps(u, zeroM128));
-	failed = u_m128::mm_or(failed, u_m128::ref_cmple_ps(v, zeroM128));
-
-	failed = u_m128::mm_or(failed, u_m128::ref_cmpge_ps(v, zeroM128));
+	u_m128 failed = u_m128::mm_and(u_m128::ref_cmpge_ps(a, ref_negativeEpsilonM128), u_m128::ref_cmple_ps(a, ref_positiveEpsilonM128));
+	failed = u_m128::mm_or(failed, u_m128::ref_cmple_ps(u, ref_zeroM128));
+	failed = u_m128::mm_or(failed, u_m128::ref_cmple_ps(v, ref_zeroM128));
 
 
-	failed = u_m128::mm_or(failed, u_m128::ref_cmpge_ps(u_m128::add_ps(u, v), oneM128));
-	failed = u_m128::mm_or(failed, u_m128::ref_cmple_ps(t, zeroM128));
+	failed = u_m128::mm_or(failed, u_m128::ref_cmpge_ps(u_m128::add_ps(u, v), ref_oneM128));
+	failed = u_m128::mm_or(failed, u_m128::ref_cmple_ps(t, ref_zeroM128));
 	//    failed = _mm_or_ps(failed, _mm_cmpge_ps(t, m_length));
 	failed = u_m128::mm_or(failed, packedTris.inactiveMask);
 
@@ -573,7 +725,7 @@ int PackedRay::Intersect(const PackedTriangles& packedTris, float &nearest_dist)
 	// NYI
 
 	// inv_det
-	u_m128 f = u_m128::div_ps(oneM128, a);
+	u_m128 f = u_m128::div_ps(ref_oneM128, a);
 
 	// distance from v1 to ray origin
 	// T
@@ -583,7 +735,7 @@ int PackedRay::Intersect(const PackedTriangles& packedTris, float &nearest_dist)
 	// Calculate u parameter and test bound
 	u_m128 u;
 	u_m128 dot_sq;
-	dot_sq.multi_dot(s, q);
+	dot_sq = u_m128::multi_dot(s, q);
 	u = u_m128::mul_ps(f, dot_sq);
 
 	// the intersection lies outside triangle
@@ -613,21 +765,19 @@ int PackedRay::Intersect(const PackedTriangles& packedTris, float &nearest_dist)
 
 	// Failure conditions
 	// determinant close to zero?
-	u_m128 failed = u_m128::mm_and(u_m128::ref_cmpge_ps(a, negativeEpsilonM128), u_m128::ref_cmple_ps(a, positiveEpsilonM128));
+	u_m128 failed = u_m128::mm_and(u_m128::ref_cmpge_ps(a, ref_negativeEpsilonM128), u_m128::ref_cmple_ps(a, ref_positiveEpsilonM128));
 
 	//    __m128 failed = _mm_and_ps(
 	//        _mm_cmp(a, negativeEpsilonM256, _CMP_GT_OQ),
 	//        cmp(a, positiveEpsilonM256, _CMP_LT_OQ)
 	//    );
 
-	failed = u_m128::mm_or(failed, u_m128::ref_cmple_ps(u, zeroM128));
-	failed = u_m128::mm_or(failed, u_m128::ref_cmple_ps(v, zeroM128));
-
-	failed = u_m128::mm_or(failed, u_m128::ref_cmpge_ps(v, zeroM128));
+	failed = u_m128::mm_or(failed, u_m128::ref_cmple_ps(u, ref_zeroM128));
+	failed = u_m128::mm_or(failed, u_m128::ref_cmple_ps(v, ref_zeroM128));
 
 
-	failed = u_m128::mm_or(failed, u_m128::ref_cmpge_ps(u_m128::add_ps(u, v), oneM128));
-	failed = u_m128::mm_or(failed, u_m128::ref_cmple_ps(t, zeroM128));
+	failed = u_m128::mm_or(failed, u_m128::ref_cmpge_ps(u_m128::add_ps(u, v), ref_oneM128));
+	failed = u_m128::mm_or(failed, u_m128::ref_cmple_ps(t, ref_zeroM128));
 	//    failed = _mm_or_ps(failed, _mm_cmpge_ps(t, m_length));
 	failed = u_m128::mm_or(failed, packedTris.inactiveMask);
 

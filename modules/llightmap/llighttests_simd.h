@@ -7,7 +7,7 @@
 // #if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))
 
 #if defined(__x86_64__) || defined(_M_X64)
-//#define LLIGHTMAPPER_USE_SIMD
+#define LLIGHTMAPPER_USE_SIMD
 #endif
 
 
@@ -106,14 +106,14 @@ union u_m128
 	static u_m128 multi_dot(const u_m128 a[3], const u_m128 b[3])
 	{
 		u_m128 r;
-		u_m128 tmp, tmp2, tmp3;
+		u_m128 tmp, tmp2, tmp3, tmp4;
 
 		tmp = mul_ps(a[0], b[0]);
 		tmp2 = mul_ps(a[1], b[1]);
 		tmp3 = mul_ps(a[2], b[2]);
 
-		r = add_ps(tmp, tmp2);
-		r = add_ps(r, tmp3); // this may be dodgy, as argument is same as result
+		tmp4 = add_ps(tmp, tmp2);
+		r = add_ps(tmp4, tmp3); // this may be dodgy, as argument is same as result
 		return r;
 	}
 };
@@ -173,6 +173,7 @@ struct PackedRay
 
 	void Create(const Ray &ray);
 	int Intersect(const PackedTriangles& packedTris, float &nearest_dist) const;
+//	int Intersect_ORIG(const PackedTriangles& packedTris, float &nearest_dist) const;
 	bool IntersectTest(const PackedTriangles& packedTris, float max_dist) const;
 	bool IntersectTest_CullBackFaces(const PackedTriangles& packedTris, float max_dist) const;
 };
