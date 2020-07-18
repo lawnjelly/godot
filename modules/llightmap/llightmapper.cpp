@@ -112,19 +112,14 @@ bool LightMapper::lightmap_mesh(Spatial * pMeshesRoot, Spatial * pLR, Image * pI
 	m_iNumRays = m_Settings_Forward_NumRays;
 
 		int nTexels = m_iWidth * m_iHeight;
-	//	int progress_range = m_iHeight;
 
 	// set num rays depending on method
 		if (m_Settings_Mode == LMMODE_FORWARD)
 		{
 			// the num rays / texel. This is per light!
 			m_iNumRays *= nTexels;
-	//		progress_range = m_iNumRays / m_iRaysPerSection;
 		}
 
-	//	if (bake_begin_function) {
-	//		bake_begin_function(progress_range);
-	//	}
 
 	// do twice to test SIMD
 	uint32_t beforeA = OS::get_singleton()->get_ticks_msec();
@@ -134,19 +129,8 @@ bool LightMapper::lightmap_mesh(Spatial * pMeshesRoot, Spatial * pLR, Image * pI
 	bool res = LightmapMesh(pMeshesRoot, *pLR, *pIm_Lightmap, *pIm_AO, *pIm_Combined);
 
 	uint32_t afterA = OS::get_singleton()->get_ticks_msec();
-
-	//	uint32_t beforeB = OS::get_singleton()->get_ticks_msec();
-	//	m_Scene.m_bUseSIMD = false;
-	//	m_Scene.m_Tracer.m_bSIMD = false;
-	//res = LightmapMesh(*pMI, *pLR, *pIm);
-	//	uint32_t afterB = OS::get_singleton()->get_ticks_msec();
-
 	print_line("Overall took : " + itos(afterA - beforeA));
-	//	print_line("reference version took : " + itos(afterB- beforeB));
 
-	//	if (bake_end_function) {
-	//		bake_end_function();
-	//	}
 	return res;
 }
 
