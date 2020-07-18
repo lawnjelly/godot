@@ -13,6 +13,7 @@ bool LightMapper::uv_map_meshes(Spatial * pRoot)
 	if (!pRoot)
 		return false;
 
+	// can't do uv mapping if not tools build, as xatlas isn't compiled
 	if (bake_begin_function) {
 		bake_begin_function(4);
 	}
@@ -140,7 +141,7 @@ bool LightMapper::lightmap_mesh(Spatial * pMeshesRoot, Spatial * pLR, Image * pI
 	//res = LightmapMesh(*pMI, *pLR, *pIm);
 	//	uint32_t afterB = OS::get_singleton()->get_ticks_msec();
 
-	print_line("SIMD version took : " + itos(afterA - beforeA));
+	print_line("Overall took : " + itos(afterA - beforeA));
 	//	print_line("reference version took : " + itos(afterB- beforeB));
 
 	//	if (bake_end_function) {
