@@ -374,6 +374,189 @@ void PackedRay::Create(const Ray &ray)
 }
 
 
+// returns true if a hit
+bool PackedRay::IntersectTest_CullBackFaces(const PackedTriangles& packedTris, float max_dist) const
+{
+	//Begin calculating determinant - also used to calculate u parameter
+	// P
+	u_m128 q[3];
+	u_m128::multi_cross(q, &m_direction[0], &packedTris.e2[0]);
+
+	//if determinant is near zero, ray lies in plane of triangle
+	// det
+	u_m128 a = u_m128::multi_dot(&packedTris.e1[0], q);
+
+	// reject based on det being close to zero
+	// NYI
+
+	// inv_det
+	u_m128 f = u_m128::div_ps(oneM128, a);
+
+	// distance from v1 to ray origin
+	// T
+	u_m128 s[3];
+	u_m128::multi_sub(s, &m_origin[0], &packedTris.v0[0]);
+
+	// Calculate u parameter and test bound
+	u_m128 u;
+	u_m128 dot_sq;
+	dot_sq.multi_dot(s, q);
+	u = u_m128::mul_ps(f, dot_sq);
+
+	// the intersection lies outside triangle
+	// NYI
+
+	// Prepare to test v parameter
+	// Q
+	u_m128 r[3];
+	u_m128::multi_cross(r, s, &packedTris.e1[0]);
+
+	// calculate V parameter and test bound
+	// v
+	u_m128 dot_dir_r;
+	u_m128 v;
+	dot_dir_r = u_m128::multi_dot(&m_direction[0], r);
+	v = u_m128::mul_ps(f, dot_dir_r);
+
+	// intersection outside of triangles?
+	// NYI
+
+	// t
+	u_m128 t, dot_edge_r;
+	dot_edge_r = u_m128::multi_dot(&packedTris.e2[0], r);
+	t = u_m128::mul_ps(f, dot_edge_r);
+
+	// if t > epsilon, hit
+
+	/////////////////////////////////////////
+	// back face culling.
+	// calculate face normal (not normalized)
+	u_m128 face_normals[3];
+	u_m128::multi_cross(face_normals, &packedTris.e2[0], &packedTris.e1[0]);
+	// dot ray direction
+	u_m128 ray_dot_normal = u_m128::multi_dot(&m_direction[0], face_normals);
+	/////////////////////////////////////////
+
+
+	// Failure conditions
+	// determinant close to zero?
+	u_m128 failed = u_m128::mm_and(u_m128::ref_cmpge_ps(a, negativeEpsilonM128), u_m128::ref_cmple_ps(a, positiveEpsilonM128));
+	failed = u_m128::mm_or(failed, u_m128::ref_cmple_ps(u, zeroM128));
+	failed = u_m128::mm_or(failed, u_m128::ref_cmple_ps(v, zeroM128));
+
+	failed = u_m128::mm_or(failed, u_m128::ref_cmpge_ps(v, zeroM128));
+
+
+	failed = u_m128::mm_or(failed, u_m128::ref_cmpge_ps(u_m128::add_ps(u, v), oneM128));
+	failed = u_m128::mm_or(failed, u_m128::ref_cmple_ps(t, zeroM128));
+	//    failed = _mm_or_ps(failed, _mm_cmpge_ps(t, m_length));
+	failed = u_m128::mm_or(failed, packedTris.inactiveMask);
+
+	// test against max dist.
+	u_m128 m_max_dist = u_m128::set1_ps(max_dist);
+	failed = u_m128::mm_or(failed, u_m128::ref_cmpge_ps(t, m_max_dist));
+
+	// backface culling - THE BIT OPERATION IS OPPOSITE.
+	// We want to PREVENT failing if the backface is hit.
+	u_m128 backface_mask = u_m128::ref_cmpge_ps(ray_dot_normal, zeroM128);
+
+	// always let through the bits set in backface mask
+	failed = u_m128::mm_or(failed, backface_mask);
+
+	//bool bHit  = false;
+	int mask = failed.movemask_ps();
+    if (mask != 15) // first 4 bits set
+	{
+		// there is at least one winner
+		return true;
+	}
+
+	return false;
+}
+
+// returns true if a hit
+bool PackedRay::IntersectTest(const PackedTriangles& packedTris, float max_dist) const
+{
+	//Begin calculating determinant - also used to calculate u parameter
+	// P
+	u_m128 q[3];
+	u_m128::multi_cross(q, &m_direction[0], &packedTris.e2[0]);
+
+	//if determinant is near zero, ray lies in plane of triangle
+	// det
+	u_m128 a = u_m128::multi_dot(&packedTris.e1[0], q);
+
+	// reject based on det being close to zero
+	// NYI
+
+	// inv_det
+	u_m128 f = u_m128::div_ps(oneM128, a);
+
+	// distance from v1 to ray origin
+	// T
+	u_m128 s[3];
+	u_m128::multi_sub(s, &m_origin[0], &packedTris.v0[0]);
+
+	// Calculate u parameter and test bound
+	u_m128 u;
+	u_m128 dot_sq;
+	dot_sq.multi_dot(s, q);
+	u = u_m128::mul_ps(f, dot_sq);
+
+	// the intersection lies outside triangle
+	// NYI
+
+	// Prepare to test v parameter
+	// Q
+	u_m128 r[3];
+	u_m128::multi_cross(r, s, &packedTris.e1[0]);
+
+	// calculate V parameter and test bound
+	// v
+	u_m128 dot_dir_r;
+	u_m128 v;
+	dot_dir_r = u_m128::multi_dot(&m_direction[0], r);
+	v = u_m128::mul_ps(f, dot_dir_r);
+
+	// intersection outside of triangles?
+	// NYI
+
+	// t
+	u_m128 t, dot_edge_r;
+	dot_edge_r = u_m128::multi_dot(&packedTris.e2[0], r);
+	t = u_m128::mul_ps(f, dot_edge_r);
+
+	// if t > epsilon, hit
+
+	// Failure conditions
+	// determinant close to zero?
+	u_m128 failed = u_m128::mm_and(u_m128::ref_cmpge_ps(a, negativeEpsilonM128), u_m128::ref_cmple_ps(a, positiveEpsilonM128));
+	failed = u_m128::mm_or(failed, u_m128::ref_cmple_ps(u, zeroM128));
+	failed = u_m128::mm_or(failed, u_m128::ref_cmple_ps(v, zeroM128));
+
+	failed = u_m128::mm_or(failed, u_m128::ref_cmpge_ps(v, zeroM128));
+
+
+	failed = u_m128::mm_or(failed, u_m128::ref_cmpge_ps(u_m128::add_ps(u, v), oneM128));
+	failed = u_m128::mm_or(failed, u_m128::ref_cmple_ps(t, zeroM128));
+	//    failed = _mm_or_ps(failed, _mm_cmpge_ps(t, m_length));
+	failed = u_m128::mm_or(failed, packedTris.inactiveMask);
+
+	// test against max dist.
+	u_m128 m_max_dist = u_m128::set1_ps(max_dist);
+	failed = u_m128::mm_or(failed, u_m128::ref_cmpge_ps(t, m_max_dist));
+
+	//bool bHit  = false;
+	int mask = failed.movemask_ps();
+    if (mask != 15) // first 4 bits set
+	{
+		// there is at least one winner
+		return true;
+	}
+
+	return false;
+}
+
 // returns winner index +1, or zero if no hit
 int PackedRay::Intersect(const PackedTriangles& packedTris, float &nearest_dist) const
 {
