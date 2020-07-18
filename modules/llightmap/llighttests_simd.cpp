@@ -211,9 +211,12 @@ bool PackedRay::IntersectTest(const PackedTriangles& packedTris, float max_dist)
 	__m128 failed = _mm_and_ps(_mm_cmpge_ps(a, negativeEpsilonM128), _mm_cmple_ps(a, positiveEpsilonM128));
 	failed = _mm_or_ps(failed, _mm_cmple_ps(u, zeroM128));
 	failed = _mm_or_ps(failed, _mm_cmple_ps(v, zeroM128));
+
 	failed = _mm_or_ps(failed, _mm_cmpge_ps(_mm_add_ps(u, v), oneM128));
+
 	failed = _mm_or_ps(failed, _mm_cmple_ps(t, zeroM128));
 	//    failed = _mm_or_ps(failed, _mm_cmpge_ps(t, m_length));
+
 	failed = _mm_or_ps(failed, packedTris.inactiveMask.mm128);
 
 	// test against minimum t .. not sure if this will speed up or not.
@@ -688,10 +691,10 @@ bool PackedRay::IntersectTest(const PackedTriangles& packedTris, float max_dist)
 	failed = u_m128::mm_or(failed, u_m128::ref_cmple_ps(u, ref_zeroM128));
 	failed = u_m128::mm_or(failed, u_m128::ref_cmple_ps(v, ref_zeroM128));
 
-
 	failed = u_m128::mm_or(failed, u_m128::ref_cmpge_ps(u_m128::add_ps(u, v), ref_oneM128));
+
 	failed = u_m128::mm_or(failed, u_m128::ref_cmple_ps(t, ref_zeroM128));
-	//    failed = _mm_or_ps(failed, _mm_cmpge_ps(t, m_length));
+
 	failed = u_m128::mm_or(failed, packedTris.inactiveMask);
 
 	// test against max dist.
@@ -766,24 +769,14 @@ int PackedRay::Intersect(const PackedTriangles& packedTris, float &nearest_dist)
 	// Failure conditions
 	// determinant close to zero?
 	u_m128 failed = u_m128::mm_and(u_m128::ref_cmpge_ps(a, ref_negativeEpsilonM128), u_m128::ref_cmple_ps(a, ref_positiveEpsilonM128));
-
-	//    __m128 failed = _mm_and_ps(
-	//        _mm_cmp(a, negativeEpsilonM256, _CMP_GT_OQ),
-	//        cmp(a, positiveEpsilonM256, _CMP_LT_OQ)
-	//    );
-
 	failed = u_m128::mm_or(failed, u_m128::ref_cmple_ps(u, ref_zeroM128));
 	failed = u_m128::mm_or(failed, u_m128::ref_cmple_ps(v, ref_zeroM128));
 
 
 	failed = u_m128::mm_or(failed, u_m128::ref_cmpge_ps(u_m128::add_ps(u, v), ref_oneM128));
 	failed = u_m128::mm_or(failed, u_m128::ref_cmple_ps(t, ref_zeroM128));
-	//    failed = _mm_or_ps(failed, _mm_cmpge_ps(t, m_length));
-	failed = u_m128::mm_or(failed, packedTris.inactiveMask);
 
-	// test against minimum t .. not sure if this will speed up or not.
-//	__m128 m_nearest_dist = _mm_set1_ps(nearest_dist);
-//	failed = _mm_or_ps(failed, _mm_cmpge_ps(t, m_nearest_dist));
+	failed = u_m128::mm_or(failed, packedTris.inactiveMask);
 
 	//bool bHit  = false;
 	int mask = failed.movemask_ps();
