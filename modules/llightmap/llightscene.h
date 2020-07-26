@@ -110,6 +110,7 @@ public:
 //	LVector<int> m_Tri_MeshIDs;
 //	LVector<uint16_t> m_Tri_SurfIDs;
 
+	// these are plus 1
 	LVector<uint16_t> m_Tri_LMaterialIDs;
 
 	// these are UVs in the first channel, if present, or 0.

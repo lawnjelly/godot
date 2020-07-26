@@ -8,8 +8,11 @@
 
 namespace LM {
 
+
 bool LightMapper::uv_map_meshes(Spatial * pRoot)
 {
+	bool replace_mesh_scene = false;
+
 	if (!pRoot)
 		return false;
 
@@ -51,7 +54,9 @@ bool LightMapper::uv_map_meshes(Spatial * pRoot)
 	UnMerger u;
 	bool res = u.UnMerge(m, *pMerged);
 
-	// delete merged mesh
+	// for debug save the merged version
+	saver.SaveScene(pMerged, "res://merged_proxy.tscn");
+
 	pMerged->queue_delete();
 
 	if (bake_step_function) {
@@ -63,36 +68,40 @@ bool LightMapper::uv_map_meshes(Spatial * pRoot)
 	{
 		Node * pOrigOwner = pRoot->get_owner();
 
-		saver.SaveScene(pRoot, m_Settings_UVFilename);
+		saver.SaveScene(pRoot, m_Settings_UVFilename, true);
 
-		// delete the orig
-		Node * pParent = pRoot->get_parent();
-
-		// rename the old scene to prevent naming conflict
-		pRoot->set_name("ToBeDeleted");
-		pRoot->queue_delete();
-
-		// now load the new file
-		//ResourceLoader::import(m_Settings_UVFilename);
-
-		Ref<PackedScene> ps = ResourceLoader::load(m_Settings_UVFilename, "PackedScene");
-		if (ps.is_null())
+		if (replace_mesh_scene)
 		{
-			if (bake_end_function) {
-				bake_end_function();
+			// delete the orig
+			Node * pParent = pRoot->get_parent();
+
+			// rename the old scene to prevent naming conflict
+			pRoot->set_name("ToBeDeleted");
+			pRoot->queue_delete();
+
+			// now load the new file
+			//ResourceLoader::import(m_Settings_UVFilename);
+
+			Ref<PackedScene> ps = ResourceLoader::load(m_Settings_UVFilename, "PackedScene");
+			if (ps.is_null())
+			{
+				if (bake_end_function) {
+					bake_end_function();
+				}
+				return res;
 			}
-			return res;
-		}
 
-		Node * pFinalScene = ps->instance();
-		if (pFinalScene)
-		{
-			pParent->add_child(pFinalScene);
+			Node * pFinalScene = ps->instance();
+			if (pFinalScene)
+			{
+				pParent->add_child(pFinalScene);
 
-			// set owners
-			saver.SetOwnerRecursive(pFinalScene, pFinalScene);
-			pFinalScene->set_owner(pOrigOwner);
-		}
+				// set owners
+				saver.SetOwnerRecursive(pFinalScene, pFinalScene);
+				pFinalScene->set_owner(pOrigOwner);
+			}
+
+		} // if replace the scene
 	}
 
 	if (bake_end_function) {
