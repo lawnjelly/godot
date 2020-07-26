@@ -319,6 +319,10 @@ void RayBank::RayBank_ProcessRay_MT(uint32_t ray_id, int start_ray)
 		return;
 	}
 
+	// get the albedo etc
+	Color albedo;
+	m_Scene.FindPrimaryTextureColors(tri, Vector3(u, v, w), albedo);
+
 	// register the hit
 	FHit &hit = fray.hit;
 	hit.tx = tx;
