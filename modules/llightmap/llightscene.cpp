@@ -489,8 +489,9 @@ void LightScene::Reset()
 	m_TriPlanes.clear(true);
 
 	m_Meshes.clear(true);
-	m_Tri_MeshIDs.clear(true);
-	m_Tri_SurfIDs.clear(true);
+	//m_Tri_MeshIDs.clear(true);
+	//m_Tri_SurfIDs.clear(true);
+	m_Tri_LMaterialIDs.clear(true);
 	m_UVTris_Primary.clear(true);
 }
 
@@ -580,9 +581,13 @@ bool LightScene::Create_FromMeshSurface(int mesh_id, int surf_id, Ref<Mesh> rmes
 	m_TriPos_aabbs.resize(nNewTris);
 	m_Tri_TexelSizeWorldSpace.resize(nNewTris);
 
-	m_Tri_MeshIDs.resize(nNewTris);
-	m_Tri_SurfIDs.resize(nNewTris);
+	//m_Tri_MeshIDs.resize(nNewTris);
+	//m_Tri_SurfIDs.resize(nNewTris);
+	m_Tri_LMaterialIDs.resize(nNewTris);
 	m_UVTris_Primary.resize(nNewTris);
+
+	// lmaterial
+	int lmat_id = m_Materials.FindOrCreateMaterial(rmesh, surf_id);
 
 	int i = 0;
 	for (int n=0; n<nTris; n++)
@@ -598,8 +603,9 @@ bool LightScene::Create_FromMeshSurface(int mesh_id, int surf_id, Ref<Mesh> rmes
 		Rect2 &rect = m_TriUVaabbs[an];
 		AABB &aabb = m_TriPos_aabbs[an];
 
-		m_Tri_MeshIDs[an] = mesh_id;
-		m_Tri_SurfIDs[an] = surf_id;
+//		m_Tri_MeshIDs[an] = mesh_id;
+//		m_Tri_SurfIDs[an] = surf_id;
+		m_Tri_LMaterialIDs[an] = lmat_id;
 		UVTri &uvt_primary = m_UVTris_Primary[an];
 
 		int ind = inds[i];
@@ -780,6 +786,38 @@ void LightScene::CalculateTriTexelSize(int tri_id, int width, int height)
 
 	m_Tri_TexelSizeWorldSpace[tri_id] = texel_size;
 }
+
+bool LightScene::FindPrimaryTextureColors(int tri_id, const Vector3 &bary, Color &albedo)
+{
+	Vector2 uvs;
+	m_UVTris_Primary[tri_id].FindUVBarycentric(uvs, bary.x, bary.y, bary.z);
+
+//	int mesh_id = m_Tri_MeshIDs[tri_id];
+//	int surf_id = m_Tri_SurfIDs[tri_id];
+
+//	const MeshInstance &mi = *m_Meshes[mesh_id];
+//	Ref<Mesh> rmesh = mi.get_mesh();
+
+//	Ref<Material> src_material = rmesh->surface_get_material(surf_id);
+//	Ref<SpatialMaterial> mat = src_material;
+
+//	if (mat.is_valid())
+//	{
+//		Ref<Texture> albedo_tex = mat->get_texture(SpatialMaterial::TEXTURE_ALBEDO);
+//		Ref<Image> img_albedo;
+//		if (albedo_tex.is_valid())
+//		{
+//			img_albedo = albedo_tex->get_data();
+//			albedo_texture = _get_bake_texture(img_albedo, size, mat->get_albedo(), Color(0, 0, 0)); // albedo texture, color is multiplicative
+//		} else
+//		{
+//			albedo_texture = _get_bake_texture(img_albedo, size, Color(1, 1, 1), mat->get_albedo()); // no albedo texture, color is additive
+//		}
+//	}
+
+	return true;
+}
+
 
 void LightScene::RasterizeTriangleIDs(LightMapper_Base &base, LightImage<uint32_t> &im_p1, LightImage<uint32_t> &im2_p1, LightImage<Vector3> &im_bary)
 {
