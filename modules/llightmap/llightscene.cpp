@@ -472,6 +472,7 @@ int LightScene::IntersectRay_old(const Ray &r, float &u, float &v, float &w, flo
 
 void LightScene::Reset()
 {
+	m_Materials.Reset();
 //	m_ptPositions.resize(0);
 //	m_ptNormals.resize(0);
 	//m_UVs.resize(0);
@@ -587,7 +588,7 @@ bool LightScene::Create_FromMeshSurface(int mesh_id, int surf_id, Ref<Mesh> rmes
 	m_UVTris_Primary.resize(nNewTris);
 
 	// lmaterial
-	int lmat_id = m_Materials.FindOrCreateMaterial(rmesh, surf_id);
+	int lmat_id = m_Materials.FindOrCreateMaterial(mi, rmesh, surf_id);
 
 	int i = 0;
 	for (int n=0; n<nTris; n++)
