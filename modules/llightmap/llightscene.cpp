@@ -490,6 +490,8 @@ void LightScene::Reset()
 
 	m_Meshes.clear(true);
 	m_Tri_MeshIDs.clear(true);
+	m_Tri_SurfIDs.clear(true);
+	m_UVTris_Primary.clear(true);
 }
 
 void LightScene::FindMeshes(Spatial * pNode)
@@ -514,12 +516,14 @@ void LightScene::FindMeshes(Spatial * pNode)
 	}
 }
 
-bool LightScene::Create_FromMesh(int mesh_id, int width, int height)
+bool LightScene::Create_FromMeshSurface(int mesh_id, int surf_id, Ref<Mesh> rmesh, int width, int height)
 {
 	const MeshInstance &mi = *m_Meshes[mesh_id];
 
-	Ref<Mesh> rmesh = mi.get_mesh();
-	Array arrays = rmesh->surface_get_arrays(0);
+	if (rmesh->surface_get_primitive_type(surf_id) != Mesh::PRIMITIVE_TRIANGLES)
+		return false; //only triangles
+
+	Array arrays = rmesh->surface_get_arrays(surf_id);
 	if (!arrays.size())
 		return false;
 
@@ -531,10 +535,18 @@ bool LightScene::Create_FromMesh(int mesh_id, int width, int height)
 		return false;
 
 
+	// uvs for lightmapping
 	PoolVector<Vector2> uvs = arrays[VS::ARRAY_TEX_UV2];
+
+	// optional uvs for albedo etc
+	PoolVector<Vector2> uvs_primary;
 	if (!uvs.size())
 	{
 		uvs = arrays[VS::ARRAY_TEX_UV];
+	}
+	else
+	{
+		uvs_primary = arrays[VS::ARRAY_TEX_UV];
 	}
 
 	if (!uvs.size())
@@ -569,6 +581,8 @@ bool LightScene::Create_FromMesh(int mesh_id, int width, int height)
 	m_Tri_TexelSizeWorldSpace.resize(nNewTris);
 
 	m_Tri_MeshIDs.resize(nNewTris);
+	m_Tri_SurfIDs.resize(nNewTris);
+	m_UVTris_Primary.resize(nNewTris);
 
 	int i = 0;
 	for (int n=0; n<nTris; n++)
@@ -583,7 +597,10 @@ bool LightScene::Create_FromMesh(int mesh_id, int width, int height)
 		UVTri &uvt = m_UVTris[an];
 		Rect2 &rect = m_TriUVaabbs[an];
 		AABB &aabb = m_TriPos_aabbs[an];
+
 		m_Tri_MeshIDs[an] = mesh_id;
+		m_Tri_SurfIDs[an] = surf_id;
+		UVTri &uvt_primary = m_UVTris_Primary[an];
 
 		int ind = inds[i];
 		rect = Rect2(uvs[ind], Vector2(0, 0));
@@ -601,6 +618,16 @@ bool LightScene::Create_FromMesh(int mesh_id, int width, int height)
 			rect.expand_to(uvt.uv[c]);
 			//aabb.position = t.pos[0];
 			aabb.expand_to(t.pos[c]);
+
+			// store primary uvs if present
+			if (uvs_primary.size())
+			{
+				uvt_primary.uv[c] = uvs_primary[ind];
+			}
+			else
+			{
+				uvt_primary.uv[c] = Vector2(0, 0);
+			}
 		}
 
 		// plane - calculate normal BEFORE changing winding into UV space
@@ -666,6 +693,28 @@ bool LightScene::Create_FromMesh(int mesh_id, int width, int height)
 		CalculateTriTexelSize(an, width, height);
 	}
 
+
+	return true;
+}
+
+
+bool LightScene::Create_FromMesh(int mesh_id, int width, int height)
+{
+	const MeshInstance &mi = *m_Meshes[mesh_id];
+
+	Ref<Mesh> rmesh = mi.get_mesh();
+
+	int num_surfaces = rmesh->get_surface_count();
+
+	for (int surf=0; surf<num_surfaces; surf++)
+	{
+		if (!Create_FromMeshSurface(mesh_id, surf, rmesh, width, height))
+		{
+			String sz;
+			sz = "Mesh " + itos(mesh_id) + " surf " + itos (surf) + " cannot be converted.";
+			WARN_PRINT(sz);
+		}
+	}
 
 	return true;
 }
