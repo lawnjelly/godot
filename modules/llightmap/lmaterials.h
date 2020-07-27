@@ -35,6 +35,7 @@ public:
 
 
 private:
+	Variant FindShaderTex(Ref<Material> src_material);
 	LTexture * _get_bake_texture(Ref<Image> p_image, const Color &p_color_mul, const Color &p_color_add);
 
 	LVector<LMaterial> m_Materials;
