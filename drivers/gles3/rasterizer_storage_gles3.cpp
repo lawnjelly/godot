@@ -2338,6 +2338,7 @@ void RasterizerStorageGLES3::_update_shader(Shader *p_shader) const {
 			p_shader->spatial.no_depth_test = false;
 			p_shader->spatial.uses_sss = false;
 			p_shader->spatial.uses_time = false;
+			p_shader->spatial.uses_tangent = false;
 			p_shader->spatial.uses_vertex_lighting = false;
 			p_shader->spatial.uses_screen_texture = false;
 			p_shader->spatial.uses_depth_texture = false;
@@ -2374,6 +2375,11 @@ void RasterizerStorageGLES3::_update_shader(Shader *p_shader) const {
 			shaders.actions_scene.usage_flag_pointers["SCREEN_TEXTURE"] = &p_shader->spatial.uses_screen_texture;
 			shaders.actions_scene.usage_flag_pointers["DEPTH_TEXTURE"] = &p_shader->spatial.uses_depth_texture;
 			shaders.actions_scene.usage_flag_pointers["TIME"] = &p_shader->spatial.uses_time;
+
+			// use of any of these BUILTINS indicate the need for transformed tangents
+			// this is needed to know when to transform tangents in software skinning
+			shaders.actions_scene.usage_flag_pointers["TANGENT"] = &p_shader->spatial.uses_tangent;
+			shaders.actions_scene.usage_flag_pointers["NORMALMAP"] = &p_shader->spatial.uses_tangent;
 
 			shaders.actions_scene.write_flag_pointers["MODELVIEW_MATRIX"] = &p_shader->spatial.writes_modelview_or_projection;
 			shaders.actions_scene.write_flag_pointers["PROJECTION_MATRIX"] = &p_shader->spatial.writes_modelview_or_projection;
@@ -2709,6 +2715,19 @@ bool RasterizerStorageGLES3::material_is_animated(RID p_material) {
 	}
 	return animated;
 }
+
+bool RasterizerStorageGLES3::material_uses_tangents(RID p_material)
+{
+	Material *material = material_owner.get(p_material);
+	ERR_FAIL_COND_V(!material, false);
+
+	if (!material->shader) {
+		return false;
+	}
+
+	return material->shader->spatial.uses_tangent;
+}
+
 bool RasterizerStorageGLES3::material_casts_shadows(RID p_material) {
 
 	Material *material = material_owner.get(p_material);

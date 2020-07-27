@@ -39,6 +39,8 @@
 #include "servers/visual/visual_server_globals.h"
 #include "skeleton.h"
 
+#include "core/engine.h"
+
 bool MeshInstance::_set(const StringName &p_name, const Variant &p_value) {
 
 	//this is not _too_ bad performance wise, really. it only arrives here if the property was not set anywhere else.
@@ -235,6 +237,7 @@ void MeshInstance::_initialize_skinning(bool p_force_reset) {
 					format &= ~Mesh::ARRAY_COMPRESS_VERTEX;
 					if (software_skinning_normal_mode != DONT_TRANSFORM_NORMALS) {
 						format &= ~Mesh::ARRAY_COMPRESS_NORMAL;
+						format &= ~Mesh::ARRAY_COMPRESS_TANGENT;
 					}
 					format |= Mesh::ARRAY_FLAG_USE_DYNAMIC_UPDATE;
 
@@ -294,6 +297,9 @@ void MeshInstance::_initialize_skinning(bool p_force_reset) {
 }
 
 void MeshInstance::_update_skinning() {
+	if (!is_visible())
+		return;
+
 	ERR_FAIL_COND(!_is_software_skinning_enabled());
 
 	ERR_FAIL_COND(skin_ref.is_null());
@@ -314,6 +320,9 @@ void MeshInstance::_update_skinning() {
 	RID mesh_rid = mesh_instance->get_rid();
 	ERR_FAIL_COND(!mesh_rid.is_valid());
 
+	// needed for mesh surfaces
+	Ref<Mesh> rmesh = get_mesh();
+
 	// Apply skinning.
 	int surface_count = mesh_instance->get_surface_count();
 	for (int surface_index = 0; surface_index < surface_count; ++surface_index) {
@@ -331,25 +340,50 @@ void MeshInstance::_update_skinning() {
 		uint32_t offset_normals = array_offsets[Mesh::ARRAY_NORMAL];
 		uint32_t offset_bones = array_offsets[Mesh::ARRAY_BONES];
 		uint32_t offset_weights = array_offsets[Mesh::ARRAY_WEIGHTS];
+		uint32_t offset_tangents = array_offsets[Mesh::ARRAY_TANGENT];
 
 		PoolByteArray buffer = visual_server->mesh_surface_get_array(mesh_rid, surface_index);
 		PoolByteArray::Write buffer_write = buffer.write();
+		const unsigned char * puc_weights = buffer_write.ptr() + offset_weights;
+
+		// each surface can have a different material, which may or may not require tangents
+		bool use_tangents = false;
+		Ref<Material> mat = get_surface_material(surface_index);
+		if (!mat.is_valid())
+		{
+			mat = rmesh->surface_get_material(surface_index);
+		}
+		if (mat.is_valid())
+		{
+			// is it a spatial material?
+			Ref<SpatialMaterial> spatial_mat = mat;
+			if (spatial_mat.is_valid())
+			{
+				use_tangents = spatial_mat->get_feature(SpatialMaterial::FEATURE_NORMAL_MAPPING);
+			}
+			else
+			{
+				// custom shader .. must check for compiled flags
+				use_tangents = VSG::storage->material_uses_tangents(mat->get_rid());
+			}
+		}
 
 		for (int vertex_index = 0; vertex_index < vertex_count; ++vertex_index) {
 			float bone_weights[4];
 			if (format & Mesh::ARRAY_COMPRESS_WEIGHTS) {
-				const uint16_t *weight_ptr = (const uint16_t *)(buffer_write.ptr() + offset_weights + (vertex_index * stride));
+				const uint16_t *weight_ptr = (const uint16_t *)(puc_weights);
 				bone_weights[0] = (weight_ptr[0] / (float)0xFFFF);
 				bone_weights[1] = (weight_ptr[1] / (float)0xFFFF);
 				bone_weights[2] = (weight_ptr[2] / (float)0xFFFF);
 				bone_weights[3] = (weight_ptr[3] / (float)0xFFFF);
 			} else {
-				const float *weight_ptr = (const float *)(buffer_write.ptr() + offset_weights + (vertex_index * stride));
+				const float *weight_ptr = (const float *)(puc_weights);
 				bone_weights[0] = weight_ptr[0];
 				bone_weights[1] = weight_ptr[1];
 				bone_weights[2] = weight_ptr[2];
 				bone_weights[3] = weight_ptr[3];
 			}
+			puc_weights += stride;
 
 			int bone_ids[4];
 			if (format & Mesh::ARRAY_FLAG_USE_16_BIT_BONES) {
@@ -394,12 +428,27 @@ void MeshInstance::_update_skinning() {
 				case ENSURE_CORRECT_NORMALS: {
 					transform.basis.invert();
 					transform.basis.transpose();
-				} // no break;
+
+					Vector3 &normal = (Vector3 &)buffer_write[vertex_index * stride + offset_normals];
+					normal = transform.basis.xform(normal);
+
+					if (use_tangents && (format & Mesh::ARRAY_FORMAT_TANGENT)) {
+						Vector3 &tangent = (Vector3 &)buffer_write[vertex_index * stride + offset_tangents];
+						tangent = transform.basis.xform(tangent);
+					}
+				} break;
 				case TRANSFORM_NORMALS: {
 					Vector3 &normal = (Vector3 &)buffer_write[vertex_index * stride + offset_normals];
 					normal = transform.basis.xform(normal);
+
+					if (use_tangents && (format & Mesh::ARRAY_FORMAT_TANGENT)) {
+						Vector3 &tangent = (Vector3 &)buffer_write[vertex_index * stride + offset_tangents];
+						tangent = transform.basis.xform(tangent);
+					}
 				} break;
 			}
+
+
 		}
 
 		visual_server->mesh_surface_update_region(mesh_rid, surface_index, 0, buffer);
