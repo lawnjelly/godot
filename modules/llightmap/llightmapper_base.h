@@ -28,6 +28,7 @@ protected:
 		Vector3 pos;
 		Vector3 dir;
 		Vector3 scale;
+		FColor color;
 		float energy;
 		float indirect_energy;
 		float range;

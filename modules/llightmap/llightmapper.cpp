@@ -804,13 +804,13 @@ void LightMapper::ProcessLight(int light_id, int num_rays)
 
 	// the power should depend on the volume, with 1x1x1 being normal power
 	//	float power = light.scale.x * light.scale.y * light.scale.z;
-	float power = light.energy;
-	power *= m_Settings_Forward_RayPower;
+//	float power = light.energy;
+//	power *= m_Settings_Forward_RayPower;
 
-	FColor light_color;
-	light_color.r = power;
-	light_color.g = power;
-	light_color.b = power;
+	FColor light_color = light.color * m_Settings_Forward_RayPower;
+//	light_color.r = power;
+//	light_color.g = power;
+//	light_color.b = power;
 
 
 	// each ray
