@@ -83,6 +83,9 @@ void LightMapper_Base::FindLight(const Node * pNode)
 	l->range = pLight->get_param(Light::PARAM_RANGE);
 	l->spot_angle = pLight->get_param(Light::PARAM_SPOT_ANGLE);
 
+	// pre apply intensity
+	l->color.Set(pLight->get_color() * l->energy);
+
 	const DirectionalLight * pDLight = Object::cast_to<DirectionalLight>(pLight);
 	if (pDLight)
 		l->type = LLight::LT_DIRECTIONAL;

@@ -234,7 +234,8 @@ void RayBank::RayBank_FlushRay(RB_Voxel &vox, int ray_id)
 	// bounces first
 	if (fray.num_rays_left)
 	{
-		RayBank_RequestNewRay(fray.ray, fray.num_rays_left, fray.color * m_Settings_Forward_BouncePower, 0);
+//		RayBank_RequestNewRay(fray.ray, fray.num_rays_left, fray.color * m_Settings_Forward_BouncePower, 0);
+		RayBank_RequestNewRay(fray.ray, fray.num_rays_left, fray.bounce_color, 0);
 	}
 
 	// now write the hit to the lightmap
@@ -319,9 +320,6 @@ void RayBank::RayBank_ProcessRay_MT(uint32_t ray_id, int start_ray)
 		return;
 	}
 
-	// get the albedo etc
-	Color albedo;
-	m_Scene.FindPrimaryTextureColors(tri, Vector3(u, v, w), albedo);
 
 	// register the hit
 	FHit &hit = fray.hit;
@@ -357,11 +355,25 @@ void RayBank::RayBank_ProcessRay_MT(uint32_t ray_id, int start_ray)
 
 	// bounce and lower power
 
+
 	if (fray.num_rays_left)
 	{
 		Vector3 pos;
 		const Tri &triangle = m_Scene.m_Tris[tri];
 		triangle.InterpolateBarycentric(pos, u, v, w);
+
+		// get the albedo etc
+		Color albedo;
+		m_Scene.FindPrimaryTextureColors(tri, Vector3(u, v, w), albedo);
+		FColor falbedo;
+		falbedo.Set(albedo);
+
+		// test
+		//fray.color = falbedo;
+
+		// pre find the bounce color here
+		fray.bounce_color = fray.color * falbedo * m_Settings_Forward_BouncePower;
+//		fray.bounce_color = fray.color * m_Settings_Forward_BouncePower;
 
 //		Vector3 norm;
 //		const Tri &triangle_normal = m_Scene.m_TriNormals[tri];

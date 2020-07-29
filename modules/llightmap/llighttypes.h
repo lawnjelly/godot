@@ -102,17 +102,21 @@ struct FColor
 	float Max() const {return MAX(r, MAX(g, b));}
 	FColor operator*(float v) const {FColor s; s.r = r * v; s.g = g * v; s.b = b * v; return s;}
 	FColor &operator+=(const FColor &v) {r += v.r; g += v.g; b += v.b; return *this;}
+	FColor operator*(const FColor &o) const {FColor s; s.r = r * o.r; s.g = g * o.g; s.b = b * o.b; return s;}
 };
 
 struct FRay
 {
-//	enum {FRAY_MAX_HITS = 4};
 	Ray ray;
-//	FHit hits[FRAY_MAX_HITS];
-//	int num_hits;
 	int num_rays_left;
-//	float power;
+
+	// the color of the ray at the moment
 	FColor color;
+
+	// the color of the ray that is reflected after hitting a surface
+	FColor bounce_color;
+
+	// hit texel
 	FHit hit;
 };
 

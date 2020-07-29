@@ -793,30 +793,7 @@ bool LightScene::FindPrimaryTextureColors(int tri_id, const Vector3 &bary, Color
 	Vector2 uvs;
 	m_UVTris_Primary[tri_id].FindUVBarycentric(uvs, bary.x, bary.y, bary.z);
 
-//	int mesh_id = m_Tri_MeshIDs[tri_id];
-//	int surf_id = m_Tri_SurfIDs[tri_id];
-
-//	const MeshInstance &mi = *m_Meshes[mesh_id];
-//	Ref<Mesh> rmesh = mi.get_mesh();
-
-//	Ref<Material> src_material = rmesh->surface_get_material(surf_id);
-//	Ref<SpatialMaterial> mat = src_material;
-
-//	if (mat.is_valid())
-//	{
-//		Ref<Texture> albedo_tex = mat->get_texture(SpatialMaterial::TEXTURE_ALBEDO);
-//		Ref<Image> img_albedo;
-//		if (albedo_tex.is_valid())
-//		{
-//			img_albedo = albedo_tex->get_data();
-//			albedo_texture = _get_bake_texture(img_albedo, size, mat->get_albedo(), Color(0, 0, 0)); // albedo texture, color is multiplicative
-//		} else
-//		{
-//			albedo_texture = _get_bake_texture(img_albedo, size, Color(1, 1, 1), mat->get_albedo()); // no albedo texture, color is additive
-//		}
-//	}
-
-	return true;
+	return m_Materials.FindColors(m_Tri_LMaterialIDs[tri_id], uvs, albedo);
 }
 
 
