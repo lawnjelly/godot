@@ -74,23 +74,25 @@ int LMaterials::FindOrCreateMaterial(const MeshInstance &mi, Ref<Mesh> rmesh, in
 	// spatial material?
 	Ref<SpatialMaterial> spatial_mat = src_material;
 	Ref<Texture> albedo_tex;
+	Color albedo = Color(1, 1, 1, 1);
 
 	if (spatial_mat.is_valid())
 	{
 		albedo_tex = spatial_mat->get_texture(SpatialMaterial::TEXTURE_ALBEDO);
+		albedo = spatial_mat->get_albedo();
 	}
 	else
 	{
 		// shader material?
 		Variant shader_tex = FindShaderTex(src_material);
-		Ref<Texture> albedo_tex = shader_tex;
+		albedo_tex = shader_tex;
 	} // not spatial mat
 
 	Ref<Image> img_albedo;
 	if (albedo_tex.is_valid())
 	{
 		img_albedo = albedo_tex->get_data();
-		pNew->pAlbedo = _get_bake_texture(img_albedo, spatial_mat->get_albedo(), Color(0, 0, 0)); // albedo texture, color is multiplicative
+		pNew->pAlbedo = _get_bake_texture(img_albedo, albedo, Color(0, 0, 0)); // albedo texture, color is multiplicative
 		//albedo_texture = _get_bake_texture(img_albedo, size, mat->get_albedo(), Color(0, 0, 0)); // albedo texture, color is multiplicative
 	} else
 	{
@@ -159,19 +161,40 @@ Variant LMaterials::FindShaderTex(Ref<Material> src_material)
 }
 
 
+LTexture * LMaterials::_make_dummy_texture(LTexture * pLTexture, Color col)
+{
+	pLTexture->colors.resize(1);
+	pLTexture->colors.set(0, col);
+	pLTexture->width = 1;
+	pLTexture->height = 1;
+	return pLTexture;
+}
+
 LTexture * LMaterials::_get_bake_texture(Ref<Image> p_image, const Color &p_color_mul, const Color &p_color_add)
 {
 	LTexture * lt = memnew(LTexture);
 
+	// no image exists, use dummy texture
 	if (p_image.is_null() || p_image->empty())
 	{
-		// dummy texture
-		lt->colors.resize(1);
-		lt->colors.set(0, p_color_add);
-		lt->width = 1;
-		lt->height = 1;
-		return lt;
+		return _make_dummy_texture(lt, p_color_mul);
 	}
+
+	p_image = p_image->duplicate();
+
+	if (p_image->is_compressed()) {
+		Error err = p_image->decompress();
+		if (err != OK)
+		{
+			// could not decompress
+			WARN_PRINT("LMaterials::_get_bake_texture : could not decompress texture");
+			return _make_dummy_texture(lt, p_color_mul);
+		}
+	}
+
+	p_image->convert(Image::FORMAT_RGBA8);
+	//p_image->resize(width, height, Image::INTERPOLATE_CUBIC);
+
 
 	int w = p_image->get_width();
 	int h = p_image->get_height();
@@ -202,10 +225,48 @@ LTexture * LMaterials::_get_bake_texture(Ref<Image> p_image, const Color &p_colo
 	return lt;
 }
 
-
-bool LMaterials::FindColors(int mat_id, const Vector2 &uv, Color &aldedo)
+void LTexture::Sample(const Vector2 &uv, Color &col) const
 {
+	// mod to surface (tiling)
+	float x = fmodf(uv.x, 1.0f);
+	float y = fmodf(uv.y, 1.0f);
 
+	x *= width;
+	y *= height;
+
+	// no filtering as yet
+	int tx = x;
+	int ty = y;
+
+	tx = MIN(tx, width);
+	ty = MIN(ty, height);
+
+	int i = (ty * width) + tx;
+
+	col = colors[i];
+}
+
+
+bool LMaterials::FindColors(int mat_id, const Vector2 &uv, Color &albedo)
+{
+	// mat_id is plus one
+	if (!mat_id)
+	{
+		albedo = Color(1, 1, 1, 1);
+		return false;
+	}
+
+	mat_id--;
+	const LMaterial &mat = m_Materials[mat_id];
+
+	if (!mat.pAlbedo)
+	{
+		albedo = Color(1, 1, 1, 1);
+		return false;
+	}
+
+	const LTexture &tex = *mat.pAlbedo;
+	tex.Sample(uv, albedo);
 	return true;
 }
 
