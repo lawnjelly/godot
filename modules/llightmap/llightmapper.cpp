@@ -321,7 +321,7 @@ void LightMapper::ProcessTexels_Bounce()
 			float power = ProcessTexel_Bounce(x, y);
 
 			// save the incoming light power in the mirror image (as the source is still being used)
-			m_Image_L_mirror.GetItem(x, y) = power;
+			m_Image_L_mirror.GetItem(x, y).Set(power);
 		}
 	}
 
@@ -330,9 +330,9 @@ void LightMapper::ProcessTexels_Bounce()
 	{
 		for (int x=0; x<m_iWidth; x++)
 		{
-			float f = m_Image_L.GetItem(x, y);
-			f += (m_Image_L_mirror.GetItem(x, y) * m_Settings_Backward_BouncePower);
-			m_Image_L.GetItem(x, y) = f;
+			float f = m_Image_L.GetItem(x, y).r;
+			f += (m_Image_L_mirror.GetItem(x, y).r * m_Settings_Backward_BouncePower);
+			m_Image_L.GetItem(x, y).Set(f);
 		}
 	}
 
@@ -552,7 +552,7 @@ float LightMapper::ProcessTexel_Bounce(int x, int y)
 
 			if (m_Image_L.IsWithin(dx, dy))
 			{
-				float power = m_Image_L.GetItem(dx, dy);
+				float power = m_Image_L.GetItem(dx, dy).r;
 				fTotal += power;
 			}
 
@@ -610,7 +610,7 @@ void LightMapper::ProcessTexel(int tx, int ty)
 	//Vector2i tex_uv = Vector2i(x, y);
 
 	// could be off the image
-	float * pfTexel = m_Image_L.Get(tx, ty);
+	float * pfTexel = &m_Image_L.Get(tx, ty)->r;
 	if (!pfTexel)
 		return;
 
@@ -656,7 +656,7 @@ void LightMapper::ProcessRay(LM::Ray r, int depth, float power, int dest_tri_id,
 	}
 
 	// could be off the image
-	float * pf = m_Image_L.Get(tx, ty);
+	float * pf = &m_Image_L.Get(tx, ty)->r;
 	if (!pf)
 		return;
 
@@ -807,6 +807,10 @@ void LightMapper::ProcessLight(int light_id, int num_rays)
 	float power = light.energy;
 	power *= m_Settings_Forward_RayPower;
 
+	FColor light_color;
+	light_color.r = power;
+	light_color.g = power;
+	light_color.b = power;
 
 
 	// each ray
@@ -855,7 +859,7 @@ void LightMapper::ProcessLight(int light_id, int num_rays)
 		}
 		//r.d.normalize();
 
-		RayBank_RequestNewRay(r, m_Settings_Forward_NumBounces + 1, power, 0);
+		RayBank_RequestNewRay(r, m_Settings_Forward_NumBounces + 1, light_color, 0);
 
 		//		ProcessRay(r, 0, power);
 	}

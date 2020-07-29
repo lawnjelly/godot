@@ -81,10 +81,10 @@ protected:
 
 protected:
 	// luminosity
-	LightImage<float> m_Image_L;
+	LightImage<FColor> m_Image_L;
 
 	// for bounces
-	LightImage<float> m_Image_L_mirror;
+	LightImage<FColor> m_Image_L_mirror;
 
 	// ambient occlusion
 	LightImage<float> m_Image_AO;

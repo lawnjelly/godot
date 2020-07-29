@@ -93,6 +93,17 @@ struct FHit
 	uint16_t tx, ty;
 };
 
+struct FColor
+{
+	float r, g, b;
+	void Set(float v) {r = v; g = v; b = v;}
+	void Set(float rr, float gg, float bb) {r = rr; g = gg; b = bb;}
+	void Set(const Color &col) {r = col.r; g = col.g; b = col.b;}
+	float Max() const {return MAX(r, MAX(g, b));}
+	FColor operator*(float v) const {FColor s; s.r = r * v; s.g = g * v; s.b = b * v; return s;}
+	FColor &operator+=(const FColor &v) {r += v.r; g += v.g; b += v.b; return *this;}
+};
+
 struct FRay
 {
 //	enum {FRAY_MAX_HITS = 4};
@@ -100,7 +111,8 @@ struct FRay
 //	FHit hits[FRAY_MAX_HITS];
 //	int num_hits;
 	int num_rays_left;
-	float power;
+//	float power;
+	FColor color;
 	FHit hit;
 };
 

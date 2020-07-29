@@ -38,7 +38,7 @@ void RayBank::RayBank_Create()
 
 
 // either we know the start voxel or we find it during this routine (or it doesn't cut the world)
-FRay * RayBank::RayBank_RequestNewRay(Ray ray, int num_rays_left, float power, const Vec3i * pStartVoxel)
+FRay * RayBank::RayBank_RequestNewRay(Ray ray, int num_rays_left, const FColor &col, const Vec3i * pStartVoxel)
 {
 	// if we don't know the start voxel
 	Vec3i ptStartVoxel;
@@ -91,7 +91,7 @@ FRay * RayBank::RayBank_RequestNewRay(Ray ray, int num_rays_left, float power, c
 	fray->ray = ray;
 	fray->hit.SetNoHit();
 	fray->num_rays_left = num_rays_left;
-	fray->power = power;
+	fray->color = col;
 
 	return fray;
 }
@@ -234,7 +234,7 @@ void RayBank::RayBank_FlushRay(RB_Voxel &vox, int ray_id)
 	// bounces first
 	if (fray.num_rays_left)
 	{
-		RayBank_RequestNewRay(fray.ray, fray.num_rays_left, fray.power * m_Settings_Forward_BouncePower, 0);
+		RayBank_RequestNewRay(fray.ray, fray.num_rays_left, fray.color * m_Settings_Forward_BouncePower, 0);
 	}
 
 	// now write the hit to the lightmap
@@ -242,14 +242,14 @@ void RayBank::RayBank_FlushRay(RB_Voxel &vox, int ray_id)
 	if (hit.IsNoHit())
 		return;
 
-	float * pf = m_Image_L.Get(hit.tx, hit.ty);
+	FColor * pf = m_Image_L.Get(hit.tx, hit.ty);
 #ifdef DEBUG_ENABLED
 	assert (pf);
 #endif
 //	if (!pf)
 //		return; // should never happen
 
-	*pf += fray.power;
+	*pf += fray.color;
 }
 
 //void RayBank::RayBank_ProcessRay(uint32_t ray_id, RB_Voxel &vox)
