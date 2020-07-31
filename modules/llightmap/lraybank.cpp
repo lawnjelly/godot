@@ -121,12 +121,6 @@ void RayBank::RayBank_Process()
 //		}
 
 
-#ifdef _OPENMP
-#pragma message ("_OPENMP defined")
-//#pragma omp parallel
-//    #pragma omp parallel for
-#endif
-
 		int num_rays = vox.m_Rays.size();
 		if (!num_rays)
 			continue;
@@ -140,6 +134,8 @@ void RayBank::RayBank_Process()
 
 		// not worth doing multithread below a certain size
 		// because of threading overhead
+#define RAYBANK_USE_THREADING
+#ifdef RAYBANK_USE_THREADING
 		if (section_size >= 64)
 		{
 			int num_sections = num_rays / section_size;
@@ -158,6 +154,7 @@ void RayBank::RayBank_Process()
 
 			leftover_start = num_sections * section_size;
 		}
+#endif
 
 		// leftovers
 		for (int n=leftover_start; n<num_rays; n++)

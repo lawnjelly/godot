@@ -6,6 +6,7 @@
 
 
 //#define LLIGHTSCENE_VERBOSE
+//#define LLIGHTSCENE_TRACE_VERBOSE
 
 using namespace LM;
 
@@ -115,6 +116,21 @@ void LightScene::ProcessVoxelHits(const Ray &ray, const PackedRay &pray, const V
 //				winner = pray.Intersect(pcopy, r_nearest_t);
 //			}
 
+#ifdef LLIGHTSCENE_TRACE_VERBOSE
+			String sz = "\ttesting tris ";
+			for (int t=0; t<4; t++)
+			{
+				int test_tri = (q*4) + t;
+				if (test_tri < voxel.m_TriIDs.size())
+				{
+					sz += itos(voxel.m_TriIDs[(q*4) + t]);
+					sz += ", ";
+				}
+			}
+			print_line(sz);
+#endif
+
+
 			if (winner != 0)
 			//if (pray.Intersect(ptris, r_nearest_t, winner))
 			{
@@ -122,6 +138,12 @@ void LightScene::ProcessVoxelHits(const Ray &ray, const PackedRay &pray, const V
 				int winner_tri_index = (q * 4) + winner;
 				//int winner_tri = m_Tracer.m_TriHits[winner_tri_index];
 				int winner_tri = voxel.m_TriIDs[winner_tri_index];
+
+
+#ifdef LLIGHTSCENE_TRACE_VERBOSE
+				const AABB &tri_bb = m_TriPos_aabbs[winner_tri];
+				print_line("\t\tWINNER tri : " + itos(winner_tri) + " at dist " + String(Variant(r_nearest_t)) + " aabb " + String(tri_bb));
+#endif
 
 				/*
 			// test assert condition
@@ -371,19 +393,19 @@ int LightScene::FindIntersect_Ray(const Ray &ray, float &u, float &v, float &w, 
 	Vec3i ptVoxelFirstHit;
 
 	// if we have specified a (optional) maximum range for the trace in voxels
-	Vec3i ptVoxelStart;
-	if (pVoxelRange)
-	{
-		ptVoxelStart = ptVoxel;
-	}
+	Vec3i ptVoxelStart = ptVoxel;
 
 	// create the packed ray as a once off and reuse it for each voxel
 	PackedRay pray;
 	pray.Create(ray);
 
+	// keep track of when we need to expand the bounds of the trace
+	int nearest_tri_so_far = -1;
+	int square_length_from_start_to_terminate =INT_MAX;
+
 	while (true)
 	{
-		Vec3i ptVoxelBefore = ptVoxel;
+//		Vec3i ptVoxelBefore = ptVoxel;
 
 		const Voxel * pVoxel = m_Tracer.RayTrace(voxel_ray, voxel_ray, ptVoxel);
 //		if (!m_Tracer.RayTrace(voxel_ray, voxel_ray, ptVoxel))
@@ -396,6 +418,56 @@ int LightScene::FindIntersect_Ray(const Ray &ray, float &u, float &v, float &w, 
 				int nHits = m_Tracer.m_TriHits.size();
 				num_tests += nHits;
 
+
+		// if there is a nearest hit, calculate the voxel in which the hit occurs.
+		// if we have travelled more than 1 voxel more than this, no need to traverse further.
+		if (nearest_tri != nearest_tri_so_far)
+		{
+			nearest_tri_so_far = nearest_tri;
+			Vector3 ptNearestHit = ray.o + (ray.d * nearest_t);
+			m_Tracer.FindNearestVoxel(ptNearestHit, ptVoxelFirstHit);
+			bFirstHit = true;
+
+			// length in voxels to nearest hit
+			Vec3i voxel_diff = ptVoxelFirstHit;
+			voxel_diff -= ptVoxelStart;
+			float voxel_length_to_nearest_hit = voxel_diff.Length();
+			// add a bit
+			voxel_length_to_nearest_hit += 2.0f;
+
+			// square length
+			voxel_length_to_nearest_hit *= voxel_length_to_nearest_hit;
+
+			// plus 1 for rounding up.
+			square_length_from_start_to_terminate = voxel_length_to_nearest_hit + 1;
+		}
+
+		// first hit?
+		if (!bFirstHit)
+		{
+			// check for voxel range
+			if (pVoxelRange)
+			{
+				if (abs(ptVoxel.x - ptVoxelStart.x) > pVoxelRange->x)
+					break;
+				if (abs(ptVoxel.y - ptVoxelStart.y) > pVoxelRange->y)
+					break;
+				if (abs(ptVoxel.z - ptVoxelStart.z) > pVoxelRange->z)
+					break;
+			} // if voxel range
+		}
+		else
+		{
+			// check the range to this voxel. Have we gone further than the terminate voxel distance?
+			Vec3i voxel_diff = ptVoxel;
+			voxel_diff -= ptVoxelStart;
+			int sl = voxel_diff.SquareLength();
+			if (sl >= square_length_from_start_to_terminate)
+				break;
+		}
+
+
+		/*
 		// first hit?
 		if (!bFirstHit)
 		{
@@ -428,6 +500,7 @@ int LightScene::FindIntersect_Ray(const Ray &ray, float &u, float &v, float &w, 
 			if (abs(ptVoxel.z - ptVoxelFirstHit.z) > 1)
 				break;
 		}
+		*/
 
 #ifdef LIGHTTRACER_IGNORE_VOXELS
 		break;

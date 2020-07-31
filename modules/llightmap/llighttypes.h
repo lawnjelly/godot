@@ -19,9 +19,15 @@ public:
 	Vec3i() {}
 	Vec3i(int xx, int yy, int zz) {x = xx; y = yy; z = zz;}
 	int32_t x, y, z;
+
+	Vec3i &operator-=(const Vec3i &v) {x -= v.x; y -= v.y; z -= v.z; return *this;}
+	int SquareLength() const {return (x * x) + (y * y)  + (z * z);}
+	float Length() const {return sqrtf(SquareLength());}
+
 	void Set(int xx, int yy, int zz) {x = xx; y = yy; z = zz;}
-	void Set(const Vector3 &p) {x = (int) (p.x + 0.5f); y = (int) (p.y + 0.5f); z = (int) (p.z + 0.5f);}
+	void Set_Round(const Vector3 &p) {x = (int) (p.x + 0.5f); y = (int) (p.y + 0.5f); z = (int) (p.z + 0.5f);}
 	void To(Vector3 &p) const {p.x = x; p.y = y; p.z = z;}
+	String ToString() const {return itos(x) + ", " + itos(y) + ", " + itos(z);}
 };
 
 class Vec2_i16
