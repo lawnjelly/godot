@@ -318,10 +318,10 @@ void LightMapper::ProcessTexels_Bounce()
 
 		for (int x=0; x<m_iWidth; x++)
 		{
-			float power = ProcessTexel_Bounce(x, y);
+			FColor power = ProcessTexel_Bounce(x, y);
 
 			// save the incoming light power in the mirror image (as the source is still being used)
-			m_Image_L_mirror.GetItem(x, y).Set(power);
+			m_Image_L_mirror.GetItem(x, y) = power;
 		}
 	}
 
@@ -330,9 +330,11 @@ void LightMapper::ProcessTexels_Bounce()
 	{
 		for (int x=0; x<m_iWidth; x++)
 		{
-			float f = m_Image_L.GetItem(x, y).r;
-			f += (m_Image_L_mirror.GetItem(x, y).r * m_Settings_Backward_BouncePower);
-			m_Image_L.GetItem(x, y).Set(f);
+			FColor col = m_Image_L.GetItem(x, y);
+
+			col += (m_Image_L_mirror.GetItem(x, y) * m_Settings_Backward_BouncePower);
+
+			m_Image_L.GetItem(x, y) = col;
 		}
 	}
 
@@ -397,7 +399,7 @@ void LightMapper::ProcessTexels()
 }
 
 
-float LightMapper::ProcessTexel_Light(int light_id, const Vector3 &ptDest, const Vector3 &ptNormal, uint32_t tri_ignore)
+void LightMapper::ProcessTexel_Light(int light_id, const Vector3 &ptDest, const Vector3 &ptNormal, FColor &color, uint32_t tri_ignore)
 {
 	const LLight &light = m_Lights[light_id];
 
@@ -415,17 +417,66 @@ float LightMapper::ProcessTexel_Light(int light_id, const Vector3 &ptDest, const
 	int nSamples = m_Settings_Backward_NumRays;
 
 	// total light hitting texel
-	float fTotal = 0.0f;
+//	float fTotal = 0.0f;
+	color.Set(0.0f);
+	float total = 0.0f;
+
+
+	// for a spotlight, we can cull completely in a lot of cases.
+	if (light.type == LLight::LT_SPOT)
+	{
+		r.o = light.spot_emanation_point;
+		r.d = ptDest - r.o;
+		r.d.normalize();
+		float dot = r.d.dot(light.dir);
+		//float angle = safe_acosf(dot);
+		//if (angle >= light.spot_angle_radians)
+
+		dot -= light.spot_dot_max;
+
+		if (dot <= 0.0f)
+			return;
+	}
+
 
 	// each ray
 	for (int n=0; n<nSamples; n++)
 	{
 		r.o = light.pos;
 
+		// allow falloff for cones
+		float multiplier = 1.0f;
+
 		switch (light.type)
 		{
 		case LLight::LT_SPOT:
 			{
+				// source
+				Vector3 offset;
+				RandomUnitDir(offset);
+				offset *= light.scale;
+				r.o += offset;
+
+				// offset from origin to destination texel
+				r.d = ptDest - r.o;
+				r.d.normalize();
+
+				float dot = r.d.dot(light.dir);
+				//float angle = safe_acosf(dot);
+				//if (angle >= light.spot_angle_radians)
+
+				dot -= light.spot_dot_max;
+
+				if (dot <= 0.0f)
+					continue;
+
+				dot *= 1.0f / (1.0f - light.spot_dot_max);
+				multiplier = dot * dot;
+				multiplier *= multiplier;
+
+
+
+				// direction
 				//				r.d = light.dir;
 				//				float spot_ball = 0.2f;
 				//				float x = Math::random(-spot_ball, spot_ball);
@@ -437,19 +488,21 @@ float LightMapper::ProcessTexel_Light(int light_id, const Vector3 &ptDest, const
 			break;
 		default:
 			{
-				float x = Math::random(-light.scale.x, light.scale.x);
-				float y = Math::random(-light.scale.y, light.scale.y);
-				float z = Math::random(-light.scale.z, light.scale.z);
-				r.o += Vector3(x, y, z);
+				Vector3 offset;
+				RandomUnitDir(offset);
+				offset *= light.scale;
+				r.o += offset;
+
+				// offset from origin to destination texel
+				r.d = ptDest - r.o;
+				r.d.normalize();
+
 			}
 			break;
 		}
 
-		// offset from origin to destination texel
-		r.d = ptDest - r.o;
 
 		// collision detect
-		r.d.normalize();
 		float u, v, w, t;
 
 		m_Scene.m_Tracer.m_bUseSDF = true;
@@ -478,21 +531,34 @@ float LightMapper::ProcessTexel_Light(int light_id, const Vector3 &ptDest, const
 
 			local_power *= dot;
 
-			fTotal += local_power;
+			// cone falloff
+			local_power *= multiplier;
+
+			// albedo
+			total += local_power;
+//			FColor col = light.color * local_power;
+
+//			color += col;
+			//fTotal += local_power;
 		}
 	}
 
+
+	color = light.color * total;
 	// save in the texel
-	return fTotal;
+	//return fTotal;
 }
 
 
-float LightMapper::ProcessTexel_Bounce(int x, int y)
+FColor LightMapper::ProcessTexel_Bounce(int x, int y)
 {
+	FColor total;
+	total.Set(0.0f);
+
 	// find triangle
 	uint32_t tri_source = *m_Image_ID_p1.Get(x, y);
 	if (!tri_source)
-		return 0.0f;
+		return total;
 	tri_source--; // plus one based
 
 	// barycentric
@@ -505,8 +571,6 @@ float LightMapper::ProcessTexel_Bounce(int x, int y)
 	const Tri &triangle_normal = m_Scene.m_TriNormals[tri_source];
 	triangle_normal.InterpolateBarycentric(norm, bary.x, bary.y, bary.z);
 	norm.normalize();
-
-	float fTotal = 0.0f;
 
 	int nSamples = m_Settings_Backward_NumBounceRays;
 	for (int n=0; n<nSamples; n++)
@@ -552,14 +616,19 @@ float LightMapper::ProcessTexel_Bounce(int x, int y)
 
 			if (m_Image_L.IsWithin(dx, dy))
 			{
-				float power = m_Image_L.GetItem(dx, dy).r;
-				fTotal += power;
+				// the contribution is the luminosity at that spot and the albedo
+				Color albedo;
+				m_Scene.FindPrimaryTextureColors(tri_hit, Vector3(u, v, w), albedo);
+				FColor falbedo;
+				falbedo.Set(albedo);
+
+				total += (m_Image_L.GetItem(dx, dy) * falbedo);
 			}
 
 		}
 	}
 
-	return fTotal / nSamples;
+	return total / nSamples;
 }
 
 
@@ -610,15 +679,17 @@ void LightMapper::ProcessTexel(int tx, int ty)
 	//Vector2i tex_uv = Vector2i(x, y);
 
 	// could be off the image
-	float * pfTexel = &m_Image_L.Get(tx, ty)->r;
-	if (!pfTexel)
+	FColor * pTexel = m_Image_L.Get(tx, ty);
+	if (!pTexel)
 		return;
 
+	FColor temp;
 	for (int l=0; l<m_Lights.size(); l++)
 	{
-		float power = ProcessTexel_Light(l, pos, normal, tri);
-		*pfTexel += power;
+		ProcessTexel_Light(l, pos, normal, temp, tri);
+		*pTexel += temp;
 	}
+
 }
 
 void LightMapper::ProcessRay(LM::Ray r, int depth, float power, int dest_tri_id, const Vector2i * pUV)
@@ -834,6 +905,11 @@ void LightMapper::ProcessLight(int light_id, int num_rays)
 		{
 		case LLight::LT_SPOT:
 			{
+				Vector3 offset;
+				RandomUnitDir(offset);
+				offset *= light.scale;
+				r.o += offset;
+
 				r.d = light.dir;
 
 
@@ -843,7 +919,7 @@ void LightMapper::ProcessLight(int light_id, int num_rays)
 
 				float falloff_start = 0.5f;// this could be adjustable;
 
-				float ang_max = Math::deg2rad(light.spot_angle);
+				float ang_max = light.spot_angle_radians;
 				float ang_falloff = ang_max * falloff_start;
 				float ang_falloff_range = ang_max - ang_falloff;
 
