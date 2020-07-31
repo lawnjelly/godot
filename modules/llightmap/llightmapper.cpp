@@ -812,8 +812,10 @@ void LightMapper::ProcessLight(int light_id, int num_rays)
 //	light_color.g = power;
 //	light_color.b = power;
 
-
 	// each ray
+
+//	num_rays = 1; // debug
+
 	for (int n=0; n<num_rays; n++)
 	{
 		//		if ((n % 10000) == 0)
@@ -833,12 +835,66 @@ void LightMapper::ProcessLight(int light_id, int num_rays)
 		case LLight::LT_SPOT:
 			{
 				r.d = light.dir;
-				float spot_ball = 0.2f;
-				float x = Math::random(-spot_ball, spot_ball);
-				float y = Math::random(-spot_ball, spot_ball);
-				float z = Math::random(-spot_ball, spot_ball);
-				r.d += Vector3(x, y, z);
-				r.d.normalize();
+
+
+				// random axis
+				Vector3 axis;
+				RandomAxis(axis);
+
+				float falloff_start = 0.5f;// this could be adjustable;
+
+				float ang_max = Math::deg2rad(light.spot_angle);
+				float ang_falloff = ang_max * falloff_start;
+				float ang_falloff_range = ang_max - ang_falloff;
+
+				// random angle giving equal circle distribution
+				float a = Math::random(0.0f, 1.0f);
+
+				// below a certain proportion are the central, outside is falloff
+				a *= 2.0f;
+				if (a > 1.0f)
+				{
+					// falloff
+					a -= 1.0f;
+					//angle /= 3.0f;
+
+					//a *= a;
+
+					a = ang_falloff + (a * ang_falloff_range);
+				}
+				else
+				{
+					// central
+					a = sqrtf(a);
+					a *= ang_falloff;
+				}
+
+//				if (angle > ang_falloff)
+//				{
+//					// in the falloff zone, use different math.
+//					float r = Math::random(0.0f, 1.0f);
+//					r = r*r;
+//					r *= ang_falloff_range;
+//					angle = ang_falloff + r;
+//				}
+
+
+				Quat rot;
+				rot.set_axis_angle(axis, a);
+
+				// TURNED OFF FOR TESTING
+				r.d = rot.xform(r.d);
+
+				// this is the radius of the cone at distance 1
+//				float radius_at_dist_one = Math::tan(Math::deg2rad(light.spot_angle));
+
+//				float spot_ball_size = radius_at_dist_one;
+
+//				Vector3 ball;
+//				RandomSphereDir(ball, spot_ball_size);
+
+//				r.d += ball;
+//				r.d.normalize();
 			}
 			break;
 		default:
