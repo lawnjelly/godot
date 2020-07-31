@@ -15,7 +15,7 @@ LightMapper_Base::LightMapper_Base()
 	m_Settings_Forward_NumRays = 1;
 	m_Settings_Forward_NumBounces = 0;
 	m_Settings_Forward_RayPower = 0.01f;
-	m_Settings_Forward_BouncePower = 0.5f;
+	m_Settings_Forward_BouncePower = 1.0f;
 	m_Settings_Forward_BounceDirectionality = 0.5f;
 
 	m_Settings_Backward_NumRays = 8;
@@ -81,7 +81,16 @@ void LightMapper_Base::FindLight(const Node * pNode)
 	l->energy = pLight->get_param(Light::PARAM_ENERGY);
 	l->indirect_energy = pLight->get_param(Light::PARAM_INDIRECT_ENERGY);
 	l->range = pLight->get_param(Light::PARAM_RANGE);
-	l->spot_angle = pLight->get_param(Light::PARAM_SPOT_ANGLE);
+	l->spot_angle_radians = Math::deg2rad(pLight->get_param(Light::PARAM_SPOT_ANGLE));
+	l->spot_dot_max = Math::cos(l->spot_angle_radians);
+	l->spot_dot_max = MIN(l->spot_dot_max, 0.9999f); // just to prevent divide by zero in cone of spotlight
+
+	// the spot emanation point is used for spotlight cone culling.
+	// if we used the dot from the pos to cull, we would miss cases where
+	// the sample origin is offset by scale from pos. So we push back the pos
+	// in order to account for the scale 'cloud' of origins.
+	float radius = MAX(l->scale.x, MAX(l->scale.y, l->scale.z));
+	l->spot_emanation_point =l->pos - (l->dir * radius);
 
 	// pre apply intensity
 	l->color.Set(pLight->get_color() * l->energy);

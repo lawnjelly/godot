@@ -32,7 +32,11 @@ protected:
 		float energy;
 		float indirect_energy;
 		float range;
-		float spot_angle;
+		float spot_angle_radians; // radians
+		// precalculated dot product threshold for inside / outside light cone
+		float spot_dot_max;
+		// behind the origin, takes account of the scale in order to cull spotlights
+		Vector3 spot_emanation_point;
 		const Light * m_pLight;
 	};
 
@@ -81,6 +85,8 @@ protected:
 	void RandomSphereDir(Vector3 &dir, float max_length) const;
 	void RandomBarycentric(Vector3 &bary) const;
 	void RandomAxis(Vector3 &axis) const;
+
+	float safe_acosf(float f) const {f = CLAMP(f, -1.0f, 1.0f); return acosf(f);}
 
 protected:
 	// luminosity
