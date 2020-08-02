@@ -16,6 +16,7 @@ void LMaterial::Destroy()
 
 LMaterials::LMaterials()
 {
+	m_uiMaxMaterialSize = 256;
 }
 
 LMaterials::~LMaterials()
@@ -201,7 +202,7 @@ LTexture * LMaterials::_get_bake_texture(Ref<Image> p_image, const Color &p_colo
 	bool bResize = false;
 	while (true)
 	{
-		if ((w > 256) || (h > 256))
+		if ((w > m_uiMaxMaterialSize) || (h > m_uiMaxMaterialSize))
 		{
 			w /= 2;
 			h /= 2;
