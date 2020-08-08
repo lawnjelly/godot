@@ -202,6 +202,7 @@ private:
 	Octant *root;
 	int octant_count;
 	int pair_count;
+	int octant_elements_limit;
 
 	_FORCE_INLINE_ void _pair_check(PairData *p_pair) {
 
@@ -333,7 +334,7 @@ private:
 
 	void _insert_element(Element *p_element, Octant *p_octant);
 	void _ensure_valid_root(const AABB &p_aabb);
-	bool _remove_element_from_octant(Element *p_element, Octant *p_octant, Octant *p_limit = NULL);
+	bool _remove_element_pair_and_remove_empty_octants(Element *p_element, Octant *p_octant, Octant *p_limit = NULL);
 	void _remove_element(Element *p_element);
 	void _pair_element(Element *p_element, Octant *p_octant);
 	void _unpair_element(Element *p_element, Octant *p_octant);
@@ -369,6 +370,11 @@ private:
 		memdelete_allocator<Octant, AL>(p_octant);
 	}
 
+#ifdef TOOLS_ENABLED
+	String debug_aabb_to_string(const AABB &aabb) const;
+	void debug_octant(const Octant &oct, int depth = 0);
+#endif
+
 public:
 	OctreeElementID create(T *p_userdata, const AABB &p_aabb = AABB(), int p_subindex = 0, bool p_pairable = false, uint32_t p_pairable_type = 0, uint32_t pairable_mask = 1);
 	void move(OctreeElementID p_id, const AABB &p_aabb);
@@ -390,6 +396,11 @@ public:
 
 	int get_octant_count() const { return octant_count; }
 	int get_pair_count() const { return pair_count; }
+	void set_octant_elements_limit(int p_limit) { octant_elements_limit = p_limit; }
+#ifdef TOOLS_ENABLED
+	void debug_octants();
+#endif
+
 	Octree(real_t p_unit_size = 1.0);
 	~Octree() { _remove_tree(root); }
 };
@@ -426,7 +437,21 @@ void Octree<T, use_pairs, AL>::_insert_element(Element *p_element, Octant *p_oct
 
 	real_t element_size = p_element->aabb.get_longest_axis_size() * 1.01; // avoid precision issues
 
-	if (p_octant->aabb.size.x / OCTREE_DIVISOR < element_size) {
+	// don't create new child octants unless there is more than a certain number in
+	// this octant. This prevents runaway creation of too many octants, and is more efficient
+	// because brute force is faster up to a certain point.
+	bool can_split = true;
+
+	if (p_element->pairable) {
+		if (p_octant->pairable_elements.size() < octant_elements_limit)
+			can_split = false;
+	} else {
+		if (p_octant->elements.size() < octant_elements_limit)
+			can_split = false;
+	}
+
+	if (!can_split || (element_size > (p_octant->aabb.size.x / OCTREE_DIVISOR))) {
+		//	if (p_octant->aabb.size.x / OCTREE_DIVISOR < element_size) {
 		//if (p_octant->aabb.size.x*0.5 < element_size) {
 
 		/* at smallest possible size for the element  */
@@ -594,7 +619,7 @@ void Octree<T, use_pairs, AL>::_ensure_valid_root(const AABB &p_aabb) {
 }
 
 template <class T, bool use_pairs, class AL>
-bool Octree<T, use_pairs, AL>::_remove_element_from_octant(Element *p_element, Octant *p_octant, Octant *p_limit) {
+bool Octree<T, use_pairs, AL>::_remove_element_pair_and_remove_empty_octants(Element *p_element, Octant *p_octant, Octant *p_limit) {
 
 	bool octant_removed = false;
 
@@ -743,23 +768,17 @@ void Octree<T, use_pairs, AL>::_remove_element(Element *p_element) {
 
 	typename List<typename Element::OctantOwner, AL>::Element *I = p_element->octant_owners.front();
 
-	/* FIRST remove going up normally */
-	for (; I; I = I->next()) {
+	if (!use_pairs) {
+		// no pairs
+		for (; I; I = I->next()) {
 
-		Octant *o = I->get().octant;
-
-		if (!use_pairs) // small speedup
+			Octant *o = I->get().octant;
 			o->elements.erase(I->get().E);
 
-		_remove_element_from_octant(p_element, o);
-	}
-
-	/* THEN remove going down */
-
-	I = p_element->octant_owners.front();
-
-	if (use_pairs) {
-
+			_remove_element_pair_and_remove_empty_octants(p_element, o);
+		}
+	} else {
+		// using pairs
 		for (; I; I = I->next()) {
 
 			Octant *o = I->get().octant;
@@ -776,6 +795,8 @@ void Octree<T, use_pairs, AL>::_remove_element(Element *p_element) {
 				o->pairable_elements.erase(I->get().E);
 			else
 				o->elements.erase(I->get().E);
+
+			_remove_element_pair_and_remove_empty_octants(p_element, o);
 		}
 	}
 
@@ -927,7 +948,7 @@ void Octree<T, use_pairs, AL>::move(OctreeElementID p_id, const AABB &p_aabb) {
 		else
 			o->elements.erase(F->get().E);
 
-		if (_remove_element_from_octant(&e, o, common_parent->parent)) {
+		if (_remove_element_pair_and_remove_empty_octants(&e, o, common_parent->parent)) {
 
 			owners.erase(F);
 		}
@@ -1376,11 +1397,50 @@ Octree<T, use_pairs, AL>::Octree(real_t p_unit_size) {
 
 	octant_count = 0;
 	pair_count = 0;
+	octant_elements_limit = 8192;
 
 	pair_callback = NULL;
 	unpair_callback = NULL;
 	pair_callback_userdata = NULL;
 	unpair_callback_userdata = NULL;
 }
+
+#ifdef TOOLS_ENABLED
+template <class T, bool use_pairs, class AL>
+String Octree<T, use_pairs, AL>::debug_aabb_to_string(const AABB &aabb) const {
+	String sz;
+	sz = "( " + String(aabb.position);
+	sz += " ) - ( ";
+	Vector3 max = aabb.position + aabb.size;
+	sz += String(max) + " )";
+	return sz;
+}
+
+template <class T, bool use_pairs, class AL>
+void Octree<T, use_pairs, AL>::debug_octants() {
+	if (root)
+		debug_octant(*root);
+}
+
+template <class T, bool use_pairs, class AL>
+void Octree<T, use_pairs, AL>::debug_octant(const Octant &oct, int depth) {
+	String sz = "";
+	for (int d = 0; d < depth; d++)
+		sz += "\t";
+
+	sz += "Octant " + debug_aabb_to_string(oct.aabb);
+	sz += "\tnum_children " + itos(oct.children_count);
+	sz += ", num_eles " + itos(oct.elements.size());
+	sz += ", num_paired_eles" + itos(oct.pairable_elements.size());
+	print_line(sz);
+
+	for (int n = 0; n < 8; n++) {
+		const Octant *pChild = oct.children[n];
+		if (pChild) {
+			debug_octant(*pChild, depth + 1);
+		}
+	}
+}
+#endif // TOOLS_ENABLED
 
 #endif
