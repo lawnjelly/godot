@@ -207,6 +207,11 @@ struct SpatialIndexer {
 		last_frame = 0;
 		changed = false;
 		cull.resize(VISIBILITY_CULL_MAX);
+
+		// this could be a project setting but is probably not that performance sensitive
+		// in most cases. Usually there will just be one or a few tests per frame, so the elements
+		// limit could be quite high for best performance. I'll err on the side of caution here.
+		octree.set_octant_elements_limit(128);
 	}
 };
 

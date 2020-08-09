@@ -260,6 +260,8 @@ RID VisualServerScene::scenario_create() {
 	RID scenario_rid = scenario_owner.make_rid(scenario);
 	scenario->self = scenario_rid;
 
+	float balance = GLOBAL_GET("world/3d/spatial_partitioning/render_tree_balance");
+	scenario->octree.set_balance(balance);
 	scenario->octree.set_pair_callback(_instance_pair, this);
 	scenario->octree.set_unpair_callback(_instance_unpair, this);
 	scenario->reflection_probe_shadow_atlas = VSG::scene_render->shadow_atlas_create();

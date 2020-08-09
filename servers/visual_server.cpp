@@ -2455,6 +2455,15 @@ VisualServer::VisualServer() {
 	ProjectSettings::get_singleton()->set_custom_property_info("rendering/batching/lights/max_join_items", PropertyInfo(Variant::INT, "rendering/batching/lights/max_join_items", PROPERTY_HINT_RANGE, "0,512"));
 	ProjectSettings::get_singleton()->set_custom_property_info("rendering/batching/parameters/item_reordering_lookahead", PropertyInfo(Variant::INT, "rendering/batching/parameters/item_reordering_lookahead", PROPERTY_HINT_RANGE, "0,256"));
 	ProjectSettings::get_singleton()->set_custom_property_info("rendering/batching/precision/uv_contract_amount", PropertyInfo(Variant::INT, "rendering/batching/precision/uv_contract_amount", PROPERTY_HINT_RANGE, "0,10000"));
+
+
+	const char * sz_balance_render_tree = "world/3d/spatial_partitioning/render_tree_balance";
+	GLOBAL_DEF(sz_balance_render_tree, 0.0f);
+	ProjectSettings::get_singleton()->set_custom_property_info(sz_balance_render_tree, PropertyInfo(Variant::REAL, sz_balance_render_tree, PROPERTY_HINT_RANGE, "0.0,1.0,0.01"));
+
+	const char * sz_balance_physics_tree = "world/3d/spatial_partitioning/physics_tree_balance";
+	GLOBAL_DEF(sz_balance_physics_tree, 0.0f);
+	ProjectSettings::get_singleton()->set_custom_property_info(sz_balance_physics_tree, PropertyInfo(Variant::REAL, sz_balance_physics_tree, PROPERTY_HINT_RANGE, "0.0,1.0,0.01"));
 }
 
 VisualServer::~VisualServer() {

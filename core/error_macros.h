@@ -226,6 +226,21 @@ void _err_print_index_error(const char *p_function, const char *p_file, int p_li
 		}                                                                                                                        \
 	} while (0); // (*)
 
+
+/**
+ * If `m_index` is greater than or equal to `m_size`,
+ * crashes the engine immediately with a generic error message.
+ * Only use this if there's no sensible fallback (i.e. the error is unrecoverable).
+ * This macro should be preferred to `CRASH_COND` for bounds checking.
+ */
+#define CRASH_BAD_UNSIGNED_INDEX(m_index, m_size)                                                                             \
+	do {                                                                                                                      \
+		if (unlikely((m_index) >= (m_size))) {                                                                                \
+			_err_print_index_error(FUNCTION_STR, __FILE__, __LINE__, m_index, m_size, _STR(m_index), _STR(m_size), "", true); \
+			GENERATE_TRAP                                                                                                     \
+		}                                                                                                                     \
+	} while (0); // (*)
+
 /**
  * If `m_param` is `null`, prints a generic error message and returns from the function.
  */

@@ -38,11 +38,18 @@
 #include "core/math/vector3.h"
 #include "core/print_string.h"
 #include "core/variant.h"
+#include "core/local_vector.h"
 
 typedef uint32_t OctreeElementID;
 
 #define OCTREE_ELEMENT_INVALID_ID 0
 #define OCTREE_SIZE_LIMIT 1e15
+//#define OCTREE_USE_CACHED_LISTS
+//#define OCTREE_REBALANCE
+//#define OCTREE_CHECK_CHILD_OCTANT_BOUNDS
+#define OCTREE_DEFAULT_OCTANT_LIMIT 6
+//#define OCTREE_AUTO_OCTANT_LIMIT
+#define OCTREE_AUTO_OCTANT_TEST_SAMPLES 8
 
 template <class T, bool use_pairs = false, class AL = DefaultAllocator>
 class Octree {
@@ -101,6 +108,32 @@ private:
 
 	struct Element;
 
+#ifdef OCTREE_USE_CACHED_LISTS
+	// instead of iterating the linked list every time within octants,
+	// we can cache a linear list of prepared elements containing essential data
+	// for fast traversal, and rebuild it only when an octant changes.
+	struct CachedList
+	{
+		LocalVector<AABB> aabbs;
+		LocalVector<Element *> elements;
+
+		void update(List<Element *, AL> &eles) {
+			// make sure local vector doesn't delete the memory
+			// no need to be thrashing allocations
+			aabbs.clear();
+			elements.clear();
+
+			typename List<Element *, AL>::Element *E = eles.front();
+			while (E) {
+				Element * e = E->get();
+				aabbs.push_back(e->aabb);
+				elements.push_back(e);
+				E = E->next();
+			}
+		}
+	};
+#endif
+
 	struct Octant {
 
 		// cached for FAST plane check
@@ -116,11 +149,31 @@ private:
 		List<Element *, AL> pairable_elements;
 		List<Element *, AL> elements;
 
+#ifdef OCTREE_USE_CACHED_LISTS
+		CachedList clist_pairable;
+		CachedList clist;
+
+		// use dirty flag to indicate when cached lists need updating
+		bool dirty;
+
+		void update_cached_lists() {
+			if (!dirty) {
+				return;
+			}
+			clist_pairable.update(pairable_elements);
+			clist.update(elements);
+			dirty = false;
+		}
+#endif
+
 		Octant() {
 			children_count = 0;
 			parent_index = -1;
 			last_pass = 0;
 			parent = NULL;
+#ifdef OCTREE_USE_CACHED_LISTS
+			dirty = false;
+#endif
 			for (int i = 0; i < 8; i++)
 				children[i] = NULL;
 		}
@@ -203,6 +256,14 @@ private:
 	int octant_count;
 	int pair_count;
 	int octant_elements_limit;
+
+#ifdef OCTREE_AUTO_OCTANT_LIMIT
+	// we record the number of tests on each tick, and use this to determine
+	// the best limit value
+	int current_num_tests;
+	int running_total_num_tests;
+	bool is_testing;
+#endif
 
 	_FORCE_INLINE_ void _pair_check(PairData *p_pair) {
 
@@ -338,9 +399,13 @@ private:
 	void _remove_element(Element *p_element);
 	void _pair_element(Element *p_element, Octant *p_octant);
 	void _unpair_element(Element *p_element, Octant *p_octant);
+	void _rebalance_element(Element * p_element, Octant * p_octant, float p_threshold_size);
+	void _rebalance_octant(Octant * p_octant);
+	int _element_fits_in_child_octant(Element * p_element, Octant * p_octant) const;
 
 	struct _CullConvexData {
 
+		//AABB aabb;
 		const Plane *planes;
 		int plane_count;
 		const Vector3 *points;
@@ -378,6 +443,7 @@ private:
 public:
 	OctreeElementID create(T *p_userdata, const AABB &p_aabb = AABB(), int p_subindex = 0, bool p_pairable = false, uint32_t p_pairable_type = 0, uint32_t pairable_mask = 1);
 	void move(OctreeElementID p_id, const AABB &p_aabb);
+	void move2(OctreeElementID p_id, const AABB &p_aabb, bool force_move = false);
 	void set_pairable(OctreeElementID p_id, bool p_pairable = false, uint32_t p_pairable_type = 0, uint32_t pairable_mask = 1);
 	void erase(OctreeElementID p_id);
 
@@ -397,8 +463,69 @@ public:
 	int get_octant_count() const { return octant_count; }
 	int get_pair_count() const { return pair_count; }
 	void set_octant_elements_limit(int p_limit) { octant_elements_limit = p_limit; }
+
+	// just convenience for project settings, as users don't need to know exact numbers
+	void set_balance(float p_bal) // 1.0 is for testing, 0.0 is for editing
+	{
+		float v = CLAMP(p_bal, 0.0f, 1.0f);
+		v *= v;
+		v *= v;
+		v *= 8090.0f; // these values have been found empirically
+		int l = 6 + v;
+		//print_line("set_octree_balance limit " + itos(l));
+		set_octant_elements_limit(l);
+	}
 #ifdef TOOLS_ENABLED
 	void debug_octants();
+#endif
+
+	void notify_editing()
+	{
+#ifdef OCTREE_AUTO_OCTANT_LIMIT
+		if (is_testing)
+		{
+			is_testing = false;
+
+			// remove fraction of running total (watch for overflow)
+			running_total_num_tests *= OCTREE_AUTO_OCTANT_TEST_SAMPLES-1;
+			running_total_num_tests /= OCTREE_AUTO_OCTANT_TEST_SAMPLES;
+
+			// update running totals
+			running_total_num_tests += current_num_tests;
+
+			// get the average number of tests per tick
+			float av = (float) running_total_num_tests / OCTREE_AUTO_OCTANT_TEST_SAMPLES;
+
+			// function to go from a number of tests to best value for limit
+			// small number of tests, higher limit, large number of tests, smaller limit
+			av /= 1024;
+			av = sqrtf(av);
+			if (av > 1.0f) av = 1.0f;
+
+			// reverse polarity
+			av = 1.0f - av;
+
+			// 6 is a good empirical minimum, and 8096 gets most benefit
+			octant_elements_limit = 6 + (av * 8096);
+
+//			print_line("limit " + itos (octant_elements_limit));
+
+		}
+#endif
+	}
+#ifdef OCTREE_AUTO_OCTANT_LIMIT
+	void notify_testing()
+	{
+		if (!is_testing)
+		{
+			is_testing = true;
+			current_num_tests = 1;
+		}
+		else
+		{
+			current_num_tests++;
+		}
+	}
 #endif
 
 	Octree(real_t p_unit_size = 1.0);
@@ -433,9 +560,67 @@ int Octree<T, use_pairs, AL>::get_subindex(OctreeElementID p_id) const {
 #define OCTREE_DIVISOR 4
 
 template <class T, bool use_pairs, class AL>
+void Octree<T, use_pairs, AL>::_rebalance_element(Element * p_element, Octant * p_octant, float p_threshold_size) {
+
+	// is below threshold size?
+	real_t element_size = p_element->aabb.get_longest_axis_size() * 1.01; // avoid precision issues
+
+	// no need to rebalance. bigger than size needed to shrink
+	if (element_size >= p_threshold_size) {
+		return;
+	}
+
+	// just force it to reclassify octant with a null move
+	move2(p_element->_id, p_element->aabb, true);
+}
+
+template <class T, bool use_pairs, class AL>
+void Octree<T, use_pairs, AL>::_rebalance_octant(Octant * p_octant) {
+
+	float threshold_size = p_octant->aabb.size.x / OCTREE_DIVISOR;
+
+	typename List<Element *, AL>::Element *E = p_octant->pairable_elements.front();
+	while (E) {
+		Element * e = E->get();
+
+		// get the next before the rebalance, because it might get deleted
+		// and we might have an invalid iterator
+		E = E->next();
+		_rebalance_element(e, p_octant, threshold_size);
+	}
+
+}
+
+template <class T, bool use_pairs, class AL>
+int Octree<T, use_pairs, AL>::_element_fits_in_child_octant(Element * p_element, Octant * p_octant) const
+{
+	AABB paabb = p_octant->aabb;
+	paabb.size *= 0.5;
+
+	for (int i = 0; i < 8; i++)
+	{
+		AABB aabb = paabb;
+
+		if (i & 1)
+			aabb.position.x += aabb.size.x;
+		if (i & 2)
+			aabb.position.y += aabb.size.y;
+		if (i & 4)
+			aabb.position.z += aabb.size.z;
+
+		if (aabb.intersects_inclusive(p_element->aabb)) {
+			return i;
+		}
+	} // for
+
+	return -1;
+}
+
+template <class T, bool use_pairs, class AL>
 void Octree<T, use_pairs, AL>::_insert_element(Element *p_element, Octant *p_octant) {
 
 	real_t element_size = p_element->aabb.get_longest_axis_size() * 1.01; // avoid precision issues
+	bool added_octant = false;
 
 	// don't create new child octants unless there is more than a certain number in
 	// this octant. This prevents runaway creation of too many octants, and is more efficient
@@ -450,8 +635,16 @@ void Octree<T, use_pairs, AL>::_insert_element(Element *p_element, Octant *p_oct
 			can_split = false;
 	}
 
+	// new .. assess whether the element aabb fits in a child octant
+#ifdef OCTREE_CHECK_CHILD_OCTANT_BOUNDS
+	int child_octant = _element_fits_in_child_octant(p_element, p_octant);
+	if (child_octant == -1) {
+		can_split = false;
+	}
+#endif
+
 	if (!can_split || (element_size > (p_octant->aabb.size.x / OCTREE_DIVISOR))) {
-		//	if (p_octant->aabb.size.x / OCTREE_DIVISOR < element_size) {
+//			if (p_octant->aabb.size.x / OCTREE_DIVISOR < element_size) {
 		//if (p_octant->aabb.size.x*0.5 < element_size) {
 
 		/* at smallest possible size for the element  */
@@ -467,6 +660,9 @@ void Octree<T, use_pairs, AL>::_insert_element(Element *p_element, Octant *p_oct
 			p_octant->elements.push_back(p_element);
 			owner.E = p_octant->elements.back();
 		}
+#ifdef OCTREE_USE_CACHED_LISTS
+		p_octant->dirty = true;
+#endif
 
 		p_element->octant_owners.push_back(owner);
 
@@ -529,6 +725,7 @@ void Octree<T, use_pairs, AL>::_insert_element(Element *p_element, Octant *p_oct
 					_insert_element(p_element, child);
 					octant_count++;
 					splits++;
+					added_octant = true;
 				}
 			}
 		}
@@ -556,6 +753,13 @@ void Octree<T, use_pairs, AL>::_insert_element(Element *p_element, Octant *p_oct
 				E = E->next();
 			}
 		}
+	}
+
+	// if we have added an octant, take the opportunity to rebalance
+	if (added_octant) {
+#ifdef OCTREE_REBALANCE
+		_rebalance_octant(p_octant);
+#endif
 	}
 }
 
@@ -774,7 +978,9 @@ void Octree<T, use_pairs, AL>::_remove_element(Element *p_element) {
 
 			Octant *o = I->get().octant;
 			o->elements.erase(I->get().E);
-
+#ifdef OCTREE_USE_CACHED_LISTS
+			o->dirty = true;
+#endif
 			_remove_element_pair_and_remove_empty_octants(p_element, o);
 		}
 	} else {
@@ -796,6 +1002,9 @@ void Octree<T, use_pairs, AL>::_remove_element(Element *p_element) {
 			else
 				o->elements.erase(I->get().E);
 
+#ifdef OCTREE_USE_CACHED_LISTS
+			o->dirty = true;
+#endif
 			_remove_element_pair_and_remove_empty_octants(p_element, o);
 		}
 	}
@@ -812,6 +1021,10 @@ void Octree<T, use_pairs, AL>::_remove_element(Element *p_element) {
 
 template <class T, bool use_pairs, class AL>
 OctreeElementID Octree<T, use_pairs, AL>::create(T *p_userdata, const AABB &p_aabb, int p_subindex, bool p_pairable, uint32_t p_pairable_type, uint32_t p_pairable_mask) {
+
+#ifdef OCTREE_AUTO_OCTANT_LIMIT
+	notify_editing();
+#endif
 
 // check for AABB validity
 #ifdef DEBUG_ENABLED
@@ -852,6 +1065,31 @@ OctreeElementID Octree<T, use_pairs, AL>::create(T *p_userdata, const AABB &p_aa
 
 template <class T, bool use_pairs, class AL>
 void Octree<T, use_pairs, AL>::move(OctreeElementID p_id, const AABB &p_aabb) {
+	// testing
+	AABB bb = p_aabb;
+
+	//T * results[1024];
+
+	for (int n=0; n<1; n++)
+	{
+		bb.position = Vector3(Math::randf(), Math::randf(), Math::randf());
+		bb.position *= 16.0f;
+
+		//		move2(p_id, bb);
+		//int cull_point(const Vector3 &p_point, T **p_result_array, int p_result_max, int *p_subindex_array = NULL, uint32_t p_mask = 0xFFFFFFFF);
+
+		//cull_point(bb.position, results, 1024);
+	}
+
+	move2(p_id, p_aabb);
+}
+
+template <class T, bool use_pairs, class AL>
+void Octree<T, use_pairs, AL>::move2(OctreeElementID p_id, const AABB &p_aabb, bool force_move) {
+
+#ifdef OCTREE_AUTO_OCTANT_LIMIT
+	notify_editing();
+#endif
 
 #ifdef DEBUG_ENABLED
 	// check for AABB validity
@@ -895,7 +1133,7 @@ void Octree<T, use_pairs, AL>::move(OctreeElementID p_id, const AABB &p_aabb) {
 		return;
 
 	// it still is enclosed in the same AABB it was assigned to
-	if (e.container_aabb.encloses(p_aabb)) {
+	if (!force_move && e.container_aabb.encloses(p_aabb)) {
 
 		e.aabb = p_aabb;
 		if (use_pairs)
@@ -1008,6 +1246,10 @@ void Octree<T, use_pairs, AL>::set_pairable(OctreeElementID p_id, bool p_pairabl
 template <class T, bool use_pairs, class AL>
 void Octree<T, use_pairs, AL>::erase(OctreeElementID p_id) {
 
+#ifdef OCTREE_AUTO_OCTANT_LIMIT
+	notify_editing();
+#endif
+
 	typename ElementMap::Element *E = element_map.find(p_id);
 	ERR_FAIL_COND(!E);
 
@@ -1030,18 +1272,85 @@ void Octree<T, use_pairs, AL>::_cull_convex(Octant *p_octant, _CullConvexData *p
 
 	if (!p_octant->elements.empty()) {
 
+#ifdef OCTREE_USE_CACHED_LISTS
+		p_octant->update_cached_lists();
+
+		int num_elements = p_octant->clist.elements.size();
+		for (int n=0; n<num_elements; n++)
+		{
+			const AABB &aabb = p_octant->clist.aabbs[n];
+
+			//if (!p_cull->aabb.intersects_inclusive(aabb))
+			//	continue;
+
+			Element *e = p_octant->clist.elements[n];
+
+			if (aabb.intersects_convex_shape(p_cull->planes, p_cull->plane_count, p_cull->points, p_cull->point_count)) {
+
+				if (e->last_pass == pass || (use_pairs && !(e->pairable_type & p_cull->mask)))
+					continue;
+				e->last_pass = pass;
+
+
+				if (*p_cull->result_idx < p_cull->result_max) {
+					p_cull->result_array[*p_cull->result_idx] = e->userdata;
+					(*p_cull->result_idx)++;
+				} else {
+
+					return; // pointless to continue
+				}
+			}
+
+#else
 		typename List<Element *, AL>::Element *I;
 		I = p_octant->elements.front();
 
 		for (; I; I = I->next()) {
 
 			Element *e = I->get();
+			const AABB &aabb = e->aabb;
 
 			if (e->last_pass == pass || (use_pairs && !(e->pairable_type & p_cull->mask)))
 				continue;
 			e->last_pass = pass;
 
-			if (e->aabb.intersects_convex_shape(p_cull->planes, p_cull->plane_count, p_cull->points, p_cull->point_count)) {
+			if (aabb.intersects_convex_shape(p_cull->planes, p_cull->plane_count, p_cull->points, p_cull->point_count)) {
+				if (*p_cull->result_idx < p_cull->result_max) {
+					p_cull->result_array[*p_cull->result_idx] = e->userdata;
+					(*p_cull->result_idx)++;
+				} else {
+
+					return; // pointless to continue
+				}
+			}
+
+#endif
+
+		}
+	}
+
+	if (use_pairs && !p_octant->pairable_elements.empty()) {
+
+#ifdef OCTREE_USE_CACHED_LISTS
+		p_octant->update_cached_lists();
+
+		int num_elements = p_octant->clist_pairable.elements.size();
+		for (int n=0; n<num_elements; n++)
+		{
+			const AABB &aabb = p_octant->clist_pairable.aabbs[n];
+
+			//if (!p_cull->aabb.intersects_inclusive(aabb))
+			//	continue;
+
+			Element *e = p_octant->clist_pairable.elements[n];
+
+			if (aabb.intersects_convex_shape(p_cull->planes, p_cull->plane_count, p_cull->points, p_cull->point_count)) {
+
+				if (e->last_pass == pass || (use_pairs && !(e->pairable_type & p_cull->mask)))
+					continue;
+				e->last_pass = pass;
+
+
 				if (*p_cull->result_idx < p_cull->result_max) {
 					p_cull->result_array[*p_cull->result_idx] = e->userdata;
 					(*p_cull->result_idx)++;
@@ -1051,9 +1360,7 @@ void Octree<T, use_pairs, AL>::_cull_convex(Octant *p_octant, _CullConvexData *p
 				}
 			}
 		}
-	}
-
-	if (use_pairs && !p_octant->pairable_elements.empty()) {
+#else
 
 		typename List<Element *, AL>::Element *I;
 		I = p_octant->pairable_elements.front();
@@ -1078,6 +1385,7 @@ void Octree<T, use_pairs, AL>::_cull_convex(Octant *p_octant, _CullConvexData *p
 				}
 			}
 		}
+#endif
 	}
 
 	for (int i = 0; i < 8; i++) {
@@ -1090,6 +1398,10 @@ void Octree<T, use_pairs, AL>::_cull_convex(Octant *p_octant, _CullConvexData *p
 
 template <class T, bool use_pairs, class AL>
 void Octree<T, use_pairs, AL>::_cull_aabb(Octant *p_octant, const AABB &p_aabb, T **p_result_array, int *p_result_idx, int p_result_max, int *p_subindex_array, uint32_t p_mask) {
+
+#ifdef OCTREE_AUTO_OCTANT_LIMIT
+	notify_testing();
+#endif
 
 	if (*p_result_idx == p_result_max)
 		return; //pointless
@@ -1311,32 +1623,53 @@ void Octree<T, use_pairs, AL>::_cull_point(Octant *p_octant, const Vector3 &p_po
 template <class T, bool use_pairs, class AL>
 int Octree<T, use_pairs, AL>::cull_convex(const Vector<Plane> &p_convex, T **p_result_array, int p_result_max, uint32_t p_mask) {
 
-	if (!root || p_convex.size() == 0)
-		return 0;
+#ifdef OCTREE_AUTO_OCTANT_LIMIT
+	notify_testing();
+#endif
 
-	Vector<Vector3> convex_points = Geometry::compute_convex_mesh_points(&p_convex[0], p_convex.size());
-	if (convex_points.size() == 0)
-		return 0;
 
-	int result_count = 0;
-	pass++;
-	_CullConvexData cdata;
-	cdata.planes = &p_convex[0];
-	cdata.plane_count = p_convex.size();
-	cdata.points = &convex_points[0];
-	cdata.point_count = convex_points.size();
-	cdata.result_array = p_result_array;
-	cdata.result_max = p_result_max;
-	cdata.result_idx = &result_count;
-	cdata.mask = p_mask;
+	int result_count;
 
-	_cull_convex(root, &cdata);
+	for (int n=0; n<100; n++)
+	{
+
+		if (!root || p_convex.size() == 0)
+			return 0;
+
+		Vector<Vector3> convex_points = Geometry::compute_convex_mesh_points(&p_convex[0], p_convex.size());
+		if (convex_points.size() == 0)
+			return 0;
+
+		result_count = 0;
+		pass++;
+		_CullConvexData cdata;
+		cdata.planes = &p_convex[0];
+		cdata.plane_count = p_convex.size();
+		cdata.points = &convex_points[0];
+		cdata.point_count = convex_points.size();
+		cdata.result_array = p_result_array;
+		cdata.result_max = p_result_max;
+		cdata.result_idx = &result_count;
+		cdata.mask = p_mask;
+
+//		cdata.aabb.position = convex_points[0];
+//		for (int p=0; p<convex_points.size(); p++)
+//		{
+//			cdata.aabb.expand_to(convex_points[p]);
+//		}
+
+		_cull_convex(root, &cdata);
+	} // for n
 
 	return result_count;
 }
 
 template <class T, bool use_pairs, class AL>
 int Octree<T, use_pairs, AL>::cull_aabb(const AABB &p_aabb, T **p_result_array, int p_result_max, int *p_subindex_array, uint32_t p_mask) {
+
+#ifdef OCTREE_AUTO_OCTANT_LIMIT
+	notify_testing();
+#endif
 
 	if (!root)
 		return 0;
@@ -1351,6 +1684,10 @@ int Octree<T, use_pairs, AL>::cull_aabb(const AABB &p_aabb, T **p_result_array, 
 template <class T, bool use_pairs, class AL>
 int Octree<T, use_pairs, AL>::cull_segment(const Vector3 &p_from, const Vector3 &p_to, T **p_result_array, int p_result_max, int *p_subindex_array, uint32_t p_mask) {
 
+#ifdef OCTREE_AUTO_OCTANT_LIMIT
+	notify_testing();
+#endif
+
 	if (!root)
 		return 0;
 
@@ -1363,6 +1700,10 @@ int Octree<T, use_pairs, AL>::cull_segment(const Vector3 &p_from, const Vector3 
 
 template <class T, bool use_pairs, class AL>
 int Octree<T, use_pairs, AL>::cull_point(const Vector3 &p_point, T **p_result_array, int p_result_max, int *p_subindex_array, uint32_t p_mask) {
+
+#ifdef OCTREE_AUTO_OCTANT_LIMIT
+	notify_testing();
+#endif
 
 	if (!root)
 		return 0;
@@ -1397,12 +1738,20 @@ Octree<T, use_pairs, AL>::Octree(real_t p_unit_size) {
 
 	octant_count = 0;
 	pair_count = 0;
-	octant_elements_limit = 8192;
+	octant_elements_limit = OCTREE_DEFAULT_OCTANT_LIMIT; // 6
 
 	pair_callback = NULL;
 	unpair_callback = NULL;
 	pair_callback_userdata = NULL;
 	unpair_callback_userdata = NULL;
+
+#ifdef OCTREE_AUTO_OCTANT_LIMIT
+	current_num_tests = 0;
+	is_testing = false;
+	// pre-fill the running total with some reasonable values
+	running_total_num_tests = OCTREE_AUTO_OCTANT_TEST_SAMPLES * OCTREE_DEFAULT_OCTANT_LIMIT;
+#endif
+
 }
 
 #ifdef TOOLS_ENABLED

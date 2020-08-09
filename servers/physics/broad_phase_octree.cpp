@@ -30,6 +30,7 @@
 
 #include "broad_phase_octree.h"
 #include "collision_object_sw.h"
+#include "core/project_settings.h"
 
 BroadPhaseSW::ID BroadPhaseOctree::create(CollisionObjectSW *p_object, int p_subindex) {
 
@@ -121,6 +122,8 @@ BroadPhaseSW *BroadPhaseOctree::_create() {
 }
 
 BroadPhaseOctree::BroadPhaseOctree() {
+	float balance = GLOBAL_GET("world/3d/spatial_partitioning/physics_tree_balance");
+	octree.set_balance(balance);
 	octree.set_pair_callback(_pair_callback, this);
 	octree.set_unpair_callback(_unpair_callback, this);
 	pair_callback = NULL;
