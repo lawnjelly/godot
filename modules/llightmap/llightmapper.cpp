@@ -234,6 +234,8 @@ bool LightMapper::LightmapMesh(Spatial * pMeshesRoot, const Spatial &light_root,
 		if (!m_Scene.Create(pMeshesRoot, m_iWidth, m_iHeight, m_Settings_VoxelDensity, m_AdjustedSettings.m_Max_Material_Size))
 			return false;
 
+		PrepareLights();
+
 		RayBank_Create();
 
 		after = OS::get_singleton()->get_ticks_msec();
@@ -891,6 +893,7 @@ void LightMapper::ProcessLight(int light_id, int num_rays)
 
 //	num_rays = 1; // debug
 
+
 	for (int n=0; n<num_rays; n++)
 	{
 		//		if ((n % 10000) == 0)
@@ -907,6 +910,25 @@ void LightMapper::ProcessLight(int light_id, int num_rays)
 
 		switch (light.type)
 		{
+		case LLight::LT_DIRECTIONAL:
+			{
+				// use the precalculated source plane stored in the llight
+				r.o = light.dl_plane_pt;
+				r.o += light.dl_tangent * Math::random(0.0f, light.dl_tangent_range);
+				r.o += light.dl_bitangent * Math::random(0.0f, light.dl_bitangent_range);
+
+
+//				Vector3 offset;
+//				RandomUnitDir(offset);
+//				offset *= light.scale;
+//				r.o += offset;
+
+//				r.d = light.dir;
+				RandomUnitDir(r.d);
+				r.d += (light.dir * 3.0f);
+				r.d.normalize();
+			}
+			break;
 		case LLight::LT_SPOT:
 			{
 				Vector3 offset;
@@ -983,11 +1005,6 @@ void LightMapper::ProcessLight(int light_id, int num_rays)
 				RandomUnitDir(offset);
 				offset *= light.scale;
 				r.o += offset;
-
-				//				float x = Math::random(-light.scale.x, light.scale.x);
-				//				float y = Math::random(-light.scale.y, light.scale.y);
-				//				float z = Math::random(-light.scale.z, light.scale.z);
-				//				r.o += Vector3(x, y, z);
 
 				RandomUnitDir(r.d);
 			}
