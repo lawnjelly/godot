@@ -124,7 +124,7 @@ private:
 	int m_DimsXTimesY;
 	Vector3 m_VoxelSize;
 	int m_iNumVoxels;
-	Plane m_VoxelPlanes[6];
+//	Plane m_VoxelPlanes[6];
 
 
 	int GetVoxelNum(const Vec3i &pos) const
@@ -184,21 +184,6 @@ private:
 	}
 
 	bool IntersectRayAABB(const Ray &ray, const AABB &aabb, Vector3 &ptInter);
-	void IntersectPlane(const Ray &ray, int plane_id, Vector3 &ptIntersect, float constant, float &nearest_hit, int &nearest_plane_id)
-	{
-		m_VoxelPlanes[plane_id].d = constant;
-		bool bHit = m_VoxelPlanes[plane_id].intersects_ray(ray.o, ray.d, &ptIntersect);
-		if (bHit)
-		{
-			Vector3 offset = (ptIntersect - ray.o);
-			float dist = offset.length_squared();
-			if (dist < nearest_hit)
-			{
-				nearest_hit = dist;
-				nearest_plane_id = plane_id;
-			}
-		} // if hit
-	}
 };
 
 }
