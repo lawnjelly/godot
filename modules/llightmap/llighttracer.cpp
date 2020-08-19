@@ -101,7 +101,8 @@ bool LightTracer::RayTrace_Start(Ray ray, Ray &voxel_ray, Vec3i &start_voxel)
 	if (!m_SceneWorldBound.has_point(ray.o))
 	{
 		Vector3 clip;
-		if (!IntersectRayAABB(ray, m_SceneWorldBound_contracted, clip))
+		//if (!IntersectRayAABB(ray, m_SceneWorldBound_contracted, clip))
+		if (!IntersectRayAABB(ray, m_SceneWorldBound, clip))
 			return false;
 
 		// does hit the world bound
@@ -544,6 +545,17 @@ void LightTracer::CalculateWorldBound()
 
 bool LightTracer::IntersectRayAABB(const Ray &ray, const AABB &aabb, Vector3 &ptInter)
 {
+	/*
+	if (!aabb.intersects_ray(ray.o, ray.d, &ptInter))
+		return false;
+	float dist = (ptInter - ray.o).length();
+	dist += 0.1f;
+	ptInter = ray.o + (ray.d * dist);
+	return true;
+	*/
+
+
+	/*
 	const Vector3 &mins = aabb.position;
 	Vector3 maxs = aabb.position + aabb.size;
 
@@ -574,5 +586,76 @@ bool LightTracer::IntersectRayAABB(const Ray &ray, const AABB &aabb, Vector3 &pt
 
 	// intersection point
 	ptInter = ptIntersect[nearest_hit_plane/2];
-	return true;
+*/
+
+
+	// the 3 intersection points
+	const Vector3 &mins = aabb.position;
+	Vector3 maxs = aabb.position + aabb.size;
+
+
+	Vector3 ptIntersect[3];
+	float nearest_hit = FLT_MAX;
+	int nearest_hit_plane = -1;
+	const Vector3 &dir = ray.d;
+
+	//Vector3 ptBias;
+
+	// planes from constants
+	if (dir.x <= 0.0f)
+	{
+		ptIntersect[0].x = maxs.x;
+		IntersectAAPlane_OnlyWithinAABB(aabb, ray, 0, ptIntersect[0], nearest_hit, 0, nearest_hit_plane);
+		//ptBias.x = 0.5f;
+	}
+	else
+	{
+		ptIntersect[0].x = mins.x;
+		IntersectAAPlane_OnlyWithinAABB(aabb, ray, 0, ptIntersect[0], nearest_hit, 1, nearest_hit_plane);
+		//ptBias.x = -0.5f;
+	}
+
+	if (dir.y <= 0.0f)
+	{
+		ptIntersect[1].y = maxs.y;
+		IntersectAAPlane_OnlyWithinAABB(aabb, ray, 1, ptIntersect[1], nearest_hit, 2, nearest_hit_plane);
+		//ptBias.y = 0.5f;
+	}
+	else
+	{
+		ptIntersect[1].y = mins.y;
+		IntersectAAPlane_OnlyWithinAABB(aabb, ray, 1, ptIntersect[1], nearest_hit, 3, nearest_hit_plane);
+		//ptBias.y = -0.5f;
+	}
+
+	if (dir.z <= 0.0f)
+	{
+		ptIntersect[2].z = maxs.z;
+		IntersectAAPlane_OnlyWithinAABB(aabb, ray, 2, ptIntersect[2], nearest_hit, 4, nearest_hit_plane);
+		//ptBias.z = 0.5f;
+	}
+	else
+	{
+		ptIntersect[2].z = mins.z;
+		IntersectAAPlane_OnlyWithinAABB(aabb, ray, 2, ptIntersect[2], nearest_hit, 5, nearest_hit_plane);
+		//ptBias.z = -0.5f;
+	}
+
+	// ray out
+//	ray_out.d = ray_orig.d;
+//	ray_out.o = ptIntersect[nearest_hit_plane/2];
+
+	ptInter = ptIntersect[nearest_hit_plane/2];
+
+	if (nearest_hit_plane == -1)
+		return false;
+
+	// recalculate intersect using distance plus epsilon
+	float nearest_length = sqrtf(nearest_hit);
+	Vector3 ptTestInsidePoint = ray.o + (ray.d * (nearest_length + 0.001f));
+
+	if (aabb.has_point(ptTestInsidePoint))
+		return true;
+
+	return false;
 }
