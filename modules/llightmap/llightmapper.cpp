@@ -884,7 +884,6 @@ void LightMapper::ProcessLight(int light_id, int num_rays)
 //	float power = light.energy;
 //	power *= m_Settings_Forward_RayPower;
 
-	FColor light_color = light.color * m_Settings_Forward_RayPower;
 //	light_color.r = power;
 //	light_color.g = power;
 //	light_color.b = power;
@@ -893,6 +892,29 @@ void LightMapper::ProcessLight(int light_id, int num_rays)
 
 //	num_rays = 1; // debug
 
+
+
+	// new... allow the use of indirect energy to scale the number of samples
+	num_rays *= light.indirect_energy;
+
+	// compensate for the number of rays in terms of the power per ray
+	float power = m_Settings_Forward_RayPower;
+
+	if (light.indirect_energy > 0.001f)
+		power *= 1.0f / light.indirect_energy;
+
+	// for directional, we need a load more rays for it to work well - it is expensive
+	if (light.type == LLight::LT_DIRECTIONAL)
+	{
+		num_rays *= 2;
+//		float area = light.dl_tangent_range * light.dl_bitangent_range;
+//		num_rays = num_rays * area;
+		// we will increase the power as well, because daylight more powerful than light bulbs typically.
+		power *= 4.0f;
+	}
+
+
+	FColor light_color = light.color * power;
 
 	for (int n=0; n<num_rays; n++)
 	{
@@ -925,7 +947,18 @@ void LightMapper::ProcessLight(int light_id, int num_rays)
 
 //				r.d = light.dir;
 				RandomUnitDir(r.d);
-				r.d += (light.dir * 3.0f);
+				r.d *= light.scale;
+
+				// must point down - reverse hemisphere if pointing up
+				if (light.dir.dot(r.d) < 0.0f)
+				{
+					r.d = -r.d;
+				}
+
+				//r.d = light.dir.linear_interpolate(r.d, fract);
+				r.d += (light.dir * 2.0f);
+
+//				r.d += (light.dir * 3.0f);
 				r.d.normalize();
 			}
 			break;
