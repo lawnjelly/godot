@@ -554,6 +554,9 @@ void LightMapper_Base::Merge_AndWriteOutputImage_Combined(Image &image)
 			Color col;
 			col = Color(f.r, f.g, f.b, 1);
 
+			// new... RGBM .. use a multiplier in the alpha to get increased dynamic range!
+			//ColorToRGBM(col);
+
 			image.set_pixel(x, y, col);
 		}
 	}
