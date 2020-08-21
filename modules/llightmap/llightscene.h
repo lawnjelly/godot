@@ -48,9 +48,15 @@ public:
 	{
 		m_UVTris[tri].FindUVBarycentric(uvs, u, v, w);
 	}
+	void FindUVsBarycentric(int tri, Vector2 &uvs, const Vector3 &bary) const
+	{
+		m_UVTris[tri].FindUVBarycentric(uvs, bary);
+	}
+
 	//int FindTriAtUV(float x, float y, float &u, float &v, float &w) const;
 
 	bool FindPrimaryTextureColors(int tri_id, const Vector3 &bary, Color &albedo);
+	bool FindEmissionColor(int tri_id, const Vector3 &bary, Color &col, float &power);
 
 
 	// setup
@@ -112,6 +118,10 @@ public:
 
 	// these are plus 1
 	LVector<uint16_t> m_Tri_LMaterialIDs;
+
+	// a list of triangles that have emission materials
+	LVector<EmissionTri> m_EmissionTris;
+
 
 	// these are UVs in the first channel, if present, or 0.
 	// This allows mapping back to the albedo etc texture.

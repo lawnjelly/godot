@@ -1,5 +1,7 @@
 #include "lmaterials.h"
 
+#define LM_STRING_EMIT "_emit"
+
 namespace LM
 {
 
@@ -68,46 +70,92 @@ int LMaterials::FindOrCreateMaterial(const MeshInstance &mi, Ref<Mesh> rmesh, in
 	}
 
 	// doesn't exist create a new material
-	LMaterial * pNew = m_Materials.request();
-	pNew->Create();
-	pNew->pGodotMaterial = pSrcMaterial;
+	LMaterial * pMat = m_Materials.request();
+	pMat->Create();
+	pMat->pGodotMaterial = pSrcMaterial;
 
 	// spatial material?
 	Ref<SpatialMaterial> spatial_mat = src_material;
 	Ref<Texture> albedo_tex;
 	Color albedo = Color(1, 1, 1, 1);
 
+
+	float emission = 0.0f;
+	Color emission_color(1, 1, 1, 1);
+
 	if (spatial_mat.is_valid())
 	{
 		albedo_tex = spatial_mat->get_texture(SpatialMaterial::TEXTURE_ALBEDO);
 		albedo = spatial_mat->get_albedo();
+
+		emission = spatial_mat->get_emission_energy();
+		emission_color = spatial_mat->get_emission();
 	}
 	else
 	{
 		// shader material?
 		Variant shader_tex = FindShaderTex(src_material);
 		albedo_tex = shader_tex;
+
+		// check the name of the material to allow emission
+//		String szMat = src_material->get_path();
+//		if (szMat.find(LM_STRING_EMIT) != -1)
+//		{
+//			pMat->m_bEmitter = true;
+//			pMat->m_Col_Emission = Color(1, 1, 1, 1);
+//		}
+
+		FindShaderParams(src_material, emission);
+
 	} // not spatial mat
+
+	// emission
+	if (emission > 0.0f)
+	{
+		pMat->m_bEmitter = true;
+		pMat->m_Power_Emission = emission / 20.0f; // some constant to be comparable to lights
+		pMat->m_Col_Emission = emission_color * pMat->m_Power_Emission;
+	}
 
 	Ref<Image> img_albedo;
 	if (albedo_tex.is_valid())
 	{
 		img_albedo = albedo_tex->get_data();
-		pNew->pAlbedo = _get_bake_texture(img_albedo, albedo, Color(0, 0, 0)); // albedo texture, color is multiplicative
+		pMat->pAlbedo = _get_bake_texture(img_albedo, albedo, Color(0, 0, 0)); // albedo texture, color is multiplicative
 		//albedo_texture = _get_bake_texture(img_albedo, size, mat->get_albedo(), Color(0, 0, 0)); // albedo texture, color is multiplicative
 	} else
 	{
 		//albedo_texture = _get_bake_texture(img_albedo, size, Color(1, 1, 1), mat->get_albedo()); // no albedo texture, color is additive
 	}
 
+	// emission?
+
 
 	// returns the new material ID plus 1
 	return m_Materials.size();
 }
 
+void LMaterials::FindShaderParams(Ref<Material> src_material, float &emission)
+{
+	// defaults
+	emission = 0.0f;
+
+	Ref<ShaderMaterial> shader_mat = src_material;
+
+	if (!shader_mat.is_valid())
+		return;
+
+	Variant p_emission = shader_mat->get_shader_param("emission");
+	if (p_emission)
+	{
+		emission = p_emission;
+	}
+
+}
+
+
 Variant LMaterials::FindShaderTex(Ref<Material> src_material)
 {
-
 	Ref<ShaderMaterial> shader_mat = src_material;
 
 	if (!shader_mat.is_valid())
