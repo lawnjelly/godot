@@ -238,7 +238,7 @@ bool LightMapper::LightmapMesh(Spatial * pMeshesRoot, const Spatial &light_root,
 
 		print_line("Scene Create");
 		before = OS::get_singleton()->get_ticks_msec();
-		if (!m_Scene.Create(pMeshesRoot, m_iWidth, m_iHeight, m_Settings_VoxelDensity, m_AdjustedSettings.m_Max_Material_Size))
+		if (!m_Scene.Create(pMeshesRoot, m_iWidth, m_iHeight, m_Settings_VoxelDensity, m_AdjustedSettings.m_Max_Material_Size, m_AdjustedSettings.m_Forward_Emission_Density))
 			return false;
 
 		PrepareLights();
@@ -896,7 +896,7 @@ void LightMapper::ProcessEmissionTri(int etri_id, float fraction_of_total)
 	ray.d = norm;
 
 	// use the area to get number of samples
-	float rays_per_unit_area = m_iNumRays * 0.12f;
+	float rays_per_unit_area = m_iNumRays * m_AdjustedSettings.m_Forward_Emission_Density  * 0.12f * 0.05f;
 	int nSamples = etri.area * rays_per_unit_area * fraction_of_total;
 
 	// nSamples may be zero incorrectly for small triangles, maybe we need to adjust for this
@@ -914,22 +914,22 @@ void LightMapper::ProcessEmissionTri(int etri_id, float fraction_of_total)
 
 		// shoot a ray from this pos and normal, using the emission color
 		RandomUnitDir(ray.d);
+		ray.d += norm;
+
 		if (ray.d.dot(norm) < 0.0f)
 			ray.d = -ray.d;
 
+		ray.d.normalize();
+
 		// get the albedo etc
-		Color color;
-		float power;
-//		m_Scene.FindPrimaryTextureColors(tri_id, bary, albedo);
-		m_Scene.FindEmissionColor(tri_id, bary, color, power);
+		Color emission_tex_color;
+		Color emission_color;
+		m_Scene.FindEmissionColor(tri_id, bary, emission_tex_color, emission_color);
 
-	//	FColor falbedo;
-	//	falbedo.Set(albedo);
-//		FColor col = falbedo;
-		FColor col;
-		col.Set(color);
+		FColor fcol;
+		fcol.Set(emission_tex_color);
 
-		RayBank_RequestNewRay(ray, m_Settings_Forward_NumBounces + 1, col);
+		RayBank_RequestNewRay(ray, m_Settings_Forward_NumBounces + 1, fcol);
 
 		// special. For emission we want to also affect the emitting surface.
 		// convert barycentric to uv coords in the lightmap
@@ -940,21 +940,14 @@ void LightMapper::ProcessEmissionTri(int etri_id, float fraction_of_total)
 		int tx = uv.x * m_iWidth;
 		int ty = uv.y * m_iHeight;
 
-		// override?
-	//	if (pUV && tri == dest_tri_id)
-	//	{
-	//		tx = pUV->x;
-	//		ty = pUV->y;
-	//	}
-
 		// could be off the image
 		if (!m_Image_L.IsWithin(tx, ty))
 			continue;
 
 		FColor * pTexelCol = m_Image_L.Get(tx, ty);
 
-		col.Set(power);
-		*pTexelCol += col;
+//		fcol.Set(emission_color * 0.5f);
+		*pTexelCol += fcol;
 
 	}
 }

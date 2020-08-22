@@ -158,6 +158,8 @@ public:
 		int m_Forward_NumRays;
 		int m_Forward_NumBounces;
 
+		float m_Forward_Emission_Density;
+
 		int m_Backward_NumRays;
 		int m_Backward_NumBounceRays;
 		int m_Backward_NumBounces;
@@ -173,6 +175,7 @@ public:
 	float m_Settings_Forward_RayPower;
 	float m_Settings_Forward_BouncePower;
 	float m_Settings_Forward_BounceDirectionality;
+	float m_Settings_Forward_Emission_Density;
 
 	int m_Settings_Backward_NumRays;
 	int m_Settings_Backward_NumBounceRays;
