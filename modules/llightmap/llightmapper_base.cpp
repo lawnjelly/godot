@@ -18,6 +18,7 @@ LightMapper_Base::LightMapper_Base()
 	m_Settings_Forward_RayPower = 0.01f;
 	m_Settings_Forward_BouncePower = 1.0f;
 	m_Settings_Forward_BounceDirectionality = 0.5f;
+	m_Settings_Forward_Emission_Density = 1.0f;
 
 	m_Settings_Backward_NumRays = 128;
 	m_Settings_Backward_NumBounceRays = 128;
@@ -63,6 +64,7 @@ void LightMapper_Base::CalculateQualityAdjustedSettings()
 
 	as.m_Forward_NumRays = m_Settings_Forward_NumRays;
 	as.m_Forward_NumBounces = m_Settings_Forward_NumBounces;
+	as.m_Forward_Emission_Density = m_Settings_Forward_Emission_Density;
 
 	as.m_Backward_NumRays= m_Settings_Backward_NumRays;
 	as.m_Backward_NumBounceRays = m_Settings_Backward_NumBounceRays;

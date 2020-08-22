@@ -32,7 +32,7 @@ public:
 
 	void Reset();
 //	bool Create(Spatial * pMeshesRoot, int width, int height, const Vec3i &voxel_dims);
-	bool Create(Spatial * pMeshesRoot, int width, int height, int voxel_density, int max_material_size);
+	bool Create(Spatial * pMeshesRoot, int width, int height, int voxel_density, int max_material_size, float emission_density);
 
 	// returns triangle ID (or -1) and barycentric coords
 	int FindIntersect_Ray(const Ray &ray, float &u, float &v, float &w, float &nearest_t, const Vec3i * pVoxelRange, int &num_tests);//, int ignore_tri_p1 = 0);
@@ -56,7 +56,7 @@ public:
 	//int FindTriAtUV(float x, float y, float &u, float &v, float &w) const;
 
 	bool FindPrimaryTextureColors(int tri_id, const Vector3 &bary, Color &albedo);
-	bool FindEmissionColor(int tri_id, const Vector3 &bary, Color &col, float &power);
+	bool FindEmissionColor(int tri_id, const Vector3 &bary, Color &texture_col, Color &col);
 
 
 	// setup
