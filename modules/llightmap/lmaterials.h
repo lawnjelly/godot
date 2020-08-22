@@ -43,10 +43,13 @@ public:
 
 	const LMaterial &GetMaterial(int i) const {return m_Materials[i];}
 
-private:
-	Variant FindShaderTex(Ref<Material> src_material);
+	// in order to account for emission density we need to reduce
+	// power to keep brightness the same
+	void AdjustMaterials(float emission_density);
 
-	void FindShaderParams(Ref<Material> src_material, float &emission);
+private:
+	Variant FindCustom_AlbedoTex(Ref<Material> src_material);
+	void FindCustom_ShaderParams(Ref<Material> src_material, float &emission, Color &emission_color);
 
 	LTexture * _get_bake_texture(Ref<Image> p_image, const Color &p_color_mul, const Color &p_color_add);
 	LTexture * _make_dummy_texture(LTexture * pLTexture, Color col);

@@ -817,7 +817,7 @@ bool LightScene::Create_FromMesh(int mesh_id, int width, int height)
 	return true;
 }
 
-bool LightScene::Create(Spatial * pMeshesRoot, int width, int height, int voxel_density, int max_material_size)
+bool LightScene::Create(Spatial * pMeshesRoot, int width, int height, int voxel_density, int max_material_size, float emission_density)
 {
 	m_Materials.Prepare(max_material_size);
 
@@ -834,6 +834,10 @@ bool LightScene::Create(Spatial * pMeshesRoot, int width, int height, int voxel_
 	}
 
 	m_Tracer.Create(*this, voxel_density);
+
+	// adjust material emission power to take account of sample density,
+	// to keep brightness the same
+	m_Materials.AdjustMaterials(emission_density);
 
 	return true;
 }
@@ -881,23 +885,30 @@ void LightScene::CalculateTriTexelSize(int tri_id, int width, int height)
 	m_Tri_TexelSizeWorldSpace[tri_id] = texel_size;
 }
 
-bool LightScene::FindEmissionColor(int tri_id, const Vector3 &bary, Color &col, float &power)
+bool LightScene::FindEmissionColor(int tri_id, const Vector3 &bary, Color &texture_col, Color &col)
 {
 	Vector2 uvs;
 	m_UVTris_Primary[tri_id].FindUVBarycentric(uvs, bary.x, bary.y, bary.z);
 
 	int mat_id_p1 = m_Tri_LMaterialIDs[tri_id];
 
-	// albedo
-	bool res = m_Materials.FindColors(mat_id_p1, uvs, col);
-
-	if (mat_id_p1)
+	// should never happen?
+	if (!mat_id_p1)
 	{
-		const LMaterial &mat = m_Materials.GetMaterial(mat_id_p1-1);
-		col *= mat.m_Col_Emission;
-		power = mat.m_Power_Emission;
+		texture_col = Color(0,0, 0, 0);
+		col = Color(0, 0, 0, 0);
+		return false;
 	}
 
+	// albedo
+	// return whether texture found
+	bool res = m_Materials.FindColors(mat_id_p1, uvs, texture_col);
+
+	const LMaterial &mat = m_Materials.GetMaterial(mat_id_p1-1);
+	texture_col *= mat.m_Col_Emission;
+//		power = mat.m_Power_Emission;
+
+	col = mat.m_Col_Emission;
 	return res;
 }
 
