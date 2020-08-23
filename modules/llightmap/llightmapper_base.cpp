@@ -250,10 +250,44 @@ Plane LightMapper_Base::FindContainmentPlane(const Vector3 &dir, Vector3 pts[8],
 
 void LightMapper_Base::LightToPlane(LLight &light)
 {
-	AABB bb = m_Scene.m_Tracer.GetWorldBound();
+	AABB bb = m_Scene.m_Tracer.GetWorldBound_expanded();
 	Vector3 minmax[2];
 	minmax[0] = bb.position;
 	minmax[1] = bb.position + bb.size;
+
+	if (light.dir.y == 0.0f)
+		return;
+
+	// find the shift in x and z caused by y offset to top of scene
+	float units = bb.size.y / light.dir.y;
+	Vector3 offset = light.dir * -units;
+
+	// add to which side of scene
+	if (offset.x >= 0.0f)
+		minmax[1].x += offset.x;
+	else
+		minmax[0].x += offset.x;
+
+	if (offset.z >= 0.0f)
+		minmax[1].z += offset.z;
+	else
+		minmax[0].z += offset.z;
+
+
+	light.dl_plane_pt = minmax[0];
+	light.dl_tangent = Vector3(1, 0, 0);
+	light.dl_bitangent = Vector3(0, 0, 1);
+	light.dl_tangent_range = minmax[1].x - minmax[0].x;
+	light.dl_bitangent_range = minmax[1].z - minmax[0].z;
+
+	print_line("plane mins : " + String(Variant(minmax[0])));
+	print_line("plane maxs : " + String(Variant(minmax[1])));
+
+
+	return;
+
+
+
 
 	Vector3 pts[8];
 	for (int n=0; n<8; n++)
@@ -349,6 +383,7 @@ void LightMapper_Base::LightToPlane(LLight &light)
 	light.dl_tangent_range = tangent_range;
 	light.dl_bitangent_range = bitangent_range;
 
+
 	// debug output the positions
 	Vector3 pA = ptPlaneMins;
 	Vector3 pB = ptPlaneMins + (tangent * tangent_range);
@@ -359,6 +394,7 @@ void LightMapper_Base::LightToPlane(LLight &light)
 	print_line("dir light B : " + String(Variant(pB)));
 	print_line("dir light C : " + String(Variant(pC)));
 	print_line("dir light D : " + String(Variant(pD)));
+
 }
 
 
