@@ -896,7 +896,7 @@ void LightMapper::ProcessEmissionTri(int etri_id, float fraction_of_total)
 	ray.d = norm;
 
 	// use the area to get number of samples
-	float rays_per_unit_area = m_iNumRays * m_AdjustedSettings.m_Forward_Emission_Density  * 0.12f * 0.05f;
+	float rays_per_unit_area = m_iNumRays * m_AdjustedSettings.m_Forward_Emission_Density  * 0.12f * 0.5f;
 	int nSamples = etri.area * rays_per_unit_area * fraction_of_total;
 
 	// nSamples may be zero incorrectly for small triangles, maybe we need to adjust for this
@@ -1048,7 +1048,7 @@ void LightMapper::ProcessLight(int light_id, int num_rays)
 	// compensate for the number of rays in terms of the power per ray
 	float power = m_Settings_Forward_RayPower;
 
-	if (light.indirect_energy > 0.001f)
+	if (light.indirect_energy > 0.0001f)
 		power *= 1.0f / light.indirect_energy;
 
 	// for directional, we need a load more rays for it to work well - it is expensive
@@ -1108,6 +1108,29 @@ void LightMapper::ProcessLight(int light_id, int num_rays)
 
 //				r.d += (light.dir * 3.0f);
 				r.d.normalize();
+
+				// special .. for dir light .. will it hit the AABB? if not, do a wraparound
+//				Vector3 clip;
+//				if (!GetTracer().IntersectRayAABB(ray, GetTracer().m_SceneWorldBound, clip))
+//					return 0;
+				// hit point
+				Vector3 ptHit = r.o + (r.d * 2.0f);
+				const AABB &bb = GetTracer().GetWorldBound();
+				Vector3 bb_min = bb.position;
+				Vector3 bb_max = bb.position + bb.size;
+
+				if (ptHit.x > bb_max.x)
+					r.o.x -= bb.size.x;
+				if (ptHit.x < bb_min.x)
+					r.o.x += bb.size.x;
+				if (ptHit.z > bb_max.z)
+					r.o.z -= bb.size.z;
+				if (ptHit.z < bb_min.z)
+					r.o.z += bb.size.z;
+
+//				if (!GetTracer().m_SceneWorldBound.intersects_ray(r.o, r.d))
+//				{
+//				}
 			}
 			break;
 		case LLight::LT_SPOT:
