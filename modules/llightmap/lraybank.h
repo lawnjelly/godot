@@ -4,6 +4,7 @@
 #include "lvector.h"
 #include "llightmapper_base.h"
 
+//#define RAYBANK_USE_THREADING
 
 namespace LM
 {
