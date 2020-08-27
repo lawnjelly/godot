@@ -11,7 +11,7 @@ sources = [
 ]
 
 module_env = env.Clone()
-module_env.Append(CCFLAGS=['-O3', '-std=c++11', '-Wno-sign-compare', '-Wno-strict-aliasing'])
+#module_env.Append(CCFLAGS=['-O3', '-std=c++11', '-Wno-sign-compare', '-Wno-strict-aliasing'])
 
 # ideas from libvpx/SCsub
 # and x11/detect.py
