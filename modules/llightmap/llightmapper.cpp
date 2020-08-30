@@ -284,6 +284,11 @@ bool LightMapper::LightmapMesh(Spatial * pMeshesRoot, const Spatial &light_root,
 			}
 			after = OS::get_singleton()->get_ticks_msec();
 			print_line("ProcessTexels took " + itos(after -before) + " ms");
+
+			// calculate probes
+			print_line("ProcessProbes");
+			ProcessLightProbes();
+
 		}
 
 		if (m_bCancel)
@@ -305,6 +310,8 @@ bool LightMapper::LightmapMesh(Spatial * pMeshesRoot, const Spatial &light_root,
 	Merge_AndWriteOutputImage_Combined(out_image_combined);
 	//	after = OS::get_singleton()->get_ticks_msec();
 	//	print_line("WriteOutputImage took " + itos(after -before) + " ms");
+
+
 
 	// clear everything out of ram as no longer needed
 	Reset();
@@ -562,7 +569,7 @@ void LightMapper::ProcessTexel_Light(int light_id, const Vector3 &ptSource, cons
 			float u, v, w, t;
 
 			m_Scene.m_Tracer.m_bUseSDF = true;
-			int tri = m_Scene.FindIntersect_Ray(r, u, v, w, t, nullptr, m_iNumTests);
+			int tri = m_Scene.FindIntersect_Ray(r, u, v, w, t);
 			//		m_Scene.m_Tracer.m_bUseSDF = false;
 			//		int tri2 = m_Scene.IntersectRay(r, u, v, w, t, m_iNumTests);
 			//		if (tri != tri2)
@@ -583,13 +590,8 @@ void LightMapper::ProcessTexel_Light(int light_id, const Vector3 &ptSource, cons
 				float local_power;
 
 				// no drop off for directional lights
-				if (light.type != LLight::LT_DIRECTIONAL)
-				{
-					float dist = (ptDest - ray_origin).length();
-					local_power = power * InverseSquareDropoff(dist);
-				}
-				else
-					local_power = power;
+				float dist = (ptDest - ray_origin).length();
+				local_power = LightDistanceDropoff(dist, light, power);
 
 				// take into account normal
 				float dot = r.d.dot(ptNormal);
@@ -741,7 +743,7 @@ bool LightMapper::ProcessTexel_Bounce_Sample(const Vector3 &plane_norm, const Ve
 		// collision detect
 		Vector3 bary;
 		float t;
-		int tri_hit = m_Scene.FindIntersect_Ray(r, bary, t, nullptr, m_iNumTests);
+		int tri_hit = m_Scene.FindIntersect_Ray(r, bary, t);
 
 		// nothing hit
 		//	if ((tri_hit != -1) && (tri_hit != (int) tri_source))
