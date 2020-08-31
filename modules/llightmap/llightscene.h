@@ -65,13 +65,13 @@ public:
 
 
 	// setup
-	void RasterizeTriangleIDs(LightMapper_Base &base, LightImage<uint32_t> &im_p1, LightImage<uint32_t> &im2_p1, LightImage<Vector3> &im_bary);
+	void RasterizeTriangleIDs(LightMapper_Base &base, LightImage<uint32_t> &im_p1, LightImage<Vector3> &im_bary);
 	int GetNumTris() const {return m_UVTris.size();}
 
 private:
-	void FindCuts(LightMapper_Base &base);
-	void FindCuts_Texel(LightMapper_Base &base, int tx, int ty, int tri_id, const Vector3 &bary);
-	bool FindCuts_TangentTrace(LightMapper_Base &base, int tx, int ty, Ray r, float max_dist);
+	//void FindCuts(LightMapper_Base &base);
+	//void FindCuts_Texel(LightMapper_Base &base, int tx, int ty, int tri_id, const Vector3 &bary);
+	//bool FindCuts_TangentTrace(LightMapper_Base &base, int tx, int ty, Ray r, float max_dist);
 	void FindMeshes(Spatial * pNode);
 
 	bool Create_FromMesh(int mesh_id, int width, int height);

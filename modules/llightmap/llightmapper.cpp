@@ -214,7 +214,19 @@ bool LightMapper::LightmapMesh(Spatial * pMeshesRoot, const Spatial &light_root,
 	// create stuff used by everything
 	m_Image_L.Create(m_iWidth, m_iHeight);
 	m_Image_L_mirror.Create(m_iWidth, m_iHeight);
-	m_Image_AO.Create(m_iWidth, m_iHeight);
+
+	// whether we need storage
+	switch (m_Settings_BakeMode)
+	{
+	case LMBAKEMODE_LIGHTMAP:
+	case LMBAKEMODE_UVMAP:
+		break;
+	default:
+		{
+			m_Image_AO.Create(m_iWidth, m_iHeight);
+		}
+		break;
+	}
 
 	if (m_Settings_BakeMode != LMBAKEMODE_MERGE)
 	{
@@ -227,14 +239,17 @@ bool LightMapper::LightmapMesh(Spatial * pMeshesRoot, const Spatial &light_root,
 
 
 		m_Image_ID_p1.Create(m_iWidth, m_iHeight);
-		m_Image_ID2_p1.Create(m_iWidth, m_iHeight);
+		//m_Image_ID2_p1.Create(m_iWidth, m_iHeight);
 
-		m_Image_TriIDs.Create(m_iWidth, m_iHeight);
-		m_TriIDs.clear(true);
+		if (m_Settings_Process_AO)
+		{
+			m_Image_TriIDs.Create(m_iWidth, m_iHeight);
+			m_TriIDs.clear(true);
+		}
 
 		m_Image_Barycentric.Create(m_iWidth, m_iHeight);
 
-		m_Image_Cuts.Create(m_iWidth, m_iHeight);
+		//m_Image_Cuts.Create(m_iWidth, m_iHeight);
 		//m_CuttingTris.clear(true);
 
 		print_line("Scene Create");
@@ -1112,6 +1127,8 @@ void LightMapper::ProcessLights()
 			} // for bounce
 		}
 
+		// this is not really required, but is a protection against memory leaks
+		RayBank_Reset(true);
 	} // for light
 
 	if (bake_end_function) {
