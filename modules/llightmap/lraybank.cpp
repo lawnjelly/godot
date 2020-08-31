@@ -203,7 +203,8 @@ void RayBank::RayBank_Flush()
 		}
 
 		// delete rays
-		vox.m_Rays.clear();
+		// setting argument to true may be a little better on memory use at the cost of more allocation
+		vox.m_Rays.clear(true);
 	}
 
 	// swap the write and read
