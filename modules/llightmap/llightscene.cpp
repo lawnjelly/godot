@@ -957,14 +957,17 @@ bool LightScene::FindPrimaryTextureColors(int tri_id, const Vector3 &bary, Color
 }
 
 
-void LightScene::RasterizeTriangleIDs(LightMapper_Base &base, LightImage<uint32_t> &im_p1, LightImage<uint32_t> &im2_p1, LightImage<Vector3> &im_bary)
+//void LightScene::RasterizeTriangleIDs(LightMapper_Base &base, LightImage<uint32_t> &im_p1, LightImage<uint32_t> &im2_p1, LightImage<Vector3> &im_bary)
+void LightScene::RasterizeTriangleIDs(LightMapper_Base &base, LightImage<uint32_t> &im_p1, LightImage<Vector3> &im_bary)
 {
 	int width = im_p1.GetWidth();
 	int height = im_p1.GetHeight();
 
 	// create a temporary image of vectors to store the triangles per texel
 	LightImage<Vector<uint32_t> > temp_image_tris;
-	temp_image_tris.Create(width, height, false);
+
+	if (base.m_Settings_Process_AO)
+		temp_image_tris.Create(width, height, false);
 
 //	LightImage<Vector<uint32_t> > temp_image_cutting_tris;
 //	temp_image_cutting_tris.Create(width, height, false);
@@ -1005,7 +1008,8 @@ void LightScene::RasterizeTriangleIDs(LightMapper_Base &base, LightImage<uint32_
 				if (tri.ContainsPoint(Vector2(s, t)))
 				//if (tri.ContainsTexel(x, y, width , height))
 				{
-					temp_image_tris.GetItem(x, y).push_back(n);
+					if (base.m_Settings_Process_AO)
+						temp_image_tris.GetItem(x, y).push_back(n);
 
 					uint32_t &id_p1 = im_p1.GetItem(x, y);
 
@@ -1019,7 +1023,7 @@ void LightScene::RasterizeTriangleIDs(LightMapper_Base &base, LightImage<uint32_
 //						}
 
 						// store the overlapped ID in a second map
-						im2_p1.GetItem(x, y) = id_p1;
+						//im2_p1.GetItem(x, y) = id_p1;
 					}
 
 					// save new id
@@ -1037,37 +1041,39 @@ void LightScene::RasterizeTriangleIDs(LightMapper_Base &base, LightImage<uint32_
 	} // for tri
 
 
-	// translate temporary image vectors into mini lists
-	for (int y=0; y<height; y++)
+	if (base.m_Settings_Process_AO)
 	{
-		for (int x=0; x<width; x++)
+		// translate temporary image vectors into mini lists
+		for (int y=0; y<height; y++)
 		{
-				MiniList &ml = base.m_Image_TriIDs.GetItem(x, y);
-				ml.first = base.m_TriIDs.size();
+			for (int x=0; x<width; x++)
+			{
+					MiniList &ml = base.m_Image_TriIDs.GetItem(x, y);
+					ml.first = base.m_TriIDs.size();
 
-				const Vector<uint32_t> &vec = temp_image_tris.GetItem(x, y);
+					const Vector<uint32_t> &vec = temp_image_tris.GetItem(x, y);
 
-				for (int n=0; n<vec.size(); n++)
-				{
-					base.m_TriIDs.push_back(vec[n]);
-					ml.num += 1;
-				}
+					for (int n=0; n<vec.size(); n++)
+					{
+						base.m_TriIDs.push_back(vec[n]);
+						ml.num += 1;
+					}
 
-//				if (!ml.num)
-//				{
-//					ml.first = base.m_TriIDs.size();
-//				}
-//				BUG IS THESE ARE NOT CONTIGUOUS
-//				ml.num += 1;
-//				base.m_TriIDs.push_back(n);
-		} // for x
-	} // for y
-
-
-	//FindCuts(base);
+	//				if (!ml.num)
+	//				{
+	//					ml.first = base.m_TriIDs.size();
+	//				}
+	//				BUG IS THESE ARE NOT CONTIGUOUS
+	//				ml.num += 1;
+	//				base.m_TriIDs.push_back(n);
+			} // for x
+		} // for y
+		//FindCuts(base);
+	} // only if processing AO
 }
 
 
+/*
 void LightScene::FindCuts_Texel(LightMapper_Base &base, int tx, int ty, int tri_id, const Vector3 &bary)
 {
 //	if ((tx == 31) && (ty == 44))
@@ -1150,7 +1156,9 @@ void LightScene::FindCuts_Texel(LightMapper_Base &base, int tx, int ty, int tri_
 //	}
 #endif
 }
+*/
 
+/*
 // returns true if found cut
 bool LightScene::FindCuts_TangentTrace(LightMapper_Base &base, int tx, int ty, Ray r, float max_dist)
 {
@@ -1180,6 +1188,8 @@ bool LightScene::FindCuts_TangentTrace(LightMapper_Base &base, int tx, int ty, R
 	base.m_Image_Cuts.GetItem(tx, ty) = 1;
 	return true;
 }
+*/
+
 /*
 
 	MiniList_Cuts &ml = base.m_Image_Cuts.GetItem(tx, ty);
@@ -1265,6 +1275,7 @@ bool LightScene::FindCuts_TangentTrace(LightMapper_Base &base, int tx, int ty, R
 }
 */
 
+/*
 void LightScene::FindCuts(LightMapper_Base &base)
 {
 	// go through for each texel, and find cutting tris
@@ -1316,7 +1327,7 @@ void LightScene::FindCuts(LightMapper_Base &base)
 	}
 
 }
-
+*/
 
 /*
 int LightScene::FindTriAtUV(float x, float y, float &u, float &v, float &w) const
