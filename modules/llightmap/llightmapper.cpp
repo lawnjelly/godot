@@ -1090,6 +1090,8 @@ void LightMapper::ProcessLights()
 			} // for bounce
 		} // for section
 
+
+
 		// left over
 		{
 			int num_leftover = m_iNumRays - (num_sections * m_iRaysPerSection);

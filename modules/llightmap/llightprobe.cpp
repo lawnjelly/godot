@@ -7,6 +7,8 @@ namespace LM {
 
 void LightProbes::Create(LightMapper &lm)
 {
+	return;
+
 	// save locally
 	m_pLightMapper = &lm;
 

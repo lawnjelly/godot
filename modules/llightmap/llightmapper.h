@@ -38,7 +38,8 @@ private:
 	void ProcessLightProbes();
 
 	void Refresh_Process_State();
-	const int m_iRaysPerSection = 1024 * 1024 * 4; // 64
+//	const int m_iRaysPerSection = 1024 * 1024 * 4; // 64
+	const int m_iRaysPerSection = 1024 * 64; // 64
 	// 1024*1024 is 46 megs
 };
 
