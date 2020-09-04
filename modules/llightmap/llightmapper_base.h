@@ -83,6 +83,8 @@ public:
 	static BakeEndFunc bake_end_function;
 
 protected:
+	void Base_Reset();
+
 	void FindLights_Recursive(const Node * pNode);
 	void FindLight(const Node * pNode);
 	void PrepareLights();
@@ -219,6 +221,9 @@ public:
 
 	String m_Settings_UVFilename;
 	int m_Settings_UVPadding;
+
+	String m_Settings_ProbeFilename;
+	int m_Settings_ProbeDensity; // number of units on largest axis
 
 	bool m_Settings_Process_Lightmap;
 	bool m_Settings_Process_AO;

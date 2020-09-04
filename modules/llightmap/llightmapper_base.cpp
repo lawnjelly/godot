@@ -55,7 +55,28 @@ LightMapper_Base::LightMapper_Base()
 	m_Settings_Process_AO = true;
 
 	m_Settings_UVPadding = 4;
+
+	m_Settings_ProbeDensity = 64;
 }
+
+void LightMapper_Base::Base_Reset()
+{
+	m_Image_L.Reset();
+	m_Image_L_mirror.Reset();
+
+	m_Image_AO.Reset();
+	m_Image_ID_p1.Reset();
+	m_Image_TriIDs.Reset();
+
+	m_TriIDs.clear(true);
+
+	m_Image_Barycentric.Reset();
+
+	m_Lights.clear(true);
+
+	m_QMC.Create(0);
+}
+
 
 void LightMapper_Base::CalculateQualityAdjustedSettings()
 {

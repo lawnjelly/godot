@@ -159,6 +159,7 @@ void LightMapper::Reset()
 	m_Lights.clear(true);
 	m_Scene.Reset();
 	RayBank_Reset();
+	Base_Reset();
 }
 
 void LightMapper::Refresh_Process_State()
@@ -420,7 +421,7 @@ void LightMapper::ProcessTexels_Bounce(int section_size, int num_sections)
 
 void LightMapper::ProcessTexels()
 {
-	int nCores = OS::get_singleton()->get_processor_count();
+	//int nCores = OS::get_singleton()->get_processor_count();
 
 	int section_size = m_iHeight / 64; //nCores;
 	int num_sections = m_iHeight / section_size;
