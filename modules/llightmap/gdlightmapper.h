@@ -140,6 +140,13 @@ public:
 	void set_uv_padding(int pad);
 	int get_uv_padding() const;
 
+	// Probes
+	void set_probe_density(int density);
+	int get_probe_density() const;
+
+//	void set_probe_filename(const String &p_filename);
+//	String get_probe_filename() const;
+
 private:
 	LM::LightMapper m_LM;
 
