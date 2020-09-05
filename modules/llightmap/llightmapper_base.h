@@ -62,6 +62,7 @@ public:
 		LMBAKEMODE_LIGHTMAP,
 		LMBAKEMODE_AO,
 		LMBAKEMODE_MERGE,
+		LMBAKEMODE_PROBES,
 		LMBAKEMODE_COMBINED,
 	};
 
@@ -96,7 +97,7 @@ protected:
 	void WriteOutputImage_Lightmap(Image &image);
 	void WriteOutputImage_AO(Image &image);
 
-	void LoadLightmap(Image &image);
+	bool LoadLightmap(Image &image);
 	void LoadAO(Image &image);
 
 	void Merge_AndWriteOutputImage_Combined(Image &image);
@@ -224,9 +225,15 @@ public:
 
 	String m_Settings_ProbeFilename;
 	int m_Settings_ProbeDensity; // number of units on largest axis
+	int m_Settings_ProbeSamples;
 
-	bool m_Settings_Process_Lightmap;
-	bool m_Settings_Process_AO;
+	// some internal logic based on the bake state
+	bool m_Logic_Process_Lightmap;
+	bool m_Logic_Process_AO;
+	bool m_Logic_Process_Probes;
+
+	bool m_Logic_Reserve_AO;
+	bool m_Logic_Output_Final;
 
 	LightMapper_Base();
 protected:

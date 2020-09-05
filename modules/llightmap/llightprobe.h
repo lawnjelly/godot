@@ -1,6 +1,7 @@
 #pragma once
 
 #include "lvector.h"
+#include "llighttypes.h"
 
 
 namespace LM
@@ -25,18 +26,19 @@ public:
 //	}
 //	float m_fLight;
 	LVector<Contribution> m_Contributions;
+	FColor m_Color_Indirect;
 };
 
 
 class LightProbes
 {
 public:
-	void Create(LightMapper &lm);
-
-
+	int Create(LightMapper &lm);
+	void Process(int stage);
+	void Save();
 
 private:
-	void Save(const char * pszFilename);
+	void Save(String pszFilename);
 	void CalculateProbe(const Vec3i &pt);
 	float CalculatePower(const LightMapper_Base::LLight &light, float dist, const Vector3 &pos) const;
 

@@ -5,7 +5,7 @@
 namespace LM {
 
 
-void LightProbes::Create(LightMapper &lm)
+int LightProbes::Create(LightMapper &lm)
 {
 //	return;
 
@@ -17,14 +17,16 @@ void LightProbes::Create(LightMapper &lm)
 
 	// can't make probes for a non existant world
 	if (bb.get_shortest_axis_size() <= 0.0f)
-		return;
+		return -1;
 
-	// start hard coded
-	m_Dims.Set(64, 8, 64);
+	// use the probe density to estimate the number of voxels
+	m_Dims = lm.GetTracer().EstimateVoxelDims(lm.m_Settings_ProbeDensity);
 	m_DimXTimesY = (m_Dims.x * m_Dims.y);
 
 	Vector3 voxel_dims;
 	m_Dims.To(voxel_dims);
+
+	print_line("Probes voxel dims : " + String(Variant(voxel_dims)));
 
 	// voxel dimensions and start point
 	m_VoxelSize = bb.size / voxel_dims;
@@ -34,8 +36,14 @@ void LightProbes::Create(LightMapper &lm)
 
 	m_Probes.resize(m_Dims.x * m_Dims.y * m_Dims.z);
 
-	for (int z=0; z<m_Dims.z; z++)
-	{
+	return m_Dims.z;
+}
+
+void LightProbes::Process(int stage)
+{
+	int z = stage;
+//	for (int z=0; z<m_Dims.z; z++)
+//	{
 		for (int y=0; y<m_Dims.y; y++)
 		{
 			for (int x=0; x<m_Dims.x; x++)
@@ -43,10 +51,19 @@ void LightProbes::Create(LightMapper &lm)
 				CalculateProbe(Vec3i(x, y, z));
 			}
 		}
-	}
-
-	Save("lightprobes.probe");
+//	}
 }
+
+void LightProbes::Save()
+{
+	String filename = m_pLightMapper->m_Settings_CombinedFilename;
+	filename = filename.get_basename();
+	filename += ".probe";
+
+	Save(filename);
+//	Save("lightprobes.probe");
+}
+
 
 void LightProbes::CalculateProbe(const Vec3i &pt)
 {
@@ -89,15 +106,31 @@ void LightProbes::CalculateProbe(const Vec3i &pt)
 		// calculate power based on distance
 		pCont->power = CalculatePower(light, dist_to_light, pos);
 
-		print_line("\tprobe " + pt.ToString() + " light " + itos (l) + " power " + String(Variant(pCont->power)));
+		//print_line("\tprobe " + pt.ToString() + " light " + itos (l) + " power " + String(Variant(pCont->power)));
 	}
 
+	// indirect light
+	pProbe->m_Color_Indirect = m_pLightMapper->Probe_CalculateIndirectLight(pos);
+
+	// apply gamma
+	float gamma = 1.0f / m_pLightMapper->m_Settings_Gamma;
+	pProbe->m_Color_Indirect.r = powf(pProbe->m_Color_Indirect.r, gamma);
+	pProbe->m_Color_Indirect.g = powf(pProbe->m_Color_Indirect.g, gamma);
+	pProbe->m_Color_Indirect.b = powf(pProbe->m_Color_Indirect.b, gamma);
+
+	Color col_ind;
+	pProbe->m_Color_Indirect.To(col_ind);
+	print_line("\tprobe " + pt.ToString() + " indirect " + String(Variant(col_ind)));
 }
 
 float LightProbes::CalculatePower(const LightMapper_Base::LLight &light, float dist, const Vector3 &pos) const
 {
 	// ignore light energy for getting more detail, we can apply the light energy at runtime
-	float power = m_pLightMapper->LightDistanceDropoff(dist, light, 1.0f);
+	//float power = m_pLightMapper->LightDistanceDropoff(dist, light, 1.0f);
+
+	// now we are calculating distance func in the shader, power can be used to represent how many rays hit the light,
+	// and also the cone of a spotlight
+	float power = 1.0f;
 	return power;
 }
 
@@ -109,7 +142,7 @@ void LightProbes::Save_Vector3(FileAccess *f, const Vector3 &v)
 	f->store_float(v.z);
 }
 
-void LightProbes::Save(const char * pszFilename)
+void LightProbes::Save(String pszFilename)
 {
 	// try to open file for writing
 	FileAccess *f = FileAccess::open(pszFilename, FileAccess::WRITE);
@@ -192,6 +225,15 @@ void LightProbes::Save(const char * pszFilename)
 
 void LightProbe::Save_Secondary(FileAccess *f)
 {
+	// color
+	uint8_t r, g, b;
+	m_Color_Indirect.To_u8(r, g, b, 0.5f);
+
+	f->store_8(r);
+	f->store_8(g);
+	f->store_8(b);
+
+
 	int nContribs = m_Contributions.size();
 	if (nContribs > 255) nContribs = 255;
 
