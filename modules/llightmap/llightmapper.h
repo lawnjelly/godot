@@ -38,6 +38,10 @@ private:
 
 	// light probes
 	void ProcessLightProbes();
+public:
+	FColor Probe_CalculateIndirectLight(const Vector3 &pos);
+private:
+
 
 	void Refresh_Process_State();
 //	const int m_iRaysPerSection = 1024 * 1024 * 4; // 64

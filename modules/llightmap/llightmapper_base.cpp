@@ -51,12 +51,16 @@ LightMapper_Base::LightMapper_Base()
 	m_Settings_AmbientIsHDR = false;
 	m_Settings_CombinedIsHDR = false;
 
-	m_Settings_Process_Lightmap = true;
-	m_Settings_Process_AO = true;
+	m_Logic_Process_Lightmap = true;
+	m_Logic_Process_AO = true;
+	m_Logic_Reserve_AO = true;
+	m_Logic_Process_Probes = true;
+	m_Logic_Output_Final = true;
 
 	m_Settings_UVPadding = 4;
 
 	m_Settings_ProbeDensity = 64;
+	m_Settings_ProbeSamples = 4096;
 }
 
 void LightMapper_Base::Base_Reset()
@@ -523,7 +527,7 @@ void LightMapper_Base::Normalize()
 }
 
 
-void LightMapper_Base::LoadLightmap(Image &image)
+bool LightMapper_Base::LoadLightmap(Image &image)
 {
 	assert (image.get_width() == m_iWidth);
 	assert (image.get_height() == m_iHeight);
@@ -532,7 +536,7 @@ void LightMapper_Base::LoadLightmap(Image &image)
 	if (res != OK)
 	{
 		WARN_PRINT_ONCE("LoadLightmap failed")
-		return;
+		return false;
 	}
 
 	image.lock();
@@ -544,6 +548,8 @@ void LightMapper_Base::LoadLightmap(Image &image)
 		}
 	}
 	image.unlock();
+
+	return true;
 }
 
 void LightMapper_Base::LoadAO(Image &image)
