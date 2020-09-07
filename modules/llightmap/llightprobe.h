@@ -38,8 +38,10 @@ public:
 	void Save();
 
 private:
+	void Normalize_Indirect();
 	void Save(String pszFilename);
 	void CalculateProbe(const Vec3i &pt);
+	void CalculateProbe_Old(const Vec3i &pt);
 	float CalculatePower(const LightMapper_Base::LLight &light, float dist, const Vector3 &pos) const;
 
 	void Save_Vector3(FileAccess *f, const Vector3 &v);
