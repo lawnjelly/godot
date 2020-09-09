@@ -119,103 +119,157 @@ bool UnMerger::UnMerge_Mesh(MeshInstance &mi, LMerged &merged)
 
 	for (int f=0; f<nFaces; f++)
 	{
+		// create the original face in world space and standardize order
 		LFace lf;
+		// create a copy original face with model space coords
+		LFace lf_modelspace;
+
 		for (int c=0; c<3; c++)
 		{
 			int ind = inds[iCount++];
 			lf.m_Pos[c] = world_verts[ind];
 			lf.m_Norm[c] = world_norms[ind];
+			lf.m_UVs[c] = uv1s[ind];
 
 			lf.m_index[c] = ind;
+
+			// model space .. needed for final reconstruction
+			lf_modelspace.m_Pos[c] = verts[ind];
+			lf_modelspace.m_Norm[c] = norms[ind];
 		}
+
+		lf.StandardizeOrder();
+		// DONT STANDARDIZE THE MODEL SPACE VERSION, it may need
+		// to be rejigged when finally adding the final face
 
 #ifdef LDEBUG_UNMERGE
 		LPRINT(5, "lface : " + lf.ToString());
 #endif
 
 		// find matching face
-//		int miCount = 0;
-		bool bMatchFound = false;
+		//		int miCount = 0;
+	//	bool bMatchFound = false;
+		float best_goodness_of_fit = FLT_MAX;
+		int best_matching_merged_face = -1;
 
-		for (int mf=0; mf<nMergedFaces; mf++)
-		{
-			// construct merged lface
-			const LFace &mlf = merged.m_LFaces[mf];
-//			for (int c=0; c<3; c++)
-//			{
-//				int ind = merged.m_Inds[miCount++];
-//				mlf.m_Pos[c] = merged.m_Verts[ind];
-//				mlf.m_Norm[c] = merged.m_Norms[ind];
 
-//				mlf.m_index[c] = ind;
-//			}
+//		for (int repeat=0; repeat<1; repeat++)
+//		{
 
-			int match = DoFacesMatch(lf, mlf);
-			if (match != -1)
+			for (int mf=0; mf<nMergedFaces; mf++)
 			{
-				// we found a match in the merged mesh! transfer the UV2s
-				bMatchFound = true;
+				// construct merged lface
+				LFace mlf = merged.m_LFaces[mf];
+				mlf.StandardizeOrder();
 
-				//sz += " match found offset " + itos(match);
+				//			for (int c=0; c<3; c++)
+				//			{
+				//				int ind = merged.m_Inds[miCount++];
+				//				mlf.m_Pos[c] = merged.m_Verts[ind];
+				//				mlf.m_Norm[c] = merged.m_Norms[ind];
 
-				// find the corresponding uv2s in the merged mesh face and add them (taking into account offset)
-				Vector2 found_uvs[3];
-				for (int c=0; c<3; c++)
+				//				mlf.m_index[c] = ind;
+				//			}
+
+
+				//int match = DoFacesMatch(lf, mlf);
+
+				float goodness_of_fit = DoFacesMatch_New(lf, mlf);
+
+				if (goodness_of_fit < best_goodness_of_fit)
 				{
-					found_uvs[c] = merged.m_UV2s[mlf.m_index[c]];
+					best_goodness_of_fit = goodness_of_fit;
+					best_matching_merged_face = mf;
+
+					// special case .. perfect goodness of fit
+					if (goodness_of_fit == 0.0f)
+						break;
 				}
 
-				// add them
-				for (int c=0; c<3; c++)
+				/*
+				if (match != -1)
 				{
-					int which = (c + match)	% 3;
+					// we found a match in the merged mesh! transfer the UV2s
+					bMatchFound = true;
 
-					// index for the uv2 should be the same as the vertex index in the 'to mesh' face
-					int ind = lf.m_index[c];
-					uv2s.set(ind, found_uvs[which]);
+					//sz += " match found offset " + itos(match);
 
+					// find the corresponding uv2s in the merged mesh face and add them (taking into account offset)
+					Vector2 found_uvs[3];
+					for (int c=0; c<3; c++)
 					{
-						// construct the unique vert
-						LVert uvert;
-						int orig_ind = lf.m_index[c];
-						uvert.m_Pos = verts[orig_ind];
-						uvert.m_Norm = norms[orig_ind];
-						uvert.m_UV = uv1s[orig_ind];
-						uvert.m_UV2 = found_uvs[which];
-
-						// find it or add to the list
-						int ind_uni_vert = FindOrAddVert(UniqueVerts, uvert);
-
-						// add the index to form the triangle list
-						UniqueIndices.push_back(ind_uni_vert);
+						found_uvs[c] = merged.m_UV2s[mlf.m_index[c]];
 					}
+
+					// add them
+					for (int c=0; c<3; c++)
+					{
+						int which = (c + match)	% 3;
+
+						// index for the uv2 should be the same as the vertex index in the 'to mesh' face
+						int ind = lf.m_index[c];
+						uv2s.set(ind, found_uvs[which]);
+
+						{
+							// construct the unique vert
+							LVert uvert;
+							int orig_ind = lf.m_index[c];
+							uvert.m_Pos = verts[orig_ind];
+							uvert.m_Norm = norms[orig_ind];
+							uvert.m_UV = uv1s[orig_ind];
+							uvert.m_UV2 = found_uvs[which];
+
+							// find it or add to the list
+							int ind_uni_vert = FindOrAddVert(UniqueVerts, uvert);
+
+							// add the index to form the triangle list
+							UniqueIndices.push_back(ind_uni_vert);
+						}
+					}
+
+					break;
 				}
+				*/
+			} // for through merged faces
 
-				break;
+			// special case
+//			if (!bMatchFound)
+			if (best_matching_merged_face == -1)
+			{
+				// add some dummy uv2s
+				//			uv2s.push_back(Vector2(0, 0));
+				//			uv2s.push_back(Vector2(0, 0));
+				//			uv2s.push_back(Vector2(0, 0));
+
+				String sz = "\tface " + itos(f);
+				sz += " no match";
+				print_line (sz);
 			}
-		}
+			else
+			{
+				LFace mlf = merged.m_LFaces[best_matching_merged_face];
+				mlf.StandardizeOrder();
 
-		// special case
-		if (!bMatchFound)
-		{
-			// add some dummy uv2s
-//			uv2s.push_back(Vector2(0, 0));
-//			uv2s.push_back(Vector2(0, 0));
-//			uv2s.push_back(Vector2(0, 0));
+				// double check this is correct
+				int match;
+				if (mlf.offset >= lf.offset)
+					match = mlf.offset - lf.offset;
+				else
+					match = lf.offset - mlf.offset;
 
-			String sz = "\tface " + itos(f);
-			sz += " no match";
-			print_line (sz);
-		}
+				AddMergedTriangle(lf, lf_modelspace, mlf, UniqueVerts, UniqueIndices);
 
-	}
+			}
+//		} // for repeat
+
+	} // for through original faces
 
 	print_line("UnMerge MI : " + mi.get_name());// + "\tFirstVert : " + itos(vert_count) + "\tNumUVs : " + itos(verts.size()));
 
 
 	// rebuild the sob mesh, but now using the new uv2s
 
-//	LPRINT(2, "\t\tOrig Verts: " + itos(verts.size()) + ", Unique Verts: " + itos(UniqueVerts.size()) + ", Num Tris: " + itos(inds.size() / 3));
+	//	LPRINT(2, "\t\tOrig Verts: " + itos(verts.size()) + ", Unique Verts: " + itos(UniqueVerts.size()) + ", Num Tris: " + itos(inds.size() / 3));
 
 	// construct unique pool vectors to pass to mesh construction
 	PoolVector<Vector3> unique_poss;
@@ -246,7 +300,7 @@ bool UnMerger::UnMerge_Mesh(MeshInstance &mi, LMerged &merged)
 
 	am_new->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, arr);
 
-//	am_new->surface_set_material(0, mat);
+	//	am_new->surface_set_material(0, mat);
 
 	// get the old material before setting the new mesh
 	Ref<Material> mat = mi.get_surface_material(0);
@@ -262,26 +316,92 @@ bool UnMerger::UnMerge_Mesh(MeshInstance &mi, LMerged &merged)
 	mi.set_mesh(am_new);
 
 	// mesh instance has the material?
-//	Ref<Material> mat = mi.get_surface_material(0);
-//	if (mat_on_mi)
-//	{
+	//	Ref<Material> mat = mi.get_surface_material(0);
+	//	if (mat_on_mi)
+	//	{
 	if (!mat.ptr())
 	{
 		print_line("\t\tno material found");
 	}
 
 	mi.set_surface_material(0, mat);
-//	}
-//	else
-//	{
-		// mesh has the material?
+	//	}
+	//	else
+	//	{
+	// mesh has the material?
 	//	Ref<Material> smat = rmesh->surface_get_material(0);
-		//mi.set_surface_material(0, smat);
-//	}
+	//mi.set_surface_material(0, smat);
+	//	}
 
 	return true;
 }
 
+// we now have all the info needed in the orig face and the merged face
+void UnMerger::AddMergedTriangle(const LFace &forig, const LFace &forig_modelspace, const LFace &fmerged, LVector<LVert> &UniqueVerts, PoolVector<int> &UniqueIndices)
+{
+	for (int c=0; c<3; c++)
+	{
+		// the model space tuple may be offset
+		int t = c + (forig.offset);
+		t %= 3;
+
+		// construct the unique vert
+		LVert uvert;
+		//int orig_ind = forig.m_index[c];
+		uvert.m_Pos = forig_modelspace.m_Pos[t];
+		uvert.m_Norm = forig_modelspace.m_Norm[t];
+
+		// first UV from the original
+		uvert.m_UV = forig.m_UVs[c];
+
+		// 2nd UV from the merged
+		uvert.m_UV2 = fmerged.m_UV2s[c];
+
+		// find it or add to the list
+		int ind_uni_vert = FindOrAddVert(UniqueVerts, uvert);
+
+		// add the index to form the triangle list
+		UniqueIndices.push_back(ind_uni_vert);
+	}
+
+/*
+	//sz += " match found offset " + itos(match);
+
+	// find the corresponding uv2s in the merged mesh face and add them (taking into account offset)
+	Vector2 found_uvs[3];
+	for (int c=0; c<3; c++)
+	{
+		found_uvs[c] = merged.m_UV2s[mlf.m_index[c]];
+	}
+
+	// add them
+	for (int c=0; c<3; c++)
+	{
+		int which = (c + match)	% 3;
+
+		// index for the uv2 should be the same as the vertex index in the 'to mesh' face
+		int ind = lf.m_index[c];
+		uv2s.set(ind, found_uvs[which]);
+
+		{
+			// construct the unique vert
+			LVert uvert;
+			int orig_ind = lf.m_index[c];
+			uvert.m_Pos = verts[orig_ind];
+			uvert.m_Norm = norms[orig_ind];
+			uvert.m_UV = uv1s[orig_ind];
+			uvert.m_UV2 = found_uvs[which];
+
+			// find it or add to the list
+			int ind_uni_vert = FindOrAddVert(UniqueVerts, uvert);
+
+			// add the index to form the triangle list
+			UniqueIndices.push_back(ind_uni_vert);
+		}
+	}
+*/
+
+}
 
 bool UnMerger::FillMergedFromMesh(LMerged &merged, const MeshInstance &mesh)
 {
@@ -312,10 +432,10 @@ bool UnMerger::FillMergedFromMesh(LMerged &merged, const MeshInstance &mesh)
 	{
 		WARN_PRINT("UnMerger::FillMergedFromMesh no indices");
 	}
-//	if (!EnsureIndicesValid(merged.m_Inds, merged.m_Verts))
-//	{
-//		print_line("invalid triangles due to duplicate indices detected in " + mesh.get_name());
-//	}
+	//	if (!EnsureIndicesValid(merged.m_Inds, merged.m_Verts))
+	//	{
+	//		print_line("invalid triangles due to duplicate indices detected in " + mesh.get_name());
+	//	}
 
 	merged.m_nFaces = merged.m_Inds.size() / 3;
 
@@ -343,6 +463,8 @@ bool UnMerger::FillMergedFromMesh(LMerged &merged, const MeshInstance &mesh)
 			mlf.m_Pos[c] = merged.m_Verts[ind];
 			mlf.m_Norm[c] = merged.m_Norms[ind].normalized();
 			mlf.m_index[c] = ind;
+
+			mlf.m_UV2s[c] = merged.m_UV2s[ind];
 		}
 		merged.m_LFaces.push_back(mlf);
 	}
@@ -375,6 +497,8 @@ void UnMerger::Transform_Norms(const PoolVector<Vector3> &normsLocal, PoolVector
 		normsWorld.push_back(ptNorm);
 	}
 }
+
+
 
 // -1 for no match, or 0 for 0 offset match, 1 for +1, 2 for +2 offset match...
 int UnMerger::DoFacesMatch(const LFace& sob_f, const LFace &m_face) const
@@ -423,6 +547,53 @@ bool UnMerger::DoFaceVertsApproxMatch(const LFace& sob_f, const LFace &m_face, i
 {
 	return DoPosNormsApproxMatch(sob_f.m_Pos[c0], sob_f.m_Norm[c0], m_face.m_Pos[c1], m_face.m_Norm[c1], bDebug);
 }
+
+// returns -1 if no match, or the offset 0 1 or 2
+float UnMerger::DoFacesMatch_New(const LFace &a, const LFace &b) const
+{
+	// first standardize both faces
+//	int offset_a = a.StandardizeOrder();
+//	int offset_b = b.StandardizeOrder();
+
+
+//	const float thresh_diff = m_MergeParams.m_fThresholdDist;
+	const float thresh_diff_squared = m_MergeParams.m_fThresholdDist_Squared;
+
+	// now we can compare by tuple
+	float goodness_of_fit = 0.0f;
+
+	for (int n=0; n<3; n++)
+	{
+		// positions
+		Vector3 pos_diff = b.m_Pos[n] - a.m_Pos[n];
+		float sl = pos_diff.length_squared();
+		if (sl > thresh_diff_squared)
+			return FLT_MAX;
+
+		goodness_of_fit += sl;
+
+		// normals
+		Vector3 norm_a = a.m_Norm[n];
+		Vector3 norm_b = b.m_Norm[n];
+
+		norm_a.normalize();
+		norm_b.normalize();
+
+		float dot = norm_a.dot(norm_b);
+
+		if (dot < m_MergeParams.m_fThresholdDot)
+			return FLT_MAX;
+	}
+
+	// if we got to here they matched.
+	// what is their offset?
+//	if (offset_a >= offset_b)
+//		return offset_a - offset_b;
+
+//	return offset_b - offset_a;
+	return goodness_of_fit;
+}
+
 
 bool UnMerger::DoPosNormsApproxMatch(const Vector3 &a_pos, const Vector3 &a_norm, const Vector3 &b_pos, const Vector3 &b_norm, bool bDebug) const
 {
