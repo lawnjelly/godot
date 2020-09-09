@@ -13,8 +13,9 @@ class UnMerger
 		Vector3 m_Norm[3];
 		int m_index[3];
 
+		// todo .. we only need to store one set of UVs
+		// (the orig face and the merged face store UV and UV2 respectively)
 		Vector2 m_UVs[3];
-		Vector2 m_UV2s[3];
 
 		// when standardized, a face has an offset
 		// to get back to the original format
@@ -72,7 +73,6 @@ class UnMerger
 			Shift(first, m_Norm);
 			Shift(first, m_index);
 			Shift(first, m_UVs);
-			Shift(first, m_UV2s);
 
 			// save the standardize offset
 			offset = first;
@@ -108,9 +108,8 @@ class UnMerger
 		LVector<LFace> m_LFaces;
 	};
 
-
-	// internal data
-	// merging params
+	// these are now not crucial because the algorithm finds the best fit.
+	// These are only used for quick reject.
 	struct LMergeParams
 	{
 		float m_fThresholdDist;
@@ -129,13 +128,9 @@ private:
 	bool UnMerge_Mesh(MeshInstance &mi, LMerged &merged);
 
 	int FindOrAddVert(LVector<LVert> &uni_verts, const LVert &vert) const;
-	int DoFacesMatch(const LFace& sob_f, const LFace &m_face) const;
-	int DoFacesMatch_Offset(const LFace& sob_f, const LFace &m_face, int offset) const;
-	bool DoFaceVertsApproxMatch(const LFace& sob_f, const LFace &m_face, int c0, int c1, bool bDebug) const;
-	bool DoPosNormsApproxMatch(const Vector3 &a_pos, const Vector3 &a_norm, const Vector3 &b_pos, const Vector3 &b_norm, bool bDebug) const;
 
 	// returns goodness of fit
-	float DoFacesMatch_New(const LFace &a, const LFace &b) const;
+	float DoFacesMatch(const LFace &a, const LFace &b) const;
 	void AddMergedTriangle(const LFace &forig, const LFace &forig_modelspace, const LFace &fmerged, LVector<LVert> &UniqueVerts, PoolVector<int> &UniqueIndices);
 
 	void Transform_Verts(const PoolVector<Vector3> &ptsLocal, PoolVector<Vector3> &ptsWorld, const Transform &tr) const;
