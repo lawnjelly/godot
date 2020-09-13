@@ -1477,9 +1477,12 @@ void LightMapper::BF_ProcessTexel(int tx, int ty)
 //	if (m_Scene.FindEmissionColor(tri_id, bary, emission_tex_color, emission_color))
 	if (emitter)
 	{
+		// Glow determines how much the surface itself is lighted (and thus the ratio between glow and emission)
+		// emission density determines the number of rays and lighting effect
 		FColor femm;
 		femm.Set(emission);
 		float power = m_Settings_Backward_RayPower * m_AdjustedSettings.m_Backward_NumRays * 32.0f;
+		power *= m_Settings_Glow;
 		texel_add += femm * power;
 
 		// only if directional bounces are being used (could use ambient bounces for emission)
@@ -1632,7 +1635,6 @@ void LightMapper::ProcessEmissionTri(int etri_id, float fraction_of_total)
 
 		FColor fcol;
 		fcol.Set(emission_tex_color);
-
 		RayBank_RequestNewRay(ray, m_AdjustedSettings.m_NumDirectionalBounces + 1, fcol);
 
 		// special. For emission we want to also affect the emitting surface.
@@ -1651,7 +1653,7 @@ void LightMapper::ProcessEmissionTri(int etri_id, float fraction_of_total)
 		FColor * pTexelCol = m_Image_L.Get(tx, ty);
 
 		//		fcol.Set(emission_color * 0.5f);
-		*pTexelCol += fcol;
+		*pTexelCol += fcol * m_Settings_Glow;
 
 	}
 }

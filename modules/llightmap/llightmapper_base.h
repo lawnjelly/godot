@@ -202,6 +202,7 @@ public:
 	float m_Settings_DirectionalBouncePower;
 	float m_Settings_Smoothness;
 	float m_Settings_EmissionDensity;
+	float m_Settings_Glow;
 
 	int m_Settings_AO_Samples;
 	float m_Settings_AO_Range;
