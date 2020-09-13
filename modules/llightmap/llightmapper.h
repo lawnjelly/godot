@@ -36,11 +36,6 @@ private:
 	void ProcessTexels();
 	void ProcessTexel_Line_MT(uint32_t offset_y, int start_y);
 
-	// old backward
-	void Backward_ProcessTexel(int tx, int ty);
-	void Backward_ProcessTexel_Light(int light_id, const Vector3 &ptSource, const Vector3 &ptNormal, FColor &color, int nSamples); //, uint32_t tri_ignore);
-
-
 	// backward forward tracing
 	void BF_ProcessTexel(int tx, int ty);
 	void BF_ProcessTexel_Light(const Color &orig_albedo, int light_id, const Vector3 &ptSource, const Vector3 &orig_face_normal, const Vector3 &orig_vertex_normal, FColor &color, int nSamples); //, uint32_t tri_ignore);
