@@ -5,7 +5,7 @@
 Version 0.1.
 	</brief_description>
 	<description>
-		This node can unmap scenes for lightmapping, and generate both lighting and ambient occlusion. Lighting can use forward tracing (from the light) or backward tracing (from the surface to the light). Lighting and ambient occlusion are stored in linear intermediate exr files, which can be combined to form a final gamma corrected texture, either exr or png.
+		This node can unmap scenes for lightmapping, generate both lighting and ambient occlusion, and generate light probe data for realtime dynamic lighting. Lighting can use forward tracing (from the light) or backward tracing (from the surface to the light). Lighting and ambient occlusion are stored in linear intermediate exr files, which can be combined to form a final gamma corrected texture, either exr or png.
 	</description>
 	<tutorials>
 	</tutorials>
@@ -31,10 +31,13 @@ Version 0.1.
 	</methods>
 	<members>
 		<member name="a_bounce_power" type="float" setter="set_ambient_bounce_power" getter="get_ambient_bounce_power" default="0.5">
+			Contribution of each ambient bounce relative to the scene.
 		</member>
 		<member name="a_bounce_samples" type="int" setter="set_num_ambient_bounce_samples" getter="get_num_ambient_bounce_samples" default="128">
+			Number of samples for each ambient bounce.
 		</member>
 		<member name="a_bounces" type="int" setter="set_num_ambient_bounces" getter="get_num_ambient_bounces" default="0">
+			Sets the number of ambient bounces. These are done after the initial lightmap is created, and can efficiently estimate ambient light. They do however take no account of source ray direction, so are purely diffuse.
 		</member>
 		<member name="ao_filename" type="String" setter="set_ao_filename" getter="get_ao_filename" default="&quot;&quot;">
 			Filename for ambient occlusion exr file. This is usually used as an intermediate for producing the combined final lightmap. There is no need to ship this with your project.
@@ -53,16 +56,19 @@ Version 0.1.
 [b]WARNING[/b] - Be sure to consult the help file before using uvmap.
 		</member>
 		<member name="bounce_power" type="float" setter="set_bounce_power" getter="get_bounce_power" default="1.0">
+			Typically light power is lost at each bounce. This can be modified by increasing the amount of light at each bounce (above 1.0) or decreasing. This can be used to give a different look to your lightmaps.
 		</member>
 		<member name="combined_filename" type="String" setter="set_combined_filename" getter="get_combined_filename" default="&quot;&quot;">
 			Filename for the final lightmap, combining lights and ambient occlusion (or just one of these). This can be exr format (linear) or png, with gamma applied.
 		</member>
 		<member name="emission_density" type="float" setter="set_emission_density" getter="get_emission_density" default="1.0">
+			Allows increasing or decreasing the number of samples used for emission, in relation to the overall primary number of samples. This can be used to relatively increase emission quality, or decrease bake times.
 		</member>
 		<member name="gamma" type="float" setter="set_gamma" getter="get_gamma" default="2.2">
 			During merging to a final png file, it is advised to apply gamma, because the source texture will normally be expected to be sRGB (gamma 2.2) rather than linear, which is necessary for lighting calculations. You can vary this to get a different look.
 		</member>
 		<member name="glow" type="float" setter="set_glow" getter="get_glow" default="1.0">
+			Determines the balance between light at an emission surface, and the light emitted from it.
 		</member>
 		<member name="lightmap_filename" type="String" setter="set_lightmap_filename" getter="get_lightmap_filename" default="&quot;&quot;">
 			Filename for baked lights exr file. This is usually used as an intermediate for producing the combined final lightmap. There is no need to ship this with your project.
@@ -71,6 +77,7 @@ Version 0.1.
 			This is the branch which contains the lights you intend to use. They must be set to 'bake indirect' or 'bake all' in the light setting, in order to affect the lightmap. This branch can be the same as the meshes, or a different branch.
 		</member>
 		<member name="material_size" type="int" setter="set_material_size" getter="get_material_size" default="256">
+			In order to sample material colors in bounced light, downsized versions of the original textures can be used, for greater speed, less memory use and less aliasing. This determines the maximum size of the texture.
 		</member>
 		<member name="meshes" type="NodePath" setter="set_mesh_path" getter="get_mesh_path" default="NodePath(&quot;&quot;)">
 			This is the branch which contains the meshes you intend to use for baked lighting. They should be set to 'use in baked light' in the geometry section, if they are to be included.
@@ -82,16 +89,22 @@ Version 0.1.
 			In order to prevent the scene being dark, depending on how you are using the lightmap in the shader, it can be a good idea to make the scene overbright. This multiplier is applied during normalization. In the case of png output, the maximum brightness is capped, so you will lose some detail.
 		</member>
 		<member name="num_bounces" type="int" setter="set_num_bounces" getter="get_num_bounces" default="0">
+			Number of bounces to calculate. More bounces gives more realistic indirect lighting, but can increase bake time significantly.
 		</member>
 		<member name="probe_density" type="int" setter="set_probe_density" getter="get_probe_density" default="64">
+			Number of probes on the largest axis of the level. This determines the overall number of probes. Note that the number of probes goes up roughly with the cube of this value.
 		</member>
 		<member name="probe_samples" type="int" setter="set_probe_samples" getter="get_probe_samples" default="4096">
+			Number of samples taken to estimate incoming light at each light probe.
 		</member>
 		<member name="quality" type="int" setter="set_quality" getter="get_quality" enum="LLightmap.eQuality" default="1">
+			Allows quickly modifying several settings for the quality of bake desired. At low quality there will be no bounces.
 		</member>
 		<member name="roughness" type="float" setter="set_roughness" getter="get_roughness" default="0.5">
+			Bounced light can be bounced in random directions (high roughness) or directly mirrored against the surface (low roughness).
 		</member>
 		<member name="samples" type="int" setter="set_num_samples" getter="get_num_samples" default="32">
+			The principal determinant of lightmap quality is the number of samples. A low number of samples gives a noisy appearance, however more samples requires longer baking.
 		</member>
 		<member name="surface_bias" type="float" setter="set_surface_bias" getter="get_surface_bias" default="0.005">
 			In order to prevent self intersection of rays bounced from surfaces, a small bias is added to the ray start position. The default value should normally work, but just in case there are problems, this can be edited.
@@ -133,17 +146,22 @@ This creates a UV mapping in the 2nd uv channel for the meshes, and saves the re
 			This quickly merges existing intermediate ambient occlusion and light files into the combined final file, allowing you to adjust overall brightness and gamma, and the balance between the two.
 		</constant>
 		<constant name="LLightmap::BAKEMODE_PROBES" value="4" enum="eBakeMode">
+			Bakes light probe data into a .probe file in the same folder as your combined lightmap. The light probe data can be loaded at runtime and used to light dynamic objects. See the docs.
 		</constant>
 		<constant name="LLightmap::BAKEMODE_COMBINED" value="5" enum="eBakeMode">
 			This bakes both lighting and ambient occlusion into their exr files, then merges both into the combined final file. It is usually better to bake AO and lights separately, in order to save time with adjustments.
 		</constant>
 		<constant name="LLightmap::QUALITY_LOW" value="0" enum="eQuality">
+			Samples are set to minimum. Bounces are set to zero.
 		</constant>
 		<constant name="LLightmap::QUALITY_MEDIUM" value="1" enum="eQuality">
+			Samples are halved.
 		</constant>
 		<constant name="LLightmap::QUALITY_HIGH" value="2" enum="eQuality">
+			Samples are used as is.
 		</constant>
 		<constant name="LLightmap::QUALITY_FINAL" value="3" enum="eQuality">
+			Samples are doubled.
 		</constant>
 	</constants>
 </class>
