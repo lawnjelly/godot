@@ -53,8 +53,8 @@ public:
 	NodePath get_lights_path() const;
 
 	////////////////////////////
-	void set_num_primary_rays(int num_rays);
-	int get_num_primary_rays() const;
+	void set_num_samples(int num_samples);
+	int get_num_samples() const;
 
 //	void set_forward_ray_power(float ray_power);
 //	float get_forward_ray_power() const;
@@ -62,6 +62,9 @@ public:
 
 	void set_emission_density(float density);
 	float get_emission_density() const;
+
+	void set_glow(float glow);
+	float get_glow() const;
 
 	////////////////////////////
 	void set_backward_num_rays(int num_rays);
@@ -76,20 +79,20 @@ public:
 
 
 	////////////////////////////
-	void set_num_directional_bounces(int num_bounces);
-	int get_num_directional_bounces() const;
+	void set_num_bounces(int num_bounces);
+	int get_num_bounces() const;
 
-	void set_directional_bounce_power(float bounce_power);
-	float get_directional_bounce_power() const;
+	void set_bounce_power(float bounce_power);
+	float get_bounce_power() const;
 
-	void set_smoothness(float smoothness);
-	float get_smoothness() const;
+	void set_roughness(float roughness);
+	float get_roughness() const;
 
 	void set_num_ambient_bounces(int num_bounces);
 	int get_num_ambient_bounces() const;
 
-	void set_num_ambient_bounce_rays(int num_rays);
-	int get_num_ambient_bounce_rays() const;
+	void set_num_ambient_bounce_samples(int num_samples);
+	int get_num_ambient_bounce_samples() const;
 
 	void set_ambient_bounce_power(float bounce_power);
 	float get_ambient_bounce_power() const;

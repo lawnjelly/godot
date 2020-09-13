@@ -29,6 +29,7 @@ LightMapper_Base::LightMapper_Base()
 	m_Settings_AmbientBouncePower = 0.5f;
 	m_Settings_Smoothness = 0.5f;
 	m_Settings_EmissionDensity = 1.0f;
+	m_Settings_Glow = 1.0f;
 
 	m_Settings_AO_Range = 2.0f;
 	m_Settings_AO_Samples = 256;
