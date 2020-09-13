@@ -363,7 +363,7 @@ void RayBank::RayBank_ProcessRay_MT_Old(uint32_t ray_id, int start_ray)
 		//fray.color = falbedo;
 
 		// pre find the bounce color here
-		fray.bounce_color = fray.color * falbedo * m_Settings_Forward_BouncePower;
+		fray.bounce_color = fray.color * falbedo * m_Settings_DirectionalBouncePower;
 //		fray.bounce_color = fray.color * m_Settings_Forward_BouncePower;
 
 //		Vector3 norm;
@@ -404,7 +404,7 @@ void RayBank::RayBank_ProcessRay_MT_Old(uint32_t ray_id, int start_ray)
 			if (hemi_dir.dot(face_normal) < 0.0f)
 				hemi_dir = -hemi_dir;
 
-			new_ray.d = hemi_dir.linear_interpolate(mirror_dir, m_Settings_Forward_BounceDirectionality);
+			new_ray.d = hemi_dir.linear_interpolate(mirror_dir, m_Settings_Smoothness);
 
 			new_ray.o = pos + (face_normal * 0.01f);
 
@@ -573,7 +573,7 @@ void RayBank::RayBank_ProcessRay_MT(uint32_t ray_id, int start_ray)
 //		{
 
 
-			fray.bounce_color = fray.color * falbedo * m_Settings_Forward_BouncePower;
+			fray.bounce_color = fray.color * falbedo * m_Settings_DirectionalBouncePower;
 
 			//		fray.bounce_color = fray.color * m_Settings_Forward_BouncePower;
 
@@ -615,7 +615,7 @@ void RayBank::RayBank_ProcessRay_MT(uint32_t ray_id, int start_ray)
 						if (hemi_dir.dot(face_normal) < 0.0f)
 							hemi_dir = -hemi_dir;
 
-						new_ray.d = hemi_dir.linear_interpolate(mirror_dir, m_Settings_Forward_BounceDirectionality);
+						new_ray.d = hemi_dir.linear_interpolate(mirror_dir, m_Settings_Smoothness);
 
 						// standard epsilon? NYI
 						new_ray.o = pos + (face_normal * m_Settings_SurfaceBias); //0.01f);
