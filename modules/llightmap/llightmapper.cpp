@@ -228,8 +228,8 @@ bool LightMapper::LightmapMesh(Spatial * pMeshesRoot, const Spatial &light_root,
 {
 	// print out settings
 	print_line("Lightmap mesh");
-	print_line("\tnum_bounces " + itos(m_AdjustedSettings.m_Forward_NumBounces));
-	print_line("\tbounce_power " + String(Variant(m_Settings_Forward_BouncePower)));
+	print_line("\tnum_directional_bounces " + itos(m_AdjustedSettings.m_NumDirectionalBounces));
+	print_line("\tdirectional_bounce_power " + String(Variant(m_Settings_DirectionalBouncePower)));
 
 	Refresh_Process_State();
 
@@ -275,7 +275,7 @@ bool LightMapper::LightmapMesh(Spatial * pMeshesRoot, const Spatial &light_root,
 
 		print_line("Scene Create");
 		before = OS::get_singleton()->get_ticks_msec();
-		if (!m_Scene.Create(pMeshesRoot, m_iWidth, m_iHeight, m_Settings_VoxelDensity, m_AdjustedSettings.m_Max_Material_Size, m_AdjustedSettings.m_Forward_Emission_Density))
+		if (!m_Scene.Create(pMeshesRoot, m_iWidth, m_iHeight, m_Settings_VoxelDensity, m_AdjustedSettings.m_Max_Material_Size, m_AdjustedSettings.m_EmissionDensity))
 			return false;
 
 		PrepareLights();
@@ -318,6 +318,7 @@ bool LightMapper::LightmapMesh(Spatial * pMeshesRoot, const Spatial &light_root,
 				ProcessLights();
 				ProcessEmissionTris();
 			}
+			DoAmbientBounces();
 			after = OS::get_singleton()->get_ticks_msec();
 			print_line("ProcessTexels took " + itos(after -before) + " ms");
 		}
@@ -364,13 +365,13 @@ bool LightMapper::LightmapMesh(Spatial * pMeshesRoot, const Spatial &light_root,
 	return true;
 }
 
-void LightMapper::ProcessTexels_Bounce_Line_MT(uint32_t offset_y, int start_y)
+void LightMapper::ProcessTexels_AmbientBounce_Line_MT(uint32_t offset_y, int start_y)
 {
 	int y = offset_y + start_y;
 
 	for (int x=0; x<m_iWidth; x++)
 	{
-		FColor power = ProcessTexel_Bounce(x, y);
+		FColor power = ProcessTexel_AmbientBounce(x, y);
 
 		// save the incoming light power in the mirror image (as the source is still being used)
 		m_Image_L_mirror.GetItem(x, y) = power;
@@ -379,7 +380,7 @@ void LightMapper::ProcessTexels_Bounce_Line_MT(uint32_t offset_y, int start_y)
 }
 
 
-void LightMapper::ProcessTexels_Bounce(int section_size, int num_sections)
+void LightMapper::ProcessTexels_AmbientBounce(int section_size, int num_sections)
 {
 	m_Image_L_mirror.Blank();
 
@@ -400,7 +401,7 @@ void LightMapper::ProcessTexels_Bounce(int section_size, int num_sections)
 			}
 		}
 
-		thread_process_array(section_size, this, &LightMapper::ProcessTexels_Bounce_Line_MT, section_start);
+		thread_process_array(section_size, this, &LightMapper::ProcessTexels_AmbientBounce_Line_MT, section_start);
 
 		//		for (int n=0; n<section_size; n++)
 		//		{
@@ -425,7 +426,7 @@ void LightMapper::ProcessTexels_Bounce(int section_size, int num_sections)
 			}
 		}
 
-		ProcessTexels_Bounce_Line_MT(y, 0);
+		ProcessTexels_AmbientBounce_Line_MT(y, 0);
 		//		for (int x=0; x<m_iWidth; x++)
 		//		{
 		//			FColor power = ProcessTexel_Bounce(x, y);
@@ -442,7 +443,7 @@ void LightMapper::ProcessTexels_Bounce(int section_size, int num_sections)
 		{
 			FColor col = m_Image_L.GetItem(x, y);
 
-			FColor col_add = m_Image_L_mirror.GetItem(x, y) * m_Settings_Backward_BouncePower;
+			FColor col_add = m_Image_L_mirror.GetItem(x, y) * m_Settings_AmbientBouncePower;
 
 			//			assert (col_add.r >= 0.0f);
 			//			assert (col_add.g >= 0.0f);
@@ -655,12 +656,28 @@ void LightMapper::ProcessTexels()
 	//	m_iNumTests /= (m_iHeight * m_iWidth);
 	print_line("num tests : " + itos(m_iNumTests));
 
-	/* OLD STYLE BOUNCES
-	for (int b=0; b<m_AdjustedSettings.m_Backward_NumBounces; b++)
-	{
-		ProcessTexels_Bounce(section_size, num_sections);
+	if (bake_end_function) {
+		bake_end_function();
 	}
-	*/
+}
+
+void LightMapper::DoAmbientBounces()
+{
+	if (!m_AdjustedSettings.m_NumAmbientBounces)
+		return;
+
+	int section_size = m_iHeight / 64; //nCores;
+	int num_sections = m_iHeight / section_size;
+
+	if (bake_begin_function) {
+		int progress_range = m_iHeight;
+		bake_begin_function(progress_range);
+	}
+
+	for (int b=0; b<m_AdjustedSettings.m_NumAmbientBounces; b++)
+	{
+		ProcessTexels_AmbientBounce(section_size, num_sections);
+	}
 
 	if (bake_end_function) {
 		bake_end_function();
@@ -895,7 +912,7 @@ void LightMapper::BF_ProcessTexel_Light(const Color &orig_albedo, int light_id, 
 				// start the bounces
 
 				// probability of bounce based on alpha? NYI
-				if (m_Settings_Backward_NumBounces)
+				if (m_AdjustedSettings.m_NumDirectionalBounces)
 				{
 					// pass the direction as incoming (i.e. from the light to the surface, not the other way around)
 
@@ -912,7 +929,7 @@ void LightMapper::BF_ProcessTexel_Light(const Color &orig_albedo, int light_id, 
 					if (BounceRay(r, orig_face_normal, false))
 					{
 						// should this normal be plane normal or vertex normal?
-						BF_ProcessTexel_LightBounce(m_Settings_Backward_NumBounces, r, sample_color);
+						BF_ProcessTexel_LightBounce(m_AdjustedSettings.m_NumDirectionalBounces, r, sample_color);
 					}
 				}
 			}
@@ -1002,7 +1019,7 @@ bool LightMapper::BounceRay(Ray &r, const Vector3 &face_normal, bool apply_epsil
 	if (hemi_dir.dot(face_normal) < 0.0f)
 		hemi_dir = -hemi_dir;
 
-	r.d = hemi_dir.linear_interpolate(mirror_dir, m_Settings_Forward_BounceDirectionality);
+	r.d = hemi_dir.linear_interpolate(mirror_dir, m_Settings_Smoothness);
 
 	// standard epsilon? NYI
 	if (apply_epsilon)
@@ -1015,7 +1032,7 @@ bool LightMapper::BounceRay(Ray &r, const Vector3 &face_normal, bool apply_epsil
 void LightMapper::BF_ProcessTexel_LightBounce(int bounces_left, Ray r, FColor ray_color)
 {
 	// apply bounce power
-	ray_color *= m_Settings_Backward_BouncePower;
+	ray_color *= m_Settings_DirectionalBouncePower;
 
 	float u, v, w, t;
 	int tri = m_Scene.FindIntersect_Ray(r, u, v, w, t);
@@ -1174,7 +1191,7 @@ void LightMapper::ProcessLightProbes()
 
 }
 
-FColor LightMapper::ProcessTexel_Bounce(int x, int y)
+FColor LightMapper::ProcessTexel_AmbientBounce(int x, int y)
 {
 	FColor total;
 	total.Set(0.0f);
@@ -1201,13 +1218,13 @@ FColor LightMapper::ProcessTexel_Bounce(int x, int y)
 	Vector3 normal_push = plane_norm * m_Settings_SurfaceBias;
 	Vector3 ray_origin = pos + normal_push;
 
-	int nSamples = m_AdjustedSettings.m_Backward_NumBounceRays;
+	int nSamples = m_AdjustedSettings.m_NumAmbientBounceRays;
 	int samples_counted = nSamples;
 
 
 	for (int n=0; n<nSamples; n++)
 	{
-		if (!ProcessTexel_Bounce_Sample(plane_norm, ray_origin, total))
+		if (!ProcessTexel_AmbientBounce_Sample(plane_norm, ray_origin, total))
 		{
 			samples_counted--;
 		}
@@ -1238,7 +1255,7 @@ FColor LightMapper::Probe_CalculateIndirectLight(const Vector3 &pos)
 		Vector3 norm;
 		RandomUnitDir(norm);
 
-		if (!ProcessTexel_Bounce_Sample(norm, ray_origin, total))
+		if (!ProcessTexel_AmbientBounce_Sample(norm, ray_origin, total))
 		{
 			samples_counted--;
 		}
@@ -1254,7 +1271,7 @@ FColor LightMapper::Probe_CalculateIndirectLight(const Vector3 &pos)
 }
 
 
-bool LightMapper::ProcessTexel_Bounce_Sample(const Vector3 &plane_norm, const Vector3 &ray_origin, FColor &total_col)
+bool LightMapper::ProcessTexel_AmbientBounce_Sample(const Vector3 &plane_norm, const Vector3 &ray_origin, FColor &total_col)
 {
 	// first dot
 	Ray r;
@@ -1799,28 +1816,32 @@ void LightMapper::BF_ProcessTexel(int tx, int ty)
 		float power = m_Settings_Backward_RayPower * m_AdjustedSettings.m_Backward_NumRays * 32.0f;
 		texel_add += femm * power;
 
-		// needs to be adjusted according to size of texture .. as there will be more emissive texels
-		int nSamples = m_AdjustedSettings.m_Backward_NumRays * 2 * m_Settings_Forward_Emission_Density;
-
-		// apply the albedo to the emission color to get the color emanating
-		femm.r *= albedo.r;
-		femm.g *= albedo.g;
-		femm.b *= albedo.b;
-
-		Ray r;
-		r.o = pos;
-		femm *= m_Settings_Backward_RayPower * 128.0f * (1.0f / m_Settings_Forward_Emission_Density);
-
-		for (int n=0; n<nSamples; n++)
+		// only if directional bounces are being used (could use ambient bounces for emission)
+		if (m_AdjustedSettings.m_NumDirectionalBounces)
 		{
-			// send out emission bounce rays
-			RandomUnitDir(r.d);
+			// needs to be adjusted according to size of texture .. as there will be more emissive texels
+			int nSamples = m_AdjustedSettings.m_Backward_NumRays * 2 * m_AdjustedSettings.m_EmissionDensity;
 
-			float dot = plane_normal.dot(r.d);
-			if (dot < 0.0f)
-				r.d = -r.d;
+			// apply the albedo to the emission color to get the color emanating
+			femm.r *= albedo.r;
+			femm.g *= albedo.g;
+			femm.b *= albedo.b;
 
-			BF_ProcessTexel_LightBounce(m_Settings_Backward_NumBounces+1, r, femm); // always at least 1 emission ray
+			Ray r;
+			r.o = pos;
+			femm *= m_Settings_Backward_RayPower * 128.0f * (1.0f / m_AdjustedSettings.m_EmissionDensity);
+
+			for (int n=0; n<nSamples; n++)
+			{
+				// send out emission bounce rays
+				RandomUnitDir(r.d);
+
+				float dot = plane_normal.dot(r.d);
+				if (dot < 0.0f)
+					r.d = -r.d;
+
+				BF_ProcessTexel_LightBounce(m_AdjustedSettings.m_NumDirectionalBounces, r, femm); // always at least 1 emission ray
+			}
 		}
 	}
 
@@ -1913,7 +1934,7 @@ void LightMapper::ProcessEmissionTri(int etri_id, float fraction_of_total)
 	ray.d = norm;
 
 	// use the area to get number of samples
-	float rays_per_unit_area = m_iNumRays * m_AdjustedSettings.m_Forward_Emission_Density  * 0.12f * 0.5f;
+	float rays_per_unit_area = m_iNumRays * m_AdjustedSettings.m_EmissionDensity  * 0.12f * 0.5f;
 	int nSamples = etri.area * rays_per_unit_area * fraction_of_total;
 
 	// nSamples may be zero incorrectly for small triangles, maybe we need to adjust for this
@@ -1946,7 +1967,7 @@ void LightMapper::ProcessEmissionTri(int etri_id, float fraction_of_total)
 		FColor fcol;
 		fcol.Set(emission_tex_color);
 
-		RayBank_RequestNewRay(ray, m_Settings_Forward_NumBounces + 1, fcol);
+		RayBank_RequestNewRay(ray, m_AdjustedSettings.m_NumDirectionalBounces + 1, fcol);
 
 		// special. For emission we want to also affect the emitting surface.
 		// convert barycentric to uv coords in the lightmap
@@ -2074,7 +2095,7 @@ void LightMapper::ProcessLight(int light_id, int num_rays)
 	num_rays *= light.indirect_energy;
 
 	// compensate for the number of rays in terms of the power per ray
-	float power = m_Settings_Forward_RayPower;
+	float power = 0.01f;//m_Settings_Forward_RayPower;
 
 	if (light.indirect_energy > 0.0001f)
 		power *= 1.0f / light.indirect_energy;
@@ -2269,7 +2290,7 @@ void LightMapper::ProcessLight(int light_id, int num_rays)
 		}
 		//r.d.normalize();
 
-		RayBank_RequestNewRay(r, m_Settings_Forward_NumBounces + 1, light_color, 0);
+		RayBank_RequestNewRay(r, m_AdjustedSettings.m_NumDirectionalBounces + 1, light_color, 0);
 
 		//		ProcessRay(r, 0, power);
 	}
