@@ -62,7 +62,7 @@ LightMapper_Base::LightMapper_Base()
 	m_Logic_Process_Probes = true;
 	m_Logic_Output_Final = true;
 
-	m_Settings_UVPadding = 4;
+	m_Settings_UVPadding = 2;
 
 	m_Settings_ProbeDensity = 64;
 	m_Settings_ProbeSamples = 4096;
