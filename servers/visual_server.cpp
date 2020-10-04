@@ -2435,10 +2435,11 @@ VisualServer::VisualServer() {
 	const char *sz_balance_render_tree = "rendering/quality/spatial_partitioning/render_tree_balance";
 	GLOBAL_DEF(sz_balance_render_tree, 0.17f);
 	ProjectSettings::get_singleton()->set_custom_property_info(sz_balance_render_tree, PropertyInfo(Variant::REAL, sz_balance_render_tree, PROPERTY_HINT_RANGE, "0.0,1.0,0.01"));
+	GLOBAL_DEF("rendering/quality/2d/use_software_skinning", true);
 
 	GLOBAL_DEF("rendering/batching/options/use_batching", true);
 	GLOBAL_DEF_RST("rendering/batching/options/use_batching_in_editor", true);
-	GLOBAL_DEF("rendering/batching/options/single_rect_fallback", false);
+	GLOBAL_DEF("rendering/batching/options/single_rect_fallback", true); // temporarily changing for GLES3 batching beta
 	GLOBAL_DEF("rendering/batching/parameters/max_join_item_commands", 16);
 	GLOBAL_DEF("rendering/batching/parameters/colored_vertex_format_threshold", 0.25f);
 	GLOBAL_DEF("rendering/batching/lights/scissor_area_threshold", 1.0f);

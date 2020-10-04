@@ -450,10 +450,7 @@ public:
 			// these flags are specifically for batching
 			// some of the logic is thus in rasterizer_storage.cpp
 			// we could alternatively set bitflags for each 'uses' and test on the fly
-			enum BatchFlags {
-				PREVENT_COLOR_BAKING = 1 << 0,
-				PREVENT_VERTEX_BAKING = 1 << 1,
-			};
+			// defined in RasterizerStorageCommon::BatchFlags
 			unsigned int batch_flags;
 
 			bool uses_screen_texture;

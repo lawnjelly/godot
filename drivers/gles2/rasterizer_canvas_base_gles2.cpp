@@ -52,11 +52,19 @@ void RasterizerCanvasBaseGLES2::light_internal_free(RID p_rid) {
 
 void RasterizerCanvasBaseGLES2::canvas_begin() {
 
+	// COMMENTED FOR LIGHT ANGLE
+	//state.canvas_shader.bind();
+
 	state.using_transparent_rt = false;
 
 	// always start with light_angle unset
 	state.using_light_angle = false;
-	state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_LIGHT_ANGLE, false);
+	state.using_large_vertex = false;
+	state.using_modulate = false;
+
+	state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_ATTRIB_LIGHT_ANGLE, false);
+	state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_ATTRIB_MODULATE, false);
+	state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_ATTRIB_LARGE_VERTEX, false);
 	state.canvas_shader.bind();
 
 	int viewport_x, viewport_y, viewport_width, viewport_height;
@@ -160,13 +168,53 @@ void RasterizerCanvasBaseGLES2::draw_generic_textured_rect(const Rect2 &p_rect, 
 	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 }
 
-void RasterizerCanvasBaseGLES2::_set_texture_rect_mode(bool p_texture_rect, bool p_light_angle) {
+void RasterizerCanvasBaseGLES2::_set_texture_rect_mode(bool p_texture_rect, bool p_light_angle, bool p_modulate, bool p_large_vertex) {
+	//void RasterizerCanvasBaseGLES2::_set_texture_rect_mode(bool p_texture_rect, RasterizerStorageCommon::eFVF fvf) {
 	// always set this directly (this could be state checked)
 	state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_TEXTURE_RECT, p_texture_rect);
 
+	// desired new state
+	/*
+	bool light_angle, modulate, large_vertex;
+
+	switch (fvf)
+	{
+	default:
+		light_angle = false;
+		modulate = false;
+		large_vertex = false;
+		break;
+	case RasterizerStorageCommon::FVF_LIGHT_ANGLE:
+		light_angle = true;
+		modulate = false;
+		large_vertex = false;
+		break;
+	case RasterizerStorageCommon::FVF_MODULATED:
+		light_angle = true;
+		modulate = true;
+		large_vertex = false;
+		break;
+	case RasterizerStorageCommon::FVF_LARGE:
+		light_angle = true;
+		modulate = true;
+		large_vertex = true;
+		break;
+	}
+	*/
+
 	if (state.using_light_angle != p_light_angle) {
 		state.using_light_angle = p_light_angle;
-		state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_LIGHT_ANGLE, p_light_angle);
+		state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_ATTRIB_LIGHT_ANGLE, p_light_angle);
+	}
+
+	if (state.using_modulate != p_modulate) {
+		state.using_modulate = p_modulate;
+		state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_ATTRIB_MODULATE, p_modulate);
+	}
+
+	if (state.using_large_vertex != p_large_vertex) {
+		state.using_large_vertex = p_large_vertex;
+		state.canvas_shader.set_conditional(CanvasShaderGLES2::USE_ATTRIB_LARGE_VERTEX, p_large_vertex);
 	}
 }
 
@@ -1048,10 +1096,4 @@ void RasterizerCanvasBaseGLES2::finalize() {
 }
 
 RasterizerCanvasBaseGLES2::RasterizerCanvasBaseGLES2() {
-#ifdef GLES_OVER_GL
-	use_nvidia_rect_workaround = GLOBAL_GET("rendering/quality/2d/use_nvidia_rect_flicker_workaround");
-#else
-	// Not needed (a priori) on GLES devices
-	use_nvidia_rect_workaround = false;
-#endif
 }
