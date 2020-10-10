@@ -121,6 +121,13 @@ public:
 		GLuint ubo;
 	};
 
+	enum eOrphanMode {
+		ORP_SEND_NULL = 0,
+		ORP_NONE,
+		ORP_NEW_BUFFER,
+	};
+	eOrphanMode _orphan_mode;
+
 	RID_Owner<LightInternal> light_internal_owner;
 
 	virtual RID light_internal_create();
@@ -151,6 +158,7 @@ public:
 	void draw_generic_textured_rect(const Rect2 &p_rect, const Rect2 &p_src);
 	void draw_lens_distortion_rect(const Rect2 &p_rect, float p_k1, float p_k2, const Vector2 &p_eye_center, float p_oversample);
 	void render_rect_nvidia_workaround(const Item::CommandRect *p_rect, const RasterizerStorageGLES3::Texture *p_texture);
+	void orphan_and_buffer_data(unsigned int p_buffer_size, unsigned int p_offset, unsigned int p_data_size, const void *p_data, bool p_disallow_new_buffer = false, GLenum p_target = GL_ARRAY_BUFFER);
 
 	void initialize();
 	void finalize();

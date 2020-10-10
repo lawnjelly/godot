@@ -331,15 +331,17 @@ void RasterizerCanvasGLES3::_draw_polygon(const int *p_indices, int p_index_coun
 	glBindVertexArray(data.polygon_buffer_pointer_array);
 	glBindBuffer(GL_ARRAY_BUFFER, data.polygon_buffer);
 
-#ifndef GLES_OVER_GL
-	// Orphan the buffer to avoid CPU/GPU sync points caused by glBufferSubData
-	glBufferData(GL_ARRAY_BUFFER, data.polygon_buffer_size, NULL, GL_DYNAMIC_DRAW);
-#endif
-
 	uint32_t buffer_ofs = 0;
 
-	//vertex
-	glBufferSubData(GL_ARRAY_BUFFER, buffer_ofs, sizeof(Vector2) * p_vertex_count, p_vertices);
+//#ifndef GLES_OVER_GL
+//	// Orphan the buffer to avoid CPU/GPU sync points caused by glBufferSubData
+//	glBufferData(GL_ARRAY_BUFFER, data.polygon_buffer_size, NULL, GL_DYNAMIC_DRAW);
+//#endif
+//	//vertex
+//	glBufferSubData(GL_ARRAY_BUFFER, buffer_ofs, sizeof(Vector2) * p_vertex_count, p_vertices);
+
+	orphan_and_buffer_data(data.polygon_buffer_size, buffer_ofs, sizeof(Vector2) * p_vertex_count, p_vertices, true);
+
 	glEnableVertexAttribArray(VS::ARRAY_VERTEX);
 	glVertexAttribPointer(VS::ARRAY_VERTEX, 2, GL_FLOAT, false, sizeof(Vector2), CAST_INT_TO_UCHAR_PTR(buffer_ofs));
 	buffer_ofs += sizeof(Vector2) * p_vertex_count;
@@ -356,7 +358,6 @@ void RasterizerCanvasGLES3::_draw_polygon(const int *p_indices, int p_index_coun
 		glDisableVertexAttribArray(VS::ARRAY_COLOR);
 		glVertexAttrib4f(VS::ARRAY_COLOR, 1, 1, 1, 1);
 	} else {
-
 		glBufferSubData(GL_ARRAY_BUFFER, buffer_ofs, sizeof(Color) * p_vertex_count, p_colors);
 		glEnableVertexAttribArray(VS::ARRAY_COLOR);
 		glVertexAttribPointer(VS::ARRAY_COLOR, 4, GL_FLOAT, false, sizeof(Color), CAST_INT_TO_UCHAR_PTR(buffer_ofs));
@@ -406,11 +407,14 @@ void RasterizerCanvasGLES3::_draw_polygon(const int *p_indices, int p_index_coun
 
 	//bind the indices buffer.
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, data.polygon_index_buffer);
-#ifndef GLES_OVER_GL
-	// Orphan the buffer to avoid CPU/GPU sync points caused by glBufferSubData
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, data.polygon_index_buffer_size, NULL, GL_DYNAMIC_DRAW);
-#endif
-	glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, sizeof(int) * p_index_count, p_indices);
+
+//#ifndef GLES_OVER_GL
+//	// Orphan the buffer to avoid CPU/GPU sync points caused by glBufferSubData
+//	glBufferData(GL_ELEMENT_ARRAY_BUFFER, data.polygon_index_buffer_size, NULL, GL_DYNAMIC_DRAW);
+//#endif
+//	glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, sizeof(int) * p_index_count, p_indices);
+
+	orphan_and_buffer_data(data.polygon_index_buffer_size, 0, sizeof(int) * p_index_count, p_indices, false, GL_ELEMENT_ARRAY_BUFFER);
 
 	//draw the triangles.
 	glDrawElements(GL_TRIANGLES, p_index_count, GL_UNSIGNED_INT, 0);
@@ -432,15 +436,17 @@ void RasterizerCanvasGLES3::_draw_generic(GLuint p_primitive, int p_vertex_count
 	glBindVertexArray(data.polygon_buffer_pointer_array);
 	glBindBuffer(GL_ARRAY_BUFFER, data.polygon_buffer);
 
-#ifndef GLES_OVER_GL
-	// Orphan the buffer to avoid CPU/GPU sync points caused by glBufferSubData
-	glBufferData(GL_ARRAY_BUFFER, data.polygon_buffer_size, NULL, GL_DYNAMIC_DRAW);
-#endif
-
 	uint32_t buffer_ofs = 0;
 
-	//vertex
-	glBufferSubData(GL_ARRAY_BUFFER, buffer_ofs, sizeof(Vector2) * p_vertex_count, p_vertices);
+//#ifndef GLES_OVER_GL
+//	// Orphan the buffer to avoid CPU/GPU sync points caused by glBufferSubData
+//	glBufferData(GL_ARRAY_BUFFER, data.polygon_buffer_size, NULL, GL_DYNAMIC_DRAW);
+//#endif
+//	//vertex
+//	glBufferSubData(GL_ARRAY_BUFFER, buffer_ofs, sizeof(Vector2) * p_vertex_count, p_vertices);
+
+	orphan_and_buffer_data(data.polygon_buffer_size, buffer_ofs, sizeof(Vector2) * p_vertex_count, p_vertices, true);
+
 	glEnableVertexAttribArray(VS::ARRAY_VERTEX);
 	glVertexAttribPointer(VS::ARRAY_VERTEX, 2, GL_FLOAT, false, sizeof(Vector2), CAST_INT_TO_UCHAR_PTR(buffer_ofs));
 	buffer_ofs += sizeof(Vector2) * p_vertex_count;
@@ -485,15 +491,18 @@ void RasterizerCanvasGLES3::_draw_generic_indices(GLuint p_primitive, const int 
 	glBindVertexArray(data.polygon_buffer_pointer_array);
 	glBindBuffer(GL_ARRAY_BUFFER, data.polygon_buffer);
 
-#ifndef GLES_OVER_GL
-	// Orphan the buffer to avoid CPU/GPU sync points caused by glBufferSubData
-	glBufferData(GL_ARRAY_BUFFER, data.polygon_buffer_size, NULL, GL_DYNAMIC_DRAW);
-#endif
-
 	uint32_t buffer_ofs = 0;
 
-	//vertex
-	glBufferSubData(GL_ARRAY_BUFFER, buffer_ofs, sizeof(Vector2) * p_vertex_count, p_vertices);
+//#ifndef GLES_OVER_GL
+//	// Orphan the buffer to avoid CPU/GPU sync points caused by glBufferSubData
+//	glBufferData(GL_ARRAY_BUFFER, data.polygon_buffer_size, NULL, GL_DYNAMIC_DRAW);
+//#endif
+//	//vertex
+//	glBufferSubData(GL_ARRAY_BUFFER, buffer_ofs, sizeof(Vector2) * p_vertex_count, p_vertices);
+
+	orphan_and_buffer_data(data.polygon_buffer_size, buffer_ofs, sizeof(Vector2) * p_vertex_count, p_vertices, true);
+
+
 	glEnableVertexAttribArray(VS::ARRAY_VERTEX);
 	glVertexAttribPointer(VS::ARRAY_VERTEX, 2, GL_FLOAT, false, sizeof(Vector2), CAST_INT_TO_UCHAR_PTR(buffer_ofs));
 	buffer_ofs += sizeof(Vector2) * p_vertex_count;
@@ -538,11 +547,14 @@ void RasterizerCanvasGLES3::_draw_generic_indices(GLuint p_primitive, const int 
 
 	//bind the indices buffer.
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, data.polygon_index_buffer);
-#ifndef GLES_OVER_GL
-	// Orphan the buffer to avoid CPU/GPU sync points caused by glBufferSubData
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, data.polygon_index_buffer_size, NULL, GL_DYNAMIC_DRAW);
-#endif
-	glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, sizeof(int) * p_index_count, p_indices);
+
+//#ifndef GLES_OVER_GL
+//	// Orphan the buffer to avoid CPU/GPU sync points caused by glBufferSubData
+//	glBufferData(GL_ELEMENT_ARRAY_BUFFER, data.polygon_index_buffer_size, NULL, GL_DYNAMIC_DRAW);
+//#endif
+//	glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, sizeof(int) * p_index_count, p_indices);
+
+	orphan_and_buffer_data(data.polygon_index_buffer_size, 0, sizeof(int) * p_index_count, p_indices, false, GL_ELEMENT_ARRAY_BUFFER);
 
 	//draw the triangles.
 	glDrawElements(p_primitive, p_index_count, GL_UNSIGNED_INT, 0);
@@ -616,18 +628,49 @@ void RasterizerCanvasGLES3::_draw_gui_primitive(int p_points, const Vector2 *p_v
 	}
 
 	glBindBuffer(GL_ARRAY_BUFFER, data.polygon_buffer);
-#ifndef GLES_OVER_GL
-	// Orphan the buffer to avoid CPU/GPU sync points caused by glBufferSubData
-	glBufferData(GL_ARRAY_BUFFER, data.polygon_buffer_size, NULL, GL_DYNAMIC_DRAW);
-#endif
-	//TODO the below call may need to be replaced with: glBufferSubData(GL_ARRAY_BUFFER, 0, p_points * stride * 4 * sizeof(float), &b[0]);
-	glBufferSubData(GL_ARRAY_BUFFER, 0, p_points * stride * 4, &b[0]);
+	orphan_and_buffer_data(data.polygon_buffer_size, 0, p_points * stride * 4, &b[0]);
+
+	//#ifndef GLES_OVER_GL
+	//	// Orphan the buffer to avoid CPU/GPU sync points caused by glBufferSubData
+	//	glBufferData(GL_ARRAY_BUFFER, data.polygon_buffer_size, NULL, GL_DYNAMIC_DRAW);
+	//#endif
+	//	//TODO the below call may need to be replaced with: glBufferSubData(GL_ARRAY_BUFFER, 0, p_points * stride * 4 * sizeof(float), &b[0]);
+	//	glBufferSubData(GL_ARRAY_BUFFER, 0, p_points * stride * 4, &b[0]);
+
 	glBindVertexArray(data.polygon_buffer_quad_arrays[version]);
 	glDrawArrays(prim[p_points], 0, p_points);
 	glBindVertexArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 	storage->info.render._2d_draw_call_count++;
+}
+
+void RasterizerCanvasGLES3::orphan_and_buffer_data(unsigned int p_buffer_size, unsigned int p_offset, unsigned int p_data_size, const void *p_data, bool p_disallow_new_buffer, GLenum p_target) {
+
+	eOrphanMode mode = _orphan_mode;
+
+	// allow override for methods that call glBufferSubData multiple times
+	if (p_disallow_new_buffer && (mode == ORP_NEW_BUFFER))
+	{
+		mode = ORP_SEND_NULL;
+	}
+
+	switch (mode) {
+		default: {
+			//#ifndef GLES_OVER_GL
+			// Orphan the buffer to avoid CPU/GPU sync points caused by glBufferSubData
+			glBufferData(p_target, p_buffer_size, NULL, GL_DYNAMIC_DRAW);
+			//#endif
+			//TODO the below call may need to be replaced with: glBufferSubData(GL_ARRAY_BUFFER, 0, p_points * stride * 4 * sizeof(float), &b[0]);
+			glBufferSubData(p_target, p_offset, p_data_size, p_data);
+		} break;
+		case ORP_NONE: {
+			glBufferSubData(p_target, p_offset, p_data_size, p_data);
+		} break;
+		case ORP_NEW_BUFFER: {
+			glBufferData(p_target, p_data_size, p_data, GL_DYNAMIC_DRAW);
+		} break;
+	}
 }
 
 static const GLenum gl_primitive[] = {
@@ -2429,4 +2472,8 @@ RasterizerCanvasGLES3::RasterizerCanvasGLES3() {
 #ifdef GLES_OVER_GL
 	use_nvidia_rect_workaround = GLOBAL_GET("rendering/quality/2d/use_nvidia_rect_flicker_workaround");
 #endif
+
+	_orphan_mode = ORP_SEND_NULL;
+	int om = GLOBAL_GET("rendering/quality/2d/orphan_method");
+	_orphan_mode = (eOrphanMode) om;
 }
