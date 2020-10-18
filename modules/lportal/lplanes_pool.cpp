@@ -1,5 +1,7 @@
 #include "lplanes_pool.h"
 
+using namespace Lawn;
+
 LPlanesPool::LPlanesPool()
 {
 	Reset();

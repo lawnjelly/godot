@@ -26,6 +26,8 @@
 #include <assert.h>
 #include <vector>
 
+namespace Lawn {
+
 template <class T> class LVector
 {
 public:
@@ -238,3 +240,4 @@ private:
 	int m_iSize;
 };
 
+} // namespace
