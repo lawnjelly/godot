@@ -39,6 +39,7 @@
 #include "core/math/vector3.h"
 #include "core/print_string.h"
 #include "core/variant.h"
+#include "core/math/bvh.h"
 
 typedef uint32_t OctreeElementID;
 
@@ -56,6 +57,8 @@ public:
 	typedef void (*UnpairCallback)(void *, OctreeElementID, T *, int, OctreeElementID, T *, int, void *);
 
 private:
+	BVH_Manager<T> m_BVH;
+
 	enum {
 
 		NEG = 0,
@@ -218,6 +221,7 @@ private:
 
 		uint64_t last_pass;
 		OctreeElementID _id;
+		BVHElementID _bvh_id;
 		Octant *common_parent;
 
 		AABB aabb;
@@ -909,6 +913,8 @@ OCTREE_FUNC(OctreeElementID)::create(T *p_userdata, const AABB &p_aabb, int p_su
 			Element());
 	Element &e = E->get();
 
+	e._bvh_id = m_BVH.create(p_userdata, p_aabb);
+
 	e.aabb = p_aabb;
 	e.userdata = p_userdata;
 	e.subindex = p_subindex;
@@ -946,6 +952,8 @@ OCTREE_FUNC(void)::move(OctreeElementID p_id, const AABB &p_aabb) {
 	typename ElementMap::Element *E = element_map.find(p_id);
 	ERR_FAIL_COND(!E);
 	Element &e = E->get();
+
+	m_BVH.move(e._bvh_id, p_aabb);
 
 	bool old_has_surf = !e.aabb.has_no_surface();
 	bool new_has_surf = !p_aabb.has_no_surface();
@@ -1095,6 +1103,8 @@ OCTREE_FUNC(void)::erase(OctreeElementID p_id) {
 	ERR_FAIL_COND(!E);
 
 	Element &e = E->get();
+
+	m_BVH.erase(e._bvh_id);
 
 	if (!e.aabb.has_no_surface()) {
 
