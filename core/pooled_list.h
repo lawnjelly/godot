@@ -42,7 +42,7 @@ public:
 		list.resize(r_id +1);
 		return &list[r_id];
 	}
-	void free(uint32_t &p_id)
+	void free(const uint32_t &p_id)
 	{
 		// should not be on free list already
 		CRASH_COND(p_id >= list.size());
