@@ -16,7 +16,7 @@ struct BVH_Handle
 };
 
 
-template <class T, int MAX_CHILDREN, int MAX_ITEMS_PER_NODE>
+template <class T, int MAX_CHILDREN, int MAX_ITEMS>
 class BVH_Tree
 {
 	struct ItemRef
@@ -25,6 +25,7 @@ class BVH_Tree
 		uint32_t item_id; // in the tnode
 	};
 
+	// this is an item OR a child node depending on whether a leaf node
 	struct Item
 	{
 		AABB aabb;
@@ -34,22 +35,35 @@ class BVH_Tree
 	// tree node
 	struct TNode
 	{
+		uint32_t parent_tnode_id_p1;
+		//		uint16_t parent_child_number; // which child this is of the parent node
+	private:
+		uint16_t _leaf;
+	public:
+		// items can be child nodes or items (if we are a leaf)
+		uint16_t num_items;
+
+		AABB aabb;
+		Item items[MAX_ITEMS];
+
+		bool is_leaf() const {return _leaf != 0;}
+		void set_leaf(bool b) {_leaf = (uint16_t) b;}
+
 		void clear()
 		{
 			num_items = 0;
-			num_children = 0;
-			active_child_flags = 0;
 			parent_tnode_id_p1 = 0;
+			set_leaf(true);
 
 			// other members are not blanked for speed .. they may be uninitialized
 		}
 
-		bool is_full_of_items() const {return num_items >= MAX_ITEMS_PER_NODE;}
-		bool is_full_of_children() const {return num_children >= MAX_CHILDREN;}
+		bool is_full_of_items() const {return num_items >= MAX_ITEMS;}
+		bool is_full_of_children() const {return num_items >= MAX_CHILDREN;}
 
 		Item * request_item(uint32_t &id)
 		{
-			if (num_items < MAX_ITEMS_PER_NODE)
+			if (num_items < MAX_ITEMS)
 			{
 				id = num_items;
 				return &items[num_items++];
@@ -60,6 +74,20 @@ class BVH_Tree
 		Item &get_item(int id)
 		{
 			return items[id];
+		}
+
+		int find_child(uint32_t p_child_node_id)
+		{
+			CRASH_COND(is_leaf());
+
+			for (int n=0; n<num_items; n++)
+			{
+				if (items[n].item_ref_id == p_child_node_id)
+					return n;
+			}
+
+			// not found
+			return -1;
 		}
 
 		// ALSO NEEDS the reference changing in the tree, cannot be used on its own
@@ -87,47 +115,14 @@ class BVH_Tree
 			{
 				aabb.merge_with(items[n].aabb);
 			}
-
-			// children
-			uint32_t mask = 1;
-			for (int n=0; n<MAX_CHILDREN; n++)
-			{
-				if (active_child_flags & mask)
-				{
-					aabb.merge_with(child_aabbs[n]);
-				}
-				mask <<= 1;
-			}
 		}
-
-		void remove_child_number(uint32_t p_child_number)
-		{
-			CRASH_COND(!num_children);
-			CRASH_COND(p_child_number >= MAX_CHILDREN);
-			uint32_t mask = 1 << p_child_number;
-			// it should be active
-			CRASH_COND(!(active_child_flags & mask));
-			active_child_flags |= ~mask;
-			num_children--;
-		}
-
-		uint32_t active_child_flags; // this limits number of children
-		uint32_t num_items;
-		uint32_t parent_tnode_id_p1;
-		uint16_t parent_child_number; // which child this is of the parent node
-		uint16_t num_children;
-
-		AABB aabb;
-		AABB child_aabbs[MAX_CHILDREN];
-		uint32_t child_tnode_ids[MAX_CHILDREN];
-		Item items[MAX_ITEMS_PER_NODE];
 	};
 
 
 	// instead of using linked list we maintain
 	// item references (for quick lookup)
-	PooledList<ItemRef, true> refs;
-	PooledList<TNode, true> nodes;
+	PooledList<ItemRef, true> _refs;
+	PooledList<TNode, true> _nodes;
 	int _root_node_id;
 
 public:
@@ -139,68 +134,59 @@ public:
 private:
 	bool node_add_child(uint32_t p_node_id, uint32_t p_child_node_id)
 	{
-		TNode &tnode = nodes[p_node_id];
-		if (tnode.num_children >= MAX_CHILDREN)
+		TNode &tnode = _nodes[p_node_id];
+		if (tnode.is_full_of_children())
 			return false;
 
-		TNode &tnode_child = nodes[p_child_node_id];
+		TNode &tnode_child = _nodes[p_child_node_id];
 		// back link in the child to the parent
 		tnode_child.parent_tnode_id_p1 = p_node_id + 1;
 
-		// children
-		uint32_t mask = 1;
-		for (int n=0; n<MAX_CHILDREN; n++)
+		uint32_t id;
+		Item * pChild = tnode.request_item(id);
+		pChild->aabb = tnode_child.aabb;
+		pChild->item_ref_id = p_child_node_id;
+
+		return true;
+	}
+
+	AABB * recursive_node_update_aabb(uint32_t p_node_id)
+	{
+		TNode &tnode = _nodes[p_node_id];
+
+		// do children first
+		if (!tnode.is_leaf())
 		{
-			if (!(tnode.active_child_flags & mask))
+			for (int n=0; n<tnode.num_items; n++)
 			{
-				// mark slot as used
-				tnode.active_child_flags |= mask;
-				tnode.child_aabbs[n] = tnode_child.aabb;
-				tnode.child_tnode_ids[n] = p_child_node_id; // plus one based index
-				tnode.num_children++;
-
-				// make a back link .. the slot used in the parent
-				tnode_child.parent_child_number = n;
-				return true;
+				Item &item = tnode.get_item(n);
+				item.aabb = *recursive_node_update_aabb(item.item_ref_id);
 			}
-			mask <<= 1;
 		}
 
-		return false;
-	}
-
-	void recursive_node_update_aabb_upward(uint32_t p_node_id)
-	{
-		uint32_t parent_node_p1 = node_update_aabb(p_node_id);
-
-		if (parent_node_p1)
-			recursive_node_update_aabb_upward(parent_node_p1-1);
-	}
-
-	// return parent node p1
-	uint32_t node_update_aabb(uint32_t p_node_id)
-	{
-		TNode &tnode = nodes[p_node_id];
 		tnode.update_aabb_internal();
+		return &tnode.aabb;
+	}
 
-		// inform parent of new aabb
-		if (tnode.parent_tnode_id_p1)
-		{
-			// the node number is stored +1 based (i.e. 1 is 0, so that 0 indicates NULL)
-			TNode &tnode_parent = nodes[tnode.parent_tnode_id_p1-1];
-			CRASH_COND(tnode.parent_child_number >= MAX_CHILDREN);
-			tnode_parent.child_aabbs[tnode.parent_child_number] = tnode.aabb;
-		}
-		return tnode.parent_tnode_id_p1;
+	void node_remove_child(uint32_t p_node_id, uint32_t p_child_node_id)
+	{
+		TNode &tnode = _nodes[p_node_id];
+
+		int child_num = tnode.find_child(p_child_node_id);
+		CRASH_COND(child_num == -1);
+
+		tnode.remove_item_internal(child_num);
+
+		// no need to keep back references for children at the moment
 	}
 
 	void node_remove_item(uint32_t p_ref_id)
 	{
 		// get the reference
-		ItemRef &ref = refs[p_ref_id];
+		ItemRef &ref = _refs[p_ref_id];
 		uint32_t owner_node_id = ref.tnode_id;
 
-		TNode &tnode = nodes[owner_node_id];
+		TNode &tnode = _nodes[owner_node_id];
 		tnode.remove_item_internal(ref.item_id);
 
 		if (tnode.num_items)
@@ -208,11 +194,12 @@ private:
 			// the swapped item has to have its reference changed to, to point to the new item id
 			uint32_t swapped_ref_id = tnode.items[ref.item_id].item_ref_id;
 
-			ItemRef &swapped_ref = refs[swapped_ref_id];
+			ItemRef &swapped_ref = _refs[swapped_ref_id];
 
 			swapped_ref.item_id = ref.item_id;
 
-			recursive_node_update_aabb_upward(owner_node_id);
+			recursive_node_update_aabb(_root_node_id);
+			//recursive_node_update_aabb_upward(owner_node_id);
 		}
 		else
 		{
@@ -223,15 +210,15 @@ private:
 				// the node number is stored +1 based (i.e. 1 is 0, so that 0 indicates NULL)
 				uint32_t parent_node_id = tnode.parent_tnode_id_p1-1;
 
-				TNode &tnode_parent = nodes[parent_node_id];
-				CRASH_COND(tnode.parent_child_number >= MAX_CHILDREN);
-				tnode_parent.remove_child_number(tnode.parent_child_number);
+				node_remove_child(parent_node_id, owner_node_id);
 
-				recursive_node_update_aabb_upward(parent_node_id);
+
+				recursive_node_update_aabb(_root_node_id);
+//				recursive_node_update_aabb_upward(parent_node_id);
 			}
 
 			// put the node on the free list to recycle
-			nodes.free(owner_node_id);
+			_nodes.free(owner_node_id);
 		}
 
 		ref.tnode_id = -1;
@@ -245,7 +232,7 @@ public:
 		if (_root_node_id == -1)
 		{
 			uint32_t root_node_id;
-			TNode * node = nodes.request(root_node_id);
+			TNode * node = _nodes.request(root_node_id);
 			node->clear();
 			_root_node_id = root_node_id;
 		}
@@ -254,49 +241,97 @@ public:
 	// either choose an existing node to add item to, or create a new node and return this
 	uint32_t recursive_choose_item_add_node(uint32_t p_node_id, const AABB &p_aabb)
 	{
-		TNode &tnode = nodes[p_node_id];
+		TNode &tnode = _nodes[p_node_id];
+
+		// if not a leaf node
+		if (!tnode.is_leaf())
+		{
+			// there are children already
+			float best_goodness_fit = -FLT_MAX;
+			int best_child = -1;
+
+			// find the best child and recurse into that
+			for (int n=0; n<tnode.num_items; n++)
+			{
+
+						float fit = _goodness_of_fit_merge(p_aabb, tnode.get_item(n).aabb);
+						if (fit > best_goodness_fit)
+						{
+							best_goodness_fit = fit;
+							best_child = n;
+						}
+			}
+
+			CRASH_COND(best_child == -1);
+			return recursive_choose_item_add_node(tnode.get_item(best_child).item_ref_id, p_aabb);
+		} // if not a leaf
+
+		// if we got to here, must be a leaf
 
 		// is it full?
 		if (!tnode.is_full_of_items())
 			return p_node_id;
 
-		// try children
-		if (tnode.num_children == 0)
-		{
-			// add a child
-			uint32_t child_node_id;
-			TNode * node = nodes.request(child_node_id);
-			node->clear();
+		// if it is full, and a leaf node, we will split the leaf into children, then
+		// recurse into the children
+		split_leaf(p_node_id);
 
-			// add a link from the parent
-			node_add_child(p_node_id, child_node_id);
+		return recursive_choose_item_add_node(p_node_id, p_aabb);
+	}
 
-			// return the child node as the one to add to
-			return child_node_id;
-		}
+	void _node_add_item(uint32_t p_node_id, uint32_t p_ref_id, const AABB &p_aabb)
+	{
+		ItemRef &ref = _refs[p_ref_id];
+		ref.tnode_id = p_node_id;
 
-		// there are children already
-		float best_goodness_fit = -FLT_MAX;
-		int best_child = -1;
+		TNode &node = _nodes[p_node_id];
+		Item * item = node.request_item(ref.item_id);
 
-		uint32_t mask = 1;
+		// set the aabb of the new item
+		item->aabb = p_aabb;
+
+		// back reference on the item back to the item reference
+		item->item_ref_id = p_ref_id;
+	}
+
+	void split_leaf(uint32_t p_node_id)
+	{
+		CRASH_COND(MAX_ITEMS < MAX_CHILDREN);
+		TNode &tnode = _nodes[p_node_id];
+
+		// mark as no longer a leaf node
+		tnode.set_leaf(false);
+
+		// first create child leaf nodes
+		uint32_t * child_ids = (uint32_t *) alloca(sizeof (uint32_t) * MAX_CHILDREN);
+
 		for (int n=0; n<MAX_CHILDREN; n++)
 		{
-			if (tnode.active_child_flags & mask)
-			{
-				float fit = _goodness_of_fit_merge(p_aabb, tnode.child_aabbs[n]);
-				if (fit > best_goodness_fit)
-				{
-					best_goodness_fit = fit;
-					best_child = n;
-				}
-			}
-			mask <<= 1;
+			TNode * child_node = _nodes.request(child_ids[n]);
+			child_node->clear();
+
+			// back link to parent
+			child_node->parent_tnode_id_p1 = p_node_id + 1;
 		}
 
-		CRASH_COND(best_child == -1);
 
-		return recursive_choose_item_add_node(tnode.child_tnode_ids[best_child], p_aabb);
+		// move each item to a child node
+		for (int n=0; n<tnode.num_items; n++)
+		{
+			int child_node_id = child_ids[n % MAX_CHILDREN];
+			const Item &source_item = tnode.get_item(n);
+			_node_add_item(child_node_id, source_item.item_ref_id, source_item.aabb);
+		}
+
+		// now remove all items from the parent and replace with the child nodes
+		tnode.num_items = MAX_CHILDREN;
+		for (int n=0; n<MAX_CHILDREN; n++)
+		{
+			// store the child node ids, but not the AABB as not calculated yet
+			tnode.items[n].item_ref_id = child_ids[n];
+		}
+
+		update_all_aabbs();
 	}
 
 	float _aabb_size(const AABB &p_aabb) const
@@ -324,7 +359,7 @@ public:
 		uint32_t ref_id;
 
 		// this should never fail
-		ItemRef * ref = refs.request(ref_id);
+		ItemRef * ref = _refs.request(ref_id);
 
 		// assign to handle to return
 		handle.id = ref_id;
@@ -333,38 +368,26 @@ public:
 
 		// we must choose where to add to tree
 		ref->tnode_id = recursive_choose_item_add_node(_root_node_id, p_aabb);
-		TNode &node = nodes[ref->tnode_id];
 
-		// add to tree
-//		uint32_t new_node_id;
-//		TNode * node = nodes.request(new_node_id);
-//		ref->tnode_id = new_node_id; // store in the reference
-//		node->clear();
+		_node_add_item(ref->tnode_id, ref_id, p_aabb);
 
-		// request a new item on the node, and return the item id to the reference
-		Item * item = node.request_item(ref->item_id);
+		update_all_aabbs();
+//		recursive_node_update_aabb_upward(ref->tnode_id);
 
-		// set the aabb of the new item
-		item->aabb = p_aabb;
-
-		// back reference on the item back to the item reference
-		item->item_ref_id = ref_id;
-
-		recursive_node_update_aabb_upward(ref->tnode_id);
-
-		VERBOSE_PRINT("item_add " + itos(refs.size()) + " refs,\t" + itos(nodes.size()) + " nodes ");
+		VERBOSE_PRINT("item_add " + itos(_refs.size()) + " refs,\t" + itos(_nodes.size()) + " nodes ");
 
 		return handle;
 	}
+
 
 	void item_move(BVH_Handle p_handle, const AABB &p_aabb)
 	{
 		uint32_t ref_id = p_handle.id;
 
 		// get the reference
-		ItemRef &ref = refs[ref_id];
+		ItemRef &ref = _refs[ref_id];
 
-		TNode &tnode = nodes[ref.tnode_id];
+		TNode &tnode = _nodes[ref.tnode_id];
 
 //		int id = tnode.find_item(p_ref_id.id);
 //		CRASH_COND(id == -1)
@@ -372,7 +395,7 @@ public:
 		Item &item = tnode.get_item(ref.item_id);
 		item.aabb = p_aabb;
 
-		recursive_node_update_aabb_upward(ref.tnode_id);
+		//recursive_node_update_aabb_upward(ref.tnode_id);
 	}
 
 	void item_remove(BVH_Handle p_handle)
@@ -386,7 +409,14 @@ public:
 		node_remove_item(ref_id);
 
 		// remove the item reference
-		refs.free(ref_id);
+		_refs.free(ref_id);
+
+		update_all_aabbs();
+	}
+
+	void update_all_aabbs()
+	{
+		recursive_node_update_aabb(_root_node_id);
 	}
 };
 
