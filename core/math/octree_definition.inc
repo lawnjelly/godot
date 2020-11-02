@@ -41,6 +41,15 @@
 #include "core/variant.h"
 #include "core/math/bvh.h"
 
+extern BVH_Manager<void> m_BVH;
+#ifdef OCTREE_USE_CACHED_LISTS
+#define OCTREE_SEND_TO_BVH
+#else
+#undef OCTREE_SEND_TO_BVH
+#endif
+
+
+
 typedef uint32_t OctreeElementID;
 
 // macro to reduce boiler plate code when providing function implementations
@@ -56,8 +65,8 @@ public:
 	typedef void *(*PairCallback)(void *, OctreeElementID, T *, int, OctreeElementID, T *, int);
 	typedef void (*UnpairCallback)(void *, OctreeElementID, T *, int, OctreeElementID, T *, int, void *);
 
+//	BVH_Manager<T> m_BVH;
 private:
-	BVH_Manager<T> m_BVH;
 
 	enum {
 
@@ -913,7 +922,9 @@ OCTREE_FUNC(OctreeElementID)::create(T *p_userdata, const AABB &p_aabb, int p_su
 			Element());
 	Element &e = E->get();
 
+#ifdef OCTREE_SEND_TO_BVH
 	e._bvh_id = m_BVH.create(p_userdata, p_aabb);
+#endif
 
 	e.aabb = p_aabb;
 	e.userdata = p_userdata;
@@ -953,7 +964,9 @@ OCTREE_FUNC(void)::move(OctreeElementID p_id, const AABB &p_aabb) {
 	ERR_FAIL_COND(!E);
 	Element &e = E->get();
 
+#ifdef OCTREE_SEND_TO_BVH
 	m_BVH.move(e._bvh_id, p_aabb);
+#endif
 
 	bool old_has_surf = !e.aabb.has_no_surface();
 	bool new_has_surf = !p_aabb.has_no_surface();
@@ -1104,7 +1117,10 @@ OCTREE_FUNC(void)::erase(OctreeElementID p_id) {
 
 	Element &e = E->get();
 
+
+#ifdef OCTREE_SEND_TO_BVH
 	m_BVH.erase(e._bvh_id);
+#endif
 
 	if (!e.aabb.has_no_surface()) {
 

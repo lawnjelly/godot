@@ -3,7 +3,17 @@
 #include "core/math/aabb.h"
 #include "core/pooled_list.h"
 
+#define BVH_DEBUG_DRAW
+#ifdef BVH_DEBUG_DRAW
+#include "scene/3d/immediate_geometry.h"
+#endif
+
 #if defined (TOOLS_ENABLED) && defined (DEBUG_ENABLED)
+//#define BVH_VERBOSE
+#define BVH_CHECKS
+#endif
+
+#ifdef BVH_VERBOSE
 #define VERBOSE_PRINT print_line
 #else
 #define VERBOSE_PRINT(a)
@@ -71,10 +81,8 @@ class BVH_Tree
 			return nullptr;
 		}
 
-		Item &get_item(int id)
-		{
-			return items[id];
-		}
+		const Item &get_item(int id) const {return items[id];}
+		Item &get_item(int id) {return items[id];}
 
 		int find_child(uint32_t p_child_node_id)
 		{
@@ -105,6 +113,9 @@ class BVH_Tree
 			// the 'blank' aabb will screw up parent aabbs
 			if (!num_items)
 			{
+#ifdef BVH_CHECKS
+				WARN_PRINT_ONCE("BVH_Tree::TNode AABB is undefined");
+#endif
 				aabb = AABB();
 				return;
 			}
@@ -150,7 +161,32 @@ private:
 		return true;
 	}
 
-	AABB * recursive_node_update_aabb(uint32_t p_node_id)
+	void refit_upward(uint32_t p_node_id)
+	{
+		TNode &tnode = _nodes[p_node_id];
+
+		// update children AABBs
+		if (!tnode.is_leaf())
+		{
+			for (int n=0; n<tnode.num_items; n++)
+			{
+				Item &item = tnode.get_item(n);
+				const TNode &tchild = _nodes[item.item_ref_id];
+
+				item.aabb = tchild.aabb;
+			}
+		}
+
+		// update overall aabb from the children
+		tnode.update_aabb_internal();
+
+		if (tnode.parent_tnode_id_p1)
+		{
+			refit_upward(	tnode.parent_tnode_id_p1-1);
+		}
+	}
+
+	AABB * refit_downward(uint32_t p_node_id)
 	{
 		TNode &tnode = _nodes[p_node_id];
 
@@ -160,11 +196,12 @@ private:
 			for (int n=0; n<tnode.num_items; n++)
 			{
 				Item &item = tnode.get_item(n);
-				item.aabb = *recursive_node_update_aabb(item.item_ref_id);
+				item.aabb = *refit_downward(item.item_ref_id);
 			}
 		}
 
 		tnode.update_aabb_internal();
+
 		return &tnode.aabb;
 	}
 
@@ -178,6 +215,23 @@ private:
 		tnode.remove_item_internal(child_num);
 
 		// no need to keep back references for children at the moment
+
+		if (tnode.num_items)
+			return;
+
+		// now there may be no children in this node .. in which case it can be deleted
+		// remove node if empty
+		// remove link from parent
+		if (tnode.parent_tnode_id_p1)
+		{
+			// the node number is stored +1 based (i.e. 1 is 0, so that 0 indicates NULL)
+			uint32_t parent_node_id = tnode.parent_tnode_id_p1-1;
+
+			node_remove_child(parent_node_id, p_node_id);
+
+			// put the node on the free list to recycle
+			_nodes.free(p_node_id);
+		}
 	}
 
 	void node_remove_item(uint32_t p_ref_id)
@@ -198,7 +252,7 @@ private:
 
 			swapped_ref.item_id = ref.item_id;
 
-			recursive_node_update_aabb(_root_node_id);
+			refit_downward(_root_node_id);
 			//recursive_node_update_aabb_upward(owner_node_id);
 		}
 		else
@@ -213,12 +267,14 @@ private:
 				node_remove_child(parent_node_id, owner_node_id);
 
 
-				recursive_node_update_aabb(_root_node_id);
+				refit_downward(_root_node_id);
 //				recursive_node_update_aabb_upward(parent_node_id);
+
+				// put the node on the free list to recycle
+				_nodes.free(owner_node_id);
 			}
 
-			// put the node on the free list to recycle
-			_nodes.free(owner_node_id);
+			// else if no parent, it is the root node. Do not delete
 		}
 
 		ref.tnode_id = -1;
@@ -238,6 +294,21 @@ public:
 		}
 	}
 
+	uint32_t _create_another_child(uint32_t p_node_id, const AABB &p_aabb)
+	{
+		uint32_t child_node_id;
+		TNode * child_node = _nodes.request(child_node_id);
+		child_node->clear();
+
+		// may not be necessary
+		child_node->aabb = p_aabb;
+
+		node_add_child(p_node_id, child_node_id);
+
+		return child_node_id;
+	}
+
+
 	// either choose an existing node to add item to, or create a new node and return this
 	uint32_t recursive_choose_item_add_node(uint32_t p_node_id, const AABB &p_aabb)
 	{
@@ -246,6 +317,12 @@ public:
 		// if not a leaf node
 		if (!tnode.is_leaf())
 		{
+			// first choice is, if there are not max children, create another child node
+			if (tnode.num_items < MAX_CHILDREN)
+			{
+				return _create_another_child(p_node_id, p_aabb);
+			}
+
 			// there are children already
 			float best_goodness_fit = -FLT_MAX;
 			int best_child = -1;
@@ -296,12 +373,6 @@ public:
 
 	void split_leaf(uint32_t p_node_id)
 	{
-		CRASH_COND(MAX_ITEMS < MAX_CHILDREN);
-		TNode &tnode = _nodes[p_node_id];
-
-		// mark as no longer a leaf node
-		tnode.set_leaf(false);
-
 		// first create child leaf nodes
 		uint32_t * child_ids = (uint32_t *) alloca(sizeof (uint32_t) * MAX_CHILDREN);
 
@@ -313,6 +384,13 @@ public:
 			// back link to parent
 			child_node->parent_tnode_id_p1 = p_node_id + 1;
 		}
+
+		CRASH_COND(MAX_ITEMS < MAX_CHILDREN);
+		TNode &tnode = _nodes[p_node_id];
+
+		// mark as no longer a leaf node
+		tnode.set_leaf(false);
+
 
 
 		// move each item to a child node
@@ -331,7 +409,7 @@ public:
 			tnode.items[n].item_ref_id = child_ids[n];
 		}
 
-		update_all_aabbs();
+		refit_all();
 	}
 
 	float _aabb_size(const AABB &p_aabb) const
@@ -352,6 +430,11 @@ public:
 
 	BVH_Handle item_add(const AABB &p_aabb)
 	{
+#ifdef BVH_VERBOSE
+		VERBOSE_PRINT("item_add BEFORE");
+		_recursive_print_tree();
+#endif
+
 		// handle to be filled with the new item ref
 		BVH_Handle handle;
 
@@ -371,10 +454,15 @@ public:
 
 		_node_add_item(ref->tnode_id, ref_id, p_aabb);
 
-		update_all_aabbs();
+		refit_all();
 //		recursive_node_update_aabb_upward(ref->tnode_id);
 
 		VERBOSE_PRINT("item_add " + itos(_refs.size()) + " refs,\t" + itos(_nodes.size()) + " nodes ");
+
+#ifdef BVH_VERBOSE
+		VERBOSE_PRINT("item_add AFTER");
+		_recursive_print_tree();
+#endif
 
 		return handle;
 	}
@@ -395,6 +483,8 @@ public:
 		Item &item = tnode.get_item(ref.item_id);
 		item.aabb = p_aabb;
 
+		//refit_all();
+		refit_upward(ref.tnode_id);
 		//recursive_node_update_aabb_upward(ref.tnode_id);
 	}
 
@@ -411,13 +501,143 @@ public:
 		// remove the item reference
 		_refs.free(ref_id);
 
-		update_all_aabbs();
+		refit_all();
 	}
 
-	void update_all_aabbs()
+	void refit_all()
 	{
-		recursive_node_update_aabb(_root_node_id);
+		refit_downward(_root_node_id);
 	}
+
+
+#ifdef BVH_DEBUG_DRAW
+	void draw_debug(ImmediateGeometry * p_im)
+	{
+		if (_root_node_id == -1)
+			return;
+
+#ifdef BVH_VERBOSE
+		_recursive_print_tree(_root_node_id);
+#endif
+
+
+		p_im->clear();
+		//im->begin(Mesh::PRIMITIVE_TRIANGLES, NULL);
+		p_im->begin(Mesh::PRIMITIVE_LINES, NULL);
+
+		_debug_draw_node(p_im, _root_node_id);
+		//im->add_vertex(m_DebugPortalLightPlanes[n]);
+		p_im->end();
+	}
+
+	void _debug_draw_AABB(ImmediateGeometry * p_im, const AABB &aabb)
+	{
+		Vector3 mins, maxs;
+		mins = aabb.position;
+		maxs = mins + aabb.size;
+
+		Vector3 pts[8];
+		pts[0] = Vector3(mins.x, mins.y, mins.z);
+		pts[1] = Vector3(mins.x, maxs.y, mins.z);
+		pts[2] = Vector3(maxs.x, maxs.y, mins.z);
+		pts[3] = Vector3(maxs.x, mins.y, mins.z);
+
+		pts[4] = Vector3(mins.x, mins.y, maxs.z);
+		pts[5] = Vector3(mins.x, maxs.y, maxs.z);
+		pts[6] = Vector3(maxs.x, maxs.y, maxs.z);
+		pts[7] = Vector3(maxs.x, mins.y, maxs.z);
+
+
+		p_im->add_vertex(pts[0]);
+		p_im->add_vertex(pts[1]);
+		p_im->add_vertex(pts[1]);
+		p_im->add_vertex(pts[2]);
+		p_im->add_vertex(pts[2]);
+		p_im->add_vertex(pts[3]);
+		p_im->add_vertex(pts[3]);
+		p_im->add_vertex(pts[0]);
+
+		p_im->add_vertex(pts[4+0]);
+		p_im->add_vertex(pts[4+1]);
+		p_im->add_vertex(pts[4+1]);
+		p_im->add_vertex(pts[4+2]);
+		p_im->add_vertex(pts[4+2]);
+		p_im->add_vertex(pts[4+3]);
+		p_im->add_vertex(pts[4+3]);
+		p_im->add_vertex(pts[4+0]);
+
+
+		p_im->add_vertex(pts[0]);
+		p_im->add_vertex(pts[4+0]);
+		p_im->add_vertex(pts[1]);
+		p_im->add_vertex(pts[4+1]);
+		p_im->add_vertex(pts[2]);
+		p_im->add_vertex(pts[4+2]);
+		p_im->add_vertex(pts[3]);
+		p_im->add_vertex(pts[4+3]);
+
+	}
+
+	void _debug_draw_node(ImmediateGeometry * p_im, uint32_t p_node_id)
+	{
+		TNode &tnode = _nodes[p_node_id];
+
+		_debug_draw_AABB(p_im, tnode.aabb);
+
+		// children?
+		if (!tnode.is_leaf())
+		{
+			for (int n=0; n<tnode.num_items; n++)
+			{
+				_debug_draw_node(p_im, tnode.items[n].item_ref_id);
+			}
+		}
+	}
+
+#endif
+
+#ifdef BVH_VERBOSE
+	void _recursive_print_tree() const
+	{
+		if (_root_node_id != -1)
+			_recursive_print_tree(_root_node_id);
+	}
+
+	void _recursive_print_tree(uint32_t p_node_id, int depth = 0) const
+	{
+		const TNode &tnode = _nodes[p_node_id];
+
+		String sz = "";
+		for (int n=0; n<depth; n++)
+		{
+			sz += "\t";
+		}
+		if (tnode.is_leaf())
+			sz += "L ";
+		else
+			sz += "N ";
+
+		sz += "(";
+		sz += itos(tnode.num_items);
+		sz += ") ";
+
+		sz += String(tnode.aabb);
+		print_line(sz);
+
+		if (!tnode.is_leaf())
+		{
+			for (int n=0; n<tnode.num_items; n++)
+			{
+				const Item &item = tnode.get_item(n);
+				_recursive_print_tree(item.item_ref_id, depth+1);
+			}
+		}
+
+	}
+#endif
+
+
+
 };
 
 #undef VERBOSE_PRINT
