@@ -25,8 +25,15 @@ public:
 		tree.item_remove(p_id);
 	}
 
+#ifdef BVH_DEBUG_DRAW
+	void draw_debug(ImmediateGeometry * p_im)
+	{
+		tree.draw_debug(p_im);
+	}
+#endif
+
 private:
-	BVH_Tree<T, 2, 8> tree;
+	BVH_Tree<T, 2, 2> tree;
 };
 
 
