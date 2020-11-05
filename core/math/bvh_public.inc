@@ -6,6 +6,9 @@ BVH_Handle item_add(const AABB &p_aabb)
 	VERBOSE_PRINT("\n");
 #endif
 
+	ABB abb;
+	abb.from(p_aabb);
+
 	// handle to be filled with the new item ref
 	BVH_Handle handle;
 
@@ -25,15 +28,17 @@ BVH_Handle item_add(const AABB &p_aabb)
 	create_root_node();
 
 	// we must choose where to add to tree
-	ref->tnode_id = recursive_choose_item_add_node(_root_node_id, p_aabb);
+	ref->tnode_id = recursive_choose_item_add_node(_root_node_id, abb);
 
-	_node_add_item(ref->tnode_id, ref_id, p_aabb);
+	_node_add_item(ref->tnode_id, ref_id, abb);
 
 //		refit_all();
 	refit_upward(ref->tnode_id);
 
+//	_try_exchange_cousin(ref_id);
+
 #ifdef BVH_VERBOSE
-	String sz = _aabb_to_string(p_aabb);
+	String sz = _aabb_to_string(abb);
 	VERBOSE_PRINT("item_add [" + itos(ref_id) + "] " + itos(_refs.size()) + " refs,\t" + itos(_nodes.size()) + " nodes " + sz);
 #endif
 
@@ -54,6 +59,8 @@ void item_move(BVH_Handle p_handle, const AABB &p_aabb)
 	if (ref_id == 1)
 		return;
 
+	ABB abb;
+	abb.from(p_aabb);
 
 	// get the reference
 	ItemRef &ref = _refs[ref_id];
@@ -66,7 +73,7 @@ void item_move(BVH_Handle p_handle, const AABB &p_aabb)
 //		CRASH_COND(id == -1)
 
 	Item &item = tnode.get_item(ref.item_id);
-	item.aabb = p_aabb;
+	item.aabb = abb;
 
 	//refit_all();
 	refit_upward(ref.tnode_id);

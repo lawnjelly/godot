@@ -18,11 +18,11 @@
 		p_im->end();
 	}
 
-	void _debug_draw_AABB(ImmediateGeometry * p_im, const AABB &aabb)
+	void _debug_draw_AABB(ImmediateGeometry * p_im, const ABB &abb)
 	{
 		Vector3 mins, maxs;
-		mins = aabb.position;
-		maxs = mins + aabb.size;
+		mins = -abb.neg_min;
+		maxs = abb.max;
 
 		Vector3 pts[8];
 		pts[0] = Vector3(mins.x, mins.y, mins.z);
@@ -104,25 +104,26 @@
 			_recursive_print_tree(_root_node_id);
 	}
 
-	String _aabb_to_string(const AABB &aabb) const
+	String _aabb_to_string(const ABB &aabb) const
 	{
 		String sz = "(";
-		sz += itos (aabb.position.x);
+		sz += itos (-aabb.neg_min.x);
 		sz += " ~ ";
-		sz += itos (aabb.position.x + aabb.size.x);
+		sz += itos (aabb.max.x);
 		sz += ") (";
 
-		sz += itos (aabb.position.y);
+		sz += itos (-aabb.neg_min.y);
 		sz += " ~ ";
-		sz += itos (aabb.position.y + aabb.size.y);
+		sz += itos (aabb.max.y);
 		sz += ") (";
 
-		sz += itos (aabb.position.z);
+		sz += itos (-aabb.neg_min.z);
 		sz += " ~ ";
-		sz += itos (aabb.position.z + aabb.size.z);
+		sz += itos (aabb.max.z);
 		sz += ") ";
 
-		float vol = aabb.size.x * aabb.size.y * aabb.size.z;
+		Vector3 size = aabb.calculate_size();
+		float vol = size.x * size.y * size.z;
 		sz += "vol " + itos(vol);
 
 		return sz;

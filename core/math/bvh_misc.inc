@@ -1,11 +1,13 @@
-float _compute_cost_change_upward(uint32_t p_node_id, const AABB &p_aabb)
+float _compute_cost_change_upward(uint32_t p_node_id, const ABB &p_aabb)
 {
 	const TNode &tnode = _nodes[p_node_id];
 
-	AABB merged = tnode.aabb.merge(p_aabb);
-	float m_size = _aabb_size(merged);
+	ABB merged = p_aabb;
+	merged.merge(tnode.aabb);
 
-	float b_size = _aabb_size(tnode.aabb);
+	float m_size = merged.size();
+
+	float b_size = tnode.aabb.size();
 
 	// change
 	float change = m_size - b_size;
@@ -28,7 +30,7 @@ float _compute_cost(uint32_t p_node_id)
 		return 0.0f;
 
 	float cost = 0.0f;
-	cost += _aabb_size(tnode.aabb);
+	cost += tnode.aabb.get_size();
 
 	// children
 	for (int n=0; n<tnode.num_items; n++)
@@ -39,6 +41,7 @@ float _compute_cost(uint32_t p_node_id)
 	return cost;
 }
 
+/*
 float _aabb_surface_area(const AABB &p_aabb) const
 {
 	const Vector3 &d = p_aabb.size;
@@ -56,14 +59,16 @@ void _set_aabb_to_opposites(AABB &aabb)
 	aabb.position = Vector3(FLT_MAX, FLT_MAX, FLT_MAX);
 	aabb.size = Vector3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
 }
-
+*/
 
 // less change is better
-float _goodness_of_fit_merge(const AABB &p_new, const AABB &p_existing) const
+float _goodness_of_fit_merge(const ABB &p_new, const ABB &p_existing) const
 {
-	AABB merged = p_new.merge(p_existing);
-	float merged_size = _aabb_size(merged);
-	float existing_size = _aabb_size(p_existing);
+	ABB merged = p_new;
+	merged.merge(p_existing);
+
+	float merged_size = merged.get_size();
+	float existing_size = p_existing.get_size();
 
 	return merged_size - existing_size;
 
@@ -120,7 +125,7 @@ void refit_upward(uint32_t p_node_id)
 	}
 }
 
-AABB * refit_downward(uint32_t p_node_id)
+ABB * refit_downward(uint32_t p_node_id)
 {
 	TNode &tnode = _nodes[p_node_id];
 
