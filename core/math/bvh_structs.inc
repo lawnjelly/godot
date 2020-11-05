@@ -1,3 +1,5 @@
+#include "bvh_abb.inc"
+
 struct ItemRef
 {
 	uint32_t tnode_id; // -1 is invalid
@@ -7,7 +9,7 @@ struct ItemRef
 // this is an item OR a child node depending on whether a leaf node
 struct Item
 {
-	AABB aabb;
+	ABB aabb;
 	uint32_t item_ref_id;
 };
 
@@ -22,7 +24,7 @@ public:
 	// items can be child nodes or items (if we are a leaf)
 	uint16_t num_items;
 
-	AABB aabb;
+	ABB aabb;
 	Item items[MAX_ITEMS];
 
 	bool is_leaf() const {return _leaf != 0;}
@@ -35,8 +37,7 @@ public:
 		set_leaf(p_leaf);
 
 		// for safety set to improbable value
-		aabb.position = Vector3();
-		aabb.size = Vector3(-1, -1, -1);
+		aabb.set_to_max_opposite_extents();
 
 		// other members are not blanked for speed .. they may be uninitialized
 	}
@@ -89,7 +90,7 @@ public:
 #ifdef BVH_CHECKS
 			WARN_PRINT_ONCE("BVH_Tree::TNode AABB is undefined");
 #endif
-			aabb = AABB();
+			aabb.set_to_max_opposite_extents();
 			return;
 		}
 
@@ -97,7 +98,7 @@ public:
 		aabb = items[0].aabb;
 		for (int n=1; n<num_items; n++)
 		{
-			aabb.merge_with(items[n].aabb);
+			aabb.merge(items[n].aabb);
 		}
 
 		// temp, just for visibility
