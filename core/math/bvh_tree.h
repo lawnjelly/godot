@@ -213,14 +213,14 @@ public:
 			aabb_node.merge(tnode.get_item(n).aabb);
 		}
 
-		float area_node_orig = tnode.aabb.get_size();
-		float area_node_without = aabb_node.get_size();
+		float area_node_orig = tnode.aabb.get_area();
+		float area_node_without = aabb_node.get_area();
 		float area_node_saved = area_node_orig - area_node_without;
 
 		const ABB &aabb_item = tnode.get_item(ref.item_id).aabb;
 
 		// area of sibling before
-		float area_sibling_orig = sibling.aabb.get_size();
+		float area_sibling_orig = sibling.aabb.get_area();
 
 		for (int n=0; n<sibling.num_items; n++)
 		{
@@ -248,14 +248,14 @@ public:
 		// mockup adding the item in exchange for item 'child_num'
 		//float area_sibling_without = _aabb_size(aabb_sibling);
 		aabb_sibling.merge(aabb_item);
-		float area_sibling_with = aabb_sibling.get_size();
+		float area_sibling_with = aabb_sibling.get_area();
 
 		float area_sibling_change = area_sibling_with - area_sibling_orig;
 
 		// mockup adding the sibling item to the original node
 		ABB aabb_node = aabb_without;
 		aabb_node.merge(sibling.get_item(child_num).aabb);
-		float area_node_with = aabb_node.get_size();
+		float area_node_with = aabb_node.get_area();
 
 		float area_node_change = area_node_with - area_node_orig;
 
@@ -406,7 +406,7 @@ public:
 			groupb_aabb_new.merge(temp_bounds[group_a[check]]);
 
 			// now compare the sizes
-			float size = groupb_aabb_new.get_size() + rest_aabb.get_size();
+			float size = groupb_aabb_new.get_area() + rest_aabb.get_area();
 			if (size < best_size)
 			{
 				best_size = size;
@@ -458,7 +458,7 @@ public:
 			groupb_aabb_new.merge(tnode.get_item(group_a[check]).aabb);
 
 			// now compare the sizes
-			float size = groupb_aabb_new.get_size() + rest_aabb.get_size();
+			float size = groupb_aabb_new.get_area() + rest_aabb.get_area();
 			if (size < best_size)
 			{
 				best_size = size;

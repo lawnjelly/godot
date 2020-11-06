@@ -38,8 +38,14 @@ BVH_Handle item_add(const AABB &p_aabb)
 //	_try_exchange_cousin(ref_id);
 
 #ifdef BVH_VERBOSE
+	// memory use
+	int mem = _refs.estimate_memory_use();
+	mem += _nodes.estimate_memory_use();
+
 	String sz = _aabb_to_string(abb);
 	VERBOSE_PRINT("item_add [" + itos(ref_id) + "] " + itos(_refs.size()) + " refs,\t" + itos(_nodes.size()) + " nodes " + sz);
+	VERBOSE_PRINT("mem use : " + itos(mem) + ", num nodes : " + itos(_nodes.size()));
+
 #endif
 
 #ifdef BVH_VERBOSE_TREE
@@ -75,8 +81,22 @@ void item_move(BVH_Handle p_handle, const AABB &p_aabb)
 	Item &item = tnode.get_item(ref.item_id);
 	item.aabb = abb;
 
-	//refit_all();
+	// does it fit within the current aabb?
+	if (tnode.aabb.is_within(abb))
+	{
+		// no nothing .. fast path .. not moved enough to need refit
+		return;
+	}
+
+	// remove and reinsert
+	node_remove_item(ref_id);
+
+	// we must choose where to add to tree
+	ref.tnode_id = recursive_choose_item_add_node(_root_node_id, abb);
+	_node_add_item(ref.tnode_id, ref_id, abb);
 	refit_upward(ref.tnode_id);
+
+//	refit_upward(ref.tnode_id);
 }
 
 void item_remove(BVH_Handle p_handle)

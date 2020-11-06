@@ -28,7 +28,43 @@ struct ABB
 		return max + neg_min;
 	}
 
-	float get_size() const // actually surface area metric
+	bool is_within(const ABB &o) const
+	{
+//		AABB a;
+//		to(a);
+//		AABB b;
+//		o.to(b);
+
+		if (o.max.x > max.x) return false;
+		if (o.max.y > max.y) return false;
+		if (o.max.z > max.z) return false;
+		if (o.neg_min.x > neg_min.x) return false;
+		if (o.neg_min.y > neg_min.y) return false;
+		if (o.neg_min.z > neg_min.z) return false;
+		return true;
+	}
+
+	void grow_fractional(float fraction)
+	{
+		Vector3 size = calculate_size();
+		float longest = MAX(size.x, size.y);
+		longest = MAX(longest, size.z);
+		//grow(longest * fraction);
+		grow (1.0f);
+	}
+
+	void grow(const Vector3 &change)
+	{
+		max += change;
+		neg_min += change;
+	}
+
+	void grow(float change)
+	{
+		grow(Vector3(change, change, change));
+	}
+
+	float get_area() const // actually surface area metric
 	{
 		Vector3 d = max + neg_min;
 		return 2.0f * (d.x * d.y + d.y * d.z + d.z * d.x);

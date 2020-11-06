@@ -16,6 +16,11 @@ public:
 		_used_size = 0;
 	}
 
+	int estimate_memory_use() const
+	{
+		return (list.size() * sizeof (T)) + (freelist.size() * sizeof (uint32_t));
+	}
+
 	const T &operator[](uint32_t p_index) const {
 		return list[p_index];
 	}

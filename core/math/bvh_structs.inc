@@ -101,8 +101,9 @@ public:
 			aabb.merge(items[n].aabb);
 		}
 
-		// temp, just for visibility
-		//aabb.grow_by(0.01f);
+		// we make the aabb larger than necessary, to allow most item
+		// moves to be no-ops.
+		aabb.grow_fractional(0.05f);
 	}
 };
 
