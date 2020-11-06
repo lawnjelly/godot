@@ -13,23 +13,26 @@ void BVHDebug::_bind_methods()
 
 void BVHDebug::_notification(int p_what)
 {
+	bool bEditor = Engine::get_singleton()->is_editor_hint();
+	//bEditor = false;
+
 	switch (p_what) {
 	case NOTIFICATION_ENTER_TREE: {
 
-			if (!Engine::get_singleton()->is_editor_hint()) {
+			if (!bEditor) {
 			set_process(true);
 			}
 
 		} break;
 	case NOTIFICATION_VISIBILITY_CHANGED: {
-			if (!Engine::get_singleton()->is_editor_hint()) {
+			if (!bEditor) {
 				bool bVisible = is_visible_in_tree();
 				set_process(bVisible);
 			}
 		}
 			break;
 	case NOTIFICATION_PROCESS: {
-			if (!Engine::get_singleton()->is_editor_hint()) {
+			if (!bEditor) {
 				m_BVH.draw_debug(this);
 			}
 		} break;

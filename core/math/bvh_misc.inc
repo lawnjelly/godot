@@ -67,8 +67,8 @@ float _goodness_of_fit_merge(const ABB &p_new, const ABB &p_existing) const
 	ABB merged = p_new;
 	merged.merge(p_existing);
 
-	float merged_size = merged.get_size();
-	float existing_size = p_existing.get_size();
+	float merged_size = merged.get_area();
+	float existing_size = p_existing.get_area();
 
 	return merged_size - existing_size;
 
