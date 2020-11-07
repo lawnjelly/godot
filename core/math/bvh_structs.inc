@@ -1,9 +1,21 @@
 #include "bvh_abb.inc"
 
+
 struct ItemRef
 {
 	uint32_t tnode_id; // -1 is invalid
 	uint32_t item_id; // in the tnode
+};
+
+// extra info kept in separate parallel list to the references,
+// as this is less used as keeps cache better
+struct ItemExtra
+{
+	uint32_t pairable_mask;
+	uint32_t pairable_type;
+	uint32_t pairable;
+	int32_t subindex;
+	T * userdata;
 };
 
 // this is an item OR a child node depending on whether a leaf node
@@ -11,6 +23,23 @@ struct Item
 {
 	ABB aabb;
 	uint32_t item_ref_id;
+};
+
+struct CullParams
+{
+	int result_count;
+	int result_max;
+	T ** result_array;
+	int * subindex_array;
+	uint32_t mask;
+
+	typename ABB::ConvexHull hull;
+	typename ABB::Segment segment;
+	// convex hulls (optional)
+//	const Plane * planes;
+//	int num_planes;
+//	const Vector3 * points;
+//	int num_points;
 };
 
 // tree node
@@ -111,5 +140,6 @@ public:
 // instead of using linked list we maintain
 // item references (for quick lookup)
 PooledList<ItemRef, true> _refs;
+PooledList<ItemExtra, true> _extra;
 PooledList<TNode, true> _nodes;
 int _root_node_id;

@@ -1,4 +1,4 @@
-BVH_Handle item_add(const AABB &p_aabb)
+BVHHandle item_add(T *p_userdata, const AABB &p_aabb, int32_t p_subindex, bool p_pairable, uint32_t p_pairable_type, uint32_t p_pairable_mask)
 {
 #ifdef BVH_VERBOSE_TREE
 //	VERBOSE_PRINT("\nitem_add BEFORE");
@@ -10,7 +10,7 @@ BVH_Handle item_add(const AABB &p_aabb)
 	abb.from(p_aabb);
 
 	// handle to be filled with the new item ref
-	BVH_Handle handle;
+	BVHHandle handle;
 
 	// ref id easier to pass around than handle
 	uint32_t ref_id;
@@ -18,12 +18,24 @@ BVH_Handle item_add(const AABB &p_aabb)
 	// this should never fail
 	ItemRef * ref = _refs.request(ref_id);
 
+	// the extra data should be parallel list to the references
+	uint32_t extra_id;
+	ItemExtra * extra = _extra.request(extra_id);
+	CRASH_COND(extra_id != ref_id);
+	extra->pairable_mask = p_pairable_mask;
+	extra->pairable_type = p_pairable_type;
+	extra->subindex = p_subindex;
+	extra->pairable = p_pairable;
+	extra->userdata = p_userdata;
+
 	// assign to handle to return
 	handle.id = ref_id;
 
 	// ignore bound
+#ifdef BVH_DEBUG_DRAW
 	if (ref_id == 1)
 		return handle;
+#endif
 
 	create_root_node();
 
@@ -57,13 +69,15 @@ BVH_Handle item_add(const AABB &p_aabb)
 }
 
 
-void item_move(BVH_Handle p_handle, const AABB &p_aabb)
+void item_move(BVHHandle p_handle, const AABB &p_aabb)
 {
 	uint32_t ref_id = p_handle.id;
 
+#ifdef BVH_DEBUG_DRAW
 	// ignore bound
 	if (ref_id == 1)
 		return;
+#endif
 
 	ABB abb;
 	abb.from(p_aabb);
@@ -99,13 +113,15 @@ void item_move(BVH_Handle p_handle, const AABB &p_aabb)
 //	refit_upward(ref.tnode_id);
 }
 
-void item_remove(BVH_Handle p_handle)
+void item_remove(BVHHandle p_handle)
 {
 	uint32_t ref_id = p_handle.id;
 
+#ifdef BVH_DEBUG_DRAW
 	// ignore bound
 	if (ref_id == 1)
 		return;
+#endif
 
 	// get the reference
 	//ItemRef &ref = refs[ref_id];
@@ -117,6 +133,7 @@ void item_remove(BVH_Handle p_handle)
 
 	// remove the item reference
 	_refs.free(ref_id);
+	_extra.free(ref_id);
 
 	refit_all();
 

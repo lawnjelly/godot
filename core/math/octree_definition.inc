@@ -40,6 +40,7 @@
 #include "core/print_string.h"
 #include "core/variant.h"
 #include "core/math/bvh.h"
+#include "core/os/os.h"
 
 extern BVH_Manager<void> m_BVH;
 #ifdef OCTREE_USE_CACHED_LISTS
@@ -230,7 +231,7 @@ private:
 
 		uint64_t last_pass;
 		OctreeElementID _id;
-		BVHElementID _bvh_id;
+		BVHHandle _bvh_handle;
 		Octant *common_parent;
 
 		AABB aabb;
@@ -923,7 +924,7 @@ OCTREE_FUNC(OctreeElementID)::create(T *p_userdata, const AABB &p_aabb, int p_su
 	Element &e = E->get();
 
 #ifdef OCTREE_SEND_TO_BVH
-	e._bvh_id = m_BVH.create(p_userdata, p_aabb);
+	e._bvh_handle = m_BVH.create(p_userdata, p_aabb, p_subindex, p_pairable, p_pairable_type, p_pairable_mask);
 #endif
 
 	e.aabb = p_aabb;
@@ -965,7 +966,7 @@ OCTREE_FUNC(void)::move(OctreeElementID p_id, const AABB &p_aabb) {
 	Element &e = E->get();
 
 #ifdef OCTREE_SEND_TO_BVH
-	m_BVH.move(e._bvh_id, p_aabb);
+	m_BVH.move(e._bvh_handle, p_aabb);
 #endif
 
 	bool old_has_surf = !e.aabb.has_no_surface();
@@ -1119,7 +1120,7 @@ OCTREE_FUNC(void)::erase(OctreeElementID p_id) {
 
 
 #ifdef OCTREE_SEND_TO_BVH
-	m_BVH.erase(e._bvh_id);
+	m_BVH.erase(e._bvh_handle);
 #endif
 
 	if (!e.aabb.has_no_surface()) {
@@ -1665,6 +1666,22 @@ OCTREE_FUNC(int)::cull_convex(const Vector<Plane> &p_convex, T **p_result_array,
 	if (!root || p_convex.size() == 0)
 		return 0;
 
+#ifdef OCTREE_SEND_TO_BVH
+
+	uint64_t before = OS::get_singleton()->get_ticks_usec();
+	m_BVH.cull_convex(p_convex, (void **) p_result_array, p_result_max, p_mask);
+	uint64_t after = OS::get_singleton()->get_ticks_usec();
+	uint64_t diff = after - before;
+	print_line("bvh : " + itos (diff) + " usec");
+
+	uint64_t before2 = OS::get_singleton()->get_ticks_usec();
+
+//	int bvh_resultcount = m_BVH.cull_convex(p_convex, (void **) p_result_array, p_result_max, p_mask);
+//	print_line("\tbvh result");
+//	m_BVH.debug_output_cull_results((void **) p_result_array, bvh_resultcount);
+//	print_line("");
+#endif
+
 	Vector<Vector3> convex_points = Geometry::compute_convex_mesh_points(&p_convex[0], p_convex.size());
 	if (convex_points.size() == 0)
 		return 0;
@@ -1682,6 +1699,18 @@ OCTREE_FUNC(int)::cull_convex(const Vector<Plane> &p_convex, T **p_result_array,
 	cdata.mask = p_mask;
 
 	_cull_convex(root, &cdata);
+
+#ifdef OCTREE_SEND_TO_BVH
+//	print_line("\toctree result");
+//	m_BVH.debug_output_cull_results((void **) p_result_array, result_count);
+//	print_line("");
+
+	uint64_t after2 = OS::get_singleton()->get_ticks_usec();
+	diff = after2 - before2;
+	print_line("oct : " + itos (diff) + " usec");
+
+#endif
+
 
 	return result_count;
 }

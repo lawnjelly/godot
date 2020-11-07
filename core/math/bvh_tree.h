@@ -3,14 +3,14 @@
 #include "core/math/aabb.h"
 #include "core/pooled_list.h"
 
-#define BVH_DEBUG_DRAW
+//#define BVH_DEBUG_DRAW
 #ifdef BVH_DEBUG_DRAW
 #include "scene/3d/immediate_geometry.h"
 #endif
 
 #if defined (TOOLS_ENABLED) && defined (DEBUG_ENABLED)
 #define BVH_VERBOSE
-#define BVH_VERBOSE_TREE
+//#define BVH_VERBOSE_TREE
 //#define BVH_VERBOSE_FRAME
 #define BVH_CHECKS
 #endif
@@ -22,13 +22,13 @@
 #endif
 
 // really a handle, can be anything
-struct BVH_Handle
+struct BVHHandle
 {
 	uint32_t id;
 };
 
 
-template <class T, int MAX_CHILDREN, int MAX_ITEMS>
+template <class T, int MAX_CHILDREN, int MAX_ITEMS, bool USE_PAIRS = false>
 class BVH_Tree
 {
 #include "bvh_structs.inc"
@@ -663,6 +663,7 @@ public:
 
 #include "bvh_misc.inc"
 #include "bvh_public.inc"
+#include "bvh_cull.inc"
 #include "bvh_debug.inc"
 
 };

@@ -1,3 +1,4 @@
+
 float _compute_cost_change_upward(uint32_t p_node_id, const ABB &p_aabb)
 {
 	const TNode &tnode = _nodes[p_node_id];
