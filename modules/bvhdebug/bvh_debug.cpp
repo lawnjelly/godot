@@ -33,7 +33,9 @@ void BVHDebug::_notification(int p_what)
 			break;
 	case NOTIFICATION_PROCESS: {
 			if (!bEditor) {
+#ifdef BVH_DEBUG_DRAW
 				m_BVH.draw_debug(this);
+#endif
 			}
 		} break;
 	}

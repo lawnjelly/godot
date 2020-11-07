@@ -1,9 +1,32 @@
 // special optimized version of axis aligned bounding box
 struct ABB
 {
+	struct ConvexHull
+	{
+		// convex hulls (optional)
+		const Plane * planes;
+		int num_planes;
+		const Vector3 * points;
+		int num_points;
+	};
+
+	struct Segment
+	{
+		Vector3 from;
+		Vector3 to;
+	};
+
+	enum IntersectResult
+	{
+		IR_MISS = 0,
+		IR_PARTIAL,
+		IR_FULL,
+	};
+
 	// we store mins with a negative value in order to test them with SIMD
 	Vector3 neg_min;
 	Vector3 max;
+
 	void from(const AABB &aabb)
 	{
 		neg_min = -aabb.position;
@@ -28,19 +51,49 @@ struct ABB
 		return max + neg_min;
 	}
 
+//	IntersectResult intersects_ex(const ABB &o) const
+//	{
+//		if (!intersects(o)) return IR_MISS;
+//		if (is_within(o)) return IR_FULL;
+//		return IR_PARTIAL;
+//	}
+
+	//	if (aabb.intersects_convex_shape(p_cull->planes, p_cull->plane_count, p_cull->points, p_cull->point_count)) {
+	IntersectResult intersects_convex(const ConvexHull &hull) const
+	{
+		AABB bb;
+		to(bb);
+
+		if (bb.intersects_convex_shape(hull.planes, hull.num_planes, hull.points, hull.num_points))
+			return IR_PARTIAL;
+
+		return IR_MISS;
+	}
+
+	bool intersects_segment(const Segment &s) const
+	{
+		AABB bb;
+		to(bb);
+		return bb.intersects_segment(s.from, s.to);
+	}
+
+	bool intersects(const ABB &o) const
+	{
+		if (_vector3_any_morethan(-o.neg_min, max)) return false;
+		if (_vector3_any_morethan(-neg_min, o.max)) return false;
+		return true;
+	}
+
 	bool is_within(const ABB &o) const
 	{
-//		AABB a;
-//		to(a);
-//		AABB b;
-//		o.to(b);
-
-		if (o.max.x > max.x) return false;
-		if (o.max.y > max.y) return false;
-		if (o.max.z > max.z) return false;
-		if (o.neg_min.x > neg_min.x) return false;
-		if (o.neg_min.y > neg_min.y) return false;
-		if (o.neg_min.z > neg_min.z) return false;
+		if (_vector3_any_morethan(o.max, max)) return false;
+		if (_vector3_any_morethan(o.neg_min, neg_min)) return false;
+//		if (o.max.x > max.x) return false;
+//		if (o.max.y > max.y) return false;
+//		if (o.max.z > max.z) return false;
+//		if (o.neg_min.x > neg_min.x) return false;
+//		if (o.neg_min.y > neg_min.y) return false;
+//		if (o.neg_min.z > neg_min.z) return false;
 		return true;
 	}
 
@@ -74,5 +127,22 @@ struct ABB
 		max = Vector3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
 		neg_min = max;
 	}
+
+	bool _vector3_any_morethan(const Vector3 &a, const Vector3 &b) const
+	{
+		if (a.x > b.x) return true;
+		if (a.y > b.y) return true;
+		if (a.z > b.z) return true;
+		return false;
+	}
+
+	bool _vector3_any_lessthan(const Vector3 &a, const Vector3 &b) const
+	{
+		if (a.x < b.x) return true;
+		if (a.y < b.y) return true;
+		if (a.z < b.z) return true;
+		return false;
+	}
+
 };
 
