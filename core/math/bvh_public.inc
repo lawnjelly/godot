@@ -22,11 +22,15 @@ BVHHandle item_add(T *p_userdata, const AABB &p_aabb, int32_t p_subindex, bool p
 	uint32_t extra_id;
 	ItemExtra * extra = _extra.request(extra_id);
 	CRASH_COND(extra_id != ref_id);
-	extra->pairable_mask = p_pairable_mask;
-	extra->pairable_type = p_pairable_type;
 	extra->subindex = p_subindex;
-	extra->pairable = p_pairable;
 	extra->userdata = p_userdata;
+
+	if (USE_PAIRS)
+	{
+		extra->pairable_mask = p_pairable_mask;
+		extra->pairable_type = p_pairable_type;
+		extra->pairable = p_pairable;
+	}
 
 	// assign to handle to return
 	handle.id = ref_id;
@@ -68,6 +72,17 @@ BVHHandle item_add(T *p_userdata, const AABB &p_aabb, int32_t p_subindex, bool p
 	return handle;
 }
 
+void item_set_pairable(BVHHandle p_handle, bool p_pairable, uint32_t p_pairable_type, uint32_t p_pairable_mask)
+{
+	uint32_t ref_id = p_handle.id;
+
+	// get the reference
+	//ItemRef &ref = _refs[ref_id];
+	ItemExtra &extra = _extra[ref_id];
+	extra.pairable = p_pairable;
+	extra.pairable_mask = p_pairable_mask;
+	extra.pairable_type = p_pairable_type;
+}
 
 void item_move(BVHHandle p_handle, const AABB &p_aabb)
 {

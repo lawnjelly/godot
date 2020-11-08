@@ -31,6 +31,8 @@ struct BVHHandle
 template <class T, int MAX_CHILDREN, int MAX_ITEMS, bool USE_PAIRS = false>
 class BVH_Tree
 {
+	friend class BVH;
+
 #include "bvh_structs.inc"
 
 public:
