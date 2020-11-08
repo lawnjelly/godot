@@ -72,17 +72,6 @@ BVHHandle item_add(T *p_userdata, const AABB &p_aabb, int32_t p_subindex, bool p
 	return handle;
 }
 
-void item_set_pairable(BVHHandle p_handle, bool p_pairable, uint32_t p_pairable_type, uint32_t p_pairable_mask)
-{
-	uint32_t ref_id = p_handle.id;
-
-	// get the reference
-	//ItemRef &ref = _refs[ref_id];
-	ItemExtra &extra = _extra[ref_id];
-	extra.pairable = p_pairable;
-	extra.pairable_mask = p_pairable_mask;
-	extra.pairable_type = p_pairable_type;
-}
 
 void item_move(BVHHandle p_handle, const AABB &p_aabb)
 {

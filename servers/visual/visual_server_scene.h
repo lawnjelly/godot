@@ -39,6 +39,7 @@
 #include "core/os/thread.h"
 #include "core/self_list.h"
 #include "servers/arvr/arvr_interface.h"
+#include "core/math/bvh.h"
 
 class VisualServerScene {
 public:
@@ -108,7 +109,11 @@ public:
 		VS::ScenarioDebugMode debug;
 		RID self;
 
+#ifdef USE_BVH_INSTEAD_OF_OCTREE
+		BVH_Manager<Instance, true> octree;
+#else
 		Octree_CL<Instance, true> octree;
+#endif
 
 		List<Instance *> directional_lights;
 		RID environment;
@@ -123,8 +128,13 @@ public:
 
 	mutable RID_Owner<Scenario> scenario_owner;
 
+#ifdef USE_BVH_INSTEAD_OF_OCTREE
+	static void *_instance_pair(void *p_self, BVHHandle, Instance *p_A, int, BVHHandle, Instance *p_B, int);
+	static void _instance_unpair(void *p_self, BVHHandle, Instance *p_A, int, BVHHandle, Instance *p_B, int, void *);
+#else
 	static void *_instance_pair(void *p_self, OctreeElementID, Instance *p_A, int, OctreeElementID, Instance *p_B, int);
 	static void _instance_unpair(void *p_self, OctreeElementID, Instance *p_A, int, OctreeElementID, Instance *p_B, int, void *);
+#endif
 
 	virtual RID scenario_create();
 
@@ -144,7 +154,11 @@ public:
 
 		RID self;
 		//scenario stuff
+#ifdef USE_BVH_INSTEAD_OF_OCTREE
+		BVHHandle octree_id;
+#else
 		OctreeElementID octree_id;
+#endif
 		Scenario *scenario;
 		SelfList<Instance> scenario_item;
 
@@ -187,7 +201,11 @@ public:
 				scenario_item(this),
 				update_item(this) {
 
+#ifdef USE_BVH_INSTEAD_OF_OCTREE
+			octree_id.set_invalid();
+#else
 			octree_id = 0;
+#endif
 			scenario = NULL;
 
 			update_aabb = false;

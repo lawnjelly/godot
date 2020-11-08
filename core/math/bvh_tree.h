@@ -24,6 +24,8 @@
 // really a handle, can be anything
 struct BVHHandle
 {
+	void set_invalid() {id = -1;}
+	bool is_valid() {return id != -1;}
 	uint32_t id;
 };
 
