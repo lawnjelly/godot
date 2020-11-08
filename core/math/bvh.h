@@ -5,10 +5,10 @@
 // wrapper for the BVH tree, which can do pairing etc.
 //typedef BVHHandle BVHElementID;
 
+#define USE_BVH_INSTEAD_OF_OCTREE
 #define BVHTREE_CLASS BVH_Tree<T, 2, 2>
 
-
-template <class T, bool use_pairs = false>
+template <class T, bool USE_PAIRS = false>
 class BVH_Manager
 {
 	struct Pair
@@ -29,8 +29,6 @@ class BVH_Manager
 
 	class PairHashtable
 	{
-		enum {NUM_BINS = 128};
-		LocalVector<Pair, uint32_t, true> bins[NUM_BINS];
 		int _hash(const Pair &p) const
 		{
 			int h = p.ref_id[0] + p.ref_id[1];
@@ -38,6 +36,9 @@ class BVH_Manager
 			return h;
 		}
 	public:
+		enum {NUM_BINS = 128};
+		LocalVector<Pair, uint32_t, true> bins[NUM_BINS];
+
 		Pair * add(uint32_t a, uint32_t b)
 		{
 			Pair p;
@@ -81,17 +82,40 @@ public:
 
 	BVHHandle create(T *p_userdata, const AABB &p_aabb = AABB(), int p_subindex = 0, bool p_pairable = false, uint32_t p_pairable_type = 0, uint32_t p_pairable_mask = 1)
 	{
-		return tree.item_add(p_userdata, p_aabb, p_subindex, p_pairable, p_pairable_type, p_pairable_mask);
+		BVHHandle h = tree.item_add(p_userdata, p_aabb, p_subindex, p_pairable, p_pairable_type, p_pairable_mask);
+		if (USE_PAIRS)
+			_add_changed_item(h);
+		return h;
 	}
 
 	void move(BVHHandle p_id, const AABB &p_aabb)
 	{
 		tree.item_move(p_id, p_aabb);
+		if (USE_PAIRS)
+			_add_changed_item(p_id);
 	}
 	void erase(BVHHandle p_id)
 	{
+		// call unpair and remove all references to the item
+		// before deleting from the tree
+		if (USE_PAIRS)
+			_remove_changed_item(p_id);
+
 		tree.item_remove(p_id);
 	}
+
+	void set_pairable(BVHHandle p_handle, bool p_pairable, uint32_t p_pairable_type, uint32_t p_pairable_mask)
+	{
+		uint32_t ref_id = p_handle.id;
+
+		// get the reference
+		//ItemRef &ref = _refs[ref_id];
+		typename BVHTREE_CLASS::ItemExtra &extra = tree._extra[ref_id];
+		extra.pairable = p_pairable;
+		extra.pairable_mask = p_pairable_mask;
+		extra.pairable_type = p_pairable_type;
+	}
+
 
 	// cull tests
 	int cull_aabb(const AABB &p_aabb, T **p_result_array, int p_result_max, int *p_subindex_array = nullptr, uint32_t p_mask = 0xFFFFFFFF)
@@ -256,6 +280,34 @@ private:
 		}
 	}
 
+	// if we remove an item, we need to immediately remove the pairs, to prevent reading the pair after deletion
+	void _remove_pairs_containing(uint32_t p_ref_id)
+	{
+		for (int b=0; b<_pairs_hashtable.NUM_BINS; b++)
+		{
+			for (int n=0; n<_pairs_hashtable.bins[b].size(); n++)
+			{
+				const Pair &p = _pairs_hashtable.bins[b][n];
+				if ((p.ref_id[0] == p_ref_id) || (p.ref_id[1] == p_ref_id))
+				{
+					// callback
+					if (unpair_callback) {
+						BVHHandle ha, hb;
+						ha.id = p.ref_id[0];
+						hb.id = p.ref_id[1];
+
+						typename BVHTREE_CLASS::ItemExtra &exa = tree._extra[ha.id];
+						typename BVHTREE_CLASS::ItemExtra &exb = tree._extra[hb.id];
+
+						unpair_callback(pair_callback_userdata, ha, exa.userdata, exa.subindex, hb, exb.userdata, exb.subindex, p.ud);
+					}
+
+					_pairs_hashtable.bins[b].remove_unordered(n);
+				} // version outdated
+			}
+		}
+	}
+
 
 #ifdef BVH_DEBUG_DRAW
 	void draw_debug(ImmediateGeometry * p_im)
@@ -271,6 +323,40 @@ private:
 		_version++;
 	}
 
+	void _add_changed_item(BVHHandle p_handle)
+	{
+		// only if uses pairing
+		if (!item_is_pairable(p_handle))
+			return;
+
+		// todo .. add bitfield for fast check
+		for (int n=0; n<changed_items.size(); n++)
+		{
+			// already on list
+			if (changed_items[n].id == p_handle.id)
+				return;
+		}
+
+		changed_items.push_back(p_handle);
+	}
+
+	void _remove_changed_item(BVHHandle p_handle)
+	{
+		// only if uses pairing
+		if (!item_is_pairable(p_handle))
+			return;
+
+		_remove_pairs_containing(p_handle.id);
+
+		// remove from changed items (not very efficient yet)
+		for (int n=0; n<changed_items.size(); n++)
+		{
+			if (changed_items[n].id == p_handle.id)
+			{
+				changed_items.remove_unordered(n);
+			}
+		}
+	}
 
 	PairCallback pair_callback;
 	UnpairCallback unpair_callback;
