@@ -1,6 +1,6 @@
 #include "bvh_abb.inc"
 
-
+public:
 struct ItemRef
 {
 	uint32_t tnode_id; // -1 is invalid
@@ -11,10 +11,10 @@ struct ItemRef
 // as this is less used as keeps cache better
 struct ItemExtra
 {
+	int32_t subindex;
+	uint32_t pairable;
 	uint32_t pairable_mask;
 	uint32_t pairable_type;
-	uint32_t pairable;
-	int32_t subindex;
 	T * userdata;
 };
 
@@ -33,13 +33,11 @@ struct CullParams
 	int * subindex_array;
 	uint32_t mask;
 
+	// optional components for different tests
+	Vector3 point;
+	ABB abb;
 	typename ABB::ConvexHull hull;
 	typename ABB::Segment segment;
-	// convex hulls (optional)
-//	const Plane * planes;
-//	int num_planes;
-//	const Vector3 * points;
-//	int num_points;
 };
 
 // tree node
@@ -142,4 +140,10 @@ public:
 PooledList<ItemRef, true> _refs;
 PooledList<ItemExtra, true> _extra;
 PooledList<TNode, true> _nodes;
+
+// instead of translating directly to the userdata output,
+// we keep an intermediate list of hits as reference IDs, which can be used
+// for pairing collision detection
+LocalVector<uint32_t, uint32_t, true> _cull_hits;
+
 int _root_node_id;

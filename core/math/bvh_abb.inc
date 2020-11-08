@@ -77,6 +77,13 @@ struct ABB
 		return bb.intersects_segment(s.from, s.to);
 	}
 
+	bool intersects_point(const Vector3 &p) const
+	{
+		if (_vector3_any_morethan(p, max)) return false;
+		if (_vector3_any_morethan(-p, neg_min)) return false;
+		return true;
+	}
+
 	bool intersects(const ABB &o) const
 	{
 		if (_vector3_any_morethan(-o.neg_min, max)) return false;
