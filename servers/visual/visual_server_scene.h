@@ -202,7 +202,7 @@ public:
 				update_item(this) {
 
 #ifdef USE_BVH_INSTEAD_OF_OCTREE
-			octree_id.set_invalid();
+			octree_id.set_valid(false);
 #else
 			octree_id = 0;
 #endif

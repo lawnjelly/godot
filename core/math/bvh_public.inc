@@ -1,4 +1,4 @@
-BVHHandle item_add(T *p_userdata, const AABB &p_aabb, int32_t p_subindex, bool p_pairable, uint32_t p_pairable_type, uint32_t p_pairable_mask)
+uint32_t item_add(T *p_userdata, const AABB &p_aabb, int32_t p_subindex, bool p_pairable, uint32_t p_pairable_type, uint32_t p_pairable_mask, bool p_invisible = false)
 {
 #ifdef BVH_VERBOSE_TREE
 //	VERBOSE_PRINT("\nitem_add BEFORE");
@@ -10,7 +10,7 @@ BVHHandle item_add(T *p_userdata, const AABB &p_aabb, int32_t p_subindex, bool p
 	abb.from(p_aabb);
 
 	// handle to be filled with the new item ref
-	BVHHandle handle;
+//	BVHHandle handle;
 
 	// ref id easier to pass around than handle
 	uint32_t ref_id;
@@ -33,12 +33,14 @@ BVHHandle item_add(T *p_userdata, const AABB &p_aabb, int32_t p_subindex, bool p
 	}
 
 	// assign to handle to return
-	handle.id = ref_id;
+//	handle.id = ref_id;
 
 	// ignore bound
 #ifdef BVH_DEBUG_DRAW
-	if (ref_id == 1)
-		return handle;
+	if (p_invisible)
+		return ref_id;
+//	if (ref_id == 1)
+//		return handle;
 #endif
 
 	create_root_node();
@@ -69,13 +71,14 @@ BVHHandle item_add(T *p_userdata, const AABB &p_aabb, int32_t p_subindex, bool p
 	_recursive_print_tree();
 #endif
 
-	return handle;
+//	return handle;
+	return ref_id;
 }
 
 
 void item_move(BVHHandle p_handle, const AABB &p_aabb)
 {
-	uint32_t ref_id = p_handle.id;
+	uint32_t ref_id = p_handle.id();
 
 #ifdef BVH_DEBUG_DRAW
 	// ignore bound
@@ -119,12 +122,12 @@ void item_move(BVHHandle p_handle, const AABB &p_aabb)
 
 void item_remove(BVHHandle p_handle)
 {
-	uint32_t ref_id = p_handle.id;
+	uint32_t ref_id = p_handle.id();
 
 #ifdef BVH_DEBUG_DRAW
 	// ignore bound
-	if (ref_id == 1)
-		return;
+//	if (ref_id == 1)
+//		return;
 #endif
 
 	// get the reference
@@ -132,8 +135,18 @@ void item_remove(BVHHandle p_handle)
 
 	VERBOSE_PRINT("item_remove [" + itos(ref_id) + "] ");
 
-	// remove the item from the node
-	node_remove_item(ref_id);
+#ifdef BVH_DEBUG_DRAW
+	if (p_handle.is_invisible())
+	{
+
+	}
+	else
+#else
+	{
+		// remove the item from the node
+		node_remove_item(ref_id);
+	}
+#endif
 
 	// remove the item reference
 	_refs.free(ref_id);
