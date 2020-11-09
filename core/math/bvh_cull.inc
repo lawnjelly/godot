@@ -1,8 +1,12 @@
 void _translate_cull_hits(CullParams &p)
 {
 	int num_hits = _cull_hits.size();
-	if (num_hits > p.result_max)
-		num_hits = p.result_max;
+	int left = p.result_max - p.result_count_overall;
+
+	if (num_hits > left)
+		num_hits = left;
+
+	int out_n = p.result_count_overall;
 
 	for (int n=0; n<num_hits; n++)
 	{
@@ -21,117 +25,100 @@ void _translate_cull_hits(CullParams &p)
 //				return true;
 //		}
 
-		p.result_array[n] = ex.userdata;
+		p.result_array[out_n] = ex.userdata;
 
 		if (p.subindex_array)
-			p.subindex_array[n] = ex.subindex;
+			p.subindex_array[out_n] = ex.subindex;
+
+		out_n++;
 	}
 
 	p.result_count = num_hits;
+	p.result_count_overall += num_hits;
 }
 
-int cull_convex(const Plane * p_planes, int p_num_planes, T **p_result_array, int p_result_max, uint32_t p_mask, bool p_translate_hits = true)
+//int cull_convex(const Plane * p_planes, int p_num_planes, T **p_result_array, int p_result_max, uint32_t p_mask, bool p_translate_hits = true)
+int cull_convex(CullParams &r_params, bool p_translate_hits = true)
 {
-	if (!p_num_planes || (_root_node_id == -1))
+	if (_root_node_id == -1)
 		return 0;
 
-	Vector<Vector3> convex_points = Geometry::compute_convex_mesh_points(p_planes, p_num_planes);
-	if (convex_points.size() == 0)
-		return 0;
+//	Vector<Vector3> convex_points = Geometry::compute_convex_mesh_points(p_planes, p_num_planes);
+//	if (convex_points.size() == 0)
+//		return 0;
 
 	_cull_hits.clear();
+	r_params.result_count = 0;
 
-	CullParams params;
-	params.result_count = 0;
-	params.result_max = p_result_max;
-	params.result_array = p_result_array;
-	params.subindex_array = nullptr;
-	params.mask = p_mask;
+//	CullParams params;
+//	params.result_count = 0;
+//	params.result_max = p_result_max;
+//	params.result_array = p_result_array;
+//	params.subindex_array = nullptr;
+//	params.mask = p_mask;
 
-	params.hull.planes = p_planes;
-	params.hull.num_planes = p_num_planes;
-	params.hull.points = &convex_points[0];
-	params.hull.num_points = convex_points.size();
+//	params.hull.planes = p_planes;
+//	params.hull.num_planes = p_num_planes;
+//	params.hull.points = &convex_points[0];
+//	params.hull.num_points = convex_points.size();
 
-	_cull_convex_recursive(_root_node_id, params);
+	_cull_convex_recursive(_root_node_id, r_params);
 
 	if (p_translate_hits)
-		_translate_cull_hits(params);
+		_translate_cull_hits(r_params);
 
-	return params.result_count;
+	return r_params.result_count;
 }
 
-int cull_segment(const Vector3 &p_from, const Vector3 &p_to, T **p_result_array, int p_result_max, int *p_subindex_array, uint32_t p_mask, bool p_translate_hits = true)
+//int cull_segment(const Vector3 &p_from, const Vector3 &p_to, T **p_result_array, int p_result_max, int *p_subindex_array, uint32_t p_mask, bool p_translate_hits = true)
+int cull_segment(CullParams &r_params, bool p_translate_hits = true)
 {
 	if (_root_node_id == -1)
 		return 0;
 
 	_cull_hits.clear();
+	r_params.result_count = 0;
 
-	CullParams params;
-	params.result_count = 0;
-	params.result_max = p_result_max;
-	params.result_array = p_result_array;
-	params.subindex_array = p_subindex_array;
-	params.mask = p_mask;
-
-	params.segment.from = p_from;
-	params.segment.to = p_to;
-
-	_cull_segment_recursive(_root_node_id, params);
+	_cull_segment_recursive(_root_node_id, r_params);
 
 	if (p_translate_hits)
-		_translate_cull_hits(params);
+		_translate_cull_hits(r_params);
 
-	return params.result_count;
+	return r_params.result_count;
 }
 
-int cull_point(const Vector3 &p_point, T **p_result_array, int p_result_max, int *p_subindex_array, uint32_t p_mask, bool p_translate_hits = true)
+//int cull_point(const Vector3 &p_point, T **p_result_array, int p_result_max, int *p_subindex_array, uint32_t p_mask, bool p_translate_hits = true)
+int cull_point(CullParams &r_params, bool p_translate_hits = true)
 {
 	if (_root_node_id == -1)
 		return 0;
 
 	_cull_hits.clear();
+	r_params.result_count = 0;
 
-	CullParams params;
-	params.result_count = 0;
-	params.result_max = p_result_max;
-	params.result_array = p_result_array;
-	params.subindex_array = p_subindex_array;
-	params.mask = p_mask;
-
-	params.point = p_point;
-
-	_cull_point_recursive(_root_node_id, params);
+	_cull_point_recursive(_root_node_id, r_params);
 
 	if (p_translate_hits)
-		_translate_cull_hits(params);
+		_translate_cull_hits(r_params);
 
-	return params.result_count;
+	return r_params.result_count;
 }
 
-int cull_aabb(const AABB &p_aabb, T **p_result_array, int p_result_max, int *p_subindex_array, uint32_t p_mask, bool p_translate_hits = true)
+//int cull_aabb(const AABB &p_aabb, T **p_result_array, int p_result_max, int *p_subindex_array, uint32_t p_mask, bool p_translate_hits = true)
+int cull_aabb(CullParams &r_params, bool p_translate_hits = true)
 {
 	if (_root_node_id == -1)
 		return 0;
 
 	_cull_hits.clear();
+	r_params.result_count = 0;
 
-	CullParams params;
-	params.result_count = 0;
-	params.result_max = p_result_max;
-	params.result_array = p_result_array;
-	params.subindex_array = p_subindex_array;
-	params.mask = p_mask;
-
-	params.abb.from(p_aabb);
-
-	_cull_aabb_recursive(_root_node_id, params);
+	_cull_aabb_recursive(_root_node_id, r_params);
 
 	if (p_translate_hits)
-		_translate_cull_hits(params);
+		_translate_cull_hits(r_params);
 
-	return params.result_count;
+	return r_params.result_count;
 }
 
 bool _cull_hit(uint32_t p_ref_id, CullParams &p)

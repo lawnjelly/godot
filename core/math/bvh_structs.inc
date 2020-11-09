@@ -27,7 +27,8 @@ struct Item
 
 struct CullParams
 {
-	int result_count;
+	int result_count_overall; // both trees
+	int result_count; // this tree only
 	int result_max;
 	T ** result_array;
 	int * subindex_array;

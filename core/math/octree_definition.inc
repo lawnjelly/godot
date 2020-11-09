@@ -1672,7 +1672,7 @@ OCTREE_FUNC(int)::cull_convex(const Vector<Plane> &p_convex, T **p_result_array,
 	m_BVH.cull_convex(p_convex, (void **) p_result_array, p_result_max, p_mask);
 	uint64_t after = OS::get_singleton()->get_ticks_usec();
 	uint64_t diff = after - before;
-	print_line("bvh : " + itos (diff) + " usec");
+	//print_line("bvh : " + itos (diff) + " usec");
 
 	uint64_t before2 = OS::get_singleton()->get_ticks_usec();
 
@@ -1707,7 +1707,7 @@ OCTREE_FUNC(int)::cull_convex(const Vector<Plane> &p_convex, T **p_result_array,
 
 	uint64_t after2 = OS::get_singleton()->get_ticks_usec();
 	diff = after2 - before2;
-	print_line("oct : " + itos (diff) + " usec");
+	//print_line("oct : " + itos (diff) + " usec");
 
 #endif
 
