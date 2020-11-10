@@ -18,6 +18,19 @@ struct ItemExtra
 	T * userdata;
 };
 
+struct ItemPairs
+{
+	enum {MAX_PAIRS_PER_ITEM = 7};
+	void clear() {num_pairs = 0;}
+
+	// in most cases the in built list will be long enough,
+	// if not use the vector
+	uint32_t num_pairs;
+	// ref ids
+	uint32_t pairs[MAX_PAIRS_PER_ITEM];
+	LocalVector<uint32_t> extended_pairs;
+};
+
 // this is an item OR a child node depending on whether a leaf node
 struct Item
 {
@@ -140,6 +153,8 @@ public:
 // item references (for quick lookup)
 PooledList<ItemRef, true> _refs;
 PooledList<ItemExtra, true> _extra;
+PooledList<ItemPairs> _pairs;
+
 PooledList<TNode, true> _nodes;
 
 // instead of translating directly to the userdata output,
@@ -147,4 +162,9 @@ PooledList<TNode, true> _nodes;
 // for pairing collision detection
 LocalVector<uint32_t, uint32_t, true> _cull_hits;
 
-int _root_node_id;
+// we now have multiple root nodes, allowing us to store
+// more than 1 tree. This can be more efficient, while sharing the same
+// common lists
+enum {NUM_TREES = 2,};
+
+int _root_node_id[NUM_TREES];

@@ -6,7 +6,7 @@
 //typedef BVHHandle BVHElementID;
 
 #define USE_BVH_INSTEAD_OF_OCTREE
-#define BVHTREE_CLASS BVH_Tree<T, 2, 2>
+#define BVHTREE_CLASS BVH_Tree<T, 2, 2, USE_PAIRS>
 
 template <class T, bool USE_PAIRS = false>
 class BVH_Manager
@@ -85,31 +85,23 @@ public:
 
 	BVHHandle create(T *p_userdata, const AABB &p_aabb = AABB(), int p_subindex = 0, bool p_pairable = false, uint32_t p_pairable_type = 0, uint32_t p_pairable_mask = 1)
 	{
-		uint32_t tree_id = 0;
-
-		// which tree are we adding to?
-		if (p_pairable)
-			tree_id = 1;
-
-		BVHHandle h;
-		h.clear();
-		h.set_pairable(p_pairable);
-
 		// ignore bound
-	#ifdef BVH_DEBUG_DRAW
-		if (_added_item_count == 1)
+//	#ifdef BVH_DEBUG_DRAW
+//		if (_added_item_count == 1)
+//		{
+//			h.set_invisible(true);
+//		}
+//		_added_item_count++;
+//	#endif
+
+#ifdef TOOLS_ENABLED
+		if (!USE_PAIRS)
 		{
-			h.set_invisible(true);
+			CRASH_COND(p_pairable);
 		}
-		_added_item_count++;
-	#endif
+#endif
 
-
-		uint32_t ref_id = tree[tree_id].item_add(p_userdata, p_aabb, p_subindex, p_pairable, p_pairable_type, p_pairable_mask, h.is_invisible());
-
-//		BVHHandle h;
-		h.set_id(ref_id);
-	//	h.set_pairable(p_pairable);
+		BVHHandle h = tree.item_add(p_userdata, p_aabb, p_subindex, p_pairable, p_pairable_type, p_pairable_mask);
 
 		if (USE_PAIRS)
 		{
@@ -126,12 +118,12 @@ public:
 //		if (p_handle.is_invalid())
 //			return;
 
-#ifdef BVH_DEBUG_DRAW
-		if (p_handle.is_invisible())
-			return;
-#endif
+//#ifdef BVH_DEBUG_DRAW
+//		if (p_handle.is_invisible())
+//			return;
+//#endif
 
-		tree[p_handle.get_tree()].item_move(p_handle, p_aabb);
+		tree.item_move(p_handle, p_aabb);
 		if (USE_PAIRS)
 			_add_changed_item(p_handle);
 	}
@@ -145,37 +137,13 @@ public:
 			_remove_changed_item(p_handle);
 		}
 
-		tree[p_handle.get_tree()].item_remove(p_handle);
+		tree.item_remove(p_handle);
 	}
 
-	void set_pairable(BVHHandle &r_handle, bool p_pairable, uint32_t p_pairable_type, uint32_t p_pairable_mask)
+	void set_pairable(const BVHHandle &p_handle, bool p_pairable, uint32_t p_pairable_type, uint32_t p_pairable_mask)
 	{
-		// does it need to change tree?
-		if (p_pairable != r_handle.is_pairable())
-		{
-			AABB aabb;
-			item_get_AABB(r_handle, aabb);
-
-			// copy the extra data
-			typename BVHTREE_CLASS::ItemExtra ex = tree[r_handle.get_tree()]._extra[r_handle.id()];
-
-			// remove the old
-			tree[r_handle.get_tree()].item_remove(r_handle);
-
-			// create the new
-			r_handle = create(ex.userdata, aabb, ex.subindex, p_pairable, p_pairable_type, p_pairable_mask);
-
-			return;
-		}
-
-		// no change of tree
-		uint32_t ref_id = r_handle.id();
-
-		// get the reference
-		typename BVHTREE_CLASS::ItemExtra &extra = tree[r_handle.get_tree()]._extra[ref_id];
-		extra.pairable = p_pairable;
-		extra.pairable_mask = p_pairable_mask;
-		extra.pairable_type = p_pairable_type;
+		// unpair callback if already paired? NYI
+		tree.item_set_pairable(p_handle, p_pairable, p_pairable_type, p_pairable_mask);
 	}
 
 
@@ -192,8 +160,7 @@ public:
 
 		params.abb.from(p_aabb);
 
-		tree[0].cull_aabb(params);
-		tree[1].cull_aabb(params);
+		tree.cull_aabb(params);
 
 		return params.result_count_overall;
 //		return tree.cull_aabb(p_aabb, p_result_array, p_result_max, p_subindex_array, p_mask);
@@ -212,8 +179,7 @@ public:
 		params.segment.from = p_from;
 		params.segment.to = p_to;
 
-		tree[0].cull_segment(params);
-		tree[1].cull_segment(params);
+		tree.cull_segment(params);
 
 		return params.result_count_overall;
 		//		return tree.cull_segment(p_from, p_to, p_result_array, p_result_max, p_subindex_array, p_mask);
@@ -231,8 +197,7 @@ public:
 
 		params.point = p_point;
 
-		tree[0].cull_point(params);
-		tree[1].cull_point(params);
+		tree.cull_point(params);
 		return params.result_count_overall;
 //		return tree.cull_point(p_point, p_result_array, p_result_max, p_subindex_array, p_mask);
 	}
@@ -260,8 +225,7 @@ public:
 
 
 //		int num_results = tree.cull_convex(&p_convex[0], p_convex.size(), p_result_array, p_result_max, p_mask);
-		tree[0].cull_convex(params);
-		tree[1].cull_convex(params);
+		tree.cull_convex(params);
 
 		return params.result_count_overall;
 		//debug_output_cull_results(p_result_array, num_results);
@@ -285,6 +249,7 @@ public:
 	// do this after moving etc.
 	void check_for_collisions()
 	{
+		/*
 		AABB bb;
 
 
@@ -350,32 +315,23 @@ public:
 			} // for tree
 
 		}
-
+*/
 		_reset();
 	}
 
 	// supplemental funcs
-	bool item_is_pairable(BVHHandle p_handle) const
-	{
-		return p_handle.is_pairable();
-//		uint32_t ref_id = p_handle.id;
-//		return tree._extra[ref_id].pairable;
-	}
-
+	bool item_is_pairable(BVHHandle p_handle) const {return _get_extra(p_handle).pairable;}
 	T * item_get_userdata(BVHHandle p_handle) const {return _get_extra(p_handle).userdata;}
+	int item_get_subindex(BVHHandle p_handle) const {return _get_extra(p_handle).subindex;}
 
 	void item_get_AABB(BVHHandle p_handle, AABB &r_aabb) const
 	{
-		uint32_t ref_id = p_handle.id();
-		uint32_t tree_id = p_handle.get_tree();
-
-		const typename BVHTREE_CLASS::ItemRef &ref = tree[tree_id]._refs[ref_id];
-		const typename BVHTREE_CLASS::TNode &tnode = tree[tree_id]._nodes[ref.tnode_id];
+		const typename BVHTREE_CLASS::ItemRef &ref = _get_ref(p_handle);
+		const typename BVHTREE_CLASS::TNode &tnode = tree._nodes[ref.tnode_id];
 		const typename BVHTREE_CLASS::Item &item = tnode.get_item(ref.item_id);
 		item.aabb.to(r_aabb);
 	}
 
-	int item_get_subindex(BVHHandle p_handle) const {return _get_extra(p_handle).subindex;}
 
 private:
 	void _collide(BVHHandle collider, BVHHandle collidee)
@@ -467,19 +423,18 @@ private:
 public:
 	void draw_debug(ImmediateGeometry * p_im)
 	{
-		tree[0].draw_debug(p_im);
-		//tree[0].draw_debug(p_im);
+		tree.draw_debug(p_im);
 	}
 #endif
 
 private:
 	const typename BVHTREE_CLASS::ItemExtra &_get_extra(BVHHandle p_handle) const
 	{
-		return tree[p_handle.get_tree()]._extra[p_handle.id()];
+		return tree._extra[p_handle.id()];
 	}
 	const typename BVHTREE_CLASS::ItemExtra &_get_ref(BVHHandle p_handle) const
 	{
-		return tree[p_handle.get_tree()]._refs[p_handle.id()];
+		return tree._refs[p_handle.id()];
 	}
 
 
@@ -529,8 +484,7 @@ private:
 	void *pair_callback_userdata;
 	void *unpair_callback_userdata;
 
-	// unpaired, and paired trees
-	BVHTREE_CLASS tree[2];
+	BVHTREE_CLASS tree;
 
 	// for collision pairing,
 	// maintain a list of all items moved etc on each frame / tick
