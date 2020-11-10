@@ -28,40 +28,46 @@ public:
 	// 24 bits is ID, 8 bits are flags
 	uint32_t _data;
 
-	enum Flags
-	{
-		F_PAIRABLE = 1 << 24,
-		F_INVALID = 1 << 25,
-		F_INVISIBLE = 1 << 26,
-	};
-	void clear() {_data = 0;}
-	uint32_t id() const {return _data & 0xFFFFFF;}
-	void set_all(uint32_t p_data) {_data = p_data;}
-	void set_id(uint32_t p_id) {_data = p_id | (_data & 0xFF000000);}
+//	enum Flags
+//	{
+//		F_PAIRABLE = 1 << 24,
+//		F_INVALID = 1 << 25,
+//		F_INVISIBLE = 1 << 26,
+//	};
 
-	void set_valid(bool p_set) {change_flag(F_INVALID, !p_set);}
-	uint32_t is_invalid() const {return get_flag(F_INVALID);}
-	void set_pairable(bool p_set) {change_flag(F_PAIRABLE, p_set);}
-	uint32_t is_pairable() const {return get_flag(F_PAIRABLE);}
-	void set_invisible(bool p_set) {change_flag(F_INVISIBLE, p_set);}
-	uint32_t is_invisible() const {return get_flag(F_INVISIBLE);}
+	void set_invalid() {_data = -1;}
+	bool is_invalid() const {return _data == -1;}
+	uint32_t id() const {return _data;}
+	void set_id(uint32_t p_id) {_data = p_id;}
 
-	uint32_t get_tree() const {return is_pairable() ? 1 : 0;}
+//	void clear() {_data = 0;}
+//	uint32_t id() const {return _data & 0xFFFFFF;}
+//	void set_all(uint32_t p_data) {_data = p_data;}
+//	void set_id(uint32_t p_id) {_data = p_id | (_data & 0xFF000000);}
+
+//	void set_valid(bool p_set) {change_flag(F_INVALID, !p_set);}
+//	uint32_t is_invalid() const {return get_flag(F_INVALID);}
+//	void set_pairable(bool p_set) {change_flag(F_PAIRABLE, p_set);}
+//	uint32_t is_pairable() const {return get_flag(F_PAIRABLE);}
+//	void set_invisible(bool p_set) {change_flag(F_INVISIBLE, p_set);}
+//	uint32_t is_invisible() const {return get_flag(F_INVISIBLE);}
+
+//	uint32_t get_tree() const {return is_pairable() ? 1 : 0;}
 
 	bool operator==(const BVHHandle &p_h) const {return _data == p_h._data;}
 	bool operator!=(const BVHHandle &p_h) const { return (*this == p_h) == false; }
 
 private:
-	void set_flag(uint32_t p_flag) {_data |= p_flag;}
-	void change_flag(uint32_t p_flag, bool p_set)
-	{
-		if (p_set)
-		{set_flag(p_flag);}
-		else
-		{clear_flag(p_flag);}
-	}
-	void clear_flag(uint32_t p_flag) {_data &= ~p_flag;}
-	uint32_t get_flag(uint32_t p_flag) const {return _data & p_flag;}
+//	void set_flag(uint32_t p_flag) {_data |= p_flag;}
+//	void change_flag(uint32_t p_flag, bool p_set)
+//	{
+//		if (p_set)
+//		{set_flag(p_flag);}
+//		else
+//		{clear_flag(p_flag);}
+//	}
+//	void clear_flag(uint32_t p_flag) {_data &= ~p_flag;}
+//	uint32_t get_flag(uint32_t p_flag) const {return _data & p_flag;}
 };
 
 template <class T, int MAX_CHILDREN, int MAX_ITEMS, bool USE_PAIRS = false>
@@ -74,7 +80,10 @@ class BVH_Tree
 public:
 	BVH_Tree()
 	{
-		_root_node_id = -1;
+		for (int n=0; n<NUM_TREES; n++)
+		{
+			_root_node_id[n] = -1;
+		}
 	}
 
 private:
@@ -144,7 +153,7 @@ private:
 
 			swapped_ref.item_id = ref.item_id;
 
-			refit_downward(_root_node_id);
+			refit_upward(owner_node_id);
 			//recursive_node_update_aabb_upward(owner_node_id);
 		}
 		else
@@ -159,7 +168,7 @@ private:
 				node_remove_child(parent_node_id, owner_node_id);
 
 
-				refit_downward(_root_node_id);
+				refit_upward(parent_node_id);
 //				recursive_node_update_aabb_upward(parent_node_id);
 
 				// put the node on the free list to recycle
@@ -617,12 +626,16 @@ public:
 			tnode.items[n].item_ref_id = child_ids[n];
 		}
 
-		refit_all();
+		// change this to make more efficient
+		refit_upward(child_ids[0]);
+		refit_upward(child_ids[1]);
+
+//		refit_all();
 
 		return wildcard_node;
 	}
 
-
+/*
 	void split_leaf_OLD(uint32_t p_node_id)
 	{
 		VERBOSE_PRINT("split_leaf");
@@ -677,15 +690,13 @@ public:
 			_node_add_item(child_ids[1], source_item.item_ref_id, source_item.aabb);
 		}
 
-		/*
-		// move each item to a child node
-		for (int n=0; n<tnode.num_items; n++)
-		{
-			int child_node_id = child_ids[n % MAX_CHILDREN];
-			const Item &source_item = tnode.get_item(n);
-			_node_add_item(child_node_id, source_item.item_ref_id, source_item.aabb);
-		}
-		*/
+//		// move each item to a child node
+//		for (int n=0; n<tnode.num_items; n++)
+//		{
+//			int child_node_id = child_ids[n % MAX_CHILDREN];
+//			const Item &source_item = tnode.get_item(n);
+//			_node_add_item(child_node_id, source_item.item_ref_id, source_item.aabb);
+//		}
 
 		// now remove all items from the parent and replace with the child nodes
 		tnode.num_items = MAX_CHILDREN;
@@ -697,7 +708,7 @@ public:
 
 		refit_all();
 	}
-
+*/
 
 #include "bvh_misc.inc"
 #include "bvh_public.inc"

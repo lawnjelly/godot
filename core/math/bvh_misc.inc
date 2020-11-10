@@ -1,4 +1,16 @@
 
+int _get_tree_id(BVHHandle p_handle) const
+{
+	if (USE_PAIRS)
+	{
+		int tree = 0;
+		if (_extra[p_handle.id()].pairable)
+			tree = 1;
+		return tree;
+	}
+	return 0;
+}
+
 float _compute_cost_change_upward(uint32_t p_node_id, const ABB &p_aabb)
 {
 	const TNode &tnode = _nodes[p_node_id];
@@ -81,27 +93,27 @@ float _goodness_of_fit_merge(const ABB &p_new, const ABB &p_existing) const
 //	return -(m_size - (a_size + b_size));
 }
 
-void refit_all()
+void refit_all(int p_tree_id)
 {
-	refit_downward(_root_node_id);
+	refit_downward(_root_node_id[p_tree_id]);
 }
 
-void create_root_node()
+void create_root_node(int p_tree)
 {
 	// if there is no root node, create one
-	if (_root_node_id == -1)
+	if (_root_node_id[p_tree] == -1)
 	{
 		uint32_t root_node_id;
 		TNode * node = _nodes.request(root_node_id);
 		node->clear();
-		_root_node_id = root_node_id;
+		_root_node_id[p_tree] = root_node_id;
 	}
 }
 
 void refit_upward(uint32_t p_node_id)
 {
-	refit_all();
-	return;
+//	refit_all();
+//	return;
 
 	TNode &tnode = _nodes[p_node_id];
 

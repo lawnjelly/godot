@@ -1,4 +1,4 @@
-uint32_t item_add(T *p_userdata, const AABB &p_aabb, int32_t p_subindex, bool p_pairable, uint32_t p_pairable_type, uint32_t p_pairable_mask, bool p_invisible = false)
+BVHHandle item_add(T *p_userdata, const AABB &p_aabb, int32_t p_subindex, bool p_pairable, uint32_t p_pairable_type, uint32_t p_pairable_mask, bool p_invisible = false)
 {
 #ifdef BVH_VERBOSE_TREE
 //	VERBOSE_PRINT("\nitem_add BEFORE");
@@ -10,7 +10,7 @@ uint32_t item_add(T *p_userdata, const AABB &p_aabb, int32_t p_subindex, bool p_
 	abb.from(p_aabb);
 
 	// handle to be filled with the new item ref
-//	BVHHandle handle;
+	BVHHandle handle;
 
 	// ref id easier to pass around than handle
 	uint32_t ref_id;
@@ -22,6 +22,16 @@ uint32_t item_add(T *p_userdata, const AABB &p_aabb, int32_t p_subindex, bool p_
 	uint32_t extra_id;
 	ItemExtra * extra = _extra.request(extra_id);
 	CRASH_COND(extra_id != ref_id);
+
+	// pairs info
+	if (USE_PAIRS)
+	{
+		uint32_t pairs_id;
+		ItemPairs * pairs = _pairs.request(pairs_id);
+		pairs->clear();
+		CRASH_COND(pairs_id != ref_id);
+	}
+
 	extra->subindex = p_subindex;
 	extra->userdata = p_userdata;
 
@@ -31,22 +41,30 @@ uint32_t item_add(T *p_userdata, const AABB &p_aabb, int32_t p_subindex, bool p_
 		extra->pairable_type = p_pairable_type;
 		extra->pairable = p_pairable;
 	}
+	else
+	{
+		// just for safety, in case this gets queried etc
+		extra->pairable = 0;
+		p_pairable = false;
+	}
 
 	// assign to handle to return
-//	handle.id = ref_id;
+	handle.set_id(ref_id);
 
 	// ignore bound
 #ifdef BVH_DEBUG_DRAW
-	if (p_invisible)
-		return ref_id;
-//	if (ref_id == 1)
-//		return handle;
+	if (ref_id == 1)
+		return handle;
 #endif
 
-	create_root_node();
+	int tree_id = 0;
+	if (p_pairable)
+		tree_id = 1;
+
+	create_root_node(tree_id);
 
 	// we must choose where to add to tree
-	ref->tnode_id = recursive_choose_item_add_node(_root_node_id, abb);
+	ref->tnode_id = recursive_choose_item_add_node(_root_node_id[tree_id], abb);
 
 	_node_add_item(ref->tnode_id, ref_id, abb);
 
@@ -68,11 +86,11 @@ uint32_t item_add(T *p_userdata, const AABB &p_aabb, int32_t p_subindex, bool p_
 
 #ifdef BVH_VERBOSE_TREE
 //	VERBOSE_PRINT("item_add AFTER");
-	_recursive_print_tree();
+	_recursive_print_tree(tree_id);
 #endif
 
 //	return handle;
-	return ref_id;
+	return handle;
 }
 
 
@@ -109,11 +127,13 @@ void item_move(BVHHandle p_handle, const AABB &p_aabb)
 		return;
 	}
 
+	int tree_id = _get_tree_id(p_handle);
+
 	// remove and reinsert
 	node_remove_item(ref_id);
 
 	// we must choose where to add to tree
-	ref.tnode_id = recursive_choose_item_add_node(_root_node_id, abb);
+	ref.tnode_id = recursive_choose_item_add_node(_root_node_id[tree_id], abb);
 	_node_add_item(ref.tnode_id, ref_id, abb);
 	refit_upward(ref.tnode_id);
 
@@ -123,6 +143,8 @@ void item_move(BVHHandle p_handle, const AABB &p_aabb)
 void item_remove(BVHHandle p_handle)
 {
 	uint32_t ref_id = p_handle.id();
+
+	int tree_id = _get_tree_id(p_handle);
 
 #ifdef BVH_DEBUG_DRAW
 	// ignore bound
@@ -136,7 +158,8 @@ void item_remove(BVHHandle p_handle)
 	VERBOSE_PRINT("item_remove [" + itos(ref_id) + "] ");
 
 #ifdef BVH_DEBUG_DRAW
-	if (p_handle.is_invisible())
+	if (p_handle.id() == 1)
+//	if (p_handle.is_invisible())
 	{
 
 	}
@@ -151,12 +174,50 @@ void item_remove(BVHHandle p_handle)
 	// remove the item reference
 	_refs.free(ref_id);
 	_extra.free(ref_id);
+	if (USE_PAIRS)
+	{
+		_pairs.free(ref_id);
+	}
 
-	refit_all();
+	refit_all(tree_id);
 
 #ifdef BVH_VERBOSE_TREE
-	_recursive_print_tree();
+	_recursive_print_tree(tree_id);
 #endif
 
 //		refit_upward(ref.tnode_id);
+}
+
+void item_set_pairable(const BVHHandle &p_handle, bool p_pairable, uint32_t p_pairable_type, uint32_t p_pairable_mask)
+{
+	// change tree?
+	uint32_t ref_id = p_handle.id();
+
+	ItemExtra &ex = _extra[ref_id];
+	ItemRef &ref = _refs[ref_id];
+
+	ex.pairable_type = p_pairable_type;
+	ex.pairable_mask = p_pairable_mask;
+
+	if (ex.pairable != p_pairable)
+	{
+		// record abb
+		TNode &tnode = _nodes[ref.tnode_id];
+		Item &item = tnode.get_item(ref.item_id);
+		ABB abb = item.aabb;
+
+		// remove from old tree
+		node_remove_item(ref_id);
+
+		ex.pairable = p_pairable;
+
+		// add to new tree
+		int tree_id = _get_tree_id(p_handle);
+
+		// we must choose where to add to tree
+		ref.tnode_id = recursive_choose_item_add_node(_root_node_id[tree_id], abb);
+		_node_add_item(ref.tnode_id, ref_id, abb);
+		refit_upward(ref.tnode_id);
+	}
+
 }

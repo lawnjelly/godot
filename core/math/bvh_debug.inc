@@ -1,9 +1,6 @@
 #ifdef BVH_DEBUG_DRAW
 	void draw_debug(ImmediateGeometry * p_im)
 	{
-		if (_root_node_id == -1)
-			return;
-
 #ifdef BVH_VERBOSE_FRAME
 		_recursive_print_tree(_root_node_id);
 #endif
@@ -13,7 +10,13 @@
 		//im->begin(Mesh::PRIMITIVE_TRIANGLES, NULL);
 		p_im->begin(Mesh::PRIMITIVE_LINES, NULL);
 
-		_debug_draw_node(p_im, _root_node_id);
+		for (int n=0; n<NUM_TREES; n++)
+		{
+			if (_root_node_id[n] == -1)
+				continue;
+
+			_debug_draw_node(p_im, _root_node_id[n]);
+		}
 		//im->add_vertex(m_DebugPortalLightPlanes[n]);
 		p_im->end();
 	}
@@ -98,10 +101,10 @@
 #endif
 
 #ifdef BVH_VERBOSE
-	void _recursive_print_tree() const
+	void _recursive_print_tree(int p_tree_id) const
 	{
-		if (_root_node_id != -1)
-			_recursive_print_tree(_root_node_id);
+		if (_root_node_id[p_tree_id] != -1)
+			_recursive_print_tree_node(_root_node_id[p_tree_id]);
 	}
 
 	String _aabb_to_string(const ABB &aabb) const
@@ -129,7 +132,7 @@
 		return sz;
 	}
 
-	void _recursive_print_tree(uint32_t p_node_id, int depth = 0) const
+	void _recursive_print_tree_node(uint32_t p_node_id, int depth = 0) const
 	{
 		//return;
 		const TNode &tnode = _nodes[p_node_id];
@@ -167,7 +170,7 @@
 			for (int n=0; n<tnode.num_items; n++)
 			{
 				const Item &item = tnode.get_item(n);
-				_recursive_print_tree(item.item_ref_id, depth+1);
+				_recursive_print_tree_node(item.item_ref_id, depth+1);
 			}
 		}
 

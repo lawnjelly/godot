@@ -40,9 +40,6 @@ void _translate_cull_hits(CullParams &p)
 //int cull_convex(const Plane * p_planes, int p_num_planes, T **p_result_array, int p_result_max, uint32_t p_mask, bool p_translate_hits = true)
 int cull_convex(CullParams &r_params, bool p_translate_hits = true)
 {
-	if (_root_node_id == -1)
-		return 0;
-
 //	Vector<Vector3> convex_points = Geometry::compute_convex_mesh_points(p_planes, p_num_planes);
 //	if (convex_points.size() == 0)
 //		return 0;
@@ -62,7 +59,13 @@ int cull_convex(CullParams &r_params, bool p_translate_hits = true)
 //	params.hull.points = &convex_points[0];
 //	params.hull.num_points = convex_points.size();
 
-	_cull_convex_recursive(_root_node_id, r_params);
+	for (int n=0; n<NUM_TREES; n++)
+	{
+		if (_root_node_id[n] == -1)
+			continue;
+
+		_cull_convex_recursive(_root_node_id[n], r_params);
+	}
 
 	if (p_translate_hits)
 		_translate_cull_hits(r_params);
@@ -73,13 +76,17 @@ int cull_convex(CullParams &r_params, bool p_translate_hits = true)
 //int cull_segment(const Vector3 &p_from, const Vector3 &p_to, T **p_result_array, int p_result_max, int *p_subindex_array, uint32_t p_mask, bool p_translate_hits = true)
 int cull_segment(CullParams &r_params, bool p_translate_hits = true)
 {
-	if (_root_node_id == -1)
-		return 0;
-
 	_cull_hits.clear();
 	r_params.result_count = 0;
 
-	_cull_segment_recursive(_root_node_id, r_params);
+
+	for (int n=0; n<NUM_TREES; n++)
+	{
+		if (_root_node_id[n] == -1)
+			continue;
+
+		_cull_segment_recursive(_root_node_id[n], r_params);
+	}
 
 	if (p_translate_hits)
 		_translate_cull_hits(r_params);
@@ -90,13 +97,17 @@ int cull_segment(CullParams &r_params, bool p_translate_hits = true)
 //int cull_point(const Vector3 &p_point, T **p_result_array, int p_result_max, int *p_subindex_array, uint32_t p_mask, bool p_translate_hits = true)
 int cull_point(CullParams &r_params, bool p_translate_hits = true)
 {
-	if (_root_node_id == -1)
-		return 0;
 
 	_cull_hits.clear();
 	r_params.result_count = 0;
 
-	_cull_point_recursive(_root_node_id, r_params);
+	for (int n=0; n<NUM_TREES; n++)
+	{
+		if (_root_node_id[n] == -1)
+			continue;
+
+		_cull_point_recursive(_root_node_id[n], r_params);
+	}
 
 	if (p_translate_hits)
 		_translate_cull_hits(r_params);
@@ -107,13 +118,18 @@ int cull_point(CullParams &r_params, bool p_translate_hits = true)
 //int cull_aabb(const AABB &p_aabb, T **p_result_array, int p_result_max, int *p_subindex_array, uint32_t p_mask, bool p_translate_hits = true)
 int cull_aabb(CullParams &r_params, bool p_translate_hits = true)
 {
-	if (_root_node_id == -1)
-		return 0;
-
 	_cull_hits.clear();
 	r_params.result_count = 0;
 
-	_cull_aabb_recursive(_root_node_id, r_params);
+
+	for (int n=0; n<NUM_TREES; n++)
+	{
+		if (_root_node_id[n] == -1)
+			continue;
+
+		_cull_aabb_recursive(_root_node_id[n], r_params);
+	}
+
 
 	if (p_translate_hits)
 		_translate_cull_hits(r_params);

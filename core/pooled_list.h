@@ -2,7 +2,7 @@
 
 #include "core/local_vector.h"
 
-template <class T, bool force_trivial>
+template <class T, bool force_trivial = false>
 class PooledList
 {
 	LocalVector<T, uint32_t, force_trivial> list;
