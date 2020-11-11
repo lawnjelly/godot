@@ -1,5 +1,7 @@
+#pragma once
+
 // special optimized version of axis aligned bounding box
-struct ABB
+struct BVH_ABB
 {
 	struct ConvexHull
 	{
@@ -27,6 +29,9 @@ struct ABB
 	Vector3 neg_min;
 	Vector3 max;
 
+	bool operator==(const BVH_ABB &o) const {return (neg_min == o.neg_min) && (max == o.max);}
+	bool operator!=(const BVH_ABB &o) const { return (*this == o) == false; }
+
 	void from(const AABB &aabb)
 	{
 		neg_min = -aabb.position;
@@ -37,7 +42,7 @@ struct ABB
 		aabb.position = -neg_min;
 		aabb.size = max - aabb.position;
 	}
-	void merge(const ABB &o)
+	void merge(const BVH_ABB &o)
 	{
 		if (o.max.x > max.x) max.x = o.max.x;
 		if (o.max.y > max.y) max.y = o.max.y;
@@ -51,7 +56,7 @@ struct ABB
 		return max + neg_min;
 	}
 
-//	IntersectResult intersects_ex(const ABB &o) const
+//	IntersectResult intersects_ex(const BVH_ABB &o) const
 //	{
 //		if (!intersects(o)) return IR_MISS;
 //		if (is_within(o)) return IR_FULL;
@@ -84,14 +89,14 @@ struct ABB
 		return true;
 	}
 
-	bool intersects(const ABB &o) const
+	bool intersects(const BVH_ABB &o) const
 	{
 		if (_vector3_any_morethan(-o.neg_min, max)) return false;
 		if (_vector3_any_morethan(-neg_min, o.max)) return false;
 		return true;
 	}
 
-	bool is_within(const ABB &o) const
+	bool is_within(const BVH_ABB &o) const
 	{
 		if (_vector3_any_morethan(o.max, max)) return false;
 		if (_vector3_any_morethan(o.neg_min, neg_min)) return false;

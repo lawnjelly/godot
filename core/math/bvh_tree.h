@@ -2,6 +2,7 @@
 
 #include "core/math/aabb.h"
 #include "core/pooled_list.h"
+#include "core/math/bvh_abb.h"
 
 //#define BVH_DEBUG_DRAW
 #ifdef BVH_DEBUG_DRAW
@@ -10,9 +11,9 @@
 
 #if defined (TOOLS_ENABLED) && defined (DEBUG_ENABLED)
 #define BVH_VERBOSE
-//#define BVH_VERBOSE_TREE
+#define BVH_VERBOSE_TREE
 //#define BVH_VERBOSE_FRAME
-#define BVH_CHECKS
+//#define BVH_CHECKS
 #endif
 
 #ifdef BVH_VERBOSE
@@ -106,19 +107,42 @@ private:
 	}
 
 
-	void node_remove_child(uint32_t p_node_id, uint32_t p_child_node_id)
+	void node_remove_child(uint32_t p_node_id, uint32_t p_child_node_id, bool p_prevent_nephews = false)
 	{
 		TNode &tnode = _nodes[p_node_id];
+#ifdef TOOLS_ENABLED
+		// node is never a leaf node
+		CRASH_COND(tnode.is_leaf());
+#endif
 
 		int child_num = tnode.find_child(p_child_node_id);
+#ifdef TOOLS_ENABLED
 		CRASH_COND(child_num == -1);
+#endif
 
 		tnode.remove_item_internal(child_num);
 
 		// no need to keep back references for children at the moment
 
+		uint32_t nephew_item_id; // always a node id, as tnode is never a leaf
+		bool nephew_present = false;
+
 		if (tnode.num_items)
-			return;
+		{
+			// if there are still more than 1 node
+			if (p_prevent_nephews || (tnode.num_items > 1))
+				return;
+
+			if (tnode.parent_tnode_id_p1)
+			{
+				// else there is now a redundant node with one child, which can be removed
+				nephew_item_id = tnode.get_item(0).item_ref_id;
+				nephew_present = true;
+
+				// may not be needed
+				tnode.remove_item_internal(0);
+			}
+		}
 
 		// now there may be no children in this node .. in which case it can be deleted
 		// remove node if empty
@@ -128,11 +152,18 @@ private:
 			// the node number is stored +1 based (i.e. 1 is 0, so that 0 indicates NULL)
 			uint32_t parent_node_id = tnode.parent_tnode_id_p1-1;
 
-			node_remove_child(parent_node_id, p_node_id);
+			node_remove_child(parent_node_id, p_node_id, true);
 
 			// put the node on the free list to recycle
 			_nodes.free(p_node_id);
+
+			// if there was a nephew, now add it
+			if (nephew_present)
+			{
+				node_add_child(parent_node_id, nephew_item_id);
+			}
 		}
+
 	}
 
 	void node_remove_item(uint32_t p_ref_id)
@@ -184,7 +215,7 @@ private:
 
 public:
 
-	void _node_add_item(uint32_t p_node_id, uint32_t p_ref_id, const ABB &p_aabb)
+	void _node_add_item(uint32_t p_node_id, uint32_t p_ref_id, const BVH_ABB &p_aabb)
 	{
 		ItemRef &ref = _refs[p_ref_id];
 		ref.tnode_id = p_node_id;
@@ -199,7 +230,7 @@ public:
 		item->item_ref_id = p_ref_id;
 	}
 
-	uint32_t _create_another_child(uint32_t p_node_id, const ABB &p_aabb)
+	uint32_t _create_another_child(uint32_t p_node_id, const BVH_ABB &p_aabb)
 	{
 		uint32_t child_node_id;
 		TNode * child_node = _nodes.request(child_node_id);
@@ -249,7 +280,7 @@ public:
 			return;
 
 		// calculate the aabb of the node without the item
-		ABB aabb_node;
+		BVH_ABB aabb_node;
 		aabb_node.set_to_max_opposite_extents();
 
 		for (int n=0; n<tnode.num_items; n++)
@@ -264,7 +295,7 @@ public:
 		float area_node_without = aabb_node.get_area();
 		float area_node_saved = area_node_orig - area_node_without;
 
-		const ABB &aabb_item = tnode.get_item(ref.item_id).aabb;
+		const BVH_ABB &aabb_item = tnode.get_item(ref.item_id).aabb;
 
 		// area of sibling before
 		float area_sibling_orig = sibling.aabb.get_area();
@@ -278,11 +309,11 @@ public:
 		}
 	}
 
-	bool _should_exchange_cousin(const ABB &aabb_without, const ABB &aabb_item, float area_node_orig, float area_sibling_orig, float area_node_saved, TNode &sibling, int child_num)
+	bool _should_exchange_cousin(const BVH_ABB &aabb_without, const BVH_ABB &aabb_item, float area_node_orig, float area_sibling_orig, float area_node_saved, TNode &sibling, int child_num)
 	{
 		// calculate the aabb of the sibling without
-		ABB aabb_sibling;
-		aabb_sibling.set_to_max_opposite_extents;
+		BVH_ABB aabb_sibling;
+		aabb_sibling.set_to_max_opposite_extents();
 
 		for (int n=0; n<sibling.num_items; n++)
 		{
@@ -300,7 +331,7 @@ public:
 		float area_sibling_change = area_sibling_with - area_sibling_orig;
 
 		// mockup adding the sibling item to the original node
-		ABB aabb_node = aabb_without;
+		BVH_ABB aabb_node = aabb_without;
 		aabb_node.merge(sibling.get_item(child_num).aabb);
 		float area_node_with = aabb_node.get_area();
 
@@ -314,7 +345,7 @@ public:
 		return false;
 	}
 
-	uint32_t _create_sibling(uint32_t p_node_id, const ABB &p_aabb)
+	uint32_t _create_sibling(uint32_t p_node_id, const BVH_ABB &p_aabb)
 	{
 		VERBOSE_PRINT("_create_sibling");
 
@@ -327,14 +358,21 @@ public:
 		new_parent->clear(false);
 
 		// it is possible we are creating a new root node
-		if (p_node_id == _root_node_id)
+		if (!old_parent_id_p1)
+//		if (p_node_id == _root_node_id)
 		{
-			_root_node_id = new_parent_id;
+			// is a new root to one of the trees
+			for (int n=0; n<NUM_TREES; n++)
+			{
+				if (_root_node_id[n] == p_node_id)
+					_root_node_id[n] = new_parent_id;
+			}
+			//_root_node_id = new_parent_id;
 		}
 		else
 		{
 			// if there was an old parent, remove the node as a child, and add the new parent as a child
-			CRASH_COND(old_parent_id_p1 == 0);
+			//CRASH_COND(old_parent_id_p1 == 0);
 			TNode &t_old_parent = _nodes[old_parent_id_p1-1];
 			int child_num = t_old_parent.find_child(p_node_id);
 			CRASH_COND(child_num == -1);
@@ -356,11 +394,10 @@ public:
 
 
 	// either choose an existing node to add item to, or create a new node and return this
-	uint32_t recursive_choose_item_add_node(uint32_t p_node_id, const ABB &p_aabb)
+	uint32_t recursive_choose_item_add_node(uint32_t p_node_id, const BVH_ABB &p_aabb)
 	{
 		TNode &tnode = _nodes[p_node_id];
 
-		/*
 		// if they don't overlap, and the node is not a non leaf which is non full
 		if (tnode.num_items && !p_aabb.intersects(tnode.aabb))
 		{
@@ -373,7 +410,6 @@ public:
 				return _create_sibling(p_node_id, p_aabb);
 			}
 		}
-		*/
 
 		// if not a leaf node
 		if (!tnode.is_leaf())
@@ -418,18 +454,18 @@ public:
 		return recursive_choose_item_add_node(p_node_id, p_aabb);
 	}
 
-	void _split_leaf_sort_groups(const TNode &tnode, int &num_a, int &num_b, uint8_t * group_a, uint8_t * group_b, const ABB * temp_bounds)
+	void _split_leaf_sort_groups(const TNode &tnode, int &num_a, int &num_b, uint8_t * group_a, uint8_t * group_b, const BVH_ABB * temp_bounds)
 	{
-		ABB groupb_aabb;
+		BVH_ABB groupb_aabb;
 		groupb_aabb.set_to_max_opposite_extents();
 		for (int n=0; n<num_b; n++)
 		{
 			int which = group_b[n];
 			groupb_aabb.merge(temp_bounds[which]);
 		}
-		ABB groupb_aabb_new;
+		BVH_ABB groupb_aabb_new;
 
-		ABB rest_aabb;
+		BVH_ABB rest_aabb;
 
 		float best_size = FLT_MAX;
 		int best_candidate = -1;
@@ -471,16 +507,16 @@ public:
 
 	void _split_leaf_sort_groups_OLD(const TNode &tnode, int &num_a, int &num_b, uint8_t * group_a, uint8_t * group_b)
 	{
-		ABB groupb_aabb;
+		BVH_ABB groupb_aabb;
 		groupb_aabb.set_to_max_opposite_extents();
 		for (int n=0; n<num_b; n++)
 		{
 			int which = group_b[n];
 			groupb_aabb.merge(tnode.get_item(which).aabb);
 		}
-		ABB groupb_aabb_new;
+		BVH_ABB groupb_aabb_new;
 
-		ABB rest_aabb;
+		BVH_ABB rest_aabb;
 
 		float best_size = FLT_MAX;
 		int best_candidate = -1;
@@ -523,7 +559,7 @@ public:
 	}
 
 	// aabb is the new inserted node
-	uint32_t split_leaf(uint32_t p_node_id, const ABB &p_added_item_aabb)
+	uint32_t split_leaf(uint32_t p_node_id, const BVH_ABB &p_added_item_aabb)
 	{
 		VERBOSE_PRINT("split_leaf");
 
@@ -553,7 +589,7 @@ public:
 		uint8_t * group_b = (uint8_t *) alloca(sizeof (uint8_t) * max_children);
 
 		// we are copying the ABBs. This is ugly, but we need one extra for the inserted item...
-		ABB * temp_bounds = (ABB *) alloca(sizeof (ABB) * max_children);
+		BVH_ABB * temp_bounds = (BVH_ABB *) alloca(sizeof (BVH_ABB) * max_children);
 
 		int num_a = max_children;
 		int num_b = 0;

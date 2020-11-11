@@ -21,7 +21,7 @@
 		p_im->end();
 	}
 
-	void _debug_draw_AABB(ImmediateGeometry * p_im, const ABB &abb)
+	void _debug_draw_AABB(ImmediateGeometry * p_im, const BVH_ABB &abb)
 	{
 		Vector3 mins, maxs;
 		mins = -abb.neg_min;
@@ -107,7 +107,7 @@
 			_recursive_print_tree_node(_root_node_id[p_tree_id]);
 	}
 
-	String _aabb_to_string(const ABB &aabb) const
+	String _aabb_to_string(const BVH_ABB &aabb) const
 	{
 		String sz = "(";
 		sz += itos (-aabb.neg_min.x);
