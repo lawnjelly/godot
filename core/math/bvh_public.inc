@@ -34,6 +34,7 @@ BVHHandle item_add(T *p_userdata, const AABB &p_aabb, int32_t p_subindex, bool p
 
 	extra->subindex = p_subindex;
 	extra->userdata = p_userdata;
+	extra->last_updated_tick = 0;
 
 	if (USE_PAIRS)
 	{
