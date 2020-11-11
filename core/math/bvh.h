@@ -11,6 +11,7 @@
 template <class T, bool USE_PAIRS = false>
 class BVH_Manager
 {
+	/*
 	struct Pair
 	{
 		bool operator==(const Pair &p) const {return (handle[0] == p.handle[0]) && (handle[1] == p.handle[1]);}
@@ -63,9 +64,7 @@ class BVH_Manager
 			return &bins[bin][s];
 		}
 	} _pairs_hashtable;
-
-	uint32_t _version;
-
+*/
 public:
 	typedef void *(*PairCallback)(void *, BVHHandle, T *, int, BVHHandle, T *, int);
 	typedef void (*UnpairCallback)(void *, BVHHandle, T *, int, BVHHandle, T *, int, void *);
@@ -249,7 +248,6 @@ public:
 	// do this after moving etc.
 	void check_for_collisions()
 	{
-		/*
 		AABB bb;
 
 
@@ -266,12 +264,15 @@ public:
 		{
 			const BVHHandle &h = changed_items[n];
 
+			// we will redetect all collision pairs from this item
+			tree.pairs_reset_from_item(h);
+
 //			if (!tree._extra[h.id].pairable)
 //				continue;
 
-			int tree_id = h.get_tree();
+//			int tree_id = h.get_tree();
 			uint32_t changed_item_ref_id = h.id();
-			bool changed_item_pairable = h.is_pairable();
+			bool changed_item_pairable = item_is_pairable(h);
 
 			item_get_AABB(h, bb);
 
@@ -283,39 +284,34 @@ public:
 			//int cull_aabb(const AABB &p_aabb, T **p_result_array, int p_result_max, int *p_subindex_array, uint32_t p_mask, bool p_translate_hits = true)
 
 			// get the results into _cull_hits
-			for (int test_tree=0; test_tree<2; test_tree++)
-			{
-				BVHTREE_CLASS &tr = tree[test_tree];
 
 //				tr.cull_aabb(bb, nullptr, 0, nullptr, 0, false);
 				params.result_count_overall = 0; // might not be needed
-				tr.cull_aabb(params, false);
+				tree.cull_aabb(params, false);
 //				return params.result_count_overall;
 
-				for (int n=0; n<tr._cull_hits.size(); n++)
+				for (int n=0; n<tree._cull_hits.size(); n++)
 				{
-					uint32_t ref_id = tr._cull_hits[n];
+					uint32_t ref_id = tree._cull_hits[n];
 
 					// don't collide against ourself
-					if ((ref_id == changed_item_ref_id) && (test_tree == tree_id))
+					if (ref_id == changed_item_ref_id)
 						continue;
 
 					// if neither are pairable, they should ignore each other
-					if (!changed_item_pairable && !tr._extra[ref_id].pairable)
+					if (!changed_item_pairable && !tree._extra[ref_id].pairable)
 						continue;
 
 					// checkmasks ... NYI
 
 					BVHHandle h_collidee;
-					h_collidee.set_all(ref_id);
-					h_collidee.set_pairable(test_tree == 1);
+					h_collidee.set_id(ref_id);
+					//h_collidee.set_pairable(test_tree == 1);
 
 					_collide(h, h_collidee);
 				}
-			} // for tree
 
 		}
-*/
 		_reset();
 	}
 
@@ -334,13 +330,16 @@ public:
 
 
 private:
+
 	void _collide(BVHHandle collider, BVHHandle collidee)
 	{
+
+		/*
 		Pair p;
 		p.handle[0] = collider;
 		p.handle[1] = collidee;
 		p.sort();
-		p.version = _version;
+		p.version = _tick;
 		p.ud = 0;
 
 		Pair * p_added_pair = _pairs_hashtable.add(p);
@@ -358,7 +357,7 @@ private:
 			}
 
 		}
-
+		*/
 	}
 
 	// pairs that were not colliding in this version
@@ -394,6 +393,7 @@ private:
 	// if we remove an item, we need to immediately remove the pairs, to prevent reading the pair after deletion
 	void _remove_pairs_containing(BVHHandle p_handle)
 	{
+		/*
 		for (int b=0; b<_pairs_hashtable.NUM_BINS; b++)
 		{
 			for (int n=0; n<_pairs_hashtable.bins[b].size(); n++)
@@ -416,6 +416,7 @@ private:
 				} // version outdated
 			}
 		}
+		*/
 	}
 
 
@@ -432,7 +433,7 @@ private:
 	{
 		return tree._extra[p_handle.id()];
 	}
-	const typename BVHTREE_CLASS::ItemExtra &_get_ref(BVHHandle p_handle) const
+	const typename BVHTREE_CLASS::ItemRef &_get_ref(BVHHandle p_handle) const
 	{
 		return tree._refs[p_handle.id()];
 	}
@@ -441,32 +442,44 @@ private:
 	void _reset()
 	{
 		changed_items.clear();
-		_version++;
+		_tick++;
 	}
 
 	void _add_changed_item(BVHHandle p_handle)
 	{
 		// only if uses pairing
-		if (!item_is_pairable(p_handle))
-			return;
+//		if (!item_is_pairable(p_handle))
+//			return;
+		uint32_t &last_updated_tick = tree._extra[p_handle.id()].last_updated_tick;
+
+		if (last_updated_tick == _tick)
+			return; // already on changed list
+
+		// mark as on list
+		last_updated_tick = _tick;
 
 		// todo .. add bitfield for fast check
-		for (int n=0; n<changed_items.size(); n++)
-		{
-			// already on list
-			if (changed_items[n] == p_handle)
-				return;
-		}
+//		for (int n=0; n<changed_items.size(); n++)
+//		{
+//			// already on list
+//			if (changed_items[n] == p_handle)
+//				return;
+//		}
 
 		changed_items.push_back(p_handle);
 	}
 
 	void _remove_changed_item(BVHHandle p_handle)
 	{
+		// Care has to be taken here for items that are deleted. The ref ID
+		// could be reused on the same tick for new items. This is probably
+		// rare but should be taken into consideration
+
 		// only if uses pairing
 //		if (!item_is_pairable(p_handle))
 //			return;
 
+		// callbacks
 		_remove_pairs_containing(p_handle);
 
 		// remove from changed items (not very efficient yet)
@@ -477,6 +490,9 @@ private:
 				changed_items.remove_unordered(n);
 			}
 		}
+
+		// reset the last updated tick (may not be necessary but just in case)
+		tree._extra[p_handle.id()].last_updated_tick = 0;
 	}
 
 	PairCallback pair_callback;
@@ -489,6 +505,7 @@ private:
 	// for collision pairing,
 	// maintain a list of all items moved etc on each frame / tick
 	LocalVector<BVHHandle, uint32_t, true> changed_items;
+	uint32_t _tick;
 
 #ifdef BVH_DEBUG_DRAW
 	int _added_item_count;
@@ -497,7 +514,7 @@ private:
 public:
 	BVH_Manager()
 	{
-		_version = 0;
+		_tick = 1; // start from 1 so items with 0 indicate never updated
 		pair_callback = nullptr;
 		unpair_callback = nullptr;
 		pair_callback_userdata = nullptr;

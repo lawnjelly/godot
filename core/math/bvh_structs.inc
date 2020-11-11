@@ -11,24 +11,12 @@ struct ItemRef
 // as this is less used as keeps cache better
 struct ItemExtra
 {
-	int32_t subindex;
+	uint32_t last_updated_tick;
 	uint32_t pairable;
 	uint32_t pairable_mask;
 	uint32_t pairable_type;
 	T * userdata;
-};
-
-struct ItemPairs
-{
-	enum {MAX_PAIRS_PER_ITEM = 7};
-	void clear() {num_pairs = 0;}
-
-	// in most cases the in built list will be long enough,
-	// if not use the vector
-	uint32_t num_pairs;
-	// ref ids
-	uint32_t pairs[MAX_PAIRS_PER_ITEM];
-	LocalVector<uint32_t> extended_pairs;
+	int32_t subindex;
 };
 
 // this is an item OR a child node depending on whether a leaf node
@@ -53,6 +41,94 @@ struct CullParams
 	typename ABB::ConvexHull hull;
 	typename ABB::Segment segment;
 };
+
+
+struct ItemPairs
+{
+	enum {MAX_PAIRS_PER_ITEM = 7};
+	void clear() {num_pairs = 0; extended_pairs.reset();}
+	bool extended() const {return extended_pairs.size() != 0;}
+
+	// in most cases the in built list will be long enough,
+	// if not use the vector
+	int32_t num_pairs;
+	BVHHandle pairs[MAX_PAIRS_PER_ITEM];
+	LocalVector<BVHHandle> extended_pairs;
+
+	void add_pair_to(BVHHandle h)
+	{
+		if (!extended())
+		{
+			// simplest case
+			if (num_pairs < MAX_PAIRS_PER_ITEM)
+			{
+				pairs[num_pairs++] = h;
+				return;
+			}
+
+			// needs to become extended
+			_extend();
+		}
+		extended_pairs.push_back(h);
+		num_pairs++;
+	}
+
+	void remove_pair_to(BVHHandle h)
+	{
+		if (!extended())
+		{
+			for (int n=0; n<num_pairs; n++)
+			{
+				if (pairs[n] == h)
+				{
+					// remove unordered
+					num_pairs--;
+					pairs[n] = pairs[num_pairs];
+				}
+			}
+		}
+		else
+		{
+			for (int n=0; n<num_pairs; n++)
+			{
+				if (extended_pairs[n] == h)
+				{
+					extended_pairs.remove_unordered(n);
+					num_pairs--;
+				}
+			}
+		} // extended
+	}
+
+private:
+	void _extend()
+	{
+		CRASH_COND(num_pairs > MAX_PAIRS_PER_ITEM);
+		CRASH_COND(extended());
+		extended_pairs.resize(num_pairs);
+		for (int n=0; n<num_pairs; n++)
+		{
+			extended_pairs[n] = pairs[n];
+		}
+	}
+
+	void _deextend()
+	{
+		if (extended())
+		{
+			if (num_pairs <= MAX_PAIRS_PER_ITEM)
+			{
+				// copy
+				for (int n=0; n<num_pairs; n++)
+				{
+					pairs[n] = extended_pairs[n];
+				}
+				extended_pairs.reset();
+			}
+		}
+	}
+};
+
 
 // tree node
 struct TNode

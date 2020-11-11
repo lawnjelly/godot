@@ -713,6 +713,7 @@ public:
 #include "bvh_misc.inc"
 #include "bvh_public.inc"
 #include "bvh_cull.inc"
+#include "bvh_pair.inc"
 #include "bvh_debug.inc"
 
 };
