@@ -11,16 +11,26 @@ int _get_tree_id(BVHHandle p_handle) const
 	return 0;
 }
 
-float _compute_cost_change_upward(uint32_t p_node_id, const ABB &p_aabb)
+void _sort_handles(BVHHandle &p_ha, BVHHandle &p_hb) const
+{
+	if (p_ha.id() > p_hb.id())
+	{
+		BVHHandle temp = p_hb;
+		p_hb = p_ha;
+		p_ha = temp;
+	}
+}
+
+float _compute_cost_change_upward(uint32_t p_node_id, const BVH_ABB &p_aabb)
 {
 	const TNode &tnode = _nodes[p_node_id];
 
-	ABB merged = p_aabb;
+	BVH_ABB merged = p_aabb;
 	merged.merge(tnode.aabb);
 
-	float m_size = merged.size();
+	float m_size = merged.get_area();
 
-	float b_size = tnode.aabb.size();
+	float b_size = tnode.aabb.get_area();
 
 	// change
 	float change = m_size - b_size;
@@ -75,9 +85,9 @@ void _set_aabb_to_opposites(AABB &aabb)
 */
 
 // less change is better
-float _goodness_of_fit_merge(const ABB &p_new, const ABB &p_existing) const
+float _goodness_of_fit_merge(const BVH_ABB &p_new, const BVH_ABB &p_existing) const
 {
-	ABB merged = p_new;
+	BVH_ABB merged = p_new;
 	merged.merge(p_existing);
 
 	float merged_size = merged.get_area();
@@ -138,7 +148,7 @@ void refit_upward(uint32_t p_node_id)
 	}
 }
 
-ABB * refit_downward(uint32_t p_node_id)
+BVH_ABB * refit_downward(uint32_t p_node_id)
 {
 	TNode &tnode = _nodes[p_node_id];
 

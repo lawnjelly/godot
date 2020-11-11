@@ -1,4 +1,3 @@
-#include "bvh_abb.inc"
 
 public:
 struct ItemRef
@@ -22,7 +21,7 @@ struct ItemExtra
 // this is an item OR a child node depending on whether a leaf node
 struct Item
 {
-	ABB aabb;
+	BVH_ABB aabb;
 	uint32_t item_ref_id;
 };
 
@@ -37,50 +36,91 @@ struct CullParams
 
 	// optional components for different tests
 	Vector3 point;
-	ABB abb;
-	typename ABB::ConvexHull hull;
-	typename ABB::Segment segment;
+	BVH_ABB abb;
+	typename BVH_ABB::ConvexHull hull;
+	typename BVH_ABB::Segment segment;
 };
 
 
 struct ItemPairs
 {
-	enum {MAX_PAIRS_PER_ITEM = 7};
+	enum {MAX_PAIRS_PER_ITEM = 8};
+
+	struct Link
+	{
+		void set(BVHHandle h, void * ud) {handle = h; userdata = ud;}
+		BVHHandle handle;
+		void * userdata;
+	};
+
 	void clear() {num_pairs = 0; extended_pairs.reset();}
 	bool extended() const {return extended_pairs.size() != 0;}
 
 	// in most cases the in built list will be long enough,
 	// if not use the vector
 	int32_t num_pairs;
-	BVHHandle pairs[MAX_PAIRS_PER_ITEM];
-	LocalVector<BVHHandle> extended_pairs;
+	Link pairs[MAX_PAIRS_PER_ITEM];
+	LocalVector<Link> extended_pairs;
 
-	void add_pair_to(BVHHandle h)
+	void add_pair_to(BVHHandle h, void * p_userdata)
 	{
 		if (!extended())
 		{
 			// simplest case
 			if (num_pairs < MAX_PAIRS_PER_ITEM)
 			{
-				pairs[num_pairs++] = h;
+				pairs[num_pairs++].set(h, p_userdata);
 				return;
 			}
 
 			// needs to become extended
 			_extend();
 		}
-		extended_pairs.push_back(h);
+		Link temp;
+		temp.set(h, p_userdata);
+
+		extended_pairs.push_back(temp);
 		num_pairs++;
 	}
 
-	void remove_pair_to(BVHHandle h)
+	bool contains_pair_to(BVHHandle h)
 	{
 		if (!extended())
 		{
 			for (int n=0; n<num_pairs; n++)
 			{
-				if (pairs[n] == h)
+				if (pairs[n].handle == h)
 				{
+					return true;
+				}
+			}
+		}
+		else
+		{
+			for (int n=0; n<num_pairs; n++)
+			{
+				if (extended_pairs[n].handle == h)
+				{
+					return true;
+				}
+			}
+		} // extended
+		return false;
+	}
+
+	// return success
+	void * remove_pair_to(BVHHandle h)
+	{
+//		int num_pairs_before = num_pairs;
+		void * userdata = nullptr;
+
+		if (!extended())
+		{
+			for (int n=0; n<num_pairs; n++)
+			{
+				if (pairs[n].handle == h)
+				{
+					userdata = pairs[n].userdata;
 					// remove unordered
 					num_pairs--;
 					pairs[n] = pairs[num_pairs];
@@ -91,13 +131,17 @@ struct ItemPairs
 		{
 			for (int n=0; n<num_pairs; n++)
 			{
-				if (extended_pairs[n] == h)
+				if (extended_pairs[n].handle == h)
 				{
+					userdata = extended_pairs[n].userdata;
 					extended_pairs.remove_unordered(n);
 					num_pairs--;
 				}
 			}
 		} // extended
+
+		//return num_pairs < num_pairs_before;
+		return userdata;
 	}
 
 private:
@@ -141,7 +185,7 @@ public:
 	// items can be child nodes or items (if we are a leaf)
 	uint16_t num_items;
 
-	ABB aabb;
+	BVH_ABB aabb;
 	Item items[MAX_ITEMS];
 
 	bool is_leaf() const {return _leaf != 0;}
@@ -205,7 +249,7 @@ public:
 		if (!num_items)
 		{
 #ifdef BVH_CHECKS
-			WARN_PRINT_ONCE("BVH_Tree::TNode AABB is undefined");
+			WARN_PRINT("BVH_Tree::TNode AABB is undefined");
 #endif
 			aabb.set_to_max_opposite_extents();
 			return;
@@ -220,7 +264,8 @@ public:
 
 		// we make the aabb larger than necessary, to allow most item
 		// moves to be no-ops.
-		aabb.grow_fractional(0.05f);
+		if (is_leaf())
+			aabb.grow_fractional(0.05f);
 	}
 };
 

@@ -5,7 +5,9 @@
 // wrapper for the BVH tree, which can do pairing etc.
 //typedef BVHHandle BVHElementID;
 
-#define USE_BVH_INSTEAD_OF_OCTREE
+//#define USE_BVH_INSTEAD_OF_OCTREE
+#define BVH_DEBUG_CALLBACKS
+
 #define BVHTREE_CLASS BVH_Tree<T, 2, 2, USE_PAIRS>
 
 template <class T, bool USE_PAIRS = false>
@@ -96,7 +98,11 @@ public:
 #ifdef TOOLS_ENABLED
 		if (!USE_PAIRS)
 		{
-			CRASH_COND(p_pairable);
+			if (p_pairable)
+			{
+				WARN_PRINT_ONCE("creating pairable item in BVH with USE_PAIRS set to false");
+			}
+			//CRASH_COND(p_pairable);
 		}
 #endif
 
@@ -122,9 +128,12 @@ public:
 //			return;
 //#endif
 
-		tree.item_move(p_handle, p_aabb);
-		if (USE_PAIRS)
-			_add_changed_item(p_handle);
+		// returns false if noop
+		if (tree.item_move(p_handle, p_aabb))
+		{
+			if (USE_PAIRS)
+				_add_changed_item(p_handle);
+		}
 	}
 
 	void erase(BVHHandle p_handle)
@@ -264,8 +273,13 @@ public:
 		{
 			const BVHHandle &h = changed_items[n];
 
+			// find all the existing paired aabbs that are no longer
+			// paired, and send callbacks
+			_find_leavers(h);
+
+
 			// we will redetect all collision pairs from this item
-			tree.pairs_reset_from_item(h);
+//			tree.pairs_reset_from_item(h);
 
 //			if (!tree._extra[h.id].pairable)
 //				continue;
@@ -308,6 +322,7 @@ public:
 					h_collidee.set_id(ref_id);
 					//h_collidee.set_pairable(test_tree == 1);
 
+					// find NEW enterers, and send callbacks for them only
 					_collide(h, h_collidee);
 				}
 
@@ -322,17 +337,136 @@ public:
 
 	void item_get_AABB(BVHHandle p_handle, AABB &r_aabb) const
 	{
+		BVH_ABB abb;
+		item_get_ABB(p_handle, abb);
+		abb.to(r_aabb);
+	}
+
+	void item_get_ABB(BVHHandle p_handle, BVH_ABB &r_abb) const
+	{
 		const typename BVHTREE_CLASS::ItemRef &ref = _get_ref(p_handle);
 		const typename BVHTREE_CLASS::TNode &tnode = tree._nodes[ref.tnode_id];
 		const typename BVHTREE_CLASS::Item &item = tnode.get_item(ref.item_id);
-		item.aabb.to(r_aabb);
+		r_abb = item.aabb;
 	}
 
 
 private:
 
-	void _collide(BVHHandle collider, BVHHandle collidee)
+	void _unpair(BVHHandle p_from, BVHHandle p_to)
 	{
+		typename BVHTREE_CLASS::ItemPairs &pairs_from = tree._pairs[p_from.id()];
+		typename BVHTREE_CLASS::ItemPairs &pairs_to = tree._pairs[p_to.id()];
+
+		void * ud_from = pairs_from.remove_pair_to(p_to);
+		void * ud_to = pairs_to.remove_pair_to(p_from);
+
+		// callback
+		if (unpair_callback) {
+			BVHHandle ha, hb;
+			ha = p_from;
+			hb = p_to;
+			tree._sort_handles(ha, hb);
+
+			typename BVHTREE_CLASS::ItemExtra &exa = tree._extra[ha.id()];
+			typename BVHTREE_CLASS::ItemExtra &exb = tree._extra[hb.id()];
+
+			// the user data will be stored in the LOWER handle
+			void * ud = ud_from;
+			if (p_to.id() < p_from.id())
+				ud = ud_to;
+
+			unpair_callback(pair_callback_userdata, ha, exa.userdata, exa.subindex, hb, exb.userdata, exb.subindex, ud);
+#ifdef BVH_DEBUG_CALLBACKS
+			print_line("Unpair callback : " + itos (ha.id()) + " to " + itos(hb.id()));
+#endif
+
+		}
+	}
+
+	void _find_leavers_process_pair(typename BVHTREE_CLASS::ItemPairs &p_pairs_from, const BVH_ABB &p_abb_from, BVHHandle p_from, BVHHandle p_to)
+	{
+		BVH_ABB abb_to;
+		item_get_ABB(p_to, abb_to);
+
+		// do they overlap?
+		if (p_abb_from.intersects(abb_to))
+			return;
+
+		_unpair(p_from, p_to);
+
+	}
+
+	// find all the existing paired aabbs that are no longer
+	// paired, and send callbacks
+	void _find_leavers(BVHHandle p_handle)
+	{
+		typename BVHTREE_CLASS::ItemPairs &p_from = tree._pairs[p_handle.id()];
+
+		BVH_ABB abb_from;
+		item_get_ABB(p_handle, abb_from);
+
+		// remove from pairing list for every partner
+		if (!p_from.extended())
+		{
+			for (int n=0; n<p_from.num_pairs; n++)
+			{
+				BVHHandle h_to = p_from.pairs[n].handle;
+				_find_leavers_process_pair(p_from, abb_from, p_handle, h_to);
+			}
+		}
+		else
+		{
+			for (int n=0; n<p_from.extended_pairs.size(); n++)
+			{
+				BVHHandle h_to = p_from.extended_pairs[n].handle;
+				_find_leavers_process_pair(p_from, abb_from, p_handle, h_to);
+			}
+		}
+
+	}
+
+	// find NEW enterers, and send callbacks for them only
+	// handle a and b
+	void _collide(BVHHandle p_ha, BVHHandle p_hb)
+	{
+		// only have to do this oneway, lower ID then higher ID
+		tree._sort_handles(p_ha, p_hb);
+
+		typename BVHTREE_CLASS::ItemPairs &p_from = tree._pairs[p_ha.id()];
+		typename BVHTREE_CLASS::ItemPairs &p_to = tree._pairs[p_hb.id()];
+
+		// does this pair exist already?
+		// or only check the one with lower number of pairs for greater speed
+		if (p_from.num_pairs <= p_to.num_pairs)
+		{
+			if (p_from.contains_pair_to(p_hb))
+				return;
+		}
+		else
+		{
+			if (p_to.contains_pair_to(p_ha))
+				return;
+		}
+
+		// callback
+		void * callback_userdata = nullptr;
+
+		if (pair_callback) {
+			const typename BVHTREE_CLASS::ItemExtra &exa = _get_extra(p_ha);
+			const typename BVHTREE_CLASS::ItemExtra &exb = _get_extra(p_hb);
+
+			callback_userdata = pair_callback(pair_callback_userdata, p_ha, exa.userdata, exa.subindex, p_hb, exb.userdata, exb.subindex);
+
+#ifdef BVH_DEBUG_CALLBACKS
+			print_line("Pair callback : " + itos (p_ha.id()) + " to " + itos(p_hb.id()));
+#endif
+		}
+
+		// new pair! .. only really need to store the userdata on the lower handle, but both have storage so...
+		p_from.add_pair_to(p_hb, callback_userdata);
+		p_to.add_pair_to(p_ha, callback_userdata);
+
 
 		/*
 		Pair p;
@@ -393,6 +527,28 @@ private:
 	// if we remove an item, we need to immediately remove the pairs, to prevent reading the pair after deletion
 	void _remove_pairs_containing(BVHHandle p_handle)
 	{
+
+		typename BVHTREE_CLASS::ItemPairs &p_from = tree._pairs[p_handle.id()];
+
+		// remove from pairing list for every partner
+		if (!p_from.extended())
+		{
+			for (int n=0; n<p_from.num_pairs; n++)
+			{
+				BVHHandle h_to = p_from.pairs[n].handle;
+				_unpair(p_handle, h_to);
+			}
+		}
+		else
+		{
+			for (int n=0; n<p_from.extended_pairs.size(); n++)
+			{
+				BVHHandle h_to = p_from.extended_pairs[n].handle;
+				_unpair(p_handle, h_to);
+			}
+		}
+
+
 		/*
 		for (int b=0; b<_pairs_hashtable.NUM_BINS; b++)
 		{

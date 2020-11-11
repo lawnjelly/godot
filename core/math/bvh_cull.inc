@@ -302,7 +302,7 @@ bool _cull_convex_recursive(uint32_t p_node_id, CullParams &r_params, bool p_ful
 		for (int n=0; n<tnode.num_items; n++)
 		{
 			const Item &item = tnode.get_item(n);
-			if (p_fully_within || (item.aabb.intersects_convex(r_params.hull) != ABB::IR_MISS))
+			if (p_fully_within || (item.aabb.intersects_convex(r_params.hull) != BVH_ABB::IR_MISS))
 			{
 				uint32_t child_id = item.item_ref_id;
 
@@ -320,12 +320,12 @@ bool _cull_convex_recursive(uint32_t p_node_id, CullParams &r_params, bool p_ful
 			for (int n=0; n<tnode.num_items; n++)
 			{
 				const Item &item = tnode.get_item(n);
-				typename ABB::IntersectResult res = item.aabb.intersects_convex(r_params.hull);
+				typename BVH_ABB::IntersectResult res = item.aabb.intersects_convex(r_params.hull);
 
-				if (res != ABB::IR_MISS)
+				if (res != BVH_ABB::IR_MISS)
 				{
 					uint32_t child_id = item.item_ref_id;
-					if (!_cull_convex_recursive(child_id, r_params, res == ABB::IR_FULL))
+					if (!_cull_convex_recursive(child_id, r_params, res == BVH_ABB::IR_FULL))
 						return false;
 				}
 			}
