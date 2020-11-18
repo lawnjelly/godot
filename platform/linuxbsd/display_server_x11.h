@@ -31,6 +31,8 @@
 #ifndef DISPLAY_SERVER_X11_H
 #define DISPLAY_SERVER_X11_H
 
+#include "temp_gl_defines.h"
+
 #ifdef X11_ENABLED
 
 #include "servers/display_server.h"
@@ -47,7 +49,7 @@
 #include "servers/rendering_server.h"
 
 #if defined(OPENGL_ENABLED)
-#include "context_gl_x11.h"
+#include "gl_manager_x11.h"
 #endif
 
 #if defined(VULKAN_ENABLED)
@@ -105,7 +107,7 @@ class DisplayServerX11 : public DisplayServer {
 	int xdnd_version;
 
 #if defined(OPENGL_ENABLED)
-	ContextGL_X11 *context_gles2;
+	GLManager_X11 *gl_manager;
 #endif
 #if defined(VULKAN_ENABLED)
 	VulkanContextX11 *context_vulkan;
@@ -366,6 +368,8 @@ public:
 	virtual void release_rendering_thread();
 	virtual void make_rendering_thread();
 	virtual void swap_buffers();
+	
+	virtual void make_gl_window_current(DisplayServer::WindowID  p_window_id);
 
 	virtual void set_context(Context p_context);
 

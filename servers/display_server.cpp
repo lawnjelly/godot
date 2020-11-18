@@ -318,6 +318,11 @@ void DisplayServer::swap_buffers() {
 	WARN_PRINT("Swap buffers not supported by this display server.");
 }
 
+void DisplayServer::make_gl_window_current(DisplayServer::WindowID  p_window_id)
+{
+	WARN_PRINT_ONCE("make_gl_window_current not supported by this display server.");
+}
+
 void DisplayServer::set_native_icon(const String &p_filename) {
 	WARN_PRINT("Native icon not supported by this display server.");
 }
