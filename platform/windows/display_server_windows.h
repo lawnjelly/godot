@@ -60,6 +60,10 @@
 #include "platform/windows/vulkan_context_win.h"
 #endif
 
+#if defined(OPENGL_ENABLED)
+#include "gl_manager_windows.h"
+#endif
+
 #include <fcntl.h>
 #include <io.h>
 #include <stdio.h>
@@ -304,7 +308,7 @@ private:
 	Point2i center;
 
 #if defined(OPENGL_ENABLED)
-	ContextGL_Windows *context_gles2;
+	GLManager_Windows *gl_manager;
 #endif
 
 #if defined(VULKAN_ENABLED)
@@ -465,7 +469,9 @@ public:
 	virtual WindowID create_sub_window(WindowMode p_mode, uint32_t p_flags, const Rect2i &p_rect = Rect2i());
 	virtual void show_window(WindowID p_window);
 	virtual void delete_sub_window(WindowID p_window);
-
+	
+	virtual void gl_window_make_current(DisplayServer::WindowID p_window_id);
+	
 	virtual WindowID get_window_at_screen_position(const Point2i &p_position) const;
 
 	virtual void window_attach_instance_id(ObjectID p_instance, WindowID p_window = MAIN_WINDOW_ID);

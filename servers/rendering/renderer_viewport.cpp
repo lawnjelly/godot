@@ -93,7 +93,10 @@ void RendererViewport::_draw_viewport(Viewport *p_viewport, XRInterface::Eyes p_
 		RSG::storage->capture_timestamp(rt_id);
 		timestamp_vp_map[rt_id] = p_viewport->self;
 	}
-
+	
+	// This is currently needed for GLES to keep the current window being rendered to up to date	
+	DisplayServer::get_singleton()->gl_window_make_current(p_viewport->viewport_to_screen);
+	
 	/* Camera should always be BEFORE any other 3D */
 
 	bool scenario_draw_canvas_bg = false; //draw canvas, or some layer of it, as BG for 3D instead of in front
@@ -476,7 +479,7 @@ void RendererViewport::draw_viewports() {
 		if (vp->update_mode == RS::VIEWPORT_UPDATE_DISABLED) {
 			continue;
 		}
-
+		
 		if (!vp->render_target.is_valid()) {
 			continue;
 		}
@@ -512,7 +515,7 @@ void RendererViewport::draw_viewports() {
 		if (vp->last_pass != draw_viewports_pass) {
 			continue; //should not draw
 		}
-
+		
 		RENDER_TIMESTAMP(">Rendering Viewport " + itos(i));
 
 		RSG::storage->render_target_set_as_unused(vp->render_target);
@@ -559,7 +562,7 @@ void RendererViewport::draw_viewports() {
 
 			RSG::scene->set_debug_draw_mode(vp->debug_draw);
 			RSG::storage->render_info_begin_capture();
-
+			
 			// render standard mono camera
 			_draw_viewport(vp);
 
@@ -570,11 +573,12 @@ void RendererViewport::draw_viewports() {
 			vp->render_info[RS::VIEWPORT_RENDER_INFO_SHADER_CHANGES_IN_FRAME] = RSG::storage->get_captured_render_info(RS::INFO_SHADER_CHANGES_IN_FRAME);
 			vp->render_info[RS::VIEWPORT_RENDER_INFO_SURFACE_CHANGES_IN_FRAME] = RSG::storage->get_captured_render_info(RS::INFO_SURFACE_CHANGES_IN_FRAME);
 			vp->render_info[RS::VIEWPORT_RENDER_INFO_DRAW_CALLS_IN_FRAME] = RSG::storage->get_captured_render_info(RS::INFO_DRAW_CALLS_IN_FRAME);
-
+			
 			if (vp->viewport_to_screen != DisplayServer::INVALID_WINDOW_ID && (!vp->viewport_render_direct_to_screen || !RSG::rasterizer->is_low_end())) {
 				//copy to screen if set as such
 				RendererCompositor::BlitToScreen blit;
 				blit.render_target = vp->render_target;
+				blit.destination_window = vp->viewport_to_screen;
 				if (vp->viewport_to_screen_rect != Rect2()) {
 					blit.rect = vp->viewport_to_screen_rect;
 				} else {

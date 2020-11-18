@@ -1,5 +1,5 @@
 /*************************************************************************/
-/*  context_gl_windows.h                                                 */
+/*  rasterizer_storage_common.h                                          */
 /*************************************************************************/
 /*                       This file is part of:                           */
 /*                           GODOT ENGINE                                */
@@ -28,52 +28,50 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
 
-#if defined(OPENGL_ENABLED) || defined(GLES_ENABLED)
+#ifndef RASTERIZER_STORAGE_COMMON_H
+#define RASTERIZER_STORAGE_COMMON_H
 
-// Author: Juan Linietsky <reduzio@gmail.com>, (C) 2008
-
-#ifndef CONTEXT_GL_WIN_H
-#define CONTEXT_GL_WIN_H
-
-#include "core/error/error_list.h"
-#include "core/os/os.h"
-
-#include <windows.h>
-
-typedef bool(APIENTRY *PFNWGLSWAPINTERVALEXTPROC)(int interval);
-typedef int(APIENTRY *PFNWGLGETSWAPINTERVALEXTPROC)(void);
-
-class ContextGL_Windows {
-	HDC hDC;
-	HGLRC hRC;
-	unsigned int pixel_format;
-	HWND hWnd;
-	bool opengl_3_context;
-	bool use_vsync;
-	bool vsync_via_compositor;
-
-	PFNWGLSWAPINTERVALEXTPROC wglSwapIntervalEXT;
-	PFNWGLGETSWAPINTERVALEXTPROC wglGetSwapIntervalEXT;
-
-	static bool should_vsync_via_compositor();
-
+class RasterizerStorageCommon {
 public:
-	void release_current();
+	enum FVF {
+		FVF_UNBATCHED,
+		FVF_REGULAR,
+		FVF_COLOR,
+		FVF_LIGHT_ANGLE,
+		FVF_MODULATED,
+		FVF_LARGE,
+	};
 
-	void make_current();
+	// these flags are specifically for batching
+	// some of the logic is thus in rasterizer_storage.cpp
+	// we could alternatively set bitflags for each 'uses' and test on the fly
+	enum BatchFlags {
+		PREVENT_COLOR_BAKING = 1 << 0,
+		PREVENT_VERTEX_BAKING = 1 << 1,
 
-	int get_window_width();
-	int get_window_height();
-	void swap_buffers();
+		// custom vertex shaders using BUILTINS that vary per item
+		PREVENT_ITEM_JOINING = 1 << 2,
 
-	Error initialize();
+		USE_MODULATE_FVF = 1 << 3,
+		USE_LARGE_FVF = 1 << 4,
+	};
 
-	void set_use_vsync(bool p_use);
-	bool is_using_vsync() const;
+	enum BatchType : uint16_t {
+		BT_DEFAULT = 0,
+		BT_RECT = 1,
+		BT_LINE = 2,
+		BT_LINE_AA = 3,
+		BT_POLY = 4,
+		BT_DUMMY = 5, // dummy batch is just used to keep the batch creation loop simple
+	};
 
-	ContextGL_Windows(HWND hwnd, bool p_opengl_3_context);
-	~ContextGL_Windows();
+	enum BatchTypeFlags {
+		BTF_DEFAULT = 1 << BT_DEFAULT,
+		BTF_RECT = 1 << BT_RECT,
+		BTF_LINE = 1 << BT_LINE,
+		BTF_LINE_AA = 1 << BT_LINE_AA,
+		BTF_POLY = 1 << BT_POLY,
+	};
 };
 
-#endif
-#endif
+#endif // RASTERIZER_STORAGE_COMMON_H
