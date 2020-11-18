@@ -27,6 +27,8 @@ if env["platform"] != "server" and env["platform"] != "javascript":
     SConscript("vulkan/SCsub")
 else:
     SConscript("dummy/SCsub")
+    SConscript("gles2/SCsub")
+    SConscript("gles_common/SCsub")
 
 # Core dependencies
 SConscript("png/SCsub")

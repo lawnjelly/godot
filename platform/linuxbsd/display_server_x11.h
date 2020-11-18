@@ -31,6 +31,8 @@
 #ifndef DISPLAY_SERVER_X11_H
 #define DISPLAY_SERVER_X11_H
 
+#include "temp_gl_defines.h"
+
 #ifdef X11_ENABLED
 
 #include "servers/display_server.h"
