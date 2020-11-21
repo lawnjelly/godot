@@ -105,6 +105,11 @@ public:
 	// allow user to choose api usage
 	GLenum _buffer_upload_usage_flag;
 
+	// the legacy renderer didn't orphan in lots of cases it should
+	// probably have. we make this configurable between legacy and
+	// orphaning for testing.
+	bool _legacy_optional_orphan;
+
 	struct LightInternal : public RID_Data {
 
 		struct UBOData {
