@@ -32,6 +32,7 @@
 
 #include "core/os/os.h"
 #include "core/project_settings.h"
+#include "drivers/gles_common/rasterizer_asserts.h"
 #include "rasterizer_scene_gles2.h"
 #include "servers/visual/visual_server_raster.h"
 
@@ -1122,14 +1123,27 @@ void RasterizerCanvasGLES2::render_batches(Item::Command *const *p_commands, Ite
 								state.canvas_shader.set_uniform(CanvasShaderGLES2::COLOR_TEXPIXEL_SIZE, texpixel_size);
 							}
 
+							// we need a temporary because this must be nulled out
+							// if only a single color specified
+							const Color *colors = primitive->colors.ptr();
 							if (primitive->colors.size() == 1 && primitive->points.size() > 1) {
 								Color c = primitive->colors[0];
 								glVertexAttrib4f(VS::ARRAY_COLOR, c.r, c.g, c.b, c.a);
+								colors = nullptr;
 							} else if (primitive->colors.empty()) {
 								glVertexAttrib4f(VS::ARRAY_COLOR, 1, 1, 1, 1);
 							}
+#ifdef RASTERIZER_EXTRA_CHECKS
+							else {
+								RAST_DEV_DEBUG_ASSERT(primitive->colors.size() == primitive->points.size());
+							}
 
-							_draw_gui_primitive(primitive->points.size(), primitive->points.ptr(), primitive->colors.ptr(), primitive->uvs.ptr());
+							if (primitive->uvs.ptr()) {
+								RAST_DEV_DEBUG_ASSERT(primitive->uvs.size() == primitive->points.size());
+							}
+#endif
+
+							_draw_gui_primitive(primitive->points.size(), primitive->points.ptr(), colors, primitive->uvs.ptr());
 						} break;
 
 						case Item::Command::TYPE_TRANSFORM: {
@@ -1372,33 +1386,42 @@ bool RasterizerCanvasGLES2::try_join_item(Item *p_ci, RenderItemState &r_ris, bo
 	bdata.joined_item_batch_flags = 0;
 	if (r_ris.shader_cache) {
 
-		unsigned int and_flags = r_ris.shader_cache->canvas_item.batch_flags & (RasterizerStorageCommon::PREVENT_COLOR_BAKING | RasterizerStorageCommon::PREVENT_VERTEX_BAKING);
+		unsigned int and_flags = r_ris.shader_cache->canvas_item.batch_flags & (RasterizerStorageCommon::PREVENT_COLOR_BAKING | RasterizerStorageCommon::PREVENT_VERTEX_BAKING | RasterizerStorageCommon::PREVENT_ITEM_JOINING);
 		if (and_flags) {
 
-			bool use_larger_fvfs = true;
+			// special case for preventing item joining altogether
+			if (and_flags & RasterizerStorageCommon::PREVENT_ITEM_JOINING) {
+				join = false;
+				//r_batch_break = true; // don't think we need a batch break
 
-			if (and_flags == RasterizerStorageCommon::PREVENT_COLOR_BAKING) {
-				// in some circumstances, if the modulate is identity, we still allow baking because reading modulate / color
-				// will still be okay to do in the shader with no ill effects
-				if (r_ris.final_modulate == Color(1, 1, 1, 1)) {
-					use_larger_fvfs = false;
-				}
-			}
-
-			// new .. always use large FVF
-			if (use_larger_fvfs) {
-				if (and_flags == RasterizerStorageCommon::PREVENT_COLOR_BAKING) {
-					bdata.joined_item_batch_flags |= RasterizerStorageCommon::USE_MODULATE_FVF;
-				} else {
-					// we need to save on the joined item that it should use large fvf.
-					// This info will then be used in filling and rendering
-					bdata.joined_item_batch_flags |= RasterizerStorageCommon::USE_LARGE_FVF;
-				}
-
+				// save the flags so that they don't need to be recalculated in the 2nd pass
 				bdata.joined_item_batch_flags |= r_ris.shader_cache->canvas_item.batch_flags;
-			}
+			} else {
 
-			/*
+				bool use_larger_fvfs = true;
+
+				if (and_flags == RasterizerStorageCommon::PREVENT_COLOR_BAKING) {
+					// in some circumstances, if the modulate is identity, we still allow baking because reading modulate / color
+					// will still be okay to do in the shader with no ill effects
+					if (r_ris.final_modulate == Color(1, 1, 1, 1)) {
+						use_larger_fvfs = false;
+					}
+				}
+
+				// new .. always use large FVF
+				if (use_larger_fvfs) {
+					if (and_flags == RasterizerStorageCommon::PREVENT_COLOR_BAKING) {
+						bdata.joined_item_batch_flags |= RasterizerStorageCommon::USE_MODULATE_FVF;
+					} else {
+						// we need to save on the joined item that it should use large fvf.
+						// This info will then be used in filling and rendering
+						bdata.joined_item_batch_flags |= RasterizerStorageCommon::USE_LARGE_FVF;
+					}
+
+					bdata.joined_item_batch_flags |= r_ris.shader_cache->canvas_item.batch_flags;
+				}
+
+				/*
 			if (and_flags == RasterizerStorageCommon::PREVENT_COLOR_BAKING) {
 				// in some circumstances, if the modulate is identity, we still allow baking because reading modulate / color
 				// will still be okay to do in the shader with no ill effects
@@ -1424,6 +1447,7 @@ bool RasterizerCanvasGLES2::try_join_item(Item *p_ci, RenderItemState &r_ris, bo
 				bdata.joined_item_batch_flags |= r_ris.shader_cache->canvas_item.batch_flags;
 			}
 			*/
+			} // if not prevent item joining
 		}
 	}
 
@@ -1921,10 +1945,6 @@ void RasterizerCanvasGLES2::render_joined_item(const BItemJoined &p_bij, RenderI
 		}
 	}
 #endif
-
-	// this must be reset for each joined item,
-	// it only exists to prevent capturing the screen more than once per item
-	state.canvas_texscreen_used = false;
 
 	// all the joined items will share the same state with the first item
 	Item *ci = bdata.item_refs[p_bij.first_item_ref].item;

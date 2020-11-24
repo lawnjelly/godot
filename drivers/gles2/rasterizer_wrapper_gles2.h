@@ -6,6 +6,7 @@
 #include "scene/resources/mesh.h"
 #include "servers/rendering/rasterizer.h"
 #include "servers/rendering_server.h"
+#include "rasterizer_gles2.h"
 
 class RasterizerWrapperSceneGLES2 : public RasterizerScene {
 public:
@@ -939,7 +940,12 @@ public:
 	~RasterizerWrapperCanvasGLES2() {}
 };
 
-class RasterizerWrapperGLES2 : public Rasterizer {
+class RasterizerWrapperGLES2 : public RasterizerGLES2
+{
+public:
+};
+
+class RasterizerWrapperGLES2_old : public Rasterizer {
 private:
 	uint64_t frame = 1;
 	float delta = 0;
@@ -974,7 +980,7 @@ public:
 	void finalize() override {}
 
 	static Rasterizer *_create_current() {
-		return memnew(RasterizerWrapperGLES2);
+		return memnew(RasterizerWrapperGLES2_old);
 	}
 
 	static void make_current() {
@@ -985,7 +991,7 @@ public:
 	uint64_t get_frame_number() const override { return frame; }
 	float get_frame_delta_time() const override { return delta; }
 
-	RasterizerWrapperGLES2() {}
-	~RasterizerWrapperGLES2() {}
+	RasterizerWrapperGLES2_old() {}
+	~RasterizerWrapperGLES2_old() {}
 };
 
