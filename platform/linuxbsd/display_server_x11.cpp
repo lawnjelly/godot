@@ -45,7 +45,7 @@
 #endif
 
 #if defined(OPENGL_ENABLED)
-#include "drivers/gles2/rasterizer_wrapper_gles2.h"
+#include "drivers/gles2/rasterizer_gles2.h"
 #endif
 
 #include <stdio.h>
@@ -3893,7 +3893,7 @@ DisplayServerX11::DisplayServerX11(const String &p_rendering_driver, WindowMode 
 		if (true) {
 			//		if (RasterizerGLES2::is_viable() == OK) {
 			//		RasterizerGLES2::register_config();
-			RasterizerWrapperGLES2::make_current();
+			RasterizerGLES2::make_current();
 		} else {
 			memdelete(context_gles2);
 			context_gles2 = nullptr;

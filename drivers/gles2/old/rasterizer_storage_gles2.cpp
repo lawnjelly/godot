@@ -34,10 +34,6 @@
 #include "rasterizer_canvas_gles2.h"
 #include "rasterizer_scene_gles2.h"
 
-
-#ifdef GODOT_3
-
-
 #ifdef GODOT_3
 #include "core/project_settings.h"
 #include "servers/visual/shader_language.h"
@@ -127,6 +123,7 @@ PFNGLFRAMEBUFFERTEXTURE2DMULTISAMPLEEXTPROC glFramebufferTexture2DMultisampleEXT
 #endif //!GLES_OVER_GL
 
 
+#ifdef GODOT_3
 
 void RasterizerStorageGLES2::bind_quad_array() const {
 	glBindBuffer(GL_ARRAY_BUFFER, resources.quadie);

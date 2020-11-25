@@ -33,13 +33,11 @@
 #include "core/os/os.h"
 
 #ifdef GODOT_3
-
-
-#ifdef GODOT_3
 #include "core/project_settings.h"
 #include "core/string_buffer.h"
 #include "core/string_builder.h"
 #else
+#include "proj
 
 #endif
 
@@ -1129,5 +1127,3 @@ ShaderCompilerGLES2::ShaderCompilerGLES2() {
 		internal_functions.insert(E->get());
 	}
 }
-
-#endif // godot 3

@@ -1,50 +1,37 @@
+/*************************************************************************/
+/*  rasterizer_gles2.cpp                                                 */
+/*************************************************************************/
+/*                       This file is part of:                           */
+/*                           GODOT ENGINE                                */
+/*                      https://godotengine.org                          */
+/*************************************************************************/
+/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
+/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
+/*                                                                       */
+/* Permission is hereby granted, free of charge, to any person obtaining */
+/* a copy of this software and associated documentation files (the       */
+/* "Software"), to deal in the Software without restriction, including   */
+/* without limitation the rights to use, copy, modify, merge, publish,   */
+/* distribute, sublicense, and/or sell copies of the Software, and to    */
+/* permit persons to whom the Software is furnished to do so, subject to */
+/* the following conditions:                                             */
+/*                                                                       */
+/* The above copyright notice and this permission notice shall be        */
+/* included in all copies or substantial portions of the Software.       */
+/*                                                                       */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
+/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
+/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
+/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
+/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
+/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
+/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
+/*************************************************************************/
 
 #include "rasterizer_gles2.h"
 
-/*
-RasterizerStorage *RasterizerGLES2::get_storage() { return &storage; }
-RasterizerCanvas *RasterizerGLES2::get_canvas() { return &canvas; }
-RasterizerScene *RasterizerGLES2::get_scene() { return &scene; }
-	
-void RasterizerGLES2::set_boot_image(const Ref<Image> &p_image, const Color &p_color, bool p_scale, bool p_use_filter) {}
-
-void RasterizerGLES2::initialize() {}
-void RasterizerGLES2::begin_frame(double frame_step) {
-		frame++;
-		delta = frame_step;
-	}
-	
-void RasterizerGLES2::prepare_for_blitting_render_targets() {}
-void RasterizerGLES2::blit_render_targets_to_screen(int p_screen, const BlitToScreen *p_render_targets, int p_amount) {}
-	
-void RasterizerGLES2::end_frame(bool p_swap_buffers) {
-		if (p_swap_buffers) {
-			DisplayServer::get_singleton()->swap_buffers();
-		}
-	}
-	
-void RasterizerGLES2::finalize() {}
-	
-	
-//	void RasterizerGLES2::make_current2() {
-//	}
-	
-	
-//	void RasterizerGLES2::Test() {}
-	
-	
-bool RasterizerGLES2::is_low_end() const { return true; }
-uint64_t RasterizerGLES2::get_frame_number() const { return frame; }
-float RasterizerGLES2::get_frame_delta_time() const { return delta; }
-	
-	RasterizerGLES2::RasterizerGLES2() {}
-	RasterizerGLES2::~RasterizerGLES2() {}
-	
-	*/
-	
-/*
 #include "core/os/os.h"
-#include "core/config/project_settings.h"
+#include "core/project_settings.h"
 
 #define _EXT_DEBUG_OUTPUT_SYNCHRONOUS_ARB 0x8242
 #define _EXT_DEBUG_NEXT_LOGGED_MESSAGE_LENGTH_ARB 0x8243
@@ -96,67 +83,6 @@ float RasterizerGLES2::get_frame_delta_time() const { return delta; }
 #if defined(MINGW_ENABLED) || defined(_MSC_VER)
 #define strcpy strcpy_s
 #endif
-*/
-
-
-
-/*
-
-void RasterizerGLES2::initialize() {
-	
-	print_verbose("Using GLES2 video driver");
-
-#ifdef GLAD_ENABLED
-	if (OS::get_singleton()->is_stdout_verbose()) {
-		if (GLAD_GL_ARB_debug_output) {
-			glEnable(_EXT_DEBUG_OUTPUT_SYNCHRONOUS_ARB);
-			glDebugMessageCallbackARB(_gl_debug_print, NULL);
-			glEnable(_EXT_DEBUG_OUTPUT);
-		} else {
-			print_line("OpenGL debugging not supported!");
-		}
-	}
-#endif // GLAD_ENABLED
-	
-	// For debugging
-#ifdef CAN_DEBUG
-#ifdef GLES_OVER_GL
-	if (OS::get_singleton()->is_stdout_verbose() && GLAD_GL_ARB_debug_output) {
-		glDebugMessageControlARB(_EXT_DEBUG_SOURCE_API_ARB, _EXT_DEBUG_TYPE_ERROR_ARB, _EXT_DEBUG_SEVERITY_HIGH_ARB, 0, NULL, GL_TRUE);
-		glDebugMessageControlARB(_EXT_DEBUG_SOURCE_API_ARB, _EXT_DEBUG_TYPE_DEPRECATED_BEHAVIOR_ARB, _EXT_DEBUG_SEVERITY_HIGH_ARB, 0, NULL, GL_TRUE);
-		glDebugMessageControlARB(_EXT_DEBUG_SOURCE_API_ARB, _EXT_DEBUG_TYPE_UNDEFINED_BEHAVIOR_ARB, _EXT_DEBUG_SEVERITY_HIGH_ARB, 0, NULL, GL_TRUE);
-		glDebugMessageControlARB(_EXT_DEBUG_SOURCE_API_ARB, _EXT_DEBUG_TYPE_PORTABILITY_ARB, _EXT_DEBUG_SEVERITY_HIGH_ARB, 0, NULL, GL_TRUE);
-		glDebugMessageControlARB(_EXT_DEBUG_SOURCE_API_ARB, _EXT_DEBUG_TYPE_PERFORMANCE_ARB, _EXT_DEBUG_SEVERITY_HIGH_ARB, 0, NULL, GL_TRUE);
-		glDebugMessageControlARB(_EXT_DEBUG_SOURCE_API_ARB, _EXT_DEBUG_TYPE_OTHER_ARB, _EXT_DEBUG_SEVERITY_HIGH_ARB, 0, NULL, GL_TRUE);
-//		 glDebugMessageInsertARB(
-//			GL_DEBUG_SOURCE_API_ARB,
-//			GL_DEBUG_TYPE_OTHER_ARB, 1,
-//			GL_DEBUG_SEVERITY_HIGH_ARB, 5, "hello");
-		
-	}
-#else
-	if (OS::get_singleton()->is_stdout_verbose()) {
-		DebugMessageCallbackARB callback = (DebugMessageCallbackARB)eglGetProcAddress("glDebugMessageCallback");
-		if (!callback) {
-			callback = (DebugMessageCallbackARB)eglGetProcAddress("glDebugMessageCallbackKHR");
-		}
-		
-		if (callback) {
-			
-			print_line("godot: ENABLING GL DEBUG");
-			glEnable(_EXT_DEBUG_OUTPUT_SYNCHRONOUS_ARB);
-			callback(_gl_debug_print, NULL);
-			glEnable(_EXT_DEBUG_OUTPUT);
-		}
-	}
-#endif // GLES_OVER_GL
-#endif // CAN_DEBUG
-	
-	print_line("OpenGL ES 2.0 Renderer: " + VisualServer::get_singleton()->get_video_adapter_name());
-	storage->initialize();
-	canvas->initialize();
-	scene->initialize();
-}
 
 #ifdef CAN_DEBUG
 static void GLAPIENTRY _gl_debug_print(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const GLvoid *userParam) {
@@ -218,6 +144,20 @@ typedef void (*DEBUGPROCARB)(GLenum source,
 
 typedef void (*DebugMessageCallbackARB)(DEBUGPROCARB callback, const void *userParam);
 
+RasterizerStorage *RasterizerGLES2::get_storage() {
+
+	return storage;
+}
+
+RasterizerCanvas *RasterizerGLES2::get_canvas() {
+
+	return canvas;
+}
+
+RasterizerScene *RasterizerGLES2::get_scene() {
+
+	return scene;
+}
 
 Error RasterizerGLES2::is_viable() {
 
@@ -273,6 +213,61 @@ Error RasterizerGLES2::is_viable() {
 	return OK;
 }
 
+void RasterizerGLES2::initialize() {
+
+	print_verbose("Using GLES2 video driver");
+
+#ifdef GLAD_ENABLED
+	if (OS::get_singleton()->is_stdout_verbose()) {
+		if (GLAD_GL_ARB_debug_output) {
+			glEnable(_EXT_DEBUG_OUTPUT_SYNCHRONOUS_ARB);
+			glDebugMessageCallbackARB(_gl_debug_print, NULL);
+			glEnable(_EXT_DEBUG_OUTPUT);
+		} else {
+			print_line("OpenGL debugging not supported!");
+		}
+	}
+#endif // GLAD_ENABLED
+
+	// For debugging
+#ifdef CAN_DEBUG
+#ifdef GLES_OVER_GL
+	if (OS::get_singleton()->is_stdout_verbose() && GLAD_GL_ARB_debug_output) {
+		glDebugMessageControlARB(_EXT_DEBUG_SOURCE_API_ARB, _EXT_DEBUG_TYPE_ERROR_ARB, _EXT_DEBUG_SEVERITY_HIGH_ARB, 0, NULL, GL_TRUE);
+		glDebugMessageControlARB(_EXT_DEBUG_SOURCE_API_ARB, _EXT_DEBUG_TYPE_DEPRECATED_BEHAVIOR_ARB, _EXT_DEBUG_SEVERITY_HIGH_ARB, 0, NULL, GL_TRUE);
+		glDebugMessageControlARB(_EXT_DEBUG_SOURCE_API_ARB, _EXT_DEBUG_TYPE_UNDEFINED_BEHAVIOR_ARB, _EXT_DEBUG_SEVERITY_HIGH_ARB, 0, NULL, GL_TRUE);
+		glDebugMessageControlARB(_EXT_DEBUG_SOURCE_API_ARB, _EXT_DEBUG_TYPE_PORTABILITY_ARB, _EXT_DEBUG_SEVERITY_HIGH_ARB, 0, NULL, GL_TRUE);
+		glDebugMessageControlARB(_EXT_DEBUG_SOURCE_API_ARB, _EXT_DEBUG_TYPE_PERFORMANCE_ARB, _EXT_DEBUG_SEVERITY_HIGH_ARB, 0, NULL, GL_TRUE);
+		glDebugMessageControlARB(_EXT_DEBUG_SOURCE_API_ARB, _EXT_DEBUG_TYPE_OTHER_ARB, _EXT_DEBUG_SEVERITY_HIGH_ARB, 0, NULL, GL_TRUE);
+		/* glDebugMessageInsertARB(
+			GL_DEBUG_SOURCE_API_ARB,
+			GL_DEBUG_TYPE_OTHER_ARB, 1,
+			GL_DEBUG_SEVERITY_HIGH_ARB, 5, "hello");
+		*/
+	}
+#else
+	if (OS::get_singleton()->is_stdout_verbose()) {
+		DebugMessageCallbackARB callback = (DebugMessageCallbackARB)eglGetProcAddress("glDebugMessageCallback");
+		if (!callback) {
+			callback = (DebugMessageCallbackARB)eglGetProcAddress("glDebugMessageCallbackKHR");
+		}
+
+		if (callback) {
+
+			print_line("godot: ENABLING GL DEBUG");
+			glEnable(_EXT_DEBUG_OUTPUT_SYNCHRONOUS_ARB);
+			callback(_gl_debug_print, NULL);
+			glEnable(_EXT_DEBUG_OUTPUT);
+		}
+	}
+#endif // GLES_OVER_GL
+#endif // CAN_DEBUG
+
+	print_line("OpenGL ES 2.0 Renderer: " + VisualServer::get_singleton()->get_video_adapter_name());
+	storage->initialize();
+	canvas->initialize();
+	scene->initialize();
+}
 
 void RasterizerGLES2::begin_frame(double frame_step) {
 	time_total += frame_step * time_scale;
@@ -544,4 +539,3 @@ RasterizerGLES2::~RasterizerGLES2() {
 	memdelete(storage);
 	memdelete(canvas);
 }
-*/

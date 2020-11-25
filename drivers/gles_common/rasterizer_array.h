@@ -36,11 +36,17 @@
  * For use in render drivers, not for general use.
  * TO BE REPLACED by local_vector.
 */
+#include "rasterizer_version.h"
 
 #include "core/os/memory.h"
-#include "core/vector.h"
-
 #include <string.h>
+
+#ifdef GODOT_4
+#include "core/templates/vector.h"
+#else
+#include "core/vector.h"
+#endif
+
 
 // very simple non-growable array, that keeps track of the size of a 'unit'
 // which can be cast to whatever vertex format FVF required, and is initially

@@ -1,41 +1,22 @@
-/*************************************************************************/
-/*  shader_compiler_gles2.h                                              */
-/*************************************************************************/
-/*                       This file is part of:                           */
-/*                           GODOT ENGINE                                */
-/*                      https://godotengine.org                          */
-/*************************************************************************/
-/* Copyright (c) 2007-2020 Juan Linietsky, Ariel Manzur.                 */
-/* Copyright (c) 2014-2020 Godot Engine contributors (cf. AUTHORS.md).   */
-/*                                                                       */
-/* Permission is hereby granted, free of charge, to any person obtaining */
-/* a copy of this software and associated documentation files (the       */
-/* "Software"), to deal in the Software without restriction, including   */
-/* without limitation the rights to use, copy, modify, merge, publish,   */
-/* distribute, sublicense, and/or sell copies of the Software, and to    */
-/* permit persons to whom the Software is furnished to do so, subject to */
-/* the following conditions:                                             */
-/*                                                                       */
-/* The above copyright notice and this permission notice shall be        */
-/* included in all copies or substantial portions of the Software.       */
-/*                                                                       */
-/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       */
-/* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    */
-/* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*/
-/* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  */
-/* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  */
-/* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE     */
-/* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
-/*************************************************************************/
+#pragma once
 
-#ifndef SHADERCOMPILERGLES2_H
-#define SHADERCOMPILERGLES2_H
+#ifdef GODOT_3
 
+
+#include "drivers/gles_common/rasterizer_version.h"
+#ifdef GODOT_3
 #include "core/pair.h"
 #include "core/string_builder.h"
 #include "servers/visual/shader_language.h"
 #include "servers/visual/shader_types.h"
 #include "servers/visual_server.h"
+#else
+#include "core/templates/pair.h"
+#include "core/string/string_builder.h"
+#include "servers/rendering/shader_types.h"
+#include "servers/rendering/shader_language.h"
+#include "servers/rendering_server.h"
+#endif
 
 class ShaderCompilerGLES2 {
 public:
@@ -90,12 +71,12 @@ private:
 	Set<StringName> used_rmode_defines;
 	Set<StringName> internal_functions;
 
-	DefaultIdentifierActions actions[VS::SHADER_MAX];
+	DefaultIdentifierActions actions[GD_VS::SHADER_MAX];
 
 public:
-	Error compile(VS::ShaderMode p_mode, const String &p_code, IdentifierActions *p_actions, const String &p_path, GeneratedCode &r_gen_code);
+	Error compile(GD_VS::ShaderMode p_mode, const String &p_code, IdentifierActions *p_actions, const String &p_path, GeneratedCode &r_gen_code);
 
 	ShaderCompilerGLES2();
 };
 
-#endif // SHADERCOMPILERGLES3_H
+#endif // godot 3

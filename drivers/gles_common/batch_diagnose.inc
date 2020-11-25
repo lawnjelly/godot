@@ -47,12 +47,17 @@ String get_command_type_string(const RasterizerCanvas::Item::Command &p_command)
 	switch (p_command.type) {
 		default:
 			break;
-		case RasterizerCanvas::Item::Command::TYPE_LINE: {
+#ifdef GODOT_3
+		case RasterizerCanvas::Item::Command::GD_TYPE_LINE: {
 			sz = "l";
 		} break;
-		case RasterizerCanvas::Item::Command::TYPE_POLYLINE: {
+		case RasterizerCanvas::Item::Command::GD_TYPE_POLYLINE: {
 			sz = "PL";
 		} break;
+		case RasterizerCanvas::Item::Command::GD_TYPE_CIRCLE: {
+			sz = "c";
+		} break;
+#endif
 		case RasterizerCanvas::Item::Command::TYPE_RECT: {
 			sz = "r";
 		} break;
@@ -73,9 +78,6 @@ String get_command_type_string(const RasterizerCanvas::Item::Command &p_command)
 		} break;
 		case RasterizerCanvas::Item::Command::TYPE_PARTICLES: {
 			sz = "PA";
-		} break;
-		case RasterizerCanvas::Item::Command::TYPE_CIRCLE: {
-			sz = "c";
 		} break;
 		case RasterizerCanvas::Item::Command::TYPE_TRANSFORM: {
 			sz = "t";
