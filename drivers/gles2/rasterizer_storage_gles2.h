@@ -35,6 +35,12 @@ class RasterizerSceneGLES2;
 // dummy
 
 class RasterizerStorageGLES2 : public RasterizerStorage {
+// specifics
+public:
+	void initialize();
+	
+	
+	// BELOW HERE IS MOSTLY STANDARD INTERFACE
 public:
 	/* TEXTURE API */
 	struct Texture {

@@ -1,6 +1,5 @@
 #pragma once
 
-#ifdef GODOT_3
 
 // This must come first to avoid windows.h mess
 #include "platform_config.h"
@@ -10,6 +9,8 @@
 #include GLES2_INCLUDE_H
 #endif
 
+
+#ifdef GODOT_3
 
 #include "core/math/camera_matrix.h"
 #ifdef GODOT_3

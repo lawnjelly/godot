@@ -35,6 +35,14 @@
 #include "rasterizer_scene_gles2.h"
 
 
+
+
+
+void RasterizerStorageGLES2::initialize()
+{
+	
+}
+
 #ifdef GODOT_3
 
 

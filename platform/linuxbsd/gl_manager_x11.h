@@ -43,9 +43,9 @@
 #include "servers/display_server.h"
 #include "core/templates/local_vector.h"
 
-struct ContextGL_X11_Private;
+struct GLManager_X11_Private;
 
-class ContextGL_X11 {
+class GLManager_X11 {
 public:
 	enum ContextType {
 		GLES_2_0_COMPATIBLE,
@@ -72,20 +72,40 @@ private:
 	{
 		GLDisplay() {context = nullptr;}
 		~GLDisplay();
-		ContextGL_X11_Private *context;
+		GLManager_X11_Private *context;
 		::Display *x11_display;
 		XVisualInfo x_vi;
 		XSetWindowAttributes x_swa;
 		unsigned long x_valuemask;
 	};
 	
+	// just for convenience, window and display struct
+	struct XWinDisp
+	{
+		::Window x11_window;
+		::Display *x11_display;
+	} _x_windisp;
+	
 	LocalVector<GLWindow> _windows;
 	LocalVector<GLDisplay> _displays;
 	
+	GLWindow * _current_window;
+	
+//	const XWinDisp * _get_xwindisp()
+//	{
+//		if (!_current_window)
+//			return nullptr;
+//		_x_windisp.x11_window = _current_window->x11_window;
+//		const GLDisplay &disp = get_current_display();
+//		_x_windisp.x11_display = disp.x11_display;
+//		return &_x_windisp;
+//	}
 	GLWindow &get_window(unsigned int id) {return _windows[id];}
 	const GLWindow &get_window(unsigned int id) const {return _windows[id];}
 	
-	//ContextGL_X11_Private *p;
+	const GLDisplay &get_current_display() const {return _displays[_current_window->gldisplay_id];}
+	
+	//GLManager_X11_Private *p;
     //OS::VideoMode default_video_mode;
 //	::Display *x11_display;
 //	::Window &x11_window;
@@ -116,10 +136,10 @@ public:
 	void set_use_vsync(bool p_use);
 	bool is_using_vsync() const;
 
-//	ContextGL_X11(::Display *p_x11_display, ::Window &p_x11_window, const OS::VideoMode &p_default_video_mode, ContextType p_context_type);
-//	ContextGL_X11(::Display *p_x11_display, const Vector2i &p_size, ContextType p_context_type);
-	ContextGL_X11(const Vector2i &p_size, ContextType p_context_type);
-	~ContextGL_X11();
+//	GLManager_X11(::Display *p_x11_display, ::Window &p_x11_window, const OS::VideoMode &p_default_video_mode, ContextType p_context_type);
+//	GLManager_X11(::Display *p_x11_display, const Vector2i &p_size, ContextType p_context_type);
+	GLManager_X11(const Vector2i &p_size, ContextType p_context_type);
+	~GLManager_X11();
 };
 
 #endif

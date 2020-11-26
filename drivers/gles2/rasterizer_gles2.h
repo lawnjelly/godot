@@ -24,7 +24,7 @@ public:
 	
 	void set_boot_image(const Ref<Image> &p_image, const Color &p_color, bool p_scale, bool p_use_filter = true) {}
 	
-	void initialize() {}
+	void initialize();// {}
 	void begin_frame(double frame_step)
 	{
 		frame++;
@@ -34,11 +34,12 @@ public:
 	void prepare_for_blitting_render_targets() {}
 	void blit_render_targets_to_screen(int p_screen, const BlitToScreen *p_render_targets, int p_amount) {}
 	
-	void end_frame(bool p_swap_buffers) {
-		if (p_swap_buffers) {
-			DisplayServer::get_singleton()->swap_buffers();
-		}
-	}
+	void end_frame(bool p_swap_buffers);
+//	{
+//		if (p_swap_buffers) {
+//			DisplayServer::get_singleton()->swap_buffers();
+//		}
+//	}
 	
 	void finalize() {}
 	

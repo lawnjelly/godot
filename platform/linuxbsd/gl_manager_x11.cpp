@@ -28,7 +28,7 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
 
-#include "context_gl_x11.h"
+#include "gl_manager_x11.h"
 
 #ifdef X11_ENABLED
 #if defined(OPENGL_ENABLED)
@@ -45,12 +45,12 @@
 
 typedef GLXContext (*GLXCREATECONTEXTATTRIBSARBPROC)(Display *, GLXFBConfig, GLXContext, Bool, const int *);
 
-struct ContextGL_X11_Private {
+struct GLManager_X11_Private {
 	::GLXContext glx_context;
 };
 
 
-ContextGL_X11::GLDisplay::~GLDisplay()
+GLManager_X11::GLDisplay::~GLDisplay()
 {
 	if (context)
 	{
@@ -82,7 +82,7 @@ static void set_class_hint(Display *p_display, Window p_window) {
 }
 
 
-int ContextGL_X11::_find_or_create_display(Display *p_x11_display)
+int GLManager_X11::_find_or_create_display(Display *p_x11_display)
 {
 	for (unsigned int n=0; n<_displays.size(); n++)
 	{
@@ -100,14 +100,14 @@ int ContextGL_X11::_find_or_create_display(Display *p_x11_display)
 	// create context
 	GLDisplay &d = _displays[new_display_id];
 	
-	d.context = memnew(ContextGL_X11_Private);;
+	d.context = memnew(GLManager_X11_Private);;
 	d.context->glx_context = 0;
 	
 	Error err = _create_context(d);
 	return new_display_id;
 }
 
-Error ContextGL_X11::_create_context(GLDisplay &gl_display)
+Error GLManager_X11::_create_context(GLDisplay &gl_display)
 {
 	// some aliases
 	::Display *x11_display = gl_display.x11_display;
@@ -234,7 +234,7 @@ Error ContextGL_X11::_create_context(GLDisplay &gl_display)
 
 
 
-Error ContextGL_X11::window_create(DisplayServer::WindowID p_window_id, ::Window p_window, Display *p_display, int p_width, int p_height)
+Error GLManager_X11::window_create(DisplayServer::WindowID p_window_id, ::Window p_window, Display *p_display, int p_width, int p_height)
 {
 	// make sure vector is big enough...
 	// we can mirror the external vector, it is simpler
@@ -272,49 +272,94 @@ Error ContextGL_X11::window_create(DisplayServer::WindowID p_window_id, ::Window
 	XSync(x11_display, False);
 	XSetErrorHandler(oldHandler);
 	
-	glXMakeCurrent(x11_display, x11_window, gl_display.context->glx_context);
+	if (!glXMakeCurrent(x11_display, x11_window, gl_display.context->glx_context))
+	{
+		ERR_PRINT("glXMakeCurrent failed");
+	}
+	
+	_current_window = &win;
+	
+	// quick access to x info	
+	_x_windisp.x11_window = _current_window->x11_window;
+	const GLDisplay &disp = get_current_display();
+	_x_windisp.x11_display = disp.x11_display;
+	
 	
 	return OK;
 }
 
-void ContextGL_X11::window_resize(DisplayServer::WindowID p_window_id, int p_width, int p_height)
+void GLManager_X11::window_resize(DisplayServer::WindowID p_window_id, int p_width, int p_height)
 {
 
 }
 
-int ContextGL_X11::window_get_width(DisplayServer::WindowID p_window)
+int GLManager_X11::window_get_width(DisplayServer::WindowID p_window)
 {
 	return get_window(p_window).width;	
 }
 
-int ContextGL_X11::window_get_height(DisplayServer::WindowID p_window)
+int GLManager_X11::window_get_height(DisplayServer::WindowID p_window)
 {
 	return get_window(p_window).height;
 }
 
-void ContextGL_X11::window_destroy(DisplayServer::WindowID p_window_id)
+void GLManager_X11::window_destroy(DisplayServer::WindowID p_window_id)
 {
 	GLWindow &win = get_window(p_window_id);
 	win.in_use = false;
 	
-	
+	if (_current_window == &win)
+	{
+		_current_window = nullptr;
+		_x_windisp.x11_display = nullptr;
+		_x_windisp.x11_window = -1;
+	}
 
 }
 
-void ContextGL_X11::release_current() {
-//	glXMakeCurrent(x11_display, None, nullptr);
+
+
+int GLManager_X11::get_window_width() {
+	if (!_current_window)
+		return 0;
+	XWindowAttributes xwa;
+	XGetWindowAttributes(_x_windisp.x11_display, _x_windisp.x11_window, &xwa);
+	return xwa.width;
 }
 
-void ContextGL_X11::make_current() {
+int GLManager_X11::get_window_height() {
+	if (!_current_window)
+		return 0;
+	XWindowAttributes xwa;
+	XGetWindowAttributes(_x_windisp.x11_display, _x_windisp.x11_window, &xwa);
+	return xwa.height;
+}
+
+void GLManager_X11::release_current() {
+	//	glXMakeCurrent(x11_display, None, nullptr);
+	if (!_current_window)
+		return;
+	glXMakeCurrent(_x_windisp.x11_display, None, nullptr);
+}
+
+void GLManager_X11::make_current() {
+	if (!_current_window)
+		return;
+	const GLDisplay &disp = get_current_display();
+	glXMakeCurrent(_x_windisp.x11_display, _x_windisp.x11_window, disp.context->glx_context);
 //	glXMakeCurrent(x11_display, x11_window, p->glx_context);
 }
 
-void ContextGL_X11::swap_buffers() {
+void GLManager_X11::swap_buffers() {
+	if (!_current_window)
+		return;
+	const GLDisplay &disp = get_current_display();
+	glXSwapBuffers(_x_windisp.x11_display, _x_windisp.x11_window);
 //	glXSwapBuffers(x11_display, x11_window);
 }
 
 
-Error ContextGL_X11::initialize() {
+Error GLManager_X11::initialize() {
 	
 	/*
 	const char *extensions = glXQueryExtensionsString(x11_display, DefaultScreen(x11_display));
@@ -422,23 +467,7 @@ Error ContextGL_X11::initialize() {
 	return OK;
 }
 
-int ContextGL_X11::get_window_width() {
-//	XWindowAttributes xwa;
-//	XGetWindowAttributes(x11_display, x11_window, &xwa);
-
-//	return xwa.width;
-	return 0;
-}
-
-int ContextGL_X11::get_window_height() {
-//	XWindowAttributes xwa;
-//	XGetWindowAttributes(x11_display, x11_window, &xwa);
-
-//	return xwa.height;
-	return 0;
-}
-
-void ContextGL_X11::set_use_vsync(bool p_use) {
+void GLManager_X11::set_use_vsync(bool p_use) {
 	/*
 	static bool setup = false;
 	static PFNGLXSWAPINTERVALEXTPROC glXSwapIntervalEXT = nullptr;
@@ -469,14 +498,14 @@ void ContextGL_X11::set_use_vsync(bool p_use) {
 	*/
 }
 
-bool ContextGL_X11::is_using_vsync() const {
+bool GLManager_X11::is_using_vsync() const {
 	return use_vsync;
 }
 
-//ContextGL_X11::ContextGL_X11(::Display *p_x11_display, ::Window &p_x11_window, const OS::VideoMode &p_default_video_mode, ContextType p_context_type) :
+//GLManager_X11::GLManager_X11(::Display *p_x11_display, ::Window &p_x11_window, const OS::VideoMode &p_default_video_mode, ContextType p_context_type) :
 //		x11_window(p_x11_window) {
-//	ContextGL_X11::ContextGL_X11(::Display *p_x11_display, const Vector2i &p_size, ContextType p_context_type)  {
-	ContextGL_X11::ContextGL_X11(const Vector2i &p_size, ContextType p_context_type)  {
+//	GLManager_X11::GLManager_X11(::Display *p_x11_display, const Vector2i &p_size, ContextType p_context_type)  {
+	GLManager_X11::GLManager_X11(const Vector2i &p_size, ContextType p_context_type)  {
 	//default_video_mode = p_default_video_mode;
 	//x11_display = p_x11_display;
 
@@ -485,12 +514,13 @@ bool ContextGL_X11::is_using_vsync() const {
 	double_buffer = false;
 	direct_render = false;
 	glx_minor = glx_major = 0;
-	//p = memnew(ContextGL_X11_Private);
+	//p = memnew(GLManager_X11_Private);
 	//p->glx_context = 0;
 	use_vsync = false;
+	_current_window = nullptr;
 }
 
-ContextGL_X11::~ContextGL_X11() {
+GLManager_X11::~GLManager_X11() {
 	release_current();
 //	glXDestroyContext(x11_display, p->glx_context);
 //	memdelete(p);

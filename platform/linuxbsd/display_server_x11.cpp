@@ -740,7 +740,7 @@ void DisplayServerX11::delete_sub_window(WindowID p_id) {
 #endif
 #ifdef OPENGL_ENABLED
 	if (rendering_driver == "opengl_es") {
-		context_gles2->window_destroy(p_id);
+		gl_manager->window_destroy(p_id);
 	}
 #endif
 
@@ -2421,7 +2421,7 @@ void DisplayServerX11::_window_changed(XEvent *event) {
 #endif
 #if defined(OPENGL_ENABLED)
 	if (rendering_driver == "opengl_es") {
-		context_gles2->window_resize(window_id, wd.size.width, wd.size.height);
+		gl_manager->window_resize(window_id, wd.size.width, wd.size.height);
 	}
 #endif
 
@@ -3283,12 +3283,21 @@ void DisplayServerX11::process_events() {
 }
 
 void DisplayServerX11::release_rendering_thread() {
+#if defined(OPENGL_ENABLED)
+	gl_manager->release_current();
+#endif
 }
 
 void DisplayServerX11::make_rendering_thread() {
+#if defined(OPENGL_ENABLED)
+	gl_manager->make_current();
+#endif
 }
 
 void DisplayServerX11::swap_buffers() {
+#if defined(OPENGL_ENABLED)
+	gl_manager->swap_buffers();
+#endif
 }
 
 void DisplayServerX11::_update_context(WindowData &wd) {
@@ -3621,7 +3630,7 @@ DisplayServerX11::WindowID DisplayServerX11::_create_window(WindowMode p_mode, u
 #ifdef OPENGL_ENABLED
 		print_line("rendering_driver " + rendering_driver);
 		if (rendering_driver == "opengl_es") {
-			Error err = context_gles2->window_create(id, wd.x11_window, x11_display, p_rect.size.width, p_rect.size.height);
+			Error err = gl_manager->window_create(id, wd.x11_window, x11_display, p_rect.size.width, p_rect.size.height);
 			ERR_FAIL_COND_V_MSG(err != OK, INVALID_WINDOW_ID, "Can't create a GLES2 window");
 		}
 #endif
@@ -3873,30 +3882,30 @@ DisplayServerX11::DisplayServerX11(const String &p_rendering_driver, WindowMode 
 			}
 		}
 
-		ContextGL_X11::ContextType opengl_api_type = ContextGL_X11::GLES_2_0_COMPATIBLE;
+		GLManager_X11::ContextType opengl_api_type = GLManager_X11::GLES_2_0_COMPATIBLE;
 
-		//		context_gles2 = memnew(ContextGL_X11(x11_display, x11_window, current_videomode, opengl_api_type));
-		//		context_gles2 = memnew(ContextGL_X11(x11_display, p_resolution, opengl_api_type));
-		context_gles2 = memnew(ContextGL_X11(p_resolution, opengl_api_type));
+		//		gl_manager = memnew(GLManager_X11(x11_display, x11_window, current_videomode, opengl_api_type));
+		//		gl_manager = memnew(GLManager_X11(x11_display, p_resolution, opengl_api_type));
+		gl_manager = memnew(GLManager_X11(p_resolution, opengl_api_type));
 
-		if (context_gles2->initialize() != OK) {
-			memdelete(context_gles2);
-			context_gles2 = nullptr;
+		if (gl_manager->initialize() != OK) {
+			memdelete(gl_manager);
+			gl_manager = nullptr;
 
 			//ERR_FAIL_V(ERR_UNAVAILABLE);
 			r_error = ERR_UNAVAILABLE;
 			return;
 		}
 
-		//		context_gles2->set_use_vsync(current_videomode.use_vsync);
+		//		gl_manager->set_use_vsync(current_videomode.use_vsync);
 
 		if (true) {
 			//		if (RasterizerGLES2::is_viable() == OK) {
 			//		RasterizerGLES2::register_config();
 			RasterizerGLES2::make_current();
 		} else {
-			memdelete(context_gles2);
-			context_gles2 = nullptr;
+			memdelete(gl_manager);
+			gl_manager = nullptr;
 			//			ERR_FAIL_V(ERR_UNAVAILABLE);
 			r_error = ERR_UNAVAILABLE;
 			return;
@@ -4116,7 +4125,7 @@ DisplayServerX11::~DisplayServerX11() {
 #endif
 #ifdef OPENGL_ENABLED
 		if (rendering_driver == "opengl_es") {
-			context_gles2->window_destroy(E->key());
+			gl_manager->window_destroy(E->key());
 		}
 #endif
 
@@ -4144,9 +4153,9 @@ DisplayServerX11::~DisplayServerX11() {
 #endif
 
 #ifdef OPENGL_ENABLED
-	if (context_gles2) {
-		memdelete(context_gles2);
-		context_gles2 = nullptr;
+	if (gl_manager) {
+		memdelete(gl_manager);
+		gl_manager = nullptr;
 	}
 #endif
 
