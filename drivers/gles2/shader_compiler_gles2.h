@@ -1,6 +1,6 @@
 #pragma once
 
-#ifdef GODOT_3
+//#ifdef GODOT_3
 
 
 #include "drivers/gles_common/rasterizer_version.h"
@@ -72,11 +72,14 @@ private:
 	Set<StringName> internal_functions;
 
 	DefaultIdentifierActions actions[GD_VS::SHADER_MAX];
-
+	
+	// compatibility with godot 4
+	static ShaderLanguage::DataType _get_variable_type(const StringName &p_type);
+	
 public:
 	Error compile(GD_VS::ShaderMode p_mode, const String &p_code, IdentifierActions *p_actions, const String &p_path, GeneratedCode &r_gen_code);
 
 	ShaderCompilerGLES2();
 };
 
-#endif // godot 3
+//#endif // godot 3

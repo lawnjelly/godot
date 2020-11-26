@@ -10,7 +10,6 @@
 #endif
 
 
-#ifdef GODOT_3
 
 #include "core/math/camera_matrix.h"
 #ifdef GODOT_3
@@ -29,7 +28,8 @@
 
 #include <stdio.h>
 
-//class RasterizerStorageGLES2;
+class RasterizerStorageGLES2;
+//#ifdef GODOT_3
 
 class ShaderGLES2 {
 protected:
@@ -258,4 +258,4 @@ void ShaderGLES2::_set_conditional(int p_which, bool p_value) {
 		new_conditional_version.version &= ~(1 << p_which);
 }
 
-#endif // godot 3
+//#endif // godot 3

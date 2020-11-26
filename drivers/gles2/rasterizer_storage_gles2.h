@@ -8,6 +8,7 @@
 #include "servers/rendering/rasterizer.h"
 #include "core/templates/rid_owner.h"
 
+#include "shader_gles2.h"
 /*
 #include "drivers/gles_common/rasterizer_asserts.h"
 #include "shader_compiler_gles2.h"
@@ -28,20 +29,148 @@
 
 #endif
 
+*/
 class RasterizerCanvasGLES2;
 class RasterizerSceneGLES2;
-*/
 
 // dummy
 
 class RasterizerStorageGLES2 : public RasterizerStorage {
 // specifics
 public:
-	void initialize();
+	RasterizerCanvasGLES2 *canvas;
+	RasterizerSceneGLES2 *scene;
 	
+	static GLuint system_fbo;
+	
+	struct Config {
+		
+		bool shrink_textures_x2;
+		bool use_fast_texture_filter;
+		bool use_skeleton_software;
+		
+		int max_vertex_texture_image_units;
+		int max_texture_image_units;
+		int max_texture_size;
+		
+		// TODO implement wireframe in GLES2
+		// bool generate_wireframes;
+		
+		Set<String> extensions;
+		
+		bool float_texture_supported;
+		bool s3tc_supported;
+		bool etc1_supported;
+		bool pvrtc_supported;
+		bool rgtc_supported;
+		bool bptc_supported;
+		
+		bool keep_original_textures;
+		
+		bool force_vertex_shading;
+		
+		bool use_rgba_2d_shadows;
+		bool use_rgba_3d_shadows;
+		
+		bool support_32_bits_indices;
+		bool support_write_depth;
+		bool support_half_float_vertices;
+		bool support_npot_repeat_mipmap;
+		bool support_depth_texture;
+		bool support_depth_cubemaps;
+		
+		bool support_shadow_cubemaps;
+		
+		bool multisample_supported;
+		bool render_to_mipmap_supported;
+		
+		GLuint depth_internalformat;
+		GLuint depth_type;
+		GLuint depth_buffer_internalformat;
+		
+		// in some cases the legacy render didn't orphan. We will mark these
+		// so the user can switch orphaning off for them.
+		bool should_orphan;
+	} config;
+	
+	struct Resources {
+		
+		GLuint white_tex;
+		GLuint black_tex;
+		GLuint normal_tex;
+		GLuint aniso_tex;
+		
+		GLuint mipmap_blur_fbo;
+		GLuint mipmap_blur_color;
+		
+		GLuint radical_inverse_vdc_cache_tex;
+		bool use_rgba_2d_shadows;
+		
+		GLuint quadie;
+		
+		size_t skeleton_transform_buffer_size;
+		GLuint skeleton_transform_buffer;
+#ifdef GODOT_3
+		PoolVector<float> skeleton_transform_cpu_buffer;
+#endif
+		
+	} resources;
+	/*
+	mutable struct Shaders {
+		
+		ShaderCompilerGLES2 compiler;
+		
+		CopyShaderGLES2 copy;
+		CubemapFilterShaderGLES2 cubemap_filter;
+		
+		ShaderCompilerGLES2::IdentifierActions actions_canvas;
+		ShaderCompilerGLES2::IdentifierActions actions_scene;
+		ShaderCompilerGLES2::IdentifierActions actions_particles;
+		
+	} shaders;
+	*/
+	struct Info {
+		
+		uint64_t texture_mem;
+		uint64_t vertex_mem;
+		
+		struct Render {
+			uint32_t object_count;
+			uint32_t draw_call_count;
+			uint32_t material_switch_count;
+			uint32_t surface_switch_count;
+			uint32_t shader_rebind_count;
+			uint32_t vertices_count;
+			uint32_t _2d_item_count;
+			uint32_t _2d_draw_call_count;
+			
+			void reset() {
+				object_count = 0;
+				draw_call_count = 0;
+				material_switch_count = 0;
+				surface_switch_count = 0;
+				shader_rebind_count = 0;
+				vertices_count = 0;
+				_2d_item_count = 0;
+				_2d_draw_call_count = 0;
+			}
+		} render, render_final, snap;
+		
+		Info() :
+				texture_mem(0),
+				vertex_mem(0) {
+			render.reset();
+			render_final.reset();
+		}
+		
+	} info;
+
+	
+	void initialize();
 	
 	// BELOW HERE IS MOSTLY STANDARD INTERFACE
 public:
+	
 	/* TEXTURE API */
 	struct Texture {
 		int width;
@@ -70,15 +199,11 @@ public:
 		RS::BlendShapeMode blend_shape_mode;
 	};
 	
-	struct Shader
-	{
+//	struct Shader
+//	{
 	
-	};
+//	};
 	
-	struct Material
-	{
-		
-	};
 	
 	mutable RID_PtrOwner<Texture> texture_owner;
 	mutable RID_PtrOwner<DummyMesh> mesh_owner;
@@ -230,6 +355,144 @@ public:
 	
 	/* SHADER API */
 	
+			struct Material;
+	
+//			struct Shader : public RID_Data {
+			struct Shader {
+		
+				RID self;
+		
+				GD_VS::ShaderMode mode;
+		ShaderGLES2 *shader;
+		String code;
+		SelfList<Material>::List materials;
+		
+				Map<StringName, ShaderLanguage::ShaderNode::Uniform> uniforms;
+		
+				uint32_t texture_count;
+		
+				uint32_t custom_code_id;
+		uint32_t version;
+		
+				SelfList<Shader> dirty_list;
+		
+				Map<StringName, RID> default_textures;
+		
+				Vector<ShaderLanguage::ShaderNode::Uniform::Hint> texture_hints;
+		
+				bool valid;
+		
+				String path;
+		
+				uint32_t index;
+		uint64_t last_pass;
+		
+				struct CanvasItem {
+			
+					enum BlendMode {
+						BLEND_MODE_MIX,
+						BLEND_MODE_ADD,
+						BLEND_MODE_SUB,
+						BLEND_MODE_MUL,
+						BLEND_MODE_PMALPHA,
+						};
+			
+			int blend_mode;
+			
+			enum LightMode {
+				LIGHT_MODE_NORMAL,
+				LIGHT_MODE_UNSHADED,
+				LIGHT_MODE_LIGHT_ONLY
+			};
+			
+			int light_mode;
+			
+			// these flags are specifically for batching
+			// some of the logic is thus in rasterizer_storage.cpp
+			// we could alternatively set bitflags for each 'uses' and test on the fly
+			// defined in RasterizerStorageCommon::BatchFlags
+			unsigned int batch_flags;
+			
+			bool uses_screen_texture;
+			bool uses_screen_uv;
+			bool uses_time;
+			bool uses_modulate;
+			bool uses_color;
+			bool uses_vertex;
+			
+			// all these should disable item joining if used in a custom shader
+			bool uses_world_matrix;
+			bool uses_extra_matrix;
+			bool uses_projection_matrix;
+			bool uses_instance_custom;
+			
+		} canvas_item;
+		
+				struct Spatial {
+			
+					enum BlendMode {
+						BLEND_MODE_MIX,
+						BLEND_MODE_ADD,
+						BLEND_MODE_SUB,
+						BLEND_MODE_MUL,
+						};
+			
+					int blend_mode;
+			
+					enum DepthDrawMode {
+						DEPTH_DRAW_OPAQUE,
+						DEPTH_DRAW_ALWAYS,
+						DEPTH_DRAW_NEVER,
+						DEPTH_DRAW_ALPHA_PREPASS,
+						};
+			
+					int depth_draw_mode;
+			
+					enum CullMode {
+						CULL_MODE_FRONT,
+						CULL_MODE_BACK,
+						CULL_MODE_DISABLED,
+						};
+			
+			int cull_mode;
+			
+			bool uses_alpha;
+			bool uses_alpha_scissor;
+			bool unshaded;
+			bool no_depth_test;
+			bool uses_vertex;
+			bool uses_discard;
+			bool uses_sss;
+			bool uses_screen_texture;
+			bool uses_depth_texture;
+			bool uses_time;
+			bool uses_tangent;
+			bool uses_ensure_correct_normals;
+			bool writes_modelview_or_projection;
+			bool uses_vertex_lighting;
+			bool uses_world_coordinates;
+			
+		} spatial;
+		
+		struct Particles {
+			
+		} particles;
+		
+		bool uses_vertex_time;
+		bool uses_fragment_time;
+		
+		Shader() :
+				dirty_list(this) {
+			
+			shader = NULL;
+			valid = false;
+			custom_code_id = 0;
+			version = 1;
+			last_pass = 0;
+		}
+	};
+	
+	
 	RID shader_create() override { return RID(); }
 	
 	void shader_set_code(RID p_shader, const String &p_code) override {}
@@ -241,6 +504,39 @@ public:
 	Variant shader_get_param_default(RID p_material, const StringName &p_param) const override { return Variant(); }
 	
 	/* COMMON MATERIAL API */
+	
+	struct Material
+	{
+		Shader *shader;
+		Map<StringName, Variant> params;
+		SelfList<Material> list;
+		SelfList<Material> dirty_list;
+		Vector<Pair<StringName, RID> > textures;
+		float line_width;
+		int render_priority;
+		
+		RID next_pass;
+		
+		uint32_t index;
+		uint64_t last_pass;
+		
+//		Map<Geometry *, int> geometry_owners;
+		Map<RasterizerScene::InstanceBase *, int> instance_owners;
+		
+		bool can_cast_shadow_cache;
+		bool is_animated_cache;
+		
+		Material() :
+				list(this),
+				dirty_list(this) {
+			can_cast_shadow_cache = false;
+			is_animated_cache = false;
+			shader = NULL;
+			line_width = 1.0;
+			last_pass = 0;
+			render_priority = 0;
+		}
+	};
 	
 	RID material_create() override { return RID(); }
 	

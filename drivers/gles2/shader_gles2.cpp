@@ -1,15 +1,21 @@
 
 #include "shader_gles2.h"
 
-#ifdef GODOT_3
-
-
 #include "core/os/memory.h"
+#include "rasterizer_gles2.h"
+#include "rasterizer_storage_gles2.h"
+
+#ifdef GODOT_3
 #include "core/print_string.h"
 #include "core/project_settings.h"
 #include "core/string_builder.h"
-#include "rasterizer_gles2.h"
-#include "rasterizer_storage_gles2.h"
+#else
+#include "core/string/print_string.h"
+#include "core/config/project_settings.h"
+#include "core/string/string_builder.h"
+#endif
+
+
 
 // #define DEBUG_OPENGL
 
@@ -50,6 +56,8 @@ GLint ShaderGLES2::get_uniform_location(int p_index) const {
 
 	return version->uniform_location[p_index];
 }
+
+//#ifdef GODOT_3
 
 bool ShaderGLES2::bind() {
 
@@ -101,7 +109,7 @@ static void _display_error_with_code(const String &p_error, const Vector<const c
 		line++;
 	}
 
-	ERR_PRINTS(p_error);
+	ERR_PRINT(p_error);
 }
 
 static String _mkid(const String &p_id) {
@@ -931,11 +939,12 @@ void ShaderGLES2::use_material(void *p_material) {
 				case ShaderLanguage::TYPE_SAMPLER2D: {
 
 				} break;
-
+					
+					/*
 				case ShaderLanguage::TYPE_SAMPLEREXT: {
 
 				} break;
-
+*/
 				case ShaderLanguage::TYPE_ISAMPLER2D: {
 
 				} break;
@@ -1054,10 +1063,12 @@ void ShaderGLES2::use_material(void *p_material) {
 				case ShaderLanguage::TYPE_SAMPLER2D: {
 
 				} break;
-
+					
+					/*
 				case ShaderLanguage::TYPE_SAMPLEREXT: {
 
 				} break;
+*/
 
 				case ShaderLanguage::TYPE_ISAMPLER2D: {
 
@@ -1101,4 +1112,4 @@ ShaderGLES2::~ShaderGLES2() {
 	finish();
 }
 
-#endif // godot 3
+//#endif // godot 3
