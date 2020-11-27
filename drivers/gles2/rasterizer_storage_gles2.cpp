@@ -529,6 +529,22 @@ static const GLenum _cube_side_enum[6] = {
 
 };
 
+RID RasterizerStorageGLES2::texture_2d_create(const Ref<Image> &p_image)
+{
+	RID id = texture_create();
+	ERR_FAIL_COND_V(id == RID(), id);
+	
+	int w = p_image->get_width();
+	int h = p_image->get_height();
+	
+	texture_allocate(id, w, h, 1, p_image->get_format(), GD_RD::TEXTURE_TYPE_2D, 0 );
+	
+	texture_set_data(id, p_image);
+	
+	return id;
+}
+
+
 RID RasterizerStorageGLES2::texture_create() {
 
 	Texture *texture = memnew(Texture);

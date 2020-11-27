@@ -7,9 +7,17 @@
 #include "scene/resources/mesh.h"
 #include "servers/rendering/rasterizer.h"
 #include "servers/rendering_server.h"
+#include "shaders/scene.glsl.gen.h"
 
 class RasterizerSceneGLES2 : public RasterizerScene {
+	
 public:
+	struct State {
+		SceneShaderGLES2 scene_shader;
+		
+	} state;
+	
+	
 	/* SHADOW ATLAS API */
 	
 	RID shadow_atlas_create() override { return RID(); }

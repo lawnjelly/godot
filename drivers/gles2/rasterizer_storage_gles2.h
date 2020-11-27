@@ -360,8 +360,8 @@ public:
 
 	Ref<Image> _get_gl_image_and_format(const Ref<Image> &p_image, Image::Format p_format, uint32_t p_flags, Image::Format &r_real_format, GLenum &r_gl_format, GLenum &r_gl_internal_format, GLenum &r_gl_type, bool &r_compressed, bool p_force_decompress) const;
 	
-	// new	
-	RID texture_2d_create(const Ref<Image> &p_image) override { return RID(); }
+	// new
+	RID texture_2d_create(const Ref<Image> &p_image) override;
 	RID texture_2d_layered_create(const Vector<Ref<Image>> &p_layers, RS::TextureLayeredType p_layered_type) override { return RID(); }
 	RID texture_3d_create(Image::Format, int p_width, int p_height, int p_depth, bool p_mipmaps, const Vector<Ref<Image>> &p_data) override { return RID(); }
 	RID texture_proxy_create(RID p_base) override { return RID(); }
@@ -1045,11 +1045,11 @@ public:
 	
 	/* INSTANCE */
 
-	virtual void instance_add_skeleton(RID p_skeleton, RasterizerScene::InstanceBase *p_instance);
-	virtual void instance_remove_skeleton(RID p_skeleton, RasterizerScene::InstanceBase *p_instance);
+//	virtual void instance_add_skeleton(RID p_skeleton, RasterizerScene::InstanceBase *p_instance);
+//	virtual void instance_remove_skeleton(RID p_skeleton, RasterizerScene::InstanceBase *p_instance);
 
-	virtual void instance_add_dependency(RID p_base, RasterizerScene::InstanceBase *p_instance);
-	virtual void instance_remove_dependency(RID p_base, RasterizerScene::InstanceBase *p_instance);
+//	virtual void instance_add_dependency(RID p_base, RasterizerScene::InstanceBase *p_instance);
+//	virtual void instance_remove_dependency(RID p_base, RasterizerScene::InstanceBase *p_instance);
 
 	/* RENDER TARGET */
 
