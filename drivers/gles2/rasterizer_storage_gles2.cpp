@@ -43,6 +43,166 @@ void RasterizerStorageGLES2::initialize()
 	
 }
 
+
+void RasterizerStorageGLES2::_material_make_dirty(Material *p_material) const {
+	
+	if (p_material->dirty_list.in_list())
+		return;
+	
+	_material_dirty_list.add(&p_material->dirty_list);
+}
+
+RID RasterizerStorageGLES2::material_create() {
+	
+	Material mat;
+	// fill material defaults NYI
+	
+	RID id = material_owner.make_rid(mat);
+	{
+		Material *material_ptr = material_owner.getornull(id);
+		material_ptr->self = id;
+	}
+	return id;
+}
+
+
+RID RasterizerStorageGLES2::texture_2d_create(const Ref<Image> &p_image)
+{
+	Texture *texture = memnew(Texture);
+	ERR_FAIL_COND_V(!texture, RID());
+	
+	RID id = texture_owner.make_rid(texture);
+	{
+		Texture * t = texture_owner.getornull(id);
+		t->self = id;
+		glGenTextures(1, &t->tex_id);
+	}
+	return id;
+//	return RID();
+}
+
+
+void RasterizerStorageGLES2::_texture_allocate(RID p_texture, const Ref<Image> &p_image)
+{
+	int w = p_image->get_width();
+	int h = p_image->get_height();
+	_texture_allocate(p_texture, w, h, 1, p_image->get_format(), GD_RD::TEXTURE_TYPE_2D, TEXTURE_FLAGS_DEFAULT);
+}
+
+void RasterizerStorageGLES2::_texture_allocate(RID p_texture, int p_width, int p_height, int p_depth_3d, Image::Format p_format, GD_RD::TextureType p_type, uint32_t p_flags)
+{
+	/*
+	GLenum format;
+	GLenum internal_format;
+	GLenum type;
+	
+	bool compressed = false;
+	
+	if (p_flags & TEXTURE_FLAG_USED_FOR_STREAMING) {
+		p_flags &= ~TEXTURE_FLAG_MIPMAPS; // no mipies for video
+	}
+	
+	Texture *texture = texture_owner.getornull(p_texture);
+	ERR_FAIL_COND(!texture);
+	texture->width = p_width;
+	texture->height = p_height;
+	texture->format = p_format;
+	texture->flags = p_flags;
+	texture->stored_cube_sides = 0;
+	texture->type = p_type;
+	
+	switch (p_type) {
+		case GD_RD::TEXTURE_TYPE_2D: {
+			texture->target = GL_TEXTURE_2D;
+			texture->images.resize(1);
+		} break;
+//		case GD_RD::TEXTURE_TYPE_EXTERNAL: {
+//#ifdef ANDROID_ENABLED
+//			texture->target = _GL_TEXTURE_EXTERNAL_OES;
+//#else
+//			texture->target = GL_TEXTURE_2D;
+//#endif
+//			texture->images.resize(0);
+//		} break;
+//		case GD_VS::TEXTURE_TYPE_CUBEMAP: {
+//			texture->target = GL_TEXTURE_CUBE_MAP;
+//			texture->images.resize(6);
+//		} break;
+//		case GD_VS::TEXTURE_TYPE_2D_ARRAY:
+//		case GD_VS::TEXTURE_TYPE_3D: {
+//			texture->target = GL_TEXTURE_3D;
+//			ERR_PRINT("3D textures and Texture Arrays are not supported in GLES2. Please switch to the GLES3 backend.");
+//			return;
+//		} break;
+		default: {
+			ERR_PRINT("Unknown texture type!");
+			return;
+		}
+	}
+	
+	if (true) {
+//	if (p_type != GD_VS::TEXTURE_TYPE_EXTERNAL) {
+		texture->alloc_width = texture->width;
+		texture->alloc_height = texture->height;
+		texture->resize_to_po2 = false;
+		if (!config.support_npot_repeat_mipmap) {
+			int po2_width = next_power_of_2(p_width);
+			int po2_height = next_power_of_2(p_height);
+			
+			bool is_po2 = p_width == po2_width && p_height == po2_height;
+			
+			if (!is_po2 && (p_flags & TEXTURE_FLAG_REPEAT || p_flags & TEXTURE_FLAG_MIPMAPS)) {
+				
+				if (p_flags & TEXTURE_FLAG_USED_FOR_STREAMING) {
+					//not supported
+					ERR_PRINT("Streaming texture for non power of 2 or has mipmaps on this hardware: " + texture->path + "'. Mipmaps and repeat disabled.");
+					texture->flags &= ~(TEXTURE_FLAG_REPEAT | TEXTURE_FLAG_MIPMAPS);
+				} else {
+					texture->alloc_height = po2_height;
+					texture->alloc_width = po2_width;
+					texture->resize_to_po2 = true;
+				}
+			}
+		}
+		
+		Image::Format real_format;
+		_get_gl_image_and_format(Ref<Image>(),
+				texture->format,
+				texture->flags,
+				real_format,
+				format,
+				internal_format,
+				type,
+				compressed,
+				texture->resize_to_po2);
+		
+		texture->gl_format_cache = format;
+		texture->gl_type_cache = type;
+		texture->gl_internal_format_cache = internal_format;
+		texture->data_size = 0;
+		texture->mipmaps = 1;
+		
+		texture->compressed = compressed;
+	}
+	
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(texture->target, texture->tex_id);
+	
+//	if (p_type == GD_VS::TEXTURE_TYPE_EXTERNAL) {
+//		glTexParameteri(texture->target, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+//		glTexParameteri(texture->target, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+//		glTexParameteri(texture->target, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+//		glTexParameteri(texture->target, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+//	} else if (p_flags & GD_VS::TEXTURE_FLAG_USED_FOR_STREAMING) {
+//		//prealloc if video
+//		glTexImage2D(texture->target, 0, internal_format, texture->alloc_width, texture->alloc_height, 0, format, type, NULL);
+//	}
+	
+	texture->active = true;
+*/	
+}
+
+
 #ifdef GODOT_3
 
 
@@ -1809,20 +1969,6 @@ void RasterizerStorageGLES2::shader_remove_custom_define(RID p_shader, const Str
 
 /* COMMON MATERIAL API */
 
-void RasterizerStorageGLES2::_material_make_dirty(Material *p_material) const {
-
-	if (p_material->dirty_list.in_list())
-		return;
-
-	_material_dirty_list.add(&p_material->dirty_list);
-}
-
-RID RasterizerStorageGLES2::material_create() {
-
-	Material *material = memnew(Material);
-
-	return material_owner.make_rid(material);
-}
 
 void RasterizerStorageGLES2::material_set_shader(RID p_material, RID p_shader) {
 

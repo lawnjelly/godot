@@ -170,17 +170,6 @@ public:
 	
 	// BELOW HERE IS MOSTLY STANDARD INTERFACE
 public:
-	
-	/* TEXTURE API */
-	struct Texture {
-		int width;
-		int height;
-		uint32_t flags;
-		Image::Format format;
-		Ref<Image> image;
-		String path;
-	};
-	
 	struct DummySurface {
 		uint32_t format;
 		RS::PrimitiveType primitive;
@@ -199,16 +188,143 @@ public:
 		RS::BlendShapeMode blend_shape_mode;
 	};
 	
-//	struct Shader
-//	{
-	
+	/* TEXTURE API */
+//	struct Texture {
+//		int width;
+//		int height;
+//		uint32_t flags;
+//		Image::Format format;
+//		Ref<Image> image;
+//		String path;
 //	};
+
+	
+	struct RenderTarget;
+	
+	enum GLESTextureFlags {
+		TEXTURE_FLAG_MIPMAPS = 1, /// Enable automatic mipmap generation - when available
+		TEXTURE_FLAG_REPEAT = 2, /// Repeat texture (Tiling), otherwise Clamping
+		TEXTURE_FLAG_FILTER = 4, /// Create texture with linear (or available) filter
+		TEXTURE_FLAG_ANISOTROPIC_FILTER = 8,
+		TEXTURE_FLAG_CONVERT_TO_LINEAR = 16,
+		TEXTURE_FLAG_MIRRORED_REPEAT = 32, /// Repeat texture, with alternate sections mirrored
+		TEXTURE_FLAG_USED_FOR_STREAMING = 2048,
+		TEXTURE_FLAGS_DEFAULT = TEXTURE_FLAG_REPEAT | TEXTURE_FLAG_MIPMAPS | TEXTURE_FLAG_FILTER
+	};
+	
+	
+	struct Texture {
+		RID self;
+		GLenum tex_id;
+		/*
+		Texture *proxy;
+		Set<Texture *> proxy_owners;
+		
+		String path;
+		uint32_t flags;
+		int width, height, depth;
+		int alloc_width, alloc_height;
+		Image::Format format;
+		GD_RD::TextureType type;
+		
+		GLenum target;
+		GLenum gl_format_cache;
+		GLenum gl_internal_format_cache;
+		GLenum gl_type_cache;
+		
+		int data_size;
+		int total_data_size;
+		bool ignore_mipmaps;
+		
+		bool compressed;
+		
+		bool srgb;
+		
+		int mipmaps;
+		
+		bool resize_to_po2;
+		
+		bool active;
+		GLenum tex_id;
+		
+		uint16_t stored_cube_sides;
+		
+		RenderTarget *render_target;
+		
+		Vector<Ref<Image> > images;
+		
+		bool redraw_if_visible;
+		
+		GD_VS::TextureDetectCallback detect_3d;
+		void *detect_3d_ud;
+		
+		GD_VS::TextureDetectCallback detect_srgb;
+		void *detect_srgb_ud;
+		
+		GD_VS::TextureDetectCallback detect_normal;
+		void *detect_normal_ud;
+		
+		Texture() :
+				proxy(NULL),
+				flags(0),
+				width(0),
+				height(0),
+				alloc_width(0),
+				alloc_height(0),
+				format(Image::FORMAT_L8),
+				type(GD_RD::TEXTURE_TYPE_2D),
+				target(0),
+				data_size(0),
+				total_data_size(0),
+				ignore_mipmaps(false),
+				compressed(false),
+				mipmaps(0),
+				resize_to_po2(false),
+				active(false),
+				tex_id(0),
+				stored_cube_sides(0),
+				render_target(NULL),
+				redraw_if_visible(false),
+				detect_3d(NULL),
+				detect_3d_ud(NULL),
+				detect_srgb(NULL),
+				detect_srgb_ud(NULL),
+				detect_normal(NULL),
+				detect_normal_ud(NULL) {
+		}
+		
+		_ALWAYS_INLINE_ Texture *get_ptr() {
+			if (proxy) {
+				return proxy; //->get_ptr(); only one level of indirection, else not inlining possible.
+			} else {
+				return this;
+			}
+		}
+*/
+	Texture() :
+				tex_id(0)
+		{}
+		
+		~Texture() {
+			if (tex_id != 0) {
+				glDeleteTextures(1, &tex_id);
+			}
+			
+//			for (Set<Texture *>::Element *E = proxy_owners.front(); E; E = E->next()) {
+//				E->get()->proxy = NULL;
+//			}
+			
+//			if (proxy) {
+//				proxy->proxy_owners.erase(this);
+//			}
+		}
+	};
 	
 	
 	mutable RID_PtrOwner<Texture> texture_owner;
 	mutable RID_PtrOwner<DummyMesh> mesh_owner;
 	
-	RID texture_2d_create(const Ref<Image> &p_image) override { return RID(); }
+	RID texture_2d_create(const Ref<Image> &p_image) override;// { return RID(); }
 	RID texture_2d_layered_create(const Vector<Ref<Image>> &p_layers, RS::TextureLayeredType p_layered_type) override { return RID(); }
 	RID texture_3d_create(Image::Format, int p_width, int p_height, int p_depth, bool p_mipmaps, const Vector<Ref<Image>> &p_data) override { return RID(); }
 	RID texture_proxy_create(RID p_base) override { return RID(); }
@@ -246,6 +362,12 @@ public:
 	
 	void texture_add_to_decal_atlas(RID p_texture, bool p_panorama_to_dp = false) override {}
 	void texture_remove_from_decal_atlas(RID p_texture, bool p_panorama_to_dp = false) override {}
+	
+	// legacy
+	void _texture_allocate(RID p_texture, const Ref<Image> &p_image);
+	void _texture_allocate(RID p_texture, int p_width, int p_height, int p_depth_3d, Image::Format p_format, GD_RD::TextureType p_type, uint32_t p_flags = GLESTextureFlags::TEXTURE_FLAGS_DEFAULT);
+	
+	
 	
 	/* CANVAS TEXTURE API */
 	
@@ -507,6 +629,8 @@ public:
 	
 	struct Material
 	{
+		RID self;
+		
 		Shader *shader;
 		Map<StringName, Variant> params;
 		SelfList<Material> list;
@@ -538,7 +662,12 @@ public:
 		}
 	};
 	
-	RID material_create() override { return RID(); }
+	mutable RID_Owner<Material> material_owner;
+	
+	mutable SelfList<Material>::List _material_dirty_list;
+	void _material_make_dirty(Material *p_material) const;
+	
+	RID material_create() override;// { return RID(); }
 	
 	void material_set_render_priority(RID p_material, int priority) override {}
 	void material_set_shader(RID p_shader_material, RID p_shader) override {}
@@ -1040,6 +1169,9 @@ public:
 	bool particles_is_inactive(RID p_particles) const override { return false; }
 	
 	/* RENDER TARGET */
+	struct RenderTarget
+	{
+	};
 	
 	RID render_target_create() override { return RID(); }
 	void render_target_set_position(RID p_render_target, int p_x, int p_y) override {}
