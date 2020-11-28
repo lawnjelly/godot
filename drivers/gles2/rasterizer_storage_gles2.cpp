@@ -2148,6 +2148,39 @@ void RasterizerStorageGLES2::update_dirty_materials() {
 
 /* RENDER TARGET */
 
+void RasterizerStorageGLES2::_set_current_render_target(RID p_render_target)
+{
+	RenderTarget * rt = render_target_get(p_render_target);
+	
+	// FTODO	
+//	if (!p_render_target.is_valid() && storage->frame.current_rt && storage->frame.clear_request) {
+	//		// pending clear request. Do that first.
+	//		glBindFramebuffer(GL_FRAMEBUFFER, storage->frame.current_rt->fbo);
+	//		glClearColor(storage->frame.clear_request_color.r,
+	//				storage->frame.clear_request_color.g,
+	//				storage->frame.clear_request_color.b,
+	//				storage->frame.clear_request_color.a);
+	//		glClear(GL_COLOR_BUFFER_BIT);
+	//	}
+	
+	if (rt) {
+		//	if (p_render_target.is_valid()) {
+		//		RasterizerStorageGLES2::RenderTarget *rt = storage.render_target_owner.getornull(p_render_target);
+		frame.current_rt = rt;
+		ERR_FAIL_COND(!rt);
+		frame.clear_request = false;
+		
+		glViewport(0, 0, rt->width, rt->height);
+	} else {
+		frame.current_rt = NULL;
+		frame.clear_request = false;
+		// FTODO
+		//		glViewport(0, 0, OS::get_singleton()->get_window_size().width, OS::get_singleton()->get_window_size().height);
+		glBindFramebuffer(GL_FRAMEBUFFER, RasterizerStorageGLES2::system_fbo);
+	}	
+}
+
+
 void RasterizerStorageGLES2::_render_target_allocate(RenderTarget *rt) {
 
 	// do not allocate a render target with no size
@@ -2869,6 +2902,13 @@ void RasterizerStorageGLES2::render_target_set_msaa(RID p_render_target, GD_VS::
 	rt->msaa = p_msaa;
 	_render_target_allocate(rt);
 }
+
+
+RasterizerStorageGLES2::RenderTarget * RasterizerStorageGLES2::render_target_get(RID p_render_target)
+{
+	return render_target_owner.getornull(p_render_target);
+}
+
 
 void RasterizerStorageGLES2::render_target_set_use_fxaa(RID p_render_target, bool p_fxaa) {
 	RenderTarget *rt = render_target_owner.getornull(p_render_target);

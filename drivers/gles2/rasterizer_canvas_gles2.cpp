@@ -304,7 +304,7 @@ void RasterizerCanvasGLES2::_batch_render_generic(const Batch &p_batch, Rasteriz
 }
 */
 void RasterizerCanvasGLES2::render_batches(Item::Command *const *p_commands, Item *p_current_clip, bool &r_reclip, RasterizerStorageGLES2::Material *p_material) {
-
+	
 	int num_batches = bdata.batches.size();
 
 	for (int batch_num = 0; batch_num < num_batches; batch_num++) {

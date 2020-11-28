@@ -58,7 +58,6 @@
 #define strcpy strcpy_s
 #endif
 
-
 void RasterizerGLES2::end_frame(bool p_swap_buffers) {
 	
 //	if (OS::get_singleton()->is_layered_allowed()) {

@@ -1159,6 +1159,7 @@ public:
 
 	void _render_target_clear(RenderTarget *rt);
 	void _render_target_allocate(RenderTarget *rt);
+	void _set_current_render_target(RID p_render_target);
 
 	virtual RID render_target_create() override;
 	virtual void render_target_set_position(RID p_render_target, int p_x, int p_y) override;
@@ -1181,6 +1182,9 @@ public:
 	Color render_target_get_clear_request_color(RID p_render_target) override { return Color(); }
 	void render_target_disable_clear_request(RID p_render_target) override {}
 	void render_target_do_clear_request(RID p_render_target) override {}
+	
+	// access from canvas
+	RenderTarget * render_target_get(RID p_render_target);
 	
 	/* CANVAS SHADOW */
 
@@ -1258,9 +1262,9 @@ public:
 	String get_captured_timestamp_name(uint32_t p_index) const override { return String(); }
 	
 	// some wrappers for old render target funcs
-	int current_rt_get_width() const {return 640;}
-	int current_rt_get_height() const {return 480;}
-	bool current_rt_transparent() const {return false;}
+//	int current_rt_get_width() const {return 640;}
+//	int current_rt_get_height() const {return 480;}
+//	bool current_rt_transparent() const {return false;}
 	
 	
 	
