@@ -1607,7 +1607,7 @@ void RasterizerCanvasGLES2::_legacy_canvas_render_item(Item *p_ci, RenderItemSta
 
 		if (r_ris.current_clip) {
 			glEnable(GL_SCISSOR_TEST);
-			int y = fourdata.window_height - (r_ris.current_clip->final_clip_rect.position.y + r_ris.current_clip->final_clip_rect.size.y);
+			int y = storage->_dims.rt_height - (r_ris.current_clip->final_clip_rect.position.y + r_ris.current_clip->final_clip_rect.size.y);
 //			int y = storage->frame.current_rt->height - (r_ris.current_clip->final_clip_rect.position.y + r_ris.current_clip->final_clip_rect.size.y);
 			// FTODO
 //			if (storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_VFLIP])

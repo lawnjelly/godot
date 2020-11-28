@@ -366,8 +366,8 @@ public:
 	RID texture_3d_create(Image::Format, int p_width, int p_height, int p_depth, bool p_mipmaps, const Vector<Ref<Image>> &p_data) override { return RID(); }
 	RID texture_proxy_create(RID p_base) override { return RID(); }
 	
-	void texture_2d_update_immediate(RID p_texture, const Ref<Image> &p_image, int p_layer = 0) override {}
-	void texture_2d_update(RID p_texture, const Ref<Image> &p_image, int p_layer = 0) override {}
+	void texture_2d_update_immediate(RID p_texture, const Ref<Image> &p_image, int p_layer = 0) override;
+	void texture_2d_update(RID p_texture, const Ref<Image> &p_image, int p_layer = 0) override;
 	void texture_3d_update(RID p_texture, const Vector<Ref<Image>> &p_data) override {}
 	void texture_proxy_update(RID p_proxy, RID p_base) override {}
 	
@@ -1184,7 +1184,7 @@ public:
 	void render_target_do_clear_request(RID p_render_target) override {}
 	
 	// access from canvas
-	RenderTarget * render_target_get(RID p_render_target);
+//	RenderTarget * render_target_get(RID p_render_target);
 	
 	/* CANVAS SHADOW */
 
@@ -1261,11 +1261,21 @@ public:
 	uint64_t get_captured_timestamp_cpu_time(uint32_t p_index) const override { return 0; }
 	String get_captured_timestamp_name(uint32_t p_index) const override { return String(); }
 	
-	// some wrappers for old render target funcs
-//	int current_rt_get_width() const {return 640;}
-//	int current_rt_get_height() const {return 480;}
-//	bool current_rt_transparent() const {return false;}
-	
+	// make access easier to these	
+	struct Dimensions
+	{
+		// render target
+		int rt_width;
+		int rt_height;
+		
+		// window
+		int win_width;
+		int win_height;
+		Dimensions()
+		{
+			rt_width = 0; rt_height = 0; win_width = 0; win_height = 0;
+		}
+	} _dims;
 	
 	
 	

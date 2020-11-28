@@ -544,6 +544,17 @@ RID RasterizerStorageGLES2::texture_2d_create(const Ref<Image> &p_image)
 	return id;
 }
 
+void RasterizerStorageGLES2::texture_2d_update_immediate(RID p_texture, const Ref<Image> &p_image, int p_layer)
+{
+	// only 1 layer so far
+	texture_set_data(p_texture, p_image);
+}
+void RasterizerStorageGLES2::texture_2d_update(RID p_texture, const Ref<Image> &p_image, int p_layer)
+{
+	// only 1 layer so far
+	texture_set_data(p_texture, p_image);
+}
+
 
 RID RasterizerStorageGLES2::texture_create() {
 
@@ -2150,7 +2161,7 @@ void RasterizerStorageGLES2::update_dirty_materials() {
 
 void RasterizerStorageGLES2::_set_current_render_target(RID p_render_target)
 {
-	RenderTarget * rt = render_target_get(p_render_target);
+	RenderTarget * rt = render_target_owner.getornull(p_render_target);
 	
 	// FTODO	
 //	if (!p_render_target.is_valid() && storage->frame.current_rt && storage->frame.clear_request) {
@@ -2171,6 +2182,12 @@ void RasterizerStorageGLES2::_set_current_render_target(RID p_render_target)
 		frame.clear_request = false;
 		
 		glViewport(0, 0, rt->width, rt->height);
+		
+		_dims.rt_width = rt->width;
+		_dims.rt_height = rt->height;
+		_dims.win_width = rt->width;
+		_dims.win_height = rt->height;
+		
 	} else {
 		frame.current_rt = NULL;
 		frame.clear_request = false;
@@ -2904,10 +2921,10 @@ void RasterizerStorageGLES2::render_target_set_msaa(RID p_render_target, GD_VS::
 }
 
 
-RasterizerStorageGLES2::RenderTarget * RasterizerStorageGLES2::render_target_get(RID p_render_target)
-{
-	return render_target_owner.getornull(p_render_target);
-}
+//RasterizerStorageGLES2::RenderTarget * RasterizerStorageGLES2::render_target_get(RID p_render_target)
+//{
+//	return render_target_owner.getornull(p_render_target);
+//}
 
 
 void RasterizerStorageGLES2::render_target_set_use_fxaa(RID p_render_target, bool p_fxaa) {

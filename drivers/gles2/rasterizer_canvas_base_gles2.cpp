@@ -51,12 +51,16 @@ void RasterizerCanvasBaseGLES2::canvas_begin() {
 
 		if (storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_DIRECT_TO_SCREEN]) {
 			// set Viewport and Scissor when rendering directly to screen
-			viewport_width = storage->frame.current_rt->width;
-			viewport_height = storage->frame.current_rt->height;
+			viewport_width = storage->_dims.rt_width;
+			viewport_height = storage->_dims.rt_height;
 			viewport_x = storage->frame.current_rt->x;
 			// FTODO
 //			viewport_y = OS::get_singleton()->get_window_size().height - viewport_height - storage->frame.current_rt->y;
 			viewport_y = storage->frame.current_rt->y;
+			
+//			viewport_x = 0;
+//			viewport_y = 0;
+			
 			glScissor(viewport_x, viewport_y, viewport_width, viewport_height);
 			glViewport(viewport_x, viewport_y, viewport_width, viewport_height);
 			glEnable(GL_SCISSOR_TEST);
@@ -104,8 +108,8 @@ void RasterizerCanvasBaseGLES2::canvas_begin() {
 		// FTODO
 //		Vector2 ssize = OS::get_singleton()->get_window_size();
 		Vector2 ssize;
-		ssize.x = fourdata.window_width;
-		ssize.y = fourdata.window_height;
+		ssize.x = storage->_dims.win_width;
+		ssize.y = storage->_dims.win_height;
 		
 		canvas_transform.translate(-(ssize.width / 2.0f), -(ssize.height / 2.0f), 0.0f);
 		canvas_transform.scale(Vector3(2.0f / ssize.width, -2.0f / ssize.height, 1.0f));
@@ -134,8 +138,8 @@ void RasterizerCanvasBaseGLES2::canvas_end() {
 		//reset viewport to full window size
 //		int viewport_width = OS::get_singleton()->get_window_size().width;
 //		int viewport_height = OS::get_singleton()->get_window_size().height;
-		int viewport_width = fourdata.window_width;
-		int viewport_height = fourdata.window_height;
+		int viewport_width = storage->_dims.win_width;
+		int viewport_height = storage->_dims.win_height;
 		glViewport(0, 0, viewport_width, viewport_height);
 		glScissor(0, 0, viewport_width, viewport_height);
 	}
@@ -260,12 +264,16 @@ void RasterizerCanvasBaseGLES2::draw_window_margins(int *black_margin, RID *blac
 	
 	// FTODO
 	//Vector2 window_size = OS::get_singleton()->get_window_size();
-	Vector2 window_size;
-	window_size.x = fourdata.window_width;
-	window_size.y = fourdata.window_height;
+//	window_size.x = fourdata.window_width;
+//	window_size.y = fourdata.window_height;
 	
-	int window_h = window_size.height;
-	int window_w = window_size.width;
+	int window_w = storage->_dims.rt_width;
+	int window_h= storage->_dims.rt_height;
+	Vector2 window_size = Vector2(window_w, window_h);
+	
+	
+//	int window_h = window_size.height;
+//	int window_w = window_size.width;
 
 	glBindFramebuffer(GL_FRAMEBUFFER, storage->system_fbo);
 	glViewport(0, 0, window_size.width, window_size.height);
@@ -914,7 +922,7 @@ void RasterizerCanvasBaseGLES2::draw_lens_distortion_rect(const Rect2 &p_rect, f
 		half_size = Vector2(storage->frame.current_rt->width, storage->frame.current_rt->height);
 	} else {
 //		half_size = OS::get_singleton()->get_window_size();
-		half_size = Vector2(fourdata.window_width, fourdata.window_height);
+	half_size = Vector2(storage->_dims.win_width, storage->_dims.win_height);
 	}
 	half_size *= 0.5;
 	Vector2 offset((p_rect.position.x - half_size.x) / half_size.x, (p_rect.position.y - half_size.y) / half_size.y);

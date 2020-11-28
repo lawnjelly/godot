@@ -81,16 +81,16 @@ public:
 	} state;
 	
 	// godot 4 stuff
-	struct FourData
-	{
-		int window_width;
-		int window_height;
-		FourData()
-		{
-			window_width = 640;
-			window_height = 480;
-		}
-	} fourdata;
+//	struct FourData
+//	{
+//		int window_width;
+//		int window_height;
+//		FourData()
+//		{
+//			window_width = 640;
+//			window_height = 480;
+//		}
+//	} fourdata;
 	
 	typedef void Texture;
 
