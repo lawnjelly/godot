@@ -375,7 +375,7 @@ public:
 	RID texture_2d_layered_placeholder_create(RenderingServer::TextureLayeredType p_layered_type) override { return RID(); }
 	RID texture_3d_placeholder_create() override { return RID(); }
 	
-	Ref<Image> texture_2d_get(RID p_texture) const override { return Ref<Image>(); }
+	Ref<Image> texture_2d_get(RID p_texture) const override;
 	Ref<Image> texture_2d_layer_get(RID p_texture, int p_layer) const override { return Ref<Image>(); }
 	Vector<Ref<Image>> texture_3d_get(RID p_texture) const override { return Vector<Ref<Image>>(); }
 	

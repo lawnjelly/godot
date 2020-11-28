@@ -555,6 +555,43 @@ void RasterizerStorageGLES2::texture_2d_update(RID p_texture, const Ref<Image> &
 	texture_set_data(p_texture, p_image);
 }
 
+Ref<Image> RasterizerStorageGLES2::texture_2d_get(RID p_texture) const
+{
+	Texture *tex = texture_owner.getornull(p_texture);
+	ERR_FAIL_COND_V(!tex, Ref<Image>());
+
+/*
+#ifdef TOOLS_ENABLED
+	if (tex->image_cache_2d.is_valid()) {
+		return tex->image_cache_2d;
+	}
+#endif
+	Vector<uint8_t> data = RD::get_singleton()->texture_get_data(tex->rd_texture, 0);
+	ERR_FAIL_COND_V(data.size() == 0, Ref<Image>());
+	Ref<Image> image;
+	image.instance();
+	image->create(tex->width, tex->height, tex->mipmaps > 1, tex->validated_format, data);
+	ERR_FAIL_COND_V(image->empty(), Ref<Image>());
+	if (tex->format != tex->validated_format) {
+		image->convert(tex->format);
+	}
+
+#ifdef TOOLS_ENABLED
+	if (Engine::get_singleton()->is_editor_hint()) {
+		tex->image_cache_2d = image;
+	}
+#endif
+*/
+	ERR_FAIL_COND_V(!tex->images.size(), Ref<Image>());
+	
+	return tex->images[0];
+	
+//	return image;
+	
+	
+//	return Ref<Image>();
+}
+
 
 RID RasterizerStorageGLES2::texture_create() {
 
@@ -3481,8 +3518,9 @@ void RasterizerStorageGLES2::initialize() {
 			config.extensions.insert(extensions[i]);
 		}
 	}
-
-	config.keep_original_textures = false;
+	
+	// FTODO
+	config.keep_original_textures = true; // false
 	config.shrink_textures_x2 = false;
 	config.depth_internalformat = GL_DEPTH_COMPONENT;
 	config.depth_type = GL_UNSIGNED_INT;
