@@ -71,7 +71,7 @@ void RasterizerGLES2::end_frame(bool p_swap_buffers) {
 //	}
 	
 //	glClearColor(1, 0, 0, 1);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_ACCUM_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+//	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_ACCUM_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 	
 	if (p_swap_buffers)
 		DisplayServer::get_singleton()->swap_buffers();
@@ -260,9 +260,10 @@ void RasterizerGLES2::_blit_render_target_to_screen(RID p_render_target, const R
 
 void RasterizerGLES2::blit_render_targets_to_screen(int p_screen, const BlitToScreen *p_render_targets, int p_amount)
 {
+	
 	// RD not implemented for GLES .. should we? not sure
 //	Size2 screen_size(RD::get_singleton()->screen_get_width(p_screen), RD::get_singleton()->screen_get_height(p_screen));
-	Rect2 rect; rect.size = Vector2(640, 480);
+	Rect2 rect; //rect.size = Vector2(640, 480);
 	storage.frame.current_rt = nullptr;
 	
 	for (int i = 0; i < p_amount; i++) {
