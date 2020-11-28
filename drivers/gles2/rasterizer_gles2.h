@@ -17,6 +17,8 @@ protected:
 	RasterizerStorageGLES2 storage;
 	RasterizerSceneGLES2 scene;
 	
+	void _blit_render_target_to_screen(RID p_render_target, const Rect2 &p_screen_rect, int p_screen = 0);
+	
 public:
 	RasterizerStorage *get_storage() {return &storage;}
 	RasterizerCanvas *get_canvas() {return &canvas;}
@@ -31,8 +33,8 @@ public:
 		delta = frame_step;
 	}
 	
-	void prepare_for_blitting_render_targets() {}
-	void blit_render_targets_to_screen(int p_screen, const BlitToScreen *p_render_targets, int p_amount) {}
+	void prepare_for_blitting_render_targets();
+	void blit_render_targets_to_screen(int p_screen, const BlitToScreen *p_render_targets, int p_amount);
 	
 	void end_frame(bool p_swap_buffers);
 //	{

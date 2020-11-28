@@ -221,6 +221,64 @@ RasterizerGLES2::RasterizerGLES2()
 }
 
 
+void RasterizerGLES2::prepare_for_blitting_render_targets()
+{
+	
+}
+
+void RasterizerGLES2::_blit_render_target_to_screen(RID p_render_target, const Rect2 &p_screen_rect, int p_screen)
+{
+	ERR_FAIL_COND(storage.frame.current_rt);
+	
+	RasterizerStorageGLES2::RenderTarget *rt = storage.render_target_owner.getornull(p_render_target);
+	ERR_FAIL_COND(!rt);
+	
+	canvas._set_texture_rect_mode(true);
+	
+	canvas.state.canvas_shader.set_custom_shader(0);
+	canvas.state.canvas_shader.bind();
+	
+	canvas.canvas_begin();
+	glDisable(GL_BLEND);
+	glBindFramebuffer(GL_FRAMEBUFFER, RasterizerStorageGLES2::system_fbo);
+	glActiveTexture(GL_TEXTURE0 + storage.config.max_texture_image_units - 1);
+	if (rt->external.fbo != 0) {
+		glBindTexture(GL_TEXTURE_2D, rt->external.color);
+	} else {
+		glBindTexture(GL_TEXTURE_2D, rt->color);
+	}
+	
+	// TODO normals
+	
+	canvas.draw_generic_textured_rect(p_screen_rect, Rect2(0, 0, 1, -1));
+	
+	glBindTexture(GL_TEXTURE_2D, 0);
+	canvas.canvas_end();
+
+}
+
+
+void RasterizerGLES2::blit_render_targets_to_screen(int p_screen, const BlitToScreen *p_render_targets, int p_amount)
+{
+	// RD not implemented for GLES .. should we? not sure
+//	Size2 screen_size(RD::get_singleton()->screen_get_width(p_screen), RD::get_singleton()->screen_get_height(p_screen));
+	Rect2 rect; rect.size = Vector2(640, 480);
+	storage.frame.current_rt = nullptr;
+	
+	for (int i = 0; i < p_amount; i++) {
+		RID rid_rt = p_render_targets[i].render_target;
+		
+//		RID texture = storage.render_target_get_texture(rid_rt);
+//		ERR_CONTINUE(texture.is_null());
+		
+		_blit_render_target_to_screen(rid_rt, rect, p_screen);
+	}
+	
+		
+	
+}
+
+
 /*
 
 Error RasterizerGLES2::is_viable() {
