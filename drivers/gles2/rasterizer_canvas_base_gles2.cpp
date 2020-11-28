@@ -1078,6 +1078,22 @@ void RasterizerCanvasBaseGLES2::initialize() {
 	state.using_skeleton = false;
 }
 
+RasterizerCanvas::PolygonID RasterizerCanvasBaseGLES2::request_polygon(const Vector<int> &p_indices, const Vector<Point2> &p_points, const Vector<Color> &p_colors, const Vector<Point2> &p_uvs, const Vector<int> &p_bones, const Vector<float> &p_weights)
+{
+	uint32_t id = _polydata.alloc();
+	PolyData &pd = _polydata[id];
+	pd.indices = p_indices;
+	pd.points = p_points;
+	pd.colors = p_colors;
+	pd.uvs = p_uvs;
+	return id;
+}
+void RasterizerCanvasBaseGLES2::free_polygon(PolygonID p_polygon)
+{
+	_polydata.free(p_polygon);
+}
+
+
 void RasterizerCanvasBaseGLES2::finalize() {
 }
 

@@ -130,9 +130,18 @@ public:
 	RasterizerStorageGLES2::Texture *_bind_canvas_texture(const RID &p_texture, const RID &p_normal_map);
 	void _set_texture_rect_mode(bool p_texture_rect, bool p_light_angle = false, bool p_modulate = false, bool p_large_vertex = false);
 	
-	///// NEW API
-	PolygonID request_polygon(const Vector<int> &p_indices, const Vector<Point2> &p_points, const Vector<Color> &p_colors, const Vector<Point2> &p_uvs = Vector<Point2>(), const Vector<int> &p_bones = Vector<int>(), const Vector<float> &p_weights = Vector<float>()) override { return 0; }
-	void free_polygon(PolygonID p_polygon) override {}
+	// NEW API
+	struct PolyData {
+		LocalVector<int> indices;
+		LocalVector<Point2> points;
+		LocalVector<Color> colors;
+		LocalVector<Point2> uvs;
+	};
+	
+	RasterizerCanvas::PolygonID request_polygon(const Vector<int> &p_indices, const Vector<Point2> &p_points, const Vector<Color> &p_colors, const Vector<Point2> &p_uvs = Vector<Point2>(), const Vector<int> &p_bones = Vector<int>(), const Vector<float> &p_weights = Vector<float>()) override;
+	void free_polygon(PolygonID p_polygon) override;
+	
+	RasterizerPooledIndirectList<PolyData> _polydata;
 	
 //	void canvas_render_items(RID p_to_render_target, Item *p_item_list, const Color &p_modulate, Light *p_light_list, Light *p_directional_list, const Transform2D &p_canvas_transform, RS::CanvasItemTextureFilter p_default_filter, RS::CanvasItemTextureRepeat p_default_repeat, bool p_snap_2d_vertices_to_pixel) override {}
 //	void canvas_debug_viewport_shadows(Light *p_lights_with_shadow) override {}

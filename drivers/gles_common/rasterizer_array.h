@@ -43,6 +43,7 @@
 
 #ifdef GODOT_4
 #include "core/templates/vector.h"
+#include "core/templates/local_vector.h"
 #else
 #include "core/vector.h"
 #endif
@@ -334,5 +335,106 @@ private:
 	int _unit_size_bytes;
 	int _max_unit_size_bytes;
 };
+
+
+template <class T, bool force_trivial = false>
+class RasterizerPooledList
+{
+	LocalVector<T, uint32_t, force_trivial> list;
+	LocalVector<uint32_t, uint32_t, true> freelist;
+	
+	// not all list members are necessarily used
+	int _used_size;
+public:
+	RasterizerPooledList()
+	{
+		_used_size = 0;
+	}
+	
+	int estimate_memory_use() const
+	{
+		return (list.size() * sizeof (T)) + (freelist.size() * sizeof (uint32_t));
+	}
+	
+	const T &operator[](uint32_t p_index) const {
+		return list[p_index];
+	}
+	T &operator[](uint32_t p_index) {
+		return list[p_index];
+	}
+	
+	int size() const {return _used_size;}
+	
+	// returns the list id of the allocated item
+	uint32_t alloc()
+	{
+		uint32_t id = 0;
+		_used_size++;
+		
+		if (freelist.size())
+		{
+			// pop from freelist
+			int new_size = freelist.size()-1;
+			id = freelist[new_size];
+			freelist.resize(new_size);
+			return id;
+//			return &list[r_id];
+		}
+		
+		id = list.size();
+		list.resize(id +1);
+		return id;
+//		return &list[r_id];
+	}
+	void free(const uint32_t &p_id)
+	{
+		// should not be on free list already
+		CRASH_COND(p_id >= list.size());
+		freelist.push_back(p_id);
+		_used_size--;
+	}
+	
+};
+
+template <class T, bool force_trivial = false>
+class RasterizerPooledIndirectList
+{
+public:
+	const T &operator[](uint32_t p_index) const {
+		return *_list[p_index];
+	}
+	T &operator[](uint32_t p_index) {
+		return *_list[p_index];
+	}
+	
+	uint32_t alloc()
+	{
+		uint32_t id = _list.alloc();
+		_list[id] = memnew(T);
+		return id;
+	}
+	void free(const uint32_t &p_id)
+	{
+		CRASH_COND(!_list[p_id]);
+		memdelete_notnull(_list[p_id]);
+		_list[p_id] = nullptr;
+		_list.free(p_id);
+	}
+	
+	~RasterizerPooledIndirectList()
+	{
+		// autodelete
+		for (int n=0; n<_list.size(); n++)
+		{
+			if (_list[n])
+			{
+				memdelete_notnull(_list[n]);
+			}
+		}
+	}
+private:
+	RasterizerPooledList<T *, true> _list;
+};
+
 
 #endif // RASTERIZER_ARRAY_H

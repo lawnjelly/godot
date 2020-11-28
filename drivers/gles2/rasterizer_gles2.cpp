@@ -71,7 +71,7 @@ void RasterizerGLES2::end_frame(bool p_swap_buffers) {
 //		}
 //	}
 	
-	glClearColor(1, 0, 0, 1);
+//	glClearColor(1, 0, 0, 1);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_ACCUM_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 	
 	if (p_swap_buffers)

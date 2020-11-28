@@ -331,7 +331,7 @@ void RasterizerCanvasGLES2::render_batches(Item::Command *const *p_commands, Ite
 					Item::Command *command = p_commands[i];
 
 					switch (command->type) {
-						/*
+							/*
 						case Item::Command::TYPE_LINE: {
 
 							Item::CommandLine *line = static_cast<Item::CommandLine *>(command);
@@ -840,27 +840,34 @@ void RasterizerCanvasGLES2::render_batches(Item::Command *const *p_commands, Ite
 
 							_draw_polygon(indices, num_points * 3, num_points + 1, points, NULL, &circle->color, true);
 						} break;
-
+*/
 						case Item::Command::TYPE_POLYGON: {
 
 							Item::CommandPolygon *polygon = static_cast<Item::CommandPolygon *>(command);
-
+							const PolyData &pd = _polydata[polygon->polygon.polygon_id];
+							
+							
 							_set_texture_rect_mode(false);
 
 							if (state.canvas_shader.bind()) {
 								_set_uniforms();
 								state.canvas_shader.use_material((void *)p_material);
 							}
-
-							RasterizerStorageGLES2::Texture *texture = _bind_canvas_texture(polygon->texture, polygon->normal_map);
+							
+							// FTODO
+							//RasterizerStorageGLES2::Texture *texture = _bind_canvas_texture(polygon->texture, polygon->normal_map);
+							RasterizerStorageGLES2::Texture *texture = _bind_canvas_texture(polygon->texture, RID());
 
 							if (texture) {
 								Size2 texpixel_size(1.0 / texture->width, 1.0 / texture->height);
 								state.canvas_shader.set_uniform(CanvasShaderGLES2::COLOR_TEXPIXEL_SIZE, texpixel_size);
 							}
-
-							_draw_polygon(polygon->indices.ptr(), polygon->count, polygon->points.size(), polygon->points.ptr(), polygon->uvs.ptr(), polygon->colors.ptr(), polygon->colors.size() == 1, polygon->weights.ptr(), polygon->bones.ptr());
+							
+							_draw_polygon(pd.indices.ptr(), pd.indices.size(), pd.points.size(), pd.points.ptr(), pd.uvs.ptr(), pd.colors.ptr(), pd.colors.size() == 1, nullptr, nullptr);
+							
+//							_draw_polygon(polygon->indices.ptr(), polygon->count, polygon->points.size(), polygon->points.ptr(), polygon->uvs.ptr(), polygon->colors.ptr(), polygon->colors.size() == 1, polygon->weights.ptr(), polygon->bones.ptr());
 #ifdef GLES_OVER_GL
+							/*
 							if (polygon->antialiased) {
 								glEnable(GL_LINE_SMOOTH);
 								if (polygon->antialiasing_use_indices) {
@@ -870,8 +877,10 @@ void RasterizerCanvasGLES2::render_batches(Item::Command *const *p_commands, Ite
 								}
 								glDisable(GL_LINE_SMOOTH);
 							}
+*/
 #endif
 						} break;
+							/*
 						case Item::Command::TYPE_MESH: {
 
 							Item::CommandMesh *mesh = static_cast<Item::CommandMesh *>(command);
@@ -1157,17 +1166,17 @@ void RasterizerCanvasGLES2::render_batches(Item::Command *const *p_commands, Ite
 
 							_draw_gui_primitive(primitive->points.size(), primitive->points.ptr(), colors, primitive->uvs.ptr());
 						} break;
-
+*/
 						case Item::Command::TYPE_TRANSFORM: {
 							Item::CommandTransform *transform = static_cast<Item::CommandTransform *>(command);
 							state.uniforms.extra_matrix = transform->xform;
 							state.canvas_shader.set_uniform(CanvasShaderGLES2::EXTRA_MATRIX, state.uniforms.extra_matrix);
 						} break;
-
+							
 						case Item::Command::TYPE_PARTICLES: {
 
 						} break;
-
+/*
 						case Item::Command::TYPE_CLIP_IGNORE: {
 
 							Item::CommandClipIgnore *ci = static_cast<Item::CommandClipIgnore *>(command);
@@ -1229,6 +1238,9 @@ void RasterizerCanvasGLES2::canvas_render_items_end() {
 
 void RasterizerCanvasGLES2::canvas_render_items_internal(Item *p_item_list, int p_z, const Color &p_modulate, Light *p_light, const Transform2D &p_base_transform) {
 	batch_canvas_render_items(p_item_list, p_z, p_modulate, p_light, p_base_transform);
+	
+	glClearColor(Math::randf(), 0, 1, 1);
+	
 }
 
 void RasterizerCanvasGLES2::canvas_render_items_implementation(Item *p_item_list, int p_z, const Color &p_modulate, Light *p_light, const Transform2D &p_base_transform) {
