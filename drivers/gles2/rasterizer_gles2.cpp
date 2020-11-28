@@ -206,8 +206,19 @@ void RasterizerGLES2::initialize() {
 	
 	print_line("OpenGL ES 2.0 Renderer: " + GD_VS::get_singleton()->get_video_adapter_name());
 	storage.initialize();
-//	canvas.initialize();
+	canvas.initialize();
 //	scene.initialize();
+
+}
+
+RasterizerGLES2::RasterizerGLES2()
+{
+	canvas.storage = &storage;
+	canvas.scene_render = &scene;
+	storage.canvas = &canvas;
+	//scene.storage = &storage;
+	storage.scene = &scene;
+	
 }
 
 

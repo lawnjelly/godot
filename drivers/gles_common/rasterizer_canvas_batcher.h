@@ -2572,6 +2572,7 @@ PREAMBLE(void)::record_items(RasterizerCanvas::Item *p_item_list, int p_z) {
 }
 
 PREAMBLE(void)::join_sorted_items() {
+	/*
 	sort_items();
 
 	int z = GD_VS::CANVAS_ITEM_Z_MIN;
@@ -2643,6 +2644,7 @@ PREAMBLE(void)::join_sorted_items() {
 		}
 
 	} // for s through sort items
+*/
 }
 
 #ifdef GODOT_3

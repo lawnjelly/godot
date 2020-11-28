@@ -1257,6 +1257,13 @@ public:
 	uint64_t get_captured_timestamp_cpu_time(uint32_t p_index) const override { return 0; }
 	String get_captured_timestamp_name(uint32_t p_index) const override { return String(); }
 	
+	// some wrappers for old render target funcs
+	int current_rt_get_width() const {return 640;}
+	int current_rt_get_height() const {return 480;}
+	bool current_rt_transparent() const {return false;}
+	
+	
+	
 	
 	void buffer_orphan_and_upload(unsigned int p_buffer_size, unsigned int p_offset, unsigned int p_data_size, const void *p_data, GLenum p_target = GL_ARRAY_BUFFER, GLenum p_usage = GL_DYNAMIC_DRAW, bool p_optional_orphan = false) const;
 	bool safe_buffer_sub_data(unsigned int p_total_buffer_size, GLenum p_target, unsigned int p_offset, unsigned int p_data_size, const void *p_data, unsigned int &r_offset_after) const;

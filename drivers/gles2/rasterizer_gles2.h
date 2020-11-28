@@ -55,7 +55,7 @@ public:
 	uint64_t get_frame_number() const {return frame;}
 	float get_frame_delta_time() const {return delta;}
 	
-	RasterizerGLES2() {}
+	RasterizerGLES2();
 	~RasterizerGLES2() {}
 };
 

@@ -1,8 +1,6 @@
 
 #include "rasterizer_canvas_base_gles2.h"
 
-#ifdef GODOT_3
-
 
 #include "core/os/os.h"
 #include "drivers/gles_common/rasterizer_asserts.h"
@@ -56,7 +54,9 @@ void RasterizerCanvasBaseGLES2::canvas_begin() {
 			viewport_width = storage->frame.current_rt->width;
 			viewport_height = storage->frame.current_rt->height;
 			viewport_x = storage->frame.current_rt->x;
-			viewport_y = OS::get_singleton()->get_window_size().height - viewport_height - storage->frame.current_rt->y;
+			// FTODO
+//			viewport_y = OS::get_singleton()->get_window_size().height - viewport_height - storage->frame.current_rt->y;
+			viewport_y = storage->frame.current_rt->y;
 			glScissor(viewport_x, viewport_y, viewport_width, viewport_height);
 			glViewport(viewport_x, viewport_y, viewport_width, viewport_height);
 			glEnable(GL_SCISSOR_TEST);
@@ -94,13 +94,19 @@ void RasterizerCanvasBaseGLES2::canvas_begin() {
 	if (storage->frame.current_rt) {
 
 		float csy = 1.0;
-		if (storage->frame.current_rt && storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_VFLIP]) {
-			csy = -1.0;
-		}
+		// FTODO
+//		if (storage->frame.current_rt && storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_VFLIP]) {
+//			csy = -1.0;
+//		}
 		canvas_transform.translate(-(storage->frame.current_rt->width / 2.0f), -(storage->frame.current_rt->height / 2.0f), 0.0f);
 		canvas_transform.scale(Vector3(2.0f / storage->frame.current_rt->width, csy * -2.0f / storage->frame.current_rt->height, 1.0f));
 	} else {
-		Vector2 ssize = OS::get_singleton()->get_window_size();
+		// FTODO
+//		Vector2 ssize = OS::get_singleton()->get_window_size();
+		Vector2 ssize;
+		ssize.x = fourdata.window_width;
+		ssize.y = fourdata.window_height;
+		
 		canvas_transform.translate(-(ssize.width / 2.0f), -(ssize.height / 2.0f), 0.0f);
 		canvas_transform.scale(Vector3(2.0f / ssize.width, -2.0f / ssize.height, 1.0f));
 	}
@@ -126,8 +132,10 @@ void RasterizerCanvasBaseGLES2::canvas_end() {
 
 	if (storage->frame.current_rt && storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_DIRECT_TO_SCREEN]) {
 		//reset viewport to full window size
-		int viewport_width = OS::get_singleton()->get_window_size().width;
-		int viewport_height = OS::get_singleton()->get_window_size().height;
+//		int viewport_width = OS::get_singleton()->get_window_size().width;
+//		int viewport_height = OS::get_singleton()->get_window_size().height;
+		int viewport_width = fourdata.window_width;
+		int viewport_height = fourdata.window_height;
 		glViewport(0, 0, viewport_width, viewport_height);
 		glScissor(0, 0, viewport_width, viewport_height);
 	}
@@ -184,7 +192,7 @@ RasterizerStorageGLES2::Texture *RasterizerCanvasBaseGLES2::_bind_canvas_texture
 		} else {
 
 			if (texture->redraw_if_visible) {
-				VisualServerRaster::redraw_request();
+				RenderingServerRaster::redraw_request();
 			}
 
 			texture = texture->get_ptr();
@@ -226,7 +234,7 @@ RasterizerStorageGLES2::Texture *RasterizerCanvasBaseGLES2::_bind_canvas_texture
 		} else {
 
 			if (normal_map->redraw_if_visible) { //check before proxy, because this is usually used with proxies
-				VisualServerRaster::redraw_request();
+				RenderingServerRaster::redraw_request();
 			}
 
 			normal_map = normal_map->get_ptr();
@@ -249,8 +257,13 @@ RasterizerStorageGLES2::Texture *RasterizerCanvasBaseGLES2::_bind_canvas_texture
 }
 
 void RasterizerCanvasBaseGLES2::draw_window_margins(int *black_margin, RID *black_image) {
-
-	Vector2 window_size = OS::get_singleton()->get_window_size();
+	
+	// FTODO
+	//Vector2 window_size = OS::get_singleton()->get_window_size();
+	Vector2 window_size;
+	window_size.x = fourdata.window_width;
+	window_size.y = fourdata.window_height;
+	
 	int window_h = window_size.height;
 	int window_w = window_size.width;
 
@@ -350,15 +363,22 @@ void RasterizerCanvasBaseGLES2::_set_uniforms() {
 		Light *light = state.using_light;
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::LIGHT_MATRIX, light->light_shader_xform);
 		Transform2D basis_inverse = light->light_shader_xform.affine_inverse().orthonormalized();
-		basis_inverse[2] = Vector2();
+		basis_inverse.elements[2] = Vector2();
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::LIGHT_MATRIX_INVERSE, basis_inverse);
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::LIGHT_LOCAL_MATRIX, light->xform_cache.affine_inverse());
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::LIGHT_COLOR, light->color * light->energy);
-		state.canvas_shader.set_uniform(CanvasShaderGLES2::LIGHT_POS, light->light_shader_pos);
+//		state.canvas_shader.set_uniform(CanvasShaderGLES2::LIGHT_POS, light->light_shader_pos);
+		// FTODO
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::LIGHT_POS, light->light_shader_xform.elements[2]);
 		state.canvas_shader.set_uniform(CanvasShaderGLES2::LIGHT_HEIGHT, light->height);
-		state.canvas_shader.set_uniform(CanvasShaderGLES2::LIGHT_OUTSIDE_ALPHA, light->mode == GD_VS::CANVAS_LIGHT_MODE_MASK ? 1.0 : 0.0);
+		
+		// FTODO
+		//state.canvas_shader.set_uniform(CanvasShaderGLES2::LIGHT_OUTSIDE_ALPHA, light->mode == GD_VS::CANVAS_LIGHT_MODE_MASK ? 1.0 : 0.0);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::LIGHT_OUTSIDE_ALPHA, false);
 
 		if (state.using_shadow) {
+			// FTODO
+			/*
 			RasterizerStorageGLES2::CanvasLightShadow *cls = storage->canvas_light_shadow_owner.get(light->shadow_buffer);
 			glActiveTexture(GL_TEXTURE0 + storage->config.max_texture_image_units - 5);
 			glBindTexture(GL_TEXTURE_2D, cls->distance);
@@ -372,10 +392,8 @@ void RasterizerCanvasBaseGLES2::_set_uniforms() {
 				state.canvas_shader.set_uniform(CanvasShaderGLES2::SHADOW_GRADIENT, light->shadow_gradient_length / (light->radius_cache * 1.1));
 			}
 			state.canvas_shader.set_uniform(CanvasShaderGLES2::SHADOW_DISTANCE_MULT, light->radius_cache * 1.1);
+			*/
 
-			/*canvas_shader.set_uniform(CanvasShaderGLES2::SHADOW_MATRIX,light->shadow_matrix_cache);
-			canvas_shader.set_uniform(CanvasShaderGLES2::SHADOW_ESM_MULTIPLIER,light->shadow_esm_mult);
-			canvas_shader.set_uniform(CanvasShaderGLES2::LIGHT_SHADOW_COLOR,light->shadow_color);*/
 		}
 	}
 }
@@ -761,7 +779,8 @@ void RasterizerCanvasBaseGLES2::_copy_screen(const Rect2 &p_rect) {
 }
 
 void RasterizerCanvasBaseGLES2::canvas_light_shadow_buffer_update(RID p_buffer, const Transform2D &p_light_xform, int p_light_mask, float p_near, float p_far, LightOccluderInstance *p_occluders, CameraMatrix *p_xform_cache) {
-
+	
+	/*
 	RasterizerStorageGLES2::CanvasLightShadow *cls = storage->canvas_light_shadow_owner.get(p_buffer);
 	ERR_FAIL_COND(!cls);
 
@@ -783,7 +802,7 @@ void RasterizerCanvasBaseGLES2::canvas_light_shadow_buffer_update(RID p_buffer, 
 	glClearColor(1, 1, 1, 1);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	VS::CanvasOccluderPolygonCullMode cull = GD_VS::CANVAS_OCCLUDER_POLYGON_CULL_DISABLED;
+	GD_VS::CanvasOccluderPolygonCullMode cull = GD_VS::CANVAS_OCCLUDER_POLYGON_CULL_DISABLED;
 
 	for (int i = 0; i < 4; i++) {
 
@@ -840,14 +859,14 @@ void RasterizerCanvasBaseGLES2::canvas_light_shadow_buffer_update(RID p_buffer, 
 
 			state.canvas_shadow_shader.set_uniform(CanvasShadowShaderGLES2::WORLD_MATRIX, instance->xform_cache);
 
-			VS::CanvasOccluderPolygonCullMode transformed_cull_cache = instance->cull_cache;
+			GD_VS::CanvasOccluderPolygonCullMode transformed_cull_cache = instance->cull_cache;
 
 			if (transformed_cull_cache != GD_VS::CANVAS_OCCLUDER_POLYGON_CULL_DISABLED &&
 					(p_light_xform.basis_determinant() * instance->xform_cache.basis_determinant()) < 0) {
 				transformed_cull_cache =
 						transformed_cull_cache == GD_VS::CANVAS_OCCLUDER_POLYGON_CULL_CLOCKWISE ?
-								VS::CANVAS_OCCLUDER_POLYGON_CULL_COUNTER_CLOCKWISE :
-								VS::CANVAS_OCCLUDER_POLYGON_CULL_CLOCKWISE;
+								GD_VS::CANVAS_OCCLUDER_POLYGON_CULL_COUNTER_CLOCKWISE :
+								GD_VS::CANVAS_OCCLUDER_POLYGON_CULL_CLOCKWISE;
 			}
 
 			if (cull != transformed_cull_cache) {
@@ -886,6 +905,7 @@ void RasterizerCanvasBaseGLES2::canvas_light_shadow_buffer_update(RID p_buffer, 
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+*/
 }
 
 void RasterizerCanvasBaseGLES2::draw_lens_distortion_rect(const Rect2 &p_rect, float p_k1, float p_k2, const Vector2 &p_eye_center, float p_oversample) {
@@ -893,7 +913,8 @@ void RasterizerCanvasBaseGLES2::draw_lens_distortion_rect(const Rect2 &p_rect, f
 	if (storage->frame.current_rt) {
 		half_size = Vector2(storage->frame.current_rt->width, storage->frame.current_rt->height);
 	} else {
-		half_size = OS::get_singleton()->get_window_size();
+//		half_size = OS::get_singleton()->get_window_size();
+		half_size = Vector2(fourdata.window_width, fourdata.window_height);
 	}
 	half_size *= 0.5;
 	Vector2 offset((p_rect.position.x - half_size.x) / half_size.x, (p_rect.position.y - half_size.y) / half_size.y);
@@ -1063,4 +1084,3 @@ void RasterizerCanvasBaseGLES2::finalize() {
 RasterizerCanvasBaseGLES2::RasterizerCanvasBaseGLES2() {
 }
 
-#endif // godot 3
