@@ -3284,13 +3284,13 @@ void DisplayServerX11::process_events() {
 
 void DisplayServerX11::release_rendering_thread() {
 #if defined(OPENGL_ENABLED)
-	gl_manager->release_current();
+//	gl_manager->release_current();
 #endif
 }
 
 void DisplayServerX11::make_rendering_thread() {
 #if defined(OPENGL_ENABLED)
-	gl_manager->make_current();
+//	gl_manager->make_current();
 #endif
 }
 
@@ -3299,6 +3299,14 @@ void DisplayServerX11::swap_buffers() {
 	gl_manager->swap_buffers();
 #endif
 }
+
+void DisplayServerX11::make_gl_window_current(DisplayServer::WindowID  p_window_id)
+{
+#if defined(OPENGL_ENABLED)
+	gl_manager->make_window_current(p_window_id);
+#endif
+}
+
 
 void DisplayServerX11::_update_context(WindowData &wd) {
 	XClassHint *classHint = XAllocClassHint();

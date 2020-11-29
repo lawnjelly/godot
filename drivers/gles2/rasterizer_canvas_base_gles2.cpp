@@ -511,7 +511,9 @@ void RasterizerCanvasBaseGLES2::_draw_polygon(const int *p_indices, int p_index_
 		ERR_FAIL_COND((sizeof(int) * p_index_count) > data.polygon_index_buffer_size);
 #endif
 		storage->buffer_orphan_and_upload(data.polygon_index_buffer_size, 0, sizeof(int) * p_index_count, p_indices, GL_ELEMENT_ARRAY_BUFFER, _buffer_upload_usage_flag, true);
-		glDrawElements(GL_TRIANGLES, p_index_count, GL_UNSIGNED_INT, 0);
+		
+//		if (p_index_count != 72)
+			glDrawElements(GL_TRIANGLES, p_index_count, GL_UNSIGNED_INT, 0);
 		storage->info.render._2d_draw_call_count++;
 	} else {
 #ifdef DEBUG_ENABLED
@@ -983,7 +985,7 @@ void RasterizerCanvasBaseGLES2::initialize() {
 	{
 		uint32_t poly_size = GLOBAL_DEF("rendering/limits/buffers/canvas_polygon_buffer_size_kb", 128);
 		ProjectSettings::get_singleton()->set_custom_property_info("rendering/limits/buffers/canvas_polygon_buffer_size_kb", PropertyInfo(Variant::INT, "rendering/limits/buffers/canvas_polygon_buffer_size_kb", PROPERTY_HINT_RANGE, "0,256,1,or_greater"));
-		poly_size = MAX(poly_size, 2); // minimum 2k, may still see anomalies in editor
+		poly_size = MAX(poly_size, 128); // minimum 2k, may still see anomalies in editor
 		poly_size *= 1024;
 		glGenBuffers(1, &data.polygon_buffer);
 		glBindBuffer(GL_ARRAY_BUFFER, data.polygon_buffer);
@@ -995,7 +997,7 @@ void RasterizerCanvasBaseGLES2::initialize() {
 
 		uint32_t index_size = GLOBAL_DEF("rendering/limits/buffers/canvas_polygon_index_buffer_size_kb", 128);
 		ProjectSettings::get_singleton()->set_custom_property_info("rendering/limits/buffers/canvas_polygon_index_buffer_size_kb", PropertyInfo(Variant::INT, "rendering/limits/buffers/canvas_polygon_index_buffer_size_kb", PROPERTY_HINT_RANGE, "0,256,1,or_greater"));
-		index_size = MAX(index_size, 2);
+		index_size = MAX(index_size, 128);
 		index_size *= 1024; // kb
 		glGenBuffers(1, &data.polygon_index_buffer);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, data.polygon_index_buffer);

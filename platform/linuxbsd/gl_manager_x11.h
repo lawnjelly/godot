@@ -91,6 +91,8 @@ private:
 	
 	GLWindow * _current_window;
 	
+	void _internal_set_current_window(GLWindow * p_win);
+	
 //	const XWinDisp * _get_xwindisp()
 //	{
 //		if (!_current_window)
@@ -104,6 +106,7 @@ private:
 	const GLWindow &get_window(unsigned int id) const {return _windows[id];}
 	
 	const GLDisplay &get_current_display() const {return _displays[_current_window->gldisplay_id];}
+	const GLDisplay &get_display(unsigned int id) {return _displays[id];}
 	
 	//GLManager_X11_Private *p;
     //OS::VideoMode default_video_mode;
@@ -130,7 +133,9 @@ public:
 	void swap_buffers();
 	int get_window_width();
 	int get_window_height();
-
+	
+	void make_window_current(DisplayServer::WindowID p_window_id);
+	
 	Error initialize();
 
 	void set_use_vsync(bool p_use);

@@ -533,7 +533,11 @@ void RenderingServerViewport::draw_viewports() {
 
 			RSG::scene_render->set_debug_draw_mode(vp->debug_draw);
 			RSG::storage->render_info_begin_capture();
-
+			
+			// make gl context current for this window
+			// not sure if needed
+			DisplayServer::get_singleton()->make_gl_window_current(vp->viewport_to_screen);
+			
 			// render standard mono camera
 			_draw_viewport(vp);
 

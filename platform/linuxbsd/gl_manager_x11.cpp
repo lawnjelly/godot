@@ -236,6 +236,10 @@ Error GLManager_X11::_create_context(GLDisplay &gl_display)
 
 Error GLManager_X11::window_create(DisplayServer::WindowID p_window_id, ::Window p_window, Display *p_display, int p_width, int p_height)
 {
+	// test only allow 1 window
+//	if (_windows.size())
+//		return FAILED;
+	
 	// make sure vector is big enough...
 	// we can mirror the external vector, it is simpler
 	// to keep the IDs identical for fast lookup
@@ -277,16 +281,21 @@ Error GLManager_X11::window_create(DisplayServer::WindowID p_window_id, ::Window
 		ERR_PRINT("glXMakeCurrent failed");
 	}
 	
-	_current_window = &win;
+	_internal_set_current_window(&win);	
+	
+	return OK;
+}
+
+void GLManager_X11::_internal_set_current_window(GLWindow * p_win)
+{
+	_current_window = p_win;
 	
 	// quick access to x info	
 	_x_windisp.x11_window = _current_window->x11_window;
 	const GLDisplay &disp = get_current_display();
 	_x_windisp.x11_display = disp.x11_display;
-	
-	
-	return OK;
 }
+
 
 void GLManager_X11::window_resize(DisplayServer::WindowID p_window_id, int p_width, int p_height)
 {
@@ -342,9 +351,34 @@ void GLManager_X11::release_current() {
 	glXMakeCurrent(_x_windisp.x11_display, None, nullptr);
 }
 
+void GLManager_X11::make_window_current(DisplayServer::WindowID p_window_id)
+{
+	if (p_window_id == -1)
+		return;
+	
+	GLWindow &win = _windows[p_window_id];
+	if (!win.in_use)
+		return;
+	
+	// noop
+	if (&win == _current_window)
+		return;
+	
+	const GLDisplay &disp = get_display(win.gldisplay_id);
+	
+	glXMakeCurrent(disp.x11_display, win.x11_window, disp.context->glx_context);
+	
+	_internal_set_current_window(&win);
+}
+
 void GLManager_X11::make_current() {
 	if (!_current_window)
 		return;
+	if (!_current_window->in_use)
+	{
+		WARN_PRINT("current window not in use!");
+		return;
+	}
 	const GLDisplay &disp = get_current_display();
 	glXMakeCurrent(_x_windisp.x11_display, _x_windisp.x11_window, disp.context->glx_context);
 //	glXMakeCurrent(x11_display, x11_window, p->glx_context);
@@ -353,9 +387,30 @@ void GLManager_X11::make_current() {
 void GLManager_X11::swap_buffers() {
 	if (!_current_window)
 		return;
+	if (!_current_window->in_use)
+	{
+		WARN_PRINT("current window not in use!");
+		return;
+	}
+	
 	const GLDisplay &disp = get_current_display();
 	glXSwapBuffers(_x_windisp.x11_display, _x_windisp.x11_window);
-//	glXSwapBuffers(x11_display, x11_window);
+	
+/*	
+	// new let's swap buffers on all windows
+	for (unsigned int n=0; n<_windows.size(); n++)
+	{
+		const GLWindow &win = _windows[n];
+		if (!win.in_use)
+			continue;
+			
+		const GLDisplay &disp = get_display(win.gldisplay_id);
+		
+		glXMakeCurrent(disp.x11_display, win.x11_window, disp.context->glx_context);
+		
+		glXSwapBuffers(disp.x11_display, win.x11_window);
+	}
+*/
 }
 
 

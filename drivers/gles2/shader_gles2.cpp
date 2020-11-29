@@ -156,6 +156,18 @@ ShaderGLES2::Version *ShaderGLES2::get_current_version() {
 #ifdef GLES_OVER_GL
 	strings.push_back("#version 120\n");
 	strings.push_back("#define USE_GLES_OVER_GL\n");
+
+	// test
+	strings.push_back("#define highp\n");
+//#ifdef USE_GLES_OVER_GL
+//#define lowp
+//#define mediump
+//#define highp
+//#else
+//	precision highp float;
+//	precision highp int;
+//#endif
+
 #else
 	strings.push_back("#version 100\n");
 //angle does not like

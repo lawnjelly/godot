@@ -368,6 +368,8 @@ public:
 	virtual void release_rendering_thread();
 	virtual void make_rendering_thread();
 	virtual void swap_buffers();
+	
+	virtual void make_gl_window_current(DisplayServer::WindowID  p_window_id);
 
 	virtual void set_context(Context p_context);
 

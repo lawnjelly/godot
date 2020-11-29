@@ -258,7 +258,7 @@ void RasterizerGLES2::_blit_render_target_to_screen(RID p_render_target, const R
 }
 
 
-void RasterizerGLES2::blit_render_targets_to_screen(int p_screen, const BlitToScreen *p_render_targets, int p_amount)
+void RasterizerGLES2::blit_render_targets_to_screen(DisplayServer::WindowID p_screen, const BlitToScreen *p_render_targets, int p_amount)
 {
 	
 	// RD not implemented for GLES .. should we? not sure
@@ -266,13 +266,17 @@ void RasterizerGLES2::blit_render_targets_to_screen(int p_screen, const BlitToSc
 	Rect2 rect; //rect.size = Vector2(640, 480);
 	storage.frame.current_rt = nullptr;
 	
+	// get the window, which will have the xwindow id to make current
+//	DisplayServer::get_singleton()->make_gl_window_current(p_screen);
+	
+	
 	for (int i = 0; i < p_amount; i++) {
 		RID rid_rt = p_render_targets[i].render_target;
 		
 //		RID texture = storage.render_target_get_texture(rid_rt);
 //		ERR_CONTINUE(texture.is_null());
 		
-		_blit_render_target_to_screen(rid_rt, rect, p_screen);
+		_blit_render_target_to_screen(rid_rt, rect, (int) p_screen);
 	}
 	
 		

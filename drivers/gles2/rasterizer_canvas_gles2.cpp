@@ -1678,6 +1678,7 @@ void RasterizerCanvasGLES2::_legacy_canvas_render_item(Item *p_ci, RenderItemSta
 		}
 
 		if (shader_ptr) {
+			
 			if (shader_ptr->canvas_item.uses_screen_texture) {
 				if (!state.canvas_texscreen_used) {
 					//copy if not copied before
