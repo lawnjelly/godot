@@ -63,7 +63,7 @@ private:
 		DisplayServer::WindowID window_id;
 		int width;
 		int height;
-		::Window window;
+//		::Window window;
 		::Window x11_window;
 		int gldisplay_id;
 	};

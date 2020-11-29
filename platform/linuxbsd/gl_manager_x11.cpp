@@ -249,7 +249,7 @@ Error GLManager_X11::window_create(DisplayServer::WindowID p_window_id, ::Window
 	win.window_id = p_window_id;
 	win.width = p_width;
 	win.height = p_height;
-	win.window = p_window;
+	win.x11_window = p_window;
 	win.gldisplay_id = _find_or_create_display(p_display);
 	
 	// the display could be invalid .. check NYI
@@ -260,17 +260,17 @@ Error GLManager_X11::window_create(DisplayServer::WindowID p_window_id, ::Window
 	::Window &x11_window = win.x11_window;
 	
 	// set our error handler	
-	int (*oldHandler)(Display *, XErrorEvent *) = XSetErrorHandler(&ctxErrorHandler);
+//	int (*oldHandler)(Display *, XErrorEvent *) = XSetErrorHandler(&ctxErrorHandler);
 	
-	x11_window = XCreateWindow(x11_display, RootWindow(x11_display, vi.screen), 0, 0, p_width, p_height, 0, vi.depth, InputOutput, vi.visual, gl_display.x_valuemask, &swa);
-	XStoreName(x11_display, x11_window, "Godot Engine");
+//	x11_window = XCreateWindow(x11_display, RootWindow(x11_display, vi.screen), 0, 0, p_width, p_height, 0, vi.depth, InputOutput, vi.visual, gl_display.x_valuemask, &swa);
+//	XStoreName(x11_display, x11_window, "Godot Engine");
 	
-	ERR_FAIL_COND_V(!x11_window, ERR_UNCONFIGURED);
-	set_class_hint(x11_display, x11_window);
-	XMapWindow(x11_display, x11_window);
+//	ERR_FAIL_COND_V(!x11_window, ERR_UNCONFIGURED);
+//	set_class_hint(x11_display, x11_window);
+//	XMapWindow(x11_display, x11_window);
 	
-	XSync(x11_display, False);
-	XSetErrorHandler(oldHandler);
+//	XSync(x11_display, False);
+//	XSetErrorHandler(oldHandler);
 	
 	if (!glXMakeCurrent(x11_display, x11_window, gl_display.context->glx_context))
 	{
