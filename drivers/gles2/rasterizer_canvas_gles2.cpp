@@ -1176,7 +1176,6 @@ void RasterizerCanvasGLES2::render_batches(Item::Command *const *p_commands, Ite
 						case Item::Command::TYPE_PARTICLES: {
 
 						} break;
-/*
 						case Item::Command::TYPE_CLIP_IGNORE: {
 
 							Item::CommandClipIgnore *ci = static_cast<Item::CommandClipIgnore *>(command);
@@ -1192,9 +1191,10 @@ void RasterizerCanvasGLES2::render_batches(Item::Command *const *p_commands, Ite
 										int y = storage->frame.current_rt->height - (p_current_clip->final_clip_rect.position.y + p_current_clip->final_clip_rect.size.y);
 										int w = p_current_clip->final_clip_rect.size.x;
 										int h = p_current_clip->final_clip_rect.size.y;
-
-										if (storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_VFLIP])
-											y = p_current_clip->final_clip_rect.position.y;
+										
+										// FTODO
+//										if (storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_VFLIP])
+//											y = p_current_clip->final_clip_rect.position.y;
 
 										glScissor(x, y, w, h);
 
@@ -1204,7 +1204,6 @@ void RasterizerCanvasGLES2::render_batches(Item::Command *const *p_commands, Ite
 							}
 
 						} break;
-*/
 						default: {
 							// FIXME: Proper error handling if relevant
 							//print_line("other");
