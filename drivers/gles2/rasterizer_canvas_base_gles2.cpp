@@ -63,8 +63,15 @@ void RasterizerCanvasBaseGLES2::canvas_begin() {
 			
 			glScissor(viewport_x, viewport_y, viewport_width, viewport_height);
 			glViewport(viewport_x, viewport_y, viewport_width, viewport_height);
+			
+			print_line("canvas_begin w " + itos(viewport_width) + " h " + itos(viewport_height));
+			
 			glEnable(GL_SCISSOR_TEST);
 		}
+//		else
+//		{
+//			glViewport(0, 0, storage->frame.current_rt->width, storage->frame.current_rt->height);
+//		}
 	}
 
 	if (storage->frame.clear_request) {
@@ -140,6 +147,9 @@ void RasterizerCanvasBaseGLES2::canvas_end() {
 //		int viewport_height = OS::get_singleton()->get_window_size().height;
 		int viewport_width = storage->_dims.win_width;
 		int viewport_height = storage->_dims.win_height;
+		
+		print_line("canvas_end w " + itos(viewport_width) + " h " + itos(viewport_height));
+		
 		glViewport(0, 0, viewport_width, viewport_height);
 		glScissor(0, 0, viewport_width, viewport_height);
 	}
@@ -261,6 +271,8 @@ RasterizerStorageGLES2::Texture *RasterizerCanvasBaseGLES2::_bind_canvas_texture
 }
 
 void RasterizerCanvasBaseGLES2::draw_window_margins(int *black_margin, RID *black_image) {
+	
+	return;
 	
 	// FTODO
 	//Vector2 window_size = OS::get_singleton()->get_window_size();

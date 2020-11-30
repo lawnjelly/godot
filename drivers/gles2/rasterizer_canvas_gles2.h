@@ -51,6 +51,8 @@ public:
 	
 	void canvas_render_items(RID p_to_render_target, Item *p_item_list, const Color &p_modulate, Light *p_light_list, Light *p_directional_list, const Transform2D &p_canvas_transform, RS::CanvasItemTextureFilter p_default_filter, RS::CanvasItemTextureRepeat p_default_repeat, bool p_snap_2d_vertices_to_pixel) override
 	{
+		print_line("canvas_render_items : " + itos((int64_t) p_to_render_target.get_id()));
+		
 		// first set the current render target
 		storage->_set_current_render_target(p_to_render_target);
 		

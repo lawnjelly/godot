@@ -121,7 +121,7 @@ Error GLManager_X11::_create_context(GLDisplay &gl_display)
 	static int visual_attribs[] = {
 		GLX_RENDER_TYPE, GLX_RGBA_BIT,
 		GLX_DRAWABLE_TYPE, GLX_WINDOW_BIT,
-		GLX_DOUBLEBUFFER, true,
+		GLX_DOUBLEBUFFER, false, // true
 		GLX_RED_SIZE, 1,
 		GLX_GREEN_SIZE, 1,
 		GLX_BLUE_SIZE, 1,
@@ -132,7 +132,7 @@ Error GLManager_X11::_create_context(GLDisplay &gl_display)
 	static int visual_attribs_layered[] = {
 		GLX_RENDER_TYPE, GLX_RGBA_BIT,
 		GLX_DRAWABLE_TYPE, GLX_WINDOW_BIT,
-		GLX_DOUBLEBUFFER, true,
+		GLX_DOUBLEBUFFER, false, // true
 		GLX_RED_SIZE, 8,
 		GLX_GREEN_SIZE, 8,
 		GLX_BLUE_SIZE, 8,

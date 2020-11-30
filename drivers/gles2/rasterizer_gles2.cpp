@@ -72,9 +72,12 @@ void RasterizerGLES2::end_frame(bool p_swap_buffers) {
 	
 //	glClearColor(1, 0, 0, 1);
 //	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_ACCUM_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-	
+
 	if (p_swap_buffers)
+{
 		DisplayServer::get_singleton()->swap_buffers();
+//		DisplayServer::get_singleton()->swap_buffers();
+	}
 	else
 		glFinish();
 }
@@ -233,6 +236,13 @@ void RasterizerGLES2::_blit_render_target_to_screen(RID p_render_target, const R
 	RasterizerStorageGLES2::RenderTarget *rt = storage.render_target_owner.getornull(p_render_target);
 	ERR_FAIL_COND(!rt);
 	
+//	storage.frame.current_rt = rt;
+	
+	// may not be necessary
+//	glViewport(0, 0, rt->width, rt->height);
+//	print_line("_blit_render_target_to_screen w " + itos(rt->width) + " h " + itos(rt->height));
+	
+	
 	canvas._set_texture_rect_mode(true);
 	
 	canvas.state.canvas_shader.set_custom_shader(0);
@@ -260,6 +270,8 @@ void RasterizerGLES2::_blit_render_target_to_screen(RID p_render_target, const R
 
 void RasterizerGLES2::blit_render_targets_to_screen(DisplayServer::WindowID p_screen, const BlitToScreen *p_render_targets, int p_amount)
 {
+//	if (p_screen == 0)
+//		return;
 	
 	// RD not implemented for GLES .. should we? not sure
 //	Size2 screen_size(RD::get_singleton()->screen_get_width(p_screen), RD::get_singleton()->screen_get_height(p_screen));
@@ -267,11 +279,13 @@ void RasterizerGLES2::blit_render_targets_to_screen(DisplayServer::WindowID p_sc
 	storage.frame.current_rt = nullptr;
 	
 	// get the window, which will have the xwindow id to make current
-//	DisplayServer::get_singleton()->make_gl_window_current(p_screen);
+	//DisplayServer::get_singleton()->make_gl_window_current(p_screen);
 	
 	
 	for (int i = 0; i < p_amount; i++) {
 		RID rid_rt = p_render_targets[i].render_target;
+		
+		const Rect2i &rect = p_render_targets[i].rect;
 		
 //		RID texture = storage.render_target_get_texture(rid_rt);
 //		ERR_CONTINUE(texture.is_null());
