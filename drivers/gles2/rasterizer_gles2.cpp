@@ -230,8 +230,12 @@ void RasterizerGLES2::_blit_render_target_to_screen(RID p_render_target, const R
 {
 	ERR_FAIL_COND(storage.frame.current_rt);
 	
+	print_line("_blit_render_target_to_screen " + itos (p_screen) + ", rect " + String(Variant(p_screen_rect)));
+	DisplayServer::get_singleton()->make_gl_window_current(p_screen);
+	
 	RasterizerStorageGLES2::RenderTarget *rt = storage.render_target_owner.getornull(p_render_target);
 	ERR_FAIL_COND(!rt);
+	
 	
 	canvas._set_texture_rect_mode(true);
 	
@@ -250,7 +254,10 @@ void RasterizerGLES2::_blit_render_target_to_screen(RID p_render_target, const R
 	
 	// TODO normals
 	
-	canvas.draw_generic_textured_rect(p_screen_rect, Rect2(0, 0, 1, -1));
+//	canvas.draw_generic_textured_rect(p_screen_rect, Rect2(0, 0, 1, -1));
+	
+	Rect2 test_rt(0, 0, 16, 16);
+//	canvas.draw_generic_textured_rect(test_rt, Rect2(0, 0, 1, -1));
 	
 	glBindTexture(GL_TEXTURE_2D, 0);
 	canvas.canvas_end();
@@ -258,8 +265,10 @@ void RasterizerGLES2::_blit_render_target_to_screen(RID p_render_target, const R
 }
 
 
+// is this p_screen useless in a multi window environment?
 void RasterizerGLES2::blit_render_targets_to_screen(DisplayServer::WindowID p_screen, const BlitToScreen *p_render_targets, int p_amount)
 {
+	return;
 	
 	// RD not implemented for GLES .. should we? not sure
 //	Size2 screen_size(RD::get_singleton()->screen_get_width(p_screen), RD::get_singleton()->screen_get_height(p_screen));
@@ -269,14 +278,18 @@ void RasterizerGLES2::blit_render_targets_to_screen(DisplayServer::WindowID p_sc
 	// get the window, which will have the xwindow id to make current
 //	DisplayServer::get_singleton()->make_gl_window_current(p_screen);
 	
+	return;	
 	
 	for (int i = 0; i < p_amount; i++) {
-		RID rid_rt = p_render_targets[i].render_target;
+		const BlitToScreen &blit = p_render_targets[i];
+		
+		RID rid_rt = blit.render_target;
+		DisplayServer::WindowID  win_id = blit.destination_window;
 		
 //		RID texture = storage.render_target_get_texture(rid_rt);
 //		ERR_CONTINUE(texture.is_null());
 		
-		_blit_render_target_to_screen(rid_rt, rect, (int) p_screen);
+		_blit_render_target_to_screen(rid_rt, blit.rect, (int) win_id);
 	}
 	
 		

@@ -57,6 +57,16 @@ public:
 		canvas_render_items_begin(p_modulate, p_light_list, p_canvas_transform);
 		canvas_render_items_internal(p_item_list, 0, p_modulate, p_light_list, p_canvas_transform);
 		canvas_render_items_end();
+		
+		// not sure why these are needed to get frame to render?
+//		canvas_begin();
+//		canvas_end();
+		storage->frame.current_rt = nullptr;
+		
+		//draw_window_margins(0, 0);
+		canvas_begin();
+		canvas_end();
+		
 	}
 	
 private:

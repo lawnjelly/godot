@@ -262,6 +262,7 @@ RasterizerStorageGLES2::Texture *RasterizerCanvasBaseGLES2::_bind_canvas_texture
 
 void RasterizerCanvasBaseGLES2::draw_window_margins(int *black_margin, RID *black_image) {
 	
+	return;
 	// FTODO
 	//Vector2 window_size = OS::get_singleton()->get_window_size();
 //	window_size.x = fourdata.window_width;
@@ -275,9 +276,11 @@ void RasterizerCanvasBaseGLES2::draw_window_margins(int *black_margin, RID *blac
 //	int window_h = window_size.height;
 //	int window_w = window_size.width;
 
-	glBindFramebuffer(GL_FRAMEBUFFER, storage->system_fbo);
-	glViewport(0, 0, window_size.width, window_size.height);
+//	glBindFramebuffer(GL_FRAMEBUFFER, storage->system_fbo);
+//	glViewport(0, 0, window_size.width, window_size.height);
+	
 	canvas_begin();
+	/*
 
 	if (black_image[MARGIN_LEFT].is_valid()) {
 		_bind_canvas_texture(black_image[MARGIN_LEFT], RID());
@@ -316,7 +319,7 @@ void RasterizerCanvasBaseGLES2::draw_window_margins(int *black_margin, RID *blac
 
 		draw_generic_textured_rect(Rect2(0, 0, window_w, black_margin[MARGIN_TOP]), Rect2(0, 0, 1, 1));
 	}
-
+	
 	if (black_image[MARGIN_BOTTOM].is_valid()) {
 
 		_bind_canvas_texture(black_image[MARGIN_BOTTOM], RID());
@@ -332,6 +335,7 @@ void RasterizerCanvasBaseGLES2::draw_window_margins(int *black_margin, RID *blac
 
 		draw_generic_textured_rect(Rect2(0, window_h - black_margin[MARGIN_BOTTOM], window_w, black_margin[MARGIN_BOTTOM]), Rect2(0, 0, 1, 1));
 	}
+*/
 
 	canvas_end();
 }

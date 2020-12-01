@@ -236,6 +236,7 @@ Error GLManager_X11::_create_context(GLDisplay &gl_display)
 
 Error GLManager_X11::window_create(DisplayServer::WindowID p_window_id, ::Window p_window, Display *p_display, int p_width, int p_height)
 {
+	print_line("window_create window id " + itos(p_window_id));
 	// test only allow 1 window
 //	if (_windows.size())
 //		return FAILED;
@@ -368,6 +369,9 @@ void GLManager_X11::make_window_current(DisplayServer::WindowID p_window_id)
 	
 	glXMakeCurrent(disp.x11_display, win.x11_window, disp.context->glx_context);
 	
+	// viewport?
+//	glViewport(0, 0, win.width, win.height);
+	
 	_internal_set_current_window(&win);
 }
 
@@ -385,6 +389,28 @@ void GLManager_X11::make_current() {
 }
 
 void GLManager_X11::swap_buffers() {
+	// NO NEED TO CALL SWAP BUFFERS for each window...
+	// see https://www.khronos.org/registry/OpenGL-Refpages/gl2.1/xhtml/glXSwapBuffers.xml
+	
+	/*
+	// go through every window and swap the buffers for each, as this is called ONCE
+	// not per window
+	for (int n=0; n<_windows.size(); n++)
+	{
+		const GLWindow &win = _windows[n];
+		if (!win.in_use)
+			continue;
+		
+		if (&win != _current_window)
+			continue;
+		
+		const GLDisplay &disp = _displays[win.gldisplay_id];
+		
+		glXMakeCurrent(disp.x11_display, win.x11_window, disp.context->glx_context);
+		glXSwapBuffers(disp.x11_display, win.x11_window);
+	}
+	return;	
+	*/
 	if (!_current_window)
 		return;
 	if (!_current_window->in_use)
@@ -393,7 +419,10 @@ void GLManager_X11::swap_buffers() {
 		return;
 	}
 	
+	print_line("\tswap_buffers");
+	
 	const GLDisplay &disp = get_current_display();
+//	glFinish();
 	glXSwapBuffers(_x_windisp.x11_display, _x_windisp.x11_window);
 	
 /*	

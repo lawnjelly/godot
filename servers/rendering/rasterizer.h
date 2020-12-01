@@ -1387,6 +1387,7 @@ public:
 	struct BlitToScreen {
 		RID render_target;
 		Rect2i rect;
+		DisplayServer::WindowID destination_window;
 		//lens distorted parameters for VR should go here
 	};
 

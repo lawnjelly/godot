@@ -2220,6 +2220,8 @@ void RasterizerStorageGLES2::_set_current_render_target(RID p_render_target)
 		
 		glViewport(0, 0, rt->width, rt->height);
 		
+		print_line("_set_current_render_target w " + itos(rt->width) + " h " + itos(rt->height));
+		
 		_dims.rt_width = rt->width;
 		_dims.rt_height = rt->height;
 		_dims.win_width = rt->width;
