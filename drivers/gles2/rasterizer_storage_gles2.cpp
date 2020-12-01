@@ -2751,7 +2751,9 @@ void RasterizerStorageGLES2::render_target_set_size(RID p_render_target, int p_w
 
 	rt->width = p_width;
 	rt->height = p_height;
-
+	
+	print_line("render_target_set_size " + itos(p_render_target.get_id()) + ", w " + itos(p_width) + " h " + itos(p_height) );	
+	
 	_render_target_allocate(rt);
 }
 

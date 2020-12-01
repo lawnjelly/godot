@@ -51,21 +51,27 @@ public:
 	
 	void canvas_render_items(RID p_to_render_target, Item *p_item_list, const Color &p_modulate, Light *p_light_list, Light *p_directional_list, const Transform2D &p_canvas_transform, RS::CanvasItemTextureFilter p_default_filter, RS::CanvasItemTextureRepeat p_default_repeat, bool p_snap_2d_vertices_to_pixel) override
 	{
+		storage->frame.current_rt = nullptr;
+		
+		print_line("canvas_render_items " + itos(p_to_render_target.get_id()) );	
+		
 		// first set the current render target
 		storage->_set_current_render_target(p_to_render_target);
+		
+		// binds the render target (framebuffer)
+		canvas_begin();
 		
 		canvas_render_items_begin(p_modulate, p_light_list, p_canvas_transform);
 		canvas_render_items_internal(p_item_list, 0, p_modulate, p_light_list, p_canvas_transform);
 		canvas_render_items_end();
 		
+		canvas_end();
+		
 		// not sure why these are needed to get frame to render?
+		storage->_set_current_render_target(RID());
+//		storage->frame.current_rt = nullptr;
 //		canvas_begin();
 //		canvas_end();
-		storage->frame.current_rt = nullptr;
-		
-		//draw_window_margins(0, 0);
-		canvas_begin();
-		canvas_end();
 		
 	}
 	
