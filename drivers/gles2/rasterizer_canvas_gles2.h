@@ -53,7 +53,9 @@ public:
 	{
 		storage->frame.current_rt = nullptr;
 		
-		print_line("canvas_render_items " + itos(p_to_render_target.get_id()) );	
+		//return;
+		
+		//print_line("canvas_render_items " + itos(p_to_render_target.get_id()) );	
 		
 		// first set the current render target
 		storage->_set_current_render_target(p_to_render_target);
@@ -69,7 +71,8 @@ public:
 		
 		// not sure why these are needed to get frame to render?
 		storage->_set_current_render_target(RID());
-//		storage->frame.current_rt = nullptr;
+		
+		//		storage->frame.current_rt = nullptr;
 //		canvas_begin();
 //		canvas_end();
 		

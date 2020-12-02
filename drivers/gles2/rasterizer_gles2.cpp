@@ -230,7 +230,7 @@ void RasterizerGLES2::_blit_render_target_to_screen(RID p_render_target, const R
 {
 	ERR_FAIL_COND(storage.frame.current_rt);
 	
-	print_line("_blit_render_target_to_screen " + itos (p_screen) + ", rect " + String(Variant(p_screen_rect)));
+//	print_line("_blit_render_target_to_screen " + itos (p_screen) + ", rect " + String(Variant(p_screen_rect)));
 //	DisplayServer::get_singleton()->make_gl_window_current(p_screen);
 	
 	RasterizerStorageGLES2::RenderTarget *rt = storage.render_target_owner.getornull(p_render_target);

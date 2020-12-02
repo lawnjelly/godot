@@ -52,6 +52,24 @@ public:
 	};
 
 private:
+	
+	String hex(uint64_t num)
+	{
+		return String::num_uint64(num, 16);
+	}
+	
+	String _win_disp_to_string(::Window x11_window, ::Display *x11_display)
+	{
+		const long pid = OS::get_singleton()->get_process_id();
+		String sz = "pid (" + itos (pid) + ") win ";
+		
+//		String sz = "win ";
+		sz += hex((int64_t) x11_window);
+		sz += ", disp ";
+		sz += hex((int64_t) x11_display);
+		return sz;
+	}
+	
 	// any data specific to the window
 	struct GLWindow
 	{
@@ -70,13 +88,21 @@ private:
 	
 	struct GLDisplay
 	{
-		GLDisplay() {context = nullptr;}
+		GLDisplay() {context = nullptr; x11_display = nullptr; window_ref_count = 0;}
 		~GLDisplay();
+		
+		void add_window_ref() {window_ref_count++;}
+		void remove_window_ref();
+		int64_t get_context_identifier();
+		
 		GLManager_X11_Private *context;
 		::Display *x11_display;
 		XVisualInfo x_vi;
 		XSetWindowAttributes x_swa;
 		unsigned long x_valuemask;
+		
+		// number of windows using this context When it reaches zero the context can be deleted
+		int window_ref_count;
 	};
 	
 	// just for convenience, window and display struct
@@ -123,6 +149,7 @@ private:
 	Error _create_context(GLDisplay &gl_display);
 public:
 	Error window_create(DisplayServer::WindowID p_window_id, ::Window p_window, Display *p_display, int p_width, int p_height);
+	Error _window_create_internal(DisplayServer::WindowID p_window_id, ::Window p_window, Display *p_display, int p_width, int p_height);
 	void window_resize(DisplayServer::WindowID p_window_id, int p_width, int p_height);
 	int window_get_width(DisplayServer::WindowID p_window = 0);
 	int window_get_height(DisplayServer::WindowID p_window = 0);
@@ -131,8 +158,8 @@ public:
 	void release_current();
 	void make_current();
 	void swap_buffers();
-	int get_window_width();
-	int get_window_height();
+//	int get_x_window_width();
+//	int get_x_window_height();
 	
 	void make_window_current(DisplayServer::WindowID p_window_id);
 	

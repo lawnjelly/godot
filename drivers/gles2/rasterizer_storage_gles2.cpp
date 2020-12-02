@@ -1408,7 +1408,11 @@ void RasterizerStorageGLES2::sky_set_texture(RID p_sky, RID p_panorama, int p_ra
 /* SHADER API */
 
 RID RasterizerStorageGLES2::shader_create() {
-
+	
+#ifdef GLES2_DISABLE_SHADERS
+	return RID();
+#endif
+	
 	Shader *shader = memnew(Shader);
 	shader->mode = GD_VS::SHADER_SPATIAL;
 	shader->shader = &scene->state.scene_shader;
@@ -1420,6 +1424,10 @@ RID RasterizerStorageGLES2::shader_create() {
 }
 
 void RasterizerStorageGLES2::_shader_make_dirty(Shader *p_shader) {
+#ifdef GLES2_DISABLE_SHADERS
+	return;
+#endif
+	
 	if (p_shader->dirty_list.in_list())
 		return;
 
@@ -1427,7 +1435,12 @@ void RasterizerStorageGLES2::_shader_make_dirty(Shader *p_shader) {
 }
 
 void RasterizerStorageGLES2::shader_set_code(RID p_shader, const String &p_code) {
-
+	
+#ifdef GLES2_DISABLE_SHADERS
+	return;
+#endif
+	
+	
 	Shader *shader = shader_owner.getornull(p_shader);
 	ERR_FAIL_COND(!shader);
 
@@ -1469,6 +1482,9 @@ void RasterizerStorageGLES2::shader_set_code(RID p_shader, const String &p_code)
 
 String RasterizerStorageGLES2::shader_get_code(RID p_shader) const {
 
+#ifdef GLES2_DISABLE_SHADERS
+	return String();
+#endif
 	const Shader *shader = shader_owner.getornull(p_shader);
 	ERR_FAIL_COND_V(!shader, "");
 
@@ -1476,6 +1492,9 @@ String RasterizerStorageGLES2::shader_get_code(RID p_shader) const {
 }
 
 void RasterizerStorageGLES2::_update_shader(Shader *p_shader) const {
+#ifdef GLES2_DISABLE_SHADERS
+	return;
+#endif
 
 	_shader_dirty_list.remove(&p_shader->dirty_list);
 
@@ -1655,13 +1674,23 @@ void RasterizerStorageGLES2::_update_shader(Shader *p_shader) const {
 }
 
 void RasterizerStorageGLES2::update_dirty_shaders() {
+#ifdef GLES2_DISABLE_SHADERS
+	return;
+#endif
+	
+	
 	while (_shader_dirty_list.first()) {
 		_update_shader(_shader_dirty_list.first()->self());
 	}
 }
 
 void RasterizerStorageGLES2::shader_get_param_list(RID p_shader, List<PropertyInfo> *p_param_list) const {
-
+	
+#ifdef GLES2_DISABLE_SHADERS
+	return;
+#endif
+	
+	
 	Shader *shader = shader_owner.getornull(p_shader);
 	ERR_FAIL_COND(!shader);
 
@@ -1808,7 +1837,11 @@ void RasterizerStorageGLES2::shader_get_param_list(RID p_shader, List<PropertyIn
 }
 
 void RasterizerStorageGLES2::shader_set_default_texture_param(RID p_shader, const StringName &p_name, RID p_texture) {
-
+	
+#ifdef GLES2_DISABLE_SHADERS
+	return;
+#endif
+	
 	Shader *shader = shader_owner.getornull(p_shader);
 	ERR_FAIL_COND(!shader);
 	ERR_FAIL_COND(p_texture.is_valid() && !texture_owner.owns(p_texture));
@@ -1823,7 +1856,12 @@ void RasterizerStorageGLES2::shader_set_default_texture_param(RID p_shader, cons
 }
 
 RID RasterizerStorageGLES2::shader_get_default_texture_param(RID p_shader, const StringName &p_name) const {
-
+	
+#ifdef GLES2_DISABLE_SHADERS
+	return RID();
+#endif
+	
+	
 	const Shader *shader = shader_owner.getornull(p_shader);
 	ERR_FAIL_COND_V(!shader, RID());
 
@@ -1837,7 +1875,11 @@ RID RasterizerStorageGLES2::shader_get_default_texture_param(RID p_shader, const
 }
 
 void RasterizerStorageGLES2::shader_add_custom_define(RID p_shader, const String &p_define) {
-
+	
+#ifdef GLES2_DISABLE_SHADERS
+	return;
+#endif
+	
 	Shader *shader = shader_owner.getornull(p_shader);
 	ERR_FAIL_COND(!shader);
 
@@ -1847,7 +1889,11 @@ void RasterizerStorageGLES2::shader_add_custom_define(RID p_shader, const String
 }
 
 void RasterizerStorageGLES2::shader_get_custom_defines(RID p_shader, Vector<String> *p_defines) const {
-
+	
+#ifdef GLES2_DISABLE_SHADERS
+	return;
+#endif
+	
 	Shader *shader = shader_owner.getornull(p_shader);
 	ERR_FAIL_COND(!shader);
 
@@ -1855,7 +1901,11 @@ void RasterizerStorageGLES2::shader_get_custom_defines(RID p_shader, Vector<Stri
 }
 
 void RasterizerStorageGLES2::shader_remove_custom_define(RID p_shader, const String &p_define) {
-
+	
+#ifdef GLES2_DISABLE_SHADERS
+	return;
+#endif
+	
 	Shader *shader = shader_owner.getornull(p_shader);
 	ERR_FAIL_COND(!shader);
 
@@ -1867,7 +1917,11 @@ void RasterizerStorageGLES2::shader_remove_custom_define(RID p_shader, const Str
 /* COMMON MATERIAL API */
 
 void RasterizerStorageGLES2::_material_make_dirty(Material *p_material) const {
-
+	
+#ifdef GLES2_DISABLE_SHADERS
+	return;
+#endif
+	
 	if (p_material->dirty_list.in_list())
 		return;
 
@@ -2198,6 +2252,11 @@ void RasterizerStorageGLES2::update_dirty_materials() {
 
 void RasterizerStorageGLES2::_set_current_render_target(RID p_render_target)
 {
+	
+#ifdef GLES2_DISABLE_RENDER_TARGETS
+	return;
+#endif
+	
 	RenderTarget * rt = render_target_owner.getornull(p_render_target);
 	
 	// FTODO	
@@ -2220,7 +2279,7 @@ void RasterizerStorageGLES2::_set_current_render_target(RID p_render_target)
 		
 		glViewport(0, 0, rt->width, rt->height);
 		
-		print_line("_set_current_render_target w " + itos(rt->width) + " h " + itos(rt->height));
+//		print_line("_set_current_render_target w " + itos(rt->width) + " h " + itos(rt->height));
 		
 		_dims.rt_width = rt->width;
 		_dims.rt_height = rt->height;
@@ -2238,7 +2297,12 @@ void RasterizerStorageGLES2::_set_current_render_target(RID p_render_target)
 
 
 void RasterizerStorageGLES2::_render_target_allocate(RenderTarget *rt) {
-
+	
+#ifdef GLES2_DISABLE_RENDER_TARGETS
+	return;
+#endif
+	//return;
+	
 	// do not allocate a render target with no size
 	if (rt->width <= 0 || rt->height <= 0)
 		return;
@@ -2617,7 +2681,16 @@ void RasterizerStorageGLES2::_render_target_allocate(RenderTarget *rt) {
 }
 
 void RasterizerStorageGLES2::_render_target_clear(RenderTarget *rt) {
-
+	
+#ifdef GLES2_DISABLE_RENDER_TARGETS
+	return;
+#endif
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	
+//	print_line("_render_target_clear " + String::num_uint64((int64_t) rt, 16));
+	
+//	return;
+	
 	// there is nothing to clear when DIRECT_TO_SCREEN is used
 	if (rt->flags[RENDER_TARGET_DIRECT_TO_SCREEN])
 		return;
@@ -2700,9 +2773,16 @@ void RasterizerStorageGLES2::_render_target_clear(RenderTarget *rt) {
 }
 
 RID RasterizerStorageGLES2::render_target_create() {
-
+	
+#ifdef GLES2_DISABLE_RENDER_TARGETS
+	return RID();
+#endif
+//	return RID();
+	
+	
 	RenderTarget *rt = memnew(RenderTarget);
-
+	print_line("_render_target_create " + String::num_uint64((int64_t) rt, 16));
+	
 	Texture *t = memnew(Texture);
 
 	t->type = GD_RD::TEXTURE_TYPE_2D;
@@ -2726,12 +2806,17 @@ RID RasterizerStorageGLES2::render_target_create() {
 	t->render_target = rt;
 
 	rt->texture = texture_owner.make_rid(t);
-
+	
 	return render_target_owner.make_rid(rt);
 }
 
 void RasterizerStorageGLES2::render_target_set_position(RID p_render_target, int p_x, int p_y) {
-
+	
+#ifdef GLES2_DISABLE_RENDER_TARGETS
+	return;
+#endif
+	//return;
+	
 	RenderTarget *rt = render_target_owner.getornull(p_render_target);
 	ERR_FAIL_COND(!rt);
 
@@ -2740,6 +2825,10 @@ void RasterizerStorageGLES2::render_target_set_position(RID p_render_target, int
 }
 
 void RasterizerStorageGLES2::render_target_set_size(RID p_render_target, int p_width, int p_height) {
+#ifdef GLES2_DISABLE_RENDER_TARGETS
+	return;
+#endif
+//	return;
 
 	RenderTarget *rt = render_target_owner.getornull(p_render_target);
 	ERR_FAIL_COND(!rt);
@@ -2758,6 +2847,10 @@ void RasterizerStorageGLES2::render_target_set_size(RID p_render_target, int p_w
 }
 
 RID RasterizerStorageGLES2::render_target_get_texture(RID p_render_target) {
+#ifdef GLES2_DISABLE_RENDER_TARGETS
+	return RID();
+#endif
+	//return RID();
 
 	RenderTarget *rt = render_target_owner.getornull(p_render_target);
 	ERR_FAIL_COND_V(!rt, RID());
@@ -2770,6 +2863,12 @@ RID RasterizerStorageGLES2::render_target_get_texture(RID p_render_target) {
 }
 
 void RasterizerStorageGLES2::render_target_set_external_texture(RID p_render_target, unsigned int p_texture_id) {
+	
+#ifdef GLES2_DISABLE_RENDER_TARGETS
+	return;
+#endif
+//	return;
+	
 	RenderTarget *rt = render_target_owner.getornull(p_render_target);
 	ERR_FAIL_COND(!rt);
 
@@ -2900,6 +2999,12 @@ void RasterizerStorageGLES2::render_target_set_external_texture(RID p_render_tar
 }
 
 void RasterizerStorageGLES2::render_target_set_flag(RID p_render_target, RenderTargetFlags p_flag, bool p_value) {
+	
+#ifdef GLES2_DISABLE_RENDER_TARGETS
+	return;
+#endif
+//	return;
+	
 	RenderTarget *rt = render_target_owner.getornull(p_render_target);
 	ERR_FAIL_COND(!rt);
 
@@ -2931,13 +3036,28 @@ void RasterizerStorageGLES2::render_target_set_flag(RID p_render_target, RenderT
 }
 
 bool RasterizerStorageGLES2::render_target_was_used(RID p_render_target) {
+	
+#ifdef GLES2_DISABLE_RENDER_TARGETS
+	return false;
+#endif
+//	return false;
+	
 	RenderTarget *rt = render_target_owner.getornull(p_render_target);
 	ERR_FAIL_COND_V(!rt, false);
 
 	return rt->used_in_frame;
 }
 
-void RasterizerStorageGLES2::render_target_clear_used(RID p_render_target) {
+
+//void RasterizerStorageGLES2::render_target_clear_used(RID p_render_target) {
+void RasterizerStorageGLES2::render_target_set_as_unused(RID p_render_target) {
+
+	
+#ifdef GLES2_DISABLE_RENDER_TARGETS
+	return;
+#endif
+//	return;
+	
 	RenderTarget *rt = render_target_owner.getornull(p_render_target);
 	ERR_FAIL_COND(!rt);
 
@@ -2945,6 +3065,12 @@ void RasterizerStorageGLES2::render_target_clear_used(RID p_render_target) {
 }
 
 void RasterizerStorageGLES2::render_target_set_msaa(RID p_render_target, GD_VS::ViewportMSAA p_msaa) {
+	
+#ifdef GLES2_DISABLE_RENDER_TARGETS
+	return;
+#endif
+//	return;
+	
 	RenderTarget *rt = render_target_owner.getornull(p_render_target);
 	ERR_FAIL_COND(!rt);
 
@@ -2969,6 +3095,11 @@ void RasterizerStorageGLES2::render_target_set_msaa(RID p_render_target, GD_VS::
 
 
 void RasterizerStorageGLES2::render_target_set_use_fxaa(RID p_render_target, bool p_fxaa) {
+#ifdef GLES2_DISABLE_RENDER_TARGETS
+	return;
+#endif
+//	return;
+	
 	RenderTarget *rt = render_target_owner.getornull(p_render_target);
 	ERR_FAIL_COND(!rt);
 
@@ -2976,6 +3107,12 @@ void RasterizerStorageGLES2::render_target_set_use_fxaa(RID p_render_target, boo
 }
 
 void RasterizerStorageGLES2::render_target_set_use_debanding(RID p_render_target, bool p_debanding) {
+	
+#ifdef GLES2_DISABLE_RENDER_TARGETS
+	return;
+#endif
+//	return;
+	
 	RenderTarget *rt = render_target_owner.getornull(p_render_target);
 	ERR_FAIL_COND(!rt);
 

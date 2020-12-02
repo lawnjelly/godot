@@ -47,6 +47,9 @@
 class RasterizerCanvasGLES2;
 class RasterizerSceneGLES2;
 
+//#define GLES2_DISABLE_RENDER_TARGETS
+//#define GLES2_DISABLE_SHADERS
+
 class RasterizerStorageGLES2 : public RasterizerStorage {
 public:
 	RasterizerCanvasGLES2 *canvas;
@@ -1169,13 +1172,13 @@ public:
 
 	virtual void render_target_set_flag(RID p_render_target, RenderTargetFlags p_flag, bool p_value) override;
 	virtual bool render_target_was_used(RID p_render_target) override;
-	virtual void render_target_clear_used(RID p_render_target);
+	//virtual void render_target_clear_used(RID p_render_target);
 	virtual void render_target_set_msaa(RID p_render_target, GD_VS::ViewportMSAA p_msaa);
 	virtual void render_target_set_use_fxaa(RID p_render_target, bool p_fxaa);
 	virtual void render_target_set_use_debanding(RID p_render_target, bool p_debanding);
 	
 	// new
-	void render_target_set_as_unused(RID p_render_target) override {}
+	void render_target_set_as_unused(RID p_render_target) override;
 	
 	void render_target_request_clear(RID p_render_target, const Color &p_clear_color) override {}
 	bool render_target_is_clear_requested(RID p_render_target) override { return false; }
