@@ -263,11 +263,8 @@ RasterizerStorageGLES2::Texture *RasterizerCanvasBaseGLES2::_bind_canvas_texture
 void RasterizerCanvasBaseGLES2::draw_window_margins(int *black_margin, RID *black_image) {
 	
 	return;
-	// FTODO
-	//Vector2 window_size = OS::get_singleton()->get_window_size();
-//	window_size.x = fourdata.window_width;
-//	window_size.y = fourdata.window_height;
 	
+	// FTODO
 	int window_w = storage->_dims.rt_width;
 	int window_h= storage->_dims.rt_height;
 	Vector2 window_size = Vector2(window_w, window_h);
@@ -280,7 +277,6 @@ void RasterizerCanvasBaseGLES2::draw_window_margins(int *black_margin, RID *blac
 //	glViewport(0, 0, window_size.width, window_size.height);
 	
 	canvas_begin();
-	/*
 
 	if (black_image[MARGIN_LEFT].is_valid()) {
 		_bind_canvas_texture(black_image[MARGIN_LEFT], RID());
@@ -335,7 +331,6 @@ void RasterizerCanvasBaseGLES2::draw_window_margins(int *black_margin, RID *blac
 
 		draw_generic_textured_rect(Rect2(0, window_h - black_margin[MARGIN_BOTTOM], window_w, black_margin[MARGIN_BOTTOM]), Rect2(0, 0, 1, 1));
 	}
-*/
 
 	canvas_end();
 }
@@ -516,8 +511,7 @@ void RasterizerCanvasBaseGLES2::_draw_polygon(const int *p_indices, int p_index_
 #endif
 		storage->buffer_orphan_and_upload(data.polygon_index_buffer_size, 0, sizeof(int) * p_index_count, p_indices, GL_ELEMENT_ARRAY_BUFFER, _buffer_upload_usage_flag, true);
 		
-//		if (p_index_count != 72)
-			glDrawElements(GL_TRIANGLES, p_index_count, GL_UNSIGNED_INT, 0);
+		glDrawElements(GL_TRIANGLES, p_index_count, GL_UNSIGNED_INT, 0);
 		storage->info.render._2d_draw_call_count++;
 	} else {
 #ifdef DEBUG_ENABLED

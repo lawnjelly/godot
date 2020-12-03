@@ -197,6 +197,10 @@ void DisplayServer::window_set_mouse_passthrough(const Vector<Vector2> &p_region
 	ERR_FAIL_MSG("Mouse passthrough not supported by this display server.");
 }
 
+void DisplayServer::gl_window_make_current(DisplayServer::WindowID p_window_id) {
+	// noop except in gles
+}
+
 void DisplayServer::window_set_ime_active(const bool p_active, WindowID p_window) {
 	WARN_PRINT("IME not supported by this display server.");
 }
@@ -316,11 +320,6 @@ void DisplayServer::make_rendering_thread() {
 
 void DisplayServer::swap_buffers() {
 	WARN_PRINT("Swap buffers not supported by this display server.");
-}
-
-void DisplayServer::make_gl_window_current(DisplayServer::WindowID  p_window_id)
-{
-	WARN_PRINT_ONCE("make_gl_window_current not supported by this display server.");
 }
 
 void DisplayServer::set_native_icon(const String &p_filename) {

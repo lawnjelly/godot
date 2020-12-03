@@ -1,24 +1,15 @@
 #pragma once
 
 #include "drivers/gles_common/rasterizer_version.h"
-
-
-#ifdef GODOT_3
-#include "servers/visual/rasterizer.h"
-#else
 #include "servers/rendering/rasterizer.h"
-#endif
-
 #include "rasterizer_storage_gles2.h"
 #include "rasterizer_scene_gles2.h"
 #include "drivers/gles_common/rasterizer_array.h"
+#include "drivers/gles_common/rasterizer_storage_common.h"
 
 #include "shaders/canvas.glsl.gen.h"
 #include "shaders/lens_distorted.glsl.gen.h"
-
-#include "drivers/gles_common/rasterizer_storage_common.h"
 #include "shaders/canvas_shadow.glsl.gen.h"
-
 
 class RasterizerCanvasBaseGLES2 : public RasterizerCanvas {
 public:
@@ -80,18 +71,6 @@ public:
 
 	} state;
 	
-	// godot 4 stuff
-//	struct FourData
-//	{
-//		int window_width;
-//		int window_height;
-//		FourData()
-//		{
-//			window_width = 640;
-//			window_height = 480;
-//		}
-//	} fourdata;
-	
 	typedef void Texture;
 
 	RasterizerSceneGLES2 *scene_render;
@@ -143,9 +122,6 @@ public:
 	
 	RasterizerPooledIndirectList<PolyData> _polydata;
 	
-//	void canvas_render_items(RID p_to_render_target, Item *p_item_list, const Color &p_modulate, Light *p_light_list, Light *p_directional_list, const Transform2D &p_canvas_transform, RS::CanvasItemTextureFilter p_default_filter, RS::CanvasItemTextureRepeat p_default_repeat, bool p_snap_2d_vertices_to_pixel) override {}
-//	void canvas_debug_viewport_shadows(Light *p_lights_with_shadow) override {}
-	
 	RID light_create() override { return RID(); }
 	void light_set_texture(RID p_rid, RID p_texture) override {}
 	void light_set_use_shadow(RID p_rid, bool p_enable) override {}
@@ -157,7 +133,6 @@ public:
 	void occluder_polygon_set_cull_mode(RID p_occluder, RS::CanvasOccluderPolygonCullMode p_mode) override {}
 	void set_shadow_texture_size(int p_size) override {}
 	
-//	void draw_window_margins(int *p_margins, RID *p_margin_textures) override {}
 	
 	bool free(RID p_rid) override { return true; }
 	void update() override {}

@@ -319,6 +319,8 @@ public:
 	virtual int window_get_current_screen(WindowID p_window = MAIN_WINDOW_ID) const;
 	virtual void window_set_current_screen(int p_screen, WindowID p_window = MAIN_WINDOW_ID);
 
+	virtual void gl_window_make_current(DisplayServer::WindowID p_window_id);
+
 	virtual Point2i window_get_position(WindowID p_window = MAIN_WINDOW_ID) const;
 	virtual void window_set_position(const Point2i &p_position, WindowID p_window = MAIN_WINDOW_ID);
 
@@ -368,8 +370,6 @@ public:
 	virtual void release_rendering_thread();
 	virtual void make_rendering_thread();
 	virtual void swap_buffers();
-	
-	virtual void make_gl_window_current(DisplayServer::WindowID  p_window_id);
 
 	virtual void set_context(Context p_context);
 

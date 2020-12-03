@@ -284,6 +284,9 @@ public:
 	virtual void window_set_ime_active(const bool p_active, WindowID p_window = MAIN_WINDOW_ID);
 	virtual void window_set_ime_position(const Point2i &p_pos, WindowID p_window = MAIN_WINDOW_ID);
 
+	// necessary for GL focus, may be able to use one of the existing functions for this, not sure yet
+	virtual void gl_window_make_current(DisplayServer::WindowID p_window_id);
+
 	virtual Point2i ime_get_selection() const;
 	virtual String ime_get_text() const;
 
@@ -347,8 +350,6 @@ public:
 	virtual void release_rendering_thread();
 	virtual void make_rendering_thread();
 	virtual void swap_buffers();
-	
-	virtual void make_gl_window_current(DisplayServer::WindowID  p_window_id);
 
 	virtual void set_native_icon(const String &p_filename);
 	virtual void set_icon(const Ref<Image> &p_icon);

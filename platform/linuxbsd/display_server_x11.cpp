@@ -903,6 +903,12 @@ int DisplayServerX11::window_get_current_screen(WindowID p_window) const {
 	return 0;
 }
 
+void DisplayServerX11::gl_window_make_current(DisplayServer::WindowID p_window_id) {
+#if defined(OPENGL_ENABLED)
+	gl_manager->window_make_current(p_window_id);
+#endif
+}
+
 void DisplayServerX11::window_set_current_screen(int p_screen, WindowID p_window) {
 	_THREAD_SAFE_METHOD_
 
@@ -3299,14 +3305,6 @@ void DisplayServerX11::swap_buffers() {
 	gl_manager->swap_buffers();
 #endif
 }
-
-void DisplayServerX11::make_gl_window_current(DisplayServer::WindowID  p_window_id)
-{
-#if defined(OPENGL_ENABLED)
-	gl_manager->make_window_current(p_window_id);
-#endif
-}
-
 
 void DisplayServerX11::_update_context(WindowData &wd) {
 	XClassHint *classHint = XAllocClassHint();
