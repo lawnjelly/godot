@@ -38,6 +38,10 @@
 
 #include <avrt.h>
 
+#if defined(OPENGL_ENABLED)
+#include "drivers/gles2/rasterizer_wrapper_gles2.h"
+#endif
+
 #ifdef DEBUG_ENABLED
 static String format_error_message(DWORD id) {
 	LPWSTR messageBuffer = nullptr;
@@ -536,7 +540,7 @@ void DisplayServerWindows::delete_sub_window(WindowID p_window) {
 #endif
 #ifdef OPENGL_ENABLED
 	if (rendering_driver == "opengl_es") {
-		gl_manager->window_destroy(p_id);
+		gl_manager->window_destroy(p_window);
 	}
 #endif
 	
@@ -837,7 +841,7 @@ void DisplayServerWindows::window_set_size(const Size2i p_size, WindowID p_windo
 #endif
 #if defined(OPENGL_ENABLED)
 	if (rendering_driver == "opengl_es") {
-		gl_manager->window_resize(window_id, wd.size.width, wd.size.height);
+		gl_manager->window_resize(p_window, w, h);
 	}
 #endif
 
@@ -3143,6 +3147,9 @@ DisplayServerWindows::DisplayServerWindows(const String &p_rendering_driver, Win
 	}
 
 	rendering_driver = "vulkan";
+	rendering_driver = "opengl_es";
+	print_line("rendering_driver " + rendering_driver);
+
 
 #if defined(VULKAN_ENABLED)
 	if (rendering_driver == "vulkan") {
@@ -3157,48 +3164,8 @@ DisplayServerWindows::DisplayServerWindows(const String &p_rendering_driver, Win
 #endif
 	// Init context and rendering device
 #if defined(OPENGL_ENABLED)
-	print_line("rendering_driver " + rendering_driver);
+	
 	if (rendering_driver == "opengl_es") {
-		/*
-		if (getenv("DRI_PRIME") == nullptr) {
-			int use_prime = -1;
-			
-			if (getenv("PRIMUS_DISPLAY") ||
-					getenv("PRIMUS_libGLd") ||
-					getenv("PRIMUS_libGLa") ||
-					getenv("PRIMUS_libGL") ||
-					getenv("PRIMUS_LOAD_GLOBAL") ||
-					getenv("BUMBLEBEE_SOCKET")) {
-				print_verbose("Optirun/primusrun detected. Skipping GPU detection");
-				use_prime = 0;
-			}
-			
-			if (getenv("LD_LIBRARY_PATH")) {
-				String ld_library_path(getenv("LD_LIBRARY_PATH"));
-				Vector<String> libraries = ld_library_path.split(":");
-				
-				for (int i = 0; i < libraries.size(); ++i) {
-					if (FileAccess::exists(libraries[i] + "/libGL.so.1") ||
-							FileAccess::exists(libraries[i] + "/libGL.so")) {
-						print_verbose("Custom libGL override detected. Skipping GPU detection");
-						use_prime = 0;
-					}
-				}
-			}
-			
-			if (use_prime == -1) {
-				print_verbose("Detecting GPUs, set DRI_PRIME in the environment to override GPU detection logic.");
-				use_prime = detect_prime();
-			}
-			
-			if (use_prime) {
-				print_line("Found discrete GPU, setting DRI_PRIME=1 to use it.");
-				print_line("Note: Set DRI_PRIME=0 in the environment to disable Godot from using the discrete GPU.");
-				setenv("DRI_PRIME", "1", 1);
-			}
-		}
-		*/
-		
 		GLManager_Windows::ContextType opengl_api_type = GLManager_Windows::GLES_2_0_COMPATIBLE;
 		
 		gl_manager = memnew(GLManager_Windows(opengl_api_type));
@@ -3309,7 +3276,7 @@ Vector<String> DisplayServerWindows::get_rendering_drivers_func() {
 	drivers.push_back("vulkan");
 #endif
 #ifdef OPENGL_ENABLED
-	drivers.push_back("opengl");
+	drivers.push_back("opengl_es");
 #endif
 
 	return drivers;

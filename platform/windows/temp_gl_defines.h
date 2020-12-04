@@ -4,7 +4,7 @@
 #ifndef OPENGL_ENABLED
 #define OPENGL_ENABLED
 #endif
-#ifndef X11_ENABLED
-#define X11_ENABLED
+#ifndef WINDOWS_ENABLED
+#define WINDOWS_ENABLED
 #endif
 ////////////////////////////////
