@@ -1218,7 +1218,7 @@ void RasterizerCanvasGLES2::canvas_render_items_end() {
 void RasterizerCanvasGLES2::canvas_render_items_internal(Item *p_item_list, int p_z, const Color &p_modulate, Light *p_light, const Transform2D &p_base_transform) {
 	batch_canvas_render_items(p_item_list, p_z, p_modulate, p_light, p_base_transform);
 
-	glClearColor(Math::randf(), 0, 1, 1);
+	//glClearColor(Math::randf(), 0, 1, 1);
 }
 
 void RasterizerCanvasGLES2::canvas_render_items_implementation(Item *p_item_list, int p_z, const Color &p_modulate, Light *p_light, const Transform2D &p_base_transform) {
@@ -1578,6 +1578,16 @@ void RasterizerCanvasGLES2::_legacy_canvas_render_item(Item *p_ci, RenderItemSta
 			//			if (storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_VFLIP])
 			//			y = r_ris.current_clip->final_clip_rect.position.y;
 			glScissor(r_ris.current_clip->final_clip_rect.position.x, y, r_ris.current_clip->final_clip_rect.size.width, r_ris.current_clip->final_clip_rect.size.height);
+			
+			
+			// debug
+//			if ((r_ris.current_clip->final_clip_rect.position.x == 223)
+//					&& (y == 54)
+//					&& (r_ris.current_clip->final_clip_rect.size.width == 1383))
+//			{
+//				glScissor(r_ris.current_clip->final_clip_rect.position.x, y, r_ris.current_clip->final_clip_rect.size.width, r_ris.current_clip->final_clip_rect.size.height);
+//			}
+			
 		} else {
 			glDisable(GL_SCISSOR_TEST);
 		}

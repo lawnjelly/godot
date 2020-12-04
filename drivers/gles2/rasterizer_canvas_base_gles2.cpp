@@ -68,7 +68,7 @@ void RasterizerCanvasBaseGLES2::canvas_begin() {
 	}
 
 	// FTODO .. this was commented out to try and get the clear color correct
-#ifdef GODOT3
+//#ifdef GODOT3
 	if (storage->frame.clear_request) {
 		glClearColor(storage->frame.clear_request_color.r,
 				storage->frame.clear_request_color.g,
@@ -77,7 +77,7 @@ void RasterizerCanvasBaseGLES2::canvas_begin() {
 		glClear(GL_COLOR_BUFFER_BIT);
 		storage->frame.clear_request = false;
 	}
-#endif
+//#endif
 
 	/*
 	if (storage->frame.current_rt) {
