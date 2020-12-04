@@ -67,6 +67,8 @@ void RasterizerCanvasBaseGLES2::canvas_begin() {
 		}
 	}
 
+	// FTODO .. this was commented out to try and get the clear color correct
+//#ifdef GODOT3
 	if (storage->frame.clear_request) {
 		glClearColor(storage->frame.clear_request_color.r,
 				storage->frame.clear_request_color.g,
@@ -75,6 +77,7 @@ void RasterizerCanvasBaseGLES2::canvas_begin() {
 		glClear(GL_COLOR_BUFFER_BIT);
 		storage->frame.clear_request = false;
 	}
+//#endif
 
 	/*
 	if (storage->frame.current_rt) {
@@ -644,6 +647,103 @@ void RasterizerCanvasBaseGLES2::_draw_generic_indices(GLuint p_primitive, const 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
+
+void RasterizerCanvasBaseGLES2::_legacy_draw_poly_triangles(Item::CommandPolygon *p_poly, RasterizerStorageGLES2::Material *p_material)
+{
+//	return;
+	
+	const PolyData &pd = _polydata[p_poly->polygon.polygon_id];
+	
+	_set_texture_rect_mode(false);
+	
+	if (state.canvas_shader.bind()) {
+		_set_uniforms();
+		state.canvas_shader.use_material((void *)p_material);
+	}
+	
+	// FTODO
+	//RasterizerStorageGLES2::Texture *texture = _bind_canvas_texture(polygon->texture, polygon->normal_map);
+	RasterizerStorageGLES2::Texture *texture = _bind_canvas_texture(p_poly->texture, RID());
+	
+	if (texture) {
+		Size2 texpixel_size(1.0 / texture->width, 1.0 / texture->height);
+		state.canvas_shader.set_uniform(CanvasShaderGLES2::COLOR_TEXPIXEL_SIZE, texpixel_size);
+	}
+	
+	_draw_polygon(pd.indices.ptr(), pd.indices.size(), pd.points.size(), pd.points.ptr(), pd.uvs.ptr(), pd.colors.ptr(), pd.colors.size() == 1, nullptr, nullptr);
+	
+//							_draw_polygon(polygon->indices.ptr(), polygon->count, polygon->points.size(), polygon->points.ptr(), polygon->uvs.ptr(), polygon->colors.ptr(), polygon->colors.size() == 1, polygon->weights.ptr(), polygon->bones.ptr());
+#ifdef GLES_OVER_GL
+	/*
+							if (polygon->antialiased) {
+								glEnable(GL_LINE_SMOOTH);
+								if (polygon->antialiasing_use_indices) {
+									_draw_generic_indices(GL_LINE_STRIP, polygon->indices.ptr(), polygon->count, polygon->points.size(), polygon->points.ptr(), polygon->uvs.ptr(), polygon->colors.ptr(), polygon->colors.size() == 1);
+								} else {
+									_draw_generic(GL_LINE_LOOP, polygon->points.size(), polygon->points.ptr(), polygon->uvs.ptr(), polygon->colors.ptr(), polygon->colors.size() == 1);
+								}
+								glDisable(GL_LINE_SMOOTH);
+							}
+*/
+#endif	
+}
+
+void RasterizerCanvasBaseGLES2::_legacy_draw_primitive(Item::CommandPrimitive *p_pr, RasterizerStorageGLES2::Material *p_material)
+{
+//	return;
+	
+	if (p_pr->point_count != 4)
+		return; // not sure if supported
+	
+	_set_texture_rect_mode(false);
+	
+	if (state.canvas_shader.bind()) {
+		_set_uniforms();
+		state.canvas_shader.use_material((void *)p_material);
+	}
+	
+	_bind_canvas_texture(RID(), RID());
+	
+	glDisableVertexAttribArray(GD_VS::ARRAY_COLOR);
+	glVertexAttrib4fv(GD_VS::ARRAY_COLOR, p_pr->colors[0].components);
+	
+	state.canvas_shader.set_uniform(CanvasShaderGLES2::MODELVIEW_MATRIX, state.uniforms.modelview_matrix);
+
+	_draw_gui_primitive(p_pr->point_count, p_pr->points, NULL, NULL);
+	
+	
+}
+
+
+void RasterizerCanvasBaseGLES2::_legacy_draw_line(Item::CommandPrimitive *p_pr, RasterizerStorageGLES2::Material *p_material)
+{
+	_set_texture_rect_mode(false);
+	
+	if (state.canvas_shader.bind()) {
+		_set_uniforms();
+		state.canvas_shader.use_material((void *)p_material);
+	}
+	
+	_bind_canvas_texture(RID(), RID());
+	
+	glDisableVertexAttribArray(GD_VS::ARRAY_COLOR);
+	glVertexAttrib4fv(GD_VS::ARRAY_COLOR, p_pr->colors[0].components);
+	
+	state.canvas_shader.set_uniform(CanvasShaderGLES2::MODELVIEW_MATRIX, state.uniforms.modelview_matrix);
+
+#ifdef GLES_OVER_GL
+//		if (line->antialiased)
+//			glEnable(GL_LINE_SMOOTH);
+#endif
+		_draw_gui_primitive(2, p_pr->points, NULL, NULL);
+
+#ifdef GLES_OVER_GL
+//		if (line->antialiased)
+//			glDisable(GL_LINE_SMOOTH);
+#endif
+	
+}
+
 
 void RasterizerCanvasBaseGLES2::_draw_gui_primitive(int p_points, const Vector2 *p_vertices, const Color *p_colors, const Vector2 *p_uvs, const float *p_light_angles) {
 

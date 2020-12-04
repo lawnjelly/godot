@@ -364,7 +364,7 @@ public:
 	RID texture_2d_create(const Ref<Image> &p_image) override;
 	RID texture_2d_layered_create(const Vector<Ref<Image>> &p_layers, RS::TextureLayeredType p_layered_type) override { return RID(); }
 	RID texture_3d_create(Image::Format, int p_width, int p_height, int p_depth, bool p_mipmaps, const Vector<Ref<Image>> &p_data) override { return RID(); }
-	RID texture_proxy_create(RID p_base) override { return RID(); }
+	RID texture_proxy_create(RID p_base) override;
 	
 	void texture_2d_update_immediate(RID p_texture, const Ref<Image> &p_image, int p_layer = 0) override;
 	void texture_2d_update(RID p_texture, const Ref<Image> &p_image, int p_layer = 0) override;
@@ -1130,8 +1130,8 @@ public:
 		bool used_dof_blur_near;
 		bool mip_maps_allocated;
 		
-		bool clear_requested;
 		Color clear_color;
+		bool clear_requested;
 		
 		RenderTarget() :
 				fbo(0),
@@ -1150,9 +1150,9 @@ public:
 				use_fxaa(false),
 				use_debanding(false),
 				used_dof_blur_near(false),
-				clear_requested(false),
+				mip_maps_allocated(false),
 				clear_color(Color(1, 1, 1, 1)),
-				mip_maps_allocated(false) {
+				clear_requested(false) {
 			for (int i = 0; i < RENDER_TARGET_FLAG_MAX; ++i) {
 				flags[i] = false;
 			}

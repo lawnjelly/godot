@@ -546,6 +546,81 @@ RID RasterizerStorageGLES2::texture_2d_create(const Ref<Image> &p_image)
 	return id;
 }
 
+RID RasterizerStorageGLES2::texture_proxy_create(RID p_base)
+{
+	RID link = texture_create();
+	texture_set_proxy(link, p_base);
+	return link;
+	
+/*	
+	Texture *tex = texture_owner.getornull(p_base);
+	ERR_FAIL_COND_V(!tex, RID());
+	Texture proxy_tex = *tex;
+	
+	tex->proxy_owners.insert(proxy_tex);
+	
+	
+	proxy_tex.proxy_to = p_base;
+	proxy_tex.is_render_target = false;
+	proxy_tex.is_proxy = true;
+	proxy_tex.proxies.clear();
+	
+	RID rid = texture_owner.make_rid(proxy_tex);
+	
+	tex->proxies.push_back(rid);
+	
+	return rid;
+	*/
+	
+	/* 3.2
+	VS::get_singleton()->texture_set_proxy(default_texture->proxy, texture_rid);
+
+void RasterizerStorageGLES2::texture_set_proxy(RID p_texture, RID p_proxy) {
+	Texture *texture = texture_owner.getornull(p_texture);
+	ERR_FAIL_COND(!texture);
+	
+	if (texture->proxy) {
+		texture->proxy->proxy_owners.erase(texture);
+		texture->proxy = NULL;
+	}
+	
+	if (p_proxy.is_valid()) {
+		Texture *proxy = texture_owner.getornull(p_proxy);
+		ERR_FAIL_COND(!proxy);
+		ERR_FAIL_COND(proxy == texture);
+		proxy->proxy_owners.insert(texture);
+		texture->proxy = proxy;
+	}
+*/
+	
+	/*
+	Texture *tex = texture_owner.getornull(p_base);
+	ERR_FAIL_COND_V(!tex, RID());
+	Texture proxy_tex = *tex;
+
+	proxy_tex.rd_view.format_override = tex->rd_format;
+	proxy_tex.rd_texture = RD::get_singleton()->texture_create_shared(proxy_tex.rd_view, tex->rd_texture);
+	if (proxy_tex.rd_texture_srgb.is_valid()) {
+		proxy_tex.rd_view.format_override = tex->rd_format_srgb;
+		proxy_tex.rd_texture_srgb = RD::get_singleton()->texture_create_shared(proxy_tex.rd_view, tex->rd_texture);
+	}
+	proxy_tex.proxy_to = p_base;
+	proxy_tex.is_render_target = false;
+	proxy_tex.is_proxy = true;
+	proxy_tex.proxies.clear();
+	
+	RID rid = texture_owner.make_rid(proxy_tex);
+	
+	tex->proxies.push_back(rid);
+	
+	return rid;
+
+	*/
+	
+	return RID();
+}
+
+
 void RasterizerStorageGLES2::texture_2d_update_immediate(RID p_texture, const Ref<Image> &p_image, int p_layer)
 {
 	// only 1 layer so far
@@ -1186,7 +1261,19 @@ Size2 RasterizerStorageGLES2::texture_size_with_proxy(RID p_texture) {
 	}
 }
 
+// example use in 3.2
+// VS::get_singleton()->texture_set_proxy(default_texture->proxy, texture_rid);
+
+// p_proxy is the source (pre-existing) texture?
+// and p_texture is the one that is being made into a proxy?
+//This naming is confusing. Comments!!!
+
+// The naming of the parameters seemed to be reversed?
+// The p_proxy is the source texture
+// and p_texture is actually the proxy????
+
 void RasterizerStorageGLES2::texture_set_proxy(RID p_texture, RID p_proxy) {
+	
 	Texture *texture = texture_owner.getornull(p_texture);
 	ERR_FAIL_COND(!texture);
 
@@ -3058,6 +3145,7 @@ void RasterizerStorageGLES2::render_target_request_clear(RID p_render_target, co
 	RenderTarget *rt = render_target_owner.getornull(p_render_target);
 	ERR_FAIL_COND(!rt);
 	rt->clear_requested = true;
+	rt->clear_color = p_clear_color;
 }
 
 bool RasterizerStorageGLES2::render_target_is_clear_requested(RID p_render_target)
