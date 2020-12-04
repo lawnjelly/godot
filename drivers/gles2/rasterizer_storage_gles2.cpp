@@ -3058,6 +3058,7 @@ void RasterizerStorageGLES2::render_target_request_clear(RID p_render_target, co
 	RenderTarget *rt = render_target_owner.getornull(p_render_target);
 	ERR_FAIL_COND(!rt);
 	rt->clear_requested = true;
+	rt->clear_color = p_clear_color;
 }
 
 bool RasterizerStorageGLES2::render_target_is_clear_requested(RID p_render_target)
