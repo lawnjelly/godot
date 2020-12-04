@@ -31,6 +31,8 @@
 #ifndef DISPLAY_SERVER_WINDOWS_H
 #define DISPLAY_SERVER_WINDOWS_H
 
+#include "temp_gl_defines.h"
+
 #include "servers/display_server.h"
 
 #include "core/config/project_settings.h"
@@ -49,10 +51,6 @@
 
 #ifdef XAUDIO2_ENABLED
 #include "drivers/xaudio2/audio_driver_xaudio2.h"
-#endif
-
-#if defined(OPENGL_ENABLED)
-#include "context_gl_windows.h"
 #endif
 
 #if defined(VULKAN_ENABLED)
