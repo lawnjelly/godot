@@ -111,9 +111,9 @@ Error GLManager_Windows::_create_context(GLWindow &win, GLDisplay &gl_display) {
 	};
 	
 	// alias
-	HDC hDC = win.hdc;	
+	HDC hDC = win.hDC;	
 	
-	pixel_format = ChoosePixelFormat(hDC, &pfd);
+	int pixel_format = ChoosePixelFormat(hDC, &pfd);
 	if (!pixel_format) // Did Windows Find A Matching Pixel Format?
 	{
 		return ERR_CANT_CREATE; // Return FALSE
@@ -195,7 +195,7 @@ Error GLManager_Windows::window_create(DisplayServer::WindowID p_window_id, HWND
 	win.width = p_width;
 	win.height = p_height;
 	win.hwnd = p_hwnd;
-	win.hdc = hdc;
+	win.hDC = hdc;
 	
 	win.gldisplay_id = _find_or_create_display(win);
 	
