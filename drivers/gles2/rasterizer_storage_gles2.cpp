@@ -548,11 +548,9 @@ RID RasterizerStorageGLES2::texture_2d_create(const Ref<Image> &p_image)
 
 RID RasterizerStorageGLES2::texture_proxy_create(RID p_base)
 {
-	/*
 	RID link = texture_create();
-	texture_set_proxy(p_base, link);
+	texture_set_proxy(link, p_base);
 	return link;
-	*/
 	
 /*	
 	Texture *tex = texture_owner.getornull(p_base);
@@ -1263,7 +1261,19 @@ Size2 RasterizerStorageGLES2::texture_size_with_proxy(RID p_texture) {
 	}
 }
 
+// example use in 3.2
+// VS::get_singleton()->texture_set_proxy(default_texture->proxy, texture_rid);
+
+// p_proxy is the source (pre-existing) texture?
+// and p_texture is the one that is being made into a proxy?
+//This naming is confusing. Comments!!!
+
+// The naming of the parameters seemed to be reversed?
+// The p_proxy is the source texture
+// and p_texture is actually the proxy????
+
 void RasterizerStorageGLES2::texture_set_proxy(RID p_texture, RID p_proxy) {
+	
 	Texture *texture = texture_owner.getornull(p_texture);
 	ERR_FAIL_COND(!texture);
 
