@@ -3146,6 +3146,12 @@ void RasterizerStorageGLES2::render_target_request_clear(RID p_render_target, co
 	ERR_FAIL_COND(!rt);
 	rt->clear_requested = true;
 	rt->clear_color = p_clear_color;
+	
+	
+//	ERR_FAIL_COND(!frame.current_rt);
+//	frame.clear_request = true;
+//	frame.clear_request_color = p_color;
+	
 }
 
 bool RasterizerStorageGLES2::render_target_is_clear_requested(RID p_render_target)
@@ -3183,6 +3189,13 @@ void RasterizerStorageGLES2::render_target_do_clear_request(RID p_render_target)
 #ifdef GLES2_DISABLE_RENDER_TARGETS
 	return;
 #endif
+	
+	// NEW for GLES...
+	// This is being called at the wrong time. Instead it will be performed
+	// at canvas begin
+	return;
+	
+/*	
 	RenderTarget *rt = render_target_owner.getornull(p_render_target);
 	ERR_FAIL_COND(!rt);
 	if (!rt->clear_requested) {
@@ -3193,7 +3206,8 @@ void RasterizerStorageGLES2::render_target_do_clear_request(RID p_render_target)
 	
 	glClearColor(c.r, c.g, c.b, c.a);
 	// more bits?
-	glClear(GL_COLOR_BUFFER_BIT);	
+	glClear(GL_COLOR_BUFFER_BIT);
+	*/
 }
 
 

@@ -303,7 +303,18 @@ public:
 
 		GD_VS::TextureDetectCallback detect_normal;
 		void *detect_normal_ud;
-
+		
+		// some silly opengl shenanigans where
+		// texture coords start from bottom left, means we need to draw render target textures upside down
+		// to be compatible with vulkan etc.
+		bool is_upside_down() const
+		{
+			if (proxy)
+				return proxy->is_upside_down();
+			
+			return render_target != nullptr;
+		}
+		
 		Texture() :
 				proxy(NULL),
 				flags(0),
@@ -1230,9 +1241,12 @@ public:
 	struct Frame {
 
 		RenderTarget *current_rt;
-
+		
+		// these 2 may have been superceded by the equivalents in the render target.
+		// these may be able to be removed.
 		bool clear_request;
 		Color clear_request_color;
+		
 		float time[4];
 		float delta;
 		uint64_t count;

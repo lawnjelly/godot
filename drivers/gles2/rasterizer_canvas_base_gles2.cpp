@@ -69,6 +69,8 @@ void RasterizerCanvasBaseGLES2::canvas_begin() {
 
 	// FTODO .. this was commented out to try and get the clear color correct
 //#ifdef GODOT3
+	// OLD METHOD .. now done by render target rather than frame
+	/*
 	if (storage->frame.clear_request) {
 		glClearColor(storage->frame.clear_request_color.r,
 				storage->frame.clear_request_color.g,
@@ -77,6 +79,23 @@ void RasterizerCanvasBaseGLES2::canvas_begin() {
 		glClear(GL_COLOR_BUFFER_BIT);
 		storage->frame.clear_request = false;
 	}
+	*/
+	
+	// NEW METHOD
+	if (storage->frame.current_rt && storage->frame.current_rt->clear_requested)
+	{
+		const Color &col = storage->frame.current_rt->clear_color;
+		glClearColor(col.r, col.g, col.b, col.a);
+		
+		// clear EVERYTHING.
+		// not clearing everything can be devastating on tiled renderers especially,
+		// because if anything is preserved, often the whole frame buffer needs to be preserved.
+		// Not sure if GL_ACCUM_BUFFER_BIT is needed or supported in GLES.
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_ACCUM_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+		storage->frame.current_rt->clear_requested = false;
+	}
+	
+	
 //#endif
 
 	/*

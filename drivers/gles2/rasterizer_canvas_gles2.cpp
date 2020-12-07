@@ -412,6 +412,22 @@ void RasterizerCanvasGLES2::render_batches(Item::Command *const *p_commands, Ite
 							glVertexAttrib4fv(GD_VS::ARRAY_COLOR, r->modulate.components);
 
 							bool can_tile = true;
+							
+							// we will take account of render target textures which need to be drawn upside down
+							// quirk of opengl
+							bool upside_down = r->flags & CANVAS_RECT_FLIP_V;
+							
+							// very inefficient, improve this
+							if (r->texture.is_valid())
+							{
+								RasterizerStorageGLES2::Texture *texture = storage->texture_owner.getornull(r->texture);
+								
+								if (texture) {
+									if (texture->is_upside_down())
+										upside_down = true;
+								}
+							}
+							
 							if (r->texture.is_valid() && r->flags & CANVAS_RECT_TILE && !storage->config.support_npot_repeat_mipmap) {
 								// workaround for when setting tiling does not work due to hardware limitation
 
@@ -495,7 +511,7 @@ void RasterizerCanvasGLES2::render_batches(Item::Command *const *p_commands, Ite
 										flip_h = true;
 										flip_v = !flip_v;
 									}
-									if (r->flags & CANVAS_RECT_FLIP_V) {
+									if (upside_down) {
 										SWAP(uvs[0], uvs[3]);
 										SWAP(uvs[1], uvs[2]);
 										flip_v = !flip_v;
@@ -614,7 +630,7 @@ void RasterizerCanvasGLES2::render_batches(Item::Command *const *p_commands, Ite
 										src_rect.size.x *= -1;
 									}
 
-									if (r->flags & CANVAS_RECT_FLIP_V) {
+									if (upside_down) {
 										src_rect.size.y *= -1;
 									}
 
@@ -1580,7 +1596,7 @@ void RasterizerCanvasGLES2::_legacy_canvas_render_item(Item *p_ci, RenderItemSta
 			glScissor(r_ris.current_clip->final_clip_rect.position.x, y, r_ris.current_clip->final_clip_rect.size.width, r_ris.current_clip->final_clip_rect.size.height);
 			
 			
-			// debug
+			// debug VFLIP
 //			if ((r_ris.current_clip->final_clip_rect.position.x == 223)
 //					&& (y == 54)
 //					&& (r_ris.current_clip->final_clip_rect.size.width == 1383))
