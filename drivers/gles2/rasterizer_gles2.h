@@ -4,9 +4,9 @@
 #include "rasterizer_canvas_gles2.h"
 #include "rasterizer_scene_gles2.h"
 #include "rasterizer_storage_gles2.h"
-#include "servers/rendering/rasterizer.h"
+#include "servers/rendering/renderer_compositor.h"
 
-class RasterizerGLES2 : public Rasterizer {
+class RasterizerGLES2 : public RendererCompositor {
 private:
 	uint64_t frame = 1;
 	float delta = 0;
@@ -19,9 +19,9 @@ protected:
 	void _blit_render_target_to_screen(RID p_render_target, const Rect2 &p_screen_rect);
 
 public:
-	RasterizerStorage *get_storage() { return &storage; }
-	RasterizerCanvas *get_canvas() { return &canvas; }
-	RasterizerScene *get_scene() { return &scene; }
+	RendererStorage *get_storage() { return &storage; }
+	RendererCanvasRender *get_canvas() { return &canvas; }
+	RendererSceneRender *get_scene() { return &scene; }
 
 	void set_boot_image(const Ref<Image> &p_image, const Color &p_color, bool p_scale, bool p_use_filter = true) {}
 
@@ -38,7 +38,7 @@ public:
 
 	void finalize() {}
 
-	static Rasterizer *_create_current() {
+	static RendererCompositor *_create_current() {
 		return memnew(RasterizerGLES2);
 	}
 

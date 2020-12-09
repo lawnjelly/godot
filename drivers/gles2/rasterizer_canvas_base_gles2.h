@@ -1,17 +1,18 @@
 #pragma once
 
 #include "drivers/gles_common/rasterizer_version.h"
-#include "servers/rendering/rasterizer.h"
+#include "servers/rendering/renderer_compositor.h"
 #include "rasterizer_storage_gles2.h"
 #include "rasterizer_scene_gles2.h"
 #include "drivers/gles_common/rasterizer_array.h"
 #include "drivers/gles_common/rasterizer_storage_common.h"
+#include "drivers/gles_common/rasterizer_common_stubs.h"
 
 #include "shaders/canvas.glsl.gen.h"
 #include "shaders/lens_distorted.glsl.gen.h"
 #include "shaders/canvas_shadow.glsl.gen.h"
 
-class RasterizerCanvasBaseGLES2 : public RasterizerCanvas {
+class RasterizerCanvasBaseGLES2 : public StubsCanvas {
 public:
 	enum {
 		INSTANCE_ATTRIB_BASE = 8,
@@ -124,7 +125,7 @@ public:
 		LocalVector<Point2> uvs;
 	};
 	
-	RasterizerCanvas::PolygonID request_polygon(const Vector<int> &p_indices, const Vector<Point2> &p_points, const Vector<Color> &p_colors, const Vector<Point2> &p_uvs = Vector<Point2>(), const Vector<int> &p_bones = Vector<int>(), const Vector<float> &p_weights = Vector<float>()) override;
+	RendererCanvasRender::PolygonID request_polygon(const Vector<int> &p_indices, const Vector<Point2> &p_points, const Vector<Color> &p_colors, const Vector<Point2> &p_uvs = Vector<Point2>(), const Vector<int> &p_bones = Vector<int>(), const Vector<float> &p_weights = Vector<float>()) override;
 	void free_polygon(PolygonID p_polygon) override;
 	
 	RasterizerPooledIndirectList<PolyData> _polydata;
@@ -135,8 +136,10 @@ public:
 	void light_update_shadow(RID p_rid, int p_shadow_index, const Transform2D &p_light_xform, int p_light_mask, float p_near, float p_far, LightOccluderInstance *p_occluders) override {}
 	void light_update_directional_shadow(RID p_rid, int p_shadow_index, const Transform2D &p_light_xform, int p_light_mask, float p_cull_distance, const Rect2 &p_clip_rect, LightOccluderInstance *p_occluders) override {}
 	
+	
+	void render_sdf(RID p_render_target, LightOccluderInstance *p_occluders) override {}
 	RID occluder_polygon_create() override { return RID(); }
-	void occluder_polygon_set_shape_as_lines(RID p_occluder, const Vector<Vector2> &p_lines) override {}
+	void occluder_polygon_set_shape(RID p_occluder, const Vector<Vector2> &p_points, bool p_closed) override {}
 	void occluder_polygon_set_cull_mode(RID p_occluder, RS::CanvasOccluderPolygonCullMode p_mode) override {}
 	void set_shadow_texture_size(int p_size) override {}
 	

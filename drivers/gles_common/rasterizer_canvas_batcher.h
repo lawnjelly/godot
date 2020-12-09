@@ -40,7 +40,7 @@
 
 #ifdef GODOT_4
 #include "core/config/project_settings.h"
-#include "servers/rendering/rasterizer.h"
+#include "servers/rendering/renderer_compositor.h"
 #else
 #include "core/project_settings.h"
 #include "servers/visual/rasterizer.h"
@@ -215,7 +215,7 @@ public:
 			item = o.item;
 			z_index = o.z_index;
 		}
-		RasterizerCanvas::Item *item;
+		RendererCanvasRender::Item *item;
 		int z_index;
 	};
 
@@ -239,7 +239,7 @@ public:
 	};
 
 	struct BItemRef {
-		RasterizerCanvas::Item *item;
+		RendererCanvasRender::Item *item;
 		Color final_modulate;
 	};
 
@@ -494,7 +494,7 @@ public:
 			joined_item = nullptr;
 		}
 
-		RasterizerCanvas::Item *current_clip;
+		RendererCanvasRender::Item *current_clip;
 		typename T_STORAGE::Shader *shader_cache;
 		bool rebind_shader;
 		bool prev_use_skeleton;
@@ -516,7 +516,7 @@ public:
 		// 'item group' is data over a single call to canvas_render_items
 		int item_group_z;
 		Color item_group_modulate;
-		RasterizerCanvas::Light *item_group_light;
+		RendererCanvasRender::Light *item_group_light;
 		Transform2D item_group_base_transform;
 	} _render_item_state;
 
@@ -539,12 +539,12 @@ protected:
 
 	void batch_canvas_begin();
 	void batch_canvas_end();
-	void batch_canvas_render_items_begin(const Color &p_modulate, RasterizerCanvas::Light *p_light, const Transform2D &p_base_transform);
+	void batch_canvas_render_items_begin(const Color &p_modulate, RendererCanvasRender::Light *p_light, const Transform2D &p_base_transform);
 	void batch_canvas_render_items_end();
-	void batch_canvas_render_items(RasterizerCanvas::Item *p_item_list, int p_z, const Color &p_modulate, RasterizerCanvas::Light *p_light, const Transform2D &p_base_transform);
+	void batch_canvas_render_items(RendererCanvasRender::Item *p_item_list, int p_z, const Color &p_modulate, RendererCanvasRender::Light *p_light, const Transform2D &p_base_transform);
 
 	// recording and sorting items from the initial pass
-	void record_items(RasterizerCanvas::Item *p_item_list, int p_z);
+	void record_items(RendererCanvasRender::Item *p_item_list, int p_z);
 	void join_sorted_items();
 	void sort_items();
 	bool _sort_items_match(const BSortItem &p_a, const BSortItem &p_b) const;
@@ -552,46 +552,46 @@ protected:
 
 	// joining logic
 	bool _disallow_item_join_if_batch_types_too_different(RenderItemState &r_ris, uint32_t btf_allowed);
-	bool _detect_item_batch_break(RenderItemState &r_ris, RasterizerCanvas::Item *p_ci, bool &r_batch_break);
+	bool _detect_item_batch_break(RenderItemState &r_ris, RendererCanvasRender::Item *p_ci, bool &r_batch_break);
 
 	// drives the loop filling batches and flushing
-	void render_joined_item_commands(const BItemJoined &p_bij, RasterizerCanvas::Item *p_current_clip, bool &r_reclip, typename T_STORAGE::Material *p_material, bool p_lit);
+	void render_joined_item_commands(const BItemJoined &p_bij, RendererCanvasRender::Item *p_current_clip, bool &r_reclip, typename T_STORAGE::Material *p_material, bool p_lit);
 
 private:
 	// flush once full or end of joined item
-	void flush_render_batches(RasterizerCanvas::Item *p_first_item, RasterizerCanvas::Item *p_current_clip, bool &r_reclip, typename T_STORAGE::Material *p_material, uint32_t p_sequence_batch_type_flags);
+	void flush_render_batches(RendererCanvasRender::Item *p_first_item, RendererCanvasRender::Item *p_current_clip, bool &r_reclip, typename T_STORAGE::Material *p_material, uint32_t p_sequence_batch_type_flags);
 
 	// a single joined item can contain multiple itemrefs, and thus create lots of batches
 #ifdef GODOT_3
-	bool prefill_joined_item(FillState &r_fill_state, int &r_command_start, RasterizerCanvas::Item *p_item, RasterizerCanvas::Item *p_current_clip, bool &r_reclip, typename T_STORAGE::Material *p_material);
+	bool prefill_joined_item(FillState &r_fill_state, int &r_command_start, RendererCanvasRender::Item *p_item, RendererCanvasRender::Item *p_current_clip, bool &r_reclip, typename T_STORAGE::Material *p_material);
 #else
 	// command start given a separate name to make easier to tell apart godot 3 and 4
-	bool prefill_joined_item(FillState &r_fill_state, RasterizerCanvas::Item::Command **r_first_command, RasterizerCanvas::Item *p_item, RasterizerCanvas::Item *p_current_clip, bool &r_reclip, typename T_STORAGE::Material *p_material);
+	bool prefill_joined_item(FillState &r_fill_state, RendererCanvasRender::Item::Command **r_first_command, RendererCanvasRender::Item *p_item, RendererCanvasRender::Item *p_current_clip, bool &r_reclip, typename T_STORAGE::Material *p_material);
 #endif
 
 	// prefilling different types of batch
 
 	// default batch is an 'unhandled' legacy type batch that will be drawn with the legacy path,
 	// all other batches are accelerated.
-	void _prefill_default_batch(FillState &r_fill_state, int p_command_num, const RasterizerCanvas::Item &p_item);
+	void _prefill_default_batch(FillState &r_fill_state, int p_command_num, const RendererCanvasRender::Item &p_item);
 
 	// accelerated batches
 #ifdef GODOT_3
-	bool _prefill_line(RasterizerCanvas::Item::GD_COMMAND_LINE *p_line, FillState &r_fill_state, int &r_command_start, int command_num, int command_count, RasterizerCanvas::Item *p_item, bool multiply_final_modulate);
+	bool _prefill_line(RendererCanvasRender::Item::GD_COMMAND_LINE *p_line, FillState &r_fill_state, int &r_command_start, int command_num, int command_count, RendererCanvasRender::Item *p_item, bool multiply_final_modulate);
 	template <bool SEND_LIGHT_ANGLES>
-	bool _prefill_ninepatch(RasterizerCanvas::Item::CommandNinePatch *p_np, FillState &r_fill_state, int &r_command_start, int command_num, int command_count, RasterizerCanvas::Item *p_item, bool multiply_final_modulate);
+	bool _prefill_ninepatch(RendererCanvasRender::Item::CommandNinePatch *p_np, FillState &r_fill_state, int &r_command_start, int command_num, int command_count, RendererCanvasRender::Item *p_item, bool multiply_final_modulate);
 	template <bool SEND_LIGHT_ANGLES>
-	bool _prefill_polygon(RasterizerCanvas::Item::CommandPolygon *p_poly, FillState &r_fill_state, int &r_command_start, int command_num, int command_count, RasterizerCanvas::Item *p_item, bool multiply_final_modulate);
+	bool _prefill_polygon(RendererCanvasRender::Item::CommandPolygon *p_poly, FillState &r_fill_state, int &r_command_start, int command_num, int command_count, RendererCanvasRender::Item *p_item, bool multiply_final_modulate);
 	template <bool SEND_LIGHT_ANGLES>
 #endif
-	bool _prefill_rect(RasterizerCanvas::Item::CommandRect *rect, FillState &r_fill_state, int &r_command_start, int command_num, int command_count, RasterizerCanvas::Item::Command *const *commands, RasterizerCanvas::Item *p_item, bool multiply_final_modulate);
+	bool _prefill_rect(RendererCanvasRender::Item::CommandRect *rect, FillState &r_fill_state, int &r_command_start, int command_num, int command_count, RendererCanvasRender::Item::Command *const *commands, RendererCanvasRender::Item *p_item, bool multiply_final_modulate);
 
 	// dealing with textures
 	int _batch_find_or_create_tex(const RID &p_texture, const RID &p_normal, bool p_tile, int p_previous_match);
 
 protected:
 	// legacy support for non batched mode
-	void _legacy_canvas_item_render_commands(RasterizerCanvas::Item *p_item, RasterizerCanvas::Item *p_current_clip, bool &r_reclip, typename T_STORAGE::Material *p_material);
+	void _legacy_canvas_item_render_commands(RendererCanvasRender::Item *p_item, RendererCanvasRender::Item *p_current_clip, bool &r_reclip, typename T_STORAGE::Material *p_material);
 
 	// light scissoring
 	bool _light_scissor_begin(const Rect2 &p_item_rect, const Transform2D &p_light_xform, const Rect2 &p_light_rect) const;
@@ -621,7 +621,7 @@ protected:
 	}
 
 #ifdef GODOT_3
-	bool _software_skin_poly(RasterizerCanvas::Item::CommandPolygon *p_poly, RasterizerCanvas::Item *p_item, BatchVertex *bvs, BatchColor *vertex_colors, const FillState &p_fill_state, const BatchColor *p_precalced_colors);
+	bool _software_skin_poly(RendererCanvasRender::Item::CommandPolygon *p_poly, RendererCanvasRender::Item *p_item, BatchVertex *bvs, BatchColor *vertex_colors, const FillState &p_fill_state, const BatchColor *p_precalced_colors);
 #endif
 	
 	typename T_STORAGE::Texture *_get_canvas_texture(const RID &p_texture) const {
@@ -666,7 +666,7 @@ public:
 protected:
 	
 #ifdef GODOT_4	
-	int godot4_commands_count(RasterizerCanvas::Item::Command * p_comm) const
+	int godot4_commands_count(RendererCanvasRender::Item::Command * p_comm) const
 	{
 		int count = 0;
 		while (p_comm)
@@ -677,7 +677,7 @@ protected:
 		return count;
 	}
 	
-	int godot4_commands_to_vector(RasterizerCanvas::Item::Command * p_comm, LocalVector<RasterizerCanvas::Item::Command *> &p_list)
+	int godot4_commands_to_vector(RendererCanvasRender::Item::Command * p_comm, LocalVector<RendererCanvasRender::Item::Command *> &p_list)
 	{
 		int count = 0;
 		while (p_comm)
@@ -742,7 +742,7 @@ PREAMBLE(void)::batch_canvas_end() {
 #endif
 }
 
-PREAMBLE(void)::batch_canvas_render_items_begin(const Color &p_modulate, RasterizerCanvas::Light *p_light, const Transform2D &p_base_transform) {
+PREAMBLE(void)::batch_canvas_render_items_begin(const Color &p_modulate, RendererCanvasRender::Light *p_light, const Transform2D &p_base_transform) {
 	// if we are debugging, flash each frame between batching renderer and old version to compare for regressions
 	if (bdata.settings_flash_batching) {
 		if ((Engine::get_singleton()->get_frames_drawn() % 2) == 0)
@@ -817,7 +817,7 @@ PREAMBLE(void)::batch_canvas_render_items_end() {
 	bdata.sort_items.reset();
 }
 
-PREAMBLE(void)::batch_canvas_render_items(RasterizerCanvas::Item *p_item_list, int p_z, const Color &p_modulate, RasterizerCanvas::Light *p_light, const Transform2D &p_base_transform) {
+PREAMBLE(void)::batch_canvas_render_items(RendererCanvasRender::Item *p_item_list, int p_z, const Color &p_modulate, RendererCanvasRender::Light *p_light, const Transform2D &p_base_transform) {
 	// stage 1 : join similar items, so that their state changes are not repeated,
 	// and commands from joined items can be batched together
 	if (bdata.settings_use_batching) {
@@ -832,7 +832,7 @@ PREAMBLE(void)::batch_canvas_render_items(RasterizerCanvas::Item *p_item_list, i
 // Default batches will not occur in software transform only items
 // EXCEPT IN THE CASE OF SINGLE RECTS (and this may well not occur, check the logic in prefill_join_item TYPE_RECT)
 // but can occur where transform commands have been sent during hardware batch
-PREAMBLE(void)::_prefill_default_batch(FillState &r_fill_state, int p_command_num, const RasterizerCanvas::Item &p_item) {
+PREAMBLE(void)::_prefill_default_batch(FillState &r_fill_state, int p_command_num, const RendererCanvasRender::Item &p_item) {
 	if (r_fill_state.curr_batch->type == RasterizerStorageCommon::BT_DEFAULT) {
 		// don't need to flush an extra transform command?
 		if (!r_fill_state.transform_extra_command_number_p1) {
@@ -1199,7 +1199,7 @@ PREAMBLE(bool)::_light_scissor_begin(const Rect2 &p_item_rect, const Transform2D
 
 	int y = rh - (cliprect.position.y + cliprect.size.y);
 #ifdef GODOT_3
-	if (get_storage()->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_VFLIP])
+	if (get_storage()->frame.current_rt->flags[RendererStorage::RENDER_TARGET_VFLIP])
 		y = cliprect.position.y;
 #endif
 	get_this()->gl_enable_scissor(cliprect.position.x, y, cliprect.size.width, cliprect.size.height);
@@ -1263,7 +1263,7 @@ PREAMBLE(void)::_calculate_scissor_threshold_area() {
 }
 
 #ifdef GODOT_3
-PREAMBLE(bool)::_prefill_line(RasterizerCanvas::Item::GD_COMMAND_LINE *p_line, FillState &r_fill_state, int &r_command_start, int command_num, int command_count, RasterizerCanvas::Item *p_item, bool multiply_final_modulate) {
+PREAMBLE(bool)::_prefill_line(RendererCanvasRender::Item::GD_COMMAND_LINE *p_line, FillState &r_fill_state, int &r_command_start, int command_num, int command_count, RendererCanvasRender::Item *p_item, bool multiply_final_modulate) {
 	bool change_batch = false;
 
 	// we have separate batch types for non and anti aliased lines.
@@ -1356,7 +1356,7 @@ PREAMBLE(bool)::_prefill_line(RasterizerCanvas::Item::GD_COMMAND_LINE *p_line, F
 }
 #endif // godot 3
 
-//unsigned int _ninepatch_apply_tiling_modes(RasterizerCanvas::Item::CommandNinePatch *p_np, Rect2 &r_source) {
+//unsigned int _ninepatch_apply_tiling_modes(RendererCanvasRender::Item::CommandNinePatch *p_np, Rect2 &r_source) {
 //	unsigned int rect_flags = 0;
 
 //	switch (p_np->axis_x) {
@@ -1364,7 +1364,7 @@ PREAMBLE(bool)::_prefill_line(RasterizerCanvas::Item::GD_COMMAND_LINE *p_line, F
 //			break;
 //		case VisualServer::NINE_PATCH_TILE: {
 //			r_source.size.x = p_np->rect.size.x;
-//			rect_flags = RasterizerCanvas::CANVAS_RECT_TILE;
+//			rect_flags = RendererCanvasRender::CANVAS_RECT_TILE;
 //		} break;
 //		case VisualServer::NINE_PATCH_TILE_FIT: {
 //			// prevent divide by zero (may never happen)
@@ -1373,7 +1373,7 @@ PREAMBLE(bool)::_prefill_line(RasterizerCanvas::Item::GD_COMMAND_LINE *p_line, F
 //				if (!units)
 //					units++;
 //				r_source.size.x = r_source.size.x * units;
-//				rect_flags = RasterizerCanvas::CANVAS_RECT_TILE;
+//				rect_flags = RendererCanvasRender::CANVAS_RECT_TILE;
 //			}
 //		} break;
 //	}
@@ -1383,7 +1383,7 @@ PREAMBLE(bool)::_prefill_line(RasterizerCanvas::Item::GD_COMMAND_LINE *p_line, F
 //			break;
 //		case VisualServer::NINE_PATCH_TILE: {
 //			r_source.size.y = p_np->rect.size.y;
-//			rect_flags = RasterizerCanvas::CANVAS_RECT_TILE;
+//			rect_flags = RendererCanvasRender::CANVAS_RECT_TILE;
 //		} break;
 //		case VisualServer::NINE_PATCH_TILE_FIT: {
 //			// prevent divide by zero (may never happen)
@@ -1392,7 +1392,7 @@ PREAMBLE(bool)::_prefill_line(RasterizerCanvas::Item::GD_COMMAND_LINE *p_line, F
 //				if (!units)
 //					units++;
 //				r_source.size.y = r_source.size.y * units;
-//				rect_flags = RasterizerCanvas::CANVAS_RECT_TILE;
+//				rect_flags = RendererCanvasRender::CANVAS_RECT_TILE;
 //			}
 //		} break;
 //	}
@@ -1404,7 +1404,7 @@ PREAMBLE(bool)::_prefill_line(RasterizerCanvas::Item::GD_COMMAND_LINE *p_line, F
 
 T_PREAMBLE
 template <bool SEND_LIGHT_ANGLES>
-bool C_PREAMBLE::_prefill_ninepatch(RasterizerCanvas::Item::CommandNinePatch *p_np, FillState &r_fill_state, int &r_command_start, int command_num, int command_count, RasterizerCanvas::Item *p_item, bool multiply_final_modulate) {
+bool C_PREAMBLE::_prefill_ninepatch(RendererCanvasRender::Item::CommandNinePatch *p_np, FillState &r_fill_state, int &r_command_start, int command_num, int command_count, RendererCanvasRender::Item *p_item, bool multiply_final_modulate) {
 	typename T_STORAGE::Texture *tex = get_storage()->texture_owner.getornull(p_np->texture);
 
 	if (!tex) {
@@ -1425,14 +1425,14 @@ bool C_PREAMBLE::_prefill_ninepatch(RasterizerCanvas::Item::CommandNinePatch *p_
 	}
 
 	// create a temporary rect so we can reuse the rect routine
-	RasterizerCanvas::Item::CommandRect trect;
+	RendererCanvasRender::Item::CommandRect trect;
 
 	trect.texture = p_np->texture;
 #ifdef GODOT_3
 	trect.normal_map = p_np->normal_map;
 #endif
 	trect.modulate = p_np->color;
-	trect.flags = RasterizerCanvas::CANVAS_RECT_REGION;
+	trect.flags = RendererCanvasRender::CANVAS_RECT_REGION;
 
 	//Size2 texpixel_size(1.0f / tex->width, 1.0f / tex->height);
 
@@ -1523,7 +1523,7 @@ bool C_PREAMBLE::_prefill_ninepatch(RasterizerCanvas::Item::CommandNinePatch *p_
 
 T_PREAMBLE
 template <bool SEND_LIGHT_ANGLES>
-bool C_PREAMBLE::_prefill_polygon(RasterizerCanvas::Item::CommandPolygon *p_poly, FillState &r_fill_state, int &r_command_start, int command_num, int command_count, RasterizerCanvas::Item *p_item, bool multiply_final_modulate) {
+bool C_PREAMBLE::_prefill_polygon(RendererCanvasRender::Item::CommandPolygon *p_poly, FillState &r_fill_state, int &r_command_start, int command_num, int command_count, RendererCanvasRender::Item *p_item, bool multiply_final_modulate) {
 	bool change_batch = false;
 
 	// conditions for creating a new batch
@@ -1720,7 +1720,7 @@ bool C_PREAMBLE::_prefill_polygon(RasterizerCanvas::Item::CommandPolygon *p_poly
 	return false;
 }
 
-PREAMBLE(bool)::_software_skin_poly(RasterizerCanvas::Item::CommandPolygon *p_poly, RasterizerCanvas::Item *p_item, BatchVertex *bvs, BatchColor *vertex_colors, const FillState &p_fill_state, const BatchColor *p_precalced_colors) {
+PREAMBLE(bool)::_software_skin_poly(RendererCanvasRender::Item::CommandPolygon *p_poly, RendererCanvasRender::Item *p_item, BatchVertex *bvs, BatchColor *vertex_colors, const FillState &p_fill_state, const BatchColor *p_precalced_colors) {
 
 	//	alternatively could check get_this()->state.using_skeleton
 	if (p_item->skeleton == RID())
@@ -1730,7 +1730,7 @@ PREAMBLE(bool)::_software_skin_poly(RasterizerCanvas::Item::CommandPolygon *p_po
 	int num_verts = p_poly->points.size();
 
 	RID skeleton = p_item->skeleton;
-	int bone_count = RasterizerStorage::base_singleton->skeleton_get_bone_count(skeleton);
+	int bone_count = RendererStorage::base_singleton->skeleton_get_bone_count(skeleton);
 
 	// we want a temporary buffer of positions to transform
 	Vector2 *pTemps = (Vector2 *)alloca(num_verts * sizeof(Vector2));
@@ -1745,7 +1745,7 @@ PREAMBLE(bool)::_software_skin_poly(RasterizerCanvas::Item::CommandPolygon *p_po
 	// for any particular poly, but depends how cheap the skeleton_bone_get_transform_2d call is
 	Transform2D *bone_transforms = (Transform2D *)alloca(bone_count * sizeof(Transform2D));
 	for (int b = 0; b < bone_count; b++) {
-		bone_transforms[b] = RasterizerStorage::base_singleton->skeleton_bone_get_transform_2d(skeleton, b);
+		bone_transforms[b] = RendererStorage::base_singleton->skeleton_bone_get_transform_2d(skeleton, b);
 	}
 
 	if (num_verts && (p_poly->bones.size() == num_verts * 4) && (p_poly->weights.size() == p_poly->bones.size())) {
@@ -1828,7 +1828,7 @@ PREAMBLE(bool)::_software_skin_poly(RasterizerCanvas::Item::CommandPolygon *p_po
 
 T_PREAMBLE
 template <bool SEND_LIGHT_ANGLES>
-bool C_PREAMBLE::_prefill_rect(RasterizerCanvas::Item::CommandRect *rect, FillState &r_fill_state, int &r_command_start, int command_num, int command_count, RasterizerCanvas::Item::Command *const *commands, RasterizerCanvas::Item *p_item, bool multiply_final_modulate) {
+bool C_PREAMBLE::_prefill_rect(RendererCanvasRender::Item::CommandRect *rect, FillState &r_fill_state, int &r_command_start, int command_num, int command_count, RendererCanvasRender::Item::Command *const *commands, RendererCanvasRender::Item *p_item, bool multiply_final_modulate) {
 	bool change_batch = false;
 
 	// conditions for creating a new batch
@@ -1856,8 +1856,8 @@ bool C_PREAMBLE::_prefill_rect(RasterizerCanvas::Item::CommandRect *rect, FillSt
 			bool is_single_rect = false;
 			int command_num_next = command_num + 1;
 			if (command_num_next < command_count) {
-				RasterizerCanvas::Item::Command *command_next = commands[command_num_next];
-				if ((command_next->type != RasterizerCanvas::Item::Command::TYPE_RECT) && (command_next->type != RasterizerCanvas::Item::Command::TYPE_TRANSFORM)) {
+				RendererCanvasRender::Item::Command *command_next = commands[command_num_next];
+				if ((command_next->type != RendererCanvasRender::Item::Command::TYPE_RECT) && (command_next->type != RendererCanvasRender::Item::Command::TYPE_TRANSFORM)) {
 					is_single_rect = true;
 				}
 			} else {
@@ -1903,9 +1903,9 @@ bool C_PREAMBLE::_prefill_rect(RasterizerCanvas::Item::CommandRect *rect, FillSt
 	int old_batch_tex_id = r_fill_state.batch_tex_id;
 
 #ifdef GODOT_4
-	r_fill_state.batch_tex_id = _batch_find_or_create_tex(rect->texture, RID(), rect->flags & RasterizerCanvas::CANVAS_RECT_TILE, old_batch_tex_id);
+	r_fill_state.batch_tex_id = _batch_find_or_create_tex(rect->texture, RID(), rect->flags & RendererCanvasRender::CANVAS_RECT_TILE, old_batch_tex_id);
 #else
-	r_fill_state.batch_tex_id = _batch_find_or_create_tex(rect->texture, rect->normal_map, rect->flags & RasterizerCanvas::CANVAS_RECT_TILE, old_batch_tex_id);
+	r_fill_state.batch_tex_id = _batch_find_or_create_tex(rect->texture, rect->normal_map, rect->flags & RendererCanvasRender::CANVAS_RECT_TILE, old_batch_tex_id);
 #endif
 
 	//r_fill_state.use_light_angles = send_light_angles;
@@ -2005,7 +2005,7 @@ bool C_PREAMBLE::_prefill_rect(RasterizerCanvas::Item::CommandRect *rect, FillSt
 	// uvs
 	Vector2 src_min;
 	Vector2 src_max;
-	if (rect->flags & RasterizerCanvas::CANVAS_RECT_REGION) {
+	if (rect->flags & RendererCanvasRender::CANVAS_RECT_REGION) {
 		src_min = rect->source.position;
 		src_max = src_min + rect->source.size;
 
@@ -2040,17 +2040,17 @@ bool C_PREAMBLE::_prefill_rect(RasterizerCanvas::Item::CommandRect *rect, FillSt
 	bool flip_h = false;
 	bool flip_v = false;
 
-	if (rect->flags & RasterizerCanvas::CANVAS_RECT_TRANSPOSE) {
+	if (rect->flags & RendererCanvasRender::CANVAS_RECT_TRANSPOSE) {
 		SWAP(uvs[1], uvs[3]);
 	}
 
-	if (rect->flags & RasterizerCanvas::CANVAS_RECT_FLIP_H) {
+	if (rect->flags & RendererCanvasRender::CANVAS_RECT_FLIP_H) {
 		SWAP(uvs[0], uvs[1]);
 		SWAP(uvs[2], uvs[3]);
 		flip_h = !flip_h;
 		flip_v = !flip_v;
 	}
-	if (rect->flags & RasterizerCanvas::CANVAS_RECT_FLIP_V) {
+	if (rect->flags & RendererCanvasRender::CANVAS_RECT_FLIP_V) {
 		SWAP(uvs[0], uvs[3]);
 		SWAP(uvs[1], uvs[2]);
 		flip_v = !flip_v;
@@ -2157,10 +2157,10 @@ bool C_PREAMBLE::_prefill_rect(RasterizerCanvas::Item::CommandRect *rect, FillSt
 }
 
 // This function may be called MULTIPLE TIMES for each item, so needs to record how far it has got
-PREAMBLE(bool)::prefill_joined_item(FillState &r_fill_state, int &r_command_start, RasterizerCanvas::Item *p_item, RasterizerCanvas::Item *p_current_clip, bool &r_reclip, typename T_STORAGE::Material *p_material) {
+PREAMBLE(bool)::prefill_joined_item(FillState &r_fill_state, int &r_command_start, RendererCanvasRender::Item *p_item, RendererCanvasRender::Item *p_current_clip, bool &r_reclip, typename T_STORAGE::Material *p_material) {
 	// we will prefill batches and vertices ready for sending in one go to the vertex buffer
 	int command_count = p_item->commands.size();
-	RasterizerCanvas::Item::Command *const *commands = p_item->commands.ptr();
+	RendererCanvasRender::Item::Command *const *commands = p_item->commands.ptr();
 
 	// checking the color for not being white makes it 92/90 times faster in the case where it is white
 	bool multiply_final_modulate = false;
@@ -2193,21 +2193,21 @@ PREAMBLE(bool)::prefill_joined_item(FillState &r_fill_state, int &r_command_star
 	// do as many commands as possible until the vertex buffer will be full up
 	for (command_num = r_command_start; command_num < command_count; command_num++) {
 
-		RasterizerCanvas::Item::Command *command = commands[command_num];
+		RendererCanvasRender::Item::Command *command = commands[command_num];
 
 		switch (command->type) {
 
 			default: {
 				_prefill_default_batch(r_fill_state, command_num, *p_item);
 			} break;
-			case RasterizerCanvas::Item::Command::TYPE_TRANSFORM: {
+			case RendererCanvasRender::Item::Command::TYPE_TRANSFORM: {
 				// if the extra matrix has been sent already,
 				// break this extra matrix software path (as we don't want to unset it on the GPU etc)
 				if (r_fill_state.extra_matrix_sent) {
 					_prefill_default_batch(r_fill_state, command_num, *p_item);
 
 					// keep track of the combined matrix on the CPU in parallel, in case we use large vertex format
-					RasterizerCanvas::Item::CommandTransform *transform = static_cast<RasterizerCanvas::Item::CommandTransform *>(command);
+					RendererCanvasRender::Item::CommandTransform *transform = static_cast<RendererCanvasRender::Item::CommandTransform *>(command);
 					const Transform2D &extra_matrix = transform->xform;
 					r_fill_state.transform_combined = p_item->final_transform * extra_matrix;
 				} else {
@@ -2215,7 +2215,7 @@ PREAMBLE(bool)::prefill_joined_item(FillState &r_fill_state, int &r_command_star
 					// Instead of sending the command immediately, we store the modified transform (in combined)
 					// for software transform, and only flush this transform command if we NEED to (i.e. we want to
 					// render some default commands)
-					RasterizerCanvas::Item::CommandTransform *transform = static_cast<RasterizerCanvas::Item::CommandTransform *>(command);
+					RendererCanvasRender::Item::CommandTransform *transform = static_cast<RendererCanvasRender::Item::CommandTransform *>(command);
 					const Transform2D &extra_matrix = transform->xform;
 
 					if (r_fill_state.use_hardware_transform) {
@@ -2234,9 +2234,9 @@ PREAMBLE(bool)::prefill_joined_item(FillState &r_fill_state, int &r_command_star
 					r_fill_state.transform_extra_command_number_p1 = command_num + 1; // plus 1 so we can test against zero
 				}
 			} break;
-			case RasterizerCanvas::Item::Command::TYPE_RECT: {
+			case RendererCanvasRender::Item::Command::TYPE_RECT: {
 
-				RasterizerCanvas::Item::CommandRect *rect = static_cast<RasterizerCanvas::Item::CommandRect *>(command);
+				RendererCanvasRender::Item::CommandRect *rect = static_cast<RendererCanvasRender::Item::CommandRect *>(command);
 
 				// unoptimized - could this be done once per batch / batch texture?
 				bool send_light_angles = rect->normal_map != RID();
@@ -2255,9 +2255,9 @@ PREAMBLE(bool)::prefill_joined_item(FillState &r_fill_state, int &r_command_star
 					return true;
 
 			} break;
-			case RasterizerCanvas::Item::Command::TYPE_NINEPATCH: {
+			case RendererCanvasRender::Item::Command::TYPE_NINEPATCH: {
 
-				RasterizerCanvas::Item::CommandNinePatch *np = static_cast<RasterizerCanvas::Item::CommandNinePatch *>(command);
+				RendererCanvasRender::Item::CommandNinePatch *np = static_cast<RendererCanvasRender::Item::CommandNinePatch *>(command);
 
 				if ((np->axis_x != VisualServer::NINE_PATCH_STRETCH) || (np->axis_y != VisualServer::NINE_PATCH_STRETCH)) {
 					// not accelerated
@@ -2280,9 +2280,9 @@ PREAMBLE(bool)::prefill_joined_item(FillState &r_fill_state, int &r_command_star
 
 			} break;
 
-			case RasterizerCanvas::Item::Command::TYPE_LINE: {
+			case RendererCanvasRender::Item::Command::TYPE_LINE: {
 
-				RasterizerCanvas::Item::CommandLine *line = static_cast<RasterizerCanvas::Item::CommandLine *>(command);
+				RendererCanvasRender::Item::CommandLine *line = static_cast<RendererCanvasRender::Item::CommandLine *>(command);
 
 				if (line->width <= 1) {
 					bool buffer_full = _prefill_line(line, r_fill_state, r_command_start, command_num, command_count, p_item, multiply_final_modulate);
@@ -2295,9 +2295,9 @@ PREAMBLE(bool)::prefill_joined_item(FillState &r_fill_state, int &r_command_star
 				}
 			} break;
 
-			case RasterizerCanvas::Item::Command::TYPE_POLYGON: {
+			case RendererCanvasRender::Item::Command::TYPE_POLYGON: {
 
-				RasterizerCanvas::Item::CommandPolygon *polygon = static_cast<RasterizerCanvas::Item::CommandPolygon *>(command);
+				RendererCanvasRender::Item::CommandPolygon *polygon = static_cast<RendererCanvasRender::Item::CommandPolygon *>(command);
 #ifdef GLES_OVER_GL
 				// anti aliasing not accelerated .. it is problematic because it requires a 2nd line drawn around the outside of each
 				// poly, which would require either a second list of indices or a second list of vertices for this step
@@ -2342,7 +2342,7 @@ PREAMBLE(bool)::prefill_joined_item(FillState &r_fill_state, int &r_command_star
 	return false;
 }
 
-PREAMBLE(void)::flush_render_batches(RasterizerCanvas::Item *p_first_item, RasterizerCanvas::Item *p_current_clip, bool &r_reclip, typename T_STORAGE::Material *p_material, uint32_t p_sequence_batch_type_flags) {
+PREAMBLE(void)::flush_render_batches(RendererCanvasRender::Item *p_first_item, RendererCanvasRender::Item *p_current_clip, bool &r_reclip, typename T_STORAGE::Material *p_material, uint32_t p_sequence_batch_type_flags) {
 
 	// some heuristic to decide whether to use colored verts.
 	// feel free to tweak this.
@@ -2420,7 +2420,7 @@ PREAMBLE(void)::flush_render_batches(RasterizerCanvas::Item *p_first_item, Raste
 	// send buffers to opengl
 	get_this()->_batch_upload_buffers();
 
-	RasterizerCanvas::Item::Command *const *commands = p_first_item->commands.ptr();
+	RendererCanvasRender::Item::Command *const *commands = p_first_item->commands.ptr();
 
 #if defined(TOOLS_ENABLED) && defined(DEBUG_ENABLED)
 	if (bdata.diagnose_frame) {
@@ -2442,10 +2442,10 @@ PREAMBLE(void)::flush_render_batches(RasterizerCanvas::Item *p_first_item, Raste
 #endif // godot 3
 
 
-PREAMBLE(void)::render_joined_item_commands(const BItemJoined &p_bij, RasterizerCanvas::Item *p_current_clip, bool &r_reclip, typename T_STORAGE::Material *p_material, bool p_lit) {
+PREAMBLE(void)::render_joined_item_commands(const BItemJoined &p_bij, RendererCanvasRender::Item *p_current_clip, bool &r_reclip, typename T_STORAGE::Material *p_material, bool p_lit) {
 
-	RasterizerCanvas::Item *item = 0;
-	RasterizerCanvas::Item *first_item = bdata.item_refs[p_bij.first_item_ref].item;
+	RendererCanvasRender::Item *item = 0;
+	RendererCanvasRender::Item *first_item = bdata.item_refs[p_bij.first_item_ref].item;
 
 	// fill_state and bdata have once off setup per joined item, and a smaller reset on flush
 	FillState fill_state;
@@ -2505,7 +2505,7 @@ PREAMBLE(void)::render_joined_item_commands(const BItemJoined &p_bij, Rasterizer
 		fill_state.transform_extra_command_number_p1 = 0;
 
 #ifdef GODOT_4
-		RasterizerCanvas::Item::Command * current_command = item->commands;
+		RendererCanvasRender::Item::Command * current_command = item->commands;
 		while (current_command) {
 #else
 		while (command_start < command_count) {
@@ -2537,15 +2537,15 @@ PREAMBLE(void)::render_joined_item_commands(const BItemJoined &p_bij, Rasterizer
 	bdata.reset_flush();
 }
 
-PREAMBLE(void)::_legacy_canvas_item_render_commands(RasterizerCanvas::Item *p_item, RasterizerCanvas::Item *p_current_clip, bool &r_reclip, typename T_STORAGE::Material *p_material) {
+PREAMBLE(void)::_legacy_canvas_item_render_commands(RendererCanvasRender::Item *p_item, RendererCanvasRender::Item *p_current_clip, bool &r_reclip, typename T_STORAGE::Material *p_material) {
 
 #ifdef GODOT_3
 	int command_count = p_item->commands.size();
-	RasterizerCanvas::Item::Command *const *commands = p_item->commands.ptr();
+	RendererCanvasRender::Item::Command *const *commands = p_item->commands.ptr();
 #else
-	LocalVector<RasterizerCanvas::Item::Command *> shortlist;
+	LocalVector<RendererCanvasRender::Item::Command *> shortlist;
 	int command_count = godot4_commands_to_vector(p_item->commands, shortlist);
-	RasterizerCanvas::Item::Command *const *commands = nullptr;
+	RendererCanvasRender::Item::Command *const *commands = nullptr;
 	if (command_count)
 		commands = &shortlist[0];
 #endif
@@ -2560,7 +2560,7 @@ PREAMBLE(void)::_legacy_canvas_item_render_commands(RasterizerCanvas::Item *p_it
 	bdata.reset_flush();
 }
 
-PREAMBLE(void)::record_items(RasterizerCanvas::Item *p_item_list, int p_z) {
+PREAMBLE(void)::record_items(RendererCanvasRender::Item *p_item_list, int p_z) {
 	while (p_item_list) {
 		BSortItem *s = bdata.sort_items.request_with_grow();
 
@@ -2580,7 +2580,7 @@ PREAMBLE(void)::join_sorted_items() {
 
 	for (int s = 0; s < bdata.sort_items.size(); s++) {
 		const BSortItem &si = bdata.sort_items[s];
-		RasterizerCanvas::Item *ci = si.item;
+		RendererCanvasRender::Item *ci = si.item;
 
 		// change z?
 		if (si.z_index != z) {
@@ -2664,8 +2664,8 @@ PREAMBLE(void)::sort_items() {
 }
 
 PREAMBLE(bool)::_sort_items_match(const BSortItem &p_a, const BSortItem &p_b) const {
-	const RasterizerCanvas::Item *a = p_a.item;
-	const RasterizerCanvas::Item *b = p_b.item;
+	const RendererCanvasRender::Item *a = p_a.item;
+	const RendererCanvasRender::Item *b = p_b.item;
 
 	if (b->commands.size() != 1)
 		return false;
@@ -2674,24 +2674,24 @@ PREAMBLE(bool)::_sort_items_match(const BSortItem &p_a, const BSortItem &p_b) co
 	//	if (a->commands.size() != 1)
 	//		return false;
 	
-	const RasterizerCanvas::Item::Command &cb = *b->commands[0];
-	if (cb.type != RasterizerCanvas::Item::Command::TYPE_RECT)
+	const RendererCanvasRender::Item::Command &cb = *b->commands[0];
+	if (cb.type != RendererCanvasRender::Item::Command::TYPE_RECT)
 		return false;
 
-	const RasterizerCanvas::Item::Command &ca = *a->commands[0];
+	const RendererCanvasRender::Item::Command &ca = *a->commands[0];
 	// tested outside function
 	//	if (ca.type != Item::Command::TYPE_RECT)
 	//		return false;
 
-	const RasterizerCanvas::Item::CommandRect *rect_a = static_cast<const RasterizerCanvas::Item::CommandRect *>(&ca);
-	const RasterizerCanvas::Item::CommandRect *rect_b = static_cast<const RasterizerCanvas::Item::CommandRect *>(&cb);
+	const RendererCanvasRender::Item::CommandRect *rect_a = static_cast<const RendererCanvasRender::Item::CommandRect *>(&ca);
+	const RendererCanvasRender::Item::CommandRect *rect_b = static_cast<const RendererCanvasRender::Item::CommandRect *>(&cb);
 
 	if (rect_a->texture != rect_b->texture)
 		return false;
 
 	/* ALTERNATIVE APPROACH NOT LIMITED TO RECTS
-const RasterizerCanvas::Item::Command &ca = *a->commands[0];
-const RasterizerCanvas::Item::Command &cb = *b->commands[0];
+const RendererCanvasRender::Item::Command &ca = *a->commands[0];
+const RendererCanvasRender::Item::Command &cb = *b->commands[0];
 
 if (ca.type != cb.type)
 	return false;
@@ -2701,18 +2701,18 @@ switch (ca.type)
 {
 default:
 	break;
-case RasterizerCanvas::Item::Command::TYPE_RECT:
+case RendererCanvasRender::Item::Command::TYPE_RECT:
 	{
-		const RasterizerCanvas::Item::CommandRect *comm_a = static_cast<const RasterizerCanvas::Item::CommandRect *>(&ca);
-		const RasterizerCanvas::Item::CommandRect *comm_b = static_cast<const RasterizerCanvas::Item::CommandRect *>(&cb);
+		const RendererCanvasRender::Item::CommandRect *comm_a = static_cast<const RendererCanvasRender::Item::CommandRect *>(&ca);
+		const RendererCanvasRender::Item::CommandRect *comm_b = static_cast<const RendererCanvasRender::Item::CommandRect *>(&cb);
 		if (comm_a->texture != comm_b->texture)
 			return false;
 	}
 	break;
-case RasterizerCanvas::Item::Command::TYPE_POLYGON:
+case RendererCanvasRender::Item::Command::TYPE_POLYGON:
 	{
-		const RasterizerCanvas::Item::CommandPolygon *comm_a = static_cast<const RasterizerCanvas::Item::CommandPolygon *>(&ca);
-		const RasterizerCanvas::Item::CommandPolygon *comm_b = static_cast<const RasterizerCanvas::Item::CommandPolygon *>(&cb);
+		const RendererCanvasRender::Item::CommandPolygon *comm_a = static_cast<const RendererCanvasRender::Item::CommandPolygon *>(&ca);
+		const RendererCanvasRender::Item::CommandPolygon *comm_b = static_cast<const RendererCanvasRender::Item::CommandPolygon *>(&cb);
 		if (comm_a->texture != comm_b->texture)
 			return false;
 	}
@@ -2735,8 +2735,8 @@ PREAMBLE(bool)::sort_items_from(int p_start) {
 	if (start.item->commands.size() != 1) {
 		return false;
 	}
-	const RasterizerCanvas::Item::Command &command_start = *start.item->commands[0];
-	if (command_start.type != RasterizerCanvas::Item::Command::TYPE_RECT) {
+	const RendererCanvasRender::Item::Command &command_start = *start.item->commands[0];
+	if (command_start.type != RendererCanvasRender::Item::Command::TYPE_RECT) {
 		return false;
 	}
 
@@ -2777,7 +2777,7 @@ PREAMBLE(bool)::sort_items_from(int p_start) {
 			return false;
 		}
 
-		RasterizerCanvas::Item *test_item = test_sort_item->item;
+		RendererCanvasRender::Item *test_item = test_sort_item->item;
 
 		// if the test item overlaps the second item, we can't swap, AT ALL
 		// because swapping an item OVER this one would cause artefacts
@@ -3031,7 +3031,7 @@ PREAMBLE(bool)::_disallow_item_join_if_batch_types_too_different(RenderItemState
 }
 
 #ifdef GODOT_3
-PREAMBLE(bool)::_detect_item_batch_break(RenderItemState &r_ris, RasterizerCanvas::Item *p_ci, bool &r_batch_break) {
+PREAMBLE(bool)::_detect_item_batch_break(RenderItemState &r_ris, RendererCanvasRender::Item *p_ci, bool &r_batch_break) {
 	int command_count = p_ci->commands.size();
 
 	// Any item that contains commands that are default
@@ -3063,12 +3063,12 @@ PREAMBLE(bool)::_detect_item_batch_break(RenderItemState &r_ris, RasterizerCanva
 	if (command_count > bdata.settings_max_join_item_commands) {
 		return true;
 	} else {
-		RasterizerCanvas::Item::Command *const *commands = p_ci->commands.ptr();
+		RendererCanvasRender::Item::Command *const *commands = p_ci->commands.ptr();
 
 		// run through the commands looking for one that could prevent joining
 		for (int command_num = 0; command_num < command_count; command_num++) {
 
-			RasterizerCanvas::Item::Command *command = commands[command_num];
+			RendererCanvasRender::Item::Command *command = commands[command_num];
 			RAST_DEBUG_ASSERT(command);
 
 			switch (command->type) {
@@ -3077,9 +3077,9 @@ PREAMBLE(bool)::_detect_item_batch_break(RenderItemState &r_ris, RasterizerCanva
 					//r_batch_break = true;
 					return true;
 				} break;
-				case RasterizerCanvas::Item::Command::TYPE_LINE: {
+				case RendererCanvasRender::Item::Command::TYPE_LINE: {
 					// special case, only batches certain lines
-					RasterizerCanvas::Item::CommandLine *line = static_cast<RasterizerCanvas::Item::CommandLine *>(command);
+					RendererCanvasRender::Item::CommandLine *line = static_cast<RendererCanvasRender::Item::CommandLine *>(command);
 
 					if (line->width > 1) {
 						//r_batch_break = true;
@@ -3090,9 +3090,9 @@ PREAMBLE(bool)::_detect_item_batch_break(RenderItemState &r_ris, RasterizerCanva
 						return true;
 					}
 				} break;
-				case RasterizerCanvas::Item::Command::TYPE_POLYGON: {
+				case RendererCanvasRender::Item::Command::TYPE_POLYGON: {
 					// only allow polygons to join if they aren't skeleton
-					RasterizerCanvas::Item::CommandPolygon *poly = static_cast<RasterizerCanvas::Item::CommandPolygon *>(command);
+					RendererCanvasRender::Item::CommandPolygon *poly = static_cast<RendererCanvasRender::Item::CommandPolygon *>(command);
 
 #ifdef GLES_OVER_GL
 					// anti aliasing not accelerated
@@ -3112,20 +3112,20 @@ PREAMBLE(bool)::_detect_item_batch_break(RenderItemState &r_ris, RasterizerCanva
 						return true;
 					}
 				} break;
-				case RasterizerCanvas::Item::Command::TYPE_RECT: {
+				case RendererCanvasRender::Item::Command::TYPE_RECT: {
 					if (_disallow_item_join_if_batch_types_too_different(r_ris, RasterizerStorageCommon::BTF_RECT))
 						return true;
 				} break;
-				case RasterizerCanvas::Item::Command::TYPE_NINEPATCH: {
+				case RendererCanvasRender::Item::Command::TYPE_NINEPATCH: {
 					// do not handle tiled ninepatches, these can't be batched and need to use legacy method
-					RasterizerCanvas::Item::CommandNinePatch *np = static_cast<RasterizerCanvas::Item::CommandNinePatch *>(command);
+					RendererCanvasRender::Item::CommandNinePatch *np = static_cast<RendererCanvasRender::Item::CommandNinePatch *>(command);
 					if ((np->axis_x != VisualServer::NINE_PATCH_STRETCH) || (np->axis_y != VisualServer::NINE_PATCH_STRETCH))
 						return true;
 
 					if (_disallow_item_join_if_batch_types_too_different(r_ris, RasterizerStorageCommon::BTF_RECT))
 						return true;
 				} break;
-				case RasterizerCanvas::Item::Command::TYPE_TRANSFORM: {
+				case RendererCanvasRender::Item::Command::TYPE_TRANSFORM: {
 					// compatible with all types
 				} break;
 			} // switch

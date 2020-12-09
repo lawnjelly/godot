@@ -2337,7 +2337,7 @@ void RasterizerSceneGLES2::_render_render_list(RenderList::Element **p_elements,
 					//-1 not handled because not blend is enabled anyway
 					case RasterizerStorageGLES2::Shader::Spatial::BLEND_MODE_MIX: {
 						glBlendEquation(GL_FUNC_ADD);
-						if (storage->frame.current_rt && storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_TRANSPARENT]) {
+						if (storage->frame.current_rt && storage->frame.current_rt->flags[RendererStorage::RENDER_TARGET_TRANSPARENT]) {
 							glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 						} else {
 							glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -2357,7 +2357,7 @@ void RasterizerSceneGLES2::_render_render_list(RenderList::Element **p_elements,
 					} break;
 					case RasterizerStorageGLES2::Shader::Spatial::BLEND_MODE_MUL: {
 						glBlendEquation(GL_FUNC_ADD);
-						if (storage->frame.current_rt && storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_TRANSPARENT]) {
+						if (storage->frame.current_rt && storage->frame.current_rt->flags[RendererStorage::RENDER_TARGET_TRANSPARENT]) {
 							glBlendFuncSeparate(GL_DST_COLOR, GL_ZERO, GL_DST_ALPHA, GL_ZERO);
 						} else {
 							glBlendFuncSeparate(GL_DST_COLOR, GL_ZERO, GL_ZERO, GL_ONE);
@@ -2730,7 +2730,7 @@ void RasterizerSceneGLES2::_post_process(Environment *env, const CameraMatrix &p
 	glColorMask(1, 1, 1, 1);
 
 	//no post process on small, transparent or render targets without an env
-	bool use_post_process = env && !storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_TRANSPARENT];
+	bool use_post_process = env && !storage->frame.current_rt->flags[RendererStorage::RENDER_TARGET_TRANSPARENT];
 	use_post_process = use_post_process && storage->frame.current_rt->width >= 4 && storage->frame.current_rt->height >= 4;
 	use_post_process = use_post_process && storage->frame.current_rt->mip_maps_allocated;
 
@@ -3196,7 +3196,7 @@ void RasterizerSceneGLES2::render_scene(const Transform &p_cam_transform, const 
 	bool probe_interior = false;
 	bool reverse_cull = false;
 
-	if (storage->frame.current_rt && storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_VFLIP]) {
+	if (storage->frame.current_rt && storage->frame.current_rt->flags[RendererStorage::RENDER_TARGET_VFLIP]) {
 		cam_transform.basis.set_axis(1, -cam_transform.basis.get_axis(1));
 		reverse_cull = true;
 	}
@@ -3232,7 +3232,7 @@ void RasterizerSceneGLES2::render_scene(const Transform &p_cam_transform, const 
 		viewport_height = storage->frame.current_rt->height;
 		viewport_x = storage->frame.current_rt->x;
 
-		if (storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_DIRECT_TO_SCREEN]) {
+		if (storage->frame.current_rt->flags[RendererStorage::RENDER_TARGET_DIRECT_TO_SCREEN]) {
 			viewport_y = OS::get_singleton()->get_window_size().height - viewport_height - storage->frame.current_rt->y;
 		} else {
 			viewport_y = storage->frame.current_rt->y;
@@ -3310,7 +3310,7 @@ void RasterizerSceneGLES2::render_scene(const Transform &p_cam_transform, const 
 	glBindFramebuffer(GL_FRAMEBUFFER, current_fb);
 	glViewport(viewport_x, viewport_y, viewport_width, viewport_height);
 
-	if (storage->frame.current_rt && storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_DIRECT_TO_SCREEN]) {
+	if (storage->frame.current_rt && storage->frame.current_rt->flags[RendererStorage::RENDER_TARGET_DIRECT_TO_SCREEN]) {
 
 		glScissor(viewport_x, viewport_y, viewport_width, viewport_height);
 		glEnable(GL_SCISSOR_TEST);
@@ -3327,7 +3327,7 @@ void RasterizerSceneGLES2::render_scene(const Transform &p_cam_transform, const 
 	Color clear_color(0, 0, 0, 1);
 	Ref<CameraFeed> feed;
 
-	if (storage->frame.current_rt && storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_TRANSPARENT]) {
+	if (storage->frame.current_rt && storage->frame.current_rt->flags[RendererStorage::RENDER_TARGET_TRANSPARENT]) {
 		clear_color = Color(0, 0, 0, 0);
 		storage->frame.clear_request = false;
 	} else if (!env || env->bg_mode == GD_VS::ENV_BG_CLEAR_COLOR || env->bg_mode == GD_VS::ENV_BG_SKY) {
@@ -3353,7 +3353,7 @@ void RasterizerSceneGLES2::render_scene(const Transform &p_cam_transform, const 
 	state.default_ambient = Color(clear_color.r, clear_color.g, clear_color.b, 1.0);
 	state.default_bg = Color(clear_color.r, clear_color.g, clear_color.b, 1.0);
 
-	if (storage->frame.current_rt && storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_DIRECT_TO_SCREEN]) {
+	if (storage->frame.current_rt && storage->frame.current_rt->flags[RendererStorage::RENDER_TARGET_DIRECT_TO_SCREEN]) {
 		glDisable(GL_SCISSOR_TEST);
 	}
 
@@ -3456,7 +3456,7 @@ void RasterizerSceneGLES2::render_scene(const Transform &p_cam_transform, const 
 	_render_render_list(render_list.elements, render_list.element_count, cam_transform, p_cam_projection, p_shadow_atlas, env, env_radiance_tex, 0.0, 0.0, reverse_cull, false, false);
 
 	// then draw the sky after
-	if (env && env->bg_mode == GD_VS::ENV_BG_SKY && (!storage->frame.current_rt || !storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_TRANSPARENT])) {
+	if (env && env->bg_mode == GD_VS::ENV_BG_SKY && (!storage->frame.current_rt || !storage->frame.current_rt->flags[RendererStorage::RENDER_TARGET_TRANSPARENT])) {
 
 		if (sky && sky->panorama.is_valid()) {
 			_draw_sky(sky, p_cam_projection, cam_transform, false, env->sky_custom_fov, env->bg_energy, env->sky_orientation);

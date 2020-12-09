@@ -2117,12 +2117,12 @@ bool RasterizerStorageGLES2::material_uses_ensure_correct_normals(RID p_material
 	return material->shader->spatial.uses_ensure_correct_normals;
 }
 
-void RasterizerStorageGLES2::material_add_instance_owner(RID p_material, RasterizerScene::InstanceBase *p_instance) {
+void RasterizerStorageGLES2::material_add_instance_owner(RID p_material, InstanceBaseDependency *p_instance) {
 /*
 	Material *material = material_owner.getornull(p_material);
 	ERR_FAIL_COND(!material);
 
-	Map<RasterizerScene::InstanceBase *, int>::Element *E = material->instance_owners.find(p_instance);
+	Map<InstanceBaseDependency *, int>::Element *E = material->instance_owners.find(p_instance);
 	if (E) {
 		E->get()++;
 	} else {
@@ -2131,12 +2131,12 @@ void RasterizerStorageGLES2::material_add_instance_owner(RID p_material, Rasteri
 */
 }
 
-void RasterizerStorageGLES2::material_remove_instance_owner(RID p_material, RasterizerScene::InstanceBase *p_instance) {
+void RasterizerStorageGLES2::material_remove_instance_owner(RID p_material, InstanceBaseDependency *p_instance) {
 /*
 	Material *material = material_owner.getornull(p_material);
 	ERR_FAIL_COND(!material);
 
-	Map<RasterizerScene::InstanceBase *, int>::Element *E = material->instance_owners.find(p_instance);
+	Map<InstanceBaseDependency *, int>::Element *E = material->instance_owners.find(p_instance);
 	ERR_FAIL_COND(!E);
 
 	E->get()--;
@@ -2198,7 +2198,7 @@ void RasterizerStorageGLES2::_update_material(Material *p_material) {
 					E->key()->material_changed_notify();
 				}
 
-				for (Map<RasterizerScene::InstanceBase *, int>::Element *E = p_material->instance_owners.front(); E; E = E->next()) {
+				for (Map<InstanceBaseDependency *, int>::Element *E = p_material->instance_owners.front(); E; E = E->next()) {
 					E->key()->base_changed(false, true);
 				}
 				*/
@@ -2353,7 +2353,7 @@ void RasterizerStorageGLES2::_render_target_allocate(RenderTarget *rt) {
 	GLuint color_type = GL_UNSIGNED_BYTE;
 	Image::Format image_format;
 
-	if (rt->flags[RasterizerStorage::RENDER_TARGET_TRANSPARENT]) {
+	if (rt->flags[RendererStorage::RENDER_TARGET_TRANSPARENT]) {
 #ifdef GLES_OVER_GL
 		color_internal_format = GL_RGBA8;
 #else
@@ -2556,13 +2556,13 @@ void RasterizerStorageGLES2::_render_target_allocate(RenderTarget *rt) {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	// copy texscreen buffers
-//	if (!(rt->flags[RasterizerStorage::RENDER_TARGET_NO_SAMPLING])) {
+//	if (!(rt->flags[RendererStorage::RENDER_TARGET_NO_SAMPLING])) {
 	if (true) {
 
 		glGenTextures(1, &rt->copy_screen_effect.color);
 		glBindTexture(GL_TEXTURE_2D, rt->copy_screen_effect.color);
 
-		if (rt->flags[RasterizerStorage::RENDER_TARGET_TRANSPARENT]) {
+		if (rt->flags[RendererStorage::RENDER_TARGET_TRANSPARENT]) {
 			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, rt->width, rt->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 		} else {
 			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, rt->width, rt->height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
@@ -2588,7 +2588,7 @@ void RasterizerStorageGLES2::_render_target_allocate(RenderTarget *rt) {
 	}
 
 	// Allocate mipmap chains for post_process effects
-//	if (!rt->flags[RasterizerStorage::RENDER_TARGET_NO_3D] && rt->width >= 2 && rt->height >= 2) {
+//	if (!rt->flags[RendererStorage::RENDER_TARGET_NO_3D] && rt->width >= 2 && rt->height >= 2) {
 	if (rt->width >= 2 && rt->height >= 2) {
 
 		for (int i = 0; i < 2; i++) {
@@ -3467,9 +3467,9 @@ bool RasterizerStorageGLES2::free(RID p_rid) {
 			g->material = RID();
 		}
 
-		for (Map<RasterizerScene::InstanceBase *, int>::Element *E = m->instance_owners.front(); E; E = E->next()) {
+		for (Map<InstanceBaseDependency *, int>::Element *E = m->instance_owners.front(); E; E = E->next()) {
 
-			RasterizerScene::InstanceBase *ins = E->key();
+			InstanceBaseDependency *ins = E->key();
 
 			if (ins->material_override == p_rid) {
 				ins->material_override = RID();
@@ -3500,7 +3500,7 @@ bool RasterizerStorageGLES2::free(RID p_rid) {
 			skeleton_update_list.remove(&s->update_list);
 		}
 
-		for (Set<RasterizerScene::InstanceBase *>::Element *E = s->instances.front(); E; E = E->next()) {
+		for (Set<InstanceBaseDependency *>::Element *E = s->instances.front(); E; E = E->next()) {
 			E->get()->skeleton = RID();
 		}
 

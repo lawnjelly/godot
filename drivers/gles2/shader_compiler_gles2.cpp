@@ -871,7 +871,7 @@ String ShaderCompilerGLES2::_dump_node_code(SL::Node *p_node, int p_level, Gener
 }
 
 ShaderLanguage::DataType ShaderCompilerGLES2::_get_variable_type(const StringName &p_type) {
-//	RS::GlobalVariableType gvt = ((RasterizerStorageRD *)(RasterizerStorage::base_singleton))->global_variable_get_type_internal(p_type);
+//	RS::GlobalVariableType gvt = ((RasterizerStorageRD *)(RendererStorage::base_singleton))->global_variable_get_type_internal(p_type);
 	RS::GlobalVariableType gvt = RS::GLOBAL_VAR_TYPE_MAX;
 	return RS::global_variable_type_get_shader_datatype(gvt);
 }

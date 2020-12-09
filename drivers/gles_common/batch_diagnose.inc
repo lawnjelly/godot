@@ -41,56 +41,56 @@ void _debug_write_garbage() {
 #endif
 }
 
-String get_command_type_string(const RasterizerCanvas::Item::Command &p_command) const {
+String get_command_type_string(const RendererCanvasRender::Item::Command &p_command) const {
 	String sz = "";
 
 	switch (p_command.type) {
 		default:
 			break;
 #ifdef GODOT_3
-		case RasterizerCanvas::Item::Command::GD_TYPE_LINE: {
+		case RendererCanvasRender::Item::Command::GD_TYPE_LINE: {
 			sz = "l";
 		} break;
-		case RasterizerCanvas::Item::Command::GD_TYPE_POLYLINE: {
+		case RendererCanvasRender::Item::Command::GD_TYPE_POLYLINE: {
 			sz = "PL";
 		} break;
-		case RasterizerCanvas::Item::Command::GD_TYPE_CIRCLE: {
+		case RendererCanvasRender::Item::Command::GD_TYPE_CIRCLE: {
 			sz = "c";
 		} break;
 #endif
-		case RasterizerCanvas::Item::Command::TYPE_RECT: {
+		case RendererCanvasRender::Item::Command::TYPE_RECT: {
 			sz = "r";
 		} break;
-		case RasterizerCanvas::Item::Command::TYPE_NINEPATCH: {
+		case RendererCanvasRender::Item::Command::TYPE_NINEPATCH: {
 			sz = "n";
 		} break;
-		case RasterizerCanvas::Item::Command::TYPE_PRIMITIVE: {
+		case RendererCanvasRender::Item::Command::TYPE_PRIMITIVE: {
 			sz = "PR";
 		} break;
-		case RasterizerCanvas::Item::Command::TYPE_POLYGON: {
+		case RendererCanvasRender::Item::Command::TYPE_POLYGON: {
 			sz = "p";
 		} break;
-		case RasterizerCanvas::Item::Command::TYPE_MESH: {
+		case RendererCanvasRender::Item::Command::TYPE_MESH: {
 			sz = "m";
 		} break;
-		case RasterizerCanvas::Item::Command::TYPE_MULTIMESH: {
+		case RendererCanvasRender::Item::Command::TYPE_MULTIMESH: {
 			sz = "MM";
 		} break;
-		case RasterizerCanvas::Item::Command::TYPE_PARTICLES: {
+		case RendererCanvasRender::Item::Command::TYPE_PARTICLES: {
 			sz = "PA";
 		} break;
-		case RasterizerCanvas::Item::Command::TYPE_TRANSFORM: {
+		case RendererCanvasRender::Item::Command::TYPE_TRANSFORM: {
 			sz = "t";
 
 			// add a bit more info in debug build
-			const RasterizerCanvas::Item::CommandTransform *transform = static_cast<const RasterizerCanvas::Item::CommandTransform *>(&p_command);
+			const RendererCanvasRender::Item::CommandTransform *transform = static_cast<const RendererCanvasRender::Item::CommandTransform *>(&p_command);
 			const Transform2D &mat = transform->xform;
 
 			sz += " ";
 			sz += String(Variant(mat.elements[2]));
 			sz += " ";
 		} break;
-		case RasterizerCanvas::Item::Command::TYPE_CLIP_IGNORE: {
+		case RendererCanvasRender::Item::Command::TYPE_CLIP_IGNORE: {
 			sz = "CI";
 		} break;
 	} // switch
@@ -98,7 +98,7 @@ String get_command_type_string(const RasterizerCanvas::Item::Command &p_command)
 	return sz;
 }
 
-void diagnose_batches(RasterizerCanvas::Item::Command *const *p_commands) {
+void diagnose_batches(RendererCanvasRender::Item::Command *const *p_commands) {
 	int num_batches = bdata.batches.size();
 
 	BatchColor curr_color;
@@ -182,7 +182,7 @@ void diagnose_batches(RasterizerCanvas::Item::Command *const *p_commands) {
 
 				int num_show = MIN(batch.num_commands, 16);
 				for (int n = 0; n < num_show; n++) {
-					const RasterizerCanvas::Item::Command &comm = *p_commands[batch.first_command + n];
+					const RendererCanvasRender::Item::Command &comm = *p_commands[batch.first_command + n];
 					bdata.frame_string += get_command_type_string(comm) + " ";
 				}
 

@@ -11,7 +11,7 @@
 #include "servers/visual/visual_server_raster.h"
 #else
 #include "core/config/project_settings.h"
-#include "servers/rendering/rendering_server_raster.h"
+#include "servers/rendering/rendering_server_default.h"
 #endif
 
 #ifndef GLES_OVER_GL
@@ -47,9 +47,9 @@ void RasterizerCanvasBaseGLES2::canvas_begin() {
 
 	if (storage->frame.current_rt) {
 		storage->bind_framebuffer(storage->frame.current_rt->fbo);
-		state.using_transparent_rt = storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_TRANSPARENT];
+		state.using_transparent_rt = storage->frame.current_rt->flags[RendererStorage::RENDER_TARGET_TRANSPARENT];
 
-		if (storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_DIRECT_TO_SCREEN]) {
+		if (storage->frame.current_rt->flags[RendererStorage::RENDER_TARGET_DIRECT_TO_SCREEN]) {
 			// set Viewport and Scissor when rendering directly to screen
 			viewport_width = storage->_dims.rt_width;
 			viewport_height = storage->_dims.rt_height;
@@ -121,7 +121,7 @@ void RasterizerCanvasBaseGLES2::canvas_begin() {
 
 		float csy = 1.0;
 		// FTODO
-//		if (storage->frame.current_rt && storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_VFLIP]) {
+//		if (storage->frame.current_rt && storage->frame.current_rt->flags[RendererStorage::RENDER_TARGET_VFLIP]) {
 //			csy = -1.0;
 //		}
 		canvas_transform.translate(-(storage->frame.current_rt->width / 2.0f), -(storage->frame.current_rt->height / 2.0f), 0.0f);
@@ -156,7 +156,7 @@ void RasterizerCanvasBaseGLES2::canvas_end() {
 		glDisableVertexAttribArray(i);
 	}
 
-	if (storage->frame.current_rt && storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_DIRECT_TO_SCREEN]) {
+	if (storage->frame.current_rt && storage->frame.current_rt->flags[RendererStorage::RENDER_TARGET_DIRECT_TO_SCREEN]) {
 		//reset viewport to full window size
 //		int viewport_width = OS::get_singleton()->get_window_size().width;
 //		int viewport_height = OS::get_singleton()->get_window_size().height;
@@ -218,7 +218,7 @@ RasterizerStorageGLES2::Texture *RasterizerCanvasBaseGLES2::_bind_canvas_texture
 		} else {
 
 			if (texture->redraw_if_visible) {
-				RenderingServerRaster::redraw_request();
+				RenderingServerDefault::redraw_request();
 			}
 
 			texture = texture->get_ptr();
@@ -260,7 +260,7 @@ RasterizerStorageGLES2::Texture *RasterizerCanvasBaseGLES2::_bind_canvas_texture
 		} else {
 
 			if (normal_map->redraw_if_visible) { //check before proxy, because this is usually used with proxies
-				RenderingServerRaster::redraw_request();
+				RenderingServerDefault::redraw_request();
 			}
 
 			normal_map = normal_map->get_ptr();
@@ -435,7 +435,7 @@ void RasterizerCanvasBaseGLES2::reset_canvas() {
 	glDisable(GL_DITHER);
 	glEnable(GL_BLEND);
 
-	if (storage->frame.current_rt && storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_TRANSPARENT]) {
+	if (storage->frame.current_rt && storage->frame.current_rt->flags[RendererStorage::RENDER_TARGET_TRANSPARENT]) {
 		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 	} else {
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -851,7 +851,7 @@ void RasterizerCanvasBaseGLES2::_draw_gui_primitive(int p_points, const Vector2 
 
 void RasterizerCanvasBaseGLES2::_copy_screen(const Rect2 &p_rect) {
 
-	if (storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_DIRECT_TO_SCREEN]) {
+	if (storage->frame.current_rt->flags[RendererStorage::RENDER_TARGET_DIRECT_TO_SCREEN]) {
 		ERR_PRINT_ONCE("Cannot use screen texture copying in render target set to render direct to screen.");
 		return;
 	}
@@ -1205,7 +1205,7 @@ void RasterizerCanvasBaseGLES2::initialize() {
 	state.using_skeleton = false;
 }
 
-RasterizerCanvas::PolygonID RasterizerCanvasBaseGLES2::request_polygon(const Vector<int> &p_indices, const Vector<Point2> &p_points, const Vector<Color> &p_colors, const Vector<Point2> &p_uvs, const Vector<int> &p_bones, const Vector<float> &p_weights)
+RendererCanvasRender::PolygonID RasterizerCanvasBaseGLES2::request_polygon(const Vector<int> &p_indices, const Vector<Point2> &p_points, const Vector<Color> &p_colors, const Vector<Point2> &p_uvs, const Vector<int> &p_bones, const Vector<float> &p_weights)
 {
 	uint32_t id = _polydata.alloc();
 	PolyData &pd = _polydata[id];

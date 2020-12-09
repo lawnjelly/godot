@@ -35,7 +35,8 @@
 #include "drivers/gles_common/rasterizer_asserts.h"
 #include "shader_compiler_gles2.h"
 #include "shader_gles2.h"
-#include "servers/rendering/rasterizer.h"
+#include "drivers/gles_common/rasterizer_common_stubs.h"
+#include "servers/rendering/renderer_compositor.h"
 #include "servers/rendering/shader_language.h"
 #include "core/templates/self_list.h"
 #include "core/templates/local_vector.h"
@@ -47,7 +48,7 @@
 class RasterizerCanvasGLES2;
 class RasterizerSceneGLES2;
 
-class RasterizerStorageGLES2 : public RasterizerStorage {
+class RasterizerStorageGLES2 : public StubsStorage {
 public:
 	RasterizerCanvasGLES2 *canvas;
 	RasterizerSceneGLES2 *scene;
@@ -184,11 +185,11 @@ public:
 	struct Instantiable {
 		RID self;
 		
-		SelfList<RasterizerScene::InstanceBase>::List instance_list;
+		SelfList<InstanceBaseDependency>::List instance_list;
 
 		_FORCE_INLINE_ void instance_change_notify(bool p_aabb, bool p_materials) {
 
-			SelfList<RasterizerScene::InstanceBase> *instances = instance_list.first();
+			SelfList<InstanceBaseDependency> *instances = instance_list.first();
 			while (instances) {
 
 				instances->self()->base_changed(p_aabb, p_materials);
@@ -197,7 +198,7 @@ public:
 		}
 
 		_FORCE_INLINE_ void instance_remove_deps() {
-			SelfList<RasterizerScene::InstanceBase> *instances = instance_list.first();
+			SelfList<InstanceBaseDependency> *instances = instance_list.first();
 
 			while (instances) {
 				instances->self()->base_removed();
@@ -645,7 +646,7 @@ public:
 		uint64_t last_pass;
 
 //		Map<Geometry *, int> geometry_owners;
-//		Map<RasterizerScene::InstanceBase *, int> instance_owners;
+//		Map<InstanceBaseDependency *, int> instance_owners;
 
 		bool can_cast_shadow_cache;
 		bool is_animated_cache;
@@ -674,7 +675,7 @@ public:
 	
 	// new
 	void material_get_instance_shader_parameters(RID p_material, List<InstanceShaderParam> *r_parameters) override {}
-	void material_update_dependency(RID p_material, RasterizerScene::InstanceBase *p_instance) override {}
+	void material_update_dependency(RID p_material, InstanceBaseDependency *p_instance) override {}
 	
 	// old	
 	virtual RID material_create() override;
@@ -694,8 +695,8 @@ public:
 	virtual bool material_uses_tangents(RID p_material);
 	virtual bool material_uses_ensure_correct_normals(RID p_material);
 
-	virtual void material_add_instance_owner(RID p_material, RasterizerScene::InstanceBase *p_instance);
-	virtual void material_remove_instance_owner(RID p_material, RasterizerScene::InstanceBase *p_instance);
+	virtual void material_add_instance_owner(RID p_material, InstanceBaseDependency *p_instance);
+	virtual void material_remove_instance_owner(RID p_material, InstanceBaseDependency *p_instance);
 
 	virtual void material_set_render_priority(RID p_material, int priority) override;
 
@@ -891,8 +892,8 @@ public:
 	float reflection_probe_get_origin_max_distance(RID p_probe) const override { return 0.0; }
 	bool reflection_probe_renders_shadows(RID p_probe) const override { return false; }
 	
-	void base_update_dependency(RID p_base, RasterizerScene::InstanceBase *p_instance) override {}
-	void skeleton_update_dependency(RID p_base, RasterizerScene::InstanceBase *p_instance) override {}
+	void base_update_dependency(RID p_base, InstanceBaseDependency *p_instance) override {}
+	void skeleton_update_dependency(RID p_base, InstanceBaseDependency *p_instance) override {}
 	
 	/* DECAL API */
 	
@@ -1012,8 +1013,8 @@ public:
 	int particles_get_draw_passes(RID p_particles) const override { return 0; }
 	RID particles_get_draw_pass_mesh(RID p_particles, int p_pass) const override { return RID(); }
 	
-	void particles_add_collision(RID p_particles, RasterizerScene::InstanceBase *p_instance) override {}
-	void particles_remove_collision(RID p_particles, RasterizerScene::InstanceBase *p_instance) override {}
+	void particles_add_collision(RID p_particles, InstanceBaseDependency *p_instance) override {}
+	void particles_remove_collision(RID p_particles, InstanceBaseDependency *p_instance) override {}
 	
 	void update_particles() override {}
 	
@@ -1056,11 +1057,11 @@ public:
 	
 	/* INSTANCE */
 
-//	virtual void instance_add_skeleton(RID p_skeleton, RasterizerScene::InstanceBase *p_instance);
-//	virtual void instance_remove_skeleton(RID p_skeleton, RasterizerScene::InstanceBase *p_instance);
+//	virtual void instance_add_skeleton(RID p_skeleton, InstanceBaseDependency *p_instance);
+//	virtual void instance_remove_skeleton(RID p_skeleton, InstanceBaseDependency *p_instance);
 
-//	virtual void instance_add_dependency(RID p_base, RasterizerScene::InstanceBase *p_instance);
-//	virtual void instance_remove_dependency(RID p_base, RasterizerScene::InstanceBase *p_instance);
+//	virtual void instance_add_dependency(RID p_base, InstanceBaseDependency *p_instance);
+//	virtual void instance_remove_dependency(RID p_base, InstanceBaseDependency *p_instance);
 
 	/* RENDER TARGET */
 

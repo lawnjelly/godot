@@ -5,11 +5,12 @@
 #include "core/templates/rid_owner.h"
 #include "core/templates/self_list.h"
 #include "scene/resources/mesh.h"
-#include "servers/rendering/rasterizer.h"
+#include "servers/rendering/renderer_compositor.h"
 #include "servers/rendering_server.h"
+#include "drivers/gles_common/rasterizer_common_stubs.h"
 #include "shaders/scene.glsl.gen.h"
 
-class RasterizerSceneGLES2 : public RasterizerScene {
+class RasterizerSceneGLES2 : public StubsScene {
 	
 public:
 	struct State {
@@ -18,140 +19,7 @@ public:
 	} state;
 	
 	
-	/* SHADOW ATLAS API */
-	
-	RID shadow_atlas_create() override { return RID(); }
-	void shadow_atlas_set_size(RID p_atlas, int p_size) override {}
-	void shadow_atlas_set_quadrant_subdivision(RID p_atlas, int p_quadrant, int p_subdivision) override {}
-	bool shadow_atlas_update_light(RID p_atlas, RID p_light_intance, float p_coverage, uint64_t p_light_version) override { return false; }
-	
-	void directional_shadow_atlas_set_size(int p_size) override {}
-	int get_directional_light_shadow_size(RID p_light_intance) override { return 0; }
-	void set_directional_shadow_count(int p_count) override {}
-	
-	/* SDFGI UPDATE */
-	
-	void sdfgi_update(RID p_render_buffers, RID p_environment, const Vector3 &p_world_position) override {}
-	int sdfgi_get_pending_region_count(RID p_render_buffers) const override { return 0; }
-	AABB sdfgi_get_pending_region_bounds(RID p_render_buffers, int p_region) const override { return AABB(); }
-	uint32_t sdfgi_get_pending_region_cascade(RID p_render_buffers, int p_region) const override { return 0; }
-	void sdfgi_update_probes(RID p_render_buffers, RID p_environment, const RID *p_directional_light_instances, uint32_t p_directional_light_count, const RID *p_positional_light_instances, uint32_t p_positional_light_count) override {}
-	
-	/* SKY API */
-	
-	RID sky_create() override { return RID(); }
-	void sky_set_radiance_size(RID p_sky, int p_radiance_size) override {}
-	void sky_set_mode(RID p_sky, RS::SkyMode p_samples) override {}
-	void sky_set_material(RID p_sky, RID p_material) override {}
-	Ref<Image> sky_bake_panorama(RID p_sky, float p_energy, bool p_bake_irradiance, const Size2i &p_size) override { return Ref<Image>(); }
-	
-	/* ENVIRONMENT API */
-	
-	RID environment_create() override { return RID(); }
-	
-	void environment_set_background(RID p_env, RS::EnvironmentBG p_bg) override {}
-	void environment_set_sky(RID p_env, RID p_sky) override {}
-	void environment_set_sky_custom_fov(RID p_env, float p_scale) override {}
-	void environment_set_sky_orientation(RID p_env, const Basis &p_orientation) override {}
-	void environment_set_bg_color(RID p_env, const Color &p_color) override {}
-	void environment_set_bg_energy(RID p_env, float p_energy) override {}
-	void environment_set_canvas_max_layer(RID p_env, int p_max_layer) override {}
-	void environment_set_ambient_light(RID p_env, const Color &p_color, RS::EnvironmentAmbientSource p_ambient = RS::ENV_AMBIENT_SOURCE_BG, float p_energy = 1.0, float p_sky_contribution = 0.0, RS::EnvironmentReflectionSource p_reflection_source = RS::ENV_REFLECTION_SOURCE_BG, const Color &p_ao_color = Color()) override {}
-	
-	void environment_set_glow(RID p_env, bool p_enable, Vector<float> p_levels, float p_intensity, float p_strength, float p_mix, float p_bloom_threshold, RS::EnvironmentGlowBlendMode p_blend_mode, float p_hdr_bleed_threshold, float p_hdr_bleed_scale, float p_hdr_luminance_cap) override {}
-	void environment_glow_set_use_bicubic_upscale(bool p_enable) override {}
-	void environment_glow_set_use_high_quality(bool p_enable) override {}
-	
-	void environment_set_ssr(RID p_env, bool p_enable, int p_max_steps, float p_fade_int, float p_fade_out, float p_depth_tolerance) override {}
-	void environment_set_ssr_roughness_quality(RS::EnvironmentSSRRoughnessQuality p_quality) override {}
-	void environment_set_ssao(RID p_env, bool p_enable, float p_radius, float p_intensity, float p_bias, float p_light_affect, float p_ao_channel_affect, RS::EnvironmentSSAOBlur p_blur, float p_bilateral_sharpness) override {}
-	void environment_set_ssao_quality(RS::EnvironmentSSAOQuality p_quality, bool p_half_size) override {}
-	
-	void environment_set_sdfgi(RID p_env, bool p_enable, RS::EnvironmentSDFGICascades p_cascades, float p_min_cell_size, RS::EnvironmentSDFGIYScale p_y_scale, bool p_use_occlusion, bool p_use_multibounce, bool p_read_sky, float p_energy, float p_normal_bias, float p_probe_bias) override {}
-	
-	void environment_set_sdfgi_ray_count(RS::EnvironmentSDFGIRayCount p_ray_count) override {}
-	void environment_set_sdfgi_frames_to_converge(RS::EnvironmentSDFGIFramesToConverge p_frames) override {}
-	
-	void environment_set_tonemap(RID p_env, RS::EnvironmentToneMapper p_tone_mapper, float p_exposure, float p_white, bool p_auto_exposure, float p_min_luminance, float p_max_luminance, float p_auto_exp_speed, float p_auto_exp_scale) override {}
-	
-	void environment_set_adjustment(RID p_env, bool p_enable, float p_brightness, float p_contrast, float p_saturation, RID p_ramp) override {}
-	
-	void environment_set_fog(RID p_env, bool p_enable, const Color &p_light_color, float p_light_energy, float p_sun_scatter, float p_density, float p_height, float p_height_density, float p_aerial_perspective) override {}
-	void environment_set_volumetric_fog(RID p_env, bool p_enable, float p_density, const Color &p_light, float p_light_energy, float p_length, float p_detail_spread, float p_gi_inject, RS::EnvVolumetricFogShadowFilter p_shadow_filter) override {}
-	void environment_set_volumetric_fog_volume_size(int p_size, int p_depth) override {}
-	void environment_set_volumetric_fog_filter_active(bool p_enable) override {}
-	void environment_set_volumetric_fog_directional_shadow_shrink_size(int p_shrink_size) override {}
-	void environment_set_volumetric_fog_positional_shadow_shrink_size(int p_shrink_size) override {}
-	
-	Ref<Image> environment_bake_panorama(RID p_env, bool p_bake_irradiance, const Size2i &p_size) override { return Ref<Image>(); }
-	
-	bool is_environment(RID p_env) const override { return false; }
-	RS::EnvironmentBG environment_get_background(RID p_env) const override { return RS::ENV_BG_KEEP; }
-	int environment_get_canvas_max_layer(RID p_env) const override { return 0; }
-	
-	RID camera_effects_create() override { return RID(); }
-	
-	void camera_effects_set_dof_blur_quality(RS::DOFBlurQuality p_quality, bool p_use_jitter) override {}
-	void camera_effects_set_dof_blur_bokeh_shape(RS::DOFBokehShape p_shape) override {}
-	
-	void camera_effects_set_dof_blur(RID p_camera_effects, bool p_far_enable, float p_far_distance, float p_far_transition, bool p_near_enable, float p_near_distance, float p_near_transition, float p_amount) override {}
-	void camera_effects_set_custom_exposure(RID p_camera_effects, bool p_enable, float p_exposure) override {}
-	
-	void shadows_quality_set(RS::ShadowQuality p_quality) override {}
-	void directional_shadow_quality_set(RS::ShadowQuality p_quality) override {}
-	
-	RID light_instance_create(RID p_light) override { return RID(); }
-	void light_instance_set_transform(RID p_light_instance, const Transform &p_transform) override {}
-	void light_instance_set_aabb(RID p_light_instance, const AABB &p_aabb) override {}
-	void light_instance_set_shadow_transform(RID p_light_instance, const CameraMatrix &p_projection, const Transform &p_transform, float p_far, float p_split, int p_pass, float p_shadow_texel_size, float p_bias_scale = 1.0, float p_range_begin = 0, const Vector2 &p_uv_scale = Vector2()) override {}
-	void light_instance_mark_visible(RID p_light_instance) override {}
-	
-	RID reflection_atlas_create() override { return RID(); }
-	void reflection_atlas_set_size(RID p_ref_atlas, int p_reflection_size, int p_reflection_count) override {}
-	
-	RID reflection_probe_instance_create(RID p_probe) override { return RID(); }
-	void reflection_probe_instance_set_transform(RID p_instance, const Transform &p_transform) override {}
-	void reflection_probe_release_atlas_index(RID p_instance) override {}
-	bool reflection_probe_instance_needs_redraw(RID p_instance) override { return false; }
-	bool reflection_probe_instance_has_reflection(RID p_instance) override { return false; }
-	bool reflection_probe_instance_begin_render(RID p_instance, RID p_reflection_atlas) override { return false; }
-	bool reflection_probe_instance_postprocess_step(RID p_instance) override { return true; }
-	
-	RID decal_instance_create(RID p_decal) override { return RID(); }
-	void decal_instance_set_transform(RID p_decal, const Transform &p_transform) override {}
-	
-	RID gi_probe_instance_create(RID p_gi_probe) override { return RID(); }
-	void gi_probe_instance_set_transform_to_data(RID p_probe, const Transform &p_xform) override {}
-	bool gi_probe_needs_update(RID p_probe) const override { return false; }
-	void gi_probe_update(RID p_probe, bool p_update_light_instances, const Vector<RID> &p_light_instances, int p_dynamic_object_count, InstanceBase **p_dynamic_objects) override {}
-	
-	void gi_probe_set_quality(RS::GIProbeQuality) override {}
-	
-	void render_scene(RID p_render_buffers, const Transform &p_cam_transform, const CameraMatrix &p_cam_projection, bool p_cam_ortogonal, InstanceBase **p_cull_result, int p_cull_count, RID *p_light_cull_result, int p_light_cull_count, RID *p_reflection_probe_cull_result, int p_reflection_probe_cull_count, RID *p_gi_probe_cull_result, int p_gi_probe_cull_count, RID *p_decal_cull_result, int p_decal_cull_count, InstanceBase **p_lightmap_cull_result, int p_lightmap_cull_count, RID p_environment, RID p_camera_effects, RID p_shadow_atlas, RID p_reflection_atlas, RID p_reflection_probe, int p_reflection_probe_pass) override {}
-	void render_shadow(RID p_light, RID p_shadow_atlas, int p_pass, InstanceBase **p_cull_result, int p_cull_count) override {}
-	void render_material(const Transform &p_cam_transform, const CameraMatrix &p_cam_projection, bool p_cam_ortogonal, InstanceBase **p_cull_result, int p_cull_count, RID p_framebuffer, const Rect2i &p_region) override {}
-	void render_sdfgi(RID p_render_buffers, int p_region, InstanceBase **p_cull_result, int p_cull_count) override {}
-	void render_sdfgi_static_lights(RID p_render_buffers, uint32_t p_cascade_count, const uint32_t *p_cascade_indices, const RID **p_positional_light_cull_result, const uint32_t *p_positional_light_cull_count) override {}
-	void render_particle_collider_heightfield(RID p_collider, const Transform &p_transform, InstanceBase **p_cull_result, int p_cull_count) override {}
-	
-	void set_scene_pass(uint64_t p_pass) override {}
-	void set_time(double p_time, double p_step) override {}
-	void set_debug_draw_mode(RS::ViewportDebugDraw p_debug_draw) override {}
-	
-	RID render_buffers_create() override { return RID(); }
-	void render_buffers_configure(RID p_render_buffers, RID p_render_target, int p_width, int p_height, RS::ViewportMSAA p_msaa, RS::ViewportScreenSpaceAA p_screen_space_aa, bool p_use_debanding) override {}
-	
-	void screen_space_roughness_limiter_set_active(bool p_enable, float p_amount, float p_curve) override {}
-	bool screen_space_roughness_limiter_is_active() const override { return false; }
-	
-	void sub_surface_scattering_set_quality(RS::SubSurfaceScatteringQuality p_quality) override {}
-	void sub_surface_scattering_set_scale(float p_scale, float p_depth_scale) override {}
-	
-	TypedArray<Image> bake_render_uv2(RID p_base, const Vector<RID> &p_material_overrides, const Size2i &p_image_size) override { return TypedArray<Image>(); }
-	
-	bool free(RID p_rid) override { return true; }
-	void update() override {}
-	void sdfgi_set_debug_probe_select(const Vector3 &p_position, const Vector3 &p_dir) override {}
+public:
 	
 	RasterizerSceneGLES2() {}
 	~RasterizerSceneGLES2() {}
@@ -700,7 +568,7 @@ public:
 		int max_elements;
 
 		struct Element {
-			RasterizerScene::InstanceBase *instance;
+			InstanceBaseDependency *instance;
 
 			RasterizerStorageGLES2::Geometry *geometry;
 			RasterizerStorageGLES2::Material *material;

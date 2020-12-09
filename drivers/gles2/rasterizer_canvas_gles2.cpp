@@ -37,7 +37,7 @@
 
 #ifdef GODOT_4
 #include "core/config/project_settings.h"
-#include "servers/rendering/rendering_server_raster.h"
+#include "servers/rendering/rendering_server_default.h"
 #else
 #include "core/project_settings.h"
 #include "servers/visual/visual_server_raster.h"
@@ -1189,7 +1189,7 @@ void RasterizerCanvasGLES2::render_batches(Item::Command *const *p_commands, Ite
 										int h = p_current_clip->final_clip_rect.size.y;
 
 										// FTODO
-										//										if (storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_VFLIP])
+										//										if (storage->frame.current_rt->flags[RendererStorage::RENDER_TARGET_VFLIP])
 										//											y = p_current_clip->final_clip_rect.position.y;
 
 										glScissor(x, y, w, h);
@@ -1591,7 +1591,7 @@ void RasterizerCanvasGLES2::_legacy_canvas_render_item(Item *p_ci, RenderItemSta
 			int y = storage->_dims.rt_height - (r_ris.current_clip->final_clip_rect.position.y + r_ris.current_clip->final_clip_rect.size.y);
 			//			int y = storage->frame.current_rt->height - (r_ris.current_clip->final_clip_rect.position.y + r_ris.current_clip->final_clip_rect.size.y);
 			// FTODO
-			//			if (storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_VFLIP])
+			//			if (storage->frame.current_rt->flags[RendererStorage::RENDER_TARGET_VFLIP])
 			//			y = r_ris.current_clip->final_clip_rect.position.y;
 			glScissor(r_ris.current_clip->final_clip_rect.position.x, y, r_ris.current_clip->final_clip_rect.size.width, r_ris.current_clip->final_clip_rect.size.height);
 			
@@ -1686,7 +1686,7 @@ void RasterizerCanvasGLES2::_legacy_canvas_render_item(Item *p_ci, RenderItemSta
 
 			if (shader_ptr != r_ris.shader_cache) {
 				if (shader_ptr->canvas_item.uses_time) {
-					RenderingServerRaster::redraw_request();
+					RenderingServerDefault::redraw_request();
 				}
 
 				state.canvas_shader.set_custom_shader(shader_ptr->custom_code_id);
@@ -1724,7 +1724,7 @@ void RasterizerCanvasGLES2::_legacy_canvas_render_item(Item *p_ci, RenderItemSta
 				}
 
 				if (t->redraw_if_visible) {
-					RenderingServerRaster::redraw_request();
+					RenderingServerDefault::redraw_request();
 				}
 
 				t = t->get_ptr();
@@ -1761,7 +1761,7 @@ void RasterizerCanvasGLES2::_legacy_canvas_render_item(Item *p_ci, RenderItemSta
 		switch (blend_mode) {
 			case RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_MIX: {
 				glBlendEquation(GL_FUNC_ADD);
-				if (storage->frame.current_rt && storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_TRANSPARENT]) {
+				if (storage->frame.current_rt && storage->frame.current_rt->flags[RendererStorage::RENDER_TARGET_TRANSPARENT]) {
 					glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 				} else {
 					glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE);
@@ -1770,7 +1770,7 @@ void RasterizerCanvasGLES2::_legacy_canvas_render_item(Item *p_ci, RenderItemSta
 			} break;
 			case RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_ADD: {
 				glBlendEquation(GL_FUNC_ADD);
-				if (storage->frame.current_rt && storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_TRANSPARENT]) {
+				if (storage->frame.current_rt && storage->frame.current_rt->flags[RendererStorage::RENDER_TARGET_TRANSPARENT]) {
 					glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_SRC_ALPHA, GL_ONE);
 				} else {
 					glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ZERO, GL_ONE);
@@ -1779,7 +1779,7 @@ void RasterizerCanvasGLES2::_legacy_canvas_render_item(Item *p_ci, RenderItemSta
 			} break;
 			case RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_SUB: {
 				glBlendEquation(GL_FUNC_REVERSE_SUBTRACT);
-				if (storage->frame.current_rt && storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_TRANSPARENT]) {
+				if (storage->frame.current_rt && storage->frame.current_rt->flags[RendererStorage::RENDER_TARGET_TRANSPARENT]) {
 					glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_SRC_ALPHA, GL_ONE);
 				} else {
 					glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ZERO, GL_ONE);
@@ -1787,7 +1787,7 @@ void RasterizerCanvasGLES2::_legacy_canvas_render_item(Item *p_ci, RenderItemSta
 			} break;
 			case RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_MUL: {
 				glBlendEquation(GL_FUNC_ADD);
-				if (storage->frame.current_rt && storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_TRANSPARENT]) {
+				if (storage->frame.current_rt && storage->frame.current_rt->flags[RendererStorage::RENDER_TARGET_TRANSPARENT]) {
 					glBlendFuncSeparate(GL_DST_COLOR, GL_ZERO, GL_DST_ALPHA, GL_ZERO);
 				} else {
 					glBlendFuncSeparate(GL_DST_COLOR, GL_ZERO, GL_ZERO, GL_ONE);
@@ -1795,7 +1795,7 @@ void RasterizerCanvasGLES2::_legacy_canvas_render_item(Item *p_ci, RenderItemSta
 			} break;
 			case RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_PMALPHA: {
 				glBlendEquation(GL_FUNC_ADD);
-				if (storage->frame.current_rt && storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_TRANSPARENT]) {
+				if (storage->frame.current_rt && storage->frame.current_rt->flags[RendererStorage::RENDER_TARGET_TRANSPARENT]) {
 					glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 				} else {
 					glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE);
@@ -1929,7 +1929,7 @@ void RasterizerCanvasGLES2::_legacy_canvas_render_item(Item *p_ci, RenderItemSta
 
 			glBlendEquation(GL_FUNC_ADD);
 
-			if (storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_TRANSPARENT]) {
+			if (storage->frame.current_rt->flags[RendererStorage::RENDER_TARGET_TRANSPARENT]) {
 				glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 			} else {
 				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -1944,7 +1944,7 @@ void RasterizerCanvasGLES2::_legacy_canvas_render_item(Item *p_ci, RenderItemSta
 		glEnable(GL_SCISSOR_TEST);
 		int y = storage->frame.current_rt->height - (r_ris.current_clip->final_clip_rect.position.y + r_ris.current_clip->final_clip_rect.size.y);
 		// FTODO
-		//		if (storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_VFLIP])
+		//		if (storage->frame.current_rt->flags[RendererStorage::RENDER_TARGET_VFLIP])
 		//		y = r_ris.current_clip->final_clip_rect.position.y;
 		glScissor(r_ris.current_clip->final_clip_rect.position.x, y, r_ris.current_clip->final_clip_rect.size.width, r_ris.current_clip->final_clip_rect.size.height);
 	}
@@ -1972,7 +1972,7 @@ void RasterizerCanvasGLES2::render_joined_item(const BItemJoined &p_bij, RenderI
 		if (r_ris.current_clip) {
 			glEnable(GL_SCISSOR_TEST);
 			int y = storage->frame.current_rt->height - (r_ris.current_clip->final_clip_rect.position.y + r_ris.current_clip->final_clip_rect.size.y);
-			if (storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_VFLIP])
+			if (storage->frame.current_rt->flags[RendererStorage::RENDER_TARGET_VFLIP])
 				y = r_ris.current_clip->final_clip_rect.position.y;
 			glScissor(r_ris.current_clip->final_clip_rect.position.x, y, r_ris.current_clip->final_clip_rect.size.width, r_ris.current_clip->final_clip_rect.size.height);
 		} else {
@@ -2131,7 +2131,7 @@ void RasterizerCanvasGLES2::render_joined_item(const BItemJoined &p_bij, RenderI
 		switch (blend_mode) {
 			case RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_MIX: {
 				glBlendEquation(GL_FUNC_ADD);
-				if (storage->frame.current_rt && storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_TRANSPARENT]) {
+				if (storage->frame.current_rt && storage->frame.current_rt->flags[RendererStorage::RENDER_TARGET_TRANSPARENT]) {
 					glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 				} else {
 					glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE);
@@ -2140,7 +2140,7 @@ void RasterizerCanvasGLES2::render_joined_item(const BItemJoined &p_bij, RenderI
 			} break;
 			case RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_ADD: {
 				glBlendEquation(GL_FUNC_ADD);
-				if (storage->frame.current_rt && storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_TRANSPARENT]) {
+				if (storage->frame.current_rt && storage->frame.current_rt->flags[RendererStorage::RENDER_TARGET_TRANSPARENT]) {
 					glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_SRC_ALPHA, GL_ONE);
 				} else {
 					glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ZERO, GL_ONE);
@@ -2149,7 +2149,7 @@ void RasterizerCanvasGLES2::render_joined_item(const BItemJoined &p_bij, RenderI
 			} break;
 			case RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_SUB: {
 				glBlendEquation(GL_FUNC_REVERSE_SUBTRACT);
-				if (storage->frame.current_rt && storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_TRANSPARENT]) {
+				if (storage->frame.current_rt && storage->frame.current_rt->flags[RendererStorage::RENDER_TARGET_TRANSPARENT]) {
 					glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_SRC_ALPHA, GL_ONE);
 				} else {
 					glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ZERO, GL_ONE);
@@ -2157,7 +2157,7 @@ void RasterizerCanvasGLES2::render_joined_item(const BItemJoined &p_bij, RenderI
 			} break;
 			case RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_MUL: {
 				glBlendEquation(GL_FUNC_ADD);
-				if (storage->frame.current_rt && storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_TRANSPARENT]) {
+				if (storage->frame.current_rt && storage->frame.current_rt->flags[RendererStorage::RENDER_TARGET_TRANSPARENT]) {
 					glBlendFuncSeparate(GL_DST_COLOR, GL_ZERO, GL_DST_ALPHA, GL_ZERO);
 				} else {
 					glBlendFuncSeparate(GL_DST_COLOR, GL_ZERO, GL_ZERO, GL_ONE);
@@ -2165,7 +2165,7 @@ void RasterizerCanvasGLES2::render_joined_item(const BItemJoined &p_bij, RenderI
 			} break;
 			case RasterizerStorageGLES2::Shader::CanvasItem::BLEND_MODE_PMALPHA: {
 				glBlendEquation(GL_FUNC_ADD);
-				if (storage->frame.current_rt && storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_TRANSPARENT]) {
+				if (storage->frame.current_rt && storage->frame.current_rt->flags[RendererStorage::RENDER_TARGET_TRANSPARENT]) {
 					glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 				} else {
 					glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE);
@@ -2323,7 +2323,7 @@ void RasterizerCanvasGLES2::render_joined_item(const BItemJoined &p_bij, RenderI
 
 			glBlendEquation(GL_FUNC_ADD);
 
-			if (storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_TRANSPARENT]) {
+			if (storage->frame.current_rt->flags[RendererStorage::RENDER_TARGET_TRANSPARENT]) {
 				glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 			} else {
 				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -2337,7 +2337,7 @@ void RasterizerCanvasGLES2::render_joined_item(const BItemJoined &p_bij, RenderI
 	if (reclip) {
 		glEnable(GL_SCISSOR_TEST);
 		int y = storage->frame.current_rt->height - (r_ris.current_clip->final_clip_rect.position.y + r_ris.current_clip->final_clip_rect.size.y);
-		if (storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_VFLIP])
+		if (storage->frame.current_rt->flags[RendererStorage::RENDER_TARGET_VFLIP])
 			y = r_ris.current_clip->final_clip_rect.position.y;
 		glScissor(r_ris.current_clip->final_clip_rect.position.x, y, r_ris.current_clip->final_clip_rect.size.width, r_ris.current_clip->final_clip_rect.size.height);
 	}
