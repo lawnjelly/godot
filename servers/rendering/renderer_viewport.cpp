@@ -578,7 +578,6 @@ void RendererViewport::draw_viewports() {
 				//copy to screen if set as such
 				RendererCompositor::BlitToScreen blit;
 				blit.render_target = vp->render_target;
-				blit.destination_window = vp->viewport_to_screen;
 				if (vp->viewport_to_screen_rect != Rect2()) {
 					blit.rect = vp->viewport_to_screen_rect;
 				} else {
