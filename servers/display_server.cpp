@@ -32,6 +32,7 @@
 
 #include "core/input/input.h"
 #include "scene/resources/texture.h"
+#include "drivers/video_managers/register_video_managers.h"
 
 DisplayServer *DisplayServer::singleton = nullptr;
 DisplayServer::SwitchVSyncCallbackInThread DisplayServer::switch_vsync_function = nullptr;
@@ -609,6 +610,10 @@ Vector<String> DisplayServer::get_create_function_rendering_drivers(int p_index)
 
 DisplayServer *DisplayServer::create(int p_index, const String &p_rendering_driver, WindowMode p_mode, uint32_t p_flags, const Vector2i &p_resolution, Error &r_error) {
 	ERR_FAIL_INDEX_V(p_index, server_create_count, nullptr);
+	
+	// register video managers
+	global_register_video_managers();
+	
 	return server_create_functions[p_index].create_function(p_rendering_driver, p_mode, p_flags, p_resolution, r_error);
 }
 

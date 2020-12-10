@@ -2236,7 +2236,7 @@ void RenderingServer::set_render_loop_enabled(bool p_enabled) {
 RenderingServer::RenderingServer() {
 	//ERR_FAIL_COND(singleton);
 	singleton = this;
-
+	
 	GLOBAL_DEF_RST("rendering/vram_compression/import_bptc", false);
 	GLOBAL_DEF_RST("rendering/vram_compression/import_s3tc", true);
 	GLOBAL_DEF_RST("rendering/vram_compression/import_etc", false);

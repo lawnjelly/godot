@@ -47,6 +47,15 @@
 struct GLManager_X11_Private;
 
 class GLManager_X11 : public VideoManager_x11 {
+	
+	GLManager_X11();
+public:
+	static GLManager_X11 &get_singleton()
+	{
+		static GLManager_X11 instance;
+		return instance;
+	}
+	
 public:
 	enum ContextType {
 		GLES_2_0_COMPATIBLE,
@@ -127,6 +136,8 @@ public:
 	Error initialize(int p_driver_id) override;
 	void terminate() override;
 	
+	void register_manager();
+	
 	// a video manager can support 1 or more drivers (e.g. GLES2 and GLES3 in one manager)
 	virtual int get_num_drivers() override;
 	virtual String get_driver_name(int p_driver_id) override;
@@ -134,7 +145,7 @@ public:
 	void set_use_vsync(bool p_use);
 	bool is_using_vsync() const;
 	
-	GLManager_X11();
+//	GLManager_X11();
 	~GLManager_X11();
 };
 

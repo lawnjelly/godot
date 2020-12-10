@@ -33,7 +33,7 @@
 #ifdef X11_ENABLED
 #if defined(OPENGL_ENABLED)
 #include "core/video/video_manager_registry.h"
-#include "drivers/gles2/rasterizer_gles2.h"
+#include "drivers/video/gles2/rasterizer_gles2.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -47,7 +47,7 @@
 #define GLX_CONTEXT_MINOR_VERSION_ARB 0x2092
 
 // make the video manager a global so it can register with the video manager registry
-GLManager_X11 g_VideoManager_GL_x11;
+//GLManager_X11 g_VideoManager_GL_x11;
 
 typedef GLXContext (*GLXCREATECONTEXTATTRIBSARBPROC)(Display *, GLXFBConfig, GLXContext, Bool, const int *);
 
@@ -365,6 +365,15 @@ Error GLManager_X11::initialize(int p_driver_id) {
 void GLManager_X11::terminate()
 {
 	release_current();
+	
+	_windows.clear();
+	_displays.clear();
+}
+
+
+void GLManager_X11::register_manager()
+{
+	VideoManagerRegistry::get_singleton().register_video_manager(this);
 }
 
 
@@ -424,9 +433,9 @@ GLManager_X11::GLManager_X11() {
 	use_vsync = false;
 	_current_window = nullptr;
 	
-	print_line("hello");
+//	print_line("hello");
 	// register
-	VideoManagerRegistry::get_singleton().register_video_manager(this);
+//	VideoManagerRegistry::get_singleton().register_video_manager(this);
 }
 
 GLManager_X11::~GLManager_X11() {
