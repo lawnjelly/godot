@@ -26,6 +26,8 @@ public:
 	int get_num_managers() const {return managers.size();}
 	VideoManager * get_manager(int p_id) {return managers[p_id];}
 	
+	VideoManager * initialize_driver(String p_requested_driver_name);
+	
 private:
 	Vector<VideoManager *> managers;
 };

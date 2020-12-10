@@ -59,7 +59,7 @@
 #endif
 
 #if defined(OPENGL_ENABLED)
-#include "gl_manager_windows.h"
+//#include "gl_manager_windows.h"
 #endif
 
 #include <fcntl.h>
@@ -67,6 +67,8 @@
 #include <stdio.h>
 #include <windows.h>
 #include <windowsx.h>
+
+class VideoManager_Windows;
 
 // WinTab API
 #define WT_PACKET 0x7FF0
@@ -313,7 +315,11 @@ private:
 	VulkanContextWindows *context_vulkan;
 	RenderingDeviceVulkan *rendering_device_vulkan;
 #endif
-
+	
+	// Generic video manager to be called from the display manager
+	// (handles GLES2, GLES3 and further backends. Vulkan is done separately).
+	VideoManager_Windows * video_manager;
+	
 	Map<int, Vector2> touch_state;
 
 	int pressrc;

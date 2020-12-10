@@ -33,6 +33,8 @@
 #ifdef WINDOWS_ENABLED
 #if defined(OPENGL_ENABLED) || defined(GLES_ENABLED)
 
+#include "drivers/video/gles2/rasterizer_gles2.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -298,13 +300,24 @@ void GLManager_Windows::swap_buffers() {
 	SwapBuffers(_current_window->hDC);
 }
 
-Error GLManager_Windows::initialize() {
+Error GLManager_Windows::initialize(int p_driver_id) {
 	wglSwapIntervalEXT = (PFNWGLSWAPINTERVALEXTPROC)wglGetProcAddress("wglSwapIntervalEXT");
 	wglGetSwapIntervalEXT = (PFNWGLGETSWAPINTERVALEXTPROC)wglGetProcAddress("wglGetSwapIntervalEXT");
 	//glWrapperInit(wrapper_get_proc_address);
 	
+	
+	//		if (RasterizerGLES2::is_viable() == OK) {
+	//		RasterizerGLES2::register_config();
+	RasterizerGLES2::make_current();
+	
 	return OK;
 }
+
+void GLManager_Windows::terminate()
+{
+	release_current();
+}
+
 
 void GLManager_Windows::set_use_vsync(bool p_use) {
 	/*
@@ -341,8 +354,8 @@ bool GLManager_Windows::is_using_vsync() const {
 	return use_vsync;
 }
 
-GLManager_Windows::GLManager_Windows(ContextType p_context_type) {
-	context_type = p_context_type;
+GLManager_Windows::GLManager_Windows() {
+	context_type = GLES_2_0_COMPATIBLE;
 
 	direct_render = false;
 	glx_minor = glx_major = 0;
@@ -351,7 +364,6 @@ GLManager_Windows::GLManager_Windows(ContextType p_context_type) {
 }
 
 GLManager_Windows::~GLManager_Windows() {
-	release_current();
 }
 
 #endif // OPENGL_ENABLED

@@ -35,16 +35,11 @@
 #include "core/config/project_settings.h"
 #include "core/string/print_string.h"
 #include "core/string/ustring.h"
-//#include "detect_prime_x11.h"
 #include "key_mapping_x11.h"
 #include "main/main.h"
 #include "scene/resources/texture.h"
 #include "core/video/video_manager_registry.h"
 #include "video_manager_x11.h"
-
-// test
-//#include "drivers/gles_common/gl_manager_x11.h"
-//extern GLManager_X11 g_VideoManager_GL_x11;
 
 
 #if defined(VULKAN_ENABLED)
@@ -883,11 +878,6 @@ void DisplayServerX11::delete_sub_window(WindowID p_id) {
 	if (video_manager)
 		video_manager->window_destroy(p_id);
 
-//#ifdef OPENGL_ENABLED
-//	if (rendering_driver == "GLES2") {
-//		gl_manager->window_destroy(p_id);
-//	}
-//#endif
 
 	XUnmapWindow(x11_display, wd.x11_window);
 	XDestroyWindow(x11_display, wd.x11_window);
@@ -1051,10 +1041,6 @@ int DisplayServerX11::window_get_current_screen(WindowID p_window) const {
 void DisplayServerX11::gl_window_make_current(DisplayServer::WindowID p_window_id) {
 	if (video_manager)
 		video_manager->window_make_current(p_window_id);
-//#if defined(OPENGL_ENABLED)
-//	if (gl_manager)
-//		gl_manager->window_make_current(p_window_id);
-//#endif
 }
 
 void DisplayServerX11::window_set_current_screen(int p_screen, WindowID p_window) {
@@ -2629,12 +2615,6 @@ void DisplayServerX11::_window_changed(XEvent *event) {
 	if (video_manager)
 		video_manager->window_resize(window_id, wd.size.width, wd.size.height);
 
-//#if defined(OPENGL_ENABLED)
-//	if (rendering_driver == "GLES2") {
-//		gl_manager->window_resize(window_id, wd.size.width, wd.size.height);
-//	}
-//#endif
-
 	print_line("DisplayServer::_window_changed: " + itos(window_id) + " rect: " + new_rect);
 	if (!wd.rect_changed_callback.is_null()) {
 		Rect2i r = new_rect;
@@ -3518,10 +3498,6 @@ void DisplayServerX11::make_rendering_thread() {
 void DisplayServerX11::swap_buffers() {
 	if (video_manager)
 		video_manager->swap_buffers();
-
-//#if defined(OPENGL_ENABLED)
-//	gl_manager->swap_buffers();
-//#endif
 }
 
 void DisplayServerX11::_update_context(WindowData &wd) {
@@ -4063,7 +4039,7 @@ DisplayServerX11::DisplayServerX11(const String &p_rendering_driver, WindowMode 
 	//	rendering_driver = "vulkan";
 	//rendering_driver = "GLES2";
 	
-	bool driver_init_ok = false;
+	bool vulkan_init_ok = false;
 
 #if defined(VULKAN_ENABLED)
 	if (rendering_driver == "vulkan") {
@@ -4074,48 +4050,17 @@ DisplayServerX11::DisplayServerX11(const String &p_rendering_driver, WindowMode 
 			r_error = ERR_CANT_CREATE;
 			ERR_FAIL_MSG("Could not initialize Vulkan");
 		}
-		driver_init_ok = true;
+		vulkan_init_ok = true;
 	}
 #endif
 	
-//	g_VideoManager_GL_x11.terminate();
-	
-	
 	// generic video manager
-	// go through each video manager, and each video driver in the registry looking for a match
-	for (int n=0; n<VideoManagerRegistry::get_singleton().get_num_managers(); n++)
-	{
-		VideoManager * vm = VideoManagerRegistry::get_singleton().get_manager(n);
-		
-		for (int d=0; d<vm->get_num_drivers(); d++)
-		{
-			String driver_name = vm->get_driver_name(d);
-			
-			// match?
-			if (rendering_driver == driver_name)
-			{
-				// store the video manager to be used
-				video_manager = static_cast<VideoManager_x11 *>(vm);
-				
-				// attempt to create the driver
-				if (video_manager->initialize(d) != OK)
-				{
-					// no good .. fallback? NYI
-					video_manager = nullptr;
-					r_error = ERR_UNAVAILABLE;
-					return;
-				}
-				driver_init_ok = true;
-			}
-		}		
-	}
-	
-	if (!driver_init_ok)
+	video_manager = static_cast<VideoManager_x11 *>(VideoManagerRegistry::get_singleton().initialize_driver(rendering_driver));
+	if (!vulkan_init_ok && !video_manager)
 	{
 		r_error = ERR_UNAVAILABLE;
 		return;
 	}
-	
 	
 	// Init context and rendering device
 /*

@@ -538,11 +538,13 @@ void DisplayServerWindows::delete_sub_window(WindowID p_window) {
 		context_vulkan->window_destroy(p_window);
 	}
 #endif
-#ifdef OPENGL_ENABLED
-	if (rendering_driver == "GLES2") {
-		gl_manager->window_destroy(p_window);
-	}
-#endif
+	if (video_manager)
+		video_manager->window_destroy(p_id);
+//#ifdef OPENGL_ENABLED
+//	if (rendering_driver == "GLES2") {
+//		gl_manager->window_destroy(p_window);
+//	}
+//#endif
 	
 
 	if ((OS::get_singleton()->get_current_tablet_driver() == "wintab") && wintab_available && windows[p_window].wtctx) {
@@ -554,9 +556,12 @@ void DisplayServerWindows::delete_sub_window(WindowID p_window) {
 }
 
 void DisplayServerWindows::gl_window_make_current(DisplayServer::WindowID p_window_id) {
-#if defined(OPENGL_ENABLED)
-	gl_manager->window_make_current(p_window_id);
-#endif
+//#if defined(OPENGL_ENABLED)
+//	gl_manager->window_make_current(p_window_id);
+//#endif
+	if (video_manager)
+		video_manager->window_make_current(p_window_id);
+	
 }
 
 
@@ -839,11 +844,15 @@ void DisplayServerWindows::window_set_size(const Size2i p_size, WindowID p_windo
 		context_vulkan->window_resize(p_window, w, h);
 	}
 #endif
-#if defined(OPENGL_ENABLED)
-	if (rendering_driver == "GLES2") {
-		gl_manager->window_resize(p_window, w, h);
-	}
-#endif
+	
+	if (video_manager)
+		video_manager->window_resize(window_id, wd.size.width, wd.size.height);
+
+//#if defined(OPENGL_ENABLED)
+//	if (rendering_driver == "GLES2") {
+//		gl_manager->window_resize(p_window, w, h);
+//	}
+//#endif
 
 	if (wd.fullscreen) {
 		return;
@@ -1569,9 +1578,8 @@ void DisplayServerWindows::make_rendering_thread() {
 }
 
 void DisplayServerWindows::swap_buffers() {
-#if defined(OPENGL_ENABLED)
-	gl_manager->swap_buffers();
-#endif
+	if (video_manager)
+		video_manager->swap_buffers();
 }
 
 void DisplayServerWindows::set_native_icon(const String &p_filename) {
@@ -3029,13 +3037,19 @@ DisplayServer::WindowID DisplayServerWindows::_create_window(WindowMode p_mode, 
 		}
 #endif
 		
-#ifdef OPENGL_ENABLED
-		print_line("rendering_driver " + rendering_driver);
-		if (rendering_driver == "GLES2") {
-			Error err = gl_manager->window_create(id, wd.hWnd, hInstance, WindowRect.right - WindowRect.left, WindowRect.bottom - WindowRect.top);
-			ERR_FAIL_COND_V_MSG(err != OK, INVALID_WINDOW_ID, "Can't create a GLES2 window");
+		if (video_manager)
+		{
+			Error err = video_manager->window_create(id, wd.hWnd, hInstance, WindowRect.right - WindowRect.left, WindowRect.bottom - WindowRect.top);
+			ERR_FAIL_COND_V_MSG(err != OK, INVALID_WINDOW_ID, "Video Manager cannot create a window");
 		}
-#endif
+
+//#ifdef OPENGL_ENABLED
+//		print_line("rendering_driver " + rendering_driver);
+//		if (rendering_driver == "GLES2") {
+//			Error err = gl_manager->window_create(id, wd.hWnd, hInstance, WindowRect.right - WindowRect.left, WindowRect.bottom - WindowRect.top);
+//			ERR_FAIL_COND_V_MSG(err != OK, INVALID_WINDOW_ID, "Can't create a GLES2 window");
+//		}
+//#endif
 		
 
 		RegisterTouchWindow(wd.hWnd, 0);
@@ -3117,6 +3131,9 @@ typedef enum _SHC_PROCESS_DPI_AWARENESS {
 } SHC_PROCESS_DPI_AWARENESS;
 
 DisplayServerWindows::DisplayServerWindows(const String &p_rendering_driver, WindowMode p_mode, uint32_t p_flags, const Vector2i &p_resolution, Error &r_error) {
+	
+	video_manager = nullptr;
+	
 	drop_events = false;
 	key_event_pos = 0;
 
@@ -3186,7 +3203,8 @@ DisplayServerWindows::DisplayServerWindows(const String &p_rendering_driver, Win
 //	rendering_driver = "vulkan";
 //	rendering_driver = "GLES2";
 	print_line("rendering_driver " + rendering_driver);
-
+	
+	bool vulkan_init_ok = false;
 
 #if defined(VULKAN_ENABLED)
 	if (rendering_driver == "vulkan") {
@@ -3197,8 +3215,19 @@ DisplayServerWindows::DisplayServerWindows(const String &p_rendering_driver, Win
 			r_error = ERR_UNAVAILABLE;
 			return;
 		}
+		vulkan_init_ok = true;
 	}
 #endif
+	
+	// generic video manager
+	video_manager = static_cast<VideoManager_Windows *>(VideoManagerRegistry::get_singleton().initialize_driver(rendering_driver));
+	if (!vulkan_init_ok && !video_manager)
+	{
+		r_error = ERR_UNAVAILABLE;
+		return;
+	}
+	
+	/*
 	// Init context and rendering device
 #if defined(OPENGL_ENABLED)
 	
@@ -3226,6 +3255,9 @@ DisplayServerWindows::DisplayServerWindows(const String &p_rendering_driver, Win
 		}
 	}
 #endif
+	*/
+	
+	
 
 /*
 #if defined(OPENGL_ENABLED)
@@ -3343,9 +3375,9 @@ DisplayServerWindows::~DisplayServerWindows() {
 		SetWindowLongPtr(windows[MAIN_WINDOW_ID].hWnd, GWLP_WNDPROC, (LONG_PTR)user_proc);
 	};
 		
-#ifdef OPENGL_ENABLED
-	// destroy windows .. NYI?
-#endif
+	// destroy windows .. NYI on windows platform? see linux for reference
+//	if (video_manager)
+//		video_manager->window_destroy(E->key());
 	
 	
 	if (windows.has(MAIN_WINDOW_ID)) {
@@ -3373,10 +3405,10 @@ DisplayServerWindows::~DisplayServerWindows() {
 	}
 #endif
 	
-#ifdef OPENGL_ENABLED
-	if (gl_manager) {
-		memdelete(gl_manager);
-		gl_manager = nullptr;
+	if (video_manager)
+	{
+		video_manager->terminate();
+		video_manager = nullptr;
 	}
-#endif
+
 }

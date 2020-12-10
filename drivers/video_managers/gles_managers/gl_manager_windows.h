@@ -40,13 +40,14 @@
 #include "core/os/os.h"
 #include "core/templates/local_vector.h"
 #include "servers/display_server.h"
+#include "platform/windows/video_manager_windows.h"
 
 #include <windows.h>
 
 typedef bool(APIENTRY *PFNWGLSWAPINTERVALEXTPROC)(int interval);
 typedef int(APIENTRY *PFNWGLGETSWAPINTERVALEXTPROC)(void);
 
-class GLManager_Windows {
+class GLManager_Windows : public VideoManager_Windows {
 public:
 	enum ContextType {
 		GLES_2_0_COMPATIBLE,
@@ -103,9 +104,9 @@ private:
 	Error _create_context(GLWindow &win, GLDisplay &gl_display);
 
 public:
-	Error window_create(DisplayServer::WindowID p_window_id, HWND p_hwnd, HINSTANCE p_hinstance, int p_width, int p_height);
-	void window_destroy(DisplayServer::WindowID p_window_id);
-	void window_resize(DisplayServer::WindowID p_window_id, int p_width, int p_height);
+	Error window_create(DisplayServer::WindowID p_window_id, HWND p_hwnd, HINSTANCE p_hinstance, int p_width, int p_height) override;
+	void window_destroy(DisplayServer::WindowID p_window_id) override;
+	void window_resize(DisplayServer::WindowID p_window_id, int p_width, int p_height) override;
 
 	// get directly from the cached GLWindow
 	int window_get_width(DisplayServer::WindowID p_window_id = 0);
@@ -113,16 +114,17 @@ public:
 
 	void release_current();
 	void make_current();
-	void swap_buffers();
+	void swap_buffers() override;
 
-	void window_make_current(DisplayServer::WindowID p_window_id);
+	void window_make_current(DisplayServer::WindowID p_window_id) override;
 
-	Error initialize();
+	Error initialize(int p_driver_id) override;
+	void terminate() override;
 
 	void set_use_vsync(bool p_use);
 	bool is_using_vsync() const;
 	
-	GLManager_Windows(ContextType p_context_type);
+	GLManager_Windows();
 	~GLManager_Windows();
 };
 
