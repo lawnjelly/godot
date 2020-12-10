@@ -49,7 +49,7 @@
 #include "servers/rendering_server.h"
 
 #if defined(OPENGL_ENABLED)
-#include "gl_manager_x11.h"
+#include "drivers/gles_common/gl_manager_x11.h"
 #endif
 
 #if defined(VULKAN_ENABLED)
@@ -62,6 +62,8 @@
 #include <X11/extensions/XInput2.h>
 #include <X11/extensions/Xrandr.h>
 #include <X11/keysym.h>
+
+class VideoManager_x11;
 
 // Hints for X11 fullscreen
 typedef struct {
@@ -229,6 +231,11 @@ class DisplayServerX11 : public DisplayServer {
 	bool layered_window;
 
 	String rendering_driver;
+	
+	// Generic video manager to be called from the display manager
+	// (handles GLES2, GLES3 and further backends. Vulkan is done separately).
+	VideoManager_x11 * video_manager;
+	
 	//bool window_focused;
 	//void set_wm_border(bool p_enabled);
 	void set_wm_fullscreen(bool p_enabled);

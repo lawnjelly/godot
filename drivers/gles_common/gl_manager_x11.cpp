@@ -347,8 +347,19 @@ void GLManager_X11::swap_buffers() {
 	glXSwapBuffers(_x_windisp.x11_display, _x_windisp.x11_window);
 }
 
-Error GLManager_X11::initialize() {
+Error GLManager_X11::initialize(int p_driver_id) {
 	return OK;
+}
+
+
+int GLManager_X11::get_num_drivers()
+{
+	return 1;
+}
+
+String GLManager_X11::get_driver_name(int p_driver_id)
+{
+	return "GLES2";
 }
 
 void GLManager_X11::set_use_vsync(bool p_use) {

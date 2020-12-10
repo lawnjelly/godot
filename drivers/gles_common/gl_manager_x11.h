@@ -39,13 +39,14 @@
 
 #include "core/os/os.h"
 #include "core/templates/local_vector.h"
+#include "platform/linuxbsd/video_manager_x11.h"
 #include "servers/display_server.h"
 #include <X11/Xlib.h>
 #include <X11/extensions/Xrender.h>
 
 struct GLManager_X11_Private;
 
-class GLManager_X11 {
+class GLManager_X11 : public VideoManager_x11 {
 public:
 	enum ContextType {
 		GLES_2_0_COMPATIBLE,
@@ -105,9 +106,9 @@ private:
 	Error _create_context(GLDisplay &gl_display);
 
 public:
-	Error window_create(DisplayServer::WindowID p_window_id, ::Window p_window, Display *p_display, int p_width, int p_height);
-	void window_destroy(DisplayServer::WindowID p_window_id);
-	void window_resize(DisplayServer::WindowID p_window_id, int p_width, int p_height);
+	Error window_create(DisplayServer::WindowID p_window_id, ::Window p_window, Display *p_display, int p_width, int p_height) override;
+	void window_destroy(DisplayServer::WindowID p_window_id) override;
+	void window_resize(DisplayServer::WindowID p_window_id, int p_width, int p_height) override;
 
 	// get directly from the cached GLWindow
 	int window_get_width(DisplayServer::WindowID p_window_id = 0);
@@ -115,16 +116,20 @@ public:
 
 	void release_current();
 	void make_current();
-	void swap_buffers();
+	void swap_buffers() override;
 
 	// not used .. .legacy .. but left in case we need to swap to getting from x windows
 	int get_x_window_width();
 	int get_x_window_height();
 
-	void window_make_current(DisplayServer::WindowID p_window_id);
+	void window_make_current(DisplayServer::WindowID p_window_id) override;
 
-	Error initialize();
-
+	Error initialize(int p_driver_id) override;
+	
+	// a video manager can support 1 or more drivers (e.g. GLES2 and GLES3 in one manager)
+	virtual int get_num_drivers() override;
+	virtual String get_driver_name(int p_driver_id) override;
+	
 	void set_use_vsync(bool p_use);
 	bool is_using_vsync() const;
 

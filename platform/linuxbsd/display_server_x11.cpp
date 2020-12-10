@@ -35,10 +35,11 @@
 #include "core/config/project_settings.h"
 #include "core/string/print_string.h"
 #include "core/string/ustring.h"
-#include "detect_prime_x11.h"
+//#include "detect_prime_x11.h"
 #include "key_mapping_x11.h"
 #include "main/main.h"
 #include "scene/resources/texture.h"
+#include "core/video/video_manager.h"
 
 #if defined(VULKAN_ENABLED)
 #include "servers/rendering/renderer_rd/renderer_compositor_rd.h"
@@ -3880,6 +3881,7 @@ DisplayServerX11::DisplayServerX11(const String &p_rendering_driver, WindowMode 
 	Input::get_singleton()->set_event_dispatch_function(_dispatch_input_events);
 
 	r_error = OK;
+	video_manager = nullptr;
 
 	current_cursor = CURSOR_ARROW;
 	mouse_mode = MOUSE_MODE_VISIBLE;
@@ -4031,7 +4033,7 @@ DisplayServerX11::DisplayServerX11(const String &p_rendering_driver, WindowMode 
 
 #ifndef _MSC_VER
 //#warning Forcing vulkan rendering driver because OpenGL not implemented yet
-#warning Forcing opengl rendering driver because selecting properly is too much effort
+//#warning Forcing opengl rendering driver because selecting properly is too much effort
 #endif
 	//	rendering_driver = "vulkan";
 	//rendering_driver = "GLES2";
@@ -4050,7 +4052,9 @@ DisplayServerX11::DisplayServerX11(const String &p_rendering_driver, WindowMode 
 	// Init context and rendering device
 #if defined(OPENGL_ENABLED)
 	print_line("rendering_driver " + rendering_driver);
+	
 	if (rendering_driver == "GLES2") {
+		/*
 		if (getenv("DRI_PRIME") == nullptr) {
 			int use_prime = -1;
 
@@ -4088,12 +4092,13 @@ DisplayServerX11::DisplayServerX11(const String &p_rendering_driver, WindowMode 
 				setenv("DRI_PRIME", "1", 1);
 			}
 		}
-
+*/
+		
 		GLManager_X11::ContextType opengl_api_type = GLManager_X11::GLES_2_0_COMPATIBLE;
 
 		gl_manager = memnew(GLManager_X11(p_resolution, opengl_api_type));
 
-		if (gl_manager->initialize() != OK) {
+		if (gl_manager->initialize(0) != OK) {
 			memdelete(gl_manager);
 			gl_manager = nullptr;
 

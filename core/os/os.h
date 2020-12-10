@@ -38,6 +38,7 @@
 #include "core/string/ustring.h"
 #include "core/templates/list.h"
 #include "core/templates/vector.h"
+#include "core/video/video_manager_registry.h"
 
 #include <stdarg.h>
 
@@ -71,6 +72,7 @@ class OS {
 	// and the build .. closest fitting one will be chosen as the current video driver
 	int current_video_driver_id = 0;
 	Vector<String> video_drivers;
+	VideoManagerRegistry video_manager_registry;
 	
 protected:
 	void _set_logger(CompositeLogger *p_logger);
@@ -298,7 +300,9 @@ public:
 	void set_restart_on_exit(bool p_restart, const List<String> &p_restart_arguments);
 	bool is_restart_on_exit_set() const;
 	List<String> get_restart_on_exit_arguments() const;
-
+	
+	VideoManagerRegistry &get_video_manager_registry() {return video_manager_registry;}
+	
 	virtual bool request_permission(const String &p_name) { return true; }
 	virtual bool request_permissions() { return true; }
 	virtual Vector<String> get_granted_permissions() const { return Vector<String>(); }
