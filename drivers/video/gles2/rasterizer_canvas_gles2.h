@@ -31,8 +31,8 @@
 #ifndef RASTERIZERCANVASGLES2_H
 #define RASTERIZERCANVASGLES2_H
 
-#include "drivers/gles_common/rasterizer_version.h"
-#include "drivers/gles_common/rasterizer_canvas_batcher.h"
+#include "drivers/video/gles_common/rasterizer_version.h"
+#include "drivers/video/gles_common/rasterizer_canvas_batcher.h"
 #include "rasterizer_canvas_base_gles2.h"
 
 class RasterizerSceneGLES2;

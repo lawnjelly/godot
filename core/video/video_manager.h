@@ -29,6 +29,7 @@ public:
 	virtual String get_driver_name(int p_driver_id) = 0;
 	
 	virtual Error initialize(int p_driver_id) = 0;
+	virtual void terminate() = 0;
 };
 
 

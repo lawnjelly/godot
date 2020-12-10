@@ -3,7 +3,7 @@
 
 
 #include "core/os/os.h"
-#include "drivers/gles_common/rasterizer_asserts.h"
+#include "drivers/video/gles_common/rasterizer_asserts.h"
 #include "rasterizer_scene_gles2.h"
 
 #ifdef GODOT_3

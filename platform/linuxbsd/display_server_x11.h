@@ -49,7 +49,7 @@
 #include "servers/rendering_server.h"
 
 #if defined(OPENGL_ENABLED)
-#include "drivers/gles_common/gl_manager_x11.h"
+//#include "drivers/gles_common/gl_manager_x11.h"
 #endif
 
 #if defined(VULKAN_ENABLED)
@@ -109,7 +109,7 @@ class DisplayServerX11 : public DisplayServer {
 	int xdnd_version;
 
 #if defined(OPENGL_ENABLED)
-	GLManager_X11 *gl_manager;
+	//GLManager_X11 *gl_manager;
 #endif
 #if defined(VULKAN_ENABLED)
 	VulkanContextX11 *context_vulkan;

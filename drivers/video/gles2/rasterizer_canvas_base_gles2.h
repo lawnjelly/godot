@@ -1,12 +1,12 @@
 #pragma once
 
-#include "drivers/gles_common/rasterizer_version.h"
+#include "drivers/video/gles_common/rasterizer_version.h"
 #include "servers/rendering/renderer_compositor.h"
 #include "rasterizer_storage_gles2.h"
 #include "rasterizer_scene_gles2.h"
-#include "drivers/gles_common/rasterizer_array.h"
-#include "drivers/gles_common/rasterizer_storage_common.h"
-#include "drivers/gles_common/rasterizer_common_stubs.h"
+#include "drivers/video/gles_common/rasterizer_array.h"
+#include "drivers/video/gles_common/rasterizer_storage_common.h"
+#include "drivers/video/gles_common/rasterizer_common_stubs.h"
 
 #include "shaders/canvas.glsl.gen.h"
 #include "shaders/lens_distorted.glsl.gen.h"

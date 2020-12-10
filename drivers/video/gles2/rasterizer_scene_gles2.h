@@ -7,7 +7,7 @@
 #include "scene/resources/mesh.h"
 #include "servers/rendering/renderer_compositor.h"
 #include "servers/rendering_server.h"
-#include "drivers/gles_common/rasterizer_common_stubs.h"
+#include "drivers/video/gles_common/rasterizer_common_stubs.h"
 #include "shaders/scene.glsl.gen.h"
 
 class RasterizerSceneGLES2 : public StubsScene {

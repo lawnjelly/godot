@@ -31,11 +31,11 @@
 #ifndef RASTERIZERSTORAGEGLES2_H
 #define RASTERIZERSTORAGEGLES2_H
 
-#include "drivers/gles_common/rasterizer_version.h"
-#include "drivers/gles_common/rasterizer_asserts.h"
+#include "drivers/video/gles_common/rasterizer_version.h"
+#include "drivers/video/gles_common/rasterizer_asserts.h"
 #include "shader_compiler_gles2.h"
 #include "shader_gles2.h"
-#include "drivers/gles_common/rasterizer_common_stubs.h"
+#include "drivers/video/gles_common/rasterizer_common_stubs.h"
 #include "servers/rendering/renderer_compositor.h"
 #include "servers/rendering/shader_language.h"
 #include "core/templates/self_list.h"

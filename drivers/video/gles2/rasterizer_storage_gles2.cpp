@@ -37,7 +37,7 @@
 #include "rasterizer_canvas_gles2.h"
 #include "rasterizer_scene_gles2.h"
 #include "servers/rendering/shader_language.h"
-#include "drivers/gles_common/rasterizer_storage_common.h"
+#include "drivers/video/gles_common/rasterizer_storage_common.h"
 
 GLuint RasterizerStorageGLES2::system_fbo = 0;
 

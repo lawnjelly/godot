@@ -39,7 +39,13 @@
 #include "key_mapping_x11.h"
 #include "main/main.h"
 #include "scene/resources/texture.h"
-#include "core/video/video_manager.h"
+#include "core/video/video_manager_registry.h"
+#include "video_manager_x11.h"
+
+// test
+//#include "drivers/gles_common/gl_manager_x11.h"
+//extern GLManager_X11 g_VideoManager_GL_x11;
+
 
 #if defined(VULKAN_ENABLED)
 #include "servers/rendering/renderer_rd/renderer_compositor_rd.h"
@@ -48,7 +54,7 @@
 #include <limits.h>
 
 #if defined(OPENGL_ENABLED)
-#include "drivers/gles2/rasterizer_gles2.h"
+//#include "drivers/gles2/rasterizer_gles2.h"
 #endif
 
 #include <stdio.h>
@@ -874,11 +880,14 @@ void DisplayServerX11::delete_sub_window(WindowID p_id) {
 		context_vulkan->window_destroy(p_id);
 	}
 #endif
-#ifdef OPENGL_ENABLED
-	if (rendering_driver == "GLES2") {
-		gl_manager->window_destroy(p_id);
-	}
-#endif
+	if (video_manager)
+		video_manager->window_destroy(p_id);
+
+//#ifdef OPENGL_ENABLED
+//	if (rendering_driver == "GLES2") {
+//		gl_manager->window_destroy(p_id);
+//	}
+//#endif
 
 	XUnmapWindow(x11_display, wd.x11_window);
 	XDestroyWindow(x11_display, wd.x11_window);
@@ -1040,10 +1049,12 @@ int DisplayServerX11::window_get_current_screen(WindowID p_window) const {
 }
 
 void DisplayServerX11::gl_window_make_current(DisplayServer::WindowID p_window_id) {
-#if defined(OPENGL_ENABLED)
-	if (gl_manager)
-		gl_manager->window_make_current(p_window_id);
-#endif
+	if (video_manager)
+		video_manager->window_make_current(p_window_id);
+//#if defined(OPENGL_ENABLED)
+//	if (gl_manager)
+//		gl_manager->window_make_current(p_window_id);
+//#endif
 }
 
 void DisplayServerX11::window_set_current_screen(int p_screen, WindowID p_window) {
@@ -2614,11 +2625,15 @@ void DisplayServerX11::_window_changed(XEvent *event) {
 		context_vulkan->window_resize(window_id, wd.size.width, wd.size.height);
 	}
 #endif
-#if defined(OPENGL_ENABLED)
-	if (rendering_driver == "GLES2") {
-		gl_manager->window_resize(window_id, wd.size.width, wd.size.height);
-	}
-#endif
+	
+	if (video_manager)
+		video_manager->window_resize(window_id, wd.size.width, wd.size.height);
+
+//#if defined(OPENGL_ENABLED)
+//	if (rendering_driver == "GLES2") {
+//		gl_manager->window_resize(window_id, wd.size.width, wd.size.height);
+//	}
+//#endif
 
 	print_line("DisplayServer::_window_changed: " + itos(window_id) + " rect: " + new_rect);
 	if (!wd.rect_changed_callback.is_null()) {
@@ -3501,9 +3516,12 @@ void DisplayServerX11::make_rendering_thread() {
 }
 
 void DisplayServerX11::swap_buffers() {
-#if defined(OPENGL_ENABLED)
-	gl_manager->swap_buffers();
-#endif
+	if (video_manager)
+		video_manager->swap_buffers();
+
+//#if defined(OPENGL_ENABLED)
+//	gl_manager->swap_buffers();
+//#endif
 }
 
 void DisplayServerX11::_update_context(WindowData &wd) {
@@ -3835,13 +3853,20 @@ DisplayServerX11::WindowID DisplayServerX11::_create_window(WindowMode p_mode, u
 			ERR_FAIL_COND_V_MSG(err != OK, INVALID_WINDOW_ID, "Can't create a Vulkan window");
 		}
 #endif
-#ifdef OPENGL_ENABLED
-		print_line("rendering_driver " + rendering_driver);
-		if (rendering_driver == "GLES2") {
-			Error err = gl_manager->window_create(id, wd.x11_window, x11_display, p_rect.size.width, p_rect.size.height);
-			ERR_FAIL_COND_V_MSG(err != OK, INVALID_WINDOW_ID, "Can't create a GLES2 window");
+		
+		if (video_manager)
+		{
+			Error err = video_manager->window_create(id, wd.x11_window, x11_display, p_rect.size.width, p_rect.size.height);
+			ERR_FAIL_COND_V_MSG(err != OK, INVALID_WINDOW_ID, "Video Manager cannot create a window");
 		}
-#endif
+
+//#ifdef OPENGL_ENABLED
+//		print_line("rendering_driver " + rendering_driver);
+//		if (rendering_driver == "GLES2") {
+//			Error err = gl_manager->window_create(id, wd.x11_window, x11_display, p_rect.size.width, p_rect.size.height);
+//			ERR_FAIL_COND_V_MSG(err != OK, INVALID_WINDOW_ID, "Can't create a GLES2 window");
+//		}
+//#endif
 
 		//set_class_hint(x11_display, wd.x11_window);
 		XFlush(x11_display);
@@ -4037,6 +4062,8 @@ DisplayServerX11::DisplayServerX11(const String &p_rendering_driver, WindowMode 
 #endif
 	//	rendering_driver = "vulkan";
 	//rendering_driver = "GLES2";
+	
+	bool driver_init_ok = false;
 
 #if defined(VULKAN_ENABLED)
 	if (rendering_driver == "vulkan") {
@@ -4047,56 +4074,96 @@ DisplayServerX11::DisplayServerX11(const String &p_rendering_driver, WindowMode 
 			r_error = ERR_CANT_CREATE;
 			ERR_FAIL_MSG("Could not initialize Vulkan");
 		}
+		driver_init_ok = true;
 	}
 #endif
+	
+//	g_VideoManager_GL_x11.terminate();
+	
+	
+	// generic video manager
+	// go through each video manager, and each video driver in the registry looking for a match
+	for (int n=0; n<VideoManagerRegistry::get_singleton().get_num_managers(); n++)
+	{
+		VideoManager * vm = VideoManagerRegistry::get_singleton().get_manager(n);
+		
+		for (int d=0; d<vm->get_num_drivers(); d++)
+		{
+			String driver_name = vm->get_driver_name(d);
+			
+			// match?
+			if (rendering_driver == driver_name)
+			{
+				// store the video manager to be used
+				video_manager = static_cast<VideoManager_x11 *>(vm);
+				
+				// attempt to create the driver
+				if (video_manager->initialize(d) != OK)
+				{
+					// no good .. fallback? NYI
+					video_manager = nullptr;
+					r_error = ERR_UNAVAILABLE;
+					return;
+				}
+				driver_init_ok = true;
+			}
+		}		
+	}
+	
+	if (!driver_init_ok)
+	{
+		r_error = ERR_UNAVAILABLE;
+		return;
+	}
+	
+	
 	// Init context and rendering device
+/*
 #if defined(OPENGL_ENABLED)
 	print_line("rendering_driver " + rendering_driver);
 	
 	if (rendering_driver == "GLES2") {
-		/*
-		if (getenv("DRI_PRIME") == nullptr) {
-			int use_prime = -1;
+//		if (getenv("DRI_PRIME") == nullptr) {
+//			int use_prime = -1;
 
-			if (getenv("PRIMUS_DISPLAY") ||
-					getenv("PRIMUS_libGLd") ||
-					getenv("PRIMUS_libGLa") ||
-					getenv("PRIMUS_libGL") ||
-					getenv("PRIMUS_LOAD_GLOBAL") ||
-					getenv("BUMBLEBEE_SOCKET")) {
-				print_verbose("Optirun/primusrun detected. Skipping GPU detection");
-				use_prime = 0;
-			}
+//			if (getenv("PRIMUS_DISPLAY") ||
+//					getenv("PRIMUS_libGLd") ||
+//					getenv("PRIMUS_libGLa") ||
+//					getenv("PRIMUS_libGL") ||
+//					getenv("PRIMUS_LOAD_GLOBAL") ||
+//					getenv("BUMBLEBEE_SOCKET")) {
+//				print_verbose("Optirun/primusrun detected. Skipping GPU detection");
+//				use_prime = 0;
+//			}
 
-			if (getenv("LD_LIBRARY_PATH")) {
-				String ld_library_path(getenv("LD_LIBRARY_PATH"));
-				Vector<String> libraries = ld_library_path.split(":");
+//			if (getenv("LD_LIBRARY_PATH")) {
+//				String ld_library_path(getenv("LD_LIBRARY_PATH"));
+//				Vector<String> libraries = ld_library_path.split(":");
 
-				for (int i = 0; i < libraries.size(); ++i) {
-					if (FileAccess::exists(libraries[i] + "/libGL.so.1") ||
-							FileAccess::exists(libraries[i] + "/libGL.so")) {
-						print_verbose("Custom libGL override detected. Skipping GPU detection");
-						use_prime = 0;
-					}
-				}
-			}
+//				for (int i = 0; i < libraries.size(); ++i) {
+//					if (FileAccess::exists(libraries[i] + "/libGL.so.1") ||
+//							FileAccess::exists(libraries[i] + "/libGL.so")) {
+//						print_verbose("Custom libGL override detected. Skipping GPU detection");
+//						use_prime = 0;
+//					}
+//				}
+//			}
 
-			if (use_prime == -1) {
-				print_verbose("Detecting GPUs, set DRI_PRIME in the environment to override GPU detection logic.");
-				use_prime = detect_prime();
-			}
+//			if (use_prime == -1) {
+//				print_verbose("Detecting GPUs, set DRI_PRIME in the environment to override GPU detection logic.");
+//				use_prime = detect_prime();
+//			}
 
-			if (use_prime) {
-				print_line("Found discrete GPU, setting DRI_PRIME=1 to use it.");
-				print_line("Note: Set DRI_PRIME=0 in the environment to disable Godot from using the discrete GPU.");
-				setenv("DRI_PRIME", "1", 1);
-			}
-		}
-*/
+//			if (use_prime) {
+//				print_line("Found discrete GPU, setting DRI_PRIME=1 to use it.");
+//				print_line("Note: Set DRI_PRIME=0 in the environment to disable Godot from using the discrete GPU.");
+//				setenv("DRI_PRIME", "1", 1);
+//			}
+//		}
 		
-		GLManager_X11::ContextType opengl_api_type = GLManager_X11::GLES_2_0_COMPATIBLE;
-
-		gl_manager = memnew(GLManager_X11(p_resolution, opengl_api_type));
+//		GLManager_X11::ContextType opengl_api_type = GLManager_X11::GLES_2_0_COMPATIBLE;
+//		gl_manager = memnew(GLManager_X11(p_resolution, opengl_api_type));
+		gl_manager = memnew(GLManager_X11());
 
 		if (gl_manager->initialize(0) != OK) {
 			memdelete(gl_manager);
@@ -4122,6 +4189,8 @@ DisplayServerX11::DisplayServerX11(const String &p_rendering_driver, WindowMode 
 		}
 	}
 #endif
+*/
+	
 	Point2i window_position(
 			(screen_get_size(0).width - p_resolution.width) / 2,
 			(screen_get_size(0).height - p_resolution.height) / 2);
@@ -4338,11 +4407,15 @@ DisplayServerX11::~DisplayServerX11() {
 			context_vulkan->window_destroy(E->key());
 		}
 #endif
-#ifdef OPENGL_ENABLED
-		if (rendering_driver == "GLES2") {
-			gl_manager->window_destroy(E->key());
-		}
-#endif
+		
+		if (video_manager)
+			video_manager->window_destroy(E->key());
+
+//#ifdef OPENGL_ENABLED
+//		if (rendering_driver == "GLES2") {
+//			gl_manager->window_destroy(E->key());
+//		}
+//#endif
 
 		WindowData &wd = E->get();
 		if (wd.xic) {
@@ -4366,13 +4439,19 @@ DisplayServerX11::~DisplayServerX11() {
 		}
 	}
 #endif
-
-#ifdef OPENGL_ENABLED
-	if (gl_manager) {
-		memdelete(gl_manager);
-		gl_manager = nullptr;
+	
+	if (video_manager)
+	{
+		video_manager->terminate();
+		video_manager = nullptr;
 	}
-#endif
+
+//#ifdef OPENGL_ENABLED
+//	if (gl_manager) {
+//		memdelete(gl_manager);
+//		gl_manager = nullptr;
+//	}
+//#endif
 
 	if (xrandr_handle) {
 		dlclose(xrandr_handle);

@@ -125,6 +125,7 @@ public:
 	void window_make_current(DisplayServer::WindowID p_window_id) override;
 
 	Error initialize(int p_driver_id) override;
+	void terminate() override;
 	
 	// a video manager can support 1 or more drivers (e.g. GLES2 and GLES3 in one manager)
 	virtual int get_num_drivers() override;
@@ -132,8 +133,8 @@ public:
 	
 	void set_use_vsync(bool p_use);
 	bool is_using_vsync() const;
-
-	GLManager_X11(const Vector2i &p_size, ContextType p_context_type);
+	
+	GLManager_X11();
 	~GLManager_X11();
 };
 

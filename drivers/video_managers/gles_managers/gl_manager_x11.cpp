@@ -32,6 +32,9 @@
 
 #ifdef X11_ENABLED
 #if defined(OPENGL_ENABLED)
+#include "core/video/video_manager_registry.h"
+#include "drivers/gles2/rasterizer_gles2.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -42,6 +45,9 @@
 
 #define GLX_CONTEXT_MAJOR_VERSION_ARB 0x2091
 #define GLX_CONTEXT_MINOR_VERSION_ARB 0x2092
+
+// make the video manager a global so it can register with the video manager registry
+GLManager_X11 g_VideoManager_GL_x11;
 
 typedef GLXContext (*GLXCREATECONTEXTATTRIBSARBPROC)(Display *, GLXFBConfig, GLXContext, Bool, const int *);
 
@@ -348,7 +354,17 @@ void GLManager_X11::swap_buffers() {
 }
 
 Error GLManager_X11::initialize(int p_driver_id) {
+	//		if (RasterizerGLES2::is_viable() == OK) {
+	//		RasterizerGLES2::register_config();
+	RasterizerGLES2::make_current();
+	
+	
 	return OK;
+}
+
+void GLManager_X11::terminate()
+{
+	release_current();
 }
 
 
@@ -397,18 +413,24 @@ bool GLManager_X11::is_using_vsync() const {
 	return use_vsync;
 }
 
-GLManager_X11::GLManager_X11(const Vector2i &p_size, ContextType p_context_type) {
-	context_type = p_context_type;
+//GLManager_X11::GLManager_X11(const Vector2i &p_size, ContextType p_context_type) {
+GLManager_X11::GLManager_X11() {
+//	context_type = p_context_type;
+	context_type = GLES_2_0_COMPATIBLE;
 
 	double_buffer = false;
 	direct_render = false;
 	glx_minor = glx_major = 0;
 	use_vsync = false;
 	_current_window = nullptr;
+	
+	print_line("hello");
+	// register
+	VideoManagerRegistry::get_singleton().register_video_manager(this);
 }
 
 GLManager_X11::~GLManager_X11() {
-	release_current();
+//	release_current();
 }
 
 #endif
