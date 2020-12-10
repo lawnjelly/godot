@@ -874,7 +874,7 @@ void DisplayServerX11::delete_sub_window(WindowID p_id) {
 	}
 #endif
 #ifdef OPENGL_ENABLED
-	if (rendering_driver == "opengl_es") {
+	if (rendering_driver == "GLES2") {
 		gl_manager->window_destroy(p_id);
 	}
 #endif
@@ -2614,7 +2614,7 @@ void DisplayServerX11::_window_changed(XEvent *event) {
 	}
 #endif
 #if defined(OPENGL_ENABLED)
-	if (rendering_driver == "opengl_es") {
+	if (rendering_driver == "GLES2") {
 		gl_manager->window_resize(window_id, wd.size.width, wd.size.height);
 	}
 #endif
@@ -3648,7 +3648,9 @@ Vector<String> DisplayServerX11::get_rendering_drivers_func() {
 	drivers.push_back("vulkan");
 #endif
 #ifdef OPENGL_ENABLED
-	drivers.push_back("opengl");
+//	drivers.push_back("opengl");
+	drivers.push_back("GLES2");
+	drivers.push_back("GLES3");
 #endif
 
 	return drivers;
@@ -3834,7 +3836,7 @@ DisplayServerX11::WindowID DisplayServerX11::_create_window(WindowMode p_mode, u
 #endif
 #ifdef OPENGL_ENABLED
 		print_line("rendering_driver " + rendering_driver);
-		if (rendering_driver == "opengl_es") {
+		if (rendering_driver == "GLES2") {
 			Error err = gl_manager->window_create(id, wd.x11_window, x11_display, p_rect.size.width, p_rect.size.height);
 			ERR_FAIL_COND_V_MSG(err != OK, INVALID_WINDOW_ID, "Can't create a GLES2 window");
 		}
@@ -4032,7 +4034,7 @@ DisplayServerX11::DisplayServerX11(const String &p_rendering_driver, WindowMode 
 #warning Forcing opengl rendering driver because selecting properly is too much effort
 #endif
 	//	rendering_driver = "vulkan";
-	rendering_driver = "opengl_es";
+	//rendering_driver = "GLES2";
 
 #if defined(VULKAN_ENABLED)
 	if (rendering_driver == "vulkan") {
@@ -4048,7 +4050,7 @@ DisplayServerX11::DisplayServerX11(const String &p_rendering_driver, WindowMode 
 	// Init context and rendering device
 #if defined(OPENGL_ENABLED)
 	print_line("rendering_driver " + rendering_driver);
-	if (rendering_driver == "opengl_es") {
+	if (rendering_driver == "GLES2") {
 		if (getenv("DRI_PRIME") == nullptr) {
 			int use_prime = -1;
 
@@ -4332,7 +4334,7 @@ DisplayServerX11::~DisplayServerX11() {
 		}
 #endif
 #ifdef OPENGL_ENABLED
-		if (rendering_driver == "opengl_es") {
+		if (rendering_driver == "GLES2") {
 			gl_manager->window_destroy(E->key());
 		}
 #endif
@@ -4391,7 +4393,10 @@ DisplayServerX11::~DisplayServerX11() {
 }
 
 void DisplayServerX11::register_x11_driver() {
-	register_create_function("x11", create_func, get_rendering_drivers_func);
+//	register_create_function("x11", create_func, get_rendering_drivers_func);
+	register_create_function("vulkan", create_func, get_rendering_drivers_func);
+	register_create_function("GLES2", create_func, get_rendering_drivers_func);
+	register_create_function("GLES3", create_func, get_rendering_drivers_func);
 }
 
 #endif // X11 enabled

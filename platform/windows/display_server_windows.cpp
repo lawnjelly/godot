@@ -539,7 +539,7 @@ void DisplayServerWindows::delete_sub_window(WindowID p_window) {
 	}
 #endif
 #ifdef OPENGL_ENABLED
-	if (rendering_driver == "opengl_es") {
+	if (rendering_driver == "GLES2") {
 		gl_manager->window_destroy(p_window);
 	}
 #endif
@@ -840,7 +840,7 @@ void DisplayServerWindows::window_set_size(const Size2i p_size, WindowID p_windo
 	}
 #endif
 #if defined(OPENGL_ENABLED)
-	if (rendering_driver == "opengl_es") {
+	if (rendering_driver == "GLES2") {
 		gl_manager->window_resize(p_window, w, h);
 	}
 #endif
@@ -3031,7 +3031,7 @@ DisplayServer::WindowID DisplayServerWindows::_create_window(WindowMode p_mode, 
 		
 #ifdef OPENGL_ENABLED
 		print_line("rendering_driver " + rendering_driver);
-		if (rendering_driver == "opengl_es") {
+		if (rendering_driver == "GLES2") {
 			Error err = gl_manager->window_create(id, wd.hWnd, hInstance, WindowRect.right - WindowRect.left, WindowRect.bottom - WindowRect.top);
 			ERR_FAIL_COND_V_MSG(err != OK, INVALID_WINDOW_ID, "Can't create a GLES2 window");
 		}
@@ -3181,9 +3181,10 @@ DisplayServerWindows::DisplayServerWindows(const String &p_rendering_driver, Win
 		//registration failed.
 		use_raw_input = false;
 	}
-
-	rendering_driver = "vulkan";
-	rendering_driver = "opengl_es";
+	
+	// hard coded render drivers...
+//	rendering_driver = "vulkan";
+//	rendering_driver = "GLES2";
 	print_line("rendering_driver " + rendering_driver);
 
 
@@ -3201,7 +3202,7 @@ DisplayServerWindows::DisplayServerWindows(const String &p_rendering_driver, Win
 	// Init context and rendering device
 #if defined(OPENGL_ENABLED)
 	
-	if (rendering_driver == "opengl_es") {
+	if (rendering_driver == "GLES2") {
 		GLManager_Windows::ContextType opengl_api_type = GLManager_Windows::GLES_2_0_COMPATIBLE;
 		
 		gl_manager = memnew(GLManager_Windows(opengl_api_type));
@@ -3312,7 +3313,7 @@ Vector<String> DisplayServerWindows::get_rendering_drivers_func() {
 	drivers.push_back("vulkan");
 #endif
 #ifdef OPENGL_ENABLED
-	drivers.push_back("opengl_es");
+	drivers.push_back("GLES2");
 #endif
 
 	return drivers;

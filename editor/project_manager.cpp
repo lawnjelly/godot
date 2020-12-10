@@ -882,7 +882,7 @@ public:
 		rs_button->set_button_group(rasterizer_button_group);
 		rs_button->set_text(TTR("OpenGL ES 2.0 (currently unavailable)"));
 		rs_button->set_meta("driver_name", "GLES2");
-		rs_button->set_disabled(true);
+//		rs_button->set_disabled(true);
 		rs_button->set_tooltip(gles2_unsupported_tooltip);
 		rvb->add_child(rs_button);
 		l = memnew(Label);
