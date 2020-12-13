@@ -74,6 +74,9 @@
 #include "servers/rendering/rendering_server_wrap_mt.h"
 #include "servers/text_server.h"
 #include "servers/xr_server.h"
+#include "core/video/video_manager_registry.h"
+#include "core/video/video_manager.h"
+#include "drivers/video_managers/register_video_managers.h"
 
 #ifdef TESTS_ENABLED
 #include "tests/test_main.h"
@@ -551,7 +554,8 @@ Error Main::setup(const char *execpath, int argc, char *argv[], bool p_second_ph
 	}
 
 	I = args.front();
-
+	
+	String driver_list;
 	String display_driver = "";
 	String audio_driver = "";
 	String tablet_driver = "";
@@ -1023,7 +1027,10 @@ Error Main::setup(const char *execpath, int argc, char *argv[], bool p_second_ph
 		goto error;
 	}
 #endif
-
+	
+	// Register video managers before globals, as this will determine the driver list
+	global_register_video_managers();
+	
 	// Network file system needs to be configured before globals, since globals are based on the
 	// 'project.godot' file which will only be available through the network if this is enabled
 	FileAccessNetwork::configure();
@@ -1176,10 +1183,25 @@ Error Main::setup(const char *execpath, int argc, char *argv[], bool p_second_ph
 	OS::get_singleton()->set_cmdline(execpath, main_args);
 
 	GLOBAL_DEF("rendering/quality/driver/driver_name", "Vulkan");
+	
+	// populate the selection box with drivers that have registered at startup
+	driver_list = "Vulkan";
+	for (int n=0; n<VideoManagerRegistry::get_singleton().get_num_managers(); n++)
+	{
+		VideoManager * vm = VideoManagerRegistry::get_singleton().get_manager(n);
+		
+		for (int d=0; d<vm->get_num_drivers(); d++)
+		{
+			String driver_name = vm->get_driver_name(d);
+			driver_list += "," + driver_name;
+		}
+	}
+	
 	ProjectSettings::get_singleton()->set_custom_property_info("rendering/quality/driver/driver_name",
 			PropertyInfo(Variant::STRING,
 					"rendering/quality/driver/driver_name",
-					PROPERTY_HINT_ENUM, "Vulkan,GLES2,GLES3"));
+					PROPERTY_HINT_ENUM, driver_list));
+//					PROPERTY_HINT_ENUM, "Vulkan,GLES2,GLES3"));
 	if (display_driver == "") {
 		display_driver = GLOBAL_GET("rendering/quality/driver/driver_name");
 	}
