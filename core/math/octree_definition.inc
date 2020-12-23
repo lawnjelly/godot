@@ -1676,7 +1676,8 @@ OCTREE_FUNC(int)::cull_convex(const Vector<Plane> &p_convex, T **p_result_array,
 	uint64_t after = OS::get_singleton()->get_ticks_usec();
 	uint64_t diff = after - before;
 
-	bool show_timings = (Math::rand() % 20) == 0;
+	//bool show_timings = (Math::rand() % 20) == 0;
+	bool show_timings = false;
 
 	if (show_timings)
 		print_line("bvh : " + itos (diff) + " usec");

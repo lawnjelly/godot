@@ -4,7 +4,7 @@
 #include "core/pooled_list.h"
 #include "core/math/bvh_abb.h"
 
-//#define BVH_DEBUG_DRAW
+#define BVH_DEBUG_DRAW
 #ifdef BVH_DEBUG_DRAW
 #include "scene/3d/immediate_geometry.h"
 #endif
@@ -750,6 +750,7 @@ public:
 #include "bvh_public.inc"
 #include "bvh_cull.inc"
 #include "bvh_pair.inc"
+#include "bvh_box.inc"
 #include "bvh_debug.inc"
 
 };

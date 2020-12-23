@@ -236,7 +236,7 @@ public:
 	// ALSO NEEDS the reference changing in the tree, cannot be used on its own
 	void remove_item_internal(uint32_t item_id)
 	{
-		CRASH_COND(item_id >= num_items)
+		CRASH_COND(item_id >= num_items);
 		num_items--;
 		// swap with last .. unordered
 		items[item_id] = items[num_items];
