@@ -173,38 +173,10 @@ private:
 	}
 };
 
-
-// tree node
-struct TNode
+struct TLeaf
 {
-	uint32_t parent_tnode_id_p1;
-	//		uint16_t parent_child_number; // which child this is of the parent node
-private:
-	uint16_t _leaf;
-public:
-	// items can be child nodes or items (if we are a leaf)
-	uint16_t num_items;
-
-	BVH_ABB aabb;
+	uint32_t num_items;
 	Item items[MAX_ITEMS];
-
-	bool is_leaf() const {return _leaf != 0;}
-	void set_leaf(bool b) {_leaf = (uint16_t) b;}
-
-	void clear(bool p_leaf = true)
-	{
-		num_items = 0;
-		parent_tnode_id_p1 = 0;
-		set_leaf(p_leaf);
-
-		// for safety set to improbable value
-		aabb.set_to_max_opposite_extents();
-
-		// other members are not blanked for speed .. they may be uninitialized
-	}
-
-	bool is_full_of_items() const {return num_items >= MAX_ITEMS;}
-	bool is_full_of_children() const {return num_items >= MAX_CHILDREN;}
 
 	Item * request_item(uint32_t &id)
 	{
@@ -219,20 +191,6 @@ public:
 	const Item &get_item(int id) const {return items[id];}
 	Item &get_item(int id) {return items[id];}
 
-	int find_child(uint32_t p_child_node_id)
-	{
-		CRASH_COND(is_leaf());
-
-		for (int n=0; n<num_items; n++)
-		{
-			if (items[n].item_ref_id == p_child_node_id)
-				return n;
-		}
-
-		// not found
-		return -1;
-	}
-
 	// ALSO NEEDS the reference changing in the tree, cannot be used on its own
 	void remove_item_internal(uint32_t item_id)
 	{
@@ -241,6 +199,54 @@ public:
 		// swap with last .. unordered
 		items[item_id] = items[num_items];
 	}
+	
+};
+
+// tree node
+struct TNode
+{
+	BVH_ABB aabb;
+	// either number of children if positive
+	// or leaf id if negative (leaf id 0 is disallowed)
+	union {
+		int32_t num_children;
+		int32_t neg_leaf_id;
+	};
+	uint32_t parent_id; // or -1
+	uint16_t children[MAX_CHILDREN];
+
+	bool is_leaf() const {return num_children < 0;}
+	void set_leaf_id(int id) {neg_leaf_id = -id;}
+
+	void clear()
+	{
+		num_children = 0;
+		parent_id = -1;
+
+		// for safety set to improbable value
+		aabb.set_to_max_opposite_extents();
+
+		// other members are not blanked for speed .. they may be uninitialized
+	}
+
+//	bool is_full_of_items() const {return num_items >= MAX_ITEMS;}
+	bool is_full_of_children() const {return num_children >= MAX_CHILDREN;}
+
+
+	int find_child(uint32_t p_child_node_id)
+	{
+		CRASH_COND(is_leaf());
+
+		for (int n=0; n<num_children; n++)
+		{
+			if (children[n] == p_child_node_id)
+				return n;
+		}
+
+		// not found
+		return -1;
+	}
+
 
 	void update_aabb_internal()
 	{
@@ -264,8 +270,8 @@ public:
 
 		// we make the aabb larger than necessary, to allow most item
 		// moves to be no-ops.
-		if (is_leaf())
-			aabb.grow_fractional(0.05f);
+//		if (is_leaf())
+//			aabb.grow_fractional(0.05f);
 	}
 };
 

@@ -1667,7 +1667,7 @@ OCTREE_FUNC(int)::cull_convex(const Vector<Plane> &p_convex, T **p_result_array,
 		return 0;
 
 #ifdef OCTREE_SEND_TO_BVH
-
+/*
 	uint64_t before = OS::get_singleton()->get_ticks_usec();
 	for (int n=0; n<1; n++)
 	{
@@ -1688,6 +1688,7 @@ OCTREE_FUNC(int)::cull_convex(const Vector<Plane> &p_convex, T **p_result_array,
 //	print_line("\tbvh result");
 //	m_BVH.debug_output_cull_results((void **) p_result_array, bvh_resultcount);
 //	print_line("");
+*/
 #endif
 
 	Vector<Vector3> convex_points = Geometry::compute_convex_mesh_points(&p_convex[0], p_convex.size());
@@ -1709,6 +1710,7 @@ OCTREE_FUNC(int)::cull_convex(const Vector<Plane> &p_convex, T **p_result_array,
 	_cull_convex(root, &cdata);
 
 #ifdef OCTREE_SEND_TO_BVH
+	/*
 //	print_line("\toctree result");
 //	m_BVH.debug_output_cull_results((void **) p_result_array, result_count);
 //	print_line("");
@@ -1717,7 +1719,7 @@ OCTREE_FUNC(int)::cull_convex(const Vector<Plane> &p_convex, T **p_result_array,
 	diff = after2 - before2;
 	if (show_timings)
 		print_line("oct : " + itos (diff) + " usec");
-
+*/
 #endif
 
 
