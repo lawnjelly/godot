@@ -1,3 +1,4 @@
+public:
 #ifdef BVH_DEBUG_DRAW
 	void draw_debug(ImmediateGeometry * p_im)
 	{
@@ -69,23 +70,27 @@
 
 	}
 
-	void _debug_draw_node(ImmediateGeometry * p_im, uint32_t p_node_id)
+	void _debug_draw_node(ImmediateGeometry * p_im, uint32_t p_node_id, int depth = 0)
 	{
 		TNode &tnode = _nodes[p_node_id];
 
+		if (depth > 0)
+		{
 		p_im->set_color(Color(0.0f, 1.0f, 0.0f, 1.0f));
 		_debug_draw_AABB(p_im, tnode.aabb);
+		}
 
 		// children?
 		if (!tnode.is_leaf())
 		{
-			for (int n=0; n<tnode.num_items; n++)
+			for (int n=0; n<tnode.num_children; n++)
 			{
-				_debug_draw_node(p_im, tnode.items[n].item_ref_id);
+				_debug_draw_node(p_im, tnode.children[n], depth+1);
 			}
 		}
 		else
 		{
+			/*
 			// items
 			if (tnode.num_items > 1)
 			{
@@ -95,6 +100,7 @@
 					_debug_draw_AABB(p_im, tnode.items[n].aabb);
 				}
 			}
+			*/
 		}
 	}
 
@@ -145,18 +151,33 @@
 		sz += itos(p_node_id);
 
 		if (tnode.is_leaf())
-			sz += " L ";
-		else
-			sz += " N ";
-
-		sz += "[";
-		for (int n=0; n<tnode.num_items; n++)
 		{
-			if (n)
-				sz += ", ";
-			sz += itos(tnode.get_item(n).item_ref_id);
+			sz += " L";
+			sz += itos (tnode.height) + " ";
+			const TLeaf * leaf = node_get_leaf(tnode);
+			
+			
+			sz += "[";
+			for (int n=0; n<leaf->num_items; n++)
+			{
+				if (n)
+					sz += ", ";
+				sz += "r";
+				sz += itos(leaf->get_item(n).item_ref_id);
+			}
+			sz += "]  ";
 		}
-		sz += "]  ";
+		else
+		{
+			sz += " N";
+			sz += itos (tnode.height) + " ";
+		}
+
+		
+		
+		/*
+		*/
+		
 //		sz += "(";
 //		sz += itos(tnode.num_items);
 //		sz += ") ";
@@ -167,10 +188,9 @@
 
 		if (!tnode.is_leaf())
 		{
-			for (int n=0; n<tnode.num_items; n++)
+			for (int n=0; n<tnode.num_children; n++)
 			{
-				const Item &item = tnode.get_item(n);
-				_recursive_print_tree_node(item.item_ref_id, depth+1);
+				_recursive_print_tree_node(tnode.children[n], depth+1);
 			}
 		}
 

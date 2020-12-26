@@ -1,17 +1,18 @@
 #pragma once
 
 #include "core/math/aabb.h"
-#include "core/pooled_list.h"
 #include "core/math/bvh_abb.h"
+#include "core/pooled_list.h"
 
 #define BVH_DEBUG_DRAW
 #ifdef BVH_DEBUG_DRAW
 #include "scene/3d/immediate_geometry.h"
 #endif
 
-#if defined (TOOLS_ENABLED) && defined (DEBUG_ENABLED)
+#if defined(TOOLS_ENABLED) && defined(DEBUG_ENABLED)
 #define BVH_VERBOSE
 #define BVH_VERBOSE_TREE
+
 //#define BVH_VERBOSE_FRAME
 //#define BVH_CHECKS
 #endif
@@ -23,73 +24,38 @@
 #endif
 
 // really a handle, can be anything
-struct BVHHandle
-{
+struct BVHHandle {
 public:
-	// 24 bits is ID, 8 bits are flags
 	uint32_t _data;
 
-//	enum Flags
-//	{
-//		F_PAIRABLE = 1 << 24,
-//		F_INVALID = 1 << 25,
-//		F_INVISIBLE = 1 << 26,
-//	};
+	void set_invalid() { _data = -1; }
+	bool is_invalid() const { return _data == -1; }
+	uint32_t id() const { return _data; }
+	void set_id(uint32_t p_id) { _data = p_id; }
 
-	void set_invalid() {_data = -1;}
-	bool is_invalid() const {return _data == -1;}
-	uint32_t id() const {return _data;}
-	void set_id(uint32_t p_id) {_data = p_id;}
-
-//	void clear() {_data = 0;}
-//	uint32_t id() const {return _data & 0xFFFFFF;}
-//	void set_all(uint32_t p_data) {_data = p_data;}
-//	void set_id(uint32_t p_id) {_data = p_id | (_data & 0xFF000000);}
-
-//	void set_valid(bool p_set) {change_flag(F_INVALID, !p_set);}
-//	uint32_t is_invalid() const {return get_flag(F_INVALID);}
-//	void set_pairable(bool p_set) {change_flag(F_PAIRABLE, p_set);}
-//	uint32_t is_pairable() const {return get_flag(F_PAIRABLE);}
-//	void set_invisible(bool p_set) {change_flag(F_INVISIBLE, p_set);}
-//	uint32_t is_invisible() const {return get_flag(F_INVISIBLE);}
-
-//	uint32_t get_tree() const {return is_pairable() ? 1 : 0;}
-
-	bool operator==(const BVHHandle &p_h) const {return _data == p_h._data;}
+	bool operator==(const BVHHandle &p_h) const { return _data == p_h._data; }
 	bool operator!=(const BVHHandle &p_h) const { return (*this == p_h) == false; }
-
-private:
-//	void set_flag(uint32_t p_flag) {_data |= p_flag;}
-//	void change_flag(uint32_t p_flag, bool p_set)
-//	{
-//		if (p_set)
-//		{set_flag(p_flag);}
-//		else
-//		{clear_flag(p_flag);}
-//	}
-//	void clear_flag(uint32_t p_flag) {_data &= ~p_flag;}
-//	uint32_t get_flag(uint32_t p_flag) const {return _data & p_flag;}
 };
 
 template <class T, int MAX_CHILDREN, int MAX_ITEMS, bool USE_PAIRS = false>
-class BVH_Tree
-{
+class BVH_Tree {
 	friend class BVH;
 
 #include "bvh_structs.inc"
 
 public:
-	BVH_Tree()
-	{
-		for (int n=0; n<NUM_TREES; n++)
-		{
+	BVH_Tree() {
+		for (int n = 0; n < NUM_TREES; n++) {
 			_root_node_id[n] = -1;
 		}
+
+		// disallow zero leaf ids (as these are stored as negative numbers)
+		uint32_t dummy_leaf_id;
+		_leaves.request(dummy_leaf_id);
 	}
 
 private:
-	bool node_add_child(uint32_t p_node_id, uint32_t p_child_node_id)
-	{
+	bool node_add_child(uint32_t p_node_id, uint32_t p_child_node_id) {
 		TNode &tnode = _nodes[p_node_id];
 		if (tnode.is_full_of_children())
 			return false;
@@ -99,108 +65,133 @@ private:
 		tnode_child.parent_tnode_id_p1 = p_node_id + 1;
 
 		uint32_t id;
-		Item * pChild = tnode.request_item(id);
+		Item *pChild = tnode.request_item(id);
 		pChild->aabb = tnode_child.aabb;
 		pChild->item_ref_id = p_child_node_id;
 
 		return true;
 	}
 
-
-	void node_remove_child(uint32_t p_node_id, uint32_t p_child_node_id, bool p_prevent_nephews = false)
-	{
-		TNode &tnode = _nodes[p_node_id];
+	void node_replace_child(uint32_t p_parent_id, uint32_t p_old_child_id, uint32_t p_new_child_id) {
+		TNode &parent = _nodes[p_parent_id];
 #ifdef TOOLS_ENABLED
 		// node is never a leaf node
-		CRASH_COND(tnode.is_leaf());
+		CRASH_COND(parent.is_leaf());
 #endif
 
-		int child_num = tnode.find_child(p_child_node_id);
+		int child_num = parent.find_child(p_old_child_id);
+#ifdef TOOLS_ENABLED
+		CRASH_COND(child_num == -1);
+#endif
+		parent.children[child_num] = p_new_child_id;
+
+		TNode &new_child = _nodes[p_new_child_id];
+		new_child.parent_id = p_parent_id;
+	}
+
+	void node_remove_child(uint32_t p_parent_id, uint32_t p_child_id, bool p_prevent_sibling = false) {
+		TNode &parent = _nodes[p_parent_id];
+#ifdef TOOLS_ENABLED
+		// node is never a leaf node
+		CRASH_COND(parent.is_leaf());
+#endif
+
+		int child_num = parent.find_child(p_child_id);
 #ifdef TOOLS_ENABLED
 		CRASH_COND(child_num == -1);
 #endif
 
-		tnode.remove_item_internal(child_num);
+		parent.remove_child_internal(child_num);
 
 		// no need to keep back references for children at the moment
 
-		uint32_t nephew_item_id; // always a node id, as tnode is never a leaf
-		bool nephew_present = false;
+		uint32_t sibling_id; // always a node id, as tnode is never a leaf
+		bool sibling_present = false;
 
-		if (tnode.num_items)
+		// if there are more children, or this is the root node, don't try and delete
+		if (parent.num_children > 1)
 		{
-			// if there are still more than 1 node
-			if (p_prevent_nephews || (tnode.num_items > 1))
-				return;
-
-			if (tnode.parent_tnode_id_p1)
-			{
-				// else there is now a redundant node with one child, which can be removed
-				nephew_item_id = tnode.get_item(0).item_ref_id;
-				nephew_present = true;
-
-				// may not be needed
-				tnode.remove_item_internal(0);
-			}
+			return;
 		}
-
+		
+		// if there is 1 sibling, it can be moved to be a child of the
+		if (parent.num_children == 1) {
+			// else there is now a redundant node with one child, which can be removed
+			sibling_id = parent.children[0];
+			sibling_present = true;
+		}
+		
 		// now there may be no children in this node .. in which case it can be deleted
 		// remove node if empty
 		// remove link from parent
-		if (tnode.parent_tnode_id_p1)
+		uint32_t grandparent_id = parent.parent_id;
+
+		
+		// special case for root node
+		if (grandparent_id == -1)
 		{
-			// the node number is stored +1 based (i.e. 1 is 0, so that 0 indicates NULL)
-			uint32_t parent_node_id = tnode.parent_tnode_id_p1-1;
-
-			node_remove_child(parent_node_id, p_node_id, true);
-
-			// put the node on the free list to recycle
-			_nodes.free(p_node_id);
-
-			// if there was a nephew, now add it
-			if (nephew_present)
+			if (sibling_present)
 			{
-				node_add_child(parent_node_id, nephew_item_id);
+				// change the root node
+				change_root_node(sibling_id);
+				
+				// delete the old root node as no longer needed
+				_nodes.free(p_parent_id);
 			}
+			
+			return;
+		}
+		
+		
+		
+		if (sibling_present) {
+			node_replace_child(grandparent_id, p_parent_id, sibling_id);
+		} else {
+			node_remove_child(grandparent_id, p_parent_id, true);
 		}
 
+		// put the node on the free list to recycle
+		_nodes.free(p_parent_id);
 	}
 
-	void node_remove_item(uint32_t p_ref_id)
+	// this relies on _current_tree being accurate
+	void change_root_node(uint32_t p_new_root_id)
 	{
+		_root_node_id[_current_tree] = p_new_root_id;
+		TNode &root = _nodes[p_new_root_id];
+
+		// mark no parent
+		root.parent_id = -1;
+	}
+	
+	void node_remove_item(uint32_t p_ref_id) {
 		// get the reference
 		ItemRef &ref = _refs[p_ref_id];
 		uint32_t owner_node_id = ref.tnode_id;
 
 		TNode &tnode = _nodes[owner_node_id];
-		tnode.remove_item_internal(ref.item_id);
+		CRASH_COND(!tnode.is_leaf());
 
-		if (tnode.num_items)
-		{
+		TLeaf *leaf = node_get_leaf(tnode);
+		leaf->remove_item_internal(ref.item_id);
+
+		if (leaf->num_items) {
 			// the swapped item has to have its reference changed to, to point to the new item id
-			uint32_t swapped_ref_id = tnode.items[ref.item_id].item_ref_id;
+			uint32_t swapped_ref_id = leaf->items[ref.item_id].item_ref_id;
 
 			ItemRef &swapped_ref = _refs[swapped_ref_id];
 
 			swapped_ref.item_id = ref.item_id;
 
 			refit_upward(owner_node_id);
-			//recursive_node_update_aabb_upward(owner_node_id);
-		}
-		else
-		{
+		} else {
 			// remove node if empty
 			// remove link from parent
-			if (tnode.parent_tnode_id_p1)
-			{
-				// the node number is stored +1 based (i.e. 1 is 0, so that 0 indicates NULL)
-				uint32_t parent_node_id = tnode.parent_tnode_id_p1-1;
+			if (tnode.parent_id != -1) {
+				uint32_t parent_id = tnode.parent_id;
 
-				node_remove_child(parent_node_id, owner_node_id);
-
-
-				refit_upward(parent_node_id);
-//				recursive_node_update_aabb_upward(parent_node_id);
+				node_remove_child(parent_id, owner_node_id);
+				refit_upward(parent_id);
 
 				// put the node on the free list to recycle
 				_nodes.free(owner_node_id);
@@ -213,15 +204,18 @@ private:
 		ref.item_id = -1; // unset
 	}
 
-public:
+	//public:
 
-	void _node_add_item(uint32_t p_node_id, uint32_t p_ref_id, const BVH_ABB &p_aabb)
-	{
+	void _node_add_item(uint32_t p_node_id, uint32_t p_ref_id, const BVH_ABB &p_aabb) {
 		ItemRef &ref = _refs[p_ref_id];
 		ref.tnode_id = p_node_id;
 
 		TNode &node = _nodes[p_node_id];
-		Item * item = node.request_item(ref.item_id);
+		CRASH_COND(!node.is_leaf());
+		TLeaf &leaf = _leaves[node.get_leaf_id()];
+
+		Item *item = leaf.request_item(ref.item_id);
+		CRASH_COND(!item);
 
 		// set the aabb of the new item
 		item->aabb = p_aabb;
@@ -230,10 +224,9 @@ public:
 		item->item_ref_id = p_ref_id;
 	}
 
-	uint32_t _create_another_child(uint32_t p_node_id, const BVH_ABB &p_aabb)
-	{
+	uint32_t _create_another_child(uint32_t p_node_id, const BVH_ABB &p_aabb) {
 		uint32_t child_node_id;
-		TNode * child_node = _nodes.request(child_node_id);
+		TNode *child_node = _nodes.request(child_node_id);
 		child_node->clear();
 
 		// may not be necessary
@@ -245,8 +238,7 @@ public:
 	}
 
 	// after adding a node after a split, it may still be worth exchanging with one of the cousins
-	void _try_exchange_cousin(uint32_t p_ref_id)
-	{
+	void _try_exchange_cousin(uint32_t p_ref_id) {
 		ItemRef &ref = _refs[p_ref_id];
 
 		uint32_t node_id = ref.tnode_id;
@@ -256,15 +248,13 @@ public:
 		if (!tnode.parent_tnode_id_p1)
 			return;
 
-		uint32_t parent_id = tnode.parent_tnode_id_p1-1;
+		uint32_t parent_id = tnode.parent_tnode_id_p1 - 1;
 		TNode &parent = _nodes[parent_id];
 
 		// find the other sibling
 		uint32_t sibling_id = -1;
-		for (int n=0; n<parent.num_items; n++)
-		{
-			if (parent.get_item(n).item_ref_id != node_id)
-			{
+		for (int n = 0; n < parent.num_items; n++) {
+			if (parent.get_item(n).item_ref_id != node_id) {
 				sibling_id = parent.get_item(n).item_ref_id;
 				break;
 			}
@@ -283,8 +273,7 @@ public:
 		BVH_ABB aabb_node;
 		aabb_node.set_to_max_opposite_extents();
 
-		for (int n=0; n<tnode.num_items; n++)
-		{
+		for (int n = 0; n < tnode.num_items; n++) {
 			if (n == ref.item_id)
 				continue;
 
@@ -300,23 +289,19 @@ public:
 		// area of sibling before
 		float area_sibling_orig = sibling.aabb.get_area();
 
-		for (int n=0; n<sibling.num_items; n++)
-		{
-			if (_should_exchange_cousin(aabb_node, aabb_item, area_node_orig, area_sibling_orig, area_node_saved, sibling, n))
-			{
+		for (int n = 0; n < sibling.num_items; n++) {
+			if (_should_exchange_cousin(aabb_node, aabb_item, area_node_orig, area_sibling_orig, area_node_saved, sibling, n)) {
 				return;
 			}
 		}
 	}
 
-	bool _should_exchange_cousin(const BVH_ABB &aabb_without, const BVH_ABB &aabb_item, float area_node_orig, float area_sibling_orig, float area_node_saved, TNode &sibling, int child_num)
-	{
+	bool _should_exchange_cousin(const BVH_ABB &aabb_without, const BVH_ABB &aabb_item, float area_node_orig, float area_sibling_orig, float area_node_saved, TNode &sibling, int child_num) {
 		// calculate the aabb of the sibling without
 		BVH_ABB aabb_sibling;
 		aabb_sibling.set_to_max_opposite_extents();
 
-		for (int n=0; n<sibling.num_items; n++)
-		{
+		for (int n = 0; n < sibling.num_items; n++) {
 			if (n == child_num)
 				continue;
 
@@ -345,8 +330,7 @@ public:
 		return false;
 	}
 
-	uint32_t _create_sibling(uint32_t p_node_id, const BVH_ABB &p_aabb)
-	{
+	uint32_t _create_sibling(uint32_t p_node_id, const BVH_ABB &p_aabb) {
 		VERBOSE_PRINT("_create_sibling");
 
 		TNode &tnode = _nodes[p_node_id];
@@ -354,26 +338,23 @@ public:
 
 		// create the new common parent
 		uint32_t new_parent_id;
-		TNode * new_parent = _nodes.request(new_parent_id);
+		TNode *new_parent = _nodes.request(new_parent_id);
 		new_parent->clear(false);
 
 		// it is possible we are creating a new root node
 		if (!old_parent_id_p1)
-//		if (p_node_id == _root_node_id)
+		//		if (p_node_id == _root_node_id)
 		{
 			// is a new root to one of the trees
-			for (int n=0; n<NUM_TREES; n++)
-			{
+			for (int n = 0; n < NUM_TREES; n++) {
 				if (_root_node_id[n] == p_node_id)
 					_root_node_id[n] = new_parent_id;
 			}
 			//_root_node_id = new_parent_id;
-		}
-		else
-		{
+		} else {
 			// if there was an old parent, remove the node as a child, and add the new parent as a child
 			//CRASH_COND(old_parent_id_p1 == 0);
-			TNode &t_old_parent = _nodes[old_parent_id_p1-1];
+			TNode &t_old_parent = _nodes[old_parent_id_p1 - 1];
 			int child_num = t_old_parent.find_child(p_node_id);
 			CRASH_COND(child_num == -1);
 
@@ -392,367 +373,13 @@ public:
 		return _create_another_child(new_parent_id, p_aabb);
 	}
 
-
-	// either choose an existing node to add item to, or create a new node and return this
-	uint32_t recursive_choose_item_add_node(uint32_t p_node_id, const BVH_ABB &p_aabb)
-	{
-		TNode &tnode = _nodes[p_node_id];
-
-		// if they don't overlap, and the node is not a non leaf which is non full
-		if (tnode.num_items && !p_aabb.intersects(tnode.aabb))
-		{
-			if (!tnode.is_leaf() || !tnode.is_full_of_children())
-			{
-			}
-			else
-			{
-				// create sibling to this node
-				return _create_sibling(p_node_id, p_aabb);
-			}
-		}
-
-		// if not a leaf node
-		if (!tnode.is_leaf())
-		{
-			// first choice is, if there are not max children, create another child node
-			if (!tnode.is_full_of_children())
-			{
-				return _create_another_child(p_node_id, p_aabb);
-			}
-
-			// there are children already
-			float best_goodness_fit = FLT_MAX;
-			int best_child = -1;
-
-			// find the best child and recurse into that
-			for (int n=0; n<tnode.num_items; n++)
-			{
-
-						float fit = _goodness_of_fit_merge(p_aabb, tnode.get_item(n).aabb);
-						if (fit < best_goodness_fit)
-						{
-							best_goodness_fit = fit;
-							best_child = n;
-						}
-			}
-
-			CRASH_COND(best_child == -1);
-			return recursive_choose_item_add_node(tnode.get_item(best_child).item_ref_id, p_aabb);
-		} // if not a leaf
-
-		// if we got to here, must be a leaf
-
-		// is it full?
-		if (!tnode.is_full_of_items())
-			return p_node_id;
-
-		// if it is full, and a leaf node, we will split the leaf into children, then
-		// recurse into the children
-		//split_leaf(p_node_id);
-		return split_leaf(p_node_id, p_aabb);
-
-		return recursive_choose_item_add_node(p_node_id, p_aabb);
-	}
-
-	void _split_leaf_sort_groups(const TNode &tnode, int &num_a, int &num_b, uint8_t * group_a, uint8_t * group_b, const BVH_ABB * temp_bounds)
-	{
-		BVH_ABB groupb_aabb;
-		groupb_aabb.set_to_max_opposite_extents();
-		for (int n=0; n<num_b; n++)
-		{
-			int which = group_b[n];
-			groupb_aabb.merge(temp_bounds[which]);
-		}
-		BVH_ABB groupb_aabb_new;
-
-		BVH_ABB rest_aabb;
-
-		float best_size = FLT_MAX;
-		int best_candidate = -1;
-
-		// find most likely from a to move into b
-		for (int check = 0; check < num_a; check++)
-		{
-			rest_aabb.set_to_max_opposite_extents();
-			groupb_aabb_new = groupb_aabb;
-
-			// find aabb of all the rest
-			for (int rest=0; rest< num_a; rest++)
-			{
-				if (rest == check)
-					continue;
-
-				int which = group_a[rest];
-				rest_aabb.merge(temp_bounds[which]);
-			}
-
-			groupb_aabb_new.merge(temp_bounds[group_a[check]]);
-
-			// now compare the sizes
-			float size = groupb_aabb_new.get_area() + rest_aabb.get_area();
-			if (size < best_size)
-			{
-				best_size = size;
-				best_candidate = check;
-			}
-		}
-
-		// we should now have the best, move it from group a to group b
-		group_b[num_b++] = group_a[best_candidate];
-
-		// remove best candidate from group a
-		num_a--;
-		group_a[best_candidate] = group_a[num_a];
-	}
-
-	void _split_leaf_sort_groups_OLD(const TNode &tnode, int &num_a, int &num_b, uint8_t * group_a, uint8_t * group_b)
-	{
-		BVH_ABB groupb_aabb;
-		groupb_aabb.set_to_max_opposite_extents();
-		for (int n=0; n<num_b; n++)
-		{
-			int which = group_b[n];
-			groupb_aabb.merge(tnode.get_item(which).aabb);
-		}
-		BVH_ABB groupb_aabb_new;
-
-		BVH_ABB rest_aabb;
-
-		float best_size = FLT_MAX;
-		int best_candidate = -1;
-
-		// find most likely from a to move into b
-		for (int check = 0; check < num_a; check++)
-		{
-			rest_aabb.set_to_max_opposite_extents();
-			groupb_aabb_new = groupb_aabb;
-
-			// find aabb of all the rest
-			for (int rest=0; rest< num_a; rest++)
-			{
-				if (rest == check)
-					continue;
-
-				int which = group_a[rest];
-				const Item &item = tnode.get_item(which);
-				rest_aabb.merge(item.aabb);
-			}
-
-			groupb_aabb_new.merge(tnode.get_item(group_a[check]).aabb);
-
-			// now compare the sizes
-			float size = groupb_aabb_new.get_area() + rest_aabb.get_area();
-			if (size < best_size)
-			{
-				best_size = size;
-				best_candidate = check;
-			}
-		}
-
-		// we should now have the best, move it from group a to group b
-		group_b[num_b++] = group_a[best_candidate];
-
-		// remove best candidate from group a
-		num_a--;
-		group_a[best_candidate] = group_a[num_a];
-
-	}
-
-	// aabb is the new inserted node
-	uint32_t split_leaf(uint32_t p_node_id, const BVH_ABB &p_added_item_aabb)
-	{
-		VERBOSE_PRINT("split_leaf");
-
-		// first create child leaf nodes
-		uint32_t * child_ids = (uint32_t *) alloca(sizeof (uint32_t) * MAX_CHILDREN);
-
-		for (int n=0; n<MAX_CHILDREN; n++)
-		{
-			TNode * child_node = _nodes.request(child_ids[n]);
-			child_node->clear();
-
-			// back link to parent
-			child_node->parent_tnode_id_p1 = p_node_id + 1;
-		}
-
-		CRASH_COND(MAX_ITEMS < MAX_CHILDREN);
-		TNode &tnode = _nodes[p_node_id];
-
-		// mark as no longer a leaf node
-		tnode.set_leaf(false);
-
-		// 2 groups, A and B, and assign children to each to split equally
-		int max_children = tnode.num_items +1;  // plus 1 for the wildcard .. the item being added
-		//CRASH_COND(max_children > MAX_CHILDREN);
-
-		uint8_t * group_a = (uint8_t *) alloca(sizeof (uint8_t) * max_children);
-		uint8_t * group_b = (uint8_t *) alloca(sizeof (uint8_t) * max_children);
-
-		// we are copying the ABBs. This is ugly, but we need one extra for the inserted item...
-		BVH_ABB * temp_bounds = (BVH_ABB *) alloca(sizeof (BVH_ABB) * max_children);
-
-		int num_a = max_children;
-		int num_b = 0;
-
-		// setup - start with all in group a
-		for (int n=0; n<tnode.num_items; n++)
-		{
-			group_a[n] = n;
-			temp_bounds[n] = tnode.get_item(n).aabb;
-		}
-		// wildcard
-		int wildcard = tnode.num_items;
-
-		group_a[wildcard] = wildcard;
-		temp_bounds[wildcard] = p_added_item_aabb;
-
-		int num_moves = num_a / 2;
-		for (int m=0; m<num_moves; m++)
-		{
-			_split_leaf_sort_groups(tnode, num_a, num_b, group_a, group_b, temp_bounds);
-		}
-
-		uint32_t wildcard_node = -1;
-
-		// now there should be equal numbers in both groups
-		for (int n=0; n<num_a; n++)
-		{
-			int which = group_a[n];
-
-			if (which != wildcard)
-			{
-				const Item &source_item = tnode.get_item(which);
-				_node_add_item(child_ids[0], source_item.item_ref_id, source_item.aabb);
-			}
-			else
-			{
-				wildcard_node =child_ids[0];
-			}
-		}
-		for (int n=0; n<num_b; n++)
-		{
-			int which = group_b[n];
-
-			if (which != wildcard)
-			{
-				const Item &source_item = tnode.get_item(which);
-				_node_add_item(child_ids[1], source_item.item_ref_id, source_item.aabb);
-			}
-			else
-			{
-				wildcard_node = child_ids[1];
-			}
-		}
-
-		/*
-		// move each item to a child node
-		for (int n=0; n<tnode.num_items; n++)
-		{
-			int child_node_id = child_ids[n % MAX_CHILDREN];
-			const Item &source_item = tnode.get_item(n);
-			_node_add_item(child_node_id, source_item.item_ref_id, source_item.aabb);
-		}
-		*/
-
-		// now remove all items from the parent and replace with the child nodes
-		tnode.num_items = MAX_CHILDREN;
-		for (int n=0; n<MAX_CHILDREN; n++)
-		{
-			// store the child node ids, but not the AABB as not calculated yet
-			tnode.items[n].item_ref_id = child_ids[n];
-		}
-
-		// change this to make more efficient
-		refit_upward(child_ids[0]);
-		refit_upward(child_ids[1]);
-
-//		refit_all();
-
-		return wildcard_node;
-	}
-
-/*
-	void split_leaf_OLD(uint32_t p_node_id)
-	{
-		VERBOSE_PRINT("split_leaf");
-
-		// first create child leaf nodes
-		uint32_t * child_ids = (uint32_t *) alloca(sizeof (uint32_t) * MAX_CHILDREN);
-
-		for (int n=0; n<MAX_CHILDREN; n++)
-		{
-			TNode * child_node = _nodes.request(child_ids[n]);
-			child_node->clear();
-
-			// back link to parent
-			child_node->parent_tnode_id_p1 = p_node_id + 1;
-		}
-
-		CRASH_COND(MAX_ITEMS < MAX_CHILDREN);
-		TNode &tnode = _nodes[p_node_id];
-
-		// mark as no longer a leaf node
-		tnode.set_leaf(false);
-
-		// 2 groups, A and B, and assign children to each to split equally
-		uint8_t * group_a = (uint8_t *) alloca(sizeof (uint8_t) * MAX_CHILDREN);
-		uint8_t * group_b = (uint8_t *) alloca(sizeof (uint8_t) * MAX_CHILDREN);
-
-		int num_a = tnode.num_items;
-		int num_b = 0;
-
-		// setup - start with all in group a
-		for (int n=0; n<tnode.num_items; n++)
-		{
-			group_a[n] = n;
-		}
-
-		int num_moves = num_a / 2;
-		for (int m=0; m<num_moves; m++)
-		{
-			_split_leaf_sort_groups(tnode, num_a, num_b, group_a, group_b);
-		}
-		// now there should be equal numbers in both groups
-		for (int n=0; n<num_a; n++)
-		{
-			int which = group_a[n];
-			const Item &source_item = tnode.get_item(which);
-			_node_add_item(child_ids[0], source_item.item_ref_id, source_item.aabb);
-		}
-		for (int n=0; n<num_b; n++)
-		{
-			int which = group_b[n];
-			const Item &source_item = tnode.get_item(which);
-			_node_add_item(child_ids[1], source_item.item_ref_id, source_item.aabb);
-		}
-
-//		// move each item to a child node
-//		for (int n=0; n<tnode.num_items; n++)
-//		{
-//			int child_node_id = child_ids[n % MAX_CHILDREN];
-//			const Item &source_item = tnode.get_item(n);
-//			_node_add_item(child_node_id, source_item.item_ref_id, source_item.aabb);
-//		}
-
-		// now remove all items from the parent and replace with the child nodes
-		tnode.num_items = MAX_CHILDREN;
-		for (int n=0; n<MAX_CHILDREN; n++)
-		{
-			// store the child node ids, but not the AABB as not calculated yet
-			tnode.items[n].item_ref_id = child_ids[n];
-		}
-
-		refit_all();
-	}
-*/
-
-#include "bvh_misc.inc"
-#include "bvh_public.inc"
 #include "bvh_cull.inc"
-#include "bvh_pair.inc"
-#include "bvh_box.inc"
 #include "bvh_debug.inc"
-
+#include "bvh_logic.inc"
+#include "bvh_misc.inc"
+#include "bvh_pair.inc"
+#include "bvh_public.inc"
+#include "bvh_split.inc"
 };
 
 #undef VERBOSE_PRINT

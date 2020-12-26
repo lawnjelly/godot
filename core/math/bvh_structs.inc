@@ -3,7 +3,7 @@ public:
 struct ItemRef
 {
 	uint32_t tnode_id; // -1 is invalid
-	uint32_t item_id; // in the tnode
+	uint32_t item_id; // in the leaf
 };
 
 // extra info kept in separate parallel list to the references,
@@ -178,6 +178,10 @@ struct TLeaf
 	uint32_t num_items;
 	Item items[MAX_ITEMS];
 
+	void clear() {num_items = 0;}
+	
+	bool is_full() const {return num_items >= MAX_ITEMS;}
+	
 	Item * request_item(uint32_t &id)
 	{
 		if (num_items < MAX_ITEMS)
@@ -215,13 +219,19 @@ struct TNode
 	uint32_t parent_id; // or -1
 	uint16_t children[MAX_CHILDREN];
 
+	// height in the tree, where leaves are 0, and all above are 1+
+	// (or the highest where there is a tie off)
+	int32_t height;
+
 	bool is_leaf() const {return num_children < 0;}
 	void set_leaf_id(int id) {neg_leaf_id = -id;}
-
+	int get_leaf_id() const {return -neg_leaf_id;}
+	
 	void clear()
 	{
 		num_children = 0;
 		parent_id = -1;
+		height = 0;
 
 		// for safety set to improbable value
 		aabb.set_to_max_opposite_extents();
@@ -232,6 +242,11 @@ struct TNode
 //	bool is_full_of_items() const {return num_items >= MAX_ITEMS;}
 	bool is_full_of_children() const {return num_children >= MAX_CHILDREN;}
 
+	void remove_child_internal(uint32_t child_num)
+	{
+		children[child_num] = children[num_children-1];
+		num_children--;
+	}
 
 	int find_child(uint32_t p_child_node_id)
 	{
@@ -246,33 +261,6 @@ struct TNode
 		// not found
 		return -1;
 	}
-
-
-	void update_aabb_internal()
-	{
-		// should there even be nodes with no children?
-		// the 'blank' aabb will screw up parent aabbs
-		if (!num_items)
-		{
-#ifdef BVH_CHECKS
-			WARN_PRINT("BVH_Tree::TNode AABB is undefined");
-#endif
-			aabb.set_to_max_opposite_extents();
-			return;
-		}
-
-		// items
-		aabb = items[0].aabb;
-		for (int n=1; n<num_items; n++)
-		{
-			aabb.merge(items[n].aabb);
-		}
-
-		// we make the aabb larger than necessary, to allow most item
-		// moves to be no-ops.
-//		if (is_leaf())
-//			aabb.grow_fractional(0.05f);
-	}
 };
 
 
@@ -282,7 +270,10 @@ PooledList<ItemRef, true> _refs;
 PooledList<ItemExtra, true> _extra;
 PooledList<ItemPairs> _pairs;
 
+// these 2 are not in sync .. nodes != leaves!
 PooledList<TNode, true> _nodes;
+PooledList<TLeaf, true> _leaves;
+
 
 // instead of translating directly to the userdata output,
 // we keep an intermediate list of hits as reference IDs, which can be used
@@ -295,3 +286,4 @@ LocalVector<uint32_t, uint32_t, true> _cull_hits;
 enum {NUM_TREES = 2,};
 
 int _root_node_id[NUM_TREES];
+int _current_tree = 0;

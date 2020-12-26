@@ -1,3 +1,5 @@
+public:
+
 BVHHandle item_add(T *p_userdata, const AABB &p_aabb, int32_t p_subindex, bool p_pairable, uint32_t p_pairable_type, uint32_t p_pairable_mask, bool p_invisible = false)
 {
 #ifdef BVH_VERBOSE_TREE
@@ -8,6 +10,7 @@ BVHHandle item_add(T *p_userdata, const AABB &p_aabb, int32_t p_subindex, bool p
 
 	BVH_ABB abb;
 	abb.from(p_aabb);
+	abb.expand();
 
 	// handle to be filled with the new item ref
 	BVHHandle handle;
@@ -58,20 +61,20 @@ BVHHandle item_add(T *p_userdata, const AABB &p_aabb, int32_t p_subindex, bool p
 		return handle;
 #endif
 
-	int tree_id = 0;
+	_current_tree = 0;
 	if (p_pairable)
-		tree_id = 1;
+		_current_tree = 1;
 
-	create_root_node(tree_id);
+	create_root_node(_current_tree);
 
 	// we must choose where to add to tree
-	ref->tnode_id = recursive_choose_item_add_node(_root_node_id[tree_id], abb);
+	ref->tnode_id = recursive_choose_item_add_node(_root_node_id[_current_tree], abb);
 
 	_node_add_item(ref->tnode_id, ref_id, abb);
 
-//		refit_all();
-	refit_upward(ref->tnode_id);
-
+//	refit_upward(ref->tnode_id);
+	refit_upward_and_balance(ref->tnode_id);
+		
 //	_try_exchange_cousin(ref_id);
 
 #ifdef BVH_VERBOSE
@@ -80,15 +83,15 @@ BVHHandle item_add(T *p_userdata, const AABB &p_aabb, int32_t p_subindex, bool p
 	mem += _nodes.estimate_memory_use();
 
 	String sz = _aabb_to_string(abb);
-	VERBOSE_PRINT("item_add [" + itos(ref_id) + "] " + itos(_refs.size()) + " refs,\t" + itos(_nodes.size()) + " nodes " + sz);
-	VERBOSE_PRINT("mem use : " + itos(mem) + ", num nodes : " + itos(_nodes.size()));
+	VERBOSE_PRINT("\titem_add [" + itos(ref_id) + "] " + itos(_refs.size()) + " refs,\t" + itos(_nodes.size()) + " nodes " + sz);
+//	VERBOSE_PRINT("mem use : " + itos(mem) + ", num nodes : " + itos(_nodes.size()));
 
 #endif
 
 #ifdef BVH_VERBOSE_TREE
 //	VERBOSE_PRINT("item_add AFTER");
 //	if (ref_id == 16)
-		_recursive_print_tree(tree_id);
+		_recursive_print_tree(_current_tree);
 #endif
 
 //	return handle;
@@ -116,39 +119,46 @@ bool item_move(BVHHandle p_handle, const AABB &p_aabb)
 
 	TNode &tnode = _nodes[ref.tnode_id];
 
-//		int id = tnode.find_item(p_ref_id.id);
-//		CRASH_COND(id == -1)
-
-	Item &item = tnode.get_item(ref.item_id);
-
-	// noop
-	if (abb == item.aabb)
-		return false;
-
-	item.aabb = abb;
-
 	// does it fit within the current aabb?
 	if (tnode.aabb.is_within(abb))
 	{
 		// no nothing .. fast path .. not moved enough to need refit
 		return true;
 	}
+	
+	// expand bound
+	abb.expand();
+	
+	// remove from old leaf, and reinsert
+	
+//		int id = tnode.find_item(p_ref_id.id);
+//		CRASH_COND(id == -1)
 
-	int tree_id = _get_tree_id(p_handle);
+//	Item &item = tnode.get_item(ref.item_id);
+
+//	// noop
+//	if (abb == item.aabb)
+//		return false;
+
+	//item.aabb = abb;
+
+
+	_current_tree = _get_tree_id(p_handle);
 
 	// remove and reinsert
 	node_remove_item(ref_id);
 
 	// we must choose where to add to tree
-	ref.tnode_id = recursive_choose_item_add_node(_root_node_id[tree_id], abb);
+	ref.tnode_id = recursive_choose_item_add_node(_root_node_id[_current_tree], abb);
 	_node_add_item(ref.tnode_id, ref_id, abb);
+	
 	refit_upward(ref.tnode_id);
 
 
 #ifdef BVH_VERBOSE_TREE
 	VERBOSE_PRINT("Move " + itos(ref_id));
 //	if (ref_id == 16)
-		_recursive_print_tree(tree_id);
+		_recursive_print_tree(_current_tree);
 #endif
 
 //	refit_upward(ref.tnode_id);
@@ -159,7 +169,7 @@ void item_remove(BVHHandle p_handle)
 {
 	uint32_t ref_id = p_handle.id();
 
-	int tree_id = _get_tree_id(p_handle);
+	_current_tree = _get_tree_id(p_handle);
 
 #ifdef BVH_DEBUG_DRAW
 	// ignore bound
@@ -194,7 +204,7 @@ void item_remove(BVHHandle p_handle)
 		_pairs.free(ref_id);
 	}
 
-	refit_all(tree_id);
+	refit_all(_current_tree);
 
 #ifdef BVH_VERBOSE_TREE
 //	_recursive_print_tree(tree_id);

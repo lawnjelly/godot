@@ -32,6 +32,16 @@ struct BVH_ABB
 	bool operator==(const BVH_ABB &o) const {return (neg_min == o.neg_min) && (max == o.max);}
 	bool operator!=(const BVH_ABB &o) const { return (*this == o) == false; }
 
+	real_t get_proximity_to(const BVH_ABB &b) const {
+		const Vector3 d = (-neg_min + max) - (-b.neg_min + b.max);
+		return (Math::abs(d.x) + Math::abs(d.y) + Math::abs(d.z));
+	}
+
+	int select_by_proximity(const BVH_ABB &a, const BVH_ABB &b) const {
+		return (get_proximity_to(a) < get_proximity_to(b) ? 0 : 1);
+	}
+	
+	
 	void from(const AABB &aabb)
 	{
 		neg_min = -aabb.position;
@@ -109,22 +119,24 @@ struct BVH_ABB
 		return true;
 	}
 
+	/*
 	void grow_fractional(float fraction)
 	{
 		Vector3 size = calculate_size();
 		float longest = MAX(size.x, size.y);
 		longest = MAX(longest, size.z);
 		//grow(longest * fraction);
-		grow (1.0f);
+		expand(1.0f);
 	}
+	*/
 
 	void grow(const Vector3 &change)
 	{
 		max += change;
 		neg_min += change;
 	}
-
-	void grow(float change)
+	
+	void expand(float change = 0.5f)
 	{
 		grow(Vector3(change, change, change));
 	}

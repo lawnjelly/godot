@@ -13,60 +13,6 @@
 template <class T, bool USE_PAIRS = false>
 class BVH_Manager
 {
-	/*
-	struct Pair
-	{
-		bool operator==(const Pair &p) const {return (handle[0] == p.handle[0]) && (handle[1] == p.handle[1]);}
-		void sort()
-		{
-			if (handle[1]._data < handle[0]._data)
-			{
-				BVHHandle t = handle[1];
-				handle[1] = handle[0];
-				handle[0] = t;
-			}
-		}
-		BVHHandle handle[2];
-		uint32_t version; // add 1 each tick / frame
-		void *ud; // userdata for the pair (needed for client, not sure what used for)
-	};
-
-	class PairHashtable
-	{
-		int _hash(const Pair &p) const
-		{
-			unsigned int h = p.handle[0]._data + p.handle[1]._data;
-			h %= 128;
-			return (int) h;
-		}
-	public:
-		enum {NUM_BINS = 128};
-		LocalVector<Pair, uint32_t, true> bins[NUM_BINS];
-
-		Pair * add(const Pair &p)
-		{
-//			Pair p;
-//			p.handle[0] = a;
-//			p.handle[1] = b;
-			int bin = _hash(p);
-
-			int s = bins[bin].size();
-			for (int n=0; n<s; n++)
-			{
-				// already exists
-				if (bins[bin][n] == p)
-				{
-					// update the version
-					bins[bin][n].version = p.version;
-					return nullptr;
-				}
-			}
-
-			bins[bin].push_back(p);
-			return &bins[bin][s];
-		}
-	} _pairs_hashtable;
-*/
 public:
 	typedef void *(*PairCallback)(void *, BVHHandle, T *, int, BVHHandle, T *, int);
 	typedef void (*UnpairCallback)(void *, BVHHandle, T *, int, BVHHandle, T *, int, void *);
