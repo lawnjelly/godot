@@ -38,6 +38,11 @@ BVHHandle item_add(T *p_userdata, const AABB &p_aabb, int32_t p_subindex, bool p
 	extra->subindex = p_subindex;
 	extra->userdata = p_userdata;
 	extra->last_updated_tick = 0;
+	
+	// add an active reference to the list for slow incremental optimize
+	// this list must be kept in sync with the references as they are added or removed.
+	extra->active_ref_id = _active_refs.size();
+	_active_refs.push_back(ref_id);
 
 	if (USE_PAIRS)
 	{
@@ -57,8 +62,12 @@ BVHHandle item_add(T *p_userdata, const AABB &p_aabb, int32_t p_subindex, bool p
 
 	// ignore bound
 #ifdef BVH_DEBUG_DRAW
-	if (ref_id == 1)
+	if (ref_id == MAX_ITEMS+1)
+	{
+		ref->tnode_id = -1;
+		ref->item_id = -1;
 		return handle;
+	}
 #endif
 
 	_current_tree = 0;
@@ -67,11 +76,17 @@ BVHHandle item_add(T *p_userdata, const AABB &p_aabb, int32_t p_subindex, bool p
 
 	create_root_node(_current_tree);
 
+//	_debug_print_refs();
+	
 	// we must choose where to add to tree
 	ref->tnode_id = recursive_choose_item_add_node(_root_node_id[_current_tree], abb);
 
+//	_debug_print_refs();
+	
 	_node_add_item(ref->tnode_id, ref_id, abb);
 
+//	_debug_print_refs();
+	
 //	refit_upward(ref->tnode_id);
 	refit_upward_and_balance(ref->tnode_id);
 		
@@ -92,6 +107,9 @@ BVHHandle item_add(T *p_userdata, const AABB &p_aabb, int32_t p_subindex, bool p
 //	VERBOSE_PRINT("item_add AFTER");
 //	if (ref_id == 16)
 		_recursive_print_tree(_current_tree);
+		
+	_debug_print_refs();		
+		
 #endif
 
 //	return handle;
@@ -99,22 +117,40 @@ BVHHandle item_add(T *p_userdata, const AABB &p_aabb, int32_t p_subindex, bool p
 }
 
 
+void _debug_print_refs()
+{
+#ifdef BVH_VERBOSE_TREE
+		print_line("refs.....");
+		for (int n=0; n<_refs.size(); n++)
+		{
+			const ItemRef &ref = _refs[n];
+			print_line("tnode_id " + itos(ref.tnode_id) + ", item_id " + itos(ref.item_id));
+		}
+		
+#endif
+	
+}
+
 // returns false if noop
 bool item_move(BVHHandle p_handle, const AABB &p_aabb)
 {
+//	return false;
+	
 	uint32_t ref_id = p_handle.id();
 
-#ifdef BVH_DEBUG_DRAW
-	// ignore bound
-	if (ref_id == 1)
-		return false;
-#endif
 
 	BVH_ABB abb;
 	abb.from(p_aabb);
 
 	// get the reference
 	ItemRef &ref = _refs[ref_id];
+	
+#ifdef BVH_DEBUG_DRAW
+	// ignore bound
+	if (ref.item_id == -1)
+		return false;
+#endif
+	
 	CRASH_COND(ref.tnode_id == -1);
 
 	TNode &tnode = _nodes[ref.tnode_id];
@@ -150,9 +186,11 @@ bool item_move(BVHHandle p_handle, const AABB &p_aabb)
 
 	// we must choose where to add to tree
 	ref.tnode_id = recursive_choose_item_add_node(_root_node_id[_current_tree], abb);
+	
+	// add to the tree
 	_node_add_item(ref.tnode_id, ref_id, abb);
 	
-	refit_upward(ref.tnode_id);
+	refit_upward_and_balance(ref.tnode_id);
 
 
 #ifdef BVH_VERBOSE_TREE
@@ -161,9 +199,14 @@ bool item_move(BVHHandle p_handle, const AABB &p_aabb)
 		_recursive_print_tree(_current_tree);
 #endif
 
+		
+	//incremental_optimize();
+		
 //	refit_upward(ref.tnode_id);
 	return true;
 }
+
+
 
 void item_remove(BVHHandle p_handle)
 {
@@ -173,8 +216,8 @@ void item_remove(BVHHandle p_handle)
 
 #ifdef BVH_DEBUG_DRAW
 	// ignore bound
-//	if (ref_id == 1)
-//		return;
+	if (_refs[ref_id].item_id == -1)
+		return;
 #endif
 
 	// get the reference
@@ -182,20 +225,39 @@ void item_remove(BVHHandle p_handle)
 
 	VERBOSE_PRINT("item_remove [" + itos(ref_id) + "] ");
 
-#ifdef BVH_DEBUG_DRAW
-	if (p_handle.id() == 1)
-//	if (p_handle.is_invisible())
-	{
+	////////////////////////////////////////
+	// remove the active reference from the list for slow incremental optimize
+	// this list must be kept in sync with the references as they are added or removed.
+	uint32_t active_ref_id = _extra[ref_id].active_ref_id;
+	uint32_t ref_id_moved_back = _active_refs[_active_refs.size()-1];
 
-	}
-	else
-#else
-	{
-		// remove the item from the node
-		node_remove_item(ref_id);
-	}
-#endif
+	// swap back and decrement for fast unordered remove
+	_active_refs[active_ref_id] = ref_id_moved_back;
+	_active_refs.resize(_active_refs.size()-1);
+	
+	
+	// keep the moved active reference up to date
+	_extra[ref_id_moved_back].active_ref_id = active_ref_id;
+	////////////////////////////////////////
+	
+	
+//#ifdef BVH_DEBUG_DRAW
+//	if (p_handle.id() == 1)
+////	if (p_handle.is_invisible())
+//	{
 
+//	}
+//	else
+//#else
+//	{
+//		// remove the item from the node
+//		node_remove_item(ref_id);
+//	}
+//#endif
+
+	// remove the item from the node
+	node_remove_item(ref_id);
+	
 	// remove the item reference
 	_refs.free(ref_id);
 	_extra.free(ref_id);
@@ -205,7 +267,8 @@ void item_remove(BVHHandle p_handle)
 	}
 
 	refit_all(_current_tree);
-
+	
+	
 #ifdef BVH_VERBOSE_TREE
 //	_recursive_print_tree(tree_id);
 #endif
@@ -245,4 +308,20 @@ void item_set_pairable(const BVHHandle &p_handle, bool p_pairable, uint32_t p_pa
 		refit_upward(ref.tnode_id);
 	}
 
+}
+
+void incremental_optimize()
+{
+	if (_current_active_ref >= _active_refs.size())
+	{
+		_current_active_ref = 0;
+	}
+	
+	// special case
+	if (!_active_refs.size())
+		return;
+	
+	uint32_t ref_id = _active_refs[_current_active_ref++];
+	
+	_item_remove_and_reinsert(ref_id);
 }

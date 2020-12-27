@@ -10,8 +10,8 @@
 #endif
 
 #if defined(TOOLS_ENABLED) && defined(DEBUG_ENABLED)
-#define BVH_VERBOSE
-#define BVH_VERBOSE_TREE
+//#define BVH_VERBOSE
+//#define BVH_VERBOSE_TREE
 
 //#define BVH_VERBOSE_FRAME
 //#define BVH_CHECKS
@@ -164,15 +164,26 @@ private:
 		root.parent_id = -1;
 	}
 	
-	void node_remove_item(uint32_t p_ref_id) {
+	void node_remove_item(uint32_t p_ref_id, BVH_ABB * r_old_aabb = nullptr) {
 		// get the reference
 		ItemRef &ref = _refs[p_ref_id];
 		uint32_t owner_node_id = ref.tnode_id;
+		
+		// debug draw special
+		if (owner_node_id == -1)
+			return;
 
 		TNode &tnode = _nodes[owner_node_id];
 		CRASH_COND(!tnode.is_leaf());
 
 		TLeaf *leaf = node_get_leaf(tnode);
+		
+		// record the old aabb if required (for incremental remove_and_reinsert)
+		if (r_old_aabb)
+		{
+			*r_old_aabb = leaf->get_item(ref.item_id).aabb;
+		}
+		
 		leaf->remove_item_internal(ref.item_id);
 
 		if (leaf->num_items) {

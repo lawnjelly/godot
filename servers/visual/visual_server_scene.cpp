@@ -3523,13 +3523,13 @@ void VisualServerScene::update_dirty_instances() {
 
 	VSG::storage->update_dirty_resources();
 
-#ifdef USE_BVH_INSTEAD_OF_OCTREE
+//#ifdef USE_BVH_INSTEAD_OF_OCTREE
 	Scenario * scenario = nullptr;
 	if (_instance_update_list.first())
 	{
 		scenario = _instance_update_list.first()->self()->scenario;
 	}
-#endif
+//#endif
 
 	while (_instance_update_list.first()) {
 
@@ -3543,6 +3543,10 @@ void VisualServerScene::update_dirty_instances() {
 //		p_instance->scenario->octree.check_for_collisions();
 	}
 #endif
+	if (scenario)
+	{
+		scenario->octree.update();
+	}
 }
 
 bool VisualServerScene::free(RID p_rid) {

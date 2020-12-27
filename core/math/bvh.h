@@ -8,7 +8,7 @@
 //#define USE_BVH_INSTEAD_OF_OCTREE
 #define BVH_DEBUG_CALLBACKS
 
-#define BVHTREE_CLASS BVH_Tree<T, 2, 2, USE_PAIRS>
+#define BVHTREE_CLASS BVH_Tree<T, 2, 512, USE_PAIRS>
 
 template <class T, bool USE_PAIRS = false>
 class BVH_Manager
@@ -94,6 +94,12 @@ public:
 		tree.item_remove(p_handle);
 	}
 
+	// call e.g. once per frame (this does a trickle optimize)
+	void update()
+	{
+		tree.incremental_optimize();
+	}
+	
 	void set_pairable(const BVHHandle &p_handle, bool p_pairable, uint32_t p_pairable_type, uint32_t p_pairable_mask)
 	{
 		// unpair callback if already paired? NYI

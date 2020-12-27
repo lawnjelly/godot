@@ -14,8 +14,15 @@ struct ItemExtra
 	uint32_t pairable;
 	uint32_t pairable_mask;
 	uint32_t pairable_type;
-	T * userdata;
+	
 	int32_t subindex;
+	
+	// the active reference is a separate list of which references
+	// are active so that we can slowly iterate through it over many frames for
+	// slow optimize.
+	uint32_t active_ref_id;
+	
+	T * userdata;
 };
 
 // this is an item OR a child node depending on whether a leaf node
@@ -274,6 +281,11 @@ PooledList<ItemPairs> _pairs;
 PooledList<TNode, true> _nodes;
 PooledList<TLeaf, true> _leaves;
 
+// we can maintain an un-ordered list of which references are active,
+// in order to do a slow incremental optimize of the tree over each frame.
+// This will work best if dynamic objects and static objects are in a different tree.
+LocalVector<uint32_t, uint32_t, true> _active_refs;
+uint32_t _current_active_ref = 0;
 
 // instead of translating directly to the userdata output,
 // we keep an intermediate list of hits as reference IDs, which can be used

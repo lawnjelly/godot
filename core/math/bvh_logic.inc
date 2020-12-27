@@ -1,3 +1,44 @@
+
+// for slow incremental optimization, we will periodically remove each
+// item from the tree and reinsert, to give it a chance to find a better position
+void _item_remove_and_reinsert(uint32_t p_ref_id)
+{
+	// get the reference
+	ItemRef &ref = _refs[p_ref_id];
+	
+	// special case of debug draw
+	if (ref.item_id == -1)
+		return;
+	
+	CRASH_COND(ref.tnode_id == -1);
+
+//	TNode &tnode = _nodes[ref.tnode_id];
+
+
+	// some overlay elaborate way to find out which tree the node is in!
+	BVHHandle temp_handle;
+	temp_handle.set_id(p_ref_id);
+	_current_tree = _get_tree_id(temp_handle);
+
+	// remove and reinsert
+	BVH_ABB abb;
+	node_remove_item(p_ref_id, &abb);
+
+	// we must choose where to add to tree
+	ref.tnode_id = recursive_choose_item_add_node(_root_node_id[_current_tree], abb);
+	_node_add_item(ref.tnode_id, p_ref_id, abb);
+	
+	refit_upward_and_balance(ref.tnode_id);
+
+
+#ifdef BVH_VERBOSE_TREE
+	VERBOSE_PRINT("Remove_And_Reinsert " + itos(p_ref_id));
+	//_recursive_print_tree(_current_tree);
+#endif
+	
+}
+
+
 int32_t balance(int32_t iA)
 {
 	return iA;
@@ -141,6 +182,7 @@ int32_t balance(int32_t iA)
 // either choose an existing node to add item to, or create a new node and return this
 uint32_t recursive_choose_item_add_node(uint32_t p_node_id, const BVH_ABB &p_aabb)
 {
+	CRASH_COND(p_node_id == -1);
 	TNode &tnode = _nodes[p_node_id];
 
 	if (tnode.is_leaf())
@@ -153,7 +195,8 @@ uint32_t recursive_choose_item_add_node(uint32_t p_node_id, const BVH_ABB &p_aab
 		return split_leaf(p_node_id, p_aabb);
 	}
 
-	/*
+#define BVH_SELECT_BULLET_METHOD
+#ifndef BVH_SELECT_BULLET_METHOD
 	// else if a node, choose the best of the children
 	float best_goodness_fit = FLT_MAX;
 	int best_child = -1;
@@ -173,7 +216,7 @@ uint32_t recursive_choose_item_add_node(uint32_t p_node_id, const BVH_ABB &p_aab
 	CRASH_COND(best_child == -1);
 	
 	return recursive_choose_item_add_node(best_child, p_aabb);
-	*/
+#else
 	
 	// bullet method
 	CRASH_COND(tnode.num_children != 2);
@@ -183,6 +226,7 @@ uint32_t recursive_choose_item_add_node(uint32_t p_node_id, const BVH_ABB &p_aab
 
 	
 	return recursive_choose_item_add_node(tnode.children[which], p_aabb);
+#endif
 
 	/*
 	if (tnode.num_items && !p_aabb.intersects(tnode.aabb))

@@ -475,7 +475,8 @@ public:
 	void move(OctreeElementID p_id, const AABB &p_aabb);
 	void set_pairable(OctreeElementID p_id, bool p_pairable = false, uint32_t p_pairable_type = 0, uint32_t pairable_mask = 1);
 	void erase(OctreeElementID p_id);
-
+	void update();
+	
 	bool is_pairable(OctreeElementID p_id) const;
 	T *get(OctreeElementID p_id) const;
 	int get_subindex(OctreeElementID p_id) const;
@@ -945,6 +946,13 @@ OCTREE_FUNC(OctreeElementID)::create(T *p_userdata, const AABB &p_aabb, int p_su
 	}
 
 	return last_element_id - 1;
+}
+
+
+OCTREE_FUNC(void)::update() {
+#ifdef OCTREE_SEND_TO_BVH
+	m_BVH.update();
+#endif
 }
 
 OCTREE_FUNC(void)::move(OctreeElementID p_id, const AABB &p_aabb) {

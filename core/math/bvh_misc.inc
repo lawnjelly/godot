@@ -228,7 +228,7 @@ void refit_upward_and_balance(uint32_t p_node_id)
 		
 		if (before != p_node_id)
 		{
-			print_line("REBALANCED!");
+			VERBOSE_PRINT("REBALANCED!");
 		}
 		
 		TNode &tnode = _nodes[p_node_id];

@@ -1,4 +1,4 @@
-void _split_leaf_sort_groups(int &num_a, int &num_b, uint8_t * group_a, uint8_t * group_b, const BVH_ABB * temp_bounds)
+void _split_leaf_sort_groups(int &num_a, int &num_b, uint16_t * group_a, uint16_t * group_b, const BVH_ABB * temp_bounds)
 {
 	BVH_ABB groupb_aabb;
 	groupb_aabb.set_to_max_opposite_extents();
@@ -100,8 +100,8 @@ uint32_t split_leaf(uint32_t p_node_id, const BVH_ABB &p_added_item_aabb)
 	int max_children = orig_leaf.num_items +1;  // plus 1 for the wildcard .. the item being added
 	//CRASH_COND(max_children > MAX_CHILDREN);
 
-	uint8_t * group_a = (uint8_t *) alloca(sizeof (uint8_t) * max_children);
-	uint8_t * group_b = (uint8_t *) alloca(sizeof (uint8_t) * max_children);
+	uint16_t * group_a = (uint16_t *) alloca(sizeof (uint16_t) * max_children);
+	uint16_t * group_b = (uint16_t *) alloca(sizeof (uint16_t) * max_children);
 
 	// we are copying the ABBs. This is ugly, but we need one extra for the inserted item...
 	BVH_ABB * temp_bounds = (BVH_ABB *) alloca(sizeof (BVH_ABB) * max_children);
@@ -191,5 +191,6 @@ uint32_t split_leaf(uint32_t p_node_id, const BVH_ABB &p_added_item_aabb)
 	node_update_aabb(_nodes[tnode.children[1]]);
 	refit_upward(p_node_id);
 
+	CRASH_COND(wildcard_node == -1);
 	return wildcard_node;
 }
