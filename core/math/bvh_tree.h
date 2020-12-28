@@ -292,6 +292,7 @@ private:
 		return child_node_id;
 	}
 
+	/*
 	// after adding a node after a split, it may still be worth exchanging with one of the cousins
 	void _try_exchange_cousin(uint32_t p_ref_id) {
 		ItemRef &ref = _refs[p_ref_id];
@@ -427,6 +428,7 @@ private:
 		// add a new sibling to hold the new aabb
 		return _create_another_child(new_parent_id, p_aabb);
 	}
+	*/
 
 #include "bvh_cull.inc"
 #include "bvh_debug.inc"
@@ -435,6 +437,7 @@ private:
 #include "bvh_pair.inc"
 #include "bvh_public.inc"
 #include "bvh_split.inc"
+#include "bvh_refit.inc"
 };
 
 #undef VERBOSE_PRINT
