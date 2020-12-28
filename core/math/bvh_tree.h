@@ -4,7 +4,7 @@
 #include "core/math/bvh_abb.h"
 #include "core/pooled_list.h"
 
-#define BVH_DEBUG_DRAW
+//#define BVH_DEBUG_DRAW
 #ifdef BVH_DEBUG_DRAW
 #include "scene/3d/immediate_geometry.h"
 #endif
@@ -177,11 +177,22 @@ private:
 		CRASH_COND(!tnode.is_leaf());
 
 		TLeaf *leaf = node_get_leaf(tnode);
+
+		// if the aabb is not determining the corner size, then there is no need to refit!
+		// (optimization, as merging AABBs takes a lot of time)		
+		const BVH_ABB &old_aabb = leaf->get_item(ref.item_id).aabb;
+		
+		// shrink a little to prevent using corner aabbs
+		BVH_ABB node_bound = tnode.aabb;
+		node_bound.expand(-0.001f);
+		bool refit = true;
+		if (old_aabb.is_within(node_bound))
+			refit = false;
 		
 		// record the old aabb if required (for incremental remove_and_reinsert)
 		if (r_old_aabb)
 		{
-			*r_old_aabb = leaf->get_item(ref.item_id).aabb;
+			*r_old_aabb = old_aabb;
 		}
 		
 		leaf->remove_item_internal(ref.item_id);
@@ -194,7 +205,9 @@ private:
 
 			swapped_ref.item_id = ref.item_id;
 
-			refit_upward(owner_node_id);
+			// only have to refit if it is an edge item
+			if (refit)
+				refit_upward(owner_node_id);
 		} else {
 			// remove node if empty
 			// remove link from parent
@@ -217,13 +230,42 @@ private:
 
 	//public:
 
-	void _node_add_item(uint32_t p_node_id, uint32_t p_ref_id, const BVH_ABB &p_aabb) {
+	// returns true if needs refit of PARENT tree only, the node itself AABB is calculated
+	// within this routine
+	bool _node_add_item(uint32_t p_node_id, uint32_t p_ref_id, const BVH_ABB &p_aabb) {
 		ItemRef &ref = _refs[p_ref_id];
 		ref.tnode_id = p_node_id;
 
 		TNode &node = _nodes[p_node_id];
 		CRASH_COND(!node.is_leaf());
 		TLeaf &leaf = _leaves[node.get_leaf_id()];
+		
+		// optimization - we only need to do a refit
+		// if the added item is changing the AABB of the node.
+		// in most cases it won't.
+		bool needs_refit = true;
+		
+		// the bound will only be valid if there is an item in there already
+		if (leaf.num_items)
+		{
+			BVH_ABB bound = node.aabb;
+			bound.expand(-0.001f);
+			if (p_aabb.is_within(bound))
+			{
+				// no change to node AABBs
+				needs_refit = false;
+			}
+			else
+			{
+				// expand bound now
+				node.aabb.merge(p_aabb);
+			}
+		}
+		else
+		{
+			// bound of the node = the new aabb
+			node.aabb = p_aabb;
+		}
 
 		Item *item = leaf.request_item(ref.item_id);
 		CRASH_COND(!item);
@@ -233,6 +275,8 @@ private:
 
 		// back reference on the item back to the item reference
 		item->item_ref_id = p_ref_id;
+		
+		return needs_refit;
 	}
 
 	uint32_t _create_another_child(uint32_t p_node_id, const BVH_ABB &p_aabb) {

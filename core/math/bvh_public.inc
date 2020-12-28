@@ -83,12 +83,18 @@ BVHHandle item_add(T *p_userdata, const AABB &p_aabb, int32_t p_subindex, bool p
 
 //	_debug_print_refs();
 	
-	_node_add_item(ref->tnode_id, ref_id, abb);
+	bool refit = _node_add_item(ref->tnode_id, ref_id, abb);
 
 //	_debug_print_refs();
 	
 //	refit_upward(ref->tnode_id);
-	refit_upward_and_balance(ref->tnode_id);
+	if (refit)
+	{
+		// only need to refit from the parent
+		const TNode &add_node = _nodes[ref->tnode_id];
+		if (add_node.parent_id != -1)
+			refit_upward_and_balance(add_node.parent_id);
+	}
 		
 //	_try_exchange_cousin(ref_id);
 
@@ -188,9 +194,16 @@ bool item_move(BVHHandle p_handle, const AABB &p_aabb)
 	ref.tnode_id = recursive_choose_item_add_node(_root_node_id[_current_tree], abb);
 	
 	// add to the tree
-	_node_add_item(ref.tnode_id, ref_id, abb);
+	bool needs_refit = _node_add_item(ref.tnode_id, ref_id, abb);
 	
-	refit_upward_and_balance(ref.tnode_id);
+	// only need to refit from the PARENT
+	if (needs_refit)
+	{
+		// only need to refit from the parent
+		const TNode &add_node = _nodes[ref.tnode_id];
+		if (add_node.parent_id != -1)
+			refit_upward_and_balance(add_node.parent_id);
+	}
 
 
 #ifdef BVH_VERBOSE_TREE
