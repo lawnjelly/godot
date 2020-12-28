@@ -23,6 +23,11 @@
 #define VERBOSE_PRINT(a)
 #endif
 
+// whether to update aabbs every change (removal from a leaf)
+// or to defer and do the AABB updates for the leaf once per frame.
+// The latter may be more efficient (if slightly less accurate)
+#define BVH_DEFER_AABB_UPDATES
+
 // really a handle, can be anything
 struct BVHHandle {
 public:
@@ -59,15 +64,18 @@ private:
 		TNode &tnode = _nodes[p_node_id];
 		if (tnode.is_full_of_children())
 			return false;
+		
+		tnode.children[tnode.num_children] = p_child_node_id;
+		tnode.num_children += 1;
 
-		TNode &tnode_child = _nodes[p_child_node_id];
 		// back link in the child to the parent
-		tnode_child.parent_tnode_id_p1 = p_node_id + 1;
+		TNode &tnode_child = _nodes[p_child_node_id];
+		tnode_child.parent_id = p_node_id;
 
-		uint32_t id;
-		Item *pChild = tnode.request_item(id);
-		pChild->aabb = tnode_child.aabb;
-		pChild->item_ref_id = p_child_node_id;
+//		uint32_t id;
+//		Item *pChild = tnode.request_item(id);
+//		pChild->aabb = tnode_child.aabb;
+//		pChild->item_ref_id = p_child_node_id;
 
 		return true;
 	}
@@ -206,8 +214,11 @@ private:
 			swapped_ref.item_id = ref.item_id;
 
 			// only have to refit if it is an edge item
+			// This is a VERY EXPENSIVE STEP
+#ifndef BVH_DEFER_AABB_UPDATES
 			if (refit)
 				refit_upward(owner_node_id);
+#endif
 		} else {
 			// remove node if empty
 			// remove link from parent

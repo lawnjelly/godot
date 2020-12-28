@@ -105,7 +105,7 @@ BVHHandle item_add(T *p_userdata, const AABB &p_aabb, int32_t p_subindex, bool p
 
 	String sz = _aabb_to_string(abb);
 	VERBOSE_PRINT("\titem_add [" + itos(ref_id) + "] " + itos(_refs.size()) + " refs,\t" + itos(_nodes.size()) + " nodes " + sz);
-//	VERBOSE_PRINT("mem use : " + itos(mem) + ", num nodes : " + itos(_nodes.size()));
+	VERBOSE_PRINT("mem use : " + itos(mem) + ", num nodes : " + itos(_nodes.size()));
 
 #endif
 
@@ -325,6 +325,19 @@ void item_set_pairable(const BVHHandle &p_handle, bool p_pairable, uint32_t p_pa
 
 void incremental_optimize()
 {
+	// first update all aabbs as one off step..
+	// this is cheaper than doing it on each move as each leaf may get touched multiple times
+	// in a frame.
+#ifdef BVH_DEFER_AABB_UPDATES
+	for (int n=0; n<NUM_TREES; n++)
+	{
+		if (_root_node_id[n] != -1)
+			refit_branch(_root_node_id[n]);
+	}
+#endif
+	
+	// now do small section reinserting to get things moving
+	// gradually, and keep items in the right leaf	
 	if (_current_active_ref >= _active_refs.size())
 	{
 		_current_active_ref = 0;
@@ -337,4 +350,22 @@ void incremental_optimize()
 	uint32_t ref_id = _active_refs[_current_active_ref++];
 	
 	_item_remove_and_reinsert(ref_id);
+	
+#ifdef BVH_VERBOSE
+	// memory use
+	int mem_refs = _refs.estimate_memory_use();
+	int mem_nodes = _nodes.estimate_memory_use();
+	int mem_leaves = _leaves.estimate_memory_use();
+
+//	String sz = _aabb_to_string(abb);
+//	VERBOSE_PRINT("\titem_add [" + itos(ref_id) + "] " + itos(_refs.size()) + " refs,\t" + itos(_nodes.size()) + " nodes " + sz);
+	String sz;
+	sz += "mem_refs : " + itos(mem_refs) + " ";
+	sz += "mem_nodes : " + itos(mem_nodes) + " ";
+	sz += "mem_leaves : " + itos(mem_leaves) + " ";
+	sz += ", num nodes : " + itos(_nodes.size());
+	print_line(sz);
+
+#endif
+	
 }

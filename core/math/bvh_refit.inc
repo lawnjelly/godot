@@ -100,3 +100,26 @@ void refit_downward(uint32_t p_node_id)
 
 	node_update_aabb(tnode);
 }
+
+// go down to the leaves, then refit upward
+void refit_branch(uint32_t p_node_id)
+{
+	TNode &tnode = _nodes[p_node_id];
+
+	// do children first
+	if (!tnode.is_leaf())
+	{
+		for (int n=0; n<tnode.num_children; n++)
+		{
+			refit_branch(tnode.children[n]);
+		}
+	}
+	else
+	{
+		// leaf
+		refit_upward(p_node_id);
+	}
+}
+
+
+

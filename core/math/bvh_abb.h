@@ -66,6 +66,11 @@ struct BVH_ABB
 		return max + neg_min;
 	}
 
+	Vector3 calculate_centre() const
+	{
+		return Vector3(((max + neg_min) * 0.5f) - neg_min);
+	}
+	
 //	IntersectResult intersects_ex(const BVH_ABB &o) const
 //	{
 //		if (!intersects(o)) return IR_MISS;

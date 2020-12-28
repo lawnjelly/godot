@@ -1,3 +1,61 @@
+void _split_leaf_sort_groups_simple(int &num_a, int &num_b, uint16_t * group_a, uint16_t * group_b, const BVH_ABB * temp_bounds, const BVH_ABB full_bound)
+{
+	Vector3 centre = full_bound.calculate_centre();
+	Vector3 size = full_bound.calculate_size();
+//	float x_threshold = ((full_bound.max.x + full_bound.neg_min.x) * 0.5f) - full_bound.neg_min.x;
+
+	int order[3];
+	
+	order[0] = size.min_axis();
+	order[2] = size.max_axis();
+	order[1] = 3 - (order[0] + order[2]);
+
+	
+	int c = order[0];
+	for (int a=0; a<num_a; a++)
+	{
+		uint32_t ind = group_a[a];
+		
+		if (temp_bounds[ind].neg_min.coord[c] < centre.coord[c])
+		{
+			// add to b
+			group_b[num_b++] = ind;
+
+			// remove from a
+			group_a[a] = group_a[num_a-1];
+			num_a--;
+			
+			// do this one again, as it has been replaced
+			a--;
+		}
+	}
+	
+	// special case, none crossed threshold
+	if (!num_b)
+	{
+		uint32_t ind = group_a[0];
+		
+		// add to b
+		group_b[num_b++] = ind;
+
+		// remove from a
+		group_a[0] = group_a[num_a-1];
+		num_a--;
+	}
+	// opposite problem! :)
+	if (!num_a)
+	{
+		uint32_t ind = group_b[0];
+		
+		// add to a
+		group_a[num_a++] = ind;
+
+		// remove from b
+		group_b[0] = group_b[num_b-1];
+		num_b--;
+	}
+}
+
 void _split_leaf_sort_groups(int &num_a, int &num_b, uint16_t * group_a, uint16_t * group_b, const BVH_ABB * temp_bounds)
 {
 	BVH_ABB groupb_aabb;
@@ -49,9 +107,78 @@ void _split_leaf_sort_groups(int &num_a, int &num_b, uint16_t * group_a, uint16_
 	group_a[best_candidate] = group_a[num_a];
 }
 
+uint32_t split_leaf(uint32_t p_node_id, const BVH_ABB &p_added_item_aabb)
+{
+	return split_leaf_complex(p_node_id, p_added_item_aabb);
+}
+
+// create a new regular parent node in between this and its parent, then add the new aabb
+// to a new leaf which is a child of the new parent.
+// A	becomes A
+// B					C (newparent)
+//						B D(newleaf)
+uint32_t split_leaf_simple(uint32_t p_node_id, const BVH_ABB &p_added_item_aabb)
+{
+	// before anything, we need 2 new nodes, this will be the new parent and the new leaf.
+	// this is so the ordering doesn't get mixed up by the node vector resize
+	uint32_t new_parent_id;
+	_nodes.request(new_parent_id);
+	uint32_t leaf_node_id;
+	_nodes.request(leaf_node_id);
+
+	// once the node vector is stable, we can get the nodes to fill with data
+	TNode &new_parent = _nodes[new_parent_id];
+	TNode &leaf_node = _nodes[leaf_node_id];
+	new_parent.clear();
+	leaf_node.clear();
+	
+	/////////////////////////////	
+	
+	TNode &tnode_orig = _nodes[p_node_id];
+	CRASH_COND(!tnode_orig.is_leaf());
+	
+	// create new parent node
+	uint32_t old_parent_id = tnode_orig.parent_id;
+	
+	// the new parent aabb starts exactly the same
+	new_parent.aabb = tnode_orig.aabb;
+
+	// reset the parents for the new chain	
+	new_parent.parent_id = old_parent_id;
+	tnode_orig.parent_id = new_parent_id;
+	
+	// add the orig node as child to the new parent
+	node_add_child(new_parent_id, p_node_id);
+	
+	// add the new parent as child to the grandparent
+	if (old_parent_id != -1)
+	{
+		node_replace_child(old_parent_id, p_node_id, new_parent_id);
+	}
+	
+	// add the leaf as a 2nd child
+	node_add_child(new_parent_id, leaf_node_id);
+	
+	node_make_leaf(leaf_node_id);
+	leaf_node.aabb = p_added_item_aabb;
+	
+	// returns the new leaf
+	return leaf_node_id;
+}
+
+void node_make_leaf(uint32_t p_node_id)
+{
+	uint32_t child_leaf_id;
+	TLeaf * child_leaf = _leaves.request(child_leaf_id);
+	child_leaf->clear();
+	CRASH_COND(child_leaf_id == 0);
+	
+	TNode &node = _nodes[p_node_id];
+	node.neg_leaf_id = -child_leaf_id;
+}
 
 // aabb is the new inserted node
-uint32_t split_leaf(uint32_t p_node_id, const BVH_ABB &p_added_item_aabb)
+uint32_t split_leaf_complex(uint32_t p_node_id, const BVH_ABB &p_added_item_aabb)
 {
 	VERBOSE_PRINT("split_leaf");
 
@@ -75,11 +202,12 @@ uint32_t split_leaf(uint32_t p_node_id, const BVH_ABB &p_added_item_aabb)
 		child_node->parent_id = p_node_id;
 		
 		// make each child a leaf node
-		uint32_t child_leaf_id;
-		TLeaf * child_leaf = _leaves.request(child_leaf_id);
-		child_leaf->clear();
-		CRASH_COND(child_leaf_id == 0);
-		child_node->neg_leaf_id = -child_leaf_id;
+		node_make_leaf(child_ids[n]);
+//		uint32_t child_leaf_id;
+//		TLeaf * child_leaf = _leaves.request(child_leaf_id);
+//		child_leaf->clear();
+//		CRASH_COND(child_leaf_id == 0);
+//		child_node->neg_leaf_id = -child_leaf_id;
 	}
 
 	// don't get any leaves or nodes till AFTER the split
@@ -122,6 +250,9 @@ uint32_t split_leaf(uint32_t p_node_id, const BVH_ABB &p_added_item_aabb)
 	temp_bounds[wildcard] = p_added_item_aabb;
 
 	// we can choose here either an equal split, or just 1 in the new leaf
+	
+#define BVH_TREE_SIMPLE_SPLIT
+	
 //#define BVH_TREE_SPLIT_EQUAL
 #ifdef BVH_TREE_SPLIT_EQUAL
 	int num_moves = num_a / 2;
@@ -130,7 +261,11 @@ uint32_t split_leaf(uint32_t p_node_id, const BVH_ABB &p_added_item_aabb)
 #endif
 	for (int m=0; m<num_moves; m++)
 	{
+#ifdef BVH_TREE_SIMPLE_SPLIT
+		_split_leaf_sort_groups_simple(num_a, num_b, group_a, group_b, temp_bounds, tnode.aabb);
+#else
 		_split_leaf_sort_groups(num_a, num_b, group_a, group_b, temp_bounds);
+#endif
 	}
 
 	uint32_t wildcard_node = -1;
