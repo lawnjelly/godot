@@ -4,7 +4,7 @@
 #include "core/math/bvh_abb.h"
 #include "core/pooled_list.h"
 
-//#define BVH_DEBUG_DRAW
+#define BVH_DEBUG_DRAW
 #ifdef BVH_DEBUG_DRAW
 #include "scene/3d/immediate_geometry.h"
 #endif
