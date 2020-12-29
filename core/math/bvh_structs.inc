@@ -183,33 +183,52 @@ private:
 struct TLeaf
 {
 	uint32_t num_items;
-	Item items[MAX_ITEMS];
+	//Item items[MAX_ITEMS];
 
+	uint32_t item_ref_ids[MAX_ITEMS];
+	// separate data orientated lists for faster SIMD traversal
+	BVH_ABB aabbs[MAX_ITEMS];
+	
+	BVH_ABB &get_aabb(uint32_t p_id) {return aabbs[p_id];}
+	const BVH_ABB &get_aabb(uint32_t p_id) const {return aabbs[p_id];}
+
+	uint32_t &get_item_ref_id(uint32_t p_id) {return item_ref_ids[p_id];}
+	const uint32_t &get_item_ref_id(uint32_t p_id) const {return item_ref_ids[p_id];}
+	
+	void remove_item_unordered(uint32_t p_id)
+	{
+		CRASH_COND(p_id >= num_items);
+		num_items--;
+		aabbs[p_id] = aabbs[num_items];
+		item_ref_ids[p_id] = item_ref_ids[num_items];
+	}
+	
 	void clear() {num_items = 0;}
 	
 	bool is_full() const {return num_items >= MAX_ITEMS;}
 	
-	Item * request_item(uint32_t &id)
+	uint32_t request_item()
 	{
 		if (num_items < MAX_ITEMS)
 		{
-			id = num_items;
-			return &items[num_items++];
+			uint32_t id = num_items;
+			num_items++;
+			return id;
 		}
-		return nullptr;
+		return -1;
 	}
 
-	const Item &get_item(int id) const {return items[id];}
-	Item &get_item(int id) {return items[id];}
+	//const Item &get_item(int id) const {return items[id];}
+	//Item &get_item(int id) {return items[id];}
 
 	// ALSO NEEDS the reference changing in the tree, cannot be used on its own
-	void remove_item_internal(uint32_t item_id)
-	{
-		CRASH_COND(item_id >= num_items);
-		num_items--;
-		// swap with last .. unordered
-		items[item_id] = items[num_items];
-	}
+//	void remove_item_internal(uint32_t item_id)
+//	{
+//		CRASH_COND(item_id >= num_items);
+//		num_items--;
+//		// swap with last .. unordered
+//		items[item_id] = items[num_items];
+//	}
 	
 };
 

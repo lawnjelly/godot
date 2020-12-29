@@ -259,11 +259,6 @@ uint32_t split_leaf_complex(uint32_t p_node_id, const BVH_ABB &p_added_item_aabb
 
 		// make each child a leaf node
 		node_make_leaf(child_ids[n]);
-		//		uint32_t child_leaf_id;
-		//		TLeaf * child_leaf = _leaves.request(child_leaf_id);
-		//		child_leaf->clear();
-		//		CRASH_COND(child_leaf_id == 0);
-		//		child_node->neg_leaf_id = -child_leaf_id;
 	}
 
 	// don't get any leaves or nodes till AFTER the split
@@ -295,7 +290,7 @@ uint32_t split_leaf_complex(uint32_t p_node_id, const BVH_ABB &p_added_item_aabb
 	// setup - start with all in group a
 	for (int n = 0; n < orig_leaf.num_items; n++) {
 		group_a[n] = n;
-		temp_bounds[n] = orig_leaf.get_item(n).aabb;
+		temp_bounds[n] = orig_leaf.get_aabb(n);
 	}
 	// wildcard
 	int wildcard = orig_leaf.num_items;
@@ -306,6 +301,9 @@ uint32_t split_leaf_complex(uint32_t p_node_id, const BVH_ABB &p_added_item_aabb
 	// we can choose here either an equal split, or just 1 in the new leaf
 
 #define BVH_TREE_SIMPLE_SPLIT
+#ifdef BVH_TREE_SIMPLE_SPLIT
+		_split_leaf_sort_groups_simple(num_a, num_b, group_a, group_b, temp_bounds, tnode.aabb);
+#else
 
 //#define BVH_TREE_SPLIT_EQUAL
 #ifdef BVH_TREE_SPLIT_EQUAL
@@ -314,12 +312,9 @@ uint32_t split_leaf_complex(uint32_t p_node_id, const BVH_ABB &p_added_item_aabb
 	int num_moves = 1;
 #endif
 	for (int m = 0; m < num_moves; m++) {
-#ifdef BVH_TREE_SIMPLE_SPLIT
-		_split_leaf_sort_groups_simple(num_a, num_b, group_a, group_b, temp_bounds, tnode.aabb);
-#else
 		_split_leaf_sort_groups(num_a, num_b, group_a, group_b, temp_bounds);
-#endif
 	}
+#endif
 
 	uint32_t wildcard_node = -1;
 
@@ -328,8 +323,10 @@ uint32_t split_leaf_complex(uint32_t p_node_id, const BVH_ABB &p_added_item_aabb
 		int which = group_a[n];
 
 		if (which != wildcard) {
-			const Item &source_item = orig_leaf.get_item(which);
-			_node_add_item(tnode.children[0], source_item.item_ref_id, source_item.aabb);
+			const BVH_ABB &source_item_aabb = orig_leaf.get_aabb(which);
+			uint32_t source_item_ref_id = orig_leaf.get_item_ref_id(which);
+			//const Item &source_item = orig_leaf.get_item(which);
+			_node_add_item(tnode.children[0], source_item_ref_id, source_item_aabb);
 		} else {
 			wildcard_node = tnode.children[0];
 		}
@@ -338,36 +335,30 @@ uint32_t split_leaf_complex(uint32_t p_node_id, const BVH_ABB &p_added_item_aabb
 		int which = group_b[n];
 
 		if (which != wildcard) {
-			const Item &source_item = orig_leaf.get_item(which);
-			_node_add_item(tnode.children[1], source_item.item_ref_id, source_item.aabb);
+			const BVH_ABB &source_item_aabb = orig_leaf.get_aabb(which);
+			uint32_t source_item_ref_id = orig_leaf.get_item_ref_id(which);
+			//const Item &source_item = orig_leaf.get_item(which);
+			_node_add_item(tnode.children[1], source_item_ref_id, source_item_aabb);
 		} else {
 			wildcard_node = tnode.children[1];
 		}
 	}
 
-	/*
-	// move each item to a child node
-	for (int n=0; n<tnode.num_items; n++)
-	{
-		int child_node_id = child_ids[n % MAX_CHILDREN];
-		const Item &source_item = tnode.get_item(n);
-		_node_add_item(child_node_id, source_item.item_ref_id, source_item.aabb);
-	}
-	*/
-
 	// now remove all items from the parent and replace with the child nodes
 	_leaves.free(orig_leaf_id);
 
-	//		tnode.num_items = MAX_CHILDREN;
-	//		for (int n=0; n<MAX_CHILDREN; n++)
-	//		{
-	//			// store the child node ids, but not the AABB as not calculated yet
-	//			tnode.items[n].item_ref_id = child_ids[n];
-	//		}
-
 	// change this to make more efficient
-	node_update_aabb(_nodes[tnode.children[0]]);
-	node_update_aabb(_nodes[tnode.children[1]]);
+	// maybe these aren't required .. test
+	// VERIFIED. because the _node_add_item keeps the bound up to date
+	// during adding, these 2 split leaf bounds will be correct already.
+	// No need to recalculate.
+#ifdef DEBUG_ENABLED	
+//	_debug_node_verify_bound(tnode.children[0]);
+//	_debug_node_verify_bound(tnode.children[1]);
+#endif
+//	node_update_aabb(_nodes[tnode.children[0]]);
+//	node_update_aabb(_nodes[tnode.children[1]]);
+	
 	refit_upward(p_node_id);
 
 	CRASH_COND(wildcard_node == -1);

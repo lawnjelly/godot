@@ -1,3 +1,14 @@
+void _debug_node_verify_bound(uint32_t p_node_id)
+{
+	TNode &node = _nodes[p_node_id];
+	BVH_ABB abb_before = node.aabb;
+	
+	node_update_aabb(node);
+	
+	BVH_ABB abb_after = node.aabb;
+	CRASH_COND(abb_before != abb_after);
+}
+
 void node_update_aabb(TNode &tnode)
 {
 	tnode.aabb.set_to_max_opposite_extents();
@@ -37,8 +48,11 @@ void node_update_aabb(TNode &tnode)
 		
 		for (int n=0; n<leaf.num_items; n++)
 		{
-			tnode.aabb.merge(leaf.items[n].aabb);
+			tnode.aabb.merge(leaf.get_aabb(n));
 		}
+		
+		// now the leaf items are unexpanded, we expand only in the node AABB
+		tnode.aabb.expand();
 #ifdef BVH_CHECKS
 		if (!leaf.num_items)
 		{

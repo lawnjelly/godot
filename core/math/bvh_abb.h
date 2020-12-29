@@ -111,7 +111,7 @@ struct BVH_ABB
 		return true;
 	}
 
-	bool is_within(const BVH_ABB &o) const
+	bool is_other_within(const BVH_ABB &o) const
 	{
 		if (_vector3_any_morethan(o.max, max)) return false;
 		if (_vector3_any_morethan(o.neg_min, neg_min)) return false;
@@ -146,6 +146,11 @@ struct BVH_ABB
 		grow(Vector3(change, change, change));
 	}
 
+	void expand_negative()
+	{
+		expand(-0.5f);
+	}
+	
 	float get_area() const // actually surface area metric
 	{
 		Vector3 d = max + neg_min;

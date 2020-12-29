@@ -276,9 +276,11 @@ bool _cull_convex_recursive(uint32_t p_node_id, CullParams &r_params, bool p_ful
 
 		// test children individually
 		for (int n = 0; n < leaf.num_items; n++) {
-			const Item &item = leaf.get_item(n);
-			if (p_fully_within || (item.aabb.intersects_convex(r_params.hull) != BVH_ABB::IR_MISS)) {
-				uint32_t child_id = item.item_ref_id;
+			//const Item &item = leaf.get_item(n);
+			const BVH_ABB &aabb = leaf.get_aabb(n);
+			
+			if (p_fully_within || (aabb.intersects_convex(r_params.hull) != BVH_ABB::IR_MISS)) {
+				uint32_t child_id = leaf.get_item_ref_id(n);
 
 				// full up with results?
 				if (!_cull_hit(child_id, r_params))

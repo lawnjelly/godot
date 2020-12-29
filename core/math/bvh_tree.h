@@ -188,13 +188,15 @@ private:
 
 		// if the aabb is not determining the corner size, then there is no need to refit!
 		// (optimization, as merging AABBs takes a lot of time)		
-		const BVH_ABB &old_aabb = leaf->get_item(ref.item_id).aabb;
+		const BVH_ABB &old_aabb = leaf->get_aabb(ref.item_id);
 		
 		// shrink a little to prevent using corner aabbs
 		BVH_ABB node_bound = tnode.aabb;
 		node_bound.expand(-0.001f);
 		bool refit = true;
-		if (old_aabb.is_within(node_bound))
+		
+//		if (old_aabb.is_within(node_bound))
+		if (node_bound.is_other_within(old_aabb))
 			refit = false;
 		
 		// record the old aabb if required (for incremental remove_and_reinsert)
@@ -203,11 +205,11 @@ private:
 			*r_old_aabb = old_aabb;
 		}
 		
-		leaf->remove_item_internal(ref.item_id);
+		leaf->remove_item_unordered(ref.item_id);
 
 		if (leaf->num_items) {
 			// the swapped item has to have its reference changed to, to point to the new item id
-			uint32_t swapped_ref_id = leaf->items[ref.item_id].item_ref_id;
+			uint32_t swapped_ref_id = leaf->get_item_ref_id(ref.item_id);
 
 			ItemRef &swapped_ref = _refs[swapped_ref_id];
 
@@ -255,37 +257,48 @@ private:
 		// if the added item is changing the AABB of the node.
 		// in most cases it won't.
 		bool needs_refit = true;
+
+		// expand bound now
+		BVH_ABB expanded = p_aabb;
+		expanded.expand();
 		
 		// the bound will only be valid if there is an item in there already
 		if (leaf.num_items)
 		{
-			BVH_ABB bound = node.aabb;
-			bound.expand(-0.001f);
-			if (p_aabb.is_within(bound))
+			//BVH_ABB bound = node.aabb;
+			//bound.expand_negative();
+			//-0.001f);
+			if (node.aabb.is_other_within(expanded))
 			{
 				// no change to node AABBs
 				needs_refit = false;
 			}
 			else
 			{
-				// expand bound now
-				node.aabb.merge(p_aabb);
+				node.aabb.merge(expanded);
 			}
 		}
 		else
 		{
 			// bound of the node = the new aabb
-			node.aabb = p_aabb;
+			node.aabb = expanded;
 		}
 
-		Item *item = leaf.request_item(ref.item_id);
-		CRASH_COND(!item);
+		ref.item_id = leaf.request_item();
+		CRASH_COND(ref.item_id == -1);
+//		Item *item = leaf.request_item(ref.item_id);
 
 		// set the aabb of the new item
-		item->aabb = p_aabb;
+		leaf.get_aabb(ref.item_id) = p_aabb;
+		//item->aabb = p_aabb;
 
 		// back reference on the item back to the item reference
-		item->item_ref_id = p_ref_id;
+		//item->item_ref_id = p_ref_id;
+		leaf.get_item_ref_id(ref.item_id) = p_ref_id;
+		
+#ifdef DEBUG_ENABLED
+//		_debug_node_verify_bound(p_node_id);
+#endif
 		
 		return needs_refit;
 	}

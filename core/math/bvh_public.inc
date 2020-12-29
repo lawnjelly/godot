@@ -10,7 +10,8 @@ BVHHandle item_add(T *p_userdata, const AABB &p_aabb, int32_t p_subindex, bool p
 
 	BVH_ABB abb;
 	abb.from(p_aabb);
-	abb.expand();
+//	BVH_ABB expanded_abb = abb;
+//	expanded_abb.expand();
 
 	// handle to be filled with the new item ref
 	BVHHandle handle;
@@ -162,28 +163,21 @@ bool item_move(BVHHandle p_handle, const AABB &p_aabb)
 	TNode &tnode = _nodes[ref.tnode_id];
 
 	// does it fit within the current aabb?
-	if (tnode.aabb.is_within(abb))
+	if (tnode.aabb.is_other_within(abb))
 	{
-		// no nothing .. fast path .. not moved enough to need refit
+		// do nothing .. fast path .. not moved enough to need refit
+		
+		// however we WILL update the exact aabb in the leaf, as this will be needed
+		// for accurate collision detection
+		TLeaf * leaf = node_get_leaf(tnode);
+		leaf->get_aabb(ref.item_id) = abb;
+				
 		return true;
 	}
 	
 	// expand bound
-	abb.expand();
+	//abb.expand();
 	
-	// remove from old leaf, and reinsert
-	
-//		int id = tnode.find_item(p_ref_id.id);
-//		CRASH_COND(id == -1)
-
-//	Item &item = tnode.get_item(ref.item_id);
-
-//	// noop
-//	if (abb == item.aabb)
-//		return false;
-
-	//item.aabb = abb;
-
 
 	_current_tree = _get_tree_id(p_handle);
 
