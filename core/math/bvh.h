@@ -5,8 +5,8 @@
 // wrapper for the BVH tree, which can do pairing etc.
 //typedef BVHHandle BVHElementID;
 
-#define USE_BVH_INSTEAD_OF_OCTREE
-#define BVH_DEBUG_CALLBACKS
+//#define USE_BVH_INSTEAD_OF_OCTREE
+//#define BVH_DEBUG_CALLBACKS
 
 #define BVHTREE_CLASS BVH_Tree<T, 2, 32, USE_PAIRS>
 
@@ -564,7 +564,7 @@ private:
 
 	void _add_changed_item(BVHHandle p_handle)
 	{
-//		return;
+		return;
 		
 		// only if uses pairing
 		if (!tree.item_is_pairable(p_handle))

@@ -147,12 +147,12 @@ bool _cull_segment_recursive(uint32_t p_node_id, CullParams &r_params) {
 	TNode &tnode = _nodes[p_node_id];
 
 	if (tnode.is_leaf()) {
-		TLeaf * leaf = node_get_leaf(tnode);
-		
+		TLeaf *leaf = node_get_leaf(tnode);
+
 		// test children individually
 		for (int n = 0; n < leaf->num_items; n++) {
 			const BVH_ABB &aabb = leaf->get_aabb(n);
-			
+
 			if (aabb.intersects_segment(r_params.segment)) {
 				uint32_t child_id = leaf->get_item_ref_id(n);
 
@@ -164,11 +164,11 @@ bool _cull_segment_recursive(uint32_t p_node_id, CullParams &r_params) {
 	} else {
 		// test children individually
 		for (int n = 0; n < tnode.num_children; n++) {
-			
+
 			uint32_t child_id = tnode.children[n];
 			const BVH_ABB &child_abb = _nodes[child_id].aabb;
-			
-//			const Item &item = tnode.get_item(n);
+
+			//			const Item &item = tnode.get_item(n);
 			if (child_abb.intersects_segment(r_params.segment)) {
 				//uint32_t child_id = item.item_ref_id;
 				if (!_cull_segment_recursive(child_id, r_params))
@@ -214,14 +214,14 @@ bool _cull_aabb_recursive(uint32_t p_node_id, CullParams &r_params, bool p_fully
 	TNode &tnode = _nodes[p_node_id];
 
 	if (tnode.is_leaf()) {
-		TLeaf * leaf = node_get_leaf(tnode);
-		
+		TLeaf *leaf = node_get_leaf(tnode);
+
 		// test children individually
 		for (int n = 0; n < leaf->num_items; n++) {
 			const BVH_ABB &aabb = leaf->get_aabb(n);
-			
-//			const Item &item = tnode.get_item(n);
-//			if (p_fully_within || item.aabb.intersects(r_params.abb)) {
+
+			//			const Item &item = tnode.get_item(n);
+			//			if (p_fully_within || item.aabb.intersects(r_params.abb)) {
 			if (p_fully_within || aabb.intersects(r_params.abb)) {
 				//uint32_t child_id = item.item_ref_id;
 				uint32_t child_id = leaf->get_item_ref_id(n);
@@ -235,12 +235,12 @@ bool _cull_aabb_recursive(uint32_t p_node_id, CullParams &r_params, bool p_fully
 		if (!p_fully_within) {
 			// test children individually
 			for (int n = 0; n < tnode.num_children; n++) {
-				
+
 				uint32_t child_id = tnode.children[n];
 				const BVH_ABB &child_abb = _nodes[child_id].aabb;
-				
-//				const Item &item = tnode.get_item(n);
-//				if (item.aabb.intersects(r_params.abb)) {
+
+				//				const Item &item = tnode.get_item(n);
+				//				if (item.aabb.intersects(r_params.abb)) {
 				if (child_abb.intersects(r_params.abb)) {
 					// is the node totally within the aabb?
 					bool fully_within = r_params.abb.is_other_within(child_abb);
@@ -253,7 +253,7 @@ bool _cull_aabb_recursive(uint32_t p_node_id, CullParams &r_params, bool p_fully
 		} else {
 			for (int n = 0; n < tnode.num_children; n++) {
 				uint32_t child_id = tnode.children[n];
-				
+
 				if (!_cull_aabb_recursive(child_id, r_params, p_fully_within))
 					return false;
 			}
@@ -293,42 +293,41 @@ bool _cull_convex_recursive(uint32_t p_node_id, CullParams &r_params, bool p_ful
 		uint32_t leaf_id = tnode.get_leaf_id();
 		const TLeaf &leaf = _leaves[leaf_id];
 
-		// test children individually
-		for (int n = 0; n < leaf.num_items; n++) {
-			//const Item &item = leaf.get_item(n);
-			const BVH_ABB &aabb = leaf.get_aabb(n);
-			
-			if (p_fully_within || (aabb.intersects_convex(r_params.hull) != BVH_ABB::IR_MISS)) {
+		if (p_fully_within) {
+			// test children individually
+			for (int n = 0; n < leaf.num_items; n++) {
+
 				uint32_t child_id = leaf.get_item_ref_id(n);
 
 				// full up with results?
 				if (!_cull_hit(child_id, r_params))
 					return false;
 			}
-		}
-	} else {
-		if (!p_fully_within) {
-			// test children individually
-			for (int n = 0; n < tnode.num_children; n++) {
 
-				if (!_cull_convex_recursive(tnode.children[n], r_params, false))
-					return false;
-
-				//				const Item &item = tnode.get_item(n);
-				//				typename BVH_ABB::IntersectResult res = item.aabb.intersects_convex(r_params.hull);
-
-				//				if (res != BVH_ABB::IR_MISS) {
-				//					uint32_t child_id = item.item_ref_id;
-				//					if (!_cull_convex_recursive(child_id, r_params, res == BVH_ABB::IR_FULL))
-				//						return false;
-			}
 		} else {
-			for (int n = 0; n < tnode.num_children; n++) {
-				uint32_t child_id = tnode.children[n];
-				if (!_cull_convex_recursive(child_id, r_params, p_fully_within))
-					return false;
+			// test children individually
+			for (int n = 0; n < leaf.num_items; n++) {
+				//const Item &item = leaf.get_item(n);
+				const BVH_ABB &aabb = leaf.get_aabb(n);
+
+				if (aabb.intersects_convex_partial(r_params.hull)) {
+					uint32_t child_id = leaf.get_item_ref_id(n);
+
+					// full up with results?
+					if (!_cull_hit(child_id, r_params))
+						return false;
+				}
 			}
+
+		} // if not fully within
+	} else {
+		
+		for (int n = 0; n < tnode.num_children; n++) {
+			uint32_t child_id = tnode.children[n];
+			if (!_cull_convex_recursive(child_id, r_params, p_fully_within))
+				return false;
 		}
+		
 	}
 
 	return true;

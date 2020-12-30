@@ -79,17 +79,78 @@ struct BVH_ABB
 //	}
 
 	//	if (aabb.intersects_convex_shape(p_cull->planes, p_cull->plane_count, p_cull->points, p_cull->point_count)) {
-	IntersectResult intersects_convex(const ConvexHull &hull) const
+	bool intersects_convex_partial(const ConvexHull &hull) const
 	{
 		AABB bb;
 		to(bb);
-
-		if (bb.intersects_convex_shape(hull.planes, hull.num_planes, hull.points, hull.num_points))
+		return bb.intersects_convex_shape(hull.planes, hull.num_planes, hull.points, hull.num_points);
+	}
+	
+	IntersectResult intersects_convex(const ConvexHull &hull) const
+	{
+		if (intersects_convex_partial(hull))
+		{
+			// fully within? very important for tree checks
+			if (is_within_convex(hull))
+			{
+				return IR_FULL;
+			}
+			
 			return IR_PARTIAL;
+		}
 
 		return IR_MISS;
 	}
 
+	bool is_within_convex(const ConvexHull &hull) const
+	{
+		Vector3 min;
+		min = -neg_min;
+
+		// most likely to be outside		
+		if (!is_point_within_hull(hull, min))
+			return false;
+		
+		if (!is_point_within_hull(hull, max))
+			return false;
+		
+		Vector3 pt(min.x, max.y, min.z);
+		if (!is_point_within_hull(hull, pt))
+			return false;
+
+		pt = Vector3(max.x, min.y, max.z);
+		if (!is_point_within_hull(hull, pt))
+			return false;
+		
+		pt = Vector3(min.x, min.y, max.z);
+		if (!is_point_within_hull(hull, pt))
+			return false;
+
+		pt = Vector3(max.x, min.y, min.z);
+		if (!is_point_within_hull(hull, pt))
+			return false;
+
+		pt = Vector3(max.x, max.y, min.z);
+		if (!is_point_within_hull(hull, pt))
+			return false;
+		
+		pt = Vector3(min.x, max.y, max.z);
+		if (!is_point_within_hull(hull, pt))
+			return false;
+		
+		return true;
+	}
+	
+	bool is_point_within_hull(const ConvexHull &hull, const Vector3 &pt) const
+	{
+		for (int n=0; n<hull.num_planes; n++)
+		{
+			if (hull.planes[n].distance_to(pt) > 0.0f)
+				return false;
+		}
+		return true;
+	}
+	
 	bool intersects_segment(const Segment &s) const
 	{
 		AABB bb;
