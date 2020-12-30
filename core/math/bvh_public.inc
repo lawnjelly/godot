@@ -283,6 +283,13 @@ void item_remove(BVHHandle p_handle)
 //		refit_upward(ref.tnode_id);
 }
 
+bool item_is_pairable(const BVHHandle &p_handle)
+{
+	uint32_t ref_id = p_handle.id();
+	const ItemExtra &extra = _extra[ref_id];
+	return extra.pairable != 0;
+}
+
 void item_get_ABB(const BVHHandle &p_handle, BVH_ABB &r_abb)
 {
 	// change tree?

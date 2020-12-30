@@ -1,3 +1,18 @@
+void _split_inform_references(uint32_t p_node_id)
+{
+	TNode &node	= _nodes[p_node_id];
+	TLeaf * leaf = node_get_leaf(node);
+	
+	for (int n=0; n<leaf->num_items; n++)
+	{
+		uint32_t ref_id = leaf->get_item_ref_id(n);
+		
+		ItemRef &ref = _refs[ref_id];
+		ref.tnode_id = p_node_id;
+		ref.item_id = n;
+	}
+}
+
 void _split_leaf_sort_groups_simple(int &num_a, int &num_b, uint16_t *group_a, uint16_t *group_b, const BVH_ABB *temp_bounds, const BVH_ABB full_bound) {
 	// special case for low leaf sizes .. should static compile out
 	if (MAX_ITEMS < 4) {
@@ -358,6 +373,11 @@ uint32_t split_leaf_complex(uint32_t p_node_id, const BVH_ABB &p_added_item_aabb
 #endif
 //	node_update_aabb(_nodes[tnode.children[0]]);
 //	node_update_aabb(_nodes[tnode.children[1]]);
+
+	// we should keep the references up to date!	
+	for (int n = 0; n < MAX_CHILDREN; n++) {
+		_split_inform_references(tnode.children[n]);
+	}
 	
 	refit_upward(p_node_id);
 

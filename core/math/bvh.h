@@ -78,7 +78,9 @@ public:
 		if (tree.item_move(p_handle, p_aabb))
 		{
 			if (USE_PAIRS)
+			{
 				_add_changed_item(p_handle);
+			}
 		}
 	}
 
@@ -562,9 +564,12 @@ private:
 
 	void _add_changed_item(BVHHandle p_handle)
 	{
+//		return;
+		
 		// only if uses pairing
-//		if (!item_is_pairable(p_handle))
-//			return;
+		if (!tree.item_is_pairable(p_handle))
+			return;
+		
 		uint32_t &last_updated_tick = tree._extra[p_handle.id()].last_updated_tick;
 
 		if (last_updated_tick == _tick)
@@ -586,6 +591,10 @@ private:
 
 	void _remove_changed_item(BVHHandle p_handle)
 	{
+		// only if uses pairing
+		if (!tree.item_is_pairable(p_handle))
+			return;
+		
 		// Care has to be taken here for items that are deleted. The ref ID
 		// could be reused on the same tick for new items. This is probably
 		// rare but should be taken into consideration
