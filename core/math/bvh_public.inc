@@ -283,6 +283,19 @@ void item_remove(BVHHandle p_handle)
 //		refit_upward(ref.tnode_id);
 }
 
+void item_get_ABB(const BVHHandle &p_handle, BVH_ABB &r_abb)
+{
+	// change tree?
+	uint32_t ref_id = p_handle.id();
+	const ItemRef &ref = _refs[ref_id];
+	TNode &tnode = _nodes[ref.tnode_id];
+#ifdef DEBUG_ENABLED
+	CRASH_COND(!tnode.is_leaf());
+#endif
+	TLeaf * leaf = node_get_leaf(tnode);
+	r_abb = leaf->get_aabb(ref.item_id);
+}
+
 void item_set_pairable(const BVHHandle &p_handle, bool p_pairable, uint32_t p_pairable_type, uint32_t p_pairable_mask)
 {
 	// change tree?
@@ -298,8 +311,12 @@ void item_set_pairable(const BVHHandle &p_handle, bool p_pairable, uint32_t p_pa
 	{
 		// record abb
 		TNode &tnode = _nodes[ref.tnode_id];
-		Item &item = tnode.get_item(ref.item_id);
-		BVH_ABB abb = item.aabb;
+		TLeaf * leaf = node_get_leaf(tnode);
+		BVH_ABB abb = leaf->get_aabb(ref.item_id);
+		
+		
+//		Item &item = tnode.get_item(ref.item_id);
+//		BVH_ABB abb = item.aabb;
 
 		// remove from old tree
 		node_remove_item(ref_id);
@@ -311,8 +328,17 @@ void item_set_pairable(const BVHHandle &p_handle, bool p_pairable, uint32_t p_pa
 
 		// we must choose where to add to tree
 		ref.tnode_id = recursive_choose_item_add_node(_root_node_id[tree_id], abb);
-		_node_add_item(ref.tnode_id, ref_id, abb);
-		refit_upward(ref.tnode_id);
+		bool needs_refit = _node_add_item(ref.tnode_id, ref_id, abb);
+		
+		// only need to refit from the PARENT
+		if (needs_refit)
+		{
+			// only need to refit from the parent
+			const TNode &add_node = _nodes[ref.tnode_id];
+			if (add_node.parent_id != -1)
+				refit_upward_and_balance(add_node.parent_id);
+		}
+		
 	}
 
 }

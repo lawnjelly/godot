@@ -5,10 +5,10 @@
 // wrapper for the BVH tree, which can do pairing etc.
 //typedef BVHHandle BVHElementID;
 
-//#define USE_BVH_INSTEAD_OF_OCTREE
+#define USE_BVH_INSTEAD_OF_OCTREE
 #define BVH_DEBUG_CALLBACKS
 
-#define BVHTREE_CLASS BVH_Tree<T, 2, 4, USE_PAIRS>
+#define BVHTREE_CLASS BVH_Tree<T, 2, 32, USE_PAIRS>
 
 template <class T, bool USE_PAIRS = false>
 class BVH_Manager
@@ -287,19 +287,26 @@ public:
 	T * item_get_userdata(BVHHandle p_handle) const {return _get_extra(p_handle).userdata;}
 	int item_get_subindex(BVHHandle p_handle) const {return _get_extra(p_handle).subindex;}
 
-	void item_get_AABB(BVHHandle p_handle, AABB &r_aabb) const
+	void item_get_AABB(BVHHandle p_handle, AABB &r_aabb)
 	{
 		BVH_ABB abb;
 		item_get_ABB(p_handle, abb);
 		abb.to(r_aabb);
 	}
 
-	void item_get_ABB(BVHHandle p_handle, BVH_ABB &r_abb) const
+	void item_get_ABB(BVHHandle p_handle, BVH_ABB &r_abb)
 	{
-		const typename BVHTREE_CLASS::ItemRef &ref = _get_ref(p_handle);
-		const typename BVHTREE_CLASS::TNode &tnode = tree._nodes[ref.tnode_id];
-		const typename BVHTREE_CLASS::Item &item = tnode.get_item(ref.item_id);
-		r_abb = item.aabb;
+		tree.item_get_ABB(p_handle, r_abb);
+//		const typename BVHTREE_CLASS::ItemRef &ref = _get_ref(p_handle);
+//		typename BVHTREE_CLASS::TNode &tnode = tree._nodes[ref.tnode_id];
+//		CRASH_COND(!tnode.is_leaf());
+//		typename BVHTREE_CLASS::TLeaf * leaf = tree.node_get_leaf(tnode);
+		
+//		// check this for bugs as this has changed to a reference
+//		r_abb = leaf->get_aabb(ref.item_id);
+		
+//		const typename BVHTREE_CLASS::Item &item = tnode.get_item(ref.item_id);
+//		r_abb = item.aabb;
 	}
 
 

@@ -134,6 +134,7 @@ bool node_is_leaf_full(TNode &tnode) const
 	return leaf->is_full();
 }
 
+public:
 TLeaf * node_get_leaf(TNode &tnode)
 {
 	CRASH_COND(!tnode.is_leaf());
@@ -146,7 +147,7 @@ const TLeaf * node_get_leaf(const TNode &tnode) const
 	return &_leaves[tnode.get_leaf_id()];
 }
 
-
+private:
 BVH_ABB q3Combine(const BVH_ABB &a, const BVH_ABB &b)
 {
 	BVH_ABB c = a;

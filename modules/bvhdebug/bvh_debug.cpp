@@ -3,7 +3,7 @@
 #include "core/math/bvh.h"
 #include "core/engine.h"
 
-BVH_Manager<void> m_BVH;
+BVH_Manager<void, true> m_BVH;
 
 
 void BVHDebug::_bind_methods()

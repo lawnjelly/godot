@@ -46,6 +46,7 @@ template <class T, int MAX_CHILDREN, int MAX_ITEMS, bool USE_PAIRS = false>
 class BVH_Tree {
 	friend class BVH;
 
+#include "bvh_pair.inc"
 #include "bvh_structs.inc"
 
 public:
@@ -458,7 +459,6 @@ private:
 #include "bvh_debug.inc"
 #include "bvh_logic.inc"
 #include "bvh_misc.inc"
-#include "bvh_pair.inc"
 #include "bvh_public.inc"
 #include "bvh_split.inc"
 #include "bvh_refit.inc"
