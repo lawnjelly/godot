@@ -163,7 +163,7 @@ public:
 				if (n)
 					sz += ", ";
 				sz += "r";
-				sz += itos(leaf->get_item(n).item_ref_id);
+				sz += itos(leaf->get_item_ref_id(n));
 			}
 			sz += "]  ";
 		}

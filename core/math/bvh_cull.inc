@@ -181,14 +181,20 @@ bool _cull_segment_recursive(uint32_t p_node_id, CullParams &r_params) {
 }
 
 bool _cull_point_recursive(uint32_t p_node_id, CullParams &r_params) {
+	
 	TNode &tnode = _nodes[p_node_id];
+	// no hit with this node?
+	if (!tnode.aabb.intersects_point(r_params.point))
+		return true;
 
 	if (tnode.is_leaf()) {
+		TLeaf * leaf = node_get_leaf(tnode);
+		
 		// test children individually
-		for (int n = 0; n < tnode.num_items; n++) {
-			const Item &item = tnode.get_item(n);
-			if (item.aabb.intersects_point(r_params.point)) {
-				uint32_t child_id = item.item_ref_id;
+		for (int n = 0; n < leaf->num_items; n++) {
+			
+			if (leaf->get_aabb(n).intersects_point(r_params.point)) {
+				uint32_t child_id = leaf->get_item_ref_id(n);
 
 				// full up with results?
 				if (!_cull_hit(child_id, r_params))
@@ -197,13 +203,10 @@ bool _cull_point_recursive(uint32_t p_node_id, CullParams &r_params) {
 		}
 	} else {
 		// test children individually
-		for (int n = 0; n < tnode.num_items; n++) {
-			const Item &item = tnode.get_item(n);
-			if (item.aabb.intersects_point(r_params.point)) {
-				uint32_t child_id = item.item_ref_id;
-				if (!_cull_point_recursive(child_id, r_params))
-					return false;
-			}
+		for (int n = 0; n < tnode.num_children; n++) {
+			uint32_t child_id = tnode.children[n];
+			if (!_cull_point_recursive(child_id, r_params))
+				return false;
 		}
 	}
 

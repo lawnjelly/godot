@@ -32,7 +32,7 @@ void _item_remove_and_reinsert(uint32_t p_ref_id)
 
 
 #ifdef BVH_VERBOSE_TREE
-	VERBOSE_PRINT("Remove_And_Reinsert " + itos(p_ref_id));
+	//VERBOSE_PRINT("Remove_And_Reinsert " + itos(p_ref_id));
 	//_recursive_print_tree(_current_tree);
 #endif
 	
@@ -41,7 +41,7 @@ void _item_remove_and_reinsert(uint32_t p_ref_id)
 
 int32_t balance(int32_t iA)
 {
-	return iA;
+//	return iA;
 	
 	TNode *A = &_nodes[iA];
 

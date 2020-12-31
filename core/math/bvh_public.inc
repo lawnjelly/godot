@@ -115,7 +115,7 @@ BVHHandle item_add(T *p_userdata, const AABB &p_aabb, int32_t p_subindex, bool p
 //	if (ref_id == 16)
 		_recursive_print_tree(_current_tree);
 		
-	_debug_print_refs();		
+	//_debug_print_refs();		
 		
 #endif
 
@@ -196,7 +196,9 @@ bool item_move(BVHHandle p_handle, const AABB &p_aabb)
 		// only need to refit from the parent
 		const TNode &add_node = _nodes[ref.tnode_id];
 		if (add_node.parent_id != -1)
-			refit_upward_and_balance(add_node.parent_id);
+			// not sure we need to rebalance all the time, this can be done less often
+			refit_upward(add_node.parent_id);
+			//refit_upward_and_balance(add_node.parent_id);
 	}
 
 

@@ -82,7 +82,11 @@ int BroadPhaseOctree::cull_aabb(const AABB &p_aabb, CollisionObjectSW **p_result
 	return octree.cull_aabb(p_aabb, p_results, p_max_results, p_result_indices);
 }
 
+#ifdef USE_BVH_INSTEAD_OF_OCTREE_FOR_GODOT_PHYSICS
+void *BroadPhaseOctree::_pair_callback(void *self, BVHHandle p_A, CollisionObjectSW *p_object_A, int subindex_A, BVHHandle p_B, CollisionObjectSW *p_object_B, int subindex_B) {
+#else
 void *BroadPhaseOctree::_pair_callback(void *self, OctreeElementID p_A, CollisionObjectSW *p_object_A, int subindex_A, OctreeElementID p_B, CollisionObjectSW *p_object_B, int subindex_B) {
+#endif
 
 	BroadPhaseOctree *bpo = (BroadPhaseOctree *)(self);
 	if (!bpo->pair_callback)
@@ -91,7 +95,11 @@ void *BroadPhaseOctree::_pair_callback(void *self, OctreeElementID p_A, Collisio
 	return bpo->pair_callback(p_object_A, subindex_A, p_object_B, subindex_B, bpo->pair_userdata);
 }
 
+#ifdef USE_BVH_INSTEAD_OF_OCTREE_FOR_GODOT_PHYSICS
+void BroadPhaseOctree::_unpair_callback(void *self, BVHHandle p_A, CollisionObjectSW *p_object_A, int subindex_A, BVHHandle p_B, CollisionObjectSW *p_object_B, int subindex_B, void *pairdata) {
+#else
 void BroadPhaseOctree::_unpair_callback(void *self, OctreeElementID p_A, CollisionObjectSW *p_object_A, int subindex_A, OctreeElementID p_B, CollisionObjectSW *p_object_B, int subindex_B, void *pairdata) {
+#endif
 
 	BroadPhaseOctree *bpo = (BroadPhaseOctree *)(self);
 	if (!bpo->unpair_callback)

@@ -31,6 +31,10 @@
 // really a handle, can be anything
 struct BVHHandle {
 public:
+	// conversion operator
+	operator uint32_t() const {return _data;}
+	void set(uint32_t p_value) {_data = p_value;}
+	
 	uint32_t _data;
 
 	void set_invalid() { _data = -1; }

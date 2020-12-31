@@ -33,13 +33,24 @@
 
 #include "broad_phase_sw.h"
 #include "core/math/octree.h"
+#include "core/math/bvh.h"
 
 class BroadPhaseOctree : public BroadPhaseSW {
 
+#ifdef USE_BVH_INSTEAD_OF_OCTREE_FOR_GODOT_PHYSICS
+	BVH_Manager<CollisionObjectSW, true> octree;
+
+	static void *_pair_callback(void *, BVHHandle, CollisionObjectSW *, int, BVHHandle, CollisionObjectSW *, int);
+	static void _unpair_callback(void *, BVHHandle, CollisionObjectSW *, int, BVHHandle, CollisionObjectSW *, int, void *);
+
+#else
 	Octree<CollisionObjectSW, true> octree;
 
 	static void *_pair_callback(void *, OctreeElementID, CollisionObjectSW *, int, OctreeElementID, CollisionObjectSW *, int);
 	static void _unpair_callback(void *, OctreeElementID, CollisionObjectSW *, int, OctreeElementID, CollisionObjectSW *, int, void *);
+#endif
+
+	
 
 	PairCallback pair_callback;
 	void *pair_userdata;

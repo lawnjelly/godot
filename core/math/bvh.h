@@ -5,10 +5,11 @@
 // wrapper for the BVH tree, which can do pairing etc.
 //typedef BVHHandle BVHElementID;
 
-//#define USE_BVH_INSTEAD_OF_OCTREE
+#define USE_BVH_INSTEAD_OF_OCTREE
+#define USE_BVH_INSTEAD_OF_OCTREE_FOR_GODOT_PHYSICS
 //#define BVH_DEBUG_CALLBACKS
 
-#define BVHTREE_CLASS BVH_Tree<T, 2, 64, USE_PAIRS>
+#define BVHTREE_CLASS BVH_Tree<T, 2, 32, USE_PAIRS>
 
 template <class T, bool USE_PAIRS = false>
 class BVH_Manager
@@ -64,6 +65,13 @@ public:
 		return h;
 	}
 
+	void move(uint32_t p_handle, const AABB &p_aabb)
+	{
+		BVHHandle h; h.set(p_handle);
+		move (h, p_aabb);
+	}
+	
+	
 	void move(BVHHandle p_handle, const AABB &p_aabb)
 	{
 //		if (p_handle.is_invalid())
@@ -84,6 +92,12 @@ public:
 		}
 	}
 
+	void erase(uint32_t p_handle)
+	{
+		BVHHandle h; h.set(p_handle);
+		erase (h);
+	}
+	
 	void erase(BVHHandle p_handle)
 	{
 		// call unpair and remove all references to the item
@@ -100,6 +114,12 @@ public:
 	void update()
 	{
 		tree.incremental_optimize();
+	}
+
+	void set_pairable(uint32_t p_handle, bool p_pairable, uint32_t p_pairable_type, uint32_t p_pairable_mask)
+	{
+		BVHHandle h; h.set(p_handle);
+		set_pairable(h, p_pairable, p_pairable_type, p_pairable_mask);
 	}
 	
 	void set_pairable(const BVHHandle &p_handle, bool p_pairable, uint32_t p_pairable_type, uint32_t p_pairable_mask)
@@ -284,6 +304,25 @@ public:
 		_reset();
 	}
 
+	// backward compatibility
+	bool is_pairable(uint32_t p_handle) const
+	{
+		BVHHandle h; h.set(p_handle);
+		return item_is_pairable(h);
+	}
+	int get_subindex(uint32_t p_handle) const
+	{
+		BVHHandle h; h.set(p_handle);
+		return item_get_subindex(h);
+	}
+	
+	T * get(uint32_t p_handle) const
+	{
+		BVHHandle h; h.set(p_handle);
+		return item_get_userdata(h);
+	}
+	
+	
 	// supplemental funcs
 	bool item_is_pairable(BVHHandle p_handle) const {return _get_extra(p_handle).pairable;}
 	T * item_get_userdata(BVHHandle p_handle) const {return _get_extra(p_handle).userdata;}

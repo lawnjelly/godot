@@ -67,14 +67,11 @@ void node_update_aabb(TNode &tnode)
 
 void refit_upward(uint32_t p_node_id)
 {
-	TNode &tnode = _nodes[p_node_id];
-
-	// update overall aabb from the children
-	node_update_aabb(tnode);
-
-	if (tnode.parent_id != -1)
+	while (p_node_id != -1)
 	{
-		refit_upward(	tnode.parent_id);
+		TNode &tnode = _nodes[p_node_id];
+		node_update_aabb(tnode);
+		p_node_id = tnode.parent_id;
 	}
 }
 
@@ -87,6 +84,7 @@ void refit_upward_and_balance(uint32_t p_node_id)
 		
 		if (before != p_node_id)
 		{
+			//print_line("REBALANCED!");
 			VERBOSE_PRINT("REBALANCED!");
 		}
 		
