@@ -8,7 +8,7 @@
 //#define USE_BVH_INSTEAD_OF_OCTREE
 //#define BVH_DEBUG_CALLBACKS
 
-#define BVHTREE_CLASS BVH_Tree<T, 2, 4, USE_PAIRS>
+#define BVHTREE_CLASS BVH_Tree<T, 2, 64, USE_PAIRS>
 
 template <class T, bool USE_PAIRS = false>
 class BVH_Manager

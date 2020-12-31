@@ -305,6 +305,36 @@ bool _cull_convex_recursive(uint32_t p_node_id, CullParams &r_params, bool p_ful
 			}
 
 		} else {
+			
+#define BVH_CONVEX_CULL_OPTIMIZED
+#ifdef BVH_CONVEX_CULL_OPTIMIZED
+			// test aabb cutting
+//			BVH_ABB testbb;
+//			testbb.set(Vector3(0, 0, 0), Vector3(1, 1, 1));
+//			Plane testplane(Vector3(0.5, 0.5, 0.5), Vector3(0, 0, 1));
+//			testbb.intersects_plane(testplane);
+			
+			
+			// first find which planes cut the aabb
+			uint32_t max_planes = r_params.hull.num_planes;
+			uint32_t * plane_ids = (uint32_t *) alloca(sizeof (uint32_t) * max_planes);
+			uint32_t num_planes = tnode.aabb.find_cutting_planes(r_params.hull, plane_ids);
+			
+			// test children individually
+			for (int n = 0; n < leaf.num_items; n++) {
+				//const Item &item = leaf.get_item(n);
+				const BVH_ABB &aabb = leaf.get_aabb(n);
+
+				if (aabb.intersects_convex_optimized(r_params.hull, plane_ids, num_planes)) {
+					uint32_t child_id = leaf.get_item_ref_id(n);
+
+					// full up with results?
+					if (!_cull_hit(child_id, r_params))
+						return false;
+				}
+			}
+			
+#else
 			// test children individually
 			for (int n = 0; n < leaf.num_items; n++) {
 				//const Item &item = leaf.get_item(n);
@@ -318,7 +348,7 @@ bool _cull_convex_recursive(uint32_t p_node_id, CullParams &r_params, bool p_ful
 						return false;
 				}
 			}
-
+#endif
 		} // if not fully within
 	} else {
 		
@@ -332,3 +362,4 @@ bool _cull_convex_recursive(uint32_t p_node_id, CullParams &r_params, bool p_ful
 
 	return true;
 }
+
