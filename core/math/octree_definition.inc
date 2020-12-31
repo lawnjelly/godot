@@ -44,7 +44,7 @@
 
 extern BVH_Manager<void> m_BVH;
 #ifdef OCTREE_USE_CACHED_LISTS
-#define OCTREE_SEND_TO_BVH
+//#define OCTREE_SEND_TO_BVH
 //#define OCTREE_TEST_BVH_CULL
 #else
 #undef OCTREE_SEND_TO_BVH

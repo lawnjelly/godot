@@ -217,6 +217,11 @@ uint32_t recursive_choose_item_add_node(uint32_t p_node_id, const BVH_ABB &p_aab
 	
 	return recursive_choose_item_add_node(best_child, p_aabb);
 #else
+	// this should not happen???
+	if (tnode.num_children == 1)
+	{
+		return recursive_choose_item_add_node(tnode.children[0], p_aabb);
+	}
 	
 	// bullet method
 	CRASH_COND(tnode.num_children != 2);

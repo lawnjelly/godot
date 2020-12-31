@@ -5,11 +5,11 @@
 // wrapper for the BVH tree, which can do pairing etc.
 //typedef BVHHandle BVHElementID;
 
-#define USE_BVH_INSTEAD_OF_OCTREE
+//#define USE_BVH_INSTEAD_OF_OCTREE
 #define USE_BVH_INSTEAD_OF_OCTREE_FOR_GODOT_PHYSICS
 //#define BVH_DEBUG_CALLBACKS
 
-#define BVHTREE_CLASS BVH_Tree<T, 2, 32, USE_PAIRS>
+#define BVHTREE_CLASS BVH_Tree<T, 2, 4, USE_PAIRS>
 
 template <class T, bool USE_PAIRS = false>
 class BVH_Manager
@@ -114,6 +114,7 @@ public:
 	void update()
 	{
 		tree.incremental_optimize();
+		_check_for_collisions();
 	}
 
 	void set_pairable(uint32_t p_handle, bool p_pairable, uint32_t p_pairable_type, uint32_t p_pairable_mask)
@@ -229,7 +230,7 @@ public:
 	}
 
 	// do this after moving etc.
-	void check_for_collisions()
+	void _check_for_collisions()
 	{
 		AABB bb;
 
@@ -603,7 +604,7 @@ private:
 
 	void _add_changed_item(BVHHandle p_handle)
 	{
-		return;
+		//return;
 		
 		// only if uses pairing
 		if (!tree.item_is_pairable(p_handle))

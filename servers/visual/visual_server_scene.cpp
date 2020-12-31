@@ -3540,7 +3540,7 @@ void VisualServerScene::update_dirty_instances() {
 	{
 		scenario->octree.update();
 #ifdef USE_BVH_INSTEAD_OF_OCTREE
-		scenario->octree.check_for_collisions();
+//		scenario->octree.check_for_collisions();
 //		p_instance->scenario->octree.check_for_collisions();
 #endif
 	}

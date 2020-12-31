@@ -333,10 +333,11 @@ void item_set_pairable(const BVHHandle &p_handle, bool p_pairable, uint32_t p_pa
 		ex.pairable = p_pairable;
 
 		// add to new tree
-		int tree_id = _get_tree_id(p_handle);
-
+		int _current_tree = _get_tree_id(p_handle);
+		create_root_node(_current_tree);
+		
 		// we must choose where to add to tree
-		ref.tnode_id = recursive_choose_item_add_node(_root_node_id[tree_id], abb);
+		ref.tnode_id = recursive_choose_item_add_node(_root_node_id[_current_tree], abb);
 		bool needs_refit = _node_add_item(ref.tnode_id, ref_id, abb);
 		
 		// only need to refit from the PARENT

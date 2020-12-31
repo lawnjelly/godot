@@ -120,6 +120,7 @@ void BroadPhaseOctree::set_unpair_callback(UnpairCallback p_unpair_callback, voi
 }
 
 void BroadPhaseOctree::update() {
+	octree.update();
 	// does.. not?
 }
 
