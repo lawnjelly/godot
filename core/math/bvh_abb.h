@@ -104,6 +104,12 @@ struct BVH_ABB
 
 	bool is_within_convex(const ConvexHull &hull) const
 	{
+		// use half extents routine
+		AABB bb;
+		to(bb);
+		return bb.inside_convex_shape(hull.planes, hull.num_planes);
+		
+	/*	
 		Vector3 min;
 		min = -neg_min;
 
@@ -139,6 +145,7 @@ struct BVH_ABB
 			return false;
 		
 		return true;
+		*/
 	}
 	
 	bool is_point_within_hull(const ConvexHull &hull, const Vector3 &pt) const

@@ -52,18 +52,25 @@ struct CullParams
 
 struct TLeaf
 {
-	uint32_t num_items;
-	//Item items[MAX_ITEMS];
-
-	uint32_t item_ref_ids[MAX_ITEMS];
+	uint16_t num_items;
+private:
+	uint16_t dirty;
 	// separate data orientated lists for faster SIMD traversal
+	uint32_t item_ref_ids[MAX_ITEMS];
 	BVH_ABB aabbs[MAX_ITEMS];
-	
+public:
+	// accessors
 	BVH_ABB &get_aabb(uint32_t p_id) {return aabbs[p_id];}
 	const BVH_ABB &get_aabb(uint32_t p_id) const {return aabbs[p_id];}
 
 	uint32_t &get_item_ref_id(uint32_t p_id) {return item_ref_ids[p_id];}
 	const uint32_t &get_item_ref_id(uint32_t p_id) const {return item_ref_ids[p_id];}
+
+	bool is_dirty() const {return dirty;}
+	void set_dirty(bool p) {dirty = p;}
+	
+	void clear() {num_items = 0; set_dirty(true);}
+	bool is_full() const {return num_items >= MAX_ITEMS;}
 	
 	void remove_item_unordered(uint32_t p_id)
 	{
@@ -72,10 +79,6 @@ struct TLeaf
 		aabbs[p_id] = aabbs[num_items];
 		item_ref_ids[p_id] = item_ref_ids[num_items];
 	}
-	
-	void clear() {num_items = 0;}
-	
-	bool is_full() const {return num_items >= MAX_ITEMS;}
 	
 	uint32_t request_item()
 	{
@@ -87,19 +90,6 @@ struct TLeaf
 		}
 		return -1;
 	}
-
-	//const Item &get_item(int id) const {return items[id];}
-	//Item &get_item(int id) {return items[id];}
-
-	// ALSO NEEDS the reference changing in the tree, cannot be used on its own
-//	void remove_item_internal(uint32_t item_id)
-//	{
-//		CRASH_COND(item_id >= num_items);
-//		num_items--;
-//		// swap with last .. unordered
-//		items[item_id] = items[num_items];
-//	}
-	
 };
 
 // tree node

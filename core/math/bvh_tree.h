@@ -4,7 +4,7 @@
 #include "core/math/bvh_abb.h"
 #include "core/pooled_list.h"
 
-//#define BVH_DEBUG_DRAW
+#define BVH_DEBUG_DRAW
 #ifdef BVH_DEBUG_DRAW
 #include "scene/3d/immediate_geometry.h"
 #endif
@@ -221,6 +221,8 @@ private:
 #ifndef BVH_DEFER_AABB_UPDATES
 			if (refit)
 				refit_upward(owner_node_id);
+#else
+			leaf->set_dirty(true);
 #endif
 		} else {
 			// remove node if empty
