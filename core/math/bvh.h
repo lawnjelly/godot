@@ -8,12 +8,85 @@
 //#define USE_BVH_INSTEAD_OF_OCTREE
 #define USE_BVH_INSTEAD_OF_OCTREE_FOR_GODOT_PHYSICS
 //#define BVH_DEBUG_CALLBACKS
+//#define USE_BVH_PAIRING_HASH_TABLE
 
 #define BVHTREE_CLASS BVH_Tree<T, 2, 128, USE_PAIRS>
 
 template <class T, bool USE_PAIRS = false>
 class BVH_Manager
 {
+#ifdef USE_BVH_PAIRING_HASH_TABLE
+	struct Pair
+	{
+		uint32_t hash2;
+		BVHHandle handle_from;
+		BVHHandle handle_to;
+		void * userdata;
+	};
+	
+	class PairTable
+	{
+		static const int num_bins = 10001;
+		LocalVector<Pair> bins[num_bins];
+		uint32_t hash(const Pair &p) const
+		{
+			return ((p.handle_from._data * 511) + p.handle_to._data) % num_bins;
+		}
+		uint32_t hash2(const Pair &p) const
+		{
+			return (p.handle_from._data - p.handle_to._data) % num_bins;
+		}
+		
+		uint32_t find(const Pair &p_find, uint32_t hash) const
+		{
+			const LocalVector<Pair> pairs = bins[hash];
+			for (int n=0; n<pairs.size(); n++)
+			{
+				const Pair &p = pairs[n];
+				
+				if ((p.hash2 == p_find.hash2) && (p.handle_to == p_find.handle_to) && (p.handle_from == p_find.handle_from))
+				{
+					return n;
+				}
+			}
+			return -1;
+		}
+	public:
+		// returns null if already exists
+		void ** add_pair(Pair &p)
+		{
+			uint32_t hsh = hash(p);
+			p.hash2 = hash2(p);
+			
+			uint32_t found = find(p, hsh);
+			if (found != -1)
+				return nullptr;
+			
+			// add
+			LocalVector<Pair> &pairs = bins[hsh];
+			pairs.push_back(p);
+			
+			return &pairs[pairs.size()-1].userdata;
+		}
+		
+		// returns userdata
+		void * remove_pair(Pair &p)
+		{
+			uint32_t hsh = hash(p);
+			p.hash2 = hash2(p);
+			
+			uint32_t found = find(p, hsh);
+			// should not happen
+			ERR_FAIL_COND_V_MSG(found == -1, nullptr, "remove_pair : pair not found");
+			
+			LocalVector<Pair> &pairs = bins[hsh];
+			void * userdata = pairs[found].userdata;
+			pairs.remove_unordered(found);
+			return userdata;
+		}
+	} _pair_table;
+#endif // USE_BVH_PAIRING_HASH_TABLE
+	
 public:
 	typedef void *(*PairCallback)(void *, BVHHandle, T *, int, BVHHandle, T *, int);
 	typedef void (*UnpairCallback)(void *, BVHHandle, T *, int, BVHHandle, T *, int, void *);
@@ -365,28 +438,39 @@ private:
 
 	void _unpair(BVHHandle p_from, BVHHandle p_to)
 	{
+		tree._sort_handles(p_from, p_to);
+		
+#ifdef USE_BVH_PAIRING_HASH_TABLE
+		Pair pair;
+		pair.handle_from = p_from;
+		pair.handle_to = p_to;
+		void * ud = _pair_table.remove_pair(pair);
+#else
+		
 		typename BVHTREE_CLASS::ItemPairs &pairs_from = tree._pairs[p_from.id()];
 		typename BVHTREE_CLASS::ItemPairs &pairs_to = tree._pairs[p_to.id()];
 
 		void * ud_from = pairs_from.remove_pair_to(p_to);
 		void * ud_to = pairs_to.remove_pair_to(p_from);
-
+#endif
 		// callback
 		if (unpair_callback) {
-			BVHHandle ha, hb;
-			ha = p_from;
-			hb = p_to;
-			tree._sort_handles(ha, hb);
+//			BVHHandle ha, hb;
+//			ha = p_from;
+//			hb = p_to;
+//			tree._sort_handles(ha, hb);
 
-			typename BVHTREE_CLASS::ItemExtra &exa = tree._extra[ha.id()];
-			typename BVHTREE_CLASS::ItemExtra &exb = tree._extra[hb.id()];
+			typename BVHTREE_CLASS::ItemExtra &exa = tree._extra[p_from.id()];
+			typename BVHTREE_CLASS::ItemExtra &exb = tree._extra[p_to.id()];
 
 			// the user data will be stored in the LOWER handle
-			void * ud = ud_from;
-			if (p_to.id() < p_from.id())
-				ud = ud_to;
+#ifndef USE_BVH_PAIRING_HASH_TABLE
+			void * ud = ud_from; // test this is correct one
+//			if (p_to.id() < p_from.id())
+//				ud = ud_to;
+#endif
 
-			unpair_callback(pair_callback_userdata, ha, exa.userdata, exa.subindex, hb, exb.userdata, exb.subindex, ud);
+			unpair_callback(pair_callback_userdata, p_from, exa.userdata, exa.subindex, p_to, exb.userdata, exb.subindex, ud);
 #ifdef BVH_DEBUG_CALLBACKS
 			print_line("Unpair callback : " + itos (ha.id()) + " to " + itos(hb.id()));
 #endif
@@ -443,6 +527,18 @@ private:
 		// only have to do this oneway, lower ID then higher ID
 		tree._sort_handles(p_ha, p_hb);
 
+		
+#ifdef USE_BVH_PAIRING_HASH_TABLE
+		Pair pair;
+		pair.handle_from = p_ha;
+		pair.handle_to = p_hb;
+		// already exists?
+		void ** pp_userdata = _pair_table.add_pair(pair);
+		if (!pp_userdata)
+			return;
+		
+#else
+		
 		typename BVHTREE_CLASS::ItemPairs &p_from = tree._pairs[p_ha.id()];
 		typename BVHTREE_CLASS::ItemPairs &p_to = tree._pairs[p_hb.id()];
 
@@ -458,6 +554,7 @@ private:
 			if (p_to.contains_pair_to(p_ha))
 				return;
 		}
+#endif
 
 		// callback
 		void * callback_userdata = nullptr;
@@ -473,9 +570,13 @@ private:
 #endif
 		}
 
+#ifdef USE_BVH_PAIRING_HASH_TABLE
+	*pp_userdata = callback_userdata;
+#else		
 		// new pair! .. only really need to store the userdata on the lower handle, but both have storage so...
 		p_from.add_pair_to(p_hb, callback_userdata);
 		p_to.add_pair_to(p_ha, callback_userdata);
+#endif
 
 
 		/*
