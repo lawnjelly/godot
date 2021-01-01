@@ -13,6 +13,8 @@ struct ItemPairs
 	void clear() {num_pairs = 0; extended_pairs.reset();}
 	bool extended() const {return extended_pairs.size() != 0;}
 
+	AABB expanded_aabb;
+	
 	// in most cases the in built list will be long enough,
 	// if not use the vector
 	int32_t num_pairs;
@@ -131,6 +133,7 @@ private:
 };
 
 
+/*
 void pairs_reset_from_item(BVHHandle p_handle)
 {
 	ItemPairs &p_from = _pairs[p_handle.id()];
@@ -155,3 +158,4 @@ void pairs_reset_from_item(BVHHandle p_handle)
 
 	p_from.clear();
 }
+*/

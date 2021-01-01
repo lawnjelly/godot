@@ -9,7 +9,7 @@
 #define USE_BVH_INSTEAD_OF_OCTREE_FOR_GODOT_PHYSICS
 //#define BVH_DEBUG_CALLBACKS
 
-#define BVHTREE_CLASS BVH_Tree<T, 2, 4, USE_PAIRS>
+#define BVHTREE_CLASS BVH_Tree<T, 2, 128, USE_PAIRS>
 
 template <class T, bool USE_PAIRS = false>
 class BVH_Manager
@@ -57,7 +57,7 @@ public:
 
 		if (USE_PAIRS)
 		{
-			_add_changed_item(h);
+			_add_changed_item(h, p_aabb);
 		}
 
 //		check_for_collisions();
@@ -87,7 +87,7 @@ public:
 		{
 			if (USE_PAIRS)
 			{
-				_add_changed_item(p_handle);
+				_add_changed_item(p_handle, p_aabb);
 			}
 		}
 	}
@@ -248,9 +248,14 @@ public:
 		{
 			const BVHHandle &h = changed_items[n];
 
+			// use the expanded aabb for pairing
+			const AABB &expanded_aabb = tree._pairs[h.id()].expanded_aabb;
+			BVH_ABB abb;
+			abb.from(expanded_aabb);
+			
 			// find all the existing paired aabbs that are no longer
 			// paired, and send callbacks
-			_find_leavers(h);
+			_find_leavers(h, abb);
 
 
 			// we will redetect all collision pairs from this item
@@ -261,12 +266,16 @@ public:
 
 //			int tree_id = h.get_tree();
 			uint32_t changed_item_ref_id = h.id();
+			
+			// it will always be pairable (check is done on adding)
 			bool changed_item_pairable = item_is_pairable(h);
 
-			item_get_AABB(h, bb);
-
 			// aabb to abb
-			params.abb.from(bb);
+			//item_get_AABB(h, bb);
+			//params.abb.from(bb);
+			
+			params.abb = abb;
+			
 
 //			tree[tree_id].item_get_AABB(h, bb);
 
@@ -400,12 +409,12 @@ private:
 
 	// find all the existing paired aabbs that are no longer
 	// paired, and send callbacks
-	void _find_leavers(BVHHandle p_handle)
+	void _find_leavers(BVHHandle p_handle, const BVH_ABB &expanded_abb_from)
 	{
 		typename BVHTREE_CLASS::ItemPairs &p_from = tree._pairs[p_handle.id()];
 
-		BVH_ABB abb_from;
-		item_get_ABB(p_handle, abb_from);
+		BVH_ABB abb_from = expanded_abb_from;
+		//item_get_ABB(p_handle, abb_from);
 
 		// remove from pairing list for every partner
 		if (!p_from.extended())
@@ -602,22 +611,34 @@ private:
 		_tick++;
 	}
 
-	void _add_changed_item(BVHHandle p_handle)
+	void _add_changed_item(BVHHandle p_handle, const AABB &aabb)
 	{
 		//return;
 		
 		// only if uses pairing
-		if (!tree.item_is_pairable(p_handle))
+		// no .. non pairable items seem to be able to pair with pairable
+//		if (!tree.item_is_pairable(p_handle))
+//			return;
+
+		// aabb check with expanded aabb. This greatly decreases processing
+		// at the cost of slightly less accurate pairing checks
+		AABB &expanded_aabb = tree._pairs[p_handle.id()].expanded_aabb;
+		if (expanded_aabb.encloses(aabb))
 			return;
 		
 		uint32_t &last_updated_tick = tree._extra[p_handle.id()].last_updated_tick;
 
 		if (last_updated_tick == _tick)
 			return; // already on changed list
-
+		
 		// mark as on list
 		last_updated_tick = _tick;
 
+		// new expanded aabb
+		expanded_aabb = aabb;
+		expanded_aabb.grow_by(0.1f);
+		
+		
 		// todo .. add bitfield for fast check
 //		for (int n=0; n<changed_items.size(); n++)
 //		{
