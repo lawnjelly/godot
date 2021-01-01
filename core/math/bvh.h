@@ -451,7 +451,8 @@ private:
 		typename BVHTREE_CLASS::ItemPairs &pairs_to = tree._pairs[p_to.id()];
 
 		void * ud_from = pairs_from.remove_pair_to(p_to);
-		void * ud_to = pairs_to.remove_pair_to(p_from);
+		pairs_to.remove_pair_to(p_from);
+//		void * ud_to = pairs_to.remove_pair_to(p_from);
 #endif
 		// callback
 		if (unpair_callback) {
@@ -497,6 +498,9 @@ private:
 	{
 		typename BVHTREE_CLASS::ItemPairs &p_from = tree._pairs[p_handle.id()];
 
+		// opportunity to de-extend pairs, before removing leavers
+		p_from.update();
+		
 		BVH_ABB abb_from = expanded_abb_from;
 		//item_get_ABB(p_handle, abb_from);
 
@@ -734,6 +738,9 @@ private:
 		
 		// mark as on list
 		last_updated_tick = _tick;
+		
+		// opportunity to de-extend pairs (before collision detection, which will delete then recreate pairs)
+		
 
 		// new expanded aabb
 		expanded_aabb = aabb;

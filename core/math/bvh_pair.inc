@@ -1,7 +1,9 @@
+#define BVH_USE_EXTENDED_PAIRS
 public:
 struct ItemPairs
 {
-	enum {MAX_PAIRS_PER_ITEM = 8};
+#ifdef BVH_USE_EXTENDED_PAIRS
+	enum {MAX_PAIRS_PER_ITEM = 32};
 
 	struct Link
 	{
@@ -9,6 +11,7 @@ struct ItemPairs
 		BVHHandle handle;
 		void * userdata;
 	};
+#endif
 
 	void clear() {num_pairs = 0; extended_pairs.reset();}
 	bool extended() const {return extended_pairs.size() != 0;}
@@ -83,6 +86,7 @@ struct ItemPairs
 					// remove unordered
 					num_pairs--;
 					pairs[n] = pairs[num_pairs];
+					break;
 				}
 			}
 		}
@@ -95,17 +99,25 @@ struct ItemPairs
 					userdata = extended_pairs[n].userdata;
 					extended_pairs.remove_unordered(n);
 					num_pairs--;
+					break;
 				}
 			}
+			
 		} // extended
 
 		//return num_pairs < num_pairs_before;
 		return userdata;
 	}
 
+	void update()
+	{
+		_deextend();
+	}
+	
 private:
 	void _extend()
 	{
+		//print_line("_extend()");
 		CRASH_COND(num_pairs > MAX_PAIRS_PER_ITEM);
 		CRASH_COND(extended());
 		extended_pairs.resize(num_pairs);
@@ -117,8 +129,15 @@ private:
 
 	void _deextend()
 	{
+		// call AFTER processing
+		
+		// deextend?
+		if (num_pairs > (MAX_PAIRS_PER_ITEM / 2))
+			return;
+		
 		if (extended())
 		{
+			//print_line("_deextend()");
 			if (num_pairs <= MAX_PAIRS_PER_ITEM)
 			{
 				// copy
