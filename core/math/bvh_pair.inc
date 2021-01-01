@@ -1,9 +1,10 @@
-#define BVH_USE_EXTENDED_PAIRS
+//#define BVH_USE_LOCAL_PAIRS
 public:
 struct ItemPairs
 {
-#ifdef BVH_USE_EXTENDED_PAIRS
+#ifdef BVH_USE_LOCAL_PAIRS
 	enum {MAX_PAIRS_PER_ITEM = 32};
+#endif
 
 	struct Link
 	{
@@ -11,21 +12,26 @@ struct ItemPairs
 		BVHHandle handle;
 		void * userdata;
 	};
-#endif
 
 	void clear() {num_pairs = 0; extended_pairs.reset();}
+	
+#ifdef BVH_USE_LOCAL_PAIRS
 	bool extended() const {return extended_pairs.size() != 0;}
+#endif
 
 	AABB expanded_aabb;
 	
 	// in most cases the in built list will be long enough,
 	// if not use the vector
 	int32_t num_pairs;
+#ifdef BVH_USE_LOCAL_PAIRS
 	Link pairs[MAX_PAIRS_PER_ITEM];
+#endif
 	LocalVector<Link> extended_pairs;
 
 	void add_pair_to(BVHHandle h, void * p_userdata)
 	{
+#ifdef BVH_USE_LOCAL_PAIRS
 		if (!extended())
 		{
 			// simplest case
@@ -38,6 +44,7 @@ struct ItemPairs
 			// needs to become extended
 			_extend();
 		}
+#endif
 		Link temp;
 		temp.set(h, p_userdata);
 
@@ -45,29 +52,37 @@ struct ItemPairs
 		num_pairs++;
 	}
 
-	bool contains_pair_to(BVHHandle h)
+	uint32_t find_pair_to(BVHHandle h) const
 	{
+#ifdef BVH_USE_LOCAL_PAIRS
 		if (!extended())
 		{
 			for (int n=0; n<num_pairs; n++)
 			{
 				if (pairs[n].handle == h)
 				{
-					return true;
+					return n;
 				}
 			}
 		}
 		else
+#endif
 		{
 			for (int n=0; n<num_pairs; n++)
 			{
 				if (extended_pairs[n].handle == h)
 				{
-					return true;
+					return n;
 				}
 			}
 		} // extended
-		return false;
+		return -1;
+		
+	}
+	
+	bool contains_pair_to(BVHHandle h) const
+	{
+		return find_pair_to(h) != -1;
 	}
 
 	// return success
@@ -76,6 +91,7 @@ struct ItemPairs
 //		int num_pairs_before = num_pairs;
 		void * userdata = nullptr;
 
+#ifdef BVH_USE_LOCAL_PAIRS
 		if (!extended())
 		{
 			for (int n=0; n<num_pairs; n++)
@@ -91,6 +107,7 @@ struct ItemPairs
 			}
 		}
 		else
+#endif
 		{
 			for (int n=0; n<num_pairs; n++)
 			{
@@ -111,8 +128,11 @@ struct ItemPairs
 
 	void update()
 	{
+#ifdef BVH_USE_LOCAL_PAIRS
 		_deextend();
+#endif
 	}
+#ifdef BVH_USE_LOCAL_PAIRS
 	
 private:
 	void _extend()
@@ -149,6 +169,7 @@ private:
 			}
 		}
 	}
+#endif
 };
 
 

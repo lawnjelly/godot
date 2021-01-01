@@ -10,7 +10,7 @@
 //#define BVH_DEBUG_CALLBACKS
 //#define USE_BVH_PAIRING_HASH_TABLE
 
-#define BVHTREE_CLASS BVH_Tree<T, 2, 128, USE_PAIRS>
+#define BVHTREE_CLASS BVH_Tree<T, 2, 4, USE_PAIRS>
 
 template <class T, bool USE_PAIRS = false>
 class BVH_Manager
@@ -505,6 +505,7 @@ private:
 		//item_get_ABB(p_handle, abb_from);
 
 		// remove from pairing list for every partner
+#ifdef BVH_USE_LOCAL_PAIRS	
 		if (!p_from.extended())
 		{
 			for (int n=0; n<p_from.num_pairs; n++)
@@ -514,6 +515,7 @@ private:
 			}
 		}
 		else
+#endif
 		{
 			for (int n=0; n<p_from.extended_pairs.size(); n++)
 			{
@@ -646,6 +648,7 @@ private:
 		typename BVHTREE_CLASS::ItemPairs &p_from = tree._pairs[p_handle.id()];
 
 		// remove from pairing list for every partner
+#ifdef BVH_USE_LOCAL_PAIRS
 		if (!p_from.extended())
 		{
 			for (int n=0; n<p_from.num_pairs; n++)
@@ -655,6 +658,7 @@ private:
 			}
 		}
 		else
+#endif
 		{
 			for (int n=0; n<p_from.extended_pairs.size(); n++)
 			{
