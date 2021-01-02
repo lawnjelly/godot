@@ -170,8 +170,10 @@ bool item_move(BVHHandle p_handle, const AABB &p_aabb)
 		// however we WILL update the exact aabb in the leaf, as this will be needed
 		// for accurate collision detection
 		TLeaf * leaf = node_get_leaf(tnode);
+
 		leaf->get_aabb(ref.item_id) = abb;
-				
+		integrity_check_all();
+		
 		return true;
 	}
 	
@@ -284,6 +286,21 @@ void item_remove(BVHHandle p_handle)
 
 //		refit_upward(ref.tnode_id);
 }
+
+
+// during collision testing, we want to set the mask and whether pairable for the item testing from
+void item_fill_cullparams(BVHHandle p_handle, CullParams & r_params) const
+{
+	uint32_t ref_id = p_handle.id();
+	const ItemExtra &extra = _extra[ref_id];
+	
+	// testing from a non pairable item, we only want to test pairable items
+	r_params.test_pairable_only = extra.pairable == 0;
+	
+	// we take into account the mask of the item testing from
+	r_params.mask = extra.pairable_mask;
+}
+
 
 bool item_is_pairable(const BVHHandle &p_handle)
 {

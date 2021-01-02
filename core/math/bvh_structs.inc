@@ -46,6 +46,12 @@ struct CullParams
 	BVH_ABB abb;
 	typename BVH_ABB::ConvexHull hull;
 	typename BVH_ABB::Segment segment;
+
+	// when collision testing, non pairable moving items
+	// only need to be tested against the pairable tree.
+	// collisions with other non pairable items are irrelevant.
+	bool test_pairable_only;
+
 };
 
 
@@ -117,7 +123,7 @@ struct TNode
 	{
 		num_children = 0;
 		parent_id = -1;
-		height = 0;
+		height = 0; // or -1 for testing
 
 		// for safety set to improbable value
 		aabb.set_to_max_opposite_extents();

@@ -15,6 +15,7 @@
 
 //#define BVH_VERBOSE_FRAME
 //#define BVH_CHECKS
+//#define BVH_INTEGRITY_CHECKS
 #endif
 
 #ifdef BVH_VERBOSE
@@ -232,6 +233,9 @@ private:
 			// remove node if empty
 			// remove link from parent
 			if (tnode.parent_id != -1) {
+				// DANGER .. this can potentially end up with root node with 1 child ...
+				// we don't want this and must check for it				
+				
 				uint32_t parent_id = tnode.parent_id;
 
 				node_remove_child(parent_id, owner_node_id);
@@ -468,6 +472,7 @@ private:
 #include "bvh_public.inc"
 #include "bvh_split.inc"
 #include "bvh_refit.inc"
+#include "bvh_integrity.inc"
 };
 
 #undef VERBOSE_PRINT

@@ -115,6 +115,9 @@ int cull_aabb(CullParams &r_params, bool p_translate_hits = true) {
 	for (int n = 0; n < NUM_TREES; n++) {
 		if (_root_node_id[n] == -1)
 			continue;
+		
+		if ((n == 0) && r_params.test_pairable_only)
+			continue;
 
 		_cull_aabb_recursive(_root_node_id[n], r_params);
 	}

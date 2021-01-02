@@ -1,0 +1,58 @@
+void integrity_check_all()
+{
+#ifdef BVH_INTEGRITY_CHECKS
+	for (int n=0; n<NUM_TREES; n++)
+	{
+		uint32_t root = _root_node_id[n];
+		if (root != -1)
+		{
+			integrity_check_down(root);
+		}
+	}
+#endif
+}
+
+void integrity_check_up(uint32_t p_node_id)
+{
+	TNode &node = _nodes[p_node_id];
+	
+	BVH_ABB abb = node.aabb;		
+	node_update_aabb(node);
+	
+	BVH_ABB abb2 = node.aabb;
+	abb2.expand_negative();
+	
+	CRASH_COND(!abb.is_other_within(abb2));
+	
+//	if (node.is_leaf())
+//	{
+//		TLeaf &leaf = _leaves[node.get_leaf_id()];
+//	}
+	
+}
+
+void integrity_check_down(uint32_t p_node_id)
+{
+	const TNode &node = _nodes[p_node_id];
+	
+	if (node.is_leaf())
+	{
+		integrity_check_up(p_node_id);
+	}
+	else
+	{
+		CRASH_COND(node.num_children != 2);
+		
+		for (int n=0; n<node.num_children; n++)
+		{
+			uint32_t child_id = node.children[n];
+			
+			// check the children parent pointers are correct
+			TNode &child = _nodes[child_id];
+			CRASH_COND (child.parent_id != p_node_id);
+			//CRASH_COND (child.height != node.height-1);
+			
+			integrity_check_down(child_id);
+		}
+	}
+}

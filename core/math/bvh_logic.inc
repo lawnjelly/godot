@@ -220,6 +220,7 @@ uint32_t recursive_choose_item_add_node(uint32_t p_node_id, const BVH_ABB &p_aab
 	// this should not happen???
 	if (tnode.num_children == 1)
 	{
+		WARN_PRINT_ONCE("BVH::recursive_choose_item_add_node, node with 1 child, recovering");
 		return recursive_choose_item_add_node(tnode.children[0], p_aabb);
 	}
 	
