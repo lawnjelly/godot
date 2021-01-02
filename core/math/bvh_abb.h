@@ -26,53 +26,54 @@ struct BVH_ABB
 	};
 
 	// we store mins with a negative value in order to test them with SIMD
-	Vector3 neg_min;
-	Vector3 max;
+	Vector3 min;
+	Vector3 neg_max;
 
-	bool operator==(const BVH_ABB &o) const {return (neg_min == o.neg_min) && (max == o.max);}
+	bool operator==(const BVH_ABB &o) const {return (min == o.min) && (neg_max == o.neg_max);}
 	bool operator!=(const BVH_ABB &o) const { return (*this == o) == false; }
 
 	void set(const Vector3 &_min, const Vector3 &_max)
 	{
-		neg_min = -_min;
-		max = _max;
+		min = _min;
+		neg_max = -_max;
 	}
 	
 	// to and from standard AABB
 	void from(const AABB &aabb)
 	{
-		neg_min = -aabb.position;
-		max = aabb.position + aabb.size;
+		min = aabb.position;
+		neg_max = -(aabb.position + aabb.size);
 	}
 	
 	void to(AABB &aabb) const
 	{
-		aabb.position = -neg_min;
-		aabb.size = max - aabb.position;
+		aabb.position = min;
+		aabb.size = calculate_size();
 	}
 	
 	void merge(const BVH_ABB &o)
 	{
-		if (o.max.x > max.x) max.x = o.max.x;
-		if (o.max.y > max.y) max.y = o.max.y;
-		if (o.max.z > max.z) max.z = o.max.z;
-		if (o.neg_min.x > neg_min.x) neg_min.x = o.neg_min.x;
-		if (o.neg_min.y > neg_min.y) neg_min.y = o.neg_min.y;
-		if (o.neg_min.z > neg_min.z) neg_min.z = o.neg_min.z;
+		neg_max.x = MIN(neg_max.x, o.neg_max.x);
+		neg_max.y = MIN(neg_max.y, o.neg_max.y);
+		neg_max.z = MIN(neg_max.z, o.neg_max.z);
+
+		min.x = MIN(min.x, o.min.x);
+		min.y = MIN(min.y, o.min.y);
+		min.z = MIN(min.z, o.min.z);
 	}
 	
 	Vector3 calculate_size() const
 	{
-		return max + neg_min;
+		return -neg_max - min;
 	}
 
 	Vector3 calculate_centre() const
 	{
-		return Vector3(((max + neg_min) * 0.5f) - neg_min);
+		return Vector3((calculate_size() * 0.5) + min);
 	}
 
 	real_t get_proximity_to(const BVH_ABB &b) const {
-		const Vector3 d = (-neg_min + max) - (-b.neg_min + b.max);
+		const Vector3 d = (min - neg_max) - (b.min - b.neg_max);
 		return (Math::abs(d.x) + Math::abs(d.y) + Math::abs(d.z));
 	}
 
@@ -117,9 +118,9 @@ struct BVH_ABB
 //		Vector3 pts[8];
 //		_fill_points(pts);
 		
-		Vector3 size = max + neg_min;
+		Vector3 size = calculate_size();
 		Vector3 half_extents = size * 0.5;
-		Vector3 ofs = -neg_min + half_extents;
+		Vector3 ofs = min + half_extents;
 
 		// forward side of plane?		
 		Vector3 point_offset(
@@ -136,20 +137,15 @@ struct BVH_ABB
 		dist = p.distance_to(point);
 		if (p.is_point_over(point))
 			return false;
-		
-//		for (int n=0; n<8; n++)
-//		{
-			
-//		}
 
 		return true;
 	}	
 	
 	bool intersects_convex_optimized(const ConvexHull &hull, const uint32_t * p_plane_ids, uint32_t p_num_planes) const
 	{
-		Vector3 size = max + neg_min;
+		Vector3 size = calculate_size();
 		Vector3 half_extents = size * 0.5;
-		Vector3 ofs = -neg_min + half_extents;
+		Vector3 ofs = min + half_extents;
 		
 		for (int i = 0; i < p_num_planes; i++) {
 			
@@ -216,29 +212,29 @@ struct BVH_ABB
 
 	bool intersects_point(const Vector3 &p) const
 	{
-		if (_vector3_any_morethan(p, max)) return false;
-		if (_vector3_any_morethan(-p, neg_min)) return false;
+		if (_vector3_any_lessthan(-p, neg_max)) return false;
+		if (_vector3_any_lessthan(p, min)) return false;
 		return true;
 	}
 
 	bool intersects(const BVH_ABB &o) const
 	{
-		if (_vector3_any_morethan(-o.neg_min, max)) return false;
-		if (_vector3_any_morethan(-neg_min, o.max)) return false;
+		if (_vector3_any_morethan(o.min, -neg_max)) return false;
+		if (_vector3_any_morethan(min, -o.neg_max)) return false;
 		return true;
 	}
 
 	bool is_other_within(const BVH_ABB &o) const
 	{
-		if (_vector3_any_morethan(o.max, max)) return false;
-		if (_vector3_any_morethan(o.neg_min, neg_min)) return false;
+		if (_vector3_any_lessthan(o.neg_max, neg_max)) return false;
+		if (_vector3_any_lessthan(o.min, min)) return false;
 		return true;
 	}
 
 	void grow(const Vector3 &change)
 	{
-		max += change;
-		neg_min += change;
+		neg_max -= change;
+		min -= change;
 	}
 	
 	void expand(float change = 0.5f)
@@ -253,13 +249,13 @@ struct BVH_ABB
 	
 	float get_area() const // actually surface area metric
 	{
-		Vector3 d = max + neg_min;
+		Vector3 d = calculate_size();
 		return 2.0f * (d.x * d.y + d.y * d.z + d.z * d.x);
 	}
 	void set_to_max_opposite_extents()
 	{
-		max = Vector3(-FLT_MAX, -FLT_MAX, -FLT_MAX);
-		neg_min = max;
+		neg_max = Vector3(FLT_MAX, FLT_MAX, FLT_MAX);
+		min = neg_max;
 	}
 
 	bool _vector3_any_morethan(const Vector3 &a, const Vector3 &b) const
