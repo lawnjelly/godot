@@ -1,7 +1,7 @@
 
 // for slow incremental optimization, we will periodically remove each
 // item from the tree and reinsert, to give it a chance to find a better position
-void _item_remove_and_reinsert(uint32_t p_ref_id)
+void _logic_item_remove_and_reinsert(uint32_t p_ref_id)
 {
 	// get the reference
 	ItemRef &ref = _refs[p_ref_id];
@@ -18,14 +18,14 @@ void _item_remove_and_reinsert(uint32_t p_ref_id)
 	// some overlay elaborate way to find out which tree the node is in!
 	BVHHandle temp_handle;
 	temp_handle.set_id(p_ref_id);
-	_current_tree = _get_tree_id(temp_handle);
+	_current_tree = _handle_get_tree_id(temp_handle);
 
 	// remove and reinsert
 	BVH_ABB abb;
 	node_remove_item(p_ref_id, &abb);
 
 	// we must choose where to add to tree
-	ref.tnode_id = recursive_choose_item_add_node(_root_node_id[_current_tree], abb);
+	ref.tnode_id = _logic_recursive_choose_item_add_node(_root_node_id[_current_tree], abb);
 	_node_add_item(ref.tnode_id, p_ref_id, abb);
 	
 	refit_upward_and_balance(ref.tnode_id);
@@ -38,8 +38,15 @@ void _item_remove_and_reinsert(uint32_t p_ref_id)
 	
 }
 
+// from randy gaul balance function
+BVH_ABB _logic_abb_merge(const BVH_ABB &a, const BVH_ABB &b)
+{
+	BVH_ABB c = a;
+	c.merge(b);
+	return c;
+}
 
-int32_t balance(int32_t iA)
+int32_t _logic_balance(int32_t iA)
 {
 //	return iA;
 	
@@ -109,8 +116,8 @@ int32_t balance(int32_t iA)
 			C->children[1] = iG;
 			A->children[1] = iF;
 			F->parent_id = iA;
-			A->aabb = q3Combine( B->aabb, F->aabb );
-			C->aabb = q3Combine( A->aabb, G->aabb );
+			A->aabb = _logic_abb_merge( B->aabb, F->aabb );
+			C->aabb = _logic_abb_merge( A->aabb, G->aabb );
 
 			A->height = 1 + MAX( B->height, F->height );
 			C->height = 1 + MAX( A->height, G->height );
@@ -153,8 +160,8 @@ int32_t balance(int32_t iA)
 			B->children[0] = iD;
 			A->children[0] = iE;
 			E->parent_id = iA;
-			A->aabb = q3Combine( C->aabb, E->aabb );
-			B->aabb = q3Combine( A->aabb, D->aabb );
+			A->aabb = _logic_abb_merge( C->aabb, E->aabb );
+			B->aabb = _logic_abb_merge( A->aabb, D->aabb );
 
 			A->height = 1 + MAX( C->height, E->height );
 			B->height = 1 + MAX( A->height, D->height );
@@ -165,8 +172,8 @@ int32_t balance(int32_t iA)
 			B->children[0] = iE;
 			A->children[0] = iD;
 			D->parent_id = iA;
-			A->aabb = q3Combine( C->aabb, D->aabb );
-			B->aabb = q3Combine( A->aabb, E->aabb );
+			A->aabb = _logic_abb_merge( C->aabb, D->aabb );
+			B->aabb = _logic_abb_merge( A->aabb, E->aabb );
 
 			A->height = 1 + MAX( C->height, D->height );
 			B->height = 1 + MAX( A->height, E->height );
@@ -180,7 +187,7 @@ int32_t balance(int32_t iA)
 
 
 // either choose an existing node to add item to, or create a new node and return this
-uint32_t recursive_choose_item_add_node(uint32_t p_node_id, const BVH_ABB &p_aabb)
+uint32_t _logic_recursive_choose_item_add_node(uint32_t p_node_id, const BVH_ABB &p_aabb)
 {
 	CRASH_COND(p_node_id == -1);
 	TNode &tnode = _nodes[p_node_id];
@@ -215,13 +222,13 @@ uint32_t recursive_choose_item_add_node(uint32_t p_node_id, const BVH_ABB &p_aab
 	}
 	CRASH_COND(best_child == -1);
 	
-	return recursive_choose_item_add_node(best_child, p_aabb);
+	return _logic_recursive_choose_item_add_node(best_child, p_aabb);
 #else
 	// this should not happen???
 	if (tnode.num_children == 1)
 	{
 		WARN_PRINT_ONCE("BVH::recursive_choose_item_add_node, node with 1 child, recovering");
-		return recursive_choose_item_add_node(tnode.children[0], p_aabb);
+		return _logic_recursive_choose_item_add_node(tnode.children[0], p_aabb);
 	}
 	
 	// bullet method
@@ -231,7 +238,7 @@ uint32_t recursive_choose_item_add_node(uint32_t p_node_id, const BVH_ABB &p_aab
 	int which = p_aabb.select_by_proximity(childA.aabb, childB.aabb);
 
 	
-	return recursive_choose_item_add_node(tnode.children[which], p_aabb);
+	return _logic_recursive_choose_item_add_node(tnode.children[which], p_aabb);
 #endif
 
 	/*

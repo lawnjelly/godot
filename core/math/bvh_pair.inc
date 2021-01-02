@@ -1,5 +1,8 @@
 //#define BVH_USE_LOCAL_PAIRS
 public:
+
+// note .. maybe this can be attached to another node structure?
+// depends which works best for cache.
 struct ItemPairs
 {
 #ifdef BVH_USE_LOCAL_PAIRS

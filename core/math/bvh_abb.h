@@ -32,31 +32,25 @@ struct BVH_ABB
 	bool operator==(const BVH_ABB &o) const {return (neg_min == o.neg_min) && (max == o.max);}
 	bool operator!=(const BVH_ABB &o) const { return (*this == o) == false; }
 
-	real_t get_proximity_to(const BVH_ABB &b) const {
-		const Vector3 d = (-neg_min + max) - (-b.neg_min + b.max);
-		return (Math::abs(d.x) + Math::abs(d.y) + Math::abs(d.z));
-	}
-
-	int select_by_proximity(const BVH_ABB &a, const BVH_ABB &b) const {
-		return (get_proximity_to(a) < get_proximity_to(b) ? 0 : 1);
-	}
-	
 	void set(const Vector3 &_min, const Vector3 &_max)
 	{
 		neg_min = -_min;
 		max = _max;
 	}
 	
+	// to and from standard AABB
 	void from(const AABB &aabb)
 	{
 		neg_min = -aabb.position;
 		max = aabb.position + aabb.size;
 	}
+	
 	void to(AABB &aabb) const
 	{
 		aabb.position = -neg_min;
 		aabb.size = max - aabb.position;
 	}
+	
 	void merge(const BVH_ABB &o)
 	{
 		if (o.max.x > max.x) max.x = o.max.x;
@@ -66,6 +60,7 @@ struct BVH_ABB
 		if (o.neg_min.y > neg_min.y) neg_min.y = o.neg_min.y;
 		if (o.neg_min.z > neg_min.z) neg_min.z = o.neg_min.z;
 	}
+	
 	Vector3 calculate_size() const
 	{
 		return max + neg_min;
@@ -75,7 +70,16 @@ struct BVH_ABB
 	{
 		return Vector3(((max + neg_min) * 0.5f) - neg_min);
 	}
-	
+
+	real_t get_proximity_to(const BVH_ABB &b) const {
+		const Vector3 d = (-neg_min + max) - (-b.neg_min + b.max);
+		return (Math::abs(d.x) + Math::abs(d.y) + Math::abs(d.z));
+	}
+
+	int select_by_proximity(const BVH_ABB &a, const BVH_ABB &b) const {
+		return (get_proximity_to(a) < get_proximity_to(b) ? 0 : 1);
+	}
+
 //	void _fill_points(Vector3 pts[8])
 //	{
 //		Vector3 min;
@@ -228,25 +232,8 @@ struct BVH_ABB
 	{
 		if (_vector3_any_morethan(o.max, max)) return false;
 		if (_vector3_any_morethan(o.neg_min, neg_min)) return false;
-//		if (o.max.x > max.x) return false;
-//		if (o.max.y > max.y) return false;
-//		if (o.max.z > max.z) return false;
-//		if (o.neg_min.x > neg_min.x) return false;
-//		if (o.neg_min.y > neg_min.y) return false;
-//		if (o.neg_min.z > neg_min.z) return false;
 		return true;
 	}
-
-	/*
-	void grow_fractional(float fraction)
-	{
-		Vector3 size = calculate_size();
-		float longest = MAX(size.x, size.y);
-		longest = MAX(longest, size.z);
-		//grow(longest * fraction);
-		expand(1.0f);
-	}
-	*/
 
 	void grow(const Vector3 &change)
 	{

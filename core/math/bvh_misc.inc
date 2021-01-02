@@ -1,5 +1,5 @@
 
-int _get_tree_id(BVHHandle p_handle) const
+int _handle_get_tree_id(BVHHandle p_handle) const
 {
 	if (USE_PAIRS)
 	{
@@ -12,7 +12,7 @@ int _get_tree_id(BVHHandle p_handle) const
 }
 
 public:
-void _sort_handles(BVHHandle &p_ha, BVHHandle &p_hb) const
+void _handle_sort(BVHHandle &p_ha, BVHHandle &p_hb) const
 {
 	if (p_ha.id() > p_hb.id())
 	{
@@ -87,7 +87,7 @@ void _set_aabb_to_opposites(AABB &aabb)
 */
 
 // less change is better
-float _goodness_of_fit_merge(const BVH_ABB &p_new, const BVH_ABB &p_existing) const
+float _compute_goodness_of_fit_merge(const BVH_ABB &p_new, const BVH_ABB &p_existing) const
 {
 	BVH_ABB merged = p_new;
 	merged.merge(p_existing);
@@ -105,10 +105,6 @@ float _goodness_of_fit_merge(const BVH_ABB &p_new, const BVH_ABB &p_existing) co
 //	return -(m_size - (a_size + b_size));
 }
 
-void refit_all(int p_tree_id)
-{
-	refit_downward(_root_node_id[p_tree_id]);
-}
 
 void create_root_node(int p_tree)
 {
@@ -148,11 +144,5 @@ const TLeaf * node_get_leaf(const TNode &tnode) const
 }
 
 private:
-BVH_ABB q3Combine(const BVH_ABB &a, const BVH_ABB &b)
-{
-	BVH_ABB c = a;
-	c.merge(b);
-	return c;
-}
 
 

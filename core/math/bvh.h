@@ -376,7 +376,7 @@ private:
 	
 	
 	void _unpair(BVHHandle p_from, BVHHandle p_to) {
-		tree._sort_handles(p_from, p_to);
+		tree._handle_sort(p_from, p_to);
 
 #ifdef USE_BVH_PAIRING_HASH_TABLE
 		Pair pair;
@@ -459,7 +459,7 @@ private:
 	// handle a and b
 	void _collide(BVHHandle p_ha, BVHHandle p_hb) {
 		// only have to do this oneway, lower ID then higher ID
-		tree._sort_handles(p_ha, p_hb);
+		tree._handle_sort(p_ha, p_hb);
 
 #ifdef USE_BVH_PAIRING_HASH_TABLE
 		Pair pair;

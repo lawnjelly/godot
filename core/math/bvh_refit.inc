@@ -64,6 +64,11 @@ void node_update_aabb(TNode &tnode)
 	
 }
 
+void refit_all(int p_tree_id)
+{
+	refit_downward(_root_node_id[p_tree_id]);
+}
+
 
 void refit_upward(uint32_t p_node_id)
 {
@@ -80,7 +85,7 @@ void refit_upward_and_balance(uint32_t p_node_id)
 	while (p_node_id != -1)
 	{
 		uint32_t before = p_node_id;
-		p_node_id = balance(p_node_id);
+		p_node_id = _logic_balance(p_node_id);
 		
 		if (before != p_node_id)
 		{

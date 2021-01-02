@@ -80,7 +80,7 @@ BVHHandle item_add(T *p_userdata, const AABB &p_aabb, int32_t p_subindex, bool p
 //	_debug_print_refs();
 	
 	// we must choose where to add to tree
-	ref->tnode_id = recursive_choose_item_add_node(_root_node_id[_current_tree], abb);
+	ref->tnode_id = _logic_recursive_choose_item_add_node(_root_node_id[_current_tree], abb);
 
 //	_debug_print_refs();
 	
@@ -181,13 +181,13 @@ bool item_move(BVHHandle p_handle, const AABB &p_aabb)
 	//abb.expand();
 	
 
-	_current_tree = _get_tree_id(p_handle);
+	_current_tree = _handle_get_tree_id(p_handle);
 
 	// remove and reinsert
 	node_remove_item(ref_id);
 
 	// we must choose where to add to tree
-	ref.tnode_id = recursive_choose_item_add_node(_root_node_id[_current_tree], abb);
+	ref.tnode_id = _logic_recursive_choose_item_add_node(_root_node_id[_current_tree], abb);
 	
 	// add to the tree
 	bool needs_refit = _node_add_item(ref.tnode_id, ref_id, abb);
@@ -223,7 +223,7 @@ void item_remove(BVHHandle p_handle)
 {
 	uint32_t ref_id = p_handle.id();
 
-	_current_tree = _get_tree_id(p_handle);
+	_current_tree = _handle_get_tree_id(p_handle);
 
 #ifdef BVH_DEBUG_DRAW
 	// ignore bound
@@ -350,11 +350,11 @@ void item_set_pairable(const BVHHandle &p_handle, bool p_pairable, uint32_t p_pa
 		ex.pairable = p_pairable;
 
 		// add to new tree
-		int _current_tree = _get_tree_id(p_handle);
+		int _current_tree = _handle_get_tree_id(p_handle);
 		create_root_node(_current_tree);
 		
 		// we must choose where to add to tree
-		ref.tnode_id = recursive_choose_item_add_node(_root_node_id[_current_tree], abb);
+		ref.tnode_id = _logic_recursive_choose_item_add_node(_root_node_id[_current_tree], abb);
 		bool needs_refit = _node_add_item(ref.tnode_id, ref_id, abb);
 		
 		// only need to refit from the PARENT
@@ -396,7 +396,7 @@ void incremental_optimize()
 	
 	uint32_t ref_id = _active_refs[_current_active_ref++];
 	
-	_item_remove_and_reinsert(ref_id);
+	_logic_item_remove_and_reinsert(ref_id);
 	
 #ifdef BVH_VERBOSE
 	// memory use
