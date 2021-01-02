@@ -1,5 +1,5 @@
 /*************************************************************************/
-/*  broad_phase_octree.h                                                 */
+/*  broad_phase_bvh.h                                                 */
 /*************************************************************************/
 /*                       This file is part of:                           */
 /*                           GODOT ENGINE                                */
@@ -28,18 +28,18 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
 
-#ifndef BROAD_PHASE_OCTREE_H
-#define BROAD_PHASE_OCTREE_H
+#ifndef BROAD_PHASE_BVH_H
+#define BROAD_PHASE_BVH_H
 
 #include "broad_phase_sw.h"
-#include "core/math/octree.h"
+#include "core/math/bvh.h"
 
-class BroadPhaseOctree : public BroadPhaseSW {
+class BroadPhaseBVH : public BroadPhaseSW {
 
-	Octree<CollisionObjectSW, true> octree;
+	BVH_Manager<CollisionObjectSW, true> bvh;
 
-	static void *_pair_callback(void *, OctreeElementID, CollisionObjectSW *, int, OctreeElementID, CollisionObjectSW *, int);
-	static void _unpair_callback(void *, OctreeElementID, CollisionObjectSW *, int, OctreeElementID, CollisionObjectSW *, int, void *);
+	static void *_pair_callback(void *, BVHHandle, CollisionObjectSW *, int, BVHHandle, CollisionObjectSW *, int);
+	static void _unpair_callback(void *, BVHHandle, CollisionObjectSW *, int, BVHHandle, CollisionObjectSW *, int, void *);
 
 	PairCallback pair_callback;
 	void *pair_userdata;
@@ -67,7 +67,7 @@ public:
 	virtual void update();
 
 	static BroadPhaseSW *_create();
-	BroadPhaseOctree();
+	BroadPhaseBVH();
 };
 
-#endif // BROAD_PHASE_OCTREE_H
+#endif // BROAD_PHASE_BVH_H
