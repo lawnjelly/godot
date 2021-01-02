@@ -25,7 +25,7 @@ BVHHandle item_add(T *p_userdata, const AABB &p_aabb, int32_t p_subindex, bool p
 	// the extra data should be parallel list to the references
 	uint32_t extra_id;
 	ItemExtra * extra = _extra.request(extra_id);
-	CRASH_COND(extra_id != ref_id);
+	BVH_ASSERT(extra_id == ref_id);
 
 	// pairs info
 	if (USE_PAIRS)
@@ -33,7 +33,7 @@ BVHHandle item_add(T *p_userdata, const AABB &p_aabb, int32_t p_subindex, bool p
 		uint32_t pairs_id;
 		ItemPairs * pairs = _pairs.request(pairs_id);
 		pairs->clear();
-		CRASH_COND(pairs_id != ref_id);
+		BVH_ASSERT(pairs_id == ref_id);
 	}
 
 	extra->subindex = p_subindex;
@@ -88,7 +88,6 @@ BVHHandle item_add(T *p_userdata, const AABB &p_aabb, int32_t p_subindex, bool p
 
 //	_debug_print_refs();
 	
-//	refit_upward(ref->tnode_id);
 	if (refit)
 	{
 		// only need to refit from the parent
@@ -119,7 +118,6 @@ BVHHandle item_add(T *p_userdata, const AABB &p_aabb, int32_t p_subindex, bool p
 		
 #endif
 
-//	return handle;
 	return handle;
 }
 
@@ -158,8 +156,7 @@ bool item_move(BVHHandle p_handle, const AABB &p_aabb)
 		return false;
 #endif
 	
-	CRASH_COND(ref.tnode_id == -1);
-
+	BVH_ASSERT(ref.tnode_id != -1);
 	TNode &tnode = _nodes[ref.tnode_id];
 
 	// does it fit within the current aabb?
@@ -203,17 +200,11 @@ bool item_move(BVHHandle p_handle, const AABB &p_aabb)
 			//refit_upward_and_balance(add_node.parent_id);
 	}
 
-
 #ifdef BVH_VERBOSE_TREE
 	VERBOSE_PRINT("Move " + itos(ref_id));
 //	if (ref_id == 16)
 		_debug_recursive_print_tree(_current_tree);
 #endif
-
-		
-	//incremental_optimize();
-		
-//	refit_upward(ref.tnode_id);
 	return true;
 }
 
@@ -246,7 +237,6 @@ void item_remove(BVHHandle p_handle)
 	_active_refs[active_ref_id] = ref_id_moved_back;
 	_active_refs.resize(_active_refs.size()-1);
 	
-	
 	// keep the moved active reference up to date
 	_extra[ref_id_moved_back].active_ref_id = active_ref_id;
 	////////////////////////////////////////
@@ -277,7 +267,8 @@ void item_remove(BVHHandle p_handle)
 		_pairs.free(ref_id);
 	}
 
-	refit_all(_current_tree);
+	// is this necessary?
+	//refit_all(_current_tree);
 	
 	
 #ifdef BVH_VERBOSE_TREE
@@ -314,11 +305,10 @@ void item_get_ABB(const BVHHandle &p_handle, BVH_ABB &r_abb)
 	// change tree?
 	uint32_t ref_id = p_handle.id();
 	const ItemRef &ref = _refs[ref_id];
+	
 	TNode &tnode = _nodes[ref.tnode_id];
-#ifdef DEBUG_ENABLED
-	CRASH_COND(!tnode.is_leaf());
-#endif
 	TLeaf &leaf = _node_get_leaf(tnode);
+	
 	r_abb = leaf.get_aabb(ref.item_id);
 }
 

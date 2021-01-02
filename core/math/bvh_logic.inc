@@ -9,11 +9,8 @@ void _logic_item_remove_and_reinsert(uint32_t p_ref_id)
 	// special case of debug draw
 	if (ref.item_id == -1)
 		return;
-	
-	CRASH_COND(ref.tnode_id == -1);
 
-//	TNode &tnode = _nodes[ref.tnode_id];
-
+	BVH_ASSERT(ref.tnode_id != -1);	
 
 	// some overlay elaborate way to find out which tree the node is in!
 	BVHHandle temp_handle;
@@ -189,7 +186,7 @@ int32_t _logic_balance(int32_t iA)
 // either choose an existing node to add item to, or create a new node and return this
 uint32_t _logic_recursive_choose_item_add_node(uint32_t p_node_id, const BVH_ABB &p_aabb)
 {
-	CRASH_COND(p_node_id == -1);
+	BVH_ASSERT(p_node_id != -1);
 	TNode &tnode = _nodes[p_node_id];
 
 	if (tnode.is_leaf())
@@ -232,7 +229,7 @@ uint32_t _logic_recursive_choose_item_add_node(uint32_t p_node_id, const BVH_ABB
 	}
 	
 	// bullet method
-	CRASH_COND(tnode.num_children != 2);
+	BVH_ASSERT(tnode.num_children == 2);
 	TNode &childA = _nodes[tnode.children[0]];
 	TNode &childB = _nodes[tnode.children[1]];
 	int which = p_aabb.select_by_proximity(childA.aabb, childB.aabb);

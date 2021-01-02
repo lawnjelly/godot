@@ -247,8 +247,8 @@ uint32_t split_leaf_complex(uint32_t p_node_id, const BVH_ABB &p_added_item_aabb
 	// note the tnode before and AFTER splitting may be a different address
 	// in memory because the vector could get relocated. So we need to reget
 	// the tnode after the split
-	TNode &tnode_orig = _nodes[p_node_id];
-	BVH_ASSERT(tnode_orig.is_leaf());
+//	TNode &tnode_orig = _nodes[p_node_id];
+	BVH_ASSERT(_nodes[p_node_id].is_leaf());
 
 	// first create child leaf nodes
 	uint32_t *child_ids = (uint32_t *)alloca(sizeof(uint32_t) * MAX_CHILDREN);

@@ -172,11 +172,6 @@ public:
 			sz += " N";
 			sz += itos (tnode.height) + " ";
 		}
-
-		
-		
-		/*
-		*/
 		
 //		sz += "(";
 //		sz += itos(tnode.num_items);
