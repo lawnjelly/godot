@@ -1,6 +1,6 @@
 public:
 #ifdef BVH_DEBUG_DRAW
-	void draw_debug(ImmediateGeometry * p_im)
+	void debug_draw(ImmediateGeometry * p_im)
 	{
 #ifdef BVH_VERBOSE_FRAME
 		_recursive_print_tree(_root_node_id);
@@ -107,13 +107,13 @@ public:
 #endif
 
 #ifdef BVH_VERBOSE
-	void _recursive_print_tree(int p_tree_id) const
+	void _debug_recursive_print_tree(int p_tree_id) const
 	{
 		if (_root_node_id[p_tree_id] != -1)
-			_recursive_print_tree_node(_root_node_id[p_tree_id]);
+			_debug_recursive_print_tree_node(_root_node_id[p_tree_id]);
 	}
 
-	String _aabb_to_string(const BVH_ABB &aabb) const
+	String _debug_aabb_to_string(const BVH_ABB &aabb) const
 	{
 		String sz = "(";
 		sz += itos (-aabb.neg_min.x);
@@ -138,7 +138,7 @@ public:
 		return sz;
 	}
 
-	void _recursive_print_tree_node(uint32_t p_node_id, int depth = 0) const
+	void _debug_recursive_print_tree_node(uint32_t p_node_id, int depth = 0) const
 	{
 		//return;
 		const TNode &tnode = _nodes[p_node_id];
@@ -182,7 +182,7 @@ public:
 //		sz += itos(tnode.num_items);
 //		sz += ") ";
 
-		sz += _aabb_to_string(tnode.aabb);
+		sz += _debug_aabb_to_string(tnode.aabb);
 		//sz += String(tnode.aabb);
 		print_line(sz);
 
@@ -190,7 +190,7 @@ public:
 		{
 			for (int n=0; n<tnode.num_children; n++)
 			{
-				_recursive_print_tree_node(tnode.children[n], depth+1);
+				_debug_recursive_print_tree_node(tnode.children[n], depth+1);
 			}
 		}
 

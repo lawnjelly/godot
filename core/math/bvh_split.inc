@@ -240,16 +240,6 @@ uint32_t split_leaf_simple(uint32_t p_node_id, const BVH_ABB &p_added_item_aabb)
 	return leaf_node_id;
 }
 
-void node_make_leaf(uint32_t p_node_id) {
-	uint32_t child_leaf_id;
-	TLeaf *child_leaf = _leaves.request(child_leaf_id);
-	child_leaf->clear();
-	CRASH_COND(child_leaf_id == 0);
-
-	TNode &node = _nodes[p_node_id];
-	node.neg_leaf_id = -child_leaf_id;
-}
-
 // aabb is the new inserted node
 uint32_t split_leaf_complex(uint32_t p_node_id, const BVH_ABB &p_added_item_aabb) {
 	VERBOSE_PRINT("split_leaf");

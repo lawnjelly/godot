@@ -1,4 +1,4 @@
-void integrity_check_all()
+void _integrity_check_all()
 {
 #ifdef BVH_INTEGRITY_CHECKS
 	for (int n=0; n<NUM_TREES; n++)
@@ -6,13 +6,13 @@ void integrity_check_all()
 		uint32_t root = _root_node_id[n];
 		if (root != -1)
 		{
-			integrity_check_down(root);
+			_integrity_check_down(root);
 		}
 	}
 #endif
 }
 
-void integrity_check_up(uint32_t p_node_id)
+void _integrity_check_up(uint32_t p_node_id)
 {
 	TNode &node = _nodes[p_node_id];
 	
@@ -31,13 +31,13 @@ void integrity_check_up(uint32_t p_node_id)
 	
 }
 
-void integrity_check_down(uint32_t p_node_id)
+void _integrity_check_down(uint32_t p_node_id)
 {
 	const TNode &node = _nodes[p_node_id];
 	
 	if (node.is_leaf())
 	{
-		integrity_check_up(p_node_id);
+		_integrity_check_up(p_node_id);
 	}
 	else
 	{
@@ -52,7 +52,7 @@ void integrity_check_down(uint32_t p_node_id)
 			CRASH_COND (child.parent_id != p_node_id);
 			//CRASH_COND (child.height != node.height-1);
 			
-			integrity_check_down(child_id);
+			_integrity_check_down(child_id);
 		}
 	}
 }

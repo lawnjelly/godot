@@ -178,6 +178,16 @@ private:
 		root.parent_id = -1;
 	}
 	
+	void node_make_leaf(uint32_t p_node_id) {
+		uint32_t child_leaf_id;
+		TLeaf *child_leaf = _leaves.request(child_leaf_id);
+		child_leaf->clear();
+		CRASH_COND(child_leaf_id == 0);
+	
+		TNode &node = _nodes[p_node_id];
+		node.neg_leaf_id = -child_leaf_id;
+	}
+	
 	void node_remove_item(uint32_t p_ref_id, BVH_ABB * r_old_aabb = nullptr) {
 		// get the reference
 		ItemRef &ref = _refs[p_ref_id];
@@ -314,7 +324,7 @@ private:
 		return needs_refit;
 	}
 
-	uint32_t _create_another_child(uint32_t p_node_id, const BVH_ABB &p_aabb) {
+	uint32_t _node_create_another_child(uint32_t p_node_id, const BVH_ABB &p_aabb) {
 		uint32_t child_node_id;
 		TNode *child_node = _nodes.request(child_node_id);
 		child_node->clear();

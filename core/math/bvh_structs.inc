@@ -32,30 +32,8 @@ struct Item
 	uint32_t item_ref_id;
 };
 
-struct CullParams
-{
-	int result_count_overall; // both trees
-	int result_count; // this tree only
-	int result_max;
-	T ** result_array;
-	int * subindex_array;
-	uint32_t mask;
 
-	// optional components for different tests
-	Vector3 point;
-	BVH_ABB abb;
-	typename BVH_ABB::ConvexHull hull;
-	typename BVH_ABB::Segment segment;
-
-	// when collision testing, non pairable moving items
-	// only need to be tested against the pairable tree.
-	// collisions with other non pairable items are irrelevant.
-	bool test_pairable_only;
-
-};
-
-
-
+// tree leaf
 struct TLeaf
 {
 	uint16_t num_items;

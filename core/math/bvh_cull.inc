@@ -1,4 +1,28 @@
-void _translate_cull_hits(CullParams &p) {
+public:
+struct CullParams
+{
+	int result_count_overall; // both trees
+	int result_count; // this tree only
+	int result_max;
+	T ** result_array;
+	int * subindex_array;
+	uint32_t mask;
+
+	// optional components for different tests
+	Vector3 point;
+	BVH_ABB abb;
+	typename BVH_ABB::ConvexHull hull;
+	typename BVH_ABB::Segment segment;
+
+	// when collision testing, non pairable moving items
+	// only need to be tested against the pairable tree.
+	// collisions with other non pairable items are irrelevant.
+	bool test_pairable_only;
+
+};
+
+private:
+void _cull_translate_hits(CullParams &p) {
 	int num_hits = _cull_hits.size();
 	int left = p.result_max - p.result_count_overall;
 
@@ -83,7 +107,7 @@ int cull_segment(CullParams &r_params, bool p_translate_hits = true) {
 	}
 
 	if (p_translate_hits)
-		_translate_cull_hits(r_params);
+		_cull_translate_hits(r_params);
 
 	return r_params.result_count;
 }
@@ -102,7 +126,7 @@ int cull_point(CullParams &r_params, bool p_translate_hits = true) {
 	}
 
 	if (p_translate_hits)
-		_translate_cull_hits(r_params);
+		_cull_translate_hits(r_params);
 
 	return r_params.result_count;
 }
@@ -123,7 +147,7 @@ int cull_aabb(CullParams &r_params, bool p_translate_hits = true) {
 	}
 
 	if (p_translate_hits)
-		_translate_cull_hits(r_params);
+		_cull_translate_hits(r_params);
 
 	return r_params.result_count;
 }

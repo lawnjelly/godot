@@ -613,7 +613,7 @@ private:
 #ifdef BVH_DEBUG_DRAW
 public:
 	void draw_debug(ImmediateGeometry *p_im) {
-		tree.draw_debug(p_im);
+		tree.debug_draw(p_im);
 	}
 #endif
 

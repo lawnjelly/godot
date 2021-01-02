@@ -104,7 +104,7 @@ BVHHandle item_add(T *p_userdata, const AABB &p_aabb, int32_t p_subindex, bool p
 	int mem = _refs.estimate_memory_use();
 	mem += _nodes.estimate_memory_use();
 
-	String sz = _aabb_to_string(abb);
+	String sz = _debug_aabb_to_string(abb);
 	VERBOSE_PRINT("\titem_add [" + itos(ref_id) + "] " + itos(_refs.size()) + " refs,\t" + itos(_nodes.size()) + " nodes " + sz);
 	VERBOSE_PRINT("mem use : " + itos(mem) + ", num nodes : " + itos(_nodes.size()));
 
@@ -113,7 +113,7 @@ BVHHandle item_add(T *p_userdata, const AABB &p_aabb, int32_t p_subindex, bool p
 #ifdef BVH_VERBOSE_TREE
 //	VERBOSE_PRINT("item_add AFTER");
 //	if (ref_id == 16)
-		_recursive_print_tree(_current_tree);
+		_debug_recursive_print_tree(_current_tree);
 		
 	//_debug_print_refs();		
 		
@@ -172,7 +172,7 @@ bool item_move(BVHHandle p_handle, const AABB &p_aabb)
 		TLeaf * leaf = node_get_leaf(tnode);
 
 		leaf->get_aabb(ref.item_id) = abb;
-		integrity_check_all();
+		_integrity_check_all();
 		
 		return true;
 	}
@@ -207,7 +207,7 @@ bool item_move(BVHHandle p_handle, const AABB &p_aabb)
 #ifdef BVH_VERBOSE_TREE
 	VERBOSE_PRINT("Move " + itos(ref_id));
 //	if (ref_id == 16)
-		_recursive_print_tree(_current_tree);
+		_debug_recursive_print_tree(_current_tree);
 #endif
 
 		
