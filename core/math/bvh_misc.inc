@@ -126,21 +126,21 @@ void create_root_node(int p_tree)
 
 bool node_is_leaf_full(TNode &tnode) const
 {
-	const TLeaf * leaf = node_get_leaf(tnode);
-	return leaf->is_full();
+	const TLeaf &leaf = node_get_leaf(tnode);
+	return leaf.is_full();
 }
 
 public:
-TLeaf * node_get_leaf(TNode &tnode)
+TLeaf &node_get_leaf(TNode &tnode)
 {
 	CRASH_COND(!tnode.is_leaf());
-	return &_leaves[tnode.get_leaf_id()];
+	return _leaves[tnode.get_leaf_id()];
 }
 
-const TLeaf * node_get_leaf(const TNode &tnode) const
+const TLeaf &node_get_leaf(const TNode &tnode) const
 {
 	CRASH_COND(!tnode.is_leaf());
-	return &_leaves[tnode.get_leaf_id()];
+	return _leaves[tnode.get_leaf_id()];
 }
 
 private:

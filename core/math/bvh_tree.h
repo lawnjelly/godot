@@ -200,11 +200,11 @@ private:
 		TNode &tnode = _nodes[owner_node_id];
 		CRASH_COND(!tnode.is_leaf());
 
-		TLeaf *leaf = node_get_leaf(tnode);
+		TLeaf &leaf = node_get_leaf(tnode);
 
 		// if the aabb is not determining the corner size, then there is no need to refit!
 		// (optimization, as merging AABBs takes a lot of time)		
-		const BVH_ABB &old_aabb = leaf->get_aabb(ref.item_id);
+		const BVH_ABB &old_aabb = leaf.get_aabb(ref.item_id);
 		
 		// shrink a little to prevent using corner aabbs
 		BVH_ABB node_bound = tnode.aabb;
@@ -221,11 +221,11 @@ private:
 			*r_old_aabb = old_aabb;
 		}
 		
-		leaf->remove_item_unordered(ref.item_id);
+		leaf.remove_item_unordered(ref.item_id);
 
-		if (leaf->num_items) {
+		if (leaf.num_items) {
 			// the swapped item has to have its reference changed to, to point to the new item id
-			uint32_t swapped_ref_id = leaf->get_item_ref_id(ref.item_id);
+			uint32_t swapped_ref_id = leaf.get_item_ref_id(ref.item_id);
 
 			ItemRef &swapped_ref = _refs[swapped_ref_id];
 
@@ -237,7 +237,7 @@ private:
 			if (refit)
 				refit_upward(owner_node_id);
 #else
-			leaf->set_dirty(true);
+			leaf.set_dirty(true);
 #endif
 		} else {
 			// remove node if empty

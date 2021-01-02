@@ -134,10 +134,10 @@ void refit_branch(uint32_t p_node_id)
 	else
 	{
 		// leaf .. only refit upward if dirty
-		TLeaf * leaf = node_get_leaf(tnode);
-		if (leaf->is_dirty())
+		TLeaf &leaf = node_get_leaf(tnode);
+		if (leaf.is_dirty())
 		{
-			leaf->set_dirty(false);
+			leaf.set_dirty(false);
 			refit_upward(p_node_id);
 		}
 	}

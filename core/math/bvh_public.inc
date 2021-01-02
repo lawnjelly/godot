@@ -169,9 +169,9 @@ bool item_move(BVHHandle p_handle, const AABB &p_aabb)
 		
 		// however we WILL update the exact aabb in the leaf, as this will be needed
 		// for accurate collision detection
-		TLeaf * leaf = node_get_leaf(tnode);
+		TLeaf &leaf = node_get_leaf(tnode);
 
-		leaf->get_aabb(ref.item_id) = abb;
+		leaf.get_aabb(ref.item_id) = abb;
 		_integrity_check_all();
 		
 		return true;
@@ -318,8 +318,8 @@ void item_get_ABB(const BVHHandle &p_handle, BVH_ABB &r_abb)
 #ifdef DEBUG_ENABLED
 	CRASH_COND(!tnode.is_leaf());
 #endif
-	TLeaf * leaf = node_get_leaf(tnode);
-	r_abb = leaf->get_aabb(ref.item_id);
+	TLeaf &leaf = node_get_leaf(tnode);
+	r_abb = leaf.get_aabb(ref.item_id);
 }
 
 void item_set_pairable(const BVHHandle &p_handle, bool p_pairable, uint32_t p_pairable_type, uint32_t p_pairable_mask)
@@ -337,8 +337,8 @@ void item_set_pairable(const BVHHandle &p_handle, bool p_pairable, uint32_t p_pa
 	{
 		// record abb
 		TNode &tnode = _nodes[ref.tnode_id];
-		TLeaf * leaf = node_get_leaf(tnode);
-		BVH_ABB abb = leaf->get_aabb(ref.item_id);
+		TLeaf &leaf = node_get_leaf(tnode);
+		BVH_ABB abb = leaf.get_aabb(ref.item_id);
 		
 		
 //		Item &item = tnode.get_item(ref.item_id);
