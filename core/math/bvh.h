@@ -507,60 +507,6 @@ private:
 		p_from.add_pair_to(p_hb, callback_userdata);
 		p_to.add_pair_to(p_ha, callback_userdata);
 #endif
-
-		/*
-		Pair p;
-		p.handle[0] = collider;
-		p.handle[1] = collidee;
-		p.sort();
-		p.version = _tick;
-		p.ud = 0;
-
-		Pair * p_added_pair = _pairs_hashtable.add(p);
-		if (p_added_pair)
-		{
-			// callback start collision
-			if (pair_callback) {
-				const BVHHandle &ha = p_added_pair->handle[0];
-				const BVHHandle &hb = p_added_pair->handle[1];
-
-				const typename BVHTREE_CLASS::ItemExtra &exa = _get_extra(ha);
-				const typename BVHTREE_CLASS::ItemExtra &exb = _get_extra(hb);
-
-				p_added_pair->ud = pair_callback(pair_callback_userdata, ha, exa.userdata, exa.subindex, hb, exb.userdata, exb.subindex);
-			}
-
-		}
-		*/
-	}
-
-	// pairs that were not colliding in this version
-	void _remove_stale_pairs() {
-		/*
-		for (int b=0; b<_pairs_hashtable.NUM_BINS; b++)
-		{
-			for (int n=0; n<_pairs_hashtable.bins[b].size(); n++)
-			{
-				const Pair &p = _pairs_hashtable.bins[b][n];
-				if (p.version != _version)
-				{
-					// callback
-					if (unpair_callback) {
-						BVHHandle ha, hb;
-						ha.id = p.ref_id[0];
-						hb.id = p.ref_id[1];
-
-						typename BVHTREE_CLASS::ItemExtra &exa = tree._extra[ha.id];
-						typename BVHTREE_CLASS::ItemExtra &exb = tree._extra[hb.id];
-
-						unpair_callback(pair_callback_userdata, ha, exa.userdata, exa.subindex, hb, exb.userdata, exb.subindex, p.ud);
-					}
-
-					_pairs_hashtable.bins[b].remove_unordered(n);
-				} // version outdated
-			}
-		}
-		*/
 	}
 
 	// if we remove an item, we need to immediately remove the pairs, to prevent reading the pair after deletion
@@ -584,30 +530,6 @@ private:
 			}
 		}
 
-		/*
-		for (int b=0; b<_pairs_hashtable.NUM_BINS; b++)
-		{
-			for (int n=0; n<_pairs_hashtable.bins[b].size(); n++)
-			{
-				const Pair &p = _pairs_hashtable.bins[b][n];
-				if ((p.handle[0] == p_handle) || (p.handle[1] == p_handle))
-				{
-					// callback
-					if (unpair_callback) {
-						const BVHHandle &ha = p.handle[0];
-						const BVHHandle &hb = p.handle[1];
-
-						const typename BVHTREE_CLASS::ItemExtra &exa = _get_extra(ha);
-						const typename BVHTREE_CLASS::ItemExtra &exb = _get_extra(hb);
-
-						unpair_callback(pair_callback_userdata, ha, exa.userdata, exa.subindex, hb, exb.userdata, exb.subindex, p.ud);
-					}
-
-					_pairs_hashtable.bins[b].remove_unordered(n);
-				} // version outdated
-			}
-		}
-		*/
 	}
 
 #ifdef BVH_DEBUG_DRAW
@@ -635,8 +557,6 @@ private:
 
 		// only if uses pairing
 		// no .. non pairable items seem to be able to pair with pairable
-		//		if (!tree.item_is_pairable(p_handle))
-		//			return;
 
 		// aabb check with expanded aabb. This greatly decreases processing
 		// at the cost of slightly less accurate pairing checks
@@ -657,14 +577,6 @@ private:
 		// new expanded aabb
 		expanded_aabb = aabb;
 		expanded_aabb.grow_by(0.1f);
-
-		// todo .. add bitfield for fast check
-		//		for (int n=0; n<changed_items.size(); n++)
-		//		{
-		//			// already on list
-		//			if (changed_items[n] == p_handle)
-		//				return;
-		//		}
 
 		changed_items.push_back(p_handle);
 	}

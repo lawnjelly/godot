@@ -1,7 +1,7 @@
 void _split_inform_references(uint32_t p_node_id)
 {
 	TNode &node	= _nodes[p_node_id];
-	TLeaf &leaf = node_get_leaf(node);
+	TLeaf &leaf = _node_get_leaf(node);
 	
 	for (int n=0; n<leaf.num_items; n++)
 	{
@@ -248,7 +248,7 @@ uint32_t split_leaf_complex(uint32_t p_node_id, const BVH_ABB &p_added_item_aabb
 	// in memory because the vector could get relocated. So we need to reget
 	// the tnode after the split
 	TNode &tnode_orig = _nodes[p_node_id];
-	CRASH_COND(!tnode_orig.is_leaf());
+	BVH_ASSERT(tnode_orig.is_leaf());
 
 	// first create child leaf nodes
 	uint32_t *child_ids = (uint32_t *)alloca(sizeof(uint32_t) * MAX_CHILDREN);
@@ -269,7 +269,7 @@ uint32_t split_leaf_complex(uint32_t p_node_id, const BVH_ABB &p_added_item_aabb
 	// don't get any leaves or nodes till AFTER the split
 	TNode &tnode = _nodes[p_node_id];
 	uint32_t orig_leaf_id = tnode.get_leaf_id();
-	const TLeaf &orig_leaf = _leaves[orig_leaf_id];
+	const TLeaf &orig_leaf = _node_get_leaf(tnode);
 
 	// store the final child ids
 	for (int n = 0; n < MAX_CHILDREN; n++) {
@@ -371,6 +371,6 @@ uint32_t split_leaf_complex(uint32_t p_node_id, const BVH_ABB &p_added_item_aabb
 	
 	refit_upward(p_node_id);
 
-	CRASH_COND(wildcard_node == -1);
+	BVH_ASSERT(wildcard_node != -1);
 	return wildcard_node;
 }

@@ -174,7 +174,7 @@ bool _cull_segment_recursive(uint32_t p_node_id, CullParams &r_params) {
 	TNode &tnode = _nodes[p_node_id];
 
 	if (tnode.is_leaf()) {
-		TLeaf &leaf = node_get_leaf(tnode);
+		TLeaf &leaf = _node_get_leaf(tnode);
 
 		// test children individually
 		for (int n = 0; n < leaf.num_items; n++) {
@@ -215,7 +215,7 @@ bool _cull_point_recursive(uint32_t p_node_id, CullParams &r_params) {
 		return true;
 
 	if (tnode.is_leaf()) {
-		TLeaf &leaf = node_get_leaf(tnode);
+		TLeaf &leaf = _node_get_leaf(tnode);
 		
 		// test children individually
 		for (int n = 0; n < leaf.num_items; n++) {
@@ -244,7 +244,7 @@ bool _cull_aabb_recursive(uint32_t p_node_id, CullParams &r_params, bool p_fully
 	TNode &tnode = _nodes[p_node_id];
 
 	if (tnode.is_leaf()) {
-		TLeaf &leaf = node_get_leaf(tnode);
+		TLeaf &leaf = _node_get_leaf(tnode);
 
 		// test children individually
 		for (int n = 0; n < leaf.num_items; n++) {
@@ -313,8 +313,8 @@ bool _cull_convex_recursive(uint32_t p_node_id, CullParams &r_params, bool p_ful
 
 	if (tnode.is_leaf()) {
 		// leaf
-		uint32_t leaf_id = tnode.get_leaf_id();
-		const TLeaf &leaf = _leaves[leaf_id];
+//		uint32_t leaf_id = tnode.get_leaf_id();
+		const TLeaf &leaf = _node_get_leaf(tnode);
 
 		if (p_fully_within) {
 			// test children individually

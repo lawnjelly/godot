@@ -9,6 +9,7 @@
 #include "scene/3d/immediate_geometry.h"
 #endif
 
+// never do these checks in release
 #if defined(TOOLS_ENABLED) && defined(DEBUG_ENABLED)
 //#define BVH_VERBOSE
 //#define BVH_VERBOSE_TREE
@@ -16,6 +17,13 @@
 //#define BVH_VERBOSE_FRAME
 //#define BVH_CHECKS
 //#define BVH_INTEGRITY_CHECKS
+#endif
+
+// debug only assert
+#ifdef BVH_CHECKS
+#define BVH_ASSERT(a) CRASH_COND((a) == false)
+#else
+#define BVH_ASSERT(a)
 #endif
 
 #ifdef BVH_VERBOSE
@@ -60,7 +68,8 @@ public:
 			_root_node_id[n] = -1;
 		}
 
-		// disallow zero leaf ids (as these are stored as negative numbers)
+		// disallow zero leaf ids
+		// (as these ids are stored as negative numbers in the node)
 		uint32_t dummy_leaf_id;
 		_leaves.request(dummy_leaf_id);
 	}
@@ -78,25 +87,15 @@ private:
 		TNode &tnode_child = _nodes[p_child_node_id];
 		tnode_child.parent_id = p_node_id;
 
-//		uint32_t id;
-//		Item *pChild = tnode.request_item(id);
-//		pChild->aabb = tnode_child.aabb;
-//		pChild->item_ref_id = p_child_node_id;
-
 		return true;
 	}
 
 	void node_replace_child(uint32_t p_parent_id, uint32_t p_old_child_id, uint32_t p_new_child_id) {
 		TNode &parent = _nodes[p_parent_id];
-#ifdef TOOLS_ENABLED
-		// node is never a leaf node
-		CRASH_COND(parent.is_leaf());
-#endif
+		BVH_ASSERT(!parent.is_leaf());
 
 		int child_num = parent.find_child(p_old_child_id);
-#ifdef TOOLS_ENABLED
-		CRASH_COND(child_num == -1);
-#endif
+		BVH_ASSERT(child_num != -1);
 		parent.children[child_num] = p_new_child_id;
 
 		TNode &new_child = _nodes[p_new_child_id];
@@ -105,15 +104,10 @@ private:
 
 	void node_remove_child(uint32_t p_parent_id, uint32_t p_child_id, bool p_prevent_sibling = false) {
 		TNode &parent = _nodes[p_parent_id];
-#ifdef TOOLS_ENABLED
-		// node is never a leaf node
-		CRASH_COND(parent.is_leaf());
-#endif
+		BVH_ASSERT(!parent.is_leaf());
 
 		int child_num = parent.find_child(p_child_id);
-#ifdef TOOLS_ENABLED
-		CRASH_COND(child_num == -1);
-#endif
+		BVH_ASSERT(child_num != -1);
 
 		parent.remove_child_internal(child_num);
 
@@ -182,8 +176,11 @@ private:
 		uint32_t child_leaf_id;
 		TLeaf *child_leaf = _leaves.request(child_leaf_id);
 		child_leaf->clear();
-		CRASH_COND(child_leaf_id == 0);
-	
+		
+		// zero is reserved at startup, to prevent this id being used
+		// (as they are stored as negative values in the node, and zero is already taken)
+		BVH_ASSERT(child_leaf_id != 0);
+		
 		TNode &node = _nodes[p_node_id];
 		node.neg_leaf_id = -child_leaf_id;
 	}
@@ -200,7 +197,7 @@ private:
 		TNode &tnode = _nodes[owner_node_id];
 		CRASH_COND(!tnode.is_leaf());
 
-		TLeaf &leaf = node_get_leaf(tnode);
+		TLeaf &leaf = _node_get_leaf(tnode);
 
 		// if the aabb is not determining the corner size, then there is no need to refit!
 		// (optimization, as merging AABBs takes a lot of time)		
@@ -211,7 +208,6 @@ private:
 		node_bound.expand(-0.001f);
 		bool refit = true;
 		
-//		if (old_aabb.is_within(node_bound))
 		if (node_bound.is_other_within(old_aabb))
 			refit = false;
 		
@@ -271,8 +267,8 @@ private:
 		ref.tnode_id = p_node_id;
 
 		TNode &node = _nodes[p_node_id];
-		CRASH_COND(!node.is_leaf());
-		TLeaf &leaf = _leaves[node.get_leaf_id()];
+		BVH_ASSERT(node.is_leaf());
+		TLeaf &leaf = _node_get_leaf(node);
 		
 		// optimization - we only need to do a refit
 		// if the added item is changing the AABB of the node.
@@ -306,12 +302,10 @@ private:
 		}
 
 		ref.item_id = leaf.request_item();
-		CRASH_COND(ref.item_id == -1);
-//		Item *item = leaf.request_item(ref.item_id);
+		BVH_ASSERT(ref.item_id != -1);
 
 		// set the aabb of the new item
 		leaf.get_aabb(ref.item_id) = p_aabb;
-		//item->aabb = p_aabb;
 
 		// back reference on the item back to the item reference
 		//item->item_ref_id = p_ref_id;

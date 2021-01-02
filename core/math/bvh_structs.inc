@@ -58,7 +58,7 @@ public:
 	
 	void remove_item_unordered(uint32_t p_id)
 	{
-		CRASH_COND(p_id >= num_items);
+		BVH_ASSERT(p_id < num_items);
 		num_items--;
 		aabbs[p_id] = aabbs[num_items];
 		item_ref_ids[p_id] = item_ref_ids[num_items];
@@ -109,7 +109,6 @@ struct TNode
 		// other members are not blanked for speed .. they may be uninitialized
 	}
 
-//	bool is_full_of_items() const {return num_items >= MAX_ITEMS;}
 	bool is_full_of_children() const {return num_children >= MAX_CHILDREN;}
 
 	void remove_child_internal(uint32_t child_num)
@@ -120,7 +119,7 @@ struct TNode
 
 	int find_child(uint32_t p_child_node_id)
 	{
-		CRASH_COND(is_leaf());
+		BVH_ASSERT(!is_leaf());
 
 		for (int n=0; n<num_children; n++)
 		{
