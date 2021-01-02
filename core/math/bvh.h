@@ -173,6 +173,7 @@ public:
 		set_pairable(h, p_pairable, p_pairable_type, p_pairable_mask);
 	}
 
+	// prefer calling this directly as type safe
 	void set_pairable(const BVHHandle &p_handle, bool p_pairable, uint32_t p_pairable_type, uint32_t p_pairable_mask) {
 		// unpair callback if already paired? NYI
 		tree.item_set_pairable(p_handle, p_pairable, p_pairable_type, p_pairable_mask);
@@ -188,13 +189,11 @@ public:
 		params.subindex_array = p_subindex_array;
 		params.mask = p_mask;
 		params.test_pairable_only = false;
-
 		params.abb.from(p_aabb);
 
 		tree.cull_aabb(params);
 
 		return params.result_count_overall;
-		//		return tree.cull_aabb(p_aabb, p_result_array, p_result_max, p_subindex_array, p_mask);
 	}
 
 	int cull_segment(const Vector3 &p_from, const Vector3 &p_to, T **p_result_array, int p_result_max, int *p_subindex_array = nullptr, uint32_t p_mask = 0xFFFFFFFF) {
@@ -259,6 +258,7 @@ public:
 		//		return num_results;
 	}
 
+private:
 	void debug_output_cull_results(T **p_result_array, int p_num_results) const {
 		for (int n = 0; n < p_num_results; n++) {
 			String sz = itos(n) + " : ";
@@ -342,6 +342,7 @@ public:
 		_reset();
 	}
 
+public:
 	// backward compatibility
 	bool is_pairable(uint32_t p_handle) const {
 		BVHHandle h;
@@ -360,32 +361,20 @@ public:
 		return item_get_userdata(h);
 	}
 
+
+	void item_get_AABB(BVHHandle p_handle, AABB &r_aabb) {
+		BVH_ABB abb;
+		tree.item_get_ABB(p_handle, abb);
+		abb.to(r_aabb);
+	}
+
+private:
 	// supplemental funcs
 	bool item_is_pairable(BVHHandle p_handle) const { return _get_extra(p_handle).pairable; }
 	T *item_get_userdata(BVHHandle p_handle) const { return _get_extra(p_handle).userdata; }
 	int item_get_subindex(BVHHandle p_handle) const { return _get_extra(p_handle).subindex; }
-
-	void item_get_AABB(BVHHandle p_handle, AABB &r_aabb) {
-		BVH_ABB abb;
-		item_get_ABB(p_handle, abb);
-		abb.to(r_aabb);
-	}
-
-	void item_get_ABB(BVHHandle p_handle, BVH_ABB &r_abb) {
-		tree.item_get_ABB(p_handle, r_abb);
-		//		const typename BVHTREE_CLASS::ItemRef &ref = _get_ref(p_handle);
-		//		typename BVHTREE_CLASS::TNode &tnode = tree._nodes[ref.tnode_id];
-		//		CRASH_COND(!tnode.is_leaf());
-		//		typename BVHTREE_CLASS::TLeaf * leaf = tree.node_get_leaf(tnode);
-
-		//		// check this for bugs as this has changed to a reference
-		//		r_abb = leaf->get_aabb(ref.item_id);
-
-		//		const typename BVHTREE_CLASS::Item &item = tnode.get_item(ref.item_id);
-		//		r_abb = item.aabb;
-	}
-
-private:
+	
+	
 	void _unpair(BVHHandle p_from, BVHHandle p_to) {
 		tree._sort_handles(p_from, p_to);
 
@@ -429,7 +418,7 @@ private:
 
 	void _find_leavers_process_pair(typename BVHTREE_CLASS::ItemPairs &p_pairs_from, const BVH_ABB &p_abb_from, BVHHandle p_from, BVHHandle p_to) {
 		BVH_ABB abb_to;
-		item_get_ABB(p_to, abb_to);
+		tree.item_get_ABB(p_to, abb_to);
 
 		// do they overlap?
 		if (p_abb_from.intersects(abb_to))
