@@ -873,8 +873,8 @@ Vector<ObjectID> RendererSceneCull::instances_cull_aabb(const AABB &p_aabb, RID 
 	};
 
 	CullAABB cull_aabb;
-	scenario->indexers[Scenario::INDEXER_GEOMETRY].aabb_query(p_aabb, cull_aabb);
-	scenario->indexers[Scenario::INDEXER_VOLUMES].aabb_query(p_aabb, cull_aabb);
+	scenario->indexers[Scenario::INDEXER_GEOMETRY].bvh.aabb_query(p_aabb, cull_aabb);
+	scenario->indexers[Scenario::INDEXER_VOLUMES].bvh.aabb_query(p_aabb, cull_aabb);
 	return cull_aabb.instances;
 }
 
@@ -896,8 +896,8 @@ Vector<ObjectID> RendererSceneCull::instances_cull_ray(const Vector3 &p_from, co
 	};
 
 	CullRay cull_ray;
-	scenario->indexers[Scenario::INDEXER_GEOMETRY].ray_query(p_from, p_to, cull_ray);
-	scenario->indexers[Scenario::INDEXER_VOLUMES].ray_query(p_from, p_to, cull_ray);
+	scenario->indexers[Scenario::INDEXER_GEOMETRY].bvh.ray_query(p_from, p_to, cull_ray);
+	scenario->indexers[Scenario::INDEXER_VOLUMES].bvh.ray_query(p_from, p_to, cull_ray);
 	return cull_ray.instances;
 }
 
@@ -921,8 +921,8 @@ Vector<ObjectID> RendererSceneCull::instances_cull_convex(const Vector<Plane> &p
 	};
 
 	CullConvex cull_convex;
-	scenario->indexers[Scenario::INDEXER_GEOMETRY].convex_query(p_convex.ptr(), p_convex.size(), points.ptr(), points.size(), cull_convex);
-	scenario->indexers[Scenario::INDEXER_VOLUMES].convex_query(p_convex.ptr(), p_convex.size(), points.ptr(), points.size(), cull_convex);
+	scenario->indexers[Scenario::INDEXER_GEOMETRY].bvh.convex_query(p_convex.ptr(), p_convex.size(), points.ptr(), points.size(), cull_convex);
+	scenario->indexers[Scenario::INDEXER_VOLUMES].bvh.convex_query(p_convex.ptr(), p_convex.size(), points.ptr(), points.size(), cull_convex);
 	return cull_convex.instances;
 }
 
@@ -1399,7 +1399,7 @@ void RendererSceneCull::_unpair_instance(Instance *p_instance) {
 		p_instance->scenario->indexers[Scenario::INDEXER_VOLUMES].remove(p_instance->indexer_id);
 	}
 
-	p_instance->indexer_id = DynamicBVH::ID();
+	p_instance->indexer_id.set_invalid();
 
 	//replace this by last
 	int32_t swap_with_index = p_instance->scenario->instance_data.size() - 1;
@@ -1927,7 +1927,7 @@ bool RendererSceneCull::_light_instance_update_shadow(Instance *p_instance, cons
 					CullConvex cull_convex;
 					cull_convex.result = &instance_shadow_cull_result;
 
-					p_scenario->indexers[Scenario::INDEXER_GEOMETRY].convex_query(planes.ptr(), planes.size(), points.ptr(), points.size(), cull_convex);
+					p_scenario->indexers[Scenario::INDEXER_GEOMETRY].bvh.convex_query(planes.ptr(), planes.size(), points.ptr(), points.size(), cull_convex);
 
 					Plane near_plane(light_transform.origin, light_transform.basis.get_axis(2) * z);
 
@@ -2001,7 +2001,7 @@ bool RendererSceneCull::_light_instance_update_shadow(Instance *p_instance, cons
 					CullConvex cull_convex;
 					cull_convex.result = &instance_shadow_cull_result;
 
-					p_scenario->indexers[Scenario::INDEXER_GEOMETRY].convex_query(planes.ptr(), planes.size(), points.ptr(), points.size(), cull_convex);
+					p_scenario->indexers[Scenario::INDEXER_GEOMETRY].bvh.convex_query(planes.ptr(), planes.size(), points.ptr(), points.size(), cull_convex);
 
 					Plane near_plane(xform.origin, -xform.basis.get_axis(2));
 
@@ -2059,7 +2059,7 @@ bool RendererSceneCull::_light_instance_update_shadow(Instance *p_instance, cons
 			CullConvex cull_convex;
 			cull_convex.result = &instance_shadow_cull_result;
 
-			p_scenario->indexers[Scenario::INDEXER_GEOMETRY].convex_query(planes.ptr(), planes.size(), points.ptr(), points.size(), cull_convex);
+			p_scenario->indexers[Scenario::INDEXER_GEOMETRY].bvh.convex_query(planes.ptr(), planes.size(), points.ptr(), points.size(), cull_convex);
 
 			Plane near_plane(light_transform.origin, -light_transform.basis.get_axis(2));
 
@@ -3122,8 +3122,8 @@ void RendererSceneCull::render_particle_colliders() {
 
 			CullAABB cull_aabb;
 			cull_aabb.result = &instance_cull_result;
-			hfpc->scenario->indexers[Scenario::INDEXER_GEOMETRY].aabb_query(hfpc->transformed_aabb, cull_aabb);
-			hfpc->scenario->indexers[Scenario::INDEXER_VOLUMES].aabb_query(hfpc->transformed_aabb, cull_aabb);
+			hfpc->scenario->indexers[Scenario::INDEXER_GEOMETRY].bvh.aabb_query(hfpc->transformed_aabb, cull_aabb);
+			hfpc->scenario->indexers[Scenario::INDEXER_VOLUMES].bvh.aabb_query(hfpc->transformed_aabb, cull_aabb);
 
 			for (int i = 0; i < (int)instance_cull_result.size(); i++) {
 				Instance *instance = instance_cull_result[i];
@@ -3396,8 +3396,8 @@ void RendererSceneCull::update() {
 	//optimize bvhs
 	for (uint32_t i = 0; i < scenario_owner.get_rid_count(); i++) {
 		Scenario *s = scenario_owner.get_ptr_by_index(i);
-		s->indexers[Scenario::INDEXER_GEOMETRY].optimize_incremental(indexer_update_iterations);
-		s->indexers[Scenario::INDEXER_VOLUMES].optimize_incremental(indexer_update_iterations);
+		s->indexers[Scenario::INDEXER_GEOMETRY].bvh.update();
+		s->indexers[Scenario::INDEXER_VOLUMES].bvh.update();
 	}
 	scene_render->update();
 	update_dirty_instances();

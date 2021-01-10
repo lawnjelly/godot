@@ -34,6 +34,7 @@
 #include "core/templates/pass_func.h"
 #include "servers/rendering/renderer_compositor.h"
 
+#include "core/math/bvh.h"
 #include "core/math/dynamic_bvh.h"
 #include "core/math/geometry_3d.h"
 #include "core/math/octree.h"
@@ -260,6 +261,29 @@ public:
 	PagedArrayPool<InstanceBounds> instance_aabb_page_pool;
 	PagedArrayPool<InstanceData> instance_data_page_pool;
 
+	// the ID returned by the spatial partitioning scheme (BVH)
+	typedef BVHHandle SpatialPartitionID;
+
+	class ScenarioIndexer {
+		uint32_t index = 0;
+
+	public:
+		BVH_Manager<void, false, 256> bvh;
+		void set_index(uint32_t p_index) { index = p_index; }
+		uint32_t get_index() const { return index; }
+
+		SpatialPartitionID insert(const AABB &p_box, void *p_userdata) {
+			return bvh.create(p_userdata, p_box);
+		}
+		bool update(const SpatialPartitionID &p_id, const AABB &p_box) {
+			bvh.move(p_id, p_box);
+			return true;
+		}
+		void remove(const SpatialPartitionID &p_id) {
+			bvh.erase(p_id);
+		}
+	};
+
 	struct Scenario {
 		enum IndexerType {
 			INDEXER_GEOMETRY, //for geometry
@@ -267,7 +291,8 @@ public:
 			INDEXER_MAX
 		};
 
-		DynamicBVH indexers[INDEXER_MAX];
+		ScenarioIndexer indexers[INDEXER_MAX];
+		//		DynamicBVH indexers[INDEXER_MAX];
 
 		RS::ScenarioDebugMode debug;
 		RID self;
@@ -380,7 +405,7 @@ public:
 
 		RID self;
 		//scenario stuff
-		DynamicBVH::ID indexer_id;
+		SpatialPartitionID indexer_id;
 		int32_t array_index;
 		Scenario *scenario;
 		SelfList<Instance> scenario_item;
@@ -489,6 +514,8 @@ public:
 
 			pair_check = 0;
 			array_index = -1;
+
+			indexer_id.set_invalid();
 
 			dependency_tracker.userdata = this;
 			dependency_tracker.changed_callback = dependency_changed;
@@ -636,8 +663,8 @@ public:
 		Instance *instance = nullptr;
 		PagedAllocator<InstancePair> *pair_allocator = nullptr;
 		SelfList<InstancePair>::List pairs_found;
-		DynamicBVH *bvh = nullptr;
-		DynamicBVH *bvh2 = nullptr; //some may need to cull in two
+		ScenarioIndexer *bvh = nullptr;
+		ScenarioIndexer *bvh2 = nullptr; //some may need to cull in two
 		uint32_t pair_mask;
 		uint64_t pair_pass;
 
@@ -656,10 +683,10 @@ public:
 
 		void pair() {
 			if (bvh) {
-				bvh->aabb_query(instance->transformed_aabb, *this);
+				bvh->bvh.aabb_query(instance->transformed_aabb, *this);
 			}
 			if (bvh2) {
-				bvh2->aabb_query(instance->transformed_aabb, *this);
+				bvh2->bvh.aabb_query(instance->transformed_aabb, *this);
 			}
 			while (instance->pairs.first()) {
 				InstancePair *pair = instance->pairs.first()->self();
