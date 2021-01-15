@@ -15,20 +15,20 @@ public:
 
 
 	// create the cached data from mesh instance, sort winding etc
-	void UpdateFromMesh();
+	void update_from_mesh();
 
 	// normal determined by winding order
-	Vector<Vector3> m_ptsWorld;
-	Vector3 m_ptCentre; // world
-	Plane m_Plane;
+	Vector<Vector3> _pts_world;
+	Vector3 _pt_centre; // world
+	Plane _plane;
 
 	LPortal();
 
 private:
-	NodePath m_Settings_path_LinkedRoom;
-	bool m_Settings_Active;
+	NodePath _settings_path_linkedroom;
+	bool _settings_active;
 
-	ObjectID m_LinkedRoom_ObjectID;
+	ObjectID _linkedroom_godot_ID;
 
 protected:
 	static void _bind_methods();

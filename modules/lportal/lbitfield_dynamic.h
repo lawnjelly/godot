@@ -8,8 +8,8 @@ class LBitField_Dynamic_IT
 {
 public:
 	// construction
-	void Initialize();
-	void Terminate();
+	void initialize();
+	void terminate();
 
 private:
 	// prevent copying (see effective C++ scott meyers)
@@ -18,27 +18,27 @@ private:
 public:
 
 	// create automatically blanks
-	void Create(unsigned int uiNumBits, bool bBlank = true);
-	void Destroy();
+	void create(unsigned int uiNumBits, bool bBlank = true);
+	void destroy();
 
 	// public funcs
-	inline unsigned int GetNumBits() const {return m_uiNumBits;}
-	inline unsigned int GetBit(unsigned int uiBit) const;
-	inline void SetBit(unsigned int uiBit, unsigned int bSet);
-	bool CheckAndSet(unsigned int uiBit);
-	void Blank(bool bSetOrZero = false);
-	void Invert();
-	void CopyFrom(const LBitField_Dynamic_IT &source);
+	inline unsigned int get_num_bits() const {return m_uiNumBits;}
+	inline unsigned int get_bit(unsigned int uiBit) const;
+	inline void set_bit(unsigned int uiBit, unsigned int bSet);
+	bool check_and_set(unsigned int uiBit);
+	void blank(bool bSetOrZero = false);
+	void invert();
+	void copy_from(const LBitField_Dynamic_IT &source);
 
 	// loading / saving
-	unsigned char * GetData() {return m_pucData;}
-	const unsigned char * GetData() const {return m_pucData;}
-	unsigned int GetNumBytes() const {return m_uiNumBytes;}
+	unsigned char * get_data() {return m_pucData;}
+	const unsigned char * get_data() const {return m_pucData;}
+	unsigned int get_num_bytes() const {return m_uiNumBytes;}
 
 protected:
 	// member funcs
-	void Initialize_Do();
-	void Terminate_Do();
+	void initialize_do();
+	void terminate_do();
 
 	// member vars
 	unsigned char * m_pucData;
@@ -50,18 +50,18 @@ class LBitField_Dynamic : public LBitField_Dynamic_IT
 {
 public:
 	// call initialize and terminate automatically
-	LBitField_Dynamic(unsigned int uiNumBits) {Initialize_Do(); Create(uiNumBits);}
-	LBitField_Dynamic() {Initialize_Do();}
-	~LBitField_Dynamic() {Terminate_Do();}
+	LBitField_Dynamic(unsigned int uiNumBits) {initialize_do(); create(uiNumBits);}
+	LBitField_Dynamic() {initialize_do();}
+	~LBitField_Dynamic() {terminate_do();}
 
 	// disallow explicit calls
-	void Initialize();
-	void Terminate();
+	void initialize();
+	void terminate();
 };
 
 
 //////////////////////////////////////////////////////////
-inline unsigned int LBitField_Dynamic_IT::GetBit(unsigned int uiBit) const
+inline unsigned int LBitField_Dynamic_IT::get_bit(unsigned int uiBit) const
 {
 	assert (m_pucData);
 	unsigned int uiByteNumber = uiBit >> 3; // divide by 8
@@ -71,7 +71,7 @@ inline unsigned int LBitField_Dynamic_IT::GetBit(unsigned int uiBit) const
 	return uiBitSet;
 }
 
-inline bool LBitField_Dynamic_IT::CheckAndSet(unsigned int uiBit)
+inline bool LBitField_Dynamic_IT::check_and_set(unsigned int uiBit)
 {
 	assert (m_pucData);
 	unsigned int uiByteNumber = uiBit >> 3; // divide by 8
@@ -88,7 +88,7 @@ inline bool LBitField_Dynamic_IT::CheckAndSet(unsigned int uiBit)
 }
 
 
-inline void LBitField_Dynamic_IT::SetBit(unsigned int uiBit, unsigned int bSet)
+inline void LBitField_Dynamic_IT::set_bit(unsigned int uiBit, unsigned int bSet)
 {
 	assert (m_pucData);
 	unsigned int uiByteNumber = uiBit >> 3; // divide by 8

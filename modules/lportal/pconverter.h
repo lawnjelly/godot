@@ -11,25 +11,25 @@ class PRooms;
 class PConverter
 {
 public:
-	void Convert(PRooms &rooms);
+	void convert(PRooms &rooms);
 
 private:
-	void ConvertRooms_recursive(Spatial * pNode);
-	void ConvertRoom(Spatial * pNode);
-	void ConvertPortal(MeshInstance * pMI);
+	void convert_rooms_recursive(Spatial * p_node);
+	void convert_room(Spatial * p_node);
+	void convert_portal(MeshInstance * pMI);
 
-	void SecondPass_Portals();
+	void second_pass_portals();
 
 	// useful funcs
-	bool NameStartsWith(const Node * pNode, String szSearch) const;
-	String FindNameAfter(Node * pNode, String szStart) const;
+	bool name_starts_with(const Node * pNode, String szSearch) const;
+	String find_name_after(Node * pNode, String szStart) const;
 
-	template <class T> T * ChangeNodeType(Spatial * pNode, String szPrefix, bool bDelete = true);
+	template <class T> T * change_node_type(Spatial * pNode, String szPrefix, bool bDelete = true);
 
-	LVector<LPortal *> m_Portals;
+	LVector<LPortal *> _portals;
 };
 
-template <class T> T * PConverter::ChangeNodeType(Spatial * pNode, String szPrefix, bool bDelete)
+template <class T> T * PConverter::change_node_type(Spatial * pNode, String szPrefix, bool bDelete)
 {
 	String szFullName = pNode->get_name();
 

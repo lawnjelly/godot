@@ -6,7 +6,7 @@
 
 using namespace Lawn;
 
-bool PConverter::NameStartsWith(const Node * pNode, String szSearch) const
+bool PConverter::name_starts_with(const Node * pNode, String szSearch) const
 {
 	int sl = szSearch.length();
 
@@ -27,7 +27,7 @@ bool PConverter::NameStartsWith(const Node * pNode, String szSearch) const
 }
 
 
-String PConverter::FindNameAfter(Node * pNode, String szStart) const
+String PConverter::find_name_after(Node * pNode, String szStart) const
 {
 	String szRes;
 	String name = pNode->get_name();
@@ -51,27 +51,27 @@ String PConverter::FindNameAfter(Node * pNode, String szStart) const
 }
 
 
-void PConverter::Convert(PRooms &rooms)
+void PConverter::convert(PRooms &rooms)
 {
 	LPRINT(2, "Convert");
 
-	m_Portals.clear(true);
+	_portals.clear(true);
 
-	ConvertRooms_recursive(rooms.GetRoomList());
+	convert_rooms_recursive(rooms.get_roomlist());
 
-	SecondPass_Portals();
+	second_pass_portals();
 }
 
-void PConverter::SecondPass_Portals()
+void PConverter::second_pass_portals()
 {
 	LPRINT(4, "SecondPass_Portals");
 
 	Node *pRootNode = SceneTree::get_singleton()->get_edited_scene_root();
 
-	for (int n=0; n<m_Portals.size(); n++)
+	for (int n=0; n<_portals.size(); n++)
 	{
-		LPortal * pPortal = m_Portals[n];
-		String szLinkRoom = FindNameAfter(pPortal, "lportal_");
+		LPortal * pPortal = _portals[n];
+		String szLinkRoom = find_name_after(pPortal, "lportal_");
 		szLinkRoom = "lroom_" + szLinkRoom;
 
 		String sz = "\tLinkRoom : " + szLinkRoom;
@@ -92,12 +92,12 @@ void PConverter::SecondPass_Portals()
 }
 
 
-void PConverter::ConvertPortal(MeshInstance * pMI)
+void PConverter::convert_portal(MeshInstance * pMI)
 {
 	String szFullName = pMI->get_name();
 	LPRINT(4, "ConvertPortal : " + szFullName);
 
-	LPortal * pPortal = ChangeNodeType<LPortal>(pMI, "l", false);
+	LPortal * pPortal = change_node_type<LPortal>(pMI, "l", false);
 
 	// copy mesh
 	pPortal->set_mesh(pMI->get_mesh());
@@ -108,49 +108,49 @@ void PConverter::ConvertPortal(MeshInstance * pMI)
 	pMI->queue_delete();
 
 	// link rooms
-	pPortal->UpdateFromMesh();
+	pPortal->update_from_mesh();
 
 	// keep a list of portals for second pass
-	m_Portals.push_back(pPortal);
+	_portals.push_back(pPortal);
 }
 
 
-void PConverter::ConvertRoom(Spatial * pNode)
+void PConverter::convert_room(Spatial * p_node)
 {
 	// get the room part of the name
-	String szFullName = pNode->get_name();
-	String szRoom = FindNameAfter(pNode, "room_");
+	String szFullName = p_node->get_name();
+	String szRoom = find_name_after(p_node, "room_");
 
 	LPRINT(4, "ConvertRoom : " + szFullName);
 
 	// owner should normally be root
-	Node * pOwner = pNode->get_owner();
+	Node * pOwner = p_node->get_owner();
 
 	// create an LRoom
-	LRoom * pLRoom = ChangeNodeType<LRoom>(pNode, "l");
+	LRoom * pLRoom = change_node_type<LRoom>(p_node, "l");
 
 	// move each child
-	while (pNode->get_child_count())
+	while (p_node->get_child_count())
 	{
-		Node * pChild = pNode->get_child(0);
-		pNode->remove_child(pChild);
+		Node * child = p_node->get_child(0);
+		p_node->remove_child(child);
 
 		// needs to set owner to appear in IDE
-		pLRoom->add_child(pChild);
-		pChild->set_owner(pOwner);
+		pLRoom->add_child(child);
+		child->set_owner(pOwner);
 	}
 
 
 	// find portals
 	for (int n=0; n<pLRoom->get_child_count(); n++)
 	{
-		MeshInstance * pChild = Object::cast_to<MeshInstance>(pLRoom->get_child(n));
+		MeshInstance * child = Object::cast_to<MeshInstance>(pLRoom->get_child(n));
 
-		if (pChild)
+		if (child)
 		{
-			if (NameStartsWith(pChild, "portal_"))
+			if (name_starts_with(child, "portal_"))
 			{
-				ConvertPortal(pChild);
+				convert_portal(child);
 			}
 		}
 	}
@@ -158,22 +158,22 @@ void PConverter::ConvertRoom(Spatial * pNode)
 }
 
 
-void PConverter::ConvertRooms_recursive(Spatial * pNode)
+void PConverter::convert_rooms_recursive(Spatial * p_node)
 {
 	// is this a room?
-	if (NameStartsWith(pNode, "room_"))
+	if (name_starts_with(p_node, "room_"))
 	{
-		ConvertRoom(pNode);
+		convert_room(p_node);
 	}
 
 	// recurse through children
-	for (int n=0; n<pNode->get_child_count(); n++)
+	for (int n=0; n<p_node->get_child_count(); n++)
 	{
-		Spatial * pChild = Object::cast_to<Spatial>(pNode->get_child(n));
+		Spatial * child = Object::cast_to<Spatial>(p_node->get_child(n));
 
-		if (pChild)
+		if (child)
 		{
-			ConvertRooms_recursive(pChild);
+			convert_rooms_recursive(child);
 		}
 	}
 

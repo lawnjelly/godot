@@ -15,6 +15,8 @@
 //#include "proom.cpp"
 //#include "pportal.cpp"
 #include "prooms.cpp"
+#include "pstatics.cpp"
+#include "pitem.cpp"
 #include "proom_manager.cpp"
 #include "pconverter.cpp"
 #include "pdebug.cpp"
