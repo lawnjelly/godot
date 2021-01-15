@@ -5,42 +5,42 @@
 
 namespace Lawn { // namespace start
 
-void LBitField_Dynamic::Initialize() {assert (0 && "LBitField_Dynamic : Does not support Initialize, use IT version");}
-void LBitField_Dynamic::Terminate() {assert (0 && "LBitField_Dynamic : Does not support Terminate, use IT version");}
+void LBitField_Dynamic::initialize() {assert (0 && "LBitField_Dynamic : Does not support Initialize, use IT version");}
+void LBitField_Dynamic::terminate() {assert (0 && "LBitField_Dynamic : Does not support Terminate, use IT version");}
 
  
-void LBitField_Dynamic_IT::Initialize()
+void LBitField_Dynamic_IT::initialize()
 {
-	Initialize_Do();
+	initialize_do();
 }
 
-void LBitField_Dynamic_IT::Terminate()
+void LBitField_Dynamic_IT::terminate()
 {
-	Terminate_Do();
+	terminate_do();
 }
 
 
-void LBitField_Dynamic_IT::Initialize_Do()
+void LBitField_Dynamic_IT::initialize_do()
 {
 	memset (this, 0, sizeof (LBitField_Dynamic));
 }
 
-void LBitField_Dynamic_IT::Terminate_Do()
+void LBitField_Dynamic_IT::terminate_do()
 {
-	Destroy();
+	destroy();
 }
 
-void LBitField_Dynamic_IT::CopyFrom(const LBitField_Dynamic_IT &source)
+void LBitField_Dynamic_IT::copy_from(const LBitField_Dynamic_IT &source)
 {
-	Create(source.GetNumBits(), false);
-	memcpy(m_pucData, source.GetData(), source.GetNumBytes());
+	create(source.get_num_bits(), false);
+	memcpy(m_pucData, source.get_data(), source.get_num_bytes());
 }
 
 
-void LBitField_Dynamic_IT::Create(unsigned int uiNumBits, bool bBlank)
+void LBitField_Dynamic_IT::create(unsigned int uiNumBits, bool bBlank)
 {
 	// first delete any initial
-	Destroy();
+	destroy();
 
 	m_uiNumBits = uiNumBits;
 	if (uiNumBits)
@@ -50,11 +50,11 @@ void LBitField_Dynamic_IT::Create(unsigned int uiNumBits, bool bBlank)
 		m_pucData = new unsigned char[m_uiNumBytes];
 
 		if (bBlank)
-			Blank(false);
+			blank(false);
 	}
 }
 
-void LBitField_Dynamic_IT::Destroy()
+void LBitField_Dynamic_IT::destroy()
 {
 	if (m_pucData)
 	{
@@ -66,7 +66,7 @@ void LBitField_Dynamic_IT::Destroy()
 }
 
 
-void LBitField_Dynamic_IT::Blank(bool bSetOrZero)
+void LBitField_Dynamic_IT::blank(bool bSetOrZero)
 {
 	if (bSetOrZero)
 	{
@@ -78,7 +78,7 @@ void LBitField_Dynamic_IT::Blank(bool bSetOrZero)
 	}
 }
 
-void LBitField_Dynamic_IT::Invert()
+void LBitField_Dynamic_IT::invert()
 {
 	for (unsigned int n=0; n<m_uiNumBytes; n++)
 	{

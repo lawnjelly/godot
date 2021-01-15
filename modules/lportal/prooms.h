@@ -9,13 +9,13 @@ class PRooms
 {
 public:
 	PRooms();
-	void SetRoomListNode(Spatial * pRoomList);
+	void set_roomlist_node(Spatial * p_roomlist);
 
-	Spatial * GetRoomList() const {return m_pRoomList;}
+	Spatial * get_roomlist() const {return _roomlist_node;}
 
 private:
-	Spatial * m_pRoomList;
-	ObjectID m_ID_RoomList;
+	Spatial * _roomlist_node;
+	ObjectID _roomlist_godot_ID;
 
 };
 

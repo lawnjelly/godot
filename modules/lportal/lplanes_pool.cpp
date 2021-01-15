@@ -4,40 +4,40 @@ using namespace Lawn;
 
 LPlanesPool::LPlanesPool()
 {
-	Reset();
+	reset();
 
 	// preallocate the vectors to a reasonable size
 	for (int n=0; n<POOL_MAX; n++)
 	{
-		m_Planes[n].resize(32);
+		_planes[n].resize(32);
 	}
 }
 
-void LPlanesPool::Reset()
+void LPlanesPool::reset()
 {
 	for (int n=0; n<POOL_MAX; n++)
 	{
-		m_ucFreeList[n] = POOL_MAX - n - 1;
+		_freelist[n] = POOL_MAX - n - 1;
 	}
 
-	m_uiNumFree = POOL_MAX;
+	_num_free = POOL_MAX;
 }
 
-unsigned int LPlanesPool::Request()
+unsigned int LPlanesPool::request()
 {
-	if (!m_uiNumFree)
+	if (!_num_free)
 		return -1;
 
-	m_uiNumFree--;
-	return m_ucFreeList[m_uiNumFree];
+	_num_free--;
+	return _freelist[_num_free];
 
 }
 
-void LPlanesPool::Free(unsigned int ui)
+void LPlanesPool::free(unsigned int ui)
 {
 	assert (ui <= POOL_MAX);
-	assert (m_uiNumFree < POOL_MAX);
+	assert (_num_free < POOL_MAX);
 
-	m_ucFreeList[m_uiNumFree] = ui;
-	m_uiNumFree++;
+	_freelist[_num_free] = ui;
+	_num_free++;
 }

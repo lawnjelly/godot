@@ -3,18 +3,17 @@
 
 using namespace Lawn;
 
-
-bool PRoomManager::ResolveRoomListPath(Node * pAnyNode)
+bool PRoomManager::resolve_roomlist_path(Node * p_anynode)
 {
-	LPRINT(2, "ResolveRoomListPath " + m_Settings_path_RoomList);
+	LPRINT(2, "resolve_roomlist_path " + _settings_path_roomlist);
 
-	if (pAnyNode->has_node(m_Settings_path_RoomList))
+	if (p_anynode->has_node(_settings_path_roomlist))
 	{
 		LPRINT(2, "has_node");
-		Spatial * pNode = Object::cast_to<Spatial>(pAnyNode->get_node(m_Settings_path_RoomList));
-		if (pNode)
+		Spatial * node = Object::cast_to<Spatial>(p_anynode->get_node(_settings_path_roomlist));
+		if (node)
 		{
-			m_Rooms.SetRoomListNode(pNode);
+			_rooms.set_roomlist_node(node);
 			return true;
 		}
 		else
@@ -24,6 +23,6 @@ bool PRoomManager::ResolveRoomListPath(Node * pAnyNode)
 	}
 
 	// default to setting to null
-	m_Rooms.SetRoomListNode(nullptr);
+	_rooms.set_roomlist_node(nullptr);
 	return false;
 }

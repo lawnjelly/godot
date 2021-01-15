@@ -19,43 +19,43 @@ void LPortal::_bind_methods()
 
 void LPortal::set_portal_active(bool p_active)
 {
-	m_Settings_Active = p_active;
+	_settings_active = p_active;
 }
 
 bool LPortal::get_portal_active() const
 {
-	return m_Settings_Active;
+	return _settings_active;
 }
 
 void LPortal::set_linked_room(const NodePath &link_path)
 {
-	m_Settings_path_LinkedRoom = link_path;
+	_settings_path_linkedroom = link_path;
 
-	LRoom * pLinkedRoom = Object::cast_to<LRoom>(get_node(link_path));
+	LRoom * linkedroom = Object::cast_to<LRoom>(get_node(link_path));
 
-	if (pLinkedRoom)
+	if (linkedroom)
 	{
-		m_LinkedRoom_ObjectID = pLinkedRoom->get_instance_id();
+		_linkedroom_godot_ID = linkedroom->get_instance_id();
 	}
 	else
 	{
-		m_LinkedRoom_ObjectID = 0;
+		_linkedroom_godot_ID = 0;
 	}
 }
 
 NodePath LPortal::get_linked_room() const
 {
-	return m_Settings_path_LinkedRoom;
+	return _settings_path_linkedroom;
 }
 
 
 LPortal::LPortal()
 {
-	m_Settings_Active = true;
+	_settings_active = true;
 }
 
 // create the cached data from mesh instance, sort winding etc
-void LPortal::UpdateFromMesh()
+void LPortal::update_from_mesh()
 {
 
 }

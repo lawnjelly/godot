@@ -7,10 +7,10 @@ class LRoomManager : public Spatial
 {
 	GDCLASS(LRoomManager, Spatial);
 protected:
-	Lawn::PRoomManager m_RM;
+	Lawn::PRoomManager _rm;
 
 public:
-	void set_rooms_path(const NodePath &path);
+	void set_rooms_path(const NodePath &p_path);
 	NodePath get_rooms_path() const;
 
 	void rooms_convert();

@@ -35,25 +35,25 @@ ADD_PROPERTY(PropertyInfo(P_TYPE, LPORTAL_TOSTRING(P_NAME), PROPERTY_HINT_RANGE,
 #undef LIMPL_PROPERTY_RANGE
 }
 
-void LRoomManager::set_rooms_path(const NodePath &path)
+void LRoomManager::set_rooms_path(const NodePath &p_path)
 {
-	m_RM.m_Settings_path_RoomList = path;
+	_rm._settings_path_roomlist = p_path;
 }
 
 NodePath LRoomManager::get_rooms_path() const
 {
-	return m_RM.m_Settings_path_RoomList;
+	return _rm._settings_path_roomlist;
 }
 
 void LRoomManager::rooms_convert()
 {
-	if (!m_RM.ResolveRoomListPath(this))
+	if (!_rm.resolve_roomlist_path(this))
 	{
 		LWARN(0, "Cannot resolve nodepath");
 		return;
 	}
 
 	Lawn::PConverter converter;
-	converter.Convert(m_RM.m_Rooms);
+	converter.convert(_rm._rooms);
 }
 

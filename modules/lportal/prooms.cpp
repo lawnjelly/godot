@@ -6,29 +6,29 @@ using namespace Lawn;
 
 PRooms::PRooms()
 {
-	m_pRoomList = nullptr;
+	_roomlist_node = nullptr;
 }
 
 
-void PRooms::SetRoomListNode(Spatial * pRoomList)
+void PRooms::set_roomlist_node(Spatial * p_roomlist)
 {
-	if (pRoomList)
+	if (p_roomlist)
 	{
-		LPRINT(2, "\tSetRoomListNode");
+		LPRINT(2, "\tset_roomlist_node");
 	}
 	else
 	{
-		LPRINT(2, "\tSetRoomListNode NULL");
+		LPRINT(2, "\tset_roomlist_node NULL");
 	}
 
-	m_ID_RoomList = 0;
-	m_pRoomList = 0;
+	_roomlist_node = nullptr;
+	_roomlist_godot_ID = 0;
 
-	if (pRoomList)
+	if (p_roomlist)
 	{
-		m_ID_RoomList = pRoomList->get_instance_id();
-		m_pRoomList = pRoomList;
-		LPRINT(2, "\t\tRoomlist was Godot ID " + itos(m_ID_RoomList));
+		_roomlist_node = p_roomlist;
+		_roomlist_godot_ID = _roomlist_node->get_instance_id();
+		LPRINT(2, "\t\troomlist was godot ID " + itos(_roomlist_godot_ID));
 	}
 
 }

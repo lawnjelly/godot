@@ -15,19 +15,19 @@ class LPlanesPool
 public:
 	const static int POOL_MAX = 32;
 
-	void Reset();
+	void reset();
 
-	unsigned int Request();
-	void Free(unsigned int ui);
+	unsigned int request();
+	void free(unsigned int ui);
 
-	LVector<Plane> &Get(unsigned int ui) {return m_Planes[ui];}
+	LVector<Plane> &get(unsigned int ui) {return _planes[ui];}
 
 	LPlanesPool();
 private:
-	LVector<Plane> m_Planes[	POOL_MAX];
+	LVector<Plane> _planes[	POOL_MAX];
 
-	uint8_t m_ucFreeList[POOL_MAX];
-	uint32_t m_uiNumFree;
+	uint8_t _freelist[POOL_MAX];
+	uint32_t _num_free;
 };
 
 } // namespace
