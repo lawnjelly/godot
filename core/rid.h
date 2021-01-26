@@ -157,6 +157,10 @@ public:
 #ifdef DEBUG_ENABLED
 
 		if (p_rid.get_data()) {
+			if (!id_map.has(p_rid.get_data()))
+			{
+				ERR_FAIL_COND_V(!id_map.has(p_rid.get_data()), NULL);
+			}
 			ERR_FAIL_COND_V(!id_map.has(p_rid.get_data()), NULL);
 		}
 #endif

@@ -54,7 +54,7 @@
 //#define BVH_VERBOSE_TREE
 
 //#define BVH_VERBOSE_FRAME
-//#define BVH_CHECKS
+#define BVH_CHECKS
 //#define BVH_INTEGRITY_CHECKS
 #endif
 

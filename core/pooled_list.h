@@ -74,6 +74,7 @@ public:
 	T *request(uint32_t &r_id) {
 		_used_size++;
 
+//		if (false) {
 		if (freelist.size()) {
 			// pop from freelist
 			int new_size = freelist.size() - 1;
@@ -84,6 +85,8 @@ public:
 
 		r_id = list.size();
 		list.resize(r_id + 1);
+		
+		zeromem(&list[r_id], sizeof (T));
 		return &list[r_id];
 	}
 	void free(const uint32_t &p_id) {

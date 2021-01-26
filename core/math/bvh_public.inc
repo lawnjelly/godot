@@ -1,4 +1,7 @@
 public:
+
+uint32_t _global_count = 0;
+
 BVHHandle item_add(T *p_userdata, const AABB &p_aabb, int32_t p_subindex, bool p_pairable, uint32_t p_pairable_type, uint32_t p_pairable_mask, bool p_invisible = false) {
 #ifdef BVH_VERBOSE_TREE
 	VERBOSE_PRINT("\nitem_add BEFORE");
@@ -17,11 +20,16 @@ BVHHandle item_add(T *p_userdata, const AABB &p_aabb, int32_t p_subindex, bool p
 
 	// this should never fail
 	ItemRef *ref = _refs.request(ref_id);
+	CRASH_COND(ref->valid);
+	ref->clear();
+	ref->valid = true;
+	ref->global_count = _global_count++;
 
 	// the extra data should be parallel list to the references
 	uint32_t extra_id;
 	ItemExtra *extra = _extra.request(extra_id);
 	BVH_ASSERT(extra_id == ref_id);
+	extra->clear();
 
 	// pairs info
 	if (USE_PAIRS) {
@@ -105,6 +113,7 @@ bool item_move(BVHHandle p_handle, const AABB &p_aabb) {
 
 	// get the reference
 	ItemRef &ref = _refs[ref_id];
+	CRASH_COND(!ref.valid);
 
 	BVH_ASSERT(ref.tnode_id != BVHCommon::INVALID);
 	TNode &tnode = _nodes[ref.tnode_id];
@@ -171,6 +180,9 @@ void item_remove(BVHHandle p_handle) {
 	// remove the item from the node
 	node_remove_item(ref_id);
 
+	CRASH_COND(!_refs[ref_id].valid);
+	_refs[ref_id].valid = false;
+	
 	// remove the item reference
 	_refs.free(ref_id);
 	_extra.free(ref_id);
@@ -216,12 +228,31 @@ void item_get_ABB(const BVHHandle &p_handle, BVH_ABB &r_abb) {
 	r_abb = leaf.get_aabb(ref.item_id);
 }
 
+void double_check_no_pairs_to(const BVHHandle &p_handle)
+{
+	for (int n=0; n<_active_refs.size(); n++)
+	{
+		uint32_t ref_id = _active_refs[n];
+		
+		for (int p=0; p<_pairs[ref_id].extended_pairs.size(); p++)
+		{
+			if (_pairs[ref_id].extended_pairs[p].handle == p_handle)
+			{
+				CRASH_COND(true);
+			}
+		}
+	}
+	
+	
+}
+
 void item_set_pairable(const BVHHandle &p_handle, bool p_pairable, uint32_t p_pairable_type, uint32_t p_pairable_mask) {
 	// change tree?
 	uint32_t ref_id = p_handle.id();
 
 	ItemExtra &ex = _extra[ref_id];
 	ItemRef &ref = _refs[ref_id];
+	CRASH_COND(!ref.valid);
 
 	ex.pairable_type = p_pairable_type;
 	ex.pairable_mask = p_pairable_mask;
@@ -256,6 +287,26 @@ void item_set_pairable(const BVHHandle &p_handle, bool p_pairable, uint32_t p_pa
 				refit_upward_and_balance(add_node.parent_id);
 		}
 	}
+}
+
+uint32_t get_ref_global_count(const BVHHandle &h) const
+{
+	return _refs[h.id()].global_count;
+}
+
+void debug_output_active()
+{
+	String sz = "active: ";
+	
+	for (int n=0; n<_active_refs.size(); n++)
+	{
+		uint32_t ref_id = _active_refs[n];
+		
+		int gc = _refs[ref_id].global_count;
+		sz += itos(gc) + ", ";
+	}
+	
+	print_line(sz);
 }
 
 void incremental_optimize() {

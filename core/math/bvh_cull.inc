@@ -149,6 +149,11 @@ bool _cull_pairing_mask_test_hit(uint32_t p_maskA, uint32_t p_typeA, uint32_t p_
 	return true;
 }
 
+bool _pair_mask_compatibility_test(const ItemExtra &exa, const ItemExtra &exb) const
+{
+	return _cull_pairing_mask_test_hit(exa.pairable_mask, exa.pairable_type, exb.pairable_mask, exb.pairable_type);
+}
+
 void _cull_hit(uint32_t p_ref_id, CullParams &p) {
 
 	// take into account masks etc

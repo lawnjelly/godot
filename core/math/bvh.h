@@ -49,6 +49,8 @@
 #include "bvh_tree.h"
 
 #define BVHTREE_CLASS BVH_Tree<T, 2, MAX_ITEMS, USE_PAIRS>
+#define BVH_DEBUG_REVISIONS
+//#define BVH_VERBOSE_PAIRING
 
 template <class T, bool USE_PAIRS = false, int MAX_ITEMS = 32>
 class BVH_Manager {
@@ -103,13 +105,66 @@ public:
 			}
 		}
 #endif
+		if (changed_items.size())
+		{
+#ifdef BVH_VERBOSE_PAIRING
+			
+			print_line("create update before, num changed items " + itos (changed_items.size()));
+			for (int n=0; n<changed_items.size(); n++)
+			{
+				uint32_t changed_item_ref = changed_items[n];
+				print_line("\tfrom " + itos(changed_items[n]));
+				
+				typename BVHTREE_CLASS::ItemPairs &p_from = tree._pairs[changed_item_ref];
 
-		BVHHandle h = tree.item_add(p_userdata, p_aabb, p_subindex, p_pairable, p_pairable_type, p_pairable_mask);
-
-		if (USE_PAIRS) {
-			_add_changed_item(h, p_aabb);
+				for (int p=0; p<p_from.extended_pairs.size(); p++)
+				{
+					print_line("\t\tto " + itos(p_from.extended_pairs[p].handle));
+				}
+			}
+#endif
+			
+			
+			update();
+			
+#ifdef BVH_VERBOSE_PAIRING
+			print_line("create update after");
+#endif
+			
 		}
 
+		BVHHandle h = tree.item_add(p_userdata, p_aabb, p_subindex, p_pairable, p_pairable_type, p_pairable_mask);
+#ifdef BVH_VERBOSE_PAIRING
+		uint32_t gc = tree.get_ref_global_count(h);
+		print_line("create " + itos (h.id()) + " gc " + itos(gc));
+#endif
+
+#ifdef BVH_DEBUG_REVISIONS
+		uint32_t required_num_revisions = h.id() + 1;
+		if (_revisions.size() < required_num_revisions)
+		{
+			uint32_t old_size = _revisions.size();
+			_revisions.resize(required_num_revisions);
+			for (uint32_t n=old_size; n<required_num_revisions; n++)
+			{
+				// start all at zero
+				_revisions[n] = 0;
+			}
+		}
+#endif
+		
+		if (USE_PAIRS) {
+			// set the pairing expanded bound explicitly from the get go, just in case
+			// it is needed before the update of the item occurs
+			AABB &expanded_aabb = tree._pairs[h.id()].expanded_aabb;
+			expanded_aabb = p_aabb;
+			expanded_aabb.grow_by(tree._pairing_expansion);
+
+			// set it up to do collision detection next update to find pairs			
+			_add_changed_item(h, p_aabb, false);
+		}
+//		update();
+		
 		return h;
 	}
 
@@ -155,14 +210,25 @@ public:
 
 	void move(BVHHandle p_handle, const AABB &p_aabb) {
 
+		//update();
+		
 		if (tree.item_move(p_handle, p_aabb)) {
 			if (USE_PAIRS) {
 				_add_changed_item(p_handle, p_aabb);
 			}
 		}
+		//update();
 	}
 
 	void erase(BVHHandle p_handle) {
+
+		//update();
+		
+#ifdef BVH_VERBOSE_PAIRING
+		uint32_t gc = tree.get_ref_global_count(p_handle);
+		print_line("erase " + itos (p_handle.id()) + " gc " + itos(gc));
+#endif
+		
 		// call unpair and remove all references to the item
 		// before deleting from the tree
 		if (USE_PAIRS) {
@@ -170,15 +236,25 @@ public:
 		}
 
 		tree.item_remove(p_handle);
+		
+#ifdef BVH_DEBUG_REVISIONS
+		_revisions[p_handle.id()] += 1;		
+#endif
+		update();
+		
 	}
 
 	// call e.g. once per frame (this does a trickle optimize)
 	void update() {
+		//_global_lock();
+		
 		tree.update();
 		_check_for_collisions();
 #ifdef BVH_INTEGRITY_CHECKS
 		tree.integrity_check_all();
 #endif
+		
+		//_global_unlock();
 	}
 
 	// this can be called more frequently than per frame if necessary
@@ -188,6 +264,9 @@ public:
 
 	// prefer calling this directly as type safe
 	void set_pairable(const BVHHandle &p_handle, bool p_pairable, uint32_t p_pairable_type, uint32_t p_pairable_mask) {
+		
+//		update();
+		//return;
 		tree.item_set_pairable(p_handle, p_pairable, p_pairable_type, p_pairable_mask);
 
 		if (USE_PAIRS) {
@@ -214,6 +293,8 @@ public:
 			// such that they should no longer be paired. E.g. lights.
 			_check_for_collisions(true);
 		}
+		
+//		update();
 	}
 
 	// cull tests
@@ -313,14 +394,25 @@ private:
 		params.mask = 0xFFFFFFFF;
 		params.pairable_type = 0;
 
+#ifdef BVH_VERBOSE_PAIRING
+		tree.debug_output_active();
+#endif
+		
 		for (unsigned int n = 0; n < changed_items.size(); n++) {
 			const BVHHandle &h = changed_items[n];
+			
+			CRASH_COND(!tree._refs[h.id()].valid);
 
 			// use the expanded aabb for pairing
 			const AABB &expanded_aabb = tree._pairs[h.id()].expanded_aabb;
 			BVH_ABB abb;
 			abb.from(expanded_aabb);
 
+#ifdef BVH_DEBUG_REVISIONS
+			CRASH_COND(_changed_item_revisions[n] != _revisions[h.id()]);
+#endif				
+			
+			
 			// find all the existing paired aabbs that are no longer
 			// paired, and send callbacks
 			_find_leavers(h, abb, p_full_check);
@@ -337,6 +429,11 @@ private:
 			params.result_count_overall = 0; // might not be needed
 			tree.cull_aabb(params, false);
 
+			
+#ifdef BVH_VERBOSE_PAIRING
+			print_line("check collision " + itos (tree._refs[h.id()].global_count) + " num_hits " + itos (tree._cull_hits.size()));
+#endif
+			
 			for (unsigned int i = 0; i < tree._cull_hits.size(); i++) {
 				uint32_t ref_id = tree._cull_hits[i];
 
@@ -391,6 +488,21 @@ private:
 			typename BVHTREE_CLASS::ItemExtra &exb = tree._extra[p_to.id()];
 
 			unpair_callback(pair_callback_userdata, p_from, exa.userdata, exa.subindex, p_to, exb.userdata, exb.subindex, ud_from);
+//			String addr_a = String::num_uint64((uint64_t) exa.userdata, 16);
+//			String addr_b = String::num_uint64((uint64_t) exb.userdata, 16);
+//			print_line("\tunpair " + addr_a + ",\t" + addr_b);
+			
+#ifdef BVH_VERBOSE_PAIRING
+			uint32_t gca = tree._refs[p_from.id()].global_count;
+			uint32_t gcb = tree._refs[p_to.id()].global_count;
+			print_line("\tunpair " + itos(gca) + ",\t" + itos(gcb));
+#endif
+			
+			
+#ifdef BVH_DEBUG_REVISIONS
+			CRASH_COND(!tree._debug_is_ref_active(p_from.id()));
+			CRASH_COND(!tree._debug_is_ref_active(p_to.id()));
+#endif
 		}
 	}
 
@@ -457,11 +569,18 @@ private:
 		// or only check the one with lower number of pairs for greater speed
 		if (p_from.num_pairs <= p_to.num_pairs) {
 			if (p_from.contains_pair_to(p_hb))
+			{
+				CRASH_COND(!p_to.contains_pair_to(p_ha));
 				return;
+			}
 		} else {
 			if (p_to.contains_pair_to(p_ha))
+			{
+				CRASH_COND(!p_from.contains_pair_to(p_hb));
 				return;
+			}
 		}
+
 
 		// callback
 		void *callback_userdata = nullptr;
@@ -470,7 +589,29 @@ private:
 			const typename BVHTREE_CLASS::ItemExtra &exa = _get_extra(p_ha);
 			const typename BVHTREE_CLASS::ItemExtra &exb = _get_extra(p_hb);
 
+			// double check masks (to check there isn't a bug earlier on)
+	#ifdef DEBUG_ENABLED
+			CRASH_COND(!tree._pair_mask_compatibility_test(exa, exb));
+	#endif
+			
+			
 			callback_userdata = pair_callback(pair_callback_userdata, p_ha, exa.userdata, exa.subindex, p_hb, exb.userdata, exb.subindex);
+//			String addr_a = String::num_uint64((uint64_t) exa.userdata, 16);
+//			String addr_b = String::num_uint64((uint64_t) exb.userdata, 16);
+//			print_line("\tpair " + addr_a + ",\t" + addr_b);
+			
+#ifdef BVH_VERBOSE_PAIRING
+			uint32_t gca = tree._refs[p_ha.id()].global_count;
+			uint32_t gcb = tree._refs[p_hb.id()].global_count;
+			print_line("\tpair " + itos(gca) + ",\t" + itos(gcb));
+#endif
+			
+			
+#ifdef BVH_DEBUG_REVISIONS
+			CRASH_COND(!tree._debug_is_ref_active(p_ha.id()));
+			CRASH_COND(!tree._debug_is_ref_active(p_hb.id()));
+#endif
+			
 		}
 
 		// new pair! .. only really need to store the userdata on the lower handle, but both have storage so...
@@ -501,6 +642,11 @@ private:
 
 	void _reset() {
 		changed_items.clear();
+		
+#ifdef BVH_DEBUG_REVISIONS
+		_changed_item_revisions.clear();
+#endif				
+		
 		_tick++;
 	}
 
@@ -537,6 +683,10 @@ private:
 
 		// add to the list
 		changed_items.push_back(p_handle);
+#ifdef BVH_DEBUG_REVISIONS
+		_changed_item_revisions.push_back(_revisions[p_handle.id()]);
+#endif				
+		
 	}
 
 	void _remove_changed_item(BVHHandle p_handle) {
@@ -549,20 +699,36 @@ private:
 		_remove_pairs_containing(p_handle);
 
 		// remove from changed items (not very efficient yet)
-		for (int n = 0; n < (int)changed_items.size(); n++) {
-			if (changed_items[n] == p_handle) {
-				changed_items.remove_unordered(n);
-
-				// because we are using an unordered remove,
-				// the last changed item will now be at spot 'n',
-				// and we need to redo it, so we prevent moving on to
-				// the next n at the next for iteration.
-				n--;
+		int delete_count = 0;
+		while (true)
+		{
+			bool deleted = false;
+			for (unsigned int n = 0; n < changed_items.size(); n++) {
+				if (changed_items[n] == p_handle) {
+					changed_items.remove_unordered(n);
+					
+	#ifdef BVH_DEBUG_REVISIONS
+					_changed_item_revisions.remove_unordered(n);
+	#endif				
+					deleted = true;
+					delete_count++;
+					break;
+				}
 			}
+			
+			if (deleted == false)
+				break;
+		}
+		if (delete_count > 1)
+		{
+			print_line("multi delete");
 		}
 
 		// reset the last updated tick (may not be necessary but just in case)
 		tree._extra[p_handle.id()].last_updated_tick = 0;
+
+		// debug extra check there are no references
+		tree.double_check_no_pairs_to(p_handle);
 	}
 
 	PairCallback pair_callback;
@@ -577,6 +743,14 @@ private:
 	LocalVector<BVHHandle, uint32_t, true> changed_items;
 	uint32_t _tick;
 
+#ifdef BVH_DEBUG_REVISIONS
+	// as item slots are reused as we create and erase items
+	// we want to make doubly sure we aren't sending a pair callback
+	// to items that have been deleted. I.e. dangling references
+	LocalVector<uint32_t, uint32_t, true> _revisions;
+	LocalVector<uint32_t, uint32_t, true> _changed_item_revisions;
+#endif
+	
 public:
 	BVH_Manager() {
 		_tick = 1; // start from 1 so items with 0 indicate never updated

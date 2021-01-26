@@ -159,6 +159,7 @@ public:
 	class SpatialPartitioningScene_BVH : public SpatialPartitioningScene {
 		// Note that SpatialPartitionIDs are +1 based when stored in visual server, to enable 0 to indicate invalid ID.
 		BVH_Manager<Instance, true, 256> _bvh;
+		LocalVector<uint32_t> _ids;
 
 	public:
 		SpatialPartitionID create(Instance *p_userdata, const AABB &p_aabb = AABB(), int p_subindex = 0, bool p_pairable = false, uint32_t p_pairable_type = 0, uint32_t p_pairable_mask = 1);
@@ -247,6 +248,8 @@ public:
 		uint64_t version; // changes to this, and changes to base increase version
 
 		InstanceBaseData *base_data;
+		
+		bool delme_is_valid;
 
 		virtual void base_removed() {
 
@@ -284,6 +287,7 @@ public:
 			base_data = NULL;
 
 			custom_aabb = NULL;
+			delme_is_valid = true;
 		}
 
 		~Instance() {
@@ -292,6 +296,8 @@ public:
 				memdelete(base_data);
 			if (custom_aabb)
 				memdelete(custom_aabb);
+			
+			delme_is_valid = false;
 		}
 	};
 

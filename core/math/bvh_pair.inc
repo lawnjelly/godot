@@ -14,6 +14,7 @@ struct ItemPairs {
 	void clear() {
 		num_pairs = 0;
 		extended_pairs.reset();
+		expanded_aabb = AABB();
 	}
 
 	AABB expanded_aabb;
@@ -47,6 +48,7 @@ struct ItemPairs {
 	void *remove_pair_to(BVHHandle h) {
 		void *userdata = nullptr;
 
+		int num_pairs_before = num_pairs;
 		for (int n = 0; n < num_pairs; n++) {
 			if (extended_pairs[n].handle == h) {
 				userdata = extended_pairs[n].userdata;
@@ -54,6 +56,11 @@ struct ItemPairs {
 				num_pairs--;
 				break;
 			}
+		}
+		
+		if ((num_pairs_before - num_pairs) > 1)
+		{
+			print_line("deleted multi pairs");
 		}
 
 		return userdata;

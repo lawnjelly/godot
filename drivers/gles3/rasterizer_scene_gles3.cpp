@@ -699,6 +699,11 @@ bool RasterizerSceneGLES3::reflection_probe_instance_postprocess_step(RID p_inst
 	ERR_FAIL_COND_V(!rpi, true);
 
 	ReflectionAtlas *reflection_atlas = reflection_atlas_owner.getornull(rpi->atlas);
+	
+	if (!reflection_atlas)
+	{
+		ERR_FAIL_COND_V(!reflection_atlas, false);
+	}
 	ERR_FAIL_COND_V(!reflection_atlas, false);
 
 	ERR_FAIL_COND_V(rpi->render_step >= 6, true);

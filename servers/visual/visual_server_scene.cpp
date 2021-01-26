@@ -105,14 +105,24 @@ void VisualServerScene::camera_set_use_vertical_aspect(RID p_camera, bool p_enab
 
 /* SPATIAL PARTITIONING */
 VisualServerScene::SpatialPartitionID VisualServerScene::SpatialPartitioningScene_BVH::create(Instance *p_userdata, const AABB &p_aabb, int p_subindex, bool p_pairable, uint32_t p_pairable_type, uint32_t p_pairable_mask) {
-	return _bvh.create(p_userdata, p_aabb, p_subindex, p_pairable, p_pairable_type, p_pairable_mask) + 1;
+	uint32_t handle =  _bvh.create(p_userdata, p_aabb, p_subindex, p_pairable, p_pairable_type, p_pairable_mask) + 1;
+	
+	return handle;
+//	_ids.push_back(handle);
+//	return _ids.size();
 }
 
 void VisualServerScene::SpatialPartitioningScene_BVH::erase(SpatialPartitionID p_handle) {
+//	p_handle = _ids[p_handle-1];
+	
+	CRASH_COND(!p_handle);
 	_bvh.erase(p_handle - 1);
 }
 
 void VisualServerScene::SpatialPartitioningScene_BVH::move(SpatialPartitionID p_handle, const AABB &p_aabb) {
+//	p_handle = _ids[p_handle-1];
+	
+	CRASH_COND(!p_handle);
 	_bvh.move(p_handle - 1, p_aabb);
 }
 
@@ -125,6 +135,9 @@ void VisualServerScene::SpatialPartitioningScene_BVH::update_collisions() {
 }
 
 void VisualServerScene::SpatialPartitioningScene_BVH::set_pairable(SpatialPartitionID p_handle, bool p_pairable, uint32_t p_pairable_type, uint32_t p_pairable_mask) {
+//	p_handle = _ids[p_handle-1];
+
+	CRASH_COND(!p_handle);
 	_bvh.set_pairable(p_handle - 1, p_pairable, p_pairable_type, p_pairable_mask);
 }
 
@@ -210,6 +223,14 @@ void *VisualServerScene::_instance_pair(void *p_self, SpatialPartitionID, Instan
 	Instance *A = p_A;
 	Instance *B = p_B;
 
+	CRASH_COND(!A->delme_is_valid);
+	CRASH_COND(!B->delme_is_valid);
+	
+//	String addr_a = String::num_uint64((uint64_t) A->self.get_data(), 16);
+//	String addr_b = String::num_uint64((uint64_t) B->self.get_data(), 16);
+//	print_line("\tpair rids " + addr_a + ",\t" + addr_b);
+	
+	
 	//instance indices are designed so greater always contains lesser
 	if (A->base_type > B->base_type) {
 		SWAP(A, B); //lesser always first
@@ -217,6 +238,9 @@ void *VisualServerScene::_instance_pair(void *p_self, SpatialPartitionID, Instan
 
 	if (B->base_type == VS::INSTANCE_LIGHT && ((1 << A->base_type) & VS::INSTANCE_GEOMETRY_MASK)) {
 
+		// try and test light is valid
+		//VSG::storage->light_get_type(B->self);
+		
 		InstanceLightData *light = static_cast<InstanceLightData *>(B->base_data);
 		InstanceGeometryData *geom = static_cast<InstanceGeometryData *>(A->base_data);
 
@@ -290,6 +314,14 @@ void VisualServerScene::_instance_unpair(void *p_self, SpatialPartitionID, Insta
 	Instance *A = p_A;
 	Instance *B = p_B;
 
+	CRASH_COND(!A->delme_is_valid);
+	CRASH_COND(!B->delme_is_valid);
+	
+//	String addr_a = String::num_uint64((uint64_t) A->self.get_data(), 16);
+//	String addr_b = String::num_uint64((uint64_t) B->self.get_data(), 16);
+//	print_line("\tunpair rids " + addr_a + ",\t" + addr_b);
+	
+	
 	//instance indices are designed so greater always contains lesser
 	if (A->base_type > B->base_type) {
 		SWAP(A, B); //lesser always first
@@ -297,6 +329,10 @@ void VisualServerScene::_instance_unpair(void *p_self, SpatialPartitionID, Insta
 
 	if (B->base_type == VS::INSTANCE_LIGHT && ((1 << A->base_type) & VS::INSTANCE_GEOMETRY_MASK)) {
 
+		// try and test light is valid
+		//VSG::storage->light_get_type(B->self);
+		
+		
 		InstanceLightData *light = static_cast<InstanceLightData *>(B->base_data);
 		InstanceGeometryData *geom = static_cast<InstanceGeometryData *>(A->base_data);
 
@@ -3583,18 +3619,44 @@ void VisualServerScene::update_dirty_instances() {
 	VSG::storage->update_dirty_resources();
 
 	// this is just to get access to scenario so we can update the spatial partitioning scheme
-	Scenario *scenario = nullptr;
-	if (_instance_update_list.first()) {
-		scenario = _instance_update_list.first()->self()->scenario;
-	}
+//	Scenario *scenario = nullptr;
+//	if (_instance_update_list.first()) {
+//		scenario = _instance_update_list.first()->self()->scenario;
+//	}
 
+	Vector<Scenario*> scenarios;
+	
 	while (_instance_update_list.first()) {
 
-		_update_dirty_instance(_instance_update_list.first()->self());
+		Instance * instance = _instance_update_list.first()->self();
+		
+		Scenario * sc = instance->scenario;
+		bool found = false;
+		
+		for (int n=0; n<scenarios.size(); n++)
+		{
+			if (scenarios[n] == sc)
+			{
+				found = true;
+				break;
+			}
+		}
+		if (!found && sc)
+		{
+			scenarios.push_back(sc);
+		}
+		
+		
+		_update_dirty_instance(instance);
 	}
 
-	if (scenario) {
-		scenario->sps->update();
+//	if (scenario) {
+//		scenario->sps->update();
+//	}
+	
+	for (int n=0; n<scenarios.size(); n++)
+	{
+		scenarios[n]->sps->update();
 	}
 }
 

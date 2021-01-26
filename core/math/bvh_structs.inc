@@ -3,6 +3,16 @@ public:
 struct ItemRef {
 	uint32_t tnode_id; // -1 is invalid
 	uint32_t item_id; // in the leaf
+	bool valid;
+	uint32_t global_count;
+	
+	void clear()
+	{
+		tnode_id = 0;
+		item_id = 0;
+		global_count = 0;
+		valid = false;
+	}
 };
 
 // extra info kept in separate parallel list to the references,
@@ -21,6 +31,17 @@ struct ItemExtra {
 	uint32_t active_ref_id;
 
 	T *userdata;
+	
+	void clear()
+	{
+		last_updated_tick = 0;
+		pairable = 0;
+		pairable_mask = 0;
+		pairable_type = 0;
+		subindex = 0;
+		active_ref_id = 0;
+		userdata = nullptr;
+	}
 };
 
 // this is an item OR a child node depending on whether a leaf node
@@ -123,6 +144,16 @@ struct TNode {
 		return -1;
 	}
 };
+
+// very slow, only for debugging
+bool _debug_is_ref_active(uint32_t p_ref_id) const {
+	for (uint32_t n = 0; n < _active_refs.size(); n++) {
+		if (_active_refs[n] == p_ref_id) {
+			return true;
+		}
+	}
+	return false;
+}
 
 // instead of using linked list we maintain
 // item references (for quick lookup)

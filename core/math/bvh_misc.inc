@@ -11,6 +11,9 @@ int _handle_get_tree_id(BVHHandle p_handle) const {
 
 public:
 void _handle_sort(BVHHandle &p_ha, BVHHandle &p_hb) const {
+//	uint32_t gca = get_ref_global_count(p_ha);
+//	uint32_t gcb = get_ref_global_count(p_hb);
+//	if (gca > gcb) {
 	if (p_ha.id() > p_hb.id()) {
 		BVHHandle temp = p_hb;
 		p_hb = p_ha;
