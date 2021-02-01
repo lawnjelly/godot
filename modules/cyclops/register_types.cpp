@@ -21,11 +21,11 @@
 #include "register_types.h"
 
 #include "core/class_db.h"
-#include "lroom_manager.h"
-#include "lroom.h"
-#include "lportal.h"
 #include "cyclops_editor_plugin.h"
 #include "cyclops_gizmo_plugin.h"
+#include "lportal.h"
+#include "lroom.h"
+#include "lroom_manager.h"
 
 void register_cyclops_types() {
 
@@ -34,12 +34,11 @@ void register_cyclops_types() {
 	ClassDB::register_class<LPortal>();
 
 #ifdef TOOLS_ENABLED
-    EditorPlugins::add_by_type<CyclopsEditorPlugin>();
-//	EditorPlugins::add_by_type<CyclopsGizmoPlugin>();
+	EditorPlugins::add_by_type<CyclopsEditorPlugin>();
 	ClassDB::register_class<CyclopsGizmoPlugin>();
 #endif
 }
 
 void unregister_cyclops_types() {
-   //nothing to do here
+	//nothing to do here
 }
