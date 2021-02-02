@@ -99,6 +99,9 @@ void PConverter::convert(PRoomManager &p_room_manager) {
 	// show debug according to settings
 	p_room_manager.set_show_debug(p_room_manager.get_show_debug());
 
+	// create fast spatial lookup for rooms
+	p_room_manager._rooms_lookup.create(p_room_manager);
+	
 	// mark conversion complete
 	p_room_manager._converted = true;
 }
@@ -282,6 +285,9 @@ bool PConverter::convert_bound(LRoom *p_room, Spatial *p_node) {
 	if (!_bound_findpoints(mi, points, aabb))
 		return false;
 
+	// add bound to lroom
+	p_room->_aabb.merge_with(aabb);
+	
 	// expand the room AABB .. NYI
 
 	// hide bounds after conversion
@@ -335,6 +341,9 @@ void PConverter::find_statics_recursive(PRoomManager &p_room_manager, LRoom *p_l
 		AABB aabb;
 		_bound_findpoints(mi, room_pts, aabb);
 
+		// add bound to lroom
+		p_lroom->_aabb.merge_with(aabb);
+		
 		// better to create AABB manually?
 		//PStatic * stat =
 		p_room_manager._statics.request(mi, aabb, p_lroom->_room_ID);

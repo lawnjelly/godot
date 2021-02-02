@@ -16,9 +16,8 @@
 #include "cyclops_gizmo_plugin.cpp"
 #endif
 
-//#include "proom.cpp"
-//#include "pportal.cpp"
 #include "prooms.cpp"
+#include "prooms_lookup.cpp"
 #include "pstatics.cpp"
 #include "pdobs.cpp"
 #include "pitem.cpp"
