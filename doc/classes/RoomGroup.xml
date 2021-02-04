@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="RoomGroup" inherits="Spatial" version="3.4">
+	<brief_description>
+		Groups [code]Room[/code]s together to allow common functionality.
+	</brief_description>
+	<description>
+		Although [code]Room[/code] behaviour can be specified individually, sometimes it is faster and more convenient to write functionality for a group of rooms. For example a [code]RoomGroup[/code] can be used to group those rooms that are outside, and switch on or off a directional light, or rain effect as the player enters / exits the area.
+	</description>
+	<tutorials>
+	</tutorials>
+	<methods>
+	</methods>
+	<constants>
+	</constants>
+</class>

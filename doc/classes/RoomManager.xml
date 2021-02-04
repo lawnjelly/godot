@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="RoomManager" inherits="Spatial" version="3.4">
+	<brief_description>
+		The RoomManager node is used to control the portal culling system.
+	</brief_description>
+	<description>
+		When you want to utilize the portal occlusion culling system, you would build your level using [Room]s and [Portal]s. Before these can be used at runtime, they must undergo a short conversion process to build the 'room graph', runtime data needed for portal culling. This is controlled by the [RoomManager] node, and it also contains settings that are common throughout the system.
+	</description>
+	<tutorials>
+	</tutorials>
+	<methods>
+		<method name="rooms_clear">
+			<return type="void">
+			</return>
+			<description>
+				This function clears all converted data from the rooms graph. Use this before unloading a level, when transitioning from level to level, or returning to a main menu.
+			</description>
+		</method>
+		<method name="rooms_convert">
+			<return type="void">
+			</return>
+			<description>
+				This is the most important function in the whole portal culling system. Without it, the system cannot function.
+				First it goes through every [Room] that is a child of the [code]rooms[/code] node (see below) and converts it and adds to the rooms graph.
+				This works for both [Room] nodes, and [Spatial] nodes that follow a special naming convention. They should begin with the prefix 'room_', followed by your chosen name, e.g. 'room_lounge'. This will automatically convert such [Spatial]s to [Room] nodes for you. This is useful if you want to build you entire room system in e.g. Blender, and reimport multiple times as you work on the level.
+				The conversion will try to assign [VisualInstance]s that are children and grandchildren of the [Room] to the room. These should be given a suitable [code]PortalMode[/code] (see the [VisualInstance] documentation). The default will be for STATIC objects, which will typically be most of your room objects.
+				The conversion will also use the geometry of these [VisualInstance]s (and the [Portal]s) to calculate a convex hull bound for the room. These bounds will be shown in the editor with a wireframe. You can optionally specify a manual convex hull bound for a room, see the [Room] documentation.
+				By definition, [Camera]s within a room can see everything else in the room (that is one advantage to a convex hull). However, in order to see from one room into adjacent rooms, you must place [Portal]s, which signify areas that the camera can see through, like windows and doors.
+				[Portal]s are specialized [MeshInstance]s. In fact you will usually first create a portal by creating a [MeshInstance], especially a plane mesh instance. You would move the plane to cover a window or doorway, with the front face pointing outward from the room. To let the conversion process know you want this mesh to be a portal, you again can use a special naming convention. [MeshInstance]s to be converted to a [Portal] should start with the prefix 'portal_', followed by the name of the room you want the portal to link to (the adjacent room). E.g. portal_lounge, portal_kitchen etc.
+				There is a special case here - Godot does not allow two nodes to share the same name. What if you want to have more than one portal lead into the same room? Surely they will need to both be called, e.g. 'portal_lounge'.
+				The solution is a wildcard character. After the name, if you use the character '*', this character and anything following it will be ignored. So you can use 'portal_lounge*0', 'portal_lounge*1' etc.
+				Note that [Portal]s that are already portal nodes (rather than [MeshInstance]s) also need to follow the naming convention, as they will be relinked during conversion.
+				It is recommended that you only place objects in rooms that are desired to stay within those rooms - i.e. portal modes STATIC or DYNAMIC (not crossing portals). GLOBAL and ROAMING objects are best placed in another part of the scene tree, to avoid confusion. See [VisualInstance] for a full description of portal modes.
+			</description>
+		</method>
+		<method name="rooms_update_gameplay">
+			<return type="void">
+			</return>
+			<argument index="0" name="camera_pos" type="Vector3">
+			</argument>
+			<argument index="1" name="use_secondary_pvs" type="bool">
+			</argument>
+			<description>
+				When used with a room system that is converted with a partial or full PVS, you can use this function to receive notifications through the [code]_notification[/code] function when roaming objects or rooms enter or exit the gameplay area. The gameplay area is defined as either the primary, or secondary PVS, depending on the function argument.
+				These notifications allow you to, for example, reduce processing for objects that are far from the player.
+				[code]NOTIFICATION_ENTER_GAMEPLAY[/code]
+				[code]NOTIFICATION_EXIT_GAMEPLAY[/code]
+			</description>
+		</method>
+		<method name="rooms_update_gameplay_ex">
+			<return type="void">
+			</return>
+			<argument index="0" name="camera_positions" type="Vector3">
+			</argument>
+			<argument index="1" name="use_secondary_pvs" type="bool">
+			</argument>
+			<description>
+				An extended version of the [code]rooms_update_gameplay[/code] command designed for use with multiple cameras / split screen. You can specify an array of camera positions.
+			</description>
+		</method>
+	</methods>
+	<members>
+		<member name="active" type="bool" setter="rooms_set_active" getter="rooms_get_active" default="true">
+			Switches the portal culling system on and off. It is important to note that when portal culling is active, all the 3d culling takes place through it, and some editor functionality may be less easy to use, so it is usually used for testing your room / portal layout works within the editor.
+			This will have no effect when the room graph is unloaded (has not yet been converted).
+		</member>
+		<member name="camera" type="NodePath" setter="set_camera_path" getter="get_camera_path" default="NodePath(&quot;&quot;)">
+			Portal culling normally operates using the current camera, however for debugging (especially within the editor), it can be useful to force it to use a particular camera to get a better idea of what the occlusion culling is doing.
+		</member>
+		<member name="debug_sprawl" type="bool" setter="set_debug_sprawl" getter="get_debug_sprawl" default="false">
+			Large objects that 'sprawl' over more than one room can be handled. It can be useful to see which objects are sprawling outside the current room. This setting can toggle this debug view on and off.
+		</member>
+		<member name="default_portal_margin" type="float" setter="set_default_portal_margin" getter="get_default_portal_margin" default="1.0">
+			Usually we don't want objects that only *just* cross a boundary into an adjacent room to sprawl into that room. To prevent this, each portal has an extra margin, or tolerance zone. In most cases you will set this here for all portals, although you can override it in each portal.
+		</member>
+		<member name="merge_meshes" type="bool" setter="set_merge_meshes" getter="get_merge_meshes" default="false">
+			If enabled, the system will attempt to merge similar meshes (particularly in terms of materials) within rooms during conversion. This can significantly reduce the number of drawcalls and state changes required during rendering, albeit at a cost of reduced culling granularity.
+			[b]Note:[/b] This operates at runtime during the conversion process, and will only operate on exported or running projects, in order to prevent accidental alteration to the scene.
+		</member>
+		<member name="plane_simplify_dist" type="float" setter="set_simplify_dist" getter="get_simplify_dist" default="0.08">
+			During the conversion process, objects within rooms, or a custom specified manual bound are used to create a convex hull. This convex hull is required in the visibility system, and is used for many purposes. Most importantly, it is used to decide whether the camera (or an object) is within a room, or not. The convex hull generating algorithm is good, but occasionally it could create too many (or too few) planes to give a good representation of the room volume.
+			The [code]plane_simplify_dist[/code] and [code]plane_simplify_dot[/code] can be used to get fine control over this process. They determine how similar planes can be for them to be considered the same (and duplicates removed).
+			The dist is the distance in the plane equation, and how similar it can be between two planes before they are considered different.
+			The room convex hulls are shown as a wireframe in the editor.
+		</member>
+		<member name="plane_simplify_dot" type="float" setter="set_simplify_dot" getter="get_simplify_dot" default="0.98">
+			See [code]plane_simplify_dist[/code]. The dot is the threshold dot product of the two plane normals, such that above this dot they are considered in the same plane.
+		</member>
+		<member name="pvs_mode" type="int" setter="set_pvs_mode" getter="get_pvs_mode" enum="RoomManager.PVSMode" default="0">
+			Optionally during conversion the potentially visible set (PVS) of rooms that are potentially visible from each room can be calculated. This can be used either to aid in dynamic portal culling, or to totally replace portal culling.
+			If PVS culling is used, all objects in the potentially visible rooms will be frustum culled, and rendered if they are within the frustum.
+		</member>
+		<member name="remove_danglers" type="bool" setter="set_remove_danglers" getter="get_remove_danglers" default="false">
+			If enabled, while merging meshes, the system will also attempt to remove [code]Spatial[/code] nodes that no longer have any children. Reducing the number of nodes in the scene tree can make traversal more efficient.
+		</member>
+		<member name="reverse_portals" type="bool" setter="set_portal_plane_convention" getter="get_portal_plane_convention" default="false">
+			Usually you would build your portals with their normals (front faces) pointing outward from their source room. If you accidentally mess this up, don't worry, you can reverse the convention.
+		</member>
+		<member name="rooms" type="NodePath" setter="set_rooms_path" getter="get_rooms_path" default="NodePath(&quot;&quot;)">
+			For the room conversion process to succeed, you must point the [RoomManager] to a node which is the parent node of all your rooms.
+		</member>
+		<member name="show_debug" type="bool" setter="set_show_debug" getter="get_show_debug" default="true">
+			Show assorted debugging information - including portals, and conversion logs. This will automatically be disabled in exports.
+		</member>
+	</members>
+	<constants>
+		<constant name="RoomManager::PVS_MODE_DISABLED" value="0" enum="PVSMode">
+		</constant>
+		<constant name="RoomManager::PVS_MODE_GENERATE" value="1" enum="PVSMode">
+		</constant>
+		<constant name="RoomManager::PVS_MODE_GENERATE_AND_CULL" value="2" enum="PVSMode">
+		</constant>
+	</constants>
+</class>

@@ -105,6 +105,8 @@ public:
 
 	operator String() const;
 
+	bool create_from_points(const Vector<Vector3> &p_points);
+
 	_FORCE_INLINE_ AABB() {}
 	inline AABB(const Vector3 &p_pos, const Vector3 &p_size) :
 			position(p_pos),

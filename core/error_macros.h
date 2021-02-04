@@ -321,6 +321,13 @@ void _err_print_index_error(const char *p_function, const char *p_file, int p_li
 	}
 
 /**
+ * Reserved for future. Should assert only if making a build with dev asserts.
+ * This should be a 'free' check for program flow and should not be needed in any releases,
+ *  only used in dev builds.
+ */
+#define DEV_ASSERT(m_cond)
+
+/**
  * If `m_cond` evaluates to `true`, crashes the engine immediately with a generic error message.
  * Only use this if there's no sensible fallback (i.e. the error is unrecoverable).
  */

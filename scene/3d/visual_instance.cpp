@@ -34,6 +34,8 @@
 #include "servers/visual_server.h"
 #include "skeleton.h"
 
+VARIANT_ENUM_CAST(VisualInstance::PortalMode);
+
 AABB VisualInstance::get_transformed_aabb() const {
 	return get_global_transform().xform(get_aabb());
 }
@@ -128,6 +130,15 @@ bool VisualInstance::get_layer_mask_bit(int p_layer) const {
 	return (layers & (1 << p_layer));
 }
 
+void VisualInstance::set_culling_portal_mode(VisualInstance::PortalMode p_mode) {
+	_portal_mode = p_mode;
+	VisualServer::get_singleton()->instance_set_portal_mode(instance, (VisualServer::InstancePortalMode)p_mode);
+}
+
+VisualInstance::PortalMode VisualInstance::get_culling_portal_mode() const {
+	return _portal_mode;
+}
+
 void VisualInstance::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("_get_visual_instance_rid"), &VisualInstance::_get_visual_instance_rid);
 	ClassDB::bind_method(D_METHOD("set_base", "base"), &VisualInstance::set_base);
@@ -137,10 +148,21 @@ void VisualInstance::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_layer_mask"), &VisualInstance::get_layer_mask);
 	ClassDB::bind_method(D_METHOD("set_layer_mask_bit", "layer", "enabled"), &VisualInstance::set_layer_mask_bit);
 	ClassDB::bind_method(D_METHOD("get_layer_mask_bit", "layer"), &VisualInstance::get_layer_mask_bit);
-
 	ClassDB::bind_method(D_METHOD("get_transformed_aabb"), &VisualInstance::get_transformed_aabb);
+	ClassDB::bind_method(D_METHOD("set_culling_portal_mode", "mode"), &VisualInstance::set_culling_portal_mode);
+	ClassDB::bind_method(D_METHOD("get_culling_portal_mode"), &VisualInstance::get_culling_portal_mode);
 
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "layers", PROPERTY_HINT_LAYERS_3D_RENDER), "set_layer_mask", "get_layer_mask");
+
+	ADD_GROUP("Culling", "culling_");
+
+	BIND_ENUM_CONSTANT(PORTAL_MODE_STATIC);
+	BIND_ENUM_CONSTANT(PORTAL_MODE_DYNAMIC);
+	BIND_ENUM_CONSTANT(PORTAL_MODE_ROAMING);
+	BIND_ENUM_CONSTANT(PORTAL_MODE_GLOBAL);
+	BIND_ENUM_CONSTANT(PORTAL_MODE_IGNORE);
+
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "culling_portal_mode", PROPERTY_HINT_ENUM, "Static,Dynamic,Roaming,Global,Ignore"), "set_culling_portal_mode", "get_culling_portal_mode");
 }
 
 void VisualInstance::set_base(const RID &p_base) {
@@ -157,6 +179,7 @@ VisualInstance::VisualInstance() {
 	VisualServer::get_singleton()->instance_attach_object_instance_id(instance, get_instance_id());
 	layers = 1;
 	set_notify_transform(true);
+	_portal_mode = PORTAL_MODE_STATIC;
 }
 
 VisualInstance::~VisualInstance() {

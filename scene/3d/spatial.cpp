@@ -35,6 +35,7 @@
 #include "scene/main/scene_tree.h"
 #include "scene/main/viewport.h"
 #include "scene/scene_string_names.h"
+#include "servers/visual_server_callbacks.h"
 
 /*
 
@@ -117,6 +118,19 @@ void Spatial::_propagate_transform_changed(Spatial *p_origin) {
 	data.dirty |= DIRTY_GLOBAL;
 
 	data.children_lock--;
+}
+
+void Spatial::notification_callback(int p_message_type) {
+	switch (p_message_type) {
+		default:
+			break;
+		case VisualServerCallbacks::CALLBACK_ENTER_GAMEPLAY: {
+			notification(NOTIFICATION_ENTER_GAMEPLAY);
+		} break;
+		case VisualServerCallbacks::CALLBACK_EXIT_GAMEPLAY: {
+			notification(NOTIFICATION_EXIT_GAMEPLAY);
+		} break;
+	}
 }
 
 void Spatial::_notification(int p_what) {
@@ -759,6 +773,8 @@ void Spatial::_bind_methods() {
 	BIND_CONSTANT(NOTIFICATION_ENTER_WORLD);
 	BIND_CONSTANT(NOTIFICATION_EXIT_WORLD);
 	BIND_CONSTANT(NOTIFICATION_VISIBILITY_CHANGED);
+	BIND_CONSTANT(NOTIFICATION_ENTER_GAMEPLAY);
+	BIND_CONSTANT(NOTIFICATION_EXIT_GAMEPLAY);
 
 	//ADD_PROPERTY( PropertyInfo(Variant::TRANSFORM,"transform/global",PROPERTY_HINT_NONE, "", PROPERTY_USAGE_EDITOR ), "set_global_transform", "get_global_transform") ;
 	ADD_GROUP("Transform", "");

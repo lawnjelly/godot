@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="Portal" inherits="MeshInstance" version="3.4">
+	<brief_description>
+		Portal nodes are used to enable visibility between [Room]s.
+	</brief_description>
+	<description>
+		Portals are a special type of [MeshInstance] that allow the portal culling system to 'see' from one room to the next. They often correspond to doors and windows in level geometry. By only allowing cameras to see through portals, this allows the system to cull out all the objects in rooms that cannot be seen through portals. This is a form of occlusion culling, and can greatly increase performance.
+		There are some limitations to the form of portals:
+		They must be single sided convex polygons, and usually you would face their front faces *outward* from the room they are placed in. The vertices should be positioned on a single plane (although their positioning does not have to be perfect.)
+		There is no need to place an opposite portal in an adjacent room, links are made two-way automatically.
+	</description>
+	<tutorials>
+	</tutorials>
+	<methods>
+		<method name="portal_update_full">
+			<return type="void">
+			</return>
+			<description>
+				In some cases you can dynamically move portals at runtime. After moving the portal node, be sure to call [code]portal_update[/code] to make sure it is respected in the rooms graph.
+			</description>
+		</method>
+		<method name="portal_update_transform">
+			<return type="void">
+			</return>
+			<description>
+				Same as [code]portal_update_full[/code], except this function expects you to only change the transform of the portal, rather than the actual geometry. Use this version when you can as it is more efficient.
+			</description>
+		</method>
+	</methods>
+	<members>
+		<member name="include_in_bound" type="bool" setter="set_include_in_bound_enabled" getter="get_include_in_bound_enabled" default="false">
+			In some cases you may want to use the portal geometry itself to help define the convex hull of the room, for instance in outdoor areas.
+		</member>
+		<member name="linked_room" type="NodePath" setter="set_linked_room" getter="get_linked_room" default="NodePath(&quot;&quot;)">
+			This is a shortcut for setting the name of the portal (the name is used during conversion).
+		</member>
+		<member name="portal_active" type="bool" setter="set_portal_active" getter="get_portal_active" default="true">
+			Visibility through portals can be turned on and off at runtime - this is useful for having closable doors.
+		</member>
+		<member name="portal_margin" type="float" setter="set_portal_margin" getter="get_portal_margin" default="1.0">
+			Some objects are so big they may be present in more than one room ('sprawling'). As we often don't want objects that *just* breach the edges to be assigned to neighbouring rooms, you can assign an extra margin through the portal to allow objects to breach without sprawling.
+		</member>
+		<member name="use_default_margin" type="bool" setter="set_use_default_margin" getter="get_use_default_margin" default="true">
+			In most cases you will want to use a common portal margin in your portals (this is set in the [RoomManager]. In case you want to override the default, set this value to false, and the [code]portal_margin[/code] will take effect.
+		</member>
+	</members>
+	<constants>
+	</constants>
+</class>

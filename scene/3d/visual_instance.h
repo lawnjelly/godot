@@ -57,7 +57,14 @@ public:
 		FACES_SOLID = 1, // solid geometry
 		FACES_ENCLOSING = 2,
 		FACES_DYNAMIC = 4 // dynamic object geometry
+	};
 
+	enum PortalMode {
+		PORTAL_MODE_STATIC, // not moving within a room
+		PORTAL_MODE_DYNAMIC, //  moving within room
+		PORTAL_MODE_ROAMING, // moving between rooms
+		PORTAL_MODE_GLOBAL, // frustum culled only
+		PORTAL_MODE_IGNORE, // don't show at all - e.g. manual bounds, hidden portals
 	};
 
 	RID get_instance() const;
@@ -75,8 +82,14 @@ public:
 	void set_layer_mask_bit(int p_layer, bool p_enable);
 	bool get_layer_mask_bit(int p_layer) const;
 
+	void set_culling_portal_mode(VisualInstance::PortalMode p_mode);
+	VisualInstance::PortalMode get_culling_portal_mode() const;
+
 	VisualInstance();
 	~VisualInstance();
+
+private:
+	PortalMode _portal_mode;
 };
 
 class GeometryInstance : public VisualInstance {

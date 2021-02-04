@@ -348,5 +348,9 @@
 		<constant name="NOTIFICATION_VISIBILITY_CHANGED" value="43">
 			Spatial nodes receives this notification when their visibility changes.
 		</constant>
+		<constant name="NOTIFICATION_ENTER_GAMEPLAY" value="45">
+		</constant>
+		<constant name="NOTIFICATION_EXIT_GAMEPLAY" value="46">
+		</constant>
 	</constants>
 </class>

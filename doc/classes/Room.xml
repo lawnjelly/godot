@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="Room" inherits="Spatial" version="3.4">
+	<brief_description>
+		Room node, used to group objects together locally for portal culling.
+	</brief_description>
+	<description>
+		The portal culling system requires levels to be built using objects grouped together by location in areas called rooms. In many cases these will correspond to actual rooms in buildings, but not necessarily (a canyon area may be treated as a room).
+		Any [VisualInstance] that is a child or grandchild of a room will be assigned to that room, if the portal mode of that [VisualInstance] is set to STATIC (does not move) or DYNAMIC (moves only within the room).
+		Internally the room must form a convex hull, and by default this is determined by the geometry of the objects you place within the room. You can alternatively precisely specify a manual bound - a [MeshInstance] with a name prefix `bound_` which will be converted into a convex hull during the conversion stage (see [RoomManager]).
+		In order to see from one room into an adjacent room, [Portal]s must be placed over non-occluded joins between rooms. These will often be placed over doors and windows.
+	</description>
+	<tutorials>
+	</tutorials>
+	<methods>
+	</methods>
+	<constants>
+	</constants>
+</class>

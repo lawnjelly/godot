@@ -172,6 +172,9 @@ void EditorSpatialGizmo::Instance::create_instance(Spatial *p_base, bool p_hidde
 	VS::get_singleton()->instance_geometry_set_cast_shadows_setting(instance, VS::SHADOW_CASTING_SETTING_OFF);
 	int layer = p_hidden ? 0 : 1 << SpatialEditorViewport::GIZMO_EDIT_LAYER;
 	VS::get_singleton()->instance_set_layer_mask(instance, layer); //gizmos are 26
+
+	// make global in the rooms / portals system, so they show even when rooms / portals active
+	VS::get_singleton()->instance_set_portal_mode(instance, VisualServer::INSTANCE_PORTAL_MODE_GLOBAL);
 }
 
 void EditorSpatialGizmo::add_mesh(const Ref<ArrayMesh> &p_mesh, bool p_billboard, const Ref<SkinReference> &p_skin_reference, const Ref<Material> &p_material) {
