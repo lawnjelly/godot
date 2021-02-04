@@ -34,6 +34,8 @@
 #include "servers/visual_server.h"
 #include "skeleton.h"
 
+VARIANT_ENUM_CAST(VisualInstance::PortalMode);
+
 AABB VisualInstance::get_transformed_aabb() const {
 
 	return get_global_transform().xform(get_aabb());
@@ -66,9 +68,7 @@ void VisualInstance::_update_visibility() {
 void VisualInstance::_notification(int p_what) {
 
 	switch (p_what) {
-
 		case NOTIFICATION_ENTER_WORLD: {
-
 			// CHECK SKELETON => moving skeleton attaching logic to MeshInstance
 			/*
 			Skeleton *skeleton=Object::cast_to<Skeleton>(get_parent());
@@ -81,14 +81,12 @@ void VisualInstance::_notification(int p_what) {
 
 		} break;
 		case NOTIFICATION_TRANSFORM_CHANGED: {
-
 			if (_get_spatial_flags() & SPATIAL_FLAG_VI_VISIBLE) {
 				Transform gt = get_global_transform();
 				VisualServer::get_singleton()->instance_set_transform(instance, gt);
 			}
 		} break;
 		case NOTIFICATION_EXIT_WORLD: {
-
 			VisualServer::get_singleton()->instance_set_scenario(instance, RID());
 			VisualServer::get_singleton()->instance_attach_skeleton(instance, RID());
 			//VS::get_singleton()->instance_geometry_set_baked_light_sampler(instance, RID() );
@@ -99,7 +97,6 @@ void VisualInstance::_notification(int p_what) {
 			_set_spatial_flag(SPATIAL_FLAG_VI_VISIBLE, false);
 		} break;
 		case NOTIFICATION_VISIBILITY_CHANGED: {
-
 			_update_visibility();
 		} break;
 	}
@@ -127,6 +124,7 @@ uint32_t VisualInstance::get_layer_mask() const {
 }
 
 void VisualInstance::set_layer_mask_bit(int p_layer, bool p_enable) {
+
 	ERR_FAIL_INDEX(p_layer, 32);
 	if (p_enable) {
 		set_layer_mask(layers | (1 << p_layer));
@@ -136,8 +134,20 @@ void VisualInstance::set_layer_mask_bit(int p_layer, bool p_enable) {
 }
 
 bool VisualInstance::get_layer_mask_bit(int p_layer) const {
+
 	ERR_FAIL_INDEX_V(p_layer, 32, false);
 	return (layers & (1 << p_layer));
+}
+
+void VisualInstance::set_culling_portal_mode(VisualInstance::PortalMode p_mode) {
+
+	_portal_mode = p_mode;
+	VisualServer::get_singleton()->instance_set_portal_mode(instance, (VisualServer::InstancePortalMode)p_mode);
+}
+
+VisualInstance::PortalMode VisualInstance::get_culling_portal_mode() const {
+
+	return _portal_mode;
 }
 
 void VisualInstance::_bind_methods() {
@@ -150,10 +160,21 @@ void VisualInstance::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_layer_mask"), &VisualInstance::get_layer_mask);
 	ClassDB::bind_method(D_METHOD("set_layer_mask_bit", "layer", "enabled"), &VisualInstance::set_layer_mask_bit);
 	ClassDB::bind_method(D_METHOD("get_layer_mask_bit", "layer"), &VisualInstance::get_layer_mask_bit);
-
 	ClassDB::bind_method(D_METHOD("get_transformed_aabb"), &VisualInstance::get_transformed_aabb);
+	ClassDB::bind_method(D_METHOD("set_culling_portal_mode", "mode"), &VisualInstance::set_culling_portal_mode);
+	ClassDB::bind_method(D_METHOD("get_culling_portal_mode"), &VisualInstance::get_culling_portal_mode);
 
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "layers", PROPERTY_HINT_LAYERS_3D_RENDER), "set_layer_mask", "get_layer_mask");
+
+	ADD_GROUP("Culling", "culling_");
+
+	BIND_ENUM_CONSTANT(PORTAL_MODE_STATIC);
+	BIND_ENUM_CONSTANT(PORTAL_MODE_DYNAMIC);
+	BIND_ENUM_CONSTANT(PORTAL_MODE_ROAMING);
+	BIND_ENUM_CONSTANT(PORTAL_MODE_GLOBAL);
+	BIND_ENUM_CONSTANT(PORTAL_MODE_IGNORE);
+
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "culling_portal_mode", PROPERTY_HINT_ENUM, "Static,Dynamic,Roaming,Global,Ignore"), "set_culling_portal_mode", "get_culling_portal_mode");
 }
 
 void VisualInstance::set_base(const RID &p_base) {
@@ -173,6 +194,7 @@ VisualInstance::VisualInstance() {
 	VisualServer::get_singleton()->instance_attach_object_instance_id(instance, get_instance_id());
 	layers = 1;
 	set_notify_transform(true);
+	_portal_mode = PORTAL_MODE_STATIC;
 }
 
 VisualInstance::~VisualInstance() {
@@ -192,19 +214,23 @@ Ref<Material> GeometryInstance::get_material_override() const {
 }
 
 void GeometryInstance::set_generate_lightmap(bool p_enabled) {
+
 	generate_lightmap = p_enabled;
 }
 
 bool GeometryInstance::get_generate_lightmap() {
+
 	return generate_lightmap;
 }
 
 void GeometryInstance::set_lightmap_scale(LightmapScale p_scale) {
+
 	ERR_FAIL_INDEX(p_scale, LIGHTMAP_SCALE_MAX);
 	lightmap_scale = p_scale;
 }
 
 GeometryInstance::LightmapScale GeometryInstance::get_lightmap_scale() const {
+
 	return lightmap_scale;
 }
 
@@ -372,6 +398,7 @@ void GeometryInstance::_bind_methods() {
 }
 
 GeometryInstance::GeometryInstance() {
+
 	lod_min_distance = 0;
 	lod_max_distance = 0;
 	lod_min_hysteresis = 0;
