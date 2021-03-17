@@ -1454,14 +1454,17 @@ void RasterizerCanvasGLES3::render_joined_item(const BItemJoined &p_bij, RenderI
 	//	state.extra_matrix = Transform2D();
 
 	// using software transform?
-	// (i.e. don't send the transform matrix, send identity, and either use baked verts,
-	// or large fvf where the transform is done in the shader from transform stored in the fvf.)
-	if (!p_bij.use_hardware_transform()) {
+	// If there is more than 1 item, we must be either using software transform or large FVF
+	if (!p_bij.is_single_item()) {
 		state.final_transform = Transform2D();
+	} else {
+		state.final_transform = p_ci->final_transform;
+	}
+
+	if (!p_bij.use_hardware_transform()) {
 		// final_modulate will be baked per item ref so the final_modulate can be an identity color
 		state.canvas_item_modulate = Color(1, 1, 1, 1);
 	} else {
-		state.final_transform = p_ci->final_transform;
 		// could use the stored version of final_modulate in item ref? Test which is faster NYI
 		state.canvas_item_modulate = unshaded ? p_ci->final_modulate : (p_ci->final_modulate * r_ris.item_group_modulate);
 	}

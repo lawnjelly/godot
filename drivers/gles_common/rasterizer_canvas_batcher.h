@@ -228,6 +228,7 @@ public:
 		// we are always splitting items with lots of commands,
 		// and items with unhandled primitives (default)
 		bool use_hardware_transform() const { return (num_item_refs == 1) && !(flags & RasterizerStorageCommon::USE_LARGE_FVF); }
+		bool is_single_item() const { return (num_item_refs == 1); }
 	};
 
 	struct BItemRef {
