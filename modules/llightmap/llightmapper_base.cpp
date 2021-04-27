@@ -72,6 +72,8 @@ LightMapper_Base::LightMapper_Base() {
 	m_Settings_NoiseThreshold = 0.1f;
 	m_Settings_NoiseReduction = 1.0f;
 	m_Settings_SeamStitching = true;
+	m_Settings_SeamDistanceThreshold = 0.01f;
+	m_Settings_SeamNormalThreshold = 0.5f;
 }
 
 void LightMapper_Base::Base_Reset() {
@@ -478,7 +480,7 @@ void LightMapper_Base::StitchSeams() {
 	for (int n = 0; n < m_Scene.GetNumMeshes(); n++) {
 		MeshInstance *mi = m_Scene.GetMesh(n);
 
-		stitcher.StitchObjectSeams(*mi, m_Image_L);
+		stitcher.StitchObjectSeams(*mi, m_Image_L, m_Settings_SeamDistanceThreshold, m_Settings_SeamNormalThreshold);
 	}
 }
 
@@ -641,18 +643,12 @@ void LightMapper_Base::Merge_AndWriteOutputImage_Combined(Image &image) {
 	image.unlock();
 }
 
-void LightMapper_Base::WriteOutputImage_AO(Image &image, bool test_convolve) {
+void LightMapper_Base::WriteOutputImage_AO(Image &image) {
 	if (!m_Image_AO.GetNumPixels())
 		return;
 
 	Dilate<float> dilate;
 	dilate.DilateImage(m_Image_AO, m_Image_ID_p1, 256);
-
-	//	if (test_convolve)
-	//	{
-	//		Convolution<float> conv;
-	//		conv.Run(m_Image_AO, m_Settings_NoiseThreshold, m_Settings_NoiseReduction);
-	//	}
 
 	// final version
 	image.lock();
@@ -701,17 +697,6 @@ void LightMapper_Base::ShowWarning(String sz, bool bAlert) {
 void LightMapper_Base::WriteOutputImage_Lightmap(Image &image) {
 	Dilate<FColor> dilate;
 	dilate.DilateImage(m_Image_L, m_Image_ID_p1, 256);
-
-	// test
-	//	int test_size = 7;
-	//	LightImage<float> imf;
-	//	imf.Create(test_size, test_size);
-	//	LightImage<uint32_t> imi;
-	//	imi.Create(test_size, test_size);
-	//	imi.GetItem(3, 3) = 255;
-	//	dilate.DilateImage(imf, imi);
-
-	//	Normalize();
 
 	////
 	// write some debug

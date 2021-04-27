@@ -59,9 +59,9 @@ public:
 	int GetNumMeshes() const { return m_Meshes.size(); }
 	MeshInstance *GetMesh(int n) { return m_Meshes[n]; }
 
-private:
 	void FindMeshes(Spatial *pNode);
 
+private:
 	bool Create_FromMesh(int mesh_id, int width, int height);
 	bool Create_FromMeshSurface(int mesh_id, int surf_id, Ref<Mesh> rmesh, int width, int height);
 

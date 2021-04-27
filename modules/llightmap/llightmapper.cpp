@@ -310,7 +310,11 @@ bool LightMapper::LightmapMesh(Spatial *pMeshesRoot, const Spatial &light_root, 
 
 	} // if not just merging
 	else {
-		// merging, load the lightmap and ao from disk
+		// merging
+		// need the meshes list for seam stitching
+		m_Scene.FindMeshes(pMeshesRoot);
+
+		// load the lightmap and ao from disk
 		LoadLightmap(out_image_lightmap);
 		LoadAO(out_image_ao);
 	}

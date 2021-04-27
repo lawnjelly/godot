@@ -166,6 +166,12 @@ public:
 	void set_seam_stitching(bool active);
 	bool get_seam_stitching() const;
 
+	void set_seam_distance_threshold(float threshold);
+	float get_seam_distance_threshold() const;
+
+	void set_seam_normal_threshold(float threshold);
+	float get_seam_normal_threshold() const;
+
 private:
 	LM::LightMapper m_LM;
 

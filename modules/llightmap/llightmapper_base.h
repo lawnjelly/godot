@@ -93,7 +93,7 @@ protected:
 	void StitchSeams();
 
 	void WriteOutputImage_Lightmap(Image &image);
-	void WriteOutputImage_AO(Image &image, bool test_convolve = false);
+	void WriteOutputImage_AO(Image &image);
 
 	bool LoadLightmap(Image &image);
 	bool LoadAO(Image &image);
@@ -245,6 +245,9 @@ public:
 	float m_Settings_NoiseReduction;
 
 	bool m_Settings_SeamStitching;
+
+	float m_Settings_SeamDistanceThreshold;
+	float m_Settings_SeamNormalThreshold;
 
 	// some internal logic based on the bake state
 	bool m_Logic_Process_Lightmap;

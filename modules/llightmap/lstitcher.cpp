@@ -3,7 +3,11 @@
 
 using namespace LM;
 
-void Stitcher::StitchObjectSeams(const MeshInstance &p_mi, LightImage<FColor> &r_image) {
+void Stitcher::StitchObjectSeams(const MeshInstance &p_mi, LightImage<FColor> &r_image, float distance_threshold, float normal_threshold) {
+
+	m_fDistanceThreshold = distance_threshold;
+	m_fNormalThreshold = normal_threshold;
+
 	// seam optimizer wants unindexed lists of tri vertex positions and uvs.
 	// some godot jiggery pokery to get the mesh verts in local space
 	Ref<Mesh> rmesh = p_mi.get_mesh();
@@ -23,8 +27,6 @@ void Stitcher::StitchObjectSeams(const MeshInstance &p_mi, LightImage<FColor> &r
 		return;
 	if (!p_normals.size())
 		return;
-
-	//	print_line("seam stitching " + p_mi.get_name());
 
 	int num_inds = p_indices.size();
 
@@ -49,45 +51,34 @@ void Stitcher::StitchObjectSeams(const MeshInstance &p_mi, LightImage<FColor> &r
 
 	LocalVector<UVSeam> seams;
 
-	_compute_seams(verts, uvs, norms, lm_size, seams);
+	//	print_line("seam stitching " + p_mi.get_name());
+
+	bool debug = false;
+	//	if (p_mi.get_name() == "bush")
+	//		debug = true;
+
+	//	if (debug)
+	_compute_seams(verts, uvs, norms, lm_size, seams, debug);
+
+	if (!seams.size())
+		return;
+
+	print_line("seam stitching " + p_mi.get_name() + ", " + itos(seams.size()) + " seams.");
+	//	print_line("\t" + itos(seams.size()) + " seams.");
 
 	_fix_seams(seams, pImageData, lm_size);
-
-	/*
-	
-	// only optimize seams between triangles that are on the same plane
-	// (where dot(A.normal, B.normal) > cosNormalThreshold):
-	const float cosNormalThreshold = 0.99f;
-	
-	// how "important" the original color values are:
-	const float lambda = 0.1f;
-
-	
-	print_line("Searching for separate seams...\n");
-	so_seam_t *seams = so_seams_find(
-		(float*)&verts[0], (float*)&uvs[0], num_inds,
-		cosNormalThreshold,
-		pImageData, width, height, 3);
-	
-	
-	print_line("Optimizing seams...\n");
-	for (so_seam_t *seam = seams; seam; seam = so_seam_next(seam))
-	{
-		// NOTE: seams can also be optimized in parallel on separate threads!
-		if (!so_seam_optimize(seam, pImageData, width, height, 3, lambda))
-			print_line("Could not optimize a seam (Cholesky decomposition failed).\n");
-	}
-	
-	print_line("Done!\n");
-	so_seams_free(seams);	
-	*/
 }
 
-void Stitcher::_compute_seams(const Vector<Vector3> &points, const Vector<Vector2> &uv2s, const Vector<Vector3> &normals, Vector2i lm_size, LocalVector<UVSeam> &r_seams) {
+void Stitcher::_compute_seams(const Vector<Vector3> &points, const Vector<Vector2> &uv2s, const Vector<Vector3> &normals, Vector2i lm_size, LocalVector<UVSeam> &r_seams, bool p_debug) {
 	float max_uv_distance = 1.0f / MAX(lm_size.x, lm_size.y);
 	max_uv_distance *= max_uv_distance; // We use distance_to_squared(), so wee need to square the max distance as well
-	float max_pos_distance = 0.00025f;
-	float max_normal_distance = 0.05f;
+
+	//	float max_pos_distance = 0.00025f;
+	//	float max_normal_distance = 0.05f;
+
+	// the checks are against square distance
+	float max_pos_distance = m_fDistanceThreshold * m_fDistanceThreshold;
+	float max_normal_distance = m_fNormalThreshold * m_fNormalThreshold;
 
 	//	const Vector<Vector3> &points = p_mesh.data.points;
 	//	const Vector<Vector2> &uv2s = p_mesh.data.uv2;
@@ -125,30 +116,44 @@ void Stitcher::_compute_seams(const Vector<Vector3> &points, const Vector<Vector
 	for (unsigned int j = 0; j < edges.size(); j++) {
 		const SeamEdge &edge0 = edges[j];
 
-		if (edge0.uv[0].distance_squared_to(edge0.uv[1]) < 0.001) {
+		const float uv_epsilon = 0.001 * 0.001; // 0.001
+		const float pos_epsilon = 0.001 * 0.001; // 0.001
+
+		// get rid of zero area edges
+		if (edge0.uv[0].distance_squared_to(edge0.uv[1]) < uv_epsilon) {
 			continue;
 		}
 
-		if (edge0.pos[0].distance_squared_to(edge0.pos[1]) < 0.001) {
+		if (edge0.pos[0].distance_squared_to(edge0.pos[1]) < pos_epsilon) {
 			continue;
 		}
 
 		for (unsigned int k = j + 1; k < edges.size() && edges[k].pos[0].x < (edge0.pos[0].x + max_pos_distance * 1.1f); k++) {
 			const SeamEdge &edge1 = edges[k];
 
-			if (edge1.uv[0].distance_squared_to(edge1.uv[1]) < 0.001) {
+			// reject if the second edge is too small
+			if (edge1.uv[0].distance_squared_to(edge1.uv[1]) < uv_epsilon) {
 				continue;
 			}
 
-			if (edge1.pos[0].distance_squared_to(edge1.pos[1]) < 0.001) {
+			if (edge1.pos[0].distance_squared_to(edge1.pos[1]) < pos_epsilon) {
 				continue;
 			}
 
-			if (edge0.uv[0].distance_squared_to(edge1.uv[0]) < max_uv_distance && edge0.uv[1].distance_squared_to(edge1.uv[1]) < max_uv_distance) {
+			///////////////////////////////
+
+			float uv_dist_0 = edge0.uv[0].distance_squared_to(edge1.uv[0]);
+			float uv_dist_1 = edge0.uv[1].distance_squared_to(edge1.uv[1]);
+
+			// if the edges are not seams (i.e. internal)
+			if (uv_dist_0 < max_uv_distance && uv_dist_1 < max_uv_distance) {
 				continue;
 			}
 
-			if (edge0.pos[0].distance_squared_to(edge1.pos[0]) > max_pos_distance || edge0.pos[1].distance_squared_to(edge1.pos[1]) > max_pos_distance) {
+			// if the edge positions are too far in space to be connected
+			float dist_0 = edge0.pos[0].distance_squared_to(edge1.pos[0]);
+			float dist_1 = edge0.pos[1].distance_squared_to(edge1.pos[1]);
+			if (dist_0 > max_pos_distance || dist_1 > max_pos_distance) {
 				continue;
 			}
 
@@ -237,7 +242,12 @@ void Stitcher::_fix_seam(const Vector2 &p_pos0, const Vector2 &p_pos1, const Vec
 		Vector3 current_color = r_write_buffer[pixel.y * p_size.x + pixel.x];
 		Vector3 sampled_color = p_read_buffer[sampled_point.y * p_size.x + sampled_point.x];
 
+//#define SEAM_STITCH_DEBUG_MARK_SEAMS
+#ifdef SEAM_STITCH_DEBUG_MARK_SEAMS
+		r_write_buffer[pixel.y * p_size.x + pixel.x] = Vector3(1.0f, 0.0f, 0.0f);
+#else
 		r_write_buffer[pixel.y * p_size.x + pixel.x] = current_color * 0.6f + sampled_color * 0.4f;
+#endif
 
 		if (pixel == end_pixel) {
 			break;

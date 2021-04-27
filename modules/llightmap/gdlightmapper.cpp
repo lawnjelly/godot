@@ -129,6 +129,9 @@ void LLightmap::_bind_methods() {
 	LIMPL_PROPERTY_RANGE(Variant::REAL, noise_threshold, set_noise_threshold, get_noise_threshold, "0.0,1.0,0.01");
 	LIMPL_PROPERTY(Variant::BOOL, seam_stitching, set_seam_stitching, get_seam_stitching);
 
+	LIMPL_PROPERTY_RANGE(Variant::REAL, seam_distance_threshold, set_seam_distance_threshold, get_seam_distance_threshold, "0.0,1.0,0.001");
+	LIMPL_PROPERTY_RANGE(Variant::REAL, seam_normal_threshold, set_seam_normal_threshold, get_seam_normal_threshold, "0.0,2.0,0.001");
+
 #undef LIMPL_PROPERTY
 #undef LIMPL_PROPERTY_RANGE
 }
@@ -383,6 +386,22 @@ void LLightmap::set_seam_stitching(bool active) {
 
 bool LLightmap::get_seam_stitching() const {
 	return m_LM.m_Settings_SeamStitching;
+}
+
+void LLightmap::set_seam_distance_threshold(float threshold) {
+	m_LM.m_Settings_SeamDistanceThreshold = threshold;
+}
+
+float LLightmap::get_seam_distance_threshold() const {
+	return m_LM.m_Settings_SeamDistanceThreshold;
+}
+
+void LLightmap::set_seam_normal_threshold(float threshold) {
+	m_LM.m_Settings_SeamNormalThreshold = threshold;
+}
+
+float LLightmap::get_seam_normal_threshold() const {
+	return m_LM.m_Settings_SeamNormalThreshold;
 }
 
 //void LLightmap::set_probe_filename(const String &p_filename) {m_LM.m_Settings_ProbeFilename = p_filename;}
