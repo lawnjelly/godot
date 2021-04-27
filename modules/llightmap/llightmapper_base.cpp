@@ -4,6 +4,7 @@
 #include "lconvolution.h"
 #include "ldilate.h"
 #include "llightmapper.h"
+#include "lstitcher.h"
 #include "scene/3d/light.h"
 
 using namespace LM;
@@ -70,6 +71,7 @@ LightMapper_Base::LightMapper_Base() {
 
 	m_Settings_NoiseThreshold = 0.1f;
 	m_Settings_NoiseReduction = 1.0f;
+	m_Settings_SeamStitching = true;
 }
 
 void LightMapper_Base::Base_Reset() {
@@ -466,6 +468,20 @@ void LightMapper_Base::Normalize_AO() {
 	}
 }
 
+void LightMapper_Base::StitchSeams() {
+	if (!m_Settings_SeamStitching)
+		return;
+
+	Stitcher stitcher;
+
+	// stitch seams one mesh at a time
+	for (int n = 0; n < m_Scene.GetNumMeshes(); n++) {
+		MeshInstance *mi = m_Scene.GetMesh(n);
+
+		stitcher.StitchObjectSeams(*mi, m_Image_L);
+	}
+}
+
 void LightMapper_Base::ApplyNoiseReduction() {
 	Convolution<FColor> conv;
 	conv.Run(m_Image_L);
@@ -563,6 +579,8 @@ void LightMapper_Base::Merge_AndWriteOutputImage_Combined(Image &image) {
 	Normalize();
 
 	ApplyNoiseReduction();
+
+	StitchSeams();
 
 	// assuming both lightmap and AO are already dilated
 	// final version

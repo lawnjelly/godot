@@ -163,6 +163,9 @@ public:
 	void set_noise_threshold(float threshold);
 	float get_noise_threshold() const;
 
+	void set_seam_stitching(bool active);
+	bool get_seam_stitching() const;
+
 private:
 	LM::LightMapper m_LM;
 

@@ -124,9 +124,10 @@ void LLightmap::_bind_methods() {
 	ADD_GROUP("UV Unwrap", "");
 	LIMPL_PROPERTY_RANGE(Variant::INT, uv_padding, set_uv_padding, get_uv_padding, "0,256,1");
 
-	ADD_GROUP("Noise Reduction", "");
+	ADD_GROUP("Post Processing", "");
 	LIMPL_PROPERTY_RANGE(Variant::REAL, noise_reduction, set_noise_reduction, get_noise_reduction, "0.0,1.0,0.01");
 	LIMPL_PROPERTY_RANGE(Variant::REAL, noise_threshold, set_noise_threshold, get_noise_threshold, "0.0,1.0,0.01");
+	LIMPL_PROPERTY(Variant::BOOL, seam_stitching, set_seam_stitching, get_seam_stitching);
 
 #undef LIMPL_PROPERTY
 #undef LIMPL_PROPERTY_RANGE
@@ -374,6 +375,14 @@ void LLightmap::set_noise_threshold(float threshold) {
 }
 float LLightmap::get_noise_threshold() const {
 	return m_LM.m_Settings_NoiseThreshold;
+}
+
+void LLightmap::set_seam_stitching(bool active) {
+	m_LM.m_Settings_SeamStitching = active;
+}
+
+bool LLightmap::get_seam_stitching() const {
+	return m_LM.m_Settings_SeamStitching;
 }
 
 //void LLightmap::set_probe_filename(const String &p_filename) {m_LM.m_Settings_ProbeFilename = p_filename;}

@@ -90,6 +90,7 @@ protected:
 	void Normalize();
 	void Normalize_AO();
 	void ApplyNoiseReduction();
+	void StitchSeams();
 
 	void WriteOutputImage_Lightmap(Image &image);
 	void WriteOutputImage_AO(Image &image, bool test_convolve = false);
@@ -242,6 +243,8 @@ public:
 
 	float m_Settings_NoiseThreshold;
 	float m_Settings_NoiseReduction;
+
+	bool m_Settings_SeamStitching;
 
 	// some internal logic based on the bake state
 	bool m_Logic_Process_Lightmap;

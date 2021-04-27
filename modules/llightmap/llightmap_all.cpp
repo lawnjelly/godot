@@ -16,5 +16,6 @@
 #include "lqmc.cpp"
 #include "lraybank.cpp"
 #include "lscene_saver.cpp"
+#include "lstitcher.cpp"
 #include "lunmerger.cpp"
 #include "register_types.cpp"
