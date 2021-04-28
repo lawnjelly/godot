@@ -626,6 +626,8 @@ bool LightScene::Create_FromMeshSurface(int mesh_id, int surf_id, Ref<Mesh> rmes
 		bEmit = m_Materials.GetMaterial(lmat_id - 1).m_bEmitter;
 	}
 
+	int num_bad_normals = 0;
+
 	int i = 0;
 	for (int n = 0; n < nTris; n++) {
 		// adjusted n
@@ -671,6 +673,15 @@ bool LightScene::Create_FromMeshSurface(int mesh_id, int surf_id, Ref<Mesh> rmes
 		// plane - calculate normal BEFORE changing winding into UV space
 		// because the normal is determined by the winding in world space
 		tri_plane = Plane(t.pos[0], t.pos[1], t.pos[2], CLOCKWISE);
+
+		// sanity check for bad normals
+		Vector3 average_normal = (tri_norm.pos[0] + tri_norm.pos[1] + tri_norm.pos[2]) * (1.0f / 3.0f);
+		if (average_normal.dot(tri_plane.normal) < 0.0f) {
+			num_bad_normals++;
+
+			// flip the face normal
+			tri_plane = -tri_plane;
+		}
 
 		// calculate edge form
 		{
@@ -728,6 +739,10 @@ bool LightScene::Create_FromMeshSurface(int mesh_id, int surf_id, Ref<Mesh> rmes
 		rect.expand(Vector2(0.01, 0.01));
 
 		CalculateTriTexelSize(an, width, height);
+	}
+
+	if (num_bad_normals) {
+		print_line("mesh " + itos(mesh_id) + " contains " + itos(num_bad_normals) + " bad normals (face normal and vertex normals are opposite)");
 	}
 
 	return true;
