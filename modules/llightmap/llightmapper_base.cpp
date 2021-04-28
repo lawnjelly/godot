@@ -72,8 +72,11 @@ LightMapper_Base::LightMapper_Base() {
 	m_Settings_NoiseThreshold = 0.1f;
 	m_Settings_NoiseReduction = 1.0f;
 	m_Settings_SeamStitching = true;
-	m_Settings_SeamDistanceThreshold = 0.01f;
-	m_Settings_SeamNormalThreshold = 0.5f;
+	m_Settings_SeamDistanceThreshold = 0.001f;
+	m_Settings_SeamNormalThreshold = 45.0f;
+
+	m_Settings_VisualizeSeams = false;
+	m_Settings_Dilate = true;
 }
 
 void LightMapper_Base::Base_Reset() {
@@ -480,7 +483,7 @@ void LightMapper_Base::StitchSeams() {
 	for (int n = 0; n < m_Scene.GetNumMeshes(); n++) {
 		MeshInstance *mi = m_Scene.GetMesh(n);
 
-		stitcher.StitchObjectSeams(*mi, m_Image_L, m_Settings_SeamDistanceThreshold, m_Settings_SeamNormalThreshold);
+		stitcher.StitchObjectSeams(*mi, m_Image_L, m_Settings_SeamDistanceThreshold, m_Settings_SeamNormalThreshold, m_Settings_VisualizeSeams);
 	}
 }
 
@@ -647,8 +650,10 @@ void LightMapper_Base::WriteOutputImage_AO(Image &image) {
 	if (!m_Image_AO.GetNumPixels())
 		return;
 
-	Dilate<float> dilate;
-	dilate.DilateImage(m_Image_AO, m_Image_ID_p1, 256);
+	if (m_Settings_Dilate) {
+		Dilate<float> dilate;
+		dilate.DilateImage(m_Image_AO, m_Image_ID_p1, 256);
+	}
 
 	// final version
 	image.lock();
@@ -695,8 +700,11 @@ void LightMapper_Base::ShowWarning(String sz, bool bAlert) {
 }
 
 void LightMapper_Base::WriteOutputImage_Lightmap(Image &image) {
-	Dilate<FColor> dilate;
-	dilate.DilateImage(m_Image_L, m_Image_ID_p1, 256);
+
+	if (m_Settings_Dilate) {
+		Dilate<FColor> dilate;
+		dilate.DilateImage(m_Image_L, m_Image_ID_p1, 256);
+	}
 
 	////
 	// write some debug

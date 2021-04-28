@@ -116,6 +116,16 @@ void LLightmap::_bind_methods() {
 	LIMPL_PROPERTY_RANGE(Variant::REAL, ao_light_ratio, set_light_ao_ratio, get_light_ao_ratio, "0.0,1.0,0.01");
 	LIMPL_PROPERTY_RANGE(Variant::REAL, gamma, set_gamma, get_gamma, "0.01,10.0,0.01");
 
+	ADD_GROUP("Post Processing", "");
+	LIMPL_PROPERTY(Variant::BOOL, dilate, set_dilate, get_dilate);
+	LIMPL_PROPERTY_RANGE(Variant::REAL, noise_reduction, set_noise_reduction, get_noise_reduction, "0.0,1.0,0.01");
+	LIMPL_PROPERTY_RANGE(Variant::REAL, noise_threshold, set_noise_threshold, get_noise_threshold, "0.0,1.0,0.01");
+	LIMPL_PROPERTY(Variant::BOOL, seam_stitching, set_seam_stitching, get_seam_stitching);
+	LIMPL_PROPERTY(Variant::BOOL, visualize_seams, set_visualize_seams, get_visualize_seams);
+
+	LIMPL_PROPERTY_RANGE(Variant::REAL, seam_distance_threshold, set_seam_distance_threshold, get_seam_distance_threshold, "0.0,0.01,0.0001");
+	LIMPL_PROPERTY_RANGE(Variant::REAL, seam_normal_threshold, set_seam_normal_threshold, get_seam_normal_threshold, "0.0,180.0,1.0");
+
 	ADD_GROUP("Light Probes", "");
 	LIMPL_PROPERTY_RANGE(Variant::INT, probe_density, set_probe_density, get_probe_density, "1,512,1");
 	LIMPL_PROPERTY_RANGE(Variant::INT, probe_samples, set_probe_samples, get_probe_samples, "512,4096*8,512");
@@ -123,14 +133,6 @@ void LLightmap::_bind_methods() {
 
 	ADD_GROUP("UV Unwrap", "");
 	LIMPL_PROPERTY_RANGE(Variant::INT, uv_padding, set_uv_padding, get_uv_padding, "0,256,1");
-
-	ADD_GROUP("Post Processing", "");
-	LIMPL_PROPERTY_RANGE(Variant::REAL, noise_reduction, set_noise_reduction, get_noise_reduction, "0.0,1.0,0.01");
-	LIMPL_PROPERTY_RANGE(Variant::REAL, noise_threshold, set_noise_threshold, get_noise_threshold, "0.0,1.0,0.01");
-	LIMPL_PROPERTY(Variant::BOOL, seam_stitching, set_seam_stitching, get_seam_stitching);
-
-	LIMPL_PROPERTY_RANGE(Variant::REAL, seam_distance_threshold, set_seam_distance_threshold, get_seam_distance_threshold, "0.0,1.0,0.001");
-	LIMPL_PROPERTY_RANGE(Variant::REAL, seam_normal_threshold, set_seam_normal_threshold, get_seam_normal_threshold, "0.0,2.0,0.001");
 
 #undef LIMPL_PROPERTY
 #undef LIMPL_PROPERTY_RANGE
@@ -402,6 +404,22 @@ void LLightmap::set_seam_normal_threshold(float threshold) {
 
 float LLightmap::get_seam_normal_threshold() const {
 	return m_LM.m_Settings_SeamNormalThreshold;
+}
+
+void LLightmap::set_visualize_seams(bool active) {
+	m_LM.m_Settings_VisualizeSeams = active;
+}
+
+bool LLightmap::get_visualize_seams() const {
+	return m_LM.m_Settings_VisualizeSeams;
+}
+
+void LLightmap::set_dilate(bool active) {
+	m_LM.m_Settings_Dilate = active;
+}
+
+bool LLightmap::get_dilate() const {
+	return m_LM.m_Settings_Dilate;
 }
 
 //void LLightmap::set_probe_filename(const String &p_filename) {m_LM.m_Settings_ProbeFilename = p_filename;}

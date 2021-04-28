@@ -172,6 +172,12 @@ public:
 	void set_seam_normal_threshold(float threshold);
 	float get_seam_normal_threshold() const;
 
+	void set_visualize_seams(bool active);
+	bool get_visualize_seams() const;
+
+	void set_dilate(bool active);
+	bool get_dilate() const;
+
 private:
 	LM::LightMapper m_LM;
 

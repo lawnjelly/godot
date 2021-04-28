@@ -249,6 +249,9 @@ public:
 	float m_Settings_SeamDistanceThreshold;
 	float m_Settings_SeamNormalThreshold;
 
+	bool m_Settings_VisualizeSeams;
+	bool m_Settings_Dilate;
+
 	// some internal logic based on the bake state
 	bool m_Logic_Process_Lightmap;
 	bool m_Logic_Process_AO;
