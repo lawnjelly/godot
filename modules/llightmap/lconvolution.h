@@ -82,6 +82,7 @@ public:
 
 	void ZeroPixel(float &f) { f = 0.0f; }
 	void ZeroPixel(FColor &c) { c.Set(0.0f); }
+	//	void ZeroPixel(Color &c) { c = Color(0.0f, 0.0f, 0.0f, 1.0f);}
 
 	void AdjustCentre(float &centre, float average) {
 		float diff = average - centre;
@@ -102,6 +103,21 @@ public:
 			centre += average;
 		}
 	}
+
+	//	void AdjustCentre(Color &centre, Color average) {
+	//		Color diff = average;
+	//		diff -= centre;
+
+	//		if ((fabsf(diff.r) < m_fTolerance) &&
+	//				(fabsf(diff.g) < m_fTolerance) &&
+	//				(fabsf(diff.b) < m_fTolerance)) {
+	//			centre *= 1.0f - m_fAmount;
+	//			average *= m_fAmount;
+	//			centre += average;
+	//		}
+
+	//		centre.a = 1.0f;
+	//	}
 
 	void ConvolvePixel(int x, int top, int mid, int bot) {
 		T total;

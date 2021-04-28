@@ -489,10 +489,10 @@ void LightMapper_Base::StitchSeams() {
 
 void LightMapper_Base::ApplyNoiseReduction() {
 	Convolution<FColor> conv;
-	conv.Run(m_Image_L);
+	conv.Run(m_Image_L, m_Settings_NoiseThreshold, m_Settings_NoiseReduction);
 
-	Convolution<float> conv_ao;
-	conv_ao.Run(m_Image_AO);
+	//	Convolution<float> conv_ao;
+	//	conv_ao.Run(m_Image_AO, m_Settings_NoiseThreshold, m_Settings_NoiseReduction);
 }
 
 void LightMapper_Base::Normalize() {
@@ -583,6 +583,63 @@ void LightMapper_Base::Merge_AndWriteOutputImage_Combined(Image &image) {
 	// normalize lightmap on combine
 	Normalize();
 
+	// merge them both before applying noise reduction and seams
+	float gamma = 1.0f / m_Settings_Gamma;
+
+	for (int y = 0; y < m_iHeight; y++) {
+		for (int x = 0; x < m_iWidth; x++) {
+			float ao = 0.0f;
+
+			if (m_Image_AO.GetNumPixels())
+				ao = m_Image_AO.GetItem(x, y);
+
+			FColor lum = m_Image_L.GetItem(x, y);
+
+			// combined
+			FColor f;
+			switch (m_Settings_BakeMode) {
+				case LMBAKEMODE_LIGHTMAP: {
+					f = lum;
+				} break;
+				case LMBAKEMODE_AO: {
+					f.Set(ao);
+				} break;
+				default: {
+					FColor mid = lum * ao;
+
+					if (m_Settings_Light_AO_Ratio < 0.5f) {
+						float r = m_Settings_Light_AO_Ratio / 0.5f;
+						f.Set((1.0f - r) * ao);
+						f += mid * r;
+					} else {
+						float r = (m_Settings_Light_AO_Ratio - 0.5f) / 0.5f;
+						f = mid * (1.0f - r);
+						f += lum * r;
+					}
+				} break;
+			}
+
+			// gamma correction
+			if (!m_Settings_CombinedIsHDR) {
+				f.r = powf(f.r, gamma);
+				f.g = powf(f.g, gamma);
+				f.b = powf(f.b, gamma);
+			}
+
+			/*
+			Color col;
+			col = Color(f.r, f.g, f.b, 1);
+
+			// new... RGBM .. use a multiplier in the alpha to get increased dynamic range!
+			//ColorToRGBM(col);
+
+			image.set_pixel(x, y, col);
+			*/
+			// write back to L
+			*m_Image_L.Get(x, y) = f;
+		}
+	}
+
 	ApplyNoiseReduction();
 
 	StitchSeams();
@@ -591,6 +648,22 @@ void LightMapper_Base::Merge_AndWriteOutputImage_Combined(Image &image) {
 	// final version
 	image.lock();
 
+	for (int y = 0; y < m_iHeight; y++) {
+		for (int x = 0; x < m_iWidth; x++) {
+
+			FColor f = m_Image_L.GetItem(x, y);
+
+			Color col;
+			col = Color(f.r, f.g, f.b, 1);
+
+			// new... RGBM .. use a multiplier in the alpha to get increased dynamic range!
+			//ColorToRGBM(col);
+
+			image.set_pixel(x, y, col);
+		}
+	}
+
+	/*	
 	float gamma = 1.0f / m_Settings_Gamma;
 
 	for (int y = 0; y < m_iHeight; y++) {
@@ -642,6 +715,7 @@ void LightMapper_Base::Merge_AndWriteOutputImage_Combined(Image &image) {
 			image.set_pixel(x, y, col);
 		}
 	}
+	*/
 
 	image.unlock();
 }
