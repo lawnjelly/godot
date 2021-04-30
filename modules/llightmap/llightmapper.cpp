@@ -600,7 +600,8 @@ void LightMapper::DoAmbientBounces() {
 	}
 
 	for (int b = 0; b < m_AdjustedSettings.m_NumAmbientBounces; b++) {
-		ProcessTexels_AmbientBounce(section_size, num_sections);
+		if (!m_bCancel)
+			ProcessTexels_AmbientBounce(section_size, num_sections);
 	}
 
 	if (bake_end_function) {
