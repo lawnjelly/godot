@@ -778,8 +778,10 @@ void LightMapper::BF_ProcessTexel_Light(const Color &orig_albedo, int light_id, 
 		float light_dist = light_vec.length();
 
 		// cull by dist test
-		//		if (light_dist > 5.0f)
-		//			return;
+		if (m_Settings_MaxLightDist) {
+			if ((int)light_dist > m_Settings_MaxLightDist)
+				return;
+		}
 
 		float radius = MAX(light.scale.x, light.scale.y);
 		radius = MAX(radius, light.scale.z);
