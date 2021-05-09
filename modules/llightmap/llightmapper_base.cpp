@@ -67,7 +67,7 @@ LightMapper_Base::LightMapper_Base() {
 	m_Logic_Process_Probes = true;
 	m_Logic_Output_Final = true;
 
-	m_Settings_UVPadding = 2;
+	m_Settings_UVPadding = 3; // 2
 
 	m_Settings_ProbeDensity = 64;
 	m_Settings_ProbeSamples = 4096;
@@ -653,7 +653,6 @@ void LightMapper_Base::Merge_AndWriteOutputImage_Combined(Image &image) {
 
 	for (int y = 0; y < m_iHeight; y++) {
 		for (int x = 0; x < m_iWidth; x++) {
-
 			FColor f = m_Image_L.GetItem(x, y);
 
 			Color col;
@@ -777,7 +776,6 @@ void LightMapper_Base::ShowWarning(String sz, bool bAlert) {
 }
 
 void LightMapper_Base::WriteOutputImage_Lightmap(Image &image) {
-
 	if (m_Settings_Dilate) {
 		Dilate<FColor> dilate;
 		dilate.DilateImage(m_Image_L, m_Image_ID_p1, 256);
