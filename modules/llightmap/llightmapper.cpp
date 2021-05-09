@@ -730,6 +730,40 @@ bool LightMapper::Light_RandomSample(const LLight &light, const Vector3 &ptSurf,
 	return true;
 }
 
+void LightMapper::BF_ProcessTexel_Sky(const Color &orig_albedo, const Vector3 &ptSource, const Vector3 &orig_face_normal, const Vector3 &orig_vertex_normal, FColor &color, int nSamples) {
+	color.Set(0.0);
+
+	if (!m_Sky.is_active())
+		return;
+
+	Ray r;
+
+	for (int s = 0; s < nSamples; s++) {
+		r.o = ptSource;
+
+		Vector3 offset;
+		RandomUnitDir(offset);
+
+		//		offset += (light.dir * -2.0f);
+		//		r.d = offset.normalized();
+		r.d = offset;
+
+		// disallow zero length (should be rare)
+		//		if (r.d.length_squared() < 0.00001f)
+		//			continue;
+
+		// don't allow from opposite direction
+		if (r.d.dot(orig_face_normal) < 0.0f)
+			r.d = -r.d;
+
+		// ray test
+		if (!m_Scene.TestIntersect_Ray(r, FLT_MAX)) {
+			m_Sky.read_sky(r.d, color);
+		}
+
+	} // for s
+}
+
 // trace from the poly TO the light, not the other way round, to avoid precision errors
 void LightMapper::BF_ProcessTexel_Light(const Color &orig_albedo, int light_id, const Vector3 &ptSource, const Vector3 &orig_face_normal, const Vector3 &orig_vertex_normal, FColor &color, int nSamples) //, uint32_t tri_ignore)
 {
@@ -1490,6 +1524,10 @@ void LightMapper::BF_ProcessTexel(int tx, int ty) {
 		BF_ProcessTexel_Light(albedo, l, pos, plane_normal, normal, temp, nSamples);
 		texel_add += temp;
 	}
+
+	// sky (if present)
+	BF_ProcessTexel_Sky(albedo, pos, plane_normal, normal, temp, nSamples);
+	texel_add += temp;
 
 	// add emission
 	//	Color emission_tex_color;
