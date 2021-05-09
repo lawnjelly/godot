@@ -5,6 +5,7 @@
 #include "ldilate.h"
 #include "llightmapper.h"
 #include "lstitcher.h"
+#include "modules/denoise/denoise_wrapper.h"
 #include "scene/3d/light.h"
 
 using namespace LM;
@@ -74,6 +75,7 @@ LightMapper_Base::LightMapper_Base() {
 
 	m_Settings_NoiseThreshold = 0.1f;
 	m_Settings_NoiseReduction = 1.0f;
+	m_Settings_NoiseReductionMethod = NR_ADVANCED;
 	m_Settings_SeamStitching = true;
 	m_Settings_SeamDistanceThreshold = 0.001f;
 	m_Settings_SeamNormalThreshold = 45.0f;
@@ -491,11 +493,28 @@ void LightMapper_Base::StitchSeams() {
 }
 
 void LightMapper_Base::ApplyNoiseReduction() {
-	Convolution<FColor> conv;
-	conv.Run(m_Image_L, m_Settings_NoiseThreshold, m_Settings_NoiseReduction);
+	switch (m_Settings_NoiseReductionMethod) {
+		case NR_DISABLE: {
+		} break;
+		case NR_SIMPLE: {
+			// simple
+			Convolution<FColor> conv;
+			conv.Run(m_Image_L, m_Settings_NoiseThreshold, m_Settings_NoiseReduction);
 
-	//	Convolution<float> conv_ao;
-	//	conv_ao.Run(m_Image_AO, m_Settings_NoiseThreshold, m_Settings_NoiseReduction);
+			//	Convolution<float> conv_ao;
+			//	conv_ao.Run(m_Image_AO, m_Settings_NoiseThreshold, m_Settings_NoiseReduction);
+		} break;
+		case NR_ADVANCED: {
+			// use open image denoise
+			void *device = oidn_denoiser_init();
+
+			if (!oidn_denoise(device, (float *)m_Image_L.Get(0), m_Image_L.GetWidth(), m_Image_L.GetHeight())) {
+				WARN_PRINT("open image denoise error");
+			}
+
+			oidn_denoiser_finish(device);
+		} break;
+	}
 }
 
 void LightMapper_Base::Normalize() {
