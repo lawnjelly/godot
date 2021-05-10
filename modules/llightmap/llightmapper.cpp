@@ -535,6 +535,9 @@ void LightMapper::ProcessTexels() {
 
 	m_iNumTests = 0;
 
+	// load sky
+	m_Sky.load_sky(m_Settings_Sky_Filename, m_Settings_Sky_BlurAmount, m_Settings_Sky_Size);
+
 	// prevent multithread
 	//num_sections = 0;
 
@@ -580,6 +583,8 @@ void LightMapper::ProcessTexels() {
 
 	//	m_iNumTests /= (m_iHeight * m_iWidth);
 	print_line("num tests : " + itos(m_iNumTests));
+
+	m_Sky.unload_sky();
 
 	if (bake_end_function) {
 		bake_end_function();
@@ -730,13 +735,18 @@ bool LightMapper::Light_RandomSample(const LLight &light, const Vector3 &ptSurf,
 	return true;
 }
 
-void LightMapper::BF_ProcessTexel_Sky(const Color &orig_albedo, const Vector3 &ptSource, const Vector3 &orig_face_normal, const Vector3 &orig_vertex_normal, FColor &color, int nSamples) {
+void LightMapper::BF_ProcessTexel_Sky(const Color &orig_albedo, const Vector3 &ptSource, const Vector3 &orig_face_normal, const Vector3 &orig_vertex_normal, FColor &color) {
 	color.Set(0.0);
 
 	if (!m_Sky.is_active())
 		return;
 
 	Ray r;
+
+	// we need more samples for sky, than for a normal light
+	//nSamples *= 4;
+
+	int nSamples = m_AdjustedSettings.m_Sky_Samples;
 
 	for (int s = 0; s < nSamples; s++) {
 		r.o = ptSource;
@@ -1526,7 +1536,7 @@ void LightMapper::BF_ProcessTexel(int tx, int ty) {
 	}
 
 	// sky (if present)
-	BF_ProcessTexel_Sky(albedo, pos, plane_normal, normal, temp, nSamples);
+	BF_ProcessTexel_Sky(albedo, pos, plane_normal, normal, temp);
 	texel_add += temp;
 
 	// add emission

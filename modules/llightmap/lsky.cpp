@@ -2,11 +2,27 @@
 
 using namespace LM;
 
-LSky::LSky() {
+bool LSky::load_sky(String p_filename, float p_blur, int p_tex_size) {
+	if (p_filename == "") {
+		_active = false;
+		return false;
+	}
+
 	Ref<Image> im;
 	im.instance();
-	im->load("res://Sky/snowy_field/snowy_field.exr");
+	if (im->load(p_filename) != OK) {
+		_active = false;
+		WARN_PRINT("ERROR loading " + p_filename + ", ignoring sky.");
+		return false;
+	}
 
+	// shrink
+	p_tex_size *= p_tex_size;
+	while ((im->get_width() * im->get_height()) > p_tex_size) {
+		im->shrink_x2();
+	}
+
+	// convert to our image format
 	int w = im->get_width();
 	int h = im->get_height();
 
@@ -22,9 +38,175 @@ LSky::LSky() {
 	}
 
 	im->unlock();
+
+	// just using the x dimension here, we could use longest axis etc...
+	_blur_pixels = p_blur * w;
+
+	// blur
+	_blur();
+
+	_active = true;
+
+	return true;
 }
 
-void LSky::backward_trace_sky(const Vector3 &ptSource, const Vector3 &orig_face_normal, const Vector3 &orig_vertex_normal, FColor &color) {
+void LSky::unload_sky() {
+	_texture.Reset();
+	_active = false;
+}
+
+void LSky::_blur_horz(FColor *p_scan, const float *p_curve, int p_num_scan, LightImage<FColor> &p_output, int p_y) {
+	int w = _texture.GetWidth();
+
+	// horizontal
+	// prime
+	int count = 0;
+	FColor average;
+	average.Set(0.0);
+
+	for (int x = -(_blur_pixels); x < _blur_pixels; x++) {
+		p_scan[count] = _blur_read_x(x, p_y);
+
+		// average the whole scan except the last
+		average += p_scan[count];
+		count++;
+	}
+	p_scan[p_num_scan - 1].Set(0.0);
+
+	// next write
+	int scan_pointer = p_num_scan - 1;
+
+	for (int x = 0; x < w; x++) {
+		// remove one from scan
+		average -= p_scan[scan_pointer];
+
+		// add one to scan
+		p_scan[scan_pointer] = _blur_read_x(x + _blur_pixels, p_y);
+		average += p_scan[scan_pointer];
+
+		// move on scan pointer
+		scan_pointer++;
+		scan_pointer %= p_num_scan; // wraparound
+
+		// write output
+		//p_output.GetItem(x, p_y) = average / p_num_scan;
+		p_output.GetItem(x, p_y) = _gaussian_blur(p_scan, p_num_scan, scan_pointer, p_curve);
+	}
+}
+
+void LSky::_blur_vert(FColor *p_scan, const float *p_curve, int p_num_scan, LightImage<FColor> &p_output, int p_x) {
+	int h = _texture.GetHeight();
+
+	// horizontal
+	// prime
+	int count = 0;
+	FColor average;
+	average.Set(0.0);
+
+	for (int y = -(_blur_pixels); y < _blur_pixels; y++) {
+		p_scan[count] = _blur_read_y(p_x, y);
+
+		// average the whole scan except the last
+		average += p_scan[count];
+		count++;
+	}
+	p_scan[p_num_scan - 1].Set(0.0);
+
+	// next write
+	int scan_pointer = p_num_scan - 1;
+
+	for (int y = 0; y < h; y++) {
+		// remove one from scan
+		average -= p_scan[scan_pointer];
+
+		// add one to scan
+		p_scan[scan_pointer] = _blur_read_y(p_x, y + _blur_pixels);
+		average += p_scan[scan_pointer];
+
+		// move on scan pointer
+		scan_pointer++;
+		scan_pointer %= p_num_scan; // wraparound
+
+		// write output
+		//		p_output.GetItem(p_x, y) = average / p_num_scan;
+		p_output.GetItem(p_x, y) = _gaussian_blur(p_scan, p_num_scan, scan_pointer, p_curve);
+	}
+}
+
+void LSky::_blur() {
+	int w = _texture.GetWidth();
+	int h = _texture.GetHeight();
+
+	LightImage<FColor> output;
+	output.Create(w, h);
+
+	int num_scan = (_blur_pixels * 2) + 1;
+
+	FColor *scan = (FColor *)alloca(num_scan * sizeof(FColor));
+	float *curve = (float *)alloca(num_scan * sizeof(float));
+
+	_create_curve(curve, num_scan);
+
+	for (int y = 0; y < h; y++) {
+		_blur_horz(scan, curve, num_scan, output, y);
+	}
+
+	// copy the intermediate output to the texture
+	output.CopyTo(_texture);
+
+	for (int x = 0; x < w; x++) {
+		_blur_vert(scan, curve, num_scan, output, x);
+	}
+
+	// copy the intermediate output to the texture
+	output.CopyTo(_texture);
+
+	// debug save
+	_debug_save();
+}
+
+void LSky::_create_curve(float *p_curve, int p_num_scan) {
+	int centre = p_num_scan / 2;
+	int range = centre;
+
+	float standard_deviation = range * 0.15f;
+
+	float total = 0.0f;
+
+	for (int n = 0; n < p_num_scan; n++) {
+		// use gaussian function
+		float val = _normal_pdf(n, centre, standard_deviation);
+		p_curve[n] = val;
+		total += val;
+	}
+
+	// normalize curve
+	for (int n = 0; n < p_num_scan; n++) {
+		p_curve[n] /= total;
+	}
+}
+
+void LSky::_debug_save() {
+	int w = _texture.GetWidth();
+	int h = _texture.GetHeight();
+
+	Ref<Image> im;
+	im.instance();
+
+	im->create(w, h, false, Image::FORMAT_RGBF);
+
+	im->lock();
+
+	for (int y = 0; y < h; y++) {
+		for (int x = 0; x < w; x++) {
+			const FColor &c = _texture.GetItem(x, y);
+			im->set_pixel(x, y, Color(c.r, c.g, c.b, 1.0));
+		}
+	}
+
+	im->unlock();
+
+	im->save_exr("blurred.exr", false);
 }
 
 void LSky::read_sky(const Vector3 &ptDir, FColor &color) {
