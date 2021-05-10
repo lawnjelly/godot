@@ -1,0 +1,367 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="FastArray_4f32" inherits="Reference" version="3.4">
+	<brief_description>
+	</brief_description>
+	<description>
+	</description>
+	<tutorials>
+	</tutorials>
+	<methods>
+		<method name="add">
+			<return type="void">
+			</return>
+			<argument index="0" name="array2" type="FastArray_4f32">
+			</argument>
+			<argument index="1" name="from" type="int">
+			</argument>
+			<argument index="2" name="from2" type="int">
+			</argument>
+			<argument index="3" name="num" type="int">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="copy_from">
+			<return type="void">
+			</return>
+			<argument index="0" name="array2" type="FastArray_4f32">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="copy_from_poolvector3array">
+			<return type="void">
+			</return>
+			<argument index="0" name="array" type="PoolVector3Array">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="divide">
+			<return type="void">
+			</return>
+			<argument index="0" name="array2" type="FastArray_4f32">
+			</argument>
+			<argument index="1" name="from" type="int">
+			</argument>
+			<argument index="2" name="from2" type="int">
+			</argument>
+			<argument index="3" name="num" type="int">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="fill">
+			<return type="void">
+			</return>
+			<argument index="0" name="value" type="Quat">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="get_cpu_caps">
+			<return type="String">
+			</return>
+			<argument index="0" name="spacer" type="String">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="get_cpu_name">
+			<return type="String">
+			</return>
+			<description>
+			</description>
+		</method>
+		<method name="get_poolrealarray_result" qualifiers="const">
+			<return type="PoolRealArray">
+			</return>
+			<description>
+			</description>
+		</method>
+		<method name="get_poolvector3array" qualifiers="const">
+			<return type="PoolVector3Array">
+			</return>
+			<description>
+			</description>
+		</method>
+		<method name="multiply">
+			<return type="void">
+			</return>
+			<argument index="0" name="array2" type="FastArray_4f32">
+			</argument>
+			<argument index="1" name="from" type="int">
+			</argument>
+			<argument index="2" name="from2" type="int">
+			</argument>
+			<argument index="3" name="num" type="int">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="read" qualifiers="const">
+			<return type="Quat">
+			</return>
+			<argument index="0" name="element" type="int">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="reciprocal">
+			<return type="void">
+			</return>
+			<argument index="0" name="from" type="int">
+			</argument>
+			<argument index="1" name="num" type="int">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="reserve">
+			<return type="void">
+			</return>
+			<argument index="0" name="size" type="int">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="resize">
+			<return type="void">
+			</return>
+			<argument index="0" name="size" type="int">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="size" qualifiers="const">
+			<return type="int">
+			</return>
+			<description>
+			</description>
+		</method>
+		<method name="sqrt">
+			<return type="void">
+			</return>
+			<argument index="0" name="from" type="int">
+			</argument>
+			<argument index="1" name="num" type="int">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="sqrt_inv">
+			<return type="void">
+			</return>
+			<argument index="0" name="from" type="int">
+			</argument>
+			<argument index="1" name="num" type="int">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="subtract">
+			<return type="void">
+			</return>
+			<argument index="0" name="array2" type="FastArray_4f32">
+			</argument>
+			<argument index="1" name="from" type="int">
+			</argument>
+			<argument index="2" name="from2" type="int">
+			</argument>
+			<argument index="3" name="num" type="int">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="test">
+			<return type="void">
+			</return>
+			<argument index="0" name="from" type="int">
+			</argument>
+			<argument index="1" name="num" type="int">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="value_add">
+			<return type="void">
+			</return>
+			<argument index="0" name="value" type="Quat">
+			</argument>
+			<argument index="1" name="from" type="int">
+			</argument>
+			<argument index="2" name="num" type="int">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="value_divide">
+			<return type="void">
+			</return>
+			<argument index="0" name="value" type="Quat">
+			</argument>
+			<argument index="1" name="from" type="int">
+			</argument>
+			<argument index="2" name="num" type="int">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="value_multiply">
+			<return type="void">
+			</return>
+			<argument index="0" name="value" type="Quat">
+			</argument>
+			<argument index="1" name="from" type="int">
+			</argument>
+			<argument index="2" name="num" type="int">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="value_subtract">
+			<return type="void">
+			</return>
+			<argument index="0" name="value" type="Quat">
+			</argument>
+			<argument index="1" name="from" type="int">
+			</argument>
+			<argument index="2" name="num" type="int">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="vec3_cross">
+			<return type="void">
+			</return>
+			<argument index="0" name="array2" type="FastArray_4f32">
+			</argument>
+			<argument index="1" name="from" type="int">
+			</argument>
+			<argument index="2" name="from2" type="int">
+			</argument>
+			<argument index="3" name="num" type="int">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="vec3_dot">
+			<return type="void">
+			</return>
+			<argument index="0" name="array2" type="FastArray_4f32">
+			</argument>
+			<argument index="1" name="from" type="int">
+			</argument>
+			<argument index="2" name="from2" type="int">
+			</argument>
+			<argument index="3" name="num" type="int">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="vec3_length">
+			<return type="void">
+			</return>
+			<argument index="0" name="from" type="int">
+			</argument>
+			<argument index="1" name="num" type="int">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="vec3_length_squared">
+			<return type="void">
+			</return>
+			<argument index="0" name="from" type="int">
+			</argument>
+			<argument index="1" name="num" type="int">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="vec3_normalize">
+			<return type="void">
+			</return>
+			<argument index="0" name="from" type="int">
+			</argument>
+			<argument index="1" name="num" type="int">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="vec3_read" qualifiers="const">
+			<return type="Vector3">
+			</return>
+			<argument index="0" name="element" type="int">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="vec3_unit_cross">
+			<return type="void">
+			</return>
+			<argument index="0" name="array2" type="FastArray_4f32">
+			</argument>
+			<argument index="1" name="from" type="int">
+			</argument>
+			<argument index="2" name="from2" type="int">
+			</argument>
+			<argument index="3" name="num" type="int">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="vec3_write">
+			<return type="void">
+			</return>
+			<argument index="0" name="element" type="int">
+			</argument>
+			<argument index="1" name="value" type="Vector3">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="vec3_xform">
+			<return type="void">
+			</return>
+			<argument index="0" name="transform" type="Transform">
+			</argument>
+			<argument index="1" name="from" type="int">
+			</argument>
+			<argument index="2" name="num" type="int">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="vec3_xform_inv">
+			<return type="void">
+			</return>
+			<argument index="0" name="transform" type="Transform">
+			</argument>
+			<argument index="1" name="from" type="int">
+			</argument>
+			<argument index="2" name="num" type="int">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="write">
+			<return type="void">
+			</return>
+			<argument index="0" name="element" type="int">
+			</argument>
+			<argument index="1" name="value" type="Quat">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="zero">
+			<return type="void">
+			</return>
+			<description>
+			</description>
+		</method>
+	</methods>
+	<constants>
+	</constants>
+</class>

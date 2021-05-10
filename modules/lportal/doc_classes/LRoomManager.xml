@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="LRoomManager" inherits="Spatial" version="3.4">
+	<brief_description>
+	</brief_description>
+	<description>
+	</description>
+	<tutorials>
+	</tutorials>
+	<methods>
+	</methods>
+	<members>
+		<member name="rooms" type="NodePath" setter="set_rooms_path" getter="get_rooms_path" default="NodePath(&quot;&quot;)">
+		</member>
+	</members>
+	<constants>
+	</constants>
+</class>

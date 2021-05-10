@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="FastArray_4i32" inherits="Reference" version="3.4">
+	<brief_description>
+	</brief_description>
+	<description>
+	</description>
+	<tutorials>
+	</tutorials>
+	<methods>
+		<method name="add">
+			<return type="void">
+			</return>
+			<argument index="0" name="array2" type="FastArray_4i32">
+			</argument>
+			<argument index="1" name="from" type="int">
+			</argument>
+			<argument index="2" name="from2" type="int">
+			</argument>
+			<argument index="3" name="num" type="int">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="divide">
+			<return type="void">
+			</return>
+			<argument index="0" name="array2" type="FastArray_4i32">
+			</argument>
+			<argument index="1" name="from" type="int">
+			</argument>
+			<argument index="2" name="from2" type="int">
+			</argument>
+			<argument index="3" name="num" type="int">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="fill">
+			<return type="void">
+			</return>
+			<argument index="0" name="value" type="Vec4_i32">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="multiply">
+			<return type="void">
+			</return>
+			<argument index="0" name="array2" type="FastArray_4i32">
+			</argument>
+			<argument index="1" name="from" type="int">
+			</argument>
+			<argument index="2" name="from2" type="int">
+			</argument>
+			<argument index="3" name="num" type="int">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="read" qualifiers="const">
+			<return type="Vec4_i32">
+			</return>
+			<argument index="0" name="element" type="int">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="reserve">
+			<return type="void">
+			</return>
+			<argument index="0" name="size" type="int">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="resize">
+			<return type="void">
+			</return>
+			<argument index="0" name="size" type="int">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="size" qualifiers="const">
+			<return type="int">
+			</return>
+			<description>
+			</description>
+		</method>
+		<method name="subtract">
+			<return type="void">
+			</return>
+			<argument index="0" name="array2" type="FastArray_4i32">
+			</argument>
+			<argument index="1" name="from" type="int">
+			</argument>
+			<argument index="2" name="from2" type="int">
+			</argument>
+			<argument index="3" name="num" type="int">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="value_add">
+			<return type="void">
+			</return>
+			<argument index="0" name="value" type="Vec4_i32">
+			</argument>
+			<argument index="1" name="from" type="int">
+			</argument>
+			<argument index="2" name="num" type="int">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="value_divide">
+			<return type="void">
+			</return>
+			<argument index="0" name="value" type="Vec4_i32">
+			</argument>
+			<argument index="1" name="from" type="int">
+			</argument>
+			<argument index="2" name="num" type="int">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="value_multiply">
+			<return type="void">
+			</return>
+			<argument index="0" name="value" type="Vec4_i32">
+			</argument>
+			<argument index="1" name="from" type="int">
+			</argument>
+			<argument index="2" name="num" type="int">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="value_subtract">
+			<return type="void">
+			</return>
+			<argument index="0" name="value" type="Vec4_i32">
+			</argument>
+			<argument index="1" name="from" type="int">
+			</argument>
+			<argument index="2" name="num" type="int">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="vec3_length">
+			<return type="void">
+			</return>
+			<argument index="0" name="from" type="int">
+			</argument>
+			<argument index="1" name="num" type="int">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="write">
+			<return type="void">
+			</return>
+			<argument index="0" name="element" type="int">
+			</argument>
+			<argument index="1" name="Vec4_i32" type="Vec4_i32">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="zero">
+			<return type="void">
+			</return>
+			<description>
+			</description>
+		</method>
+	</methods>
+	<constants>
+	</constants>
+</class>

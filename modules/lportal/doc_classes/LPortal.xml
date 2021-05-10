@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="LPortal" inherits="MeshInstance" version="3.4">
+	<brief_description>
+	</brief_description>
+	<description>
+	</description>
+	<tutorials>
+	</tutorials>
+	<methods>
+	</methods>
+	<members>
+		<member name="linked_room" type="NodePath" setter="set_linked_room" getter="get_linked_room" default="NodePath(&quot;&quot;)">
+		</member>
+		<member name="portal_active" type="bool" setter="set_portal_active" getter="get_portal_active" default="true">
+		</member>
+	</members>
+	<constants>
+	</constants>
+</class>

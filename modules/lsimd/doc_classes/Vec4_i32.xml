@@ -1,0 +1,227 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="Vec4_i32" inherits="Reference" version="3.4">
+	<brief_description>
+	</brief_description>
+	<description>
+	</description>
+	<tutorials>
+	</tutorials>
+	<methods>
+		<method name="add">
+			<return type="void">
+			</return>
+			<argument index="0" name="value" type="Vec4_i32">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="copy_from">
+			<return type="void">
+			</return>
+			<argument index="0" name="value" type="Vec4_i32">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="divide">
+			<return type="void">
+			</return>
+			<argument index="0" name="value" type="Vec4_i32">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="dot" qualifiers="const">
+			<return type="int">
+			</return>
+			<argument index="0" name="value" type="Vec4_i32">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="equals" qualifiers="const">
+			<return type="bool">
+			</return>
+			<argument index="0" name="value" type="Vec4_i32">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="get_tuple" qualifiers="const">
+			<return type="int">
+			</return>
+			<argument index="0" name="tuple" type="int">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="get_vec3" qualifiers="const">
+			<return type="Vector3">
+			</return>
+			<description>
+			</description>
+		</method>
+		<method name="multiply">
+			<return type="void">
+			</return>
+			<argument index="0" name="value" type="Vec4_i32">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="set_tuple">
+			<return type="void">
+			</return>
+			<argument index="0" name="tuple" type="int">
+			</argument>
+			<argument index="1" name="value" type="int">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="set_vec3_round">
+			<return type="void">
+			</return>
+			<argument index="0" name="xyz" type="Vector3">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="set_w">
+			<return type="void">
+			</return>
+			<argument index="0" name="value" type="int">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="set_x">
+			<return type="void">
+			</return>
+			<argument index="0" name="value" type="int">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="set_xyz">
+			<return type="void">
+			</return>
+			<argument index="0" name="x" type="int">
+			</argument>
+			<argument index="1" name="y" type="int">
+			</argument>
+			<argument index="2" name="z" type="int">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="set_xyzw">
+			<return type="void">
+			</return>
+			<argument index="0" name="x" type="int">
+			</argument>
+			<argument index="1" name="y" type="int">
+			</argument>
+			<argument index="2" name="z" type="int">
+			</argument>
+			<argument index="3" name="w" type="int">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="set_y">
+			<return type="void">
+			</return>
+			<argument index="0" name="value" type="int">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="set_z">
+			<return type="void">
+			</return>
+			<argument index="0" name="value" type="int">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="subtract">
+			<return type="void">
+			</return>
+			<argument index="0" name="value" type="Vec4_i32">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="vec3_cross">
+			<return type="void">
+			</return>
+			<argument index="0" name="value" type="Vec4_i32">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="vec3_dot" qualifiers="const">
+			<return type="int">
+			</return>
+			<argument index="0" name="value" type="Vec4_i32">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="vec3_equals" qualifiers="const">
+			<return type="bool">
+			</return>
+			<argument index="0" name="value" type="Vec4_i32">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="vec3_length" qualifiers="const">
+			<return type="float">
+			</return>
+			<description>
+			</description>
+		</method>
+		<method name="vec3_length_squared" qualifiers="const">
+			<return type="int">
+			</return>
+			<description>
+			</description>
+		</method>
+		<method name="vec3_normalize_to_scale">
+			<return type="float">
+			</return>
+			<argument index="0" name="scale" type="float">
+			</argument>
+			<description>
+			</description>
+		</method>
+		<method name="w" qualifiers="const">
+			<return type="int">
+			</return>
+			<description>
+			</description>
+		</method>
+		<method name="x" qualifiers="const">
+			<return type="int">
+			</return>
+			<description>
+			</description>
+		</method>
+		<method name="y" qualifiers="const">
+			<return type="int">
+			</return>
+			<description>
+			</description>
+		</method>
+		<method name="z" qualifiers="const">
+			<return type="int">
+			</return>
+			<description>
+			</description>
+		</method>
+	</methods>
+	<constants>
+	</constants>
+</class>
