@@ -1,5 +1,5 @@
 /*************************************************************************/
-/*  room.cpp                                                             */
+/*  cull_instance.h                                                      */
 /*************************************************************************/
 /*                       This file is part of:                           */
 /*                           GODOT ENGINE                                */
@@ -28,55 +28,34 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
 
-#include "room.h"
-#include "portal.h"
-#include "servers/visual_server.h"
+#ifndef CULL_INSTANCE_H
+#define CULL_INSTANCE_H
 
-void Room::clear() {
-	_room_ID = -1;
-	_planes.clear();
-	_roomgroups.clear();
-	_bound_mesh_data.edges.clear();
-	_bound_mesh_data.faces.clear();
-	_bound_mesh_data.vertices.clear();
-	_aabb = AABB();
-}
+#include "scene/3d/spatial.h"
 
-Room::Room() {
-	_room_rid = VisualServer::get_singleton()->room_create();
-}
+class CullInstance : public Spatial {
+	GDCLASS(CullInstance, Spatial);
 
-Room::~Room() {
-	if (_room_rid != RID()) {
-		VisualServer::get_singleton()->free(_room_rid);
-	}
-}
+public:
+	enum PortalMode {
+		PORTAL_MODE_STATIC, // not moving within a room
+		PORTAL_MODE_DYNAMIC, //  moving within room
+		PORTAL_MODE_ROAMING, // moving between rooms
+		PORTAL_MODE_GLOBAL, // frustum culled only
+		PORTAL_MODE_IGNORE, // don't show at all - e.g. manual bounds, hidden portals
+	};
 
-void Room::set_show_debug(bool p_show) {
-	for (int n = 0; n < get_child_count(); n++) {
-		Portal *child = Object::cast_to<Portal>(get_child(n));
+	void set_portal_mode(CullInstance::PortalMode p_mode);
+	CullInstance::PortalMode get_portal_mode() const;
+	CullInstance();
 
-		if (child) {
-			child->set_visible(p_show);
+protected:
+	virtual void _refresh_portal_mode() = 0;
 
-			// as well as just making them visible / invisible we have to make this work if portal rendering is active
-			if (p_show) {
-				child->set_portal_mode(VisualInstance::PortalMode::PORTAL_MODE_GLOBAL);
-			} else {
-				child->set_portal_mode(VisualInstance::PortalMode::PORTAL_MODE_IGNORE);
-			}
-		}
-	}
-}
+	static void _bind_methods();
 
-void Room::_notification(int p_what) {
-	switch (p_what) {
-		case NOTIFICATION_ENTER_WORLD: {
-			ERR_FAIL_COND(get_world().is_null());
-			VisualServer::get_singleton()->room_set_scenario(_room_rid, get_world()->get_scenario());
-		} break;
-		case NOTIFICATION_EXIT_WORLD: {
-			VisualServer::get_singleton()->room_set_scenario(_room_rid, RID());
-		} break;
-	}
-}
+private:
+	PortalMode _portal_mode;
+};
+
+#endif

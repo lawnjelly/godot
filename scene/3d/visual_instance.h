@@ -33,11 +33,11 @@
 
 #include "core/math/face3.h"
 #include "core/rid.h"
-#include "scene/3d/spatial.h"
+#include "scene/3d/cull_instance.h"
 #include "scene/resources/material.h"
 
-class VisualInstance : public Spatial {
-	GDCLASS(VisualInstance, Spatial);
+class VisualInstance : public CullInstance {
+	GDCLASS(VisualInstance, CullInstance);
 	OBJ_CATEGORY("3D Visual Nodes");
 
 	RID base;
@@ -48,6 +48,7 @@ class VisualInstance : public Spatial {
 
 protected:
 	void _update_visibility();
+	virtual void _refresh_portal_mode();
 
 	void _notification(int p_what);
 	static void _bind_methods();
@@ -57,14 +58,6 @@ public:
 		FACES_SOLID = 1, // solid geometry
 		FACES_ENCLOSING = 2,
 		FACES_DYNAMIC = 4 // dynamic object geometry
-	};
-
-	enum PortalMode {
-		PORTAL_MODE_STATIC, // not moving within a room
-		PORTAL_MODE_DYNAMIC, //  moving within room
-		PORTAL_MODE_ROAMING, // moving between rooms
-		PORTAL_MODE_GLOBAL, // frustum culled only
-		PORTAL_MODE_IGNORE, // don't show at all - e.g. manual bounds, hidden portals
 	};
 
 	RID get_instance() const;
@@ -82,14 +75,8 @@ public:
 	void set_layer_mask_bit(int p_layer, bool p_enable);
 	bool get_layer_mask_bit(int p_layer) const;
 
-	void set_culling_portal_mode(VisualInstance::PortalMode p_mode);
-	VisualInstance::PortalMode get_culling_portal_mode() const;
-
 	VisualInstance();
 	~VisualInstance();
-
-private:
-	PortalMode _portal_mode;
 };
 
 class GeometryInstance : public VisualInstance {

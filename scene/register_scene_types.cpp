@@ -401,6 +401,7 @@ void register_scene_types() {
 
 #ifndef _3D_DISABLED
 	ClassDB::register_virtual_class<VisualInstance>();
+	ClassDB::register_virtual_class<CullInstance>();
 	ClassDB::register_virtual_class<GeometryInstance>();
 	ClassDB::register_class<Camera>();
 	ClassDB::register_class<ClippedCamera>();

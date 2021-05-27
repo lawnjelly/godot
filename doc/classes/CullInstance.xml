@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="CullInstance" inherits="Spatial" version="3.4">
+	<brief_description>
+		Parent of all nodes that can be culled by the Portal system.
+	</brief_description>
+	<description>
+		Provides common functionality to nodes that can be culled by the Portal system.
+		Static and Dynamic objects are the most efficiently managed objects in the room system, but there are some caveats. They are expected to be present initially when rooms are converted using the [RoomManager], and their lifetime should be the same as the game level. Although you shouldn't create / delete these objects during gameplay, you can manage their visibility with [code]hide[/code] / [code]show[/code].
+		Roaming objects add extra processing to keep track of which room they are within. This enables them to be culled effectively wherever they are.
+		Global objects are not culled by the portal system.
+	</description>
+	<tutorials>
+	</tutorials>
+	<methods>
+	</methods>
+	<members>
+		<member name="portal_mode" type="int" setter="set_portal_mode" getter="get_portal_mode" enum="CullInstance.PortalMode">
+			When using rooms and portals, you can specify how the [CullInstance] operates when the portal culling is active.
+		</member>
+	</members>
+	<constants>
+		<constant name="PORTAL_MODE_STATIC" value="0" enum="PortalMode">
+			Use for instances within rooms that will not move - e.g. walls, floors.
+			Note that if you delete a [code]PORTAL_MODE_STATIC[/code] instance while the room graph is loaded (converted), it will unload the room graph and deactivate portal culling. You will need to run reconvert the rooms using the [RoomManager].
+		</constant>
+		<constant name="PORTAL_MODE_DYNAMIC" value="1" enum="PortalMode">
+			Use for instances within rooms that will move but not change room - e.g. moving platforms.
+			Note that if you delete a [code]PORTAL_MODE_DYNAMIC[/code] instance while the room graph is loaded (converted), it will unload the room graph and deactivate portal culling. You will need to run reconvert the rooms using the [RoomManager].
+		</constant>
+		<constant name="PORTAL_MODE_ROAMING" value="2" enum="PortalMode">
+			Use for instances that will move between rooms - e.g. players.
+		</constant>
+		<constant name="PORTAL_MODE_GLOBAL" value="3" enum="PortalMode">
+			Use for instances that will be frustum culled only - e.g. first person weapon, debug.
+		</constant>
+		<constant name="PORTAL_MODE_IGNORE" value="4" enum="PortalMode">
+			Use for instances that will not be shown at all - e.g. room bounds.
+		</constant>
+	</constants>
+</class>

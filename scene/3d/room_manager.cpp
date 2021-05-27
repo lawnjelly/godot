@@ -606,12 +606,12 @@ void RoomManager::_find_statics_recursive(Room *p_room, Spatial *p_node, Vector<
 
 	// we are only interested in VIs with static or dynamic mode
 	if (vi) {
-		switch (vi->get_culling_portal_mode()) {
+		switch (vi->get_portal_mode()) {
 			default: {
 				ignore = true;
 			} break;
-			case VisualInstance::PORTAL_MODE_DYNAMIC:
-			case VisualInstance::PORTAL_MODE_STATIC:
+			case CullInstance::PORTAL_MODE_DYNAMIC:
+			case CullInstance::PORTAL_MODE_STATIC:
 				break;
 		}
 	}
@@ -665,7 +665,7 @@ bool RoomManager::_convert_manual_bound(Room *p_room, Spatial *p_node) {
 		return false;
 	}
 
-	mi->set_culling_portal_mode(VisualInstance::PORTAL_MODE_IGNORE);
+	mi->set_portal_mode(CullInstance::PORTAL_MODE_IGNORE);
 
 	// hide bounds after conversion
 	// set to portal mode ignore?
@@ -1058,11 +1058,11 @@ void RoomManager::_merge_meshes_in_room(Room *p_room) {
 			if (merged->create_by_merging(merge_list)) {
 				// set all the source meshes to portal mode ignore so not shown
 				for (int i = 0; i < merge_list.size(); i++) {
-					merge_list[i]->set_culling_portal_mode(VisualInstance::PORTAL_MODE_IGNORE);
+					merge_list[i]->set_portal_mode(CullInstance::PORTAL_MODE_IGNORE);
 				}
 
 				// and set the new merged mesh to static
-				merged->set_culling_portal_mode(VisualInstance::PORTAL_MODE_STATIC);
+				merged->set_portal_mode(CullInstance::PORTAL_MODE_STATIC);
 
 				// attach to scene tree
 				p_room->add_child(merged);
@@ -1156,7 +1156,7 @@ void RoomManager::_list_mergeable_mesh_instances(Spatial *p_node, LocalVector<Me
 		VisualInstance *vi = Object::cast_to<VisualInstance>(mi);
 
 		// we are only interested in VIs with static or dynamic mode
-		if (vi && vi->get_culling_portal_mode() == VisualInstance::PORTAL_MODE_STATIC) {
+		if (vi && vi->get_portal_mode() == CullInstance::PORTAL_MODE_STATIC) {
 			// disallow for portals or bounds
 			if (!_node_is_type<Portal>(mi) && !_name_starts_with(mi, "Bound_")) {
 				// only merge if visible
