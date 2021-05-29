@@ -543,6 +543,44 @@ private:
 	void _instance_destroy_occlusion_rep(Instance *p_instance);
 
 public:
+	struct Ghost : RID_Data {
+		// all interations with actual cull instances are indirect, as the cull instance is part of the scenario
+		//uint32_t scenario_ghost_id = 0;
+		Scenario *scenario = nullptr;
+		uint32_t object_id = 0;
+		RGhostHandle rghost_handle = 0; // handle of cull instance in occlusion system (or 0)
+		//		OcclusionHandle occlusion_handle = 0; // handle if it is a static or dynamic (or 0)
+		AABB aabb;
+		VisualServer::InstancePortalMode portal_mode = VisualServer::InstancePortalMode::INSTANCE_PORTAL_MODE_STATIC;
+		virtual ~Ghost() {
+			if (scenario) {
+				if (rghost_handle) {
+					scenario->_portal_renderer.rghost_destroy(rghost_handle);
+					rghost_handle = 0;
+				}
+				scenario = nullptr;
+			}
+		}
+	};
+	RID_Owner<Ghost> ghost_owner;
+
+	virtual RID ghost_create();
+	virtual void ghost_set_scenario(RID p_ghost, RID p_scenario, ObjectID p_id, const AABB &p_aabb);
+	//virtual void ghost_set_portal_mode(RID p_ghost, VisualServer::InstancePortalMode p_mode);
+	virtual void ghost_update(RID p_ghost, const AABB &p_aabb);
+
+	//	ObjectID _ghost_get_object_ID(VSGhost *p_instance) const {
+	//		if (p_instance) {
+	//			return ((Ghost *)p_instance)->object_id;
+	//		}
+	//		return 0;
+	//	}
+
+private:
+	void _ghost_create_occlusion_rep(Ghost *p_ghost);
+	void _ghost_destroy_occlusion_rep(Ghost *p_ghost);
+
+public:
 	struct Portal : RID_Data {
 		// all interations with actual portals are indirect, as the portal is part of the scenario
 		uint32_t scenario_portal_id = 0;
@@ -601,6 +639,7 @@ public:
 	virtual RID room_create();
 	virtual void room_set_scenario(RID p_room, RID p_scenario);
 	virtual void room_add_instance(RID p_room, RID p_instance, const AABB &p_aabb, const Vector<Vector3> &p_object_pts);
+	virtual void room_add_ghost(RID p_room, ObjectID p_object_id, const AABB &p_aabb);
 	virtual void room_set_bound(RID p_room, ObjectID p_room_object_id, const Vector<Plane> &p_convex, const AABB &p_aabb);
 	virtual void rooms_and_portals_clear(RID p_scenario);
 	virtual void rooms_unload(RID p_scenario);

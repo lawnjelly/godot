@@ -867,6 +867,10 @@ public:
 
 	virtual void instance_set_portal_mode(RID p_instance, InstancePortalMode p_mode) = 0;
 
+	virtual RID ghost_create() = 0;
+	virtual void ghost_set_scenario(RID p_ghost, RID p_scenario, ObjectID p_id, const AABB &p_aabb) = 0;
+	virtual void ghost_update(RID p_ghost, const AABB &p_aabb) = 0;
+
 	virtual RID portal_create() = 0;
 	virtual void portal_set_scenario(RID p_portal, RID p_scenario) = 0;
 	virtual void portal_set_geometry(RID p_portal, const Vector<Vector3> &p_points, float p_margin) = 0;
@@ -887,6 +891,7 @@ public:
 	virtual RID room_create() = 0;
 	virtual void room_set_scenario(RID p_room, RID p_scenario) = 0;
 	virtual void room_add_instance(RID p_room, RID p_instance, const AABB &p_aabb, const Vector<Vector3> &p_object_pts) = 0;
+	virtual void room_add_ghost(RID p_room, ObjectID p_object_id, const AABB &p_aabb) = 0;
 	virtual void room_set_bound(RID p_room, ObjectID p_room_object_id, const Vector<Plane> &p_convex, const AABB &p_aabb) = 0;
 	virtual void rooms_and_portals_clear(RID p_scenario) = 0;
 	virtual void rooms_unload(RID p_scenario) = 0;

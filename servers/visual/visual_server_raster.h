@@ -561,6 +561,10 @@ public:
 	// Portals
 	BIND2(instance_set_portal_mode, RID, InstancePortalMode)
 
+	BIND0R(RID, ghost_create)
+	BIND4(ghost_set_scenario, RID, RID, ObjectID, const AABB &)
+	BIND2(ghost_update, RID, const AABB &)
+
 	BIND0R(RID, portal_create)
 	BIND2(portal_set_scenario, RID, RID)
 	BIND3(portal_set_geometry, RID, const Vector<Vector3> &, float)
@@ -577,6 +581,7 @@ public:
 	BIND0R(RID, room_create)
 	BIND2(room_set_scenario, RID, RID)
 	BIND4(room_add_instance, RID, RID, const AABB &, const Vector<Vector3> &)
+	BIND3(room_add_ghost, RID, ObjectID, const AABB &)
 	BIND4(room_set_bound, RID, ObjectID, const Vector<Plane> &, const AABB &)
 	BIND1(rooms_and_portals_clear, RID)
 	BIND1(rooms_unload, RID)

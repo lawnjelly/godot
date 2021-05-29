@@ -1028,6 +1028,97 @@ void VisualServerScene::portal_set_active(RID p_portal, bool p_active) {
 	portal->scenario->_portal_renderer.portal_set_active(portal->scenario_portal_id, p_active);
 }
 
+RID VisualServerScene::ghost_create() {
+	Ghost *ci = memnew(Ghost);
+	ERR_FAIL_COND_V(!ci, RID());
+	RID ci_rid = ghost_owner.make_rid(ci);
+	return ci_rid;
+}
+
+void VisualServerScene::ghost_set_scenario(RID p_ghost, RID p_scenario, ObjectID p_id, const AABB &p_aabb) {
+	Ghost *ci = ghost_owner.getornull(p_ghost);
+	ERR_FAIL_COND(!ci);
+
+	ci->aabb = p_aabb;
+	ci->object_id = p_id;
+
+	Scenario *scenario = scenario_owner.getornull(p_scenario);
+
+	// noop?
+	if (ci->scenario == scenario) {
+		return;
+	}
+
+	// if the portal is in a scenario already, remove it
+	if (ci->scenario) {
+		_ghost_destroy_occlusion_rep(ci);
+		ci->scenario = nullptr;
+	}
+
+	// create when entering the world
+	if (scenario) {
+		ci->scenario = scenario;
+
+		// defer the actual creation to here
+		_ghost_create_occlusion_rep(ci);
+	}
+}
+
+void VisualServerScene::ghost_update(RID p_ghost, const AABB &p_aabb) {
+	Ghost *ci = ghost_owner.getornull(p_ghost);
+	ERR_FAIL_COND(!ci);
+	ERR_FAIL_COND(!ci->scenario);
+
+	ci->aabb = p_aabb;
+
+	if (ci->rghost_handle) {
+		ci->scenario->_portal_renderer.rghost_update(ci->rghost_handle, p_aabb);
+	}
+}
+
+//void VisualServerScene::ghost_set_portal_mode(RID p_ghost, VisualServer::InstancePortalMode p_mode) {
+//	Ghost *ci = ghost_owner.getornull(p_ghost);
+//	ERR_FAIL_COND(!ci);
+
+//	// no change?
+//	if (ci->portal_mode == p_mode) {
+//		return;
+//	}
+
+//	_ghost_destroy_occlusion_rep(ci);
+//	ci->portal_mode = p_mode;
+//	_ghost_create_occlusion_rep(ci);
+//}
+
+void VisualServerScene::_ghost_create_occlusion_rep(Ghost *p_ghost) {
+	ERR_FAIL_COND(!p_ghost);
+	ERR_FAIL_COND(!p_ghost->scenario);
+
+	//	switch (p_ghost->portal_mode) {
+	//		default: {
+	//			p_ghost->rghost_handle = 0;
+	//		} break;
+	//		case VisualServer::InstancePortalMode::INSTANCE_PORTAL_MODE_ROAMING: {
+	if (!p_ghost->rghost_handle) {
+		p_ghost->rghost_handle = p_ghost->scenario->_portal_renderer.rghost_create(p_ghost->object_id, p_ghost->aabb);
+	}
+	//		} break;
+	//	}
+}
+
+void VisualServerScene::_ghost_destroy_occlusion_rep(Ghost *p_ghost) {
+	ERR_FAIL_COND(!p_ghost);
+	ERR_FAIL_COND(!p_ghost->scenario);
+
+	// not an error, can occur
+	if (!p_ghost->rghost_handle) {
+		return;
+	}
+
+	p_ghost->scenario->_portal_renderer.rghost_destroy(p_ghost->rghost_handle);
+	p_ghost->rghost_handle = 0;
+}
+
 RID VisualServerScene::roomgroup_create() {
 	RoomGroup *rg = memnew(RoomGroup);
 	ERR_FAIL_COND_V(!rg, RID());
@@ -1120,6 +1211,32 @@ void VisualServerScene::room_set_scenario(RID p_room, RID p_scenario) {
 		// defer the actual creation to here
 		room->scenario_room_id = scenario->_portal_renderer.room_create();
 	}
+}
+
+void VisualServerScene::room_add_ghost(RID p_room, ObjectID p_object_id, const AABB &p_aabb) {
+	Room *room = room_owner.getornull(p_room);
+	ERR_FAIL_COND(!room);
+	ERR_FAIL_COND(!room->scenario);
+
+	//	Ghost *ci = ghost_owner.getornull(p_ghost);
+	//	ERR_FAIL_COND(!ci);
+
+	//	bool dynamic = false;
+
+	//	// don't add if portal mode is not static or dynamic
+	//	switch (ci->portal_mode) {
+	//		default: {
+	//			return; // this should be taken care of by the calling function, but just in case
+	//		} break;
+	//		case VisualServer::InstancePortalMode::INSTANCE_PORTAL_MODE_DYNAMIC: {
+	//			dynamic = true;
+	//		} break;
+	//		case VisualServer::InstancePortalMode::INSTANCE_PORTAL_MODE_STATIC: {
+	//			dynamic = false;
+	//		} break;
+	//	}
+
+	room->scenario->_portal_renderer.room_add_ghost(room->scenario_room_id, p_object_id, p_aabb);
 }
 
 void VisualServerScene::room_add_instance(RID p_room, RID p_instance, const AABB &p_aabb, const Vector<Vector3> &p_object_pts) {
@@ -3878,6 +3995,10 @@ bool VisualServerScene::free(RID p_rid) {
 		Portal *portal = portal_owner.get(p_rid);
 		portal_owner.free(p_rid);
 		memdelete(portal);
+	} else if (ghost_owner.owns(p_rid)) {
+		Ghost *ghost = ghost_owner.get(p_rid);
+		ghost_owner.free(p_rid);
+		memdelete(ghost);
 	} else if (roomgroup_owner.owns(p_rid)) {
 		RoomGroup *roomgroup = roomgroup_owner.get(p_rid);
 		roomgroup_owner.free(p_rid);

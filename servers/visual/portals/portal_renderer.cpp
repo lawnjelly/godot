@@ -97,8 +97,23 @@ void PortalRenderer::instance_moving_update(OcclusionHandle p_handle, const AABB
 	moving.room_id = new_room;
 	if (new_room != -1) {
 		_bitfield_rooms.blank();
-		sprawl_roaming(p_handle, moving, new_room);
+		sprawl_roaming(p_handle, moving, new_room, true);
 	}
+}
+
+void PortalRenderer::_ghost_moving_remove_from_rooms(uint32_t p_pool_id) {
+	RGhost &moving = _rghost_pool[p_pool_id];
+
+	// if we have unloaded the rooms and we try this, it will crash
+	if (_loaded) {
+		for (int n = 0; n < moving._rooms.size(); n++) {
+			VSRoom &room = get_room(moving._rooms[n]);
+			room.remove_ghost_roamer(p_pool_id);
+		}
+	}
+
+	// moving is now in no rooms
+	moving._rooms.clear();
 }
 
 void PortalRenderer::_moving_remove_from_rooms(uint32_t p_moving_pool_id) {
@@ -351,6 +366,70 @@ void PortalRenderer::roomgroup_add_room(RoomGroupHandle p_roomgroup, RoomHandle 
 	room._roomgroup_ids.push_back(p_roomgroup);
 }
 
+// Cull Instances
+RGhostHandle PortalRenderer::rghost_create(ObjectID p_object_id, const AABB &p_aabb) {
+	uint32_t pool_id = 0;
+	RGhost *moving = _rghost_pool.request(pool_id);
+	moving->pool_id = pool_id;
+	moving->object_id = p_object_id;
+	moving->room_id = -1;
+
+	RGhostHandle handle = pool_id + 1;
+	rghost_update(handle, p_aabb);
+	return handle;
+}
+
+void PortalRenderer::rghost_update(RGhostHandle p_handle, const AABB &p_aabb, bool p_force_reinsert) {
+	if (!_loaded) {
+		return;
+	}
+
+	// we can ignore these, they are statics / dynamics, and don't need updating
+	// .. these should have been filtered out before calling the visual server...
+	//DEV_ASSERT(!_occlusion_handle_is_in_room(p_handle));
+
+	p_handle--;
+	RGhost &moving = _rghost_pool[p_handle];
+	moving.exact_aabb = p_aabb;
+
+	// quick reject for most roaming cases
+	if (!p_force_reinsert && moving.expanded_aabb.encloses(p_aabb)) {
+		return;
+	}
+
+	// using an expanded aabb allows us to make 'no op' moves
+	// where the new aabb is within the expanded
+	moving.expanded_aabb = p_aabb.grow(_roaming_expansion_margin);
+
+	// if we got to here, it is roaming (moving between rooms)
+	// remove from current rooms
+	_ghost_moving_remove_from_rooms(p_handle);
+
+	// add to new rooms
+	Vector3 centre = p_aabb.position + (p_aabb.size * 0.5);
+	int new_room = find_room_within(centre, moving.room_id);
+
+	moving.room_id = new_room;
+	if (new_room != -1) {
+		_bitfield_rooms.blank();
+		sprawl_roaming(p_handle, moving, new_room, false);
+	}
+}
+
+void PortalRenderer::rghost_destroy(RGhostHandle p_handle) {
+	p_handle--;
+
+	RGhost *moving = &_rghost_pool[p_handle];
+
+	// if a roamer, remove from any current rooms
+	_ghost_moving_remove_from_rooms(p_handle);
+
+	moving->destroy();
+
+	// can now free the moving
+	_rghost_pool.free(p_handle);
+}
+
 // Rooms
 RoomHandle PortalRenderer::room_create() {
 	uint32_t pool_id = 0;
@@ -394,6 +473,37 @@ void PortalRenderer::room_destroy(RoomHandle p_room) {
 
 	// return to the pool
 	_room_pool.free(p_room);
+}
+
+OcclusionHandle PortalRenderer::room_add_ghost(RoomHandle p_room, ObjectID p_object_id, const AABB &p_aabb) {
+	ERR_FAIL_COND_V(!p_room, 0);
+	p_room--; // plus one based
+
+	VSStaticGhost ghost;
+	ghost.object_id = p_object_id;
+	_static_ghosts.push_back(ghost);
+
+	// sprawl immediately
+	// precreate a useful bitfield of rooms for use in sprawling
+	if ((int)_bitfield_rooms.get_num_bits() != get_num_rooms()) {
+		_bitfield_rooms.create(get_num_rooms());
+	}
+
+	// only can do if rooms exist
+	if (get_num_rooms()) {
+		// the last one was just added
+		int ghost_id = _static_ghosts.size() - 1;
+
+		// pop last static
+		//const VSStaticGhost &st = _static_ghosts[ghost_id];
+
+		// create a bitfield to indicate which rooms have been
+		// visited already, to prevent visiting rooms multiple times
+		_bitfield_rooms.blank();
+		sprawl_static_ghost(ghost_id, p_aabb, p_room);
+	}
+
+	return OCCLUSION_HANDLE_ROOM_BIT;
 }
 
 OcclusionHandle PortalRenderer::room_add_instance(RoomHandle p_room, RID p_instance, const AABB &p_aabb, bool p_dynamic, const Vector<Vector3> &p_object_pts) {
@@ -554,6 +664,10 @@ void PortalRenderer::rooms_finalize(bool p_generate_pvs, bool p_cull_using_pvs, 
 	// (they may have been created before the rooms)
 	_load_finalize_roaming();
 
+	// this should probably have some thread protection, but I doubt it matters
+	// as this will worst case give wrong result for a frame
+	Engine::get_singleton()->set_portals_active(true);
+
 	print_line("rooms_finalize complete. " + itos(_room_pool_ids.size()) + " rooms, " + itos(_portal_pool_ids.size()) + " portals.");
 }
 
@@ -575,6 +689,29 @@ void PortalRenderer::sprawl_static_geometry(int p_static_id, const VSStatic &p_s
 			_log(String(Variant(p_static.aabb)) + " crosses portal");
 
 			sprawl_static_geometry(p_static_id, p_static, room_to_id, p_object_pts);
+		}
+	}
+}
+
+void PortalRenderer::sprawl_static_ghost(int p_ghost_id, const AABB &p_aabb, int p_room_id) {
+	// set, and if room already done, ignore
+	if (!_bitfield_rooms.check_and_set(p_room_id)) {
+		return;
+	}
+
+	VSRoom &room = get_room(p_room_id);
+	room._static_ghost_ids.push_back(p_ghost_id);
+
+	// go through portals
+	for (int p = 0; p < room._portal_ids.size(); p++) {
+		const VSPortal &portal = get_portal(room._portal_ids[p]);
+
+		int room_to_id = portal.crosses_portal(p_room_id, p_aabb);
+
+		if (room_to_id != -1) {
+			_log(String(Variant(p_aabb)) + " crosses portal");
+
+			sprawl_static_ghost(p_ghost_id, p_aabb, room_to_id);
 		}
 	}
 }
@@ -612,9 +749,16 @@ void PortalRenderer::_load_finalize_roaming() {
 		OcclusionHandle handle = pool_id + 1;
 		instance_moving_update(handle, aabb, true);
 	}
+
+	for (int n = 0; n < _rghost_pool.active_size(); n++) {
+		RGhost &moving = _rghost_pool.get_active(n);
+		const AABB &aabb = moving.exact_aabb;
+
+		rghost_update(_rghost_pool.get_active_id(n) + 1, aabb, true);
+	}
 }
 
-void PortalRenderer::sprawl_roaming(uint32_t p_mover_pool_id, Moving &r_moving, int p_room_id) {
+void PortalRenderer::sprawl_roaming(uint32_t p_mover_pool_id, MovingBase &r_moving, int p_room_id, bool p_moving_or_ghost) {
 	// set, and if room already done, ignore
 	if (!_bitfield_rooms.check_and_set(p_room_id)) {
 		return;
@@ -622,7 +766,12 @@ void PortalRenderer::sprawl_roaming(uint32_t p_mover_pool_id, Moving &r_moving, 
 
 	// add to the room
 	VSRoom &room = get_room(p_room_id);
-	room.add_roamer(p_mover_pool_id);
+
+	if (p_moving_or_ghost) {
+		room.add_roamer(p_mover_pool_id);
+	} else {
+		room.add_ghost_roamer(p_mover_pool_id);
+	}
 
 	// add the room	to the mover
 	r_moving._rooms.push_back(p_room_id);
@@ -635,7 +784,7 @@ void PortalRenderer::sprawl_roaming(uint32_t p_mover_pool_id, Moving &r_moving, 
 
 		if (room_to_id != -1) {
 			// _log(String(Variant(p_static.aabb)) + " crosses portal");
-			sprawl_roaming(p_mover_pool_id, r_moving, room_to_id);
+			sprawl_roaming(p_mover_pool_id, r_moving, room_to_id, p_moving_or_ghost);
 		}
 	}
 }
@@ -645,12 +794,17 @@ void PortalRenderer::_ensure_unloaded() {
 	if (_loaded) {
 		_loaded = false;
 		_log("Portal system shutting down.");
+
+		// this should probably have some thread protection, but I doubt it matters
+		// as this will worst case give wrong result for a frame
+		Engine::get_singleton()->set_portals_active(false);
 	}
 }
 
 void PortalRenderer::rooms_and_portals_clear() {
 	_loaded = false;
 	_statics.clear();
+	_static_ghosts.clear();
 
 	// the rooms and portals should remove their id when they delete themselves
 	// from the scene tree by calling room_destroy and portal_destroy ...
@@ -680,6 +834,11 @@ void PortalRenderer::rooms_and_portals_clear() {
 	}
 	for (int n = 0; n < _moving_list_roaming.size(); n++) {
 		Moving &moving = get_pool_moving(_moving_list_roaming[n]);
+		moving.rooms_and_portals_clear();
+	}
+
+	for (int n = 0; n < _rghost_pool.active_size(); n++) {
+		RGhost &moving = _rghost_pool.get_active(n);
 		moving.rooms_and_portals_clear();
 	}
 

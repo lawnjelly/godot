@@ -58,6 +58,16 @@ struct VSStatic {
 	uint32_t dynamic;
 };
 
+// static / dynamic visibility notifiers.
+// ghost objects are not culled, but are present in rooms
+// and expect to receive gameplay notifications
+struct VSStaticGhost {
+	ObjectID object_id;
+
+	uint32_t last_tick_hit = 0;
+	uint32_t last_gameplay_tick_hit = 0;
+};
+
 class PortalRenderer {
 public:
 	// use most significant bit to store whether an instance is being used in the room system
@@ -65,7 +75,7 @@ public:
 	// crashes due to dangling references to instances.
 	static const uint32_t OCCLUSION_HANDLE_ROOM_BIT = 1 << 31;
 
-	struct Moving {
+	struct MovingBase {
 		// when the rooms_and_portals_clear message is sent,
 		// we want to remove all references to old rooms in the moving
 		// objects, to prevent dangling references.
@@ -82,17 +92,26 @@ public:
 		// exact aabb of the object should be used for culling
 		AABB exact_aabb;
 
-		// either roaming or global
-		bool global;
-
 		// which is the primary room this moving object is in
 		// (it may sprawl into multiple rooms)
 		int32_t room_id;
 
-		// in _moving_lists .. not the same as pool ID (handle)
-		uint32_t list_id;
 		// id in the allocation pool
 		uint32_t pool_id;
+
+		uint32_t last_tick_hit = 0;
+		uint32_t last_gameplay_tick_hit = 0;
+
+		// room ids of rooms this moving object is sprawled into
+		LocalVector<uint32_t, int32_t> _rooms;
+	};
+
+	struct Moving : public MovingBase {
+		// either roaming or global
+		bool global;
+
+		// in _moving_lists .. not the same as pool ID (handle)
+		uint32_t list_id;
 
 		// a void pointer, but this is ultimately a pointer to a VisualServerScene::Instance
 		// (can't have direct pointer because it is a nested class...)
@@ -102,12 +121,13 @@ public:
 		// primarily for testing
 		RID instance_rid;
 #endif
+	};
 
-		uint32_t last_tick_hit = 0;
-		uint32_t last_gameplay_tick_hit = 0;
-
-		// room ids of rooms this moving object is sprawled into
-		LocalVector<uint32_t, int32_t> _rooms;
+	// So far the only cull instances are VisibilityNotifiers.
+	// this will always be roaming... statics and dynamics are handled separately,
+	// and global cull instances do not get created.
+	struct RGhost : public MovingBase {
+		ObjectID object_id;
 	};
 
 	PortalHandle portal_create();
@@ -125,6 +145,7 @@ public:
 	RoomHandle room_create();
 	void room_destroy(RoomHandle p_room);
 	OcclusionHandle room_add_instance(RoomHandle p_room, RID p_instance, const AABB &p_aabb, bool p_dynamic, const Vector<Vector3> &p_object_pts);
+	OcclusionHandle room_add_ghost(RoomHandle p_room, ObjectID p_object_id, const AABB &p_aabb);
 	void room_set_bound(RoomHandle p_room, ObjectID p_room_object_id, const Vector<Plane> &p_convex, const AABB &p_aabb);
 	void rooms_and_portals_clear();
 	void rooms_finalize(bool p_generate_pvs, bool p_cull_using_pvs, String p_pvs_filename);
@@ -144,6 +165,11 @@ public:
 	OcclusionHandle instance_moving_create(VSInstance *p_instance, RID p_instance_rid, bool p_global, AABB p_aabb);
 	void instance_moving_update(OcclusionHandle p_handle, const AABB &p_aabb, bool p_force_reinsert = false);
 	void instance_moving_destroy(OcclusionHandle p_handle);
+
+	// spatial derived roamers (non VisualInstances that still need to be portal culled, especially VisibilityNotifiers)
+	RGhostHandle rghost_create(ObjectID p_object_id, const AABB &p_aabb);
+	void rghost_update(RGhostHandle p_handle, const AABB &p_aabb, bool p_force_reinsert = false);
+	void rghost_destroy(RGhostHandle p_handle);
 
 	// note that this relies on a 'frustum' type cull, from a point, and that the planes are specified as in
 	// CameraMatrix, i.e.
@@ -176,6 +202,11 @@ public:
 	Moving &get_pool_moving(uint32_t p_pool_id) { return _moving_pool[p_pool_id]; }
 	const Moving &get_pool_moving(uint32_t p_pool_id) const { return _moving_pool[p_pool_id]; }
 
+	RGhost &get_pool_ghost(uint32_t p_pool_id) { return _rghost_pool[p_pool_id]; }
+	const RGhost &get_pool_ghost(uint32_t p_pool_id) const { return _rghost_pool[p_pool_id]; }
+
+	VSStaticGhost &get_static_ghost(uint32_t p_id) { return _static_ghosts[p_id]; }
+
 	VSRoomGroup &get_roomgroup(uint32_t p_pool_id) { return _roomgroup_pool[p_pool_id]; }
 
 	PVS &get_pvs() { return _pvs; }
@@ -190,10 +221,12 @@ private:
 
 	void sprawl_static(int p_static_id, const VSStatic &p_static, int p_room_id);
 	void sprawl_static_geometry(int p_static_id, const VSStatic &p_static, int p_room_id, const Vector<Vector3> &p_object_pts);
+	void sprawl_static_ghost(int p_ghost_id, const AABB &p_aabb, int p_room_id);
 
 	void _load_finalize_roaming();
-	void sprawl_roaming(uint32_t p_mover_pool_id, Moving &r_moving, int p_room_id);
+	void sprawl_roaming(uint32_t p_mover_pool_id, MovingBase &r_moving, int p_room_id, bool p_moving_or_ghost);
 	void _moving_remove_from_rooms(uint32_t p_moving_pool_id);
+	void _ghost_moving_remove_from_rooms(uint32_t p_pool_id);
 	void _ensure_unloaded();
 	void _rooms_add_portals_to_convex_hulls();
 	void _add_portal_to_convex_hull(LocalVector<Plane, int32_t> &p_planes, const Plane &p);
@@ -210,6 +243,7 @@ private:
 	LocalVector<uint32_t, int32_t> _portal_pool_ids;
 
 	LocalVector<VSStatic, int32_t> _statics;
+	LocalVector<VSStaticGhost, int32_t> _static_ghosts;
 
 	// all rooms and portals are allocated from pools.
 	PooledList<VSPortal> _portal_pool;
@@ -218,6 +252,7 @@ private:
 
 	// moving objects, global and roaming
 	PooledList<Moving> _moving_pool;
+	TrackedPooledList<RGhost> _rghost_pool;
 	LocalVector<uint32_t, int32_t> _moving_list_global;
 	LocalVector<uint32_t, int32_t> _moving_list_roaming;
 

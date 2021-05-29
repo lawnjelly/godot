@@ -484,6 +484,10 @@ public:
 	// Portals
 	FUNC2(instance_set_portal_mode, RID, InstancePortalMode)
 
+	FUNCRID(ghost)
+	FUNC4(ghost_set_scenario, RID, RID, ObjectID, const AABB &)
+	FUNC2(ghost_update, RID, const AABB &)
+
 	FUNCRID(portal)
 	FUNC2(portal_set_scenario, RID, RID)
 	FUNC3(portal_set_geometry, RID, const Vector<Vector3> &, float)
@@ -500,6 +504,7 @@ public:
 	FUNCRID(room)
 	FUNC2(room_set_scenario, RID, RID)
 	FUNC4(room_add_instance, RID, RID, const AABB &, const Vector<Vector3> &)
+	FUNC3(room_add_ghost, RID, ObjectID, const AABB &)
 	FUNC4(room_set_bound, RID, ObjectID, const Vector<Plane> &, const AABB &)
 	FUNC1(rooms_and_portals_clear, RID)
 	FUNC1(rooms_unload, RID)

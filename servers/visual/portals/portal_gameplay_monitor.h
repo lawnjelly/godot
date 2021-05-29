@@ -45,7 +45,8 @@ public:
 	void update_gameplay(PortalRenderer &p_portal_renderer, const int *p_source_room_ids, int p_num_source_rooms, bool p_use_secondary_pvs);
 
 private:
-	void _update_gameplay_room(PortalRenderer &p_portal_renderer, int p_room_id);
+	void _update_gameplay_room(PortalRenderer &p_portal_renderer, int p_room_id, bool p_source_rooms_changed);
+	bool _source_rooms_changed(const int *p_source_room_ids, int p_num_source_rooms);
 	void _swap();
 
 	uint32_t _gameplay_tick = 1;
@@ -55,6 +56,10 @@ private:
 	LocalVector<uint32_t, int32_t> *_active_moving_pool_ids_curr;
 	LocalVector<uint32_t, int32_t> *_active_moving_pool_ids_prev;
 
+	LocalVector<uint32_t, int32_t> _active_rghost_pool_ids[2];
+	LocalVector<uint32_t, int32_t> *_active_rghost_pool_ids_curr;
+	LocalVector<uint32_t, int32_t> *_active_rghost_pool_ids_prev;
+
 	LocalVector<uint32_t, int32_t> _active_room_ids[2];
 	LocalVector<uint32_t, int32_t> *_active_room_ids_curr;
 	LocalVector<uint32_t, int32_t> *_active_room_ids_prev;
@@ -62,6 +67,12 @@ private:
 	LocalVector<uint32_t, int32_t> _active_roomgroup_ids[2];
 	LocalVector<uint32_t, int32_t> *_active_roomgroup_ids_curr;
 	LocalVector<uint32_t, int32_t> *_active_roomgroup_ids_prev;
+
+	LocalVector<uint32_t, int32_t> _active_sghost_ids[2];
+	LocalVector<uint32_t, int32_t> *_active_sghost_ids_curr;
+	LocalVector<uint32_t, int32_t> *_active_sghost_ids_prev;
+
+	LocalVector<uint32_t, int32_t> _source_rooms_prev;
 };
 
 #endif

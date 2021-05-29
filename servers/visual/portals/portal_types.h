@@ -43,6 +43,7 @@
 // so rather than use a void * straight we can use this for some semblance
 // of safety
 typedef void VSInstance;
+typedef void VSGhost;
 
 // the handles are just IDs, but nicer to be specific on what they are in the code.
 // Also - the handles are plus one based (i.e. 0 is unset, 1 is id 0, 2 is id 1 etc.
@@ -50,6 +51,7 @@ typedef uint32_t PortalHandle;
 typedef uint32_t RoomHandle;
 typedef uint32_t RoomGroupHandle;
 typedef uint32_t OcclusionHandle;
+typedef uint32_t RGhostHandle;
 
 struct VSPortal {
 	enum eClipResult {
@@ -214,9 +216,11 @@ struct VSRoom {
 
 	void destroy() {
 		_static_ids.reset();
+		_static_ghost_ids.reset();
 		_planes.reset();
 		_portal_ids.reset();
 		_roamer_pool_ids.reset();
+		_ghost_roamer_pool_ids.reset();
 		_roomgroup_ids.reset();
 		_pvs_first = 0;
 		_pvs_size = 0;
@@ -257,13 +261,28 @@ struct VSRoom {
 		return false;
 	}
 
+	bool remove_ghost_roamer(uint32_t p_pool_id) {
+		for (int n = 0; n < _ghost_roamer_pool_ids.size(); n++) {
+			if (_ghost_roamer_pool_ids[n] == p_pool_id) {
+				_ghost_roamer_pool_ids.remove_unordered(n);
+				return true;
+			}
+		}
+		return false;
+	}
+
 	void add_roamer(uint32_t p_pool_id) {
 		_roamer_pool_ids.push_back(p_pool_id);
+	}
+
+	void add_ghost_roamer(uint32_t p_pool_id) {
+		_ghost_roamer_pool_ids.push_back(p_pool_id);
 	}
 
 	// keep a list of statics in the room .. statics may appear
 	// in more than one room due to sprawling!
 	LocalVector<uint32_t, int32_t> _static_ids;
+	LocalVector<uint32_t, int32_t> _static_ghost_ids;
 
 	// very rough
 	AABB _aabb;
@@ -287,6 +306,7 @@ struct VSRoom {
 
 	// roaming movers currently in the room
 	LocalVector<uint32_t, int32_t> _roamer_pool_ids;
+	LocalVector<uint32_t, int32_t> _ghost_roamer_pool_ids;
 
 	// keep track of which roomgroups the room is in, that
 	// way we can switch on and off roomgroups as they enter / exit view
