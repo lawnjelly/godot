@@ -226,6 +226,7 @@ public:
 		// rooms & portals
 		OcclusionHandle occlusion_handle; // handle of instance in occlusion system (or 0)
 		VisualServer::InstancePortalMode portal_mode;
+		//VSXPortalRect portal_scissor_rect;
 
 		Scenario *scenario;
 		SelfList<Instance> scenario_item;
@@ -279,6 +280,7 @@ public:
 
 			occlusion_handle = 0;
 			portal_mode = VisualServer::InstancePortalMode::INSTANCE_PORTAL_MODE_STATIC;
+			//portal_scissor_rect.init();
 
 			lod_begin = 0;
 			lod_end = 0;
@@ -501,6 +503,7 @@ public:
 	int directional_light_count;
 	RID reflection_probe_instance_cull_result[MAX_REFLECTION_PROBES_CULLED];
 	int reflection_probe_cull_count;
+	const Rect2i *instance_cull_xportals = nullptr;
 
 	RID_Owner<Instance> instance_owner;
 
@@ -526,6 +529,7 @@ public:
 	// Portals
 	virtual void instance_set_portal_mode(RID p_instance, VisualServer::InstancePortalMode p_mode);
 	bool _instance_get_transformed_aabb(RID p_instance, AABB &r_aabb);
+	void _instance_set_scissor_rect_id(RID p_instance, uint32_t p_rect_id);
 	void *_instance_get_from_rid(RID p_instance);
 	bool _instance_cull_check(VSInstance *p_instance, uint32_t p_cull_mask) const {
 		uint32_t pairable_type = 1 << ((Instance *)p_instance)->base_type;
@@ -619,7 +623,7 @@ public:
 	virtual Vector<ObjectID> instances_cull_convex(const Vector<Plane> &p_convex, RID p_scenario = RID()) const;
 
 	// internal (uses portals when available)
-	int _cull_convex_from_point(Scenario *p_scenario, const Vector3 &p_point, const Vector<Plane> &p_convex, Instance **p_result_array, int p_result_max, uint32_t p_mask = 0xFFFFFFFF);
+	int _cull_convex_from_point(Scenario *p_scenario, const Vector3 &p_point, const CameraMatrix *p_xform, const Vector<Plane> &p_convex, Instance **p_result_array, int p_result_max, const Rect2i **r_xportals, uint32_t p_mask = 0xFFFFFFFF);
 	void _rooms_instance_update(Instance *p_instance, const AABB &p_aabb);
 
 	virtual void instance_geometry_set_flag(RID p_instance, VS::InstanceFlags p_flags, bool p_enabled);
@@ -636,7 +640,7 @@ public:
 
 	_FORCE_INLINE_ bool _light_instance_update_shadow(Instance *p_instance, const Transform p_cam_transform, const CameraMatrix &p_cam_projection, bool p_cam_orthogonal, RID p_shadow_atlas, Scenario *p_scenario);
 
-	void _prepare_scene(const Transform p_cam_transform, const CameraMatrix &p_cam_projection, bool p_cam_orthogonal, RID p_force_environment, uint32_t p_visible_layers, RID p_scenario, RID p_shadow_atlas, RID p_reflection_probe);
+	void _prepare_scene(const Transform p_cam_transform, const CameraMatrix &p_cam_projection, bool p_cam_orthogonal, RID p_force_environment, uint32_t p_visible_layers, RID p_scenario, RID p_shadow_atlas, RID p_reflection_probe, const Size2 *p_viewport_size = nullptr);
 	void _render_scene(const Transform p_cam_transform, const CameraMatrix &p_cam_projection, const int p_eye, bool p_cam_orthogonal, RID p_force_environment, RID p_scenario, RID p_shadow_atlas, RID p_reflection_probe, int p_reflection_probe_pass);
 	void render_empty_scene(RID p_scenario, RID p_shadow_atlas);
 

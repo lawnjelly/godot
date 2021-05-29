@@ -33,6 +33,7 @@
 
 #include "core/local_vector.h"
 #include "core/math/aabb.h"
+#include "core/math/camera_matrix.h"
 #include "core/math/plane.h"
 #include "core/math/vector3.h"
 #include "core/object_id.h"
@@ -50,6 +51,8 @@ typedef uint32_t PortalHandle;
 typedef uint32_t RoomHandle;
 typedef uint32_t RoomGroupHandle;
 typedef uint32_t OcclusionHandle;
+
+#define GODOT_PORTALS_USE_SCISSOR
 
 struct VSPortal {
 	enum eClipResult {
@@ -292,5 +295,28 @@ struct VSRoom {
 	// way we can switch on and off roomgroups as they enter / exit view
 	LocalVector<uint32_t, int32_t> _roomgroup_ids;
 };
+
+/*
+// screen rect for a transformed portal, for scissoring
+struct VSXPortalRect
+{
+	void reset() {left = 0; top = 0; right = 0; bottom = 0;}
+	void set(int p_x, int p_y) {left = p_x; top = p_y; right = left; bottom = top;}
+	void expand_to_include(int p_x, int p_y)
+	{
+		left = MIN(left, p_x);
+		right = MAX(right, p_x);
+		top	= MIN(top, p_y);
+		bottom = MAX(bottom, p_y);
+	}
+	
+	void set_inactive() {left = 65535;}
+	bool is_active() const {return left != 65535;}
+	void init() {set(0, 0); set_inactive();}
+	
+	uint16_t left, top, right, bottom;
+	String to_string() const {return itos(left) + ">" + itos(right) + ", " + itos(top) + ">" + itos(bottom);}
+};
+*/
 
 #endif

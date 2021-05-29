@@ -718,7 +718,10 @@ void PortalRenderer::rooms_update_gameplay_monitor(const Vector<Vector3> &p_came
 	_gameplay_monitor.update_gameplay(*this, source_rooms, num_source_rooms, p_use_secondary_pvs);
 }
 
-int PortalRenderer::cull_convex_implementation(const Vector3 &p_point, const Vector<Plane> &p_convex, VSInstance **p_result_array, int p_result_max, uint32_t p_mask) {
+int PortalRenderer::cull_convex_implementation(const Vector3 &p_point, const CameraMatrix *p_xform, const Vector<Plane> &p_convex, VSInstance **p_result_array, int p_result_max, uint32_t p_mask, const Rect2i **r_xportals) {
+	// bodge
+	_scissor_enabled = GLOBAL_GET("rendering/quality/portals/scissor");
+
 	// start room
 	int start_room_id = find_room_within(p_point);
 	if (start_room_id == -1) {
@@ -734,7 +737,7 @@ int PortalRenderer::cull_convex_implementation(const Vector3 &p_point, const Vec
 	_trace_results.clear();
 
 	if (!_debug_sprawl) {
-		_tracer.trace(*this, p_point, planes, start_room_id, _trace_results); //, near_and_far_planes);
+		_tracer.trace(*this, p_point, p_xform, planes, start_room_id, _trace_results); //, near_and_far_planes);
 	} else {
 		_tracer.trace_debug_sprawl(*this, p_point, start_room_id, _trace_results);
 	}
@@ -757,6 +760,10 @@ int PortalRenderer::cull_convex_implementation(const Vector3 &p_point, const Vec
 
 	// results could be full up already
 	if (out_count >= p_result_max) {
+		// save the xportal output list
+		if (_trace_results.xportal_rects.size()) {
+			*r_xportals = &_trace_results.xportal_rects[0];
+		}
 		return out_count;
 	}
 
@@ -779,10 +786,20 @@ int PortalRenderer::cull_convex_implementation(const Vector3 &p_point, const Vec
 
 	// results could be full up already
 	if (out_count >= p_result_max) {
+		// save the xportal output list
+		if (_trace_results.xportal_rects.size()) {
+			*r_xportals = &_trace_results.xportal_rects[0];
+		}
 		return out_count;
 	}
 
 	out_count = _tracer.trace_globals(planes, p_result_array, out_count, p_result_max, p_mask);
+
+return_result:
+	// save the xportal output list
+	if (_trace_results.xportal_rects.size()) {
+		*r_xportals = &_trace_results.xportal_rects[0];
+	}
 
 	return out_count;
 }
@@ -793,4 +810,8 @@ String PortalRenderer::_rid_to_string(RID p_rid) {
 
 String PortalRenderer::_addr_to_string(const void *p_addr) {
 	return String::num_uint64((uint64_t)p_addr, 16);
+}
+
+PortalRenderer::PortalRenderer() {
+	_scissor_enabled = GLOBAL_DEF("rendering/quality/portals/scissor", true);
 }

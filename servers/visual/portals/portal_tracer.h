@@ -51,19 +51,40 @@ public:
 	public:
 		void create(int p_num_statics) {
 			bf_visible_statics.create(p_num_statics);
+#ifdef GODOT_PORTALS_USE_SCISSOR
+			static_xportal_ids.resize(p_num_statics);
+			for (int n = 0; n < p_num_statics; n++) {
+				static_xportal_ids[n] = 0;
+			}
+#endif
 		}
 		void clear() {
 			bf_visible_statics.blank();
 			visible_static_ids.clear();
 			visible_roamer_pool_ids.clear();
+#ifdef GODOT_PORTALS_USE_SCISSOR
+			//xportal_rects.clear();
+			// add one dummy
+			xportal_rects.resize(1);
+			//xportal_rects[0].set_inactive();
+#endif
 		}
 
 		BitFieldDynamic bf_visible_statics;
 		LocalVector<uint32_t> visible_static_ids;
 		LocalVector<uint32_t> visible_roamer_pool_ids;
+
+#ifdef GODOT_PORTALS_USE_SCISSOR
+		// the transformed portal that a static is seen through or 0 for dummy xportal
+		// if not seen through a portal, or seen through more than 1 portal
+		LocalVector<uint16_t> static_xportal_ids;
+		LocalVector<Rect2i> xportal_rects;
+#endif
 	};
 
 	struct TraceParams {
+		// optional camera transform to get portal into screen space
+		const CameraMatrix *xform;
 		bool use_pvs;
 		uint8_t *decompressed_room_pvs;
 	};
@@ -102,14 +123,18 @@ public:
 	void trace_debug_sprawl(PortalRenderer &p_portal_renderer, const Vector3 &p_pos, int p_start_room_id, TraceResult &r_result);
 
 	// trace statics, dynamics and roaming
-	void trace(PortalRenderer &p_portal_renderer, const Vector3 &p_pos, const LocalVector<Plane> &p_planes, int p_start_room_id, TraceResult &r_result);
+	void trace(PortalRenderer &p_portal_renderer, const Vector3 &p_pos, const CameraMatrix *p_xform, const LocalVector<Plane> &p_planes, int p_start_room_id, TraceResult &r_result);
 
 	// globals are handled separately as they don't care about the rooms
 	int trace_globals(const LocalVector<Plane> &p_planes, VSInstance **p_result_array, int first_result, int p_result_max, uint32_t p_mask);
 
 private:
 	// main tracing function is recursive
+#ifdef GODOT_PORTALS_USE_SCISSOR
+	void trace_recursive(const TraceParams &p_params, int p_depth, int p_room_id, const LocalVector<Plane> &p_planes, uint32_t p_xportal_id = 0);
+#else
 	void trace_recursive(const TraceParams &p_params, int p_depth, int p_room_id, const LocalVector<Plane> &p_planes);
+#endif
 
 	// use pvs to cull instead of dynamically using portals
 	// this is a faster trace but less accurate. Only possible if PVS has been generated.
@@ -118,7 +143,12 @@ private:
 	// debug version
 	void trace_debug_sprawl_recursive(int p_depth, int p_room_id);
 
+#ifdef GODOT_PORTALS_USE_SCISSOR
+	void cull_statics(const VSRoom &p_room, const LocalVector<Plane> &p_planes, uint32_t p_xportal_id);
+	uint32_t create_xportal(const VSPortal &p_portal, const CameraMatrix *p_xform, uint32_t p_parent_xportal_id);
+#else
 	void cull_statics(const VSRoom &p_room, const LocalVector<Plane> &p_planes);
+#endif
 	void cull_statics_debug_sprawl(const VSRoom &p_room);
 	void cull_roamers(const VSRoom &p_room, const LocalVector<Plane> &p_planes);
 

@@ -965,6 +965,13 @@ bool VisualServerScene::_instance_get_transformed_aabb(RID p_instance, AABB &r_a
 	return true;
 }
 
+void VisualServerScene::_instance_set_scissor_rect_id(RID p_instance, uint32_t p_rect_id) {
+	Instance *instance = instance_owner.get(p_instance);
+	ERR_FAIL_NULL(instance);
+
+	instance->portal_scissor_rect_id = p_rect_id;
+}
+
 // the portal has to be associated with a scenario, this is assumed to be
 // the same scenario as the portal node
 RID VisualServerScene::portal_create() {
@@ -1273,13 +1280,14 @@ Vector<ObjectID> VisualServerScene::instances_cull_convex(const Vector<Plane> &p
 }
 
 // thin wrapper to allow rooms / portals to take over culling if active
-int VisualServerScene::_cull_convex_from_point(Scenario *p_scenario, const Vector3 &p_point, const Vector<Plane> &p_convex, Instance **p_result_array, int p_result_max, uint32_t p_mask) {
+int VisualServerScene::_cull_convex_from_point(Scenario *p_scenario, const Vector3 &p_point, const CameraMatrix *p_xform, const Vector<Plane> &p_convex, Instance **p_result_array, int p_result_max, const Rect2i **r_xportals, uint32_t p_mask) {
+	*r_xportals = nullptr; // in case not written to
 	int res = -1;
 	if (p_scenario->_portal_renderer.is_active()) {
 		// Note that the portal renderer ASSUMES that the planes exactly match the convention in
 		// CameraMatrix of enum Planes (6 planes, in order, near, far etc)
 		// If this is not the case, it should not be used.
-		res = p_scenario->_portal_renderer.cull_convex(p_point, p_convex, (VSInstance **)p_result_array, p_result_max, p_mask);
+		res = p_scenario->_portal_renderer.cull_convex(p_point, p_xform, p_convex, (VSInstance **)p_result_array, p_result_max, p_mask, r_xportals);
 	}
 
 	// fallback to BVH  / octree if portals not active
@@ -2092,7 +2100,8 @@ bool VisualServerScene::_light_instance_update_shadow(Instance *p_instance, cons
 
 					Vector<Plane> planes = cm.get_projection_planes(xform);
 
-					int cull_count = _cull_convex_from_point(p_scenario, light_transform.origin, planes, instance_shadow_cull_result, MAX_INSTANCE_CULL, VS::INSTANCE_GEOMETRY_MASK);
+					const Rect2i *xportals; // not used yet from this calling point
+					int cull_count = _cull_convex_from_point(p_scenario, light_transform.origin, nullptr, planes, instance_shadow_cull_result, MAX_INSTANCE_CULL, &xportals, VS::INSTANCE_GEOMETRY_MASK);
 
 					Plane near_plane(xform.origin, -xform.basis.get_axis(2));
 					for (int j = 0; j < cull_count; j++) {
@@ -2127,7 +2136,8 @@ bool VisualServerScene::_light_instance_update_shadow(Instance *p_instance, cons
 			cm.set_perspective(angle * 2.0, 1.0, 0.01, radius);
 
 			Vector<Plane> planes = cm.get_projection_planes(light_transform);
-			int cull_count = _cull_convex_from_point(p_scenario, light_transform.origin, planes, instance_shadow_cull_result, MAX_INSTANCE_CULL, VS::INSTANCE_GEOMETRY_MASK);
+			const Rect2i *xportals; // not used yet from this calling point
+			int cull_count = _cull_convex_from_point(p_scenario, light_transform.origin, nullptr, planes, instance_shadow_cull_result, MAX_INSTANCE_CULL, &xportals, VS::INSTANCE_GEOMETRY_MASK);
 
 			Plane near_plane(light_transform.origin, -light_transform.basis.get_axis(2));
 			for (int j = 0; j < cull_count; j++) {
@@ -2197,7 +2207,7 @@ void VisualServerScene::render_camera(RID p_camera, RID p_scenario, Size2 p_view
 		} break;
 	}
 
-	_prepare_scene(camera->transform, camera_matrix, ortho, camera->env, camera->visible_layers, p_scenario, p_shadow_atlas, RID());
+	_prepare_scene(camera->transform, camera_matrix, ortho, camera->env, camera->visible_layers, p_scenario, p_shadow_atlas, RID(), &p_viewport_size);
 	_render_scene(camera->transform, camera_matrix, 0, ortho, camera->env, p_scenario, p_shadow_atlas, RID(), -1);
 #endif
 }
@@ -2286,7 +2296,7 @@ void VisualServerScene::render_camera(Ref<ARVRInterface> &p_interface, ARVRInter
 	_render_scene(cam_transform, camera_matrix, p_eye, false, camera->env, p_scenario, p_shadow_atlas, RID(), -1);
 };
 
-void VisualServerScene::_prepare_scene(const Transform p_cam_transform, const CameraMatrix &p_cam_projection, bool p_cam_orthogonal, RID p_force_environment, uint32_t p_visible_layers, RID p_scenario, RID p_shadow_atlas, RID p_reflection_probe) {
+void VisualServerScene::_prepare_scene(const Transform p_cam_transform, const CameraMatrix &p_cam_projection, bool p_cam_orthogonal, RID p_force_environment, uint32_t p_visible_layers, RID p_scenario, RID p_shadow_atlas, RID p_reflection_probe, const Size2 *p_viewport_size) {
 	// Note, in stereo rendering:
 	// - p_cam_transform will be a transform in the middle of our two eyes
 	// - p_cam_projection is a wider frustrum that encompasses both eyes
@@ -2306,7 +2316,31 @@ void VisualServerScene::_prepare_scene(const Transform p_cam_transform, const Ca
 	float z_far = p_cam_projection.get_z_far();
 
 	/* STEP 2 - CULL */
-	instance_cull_count = _cull_convex_from_point(scenario, p_cam_transform.origin, planes, instance_cull_result, MAX_INSTANCE_CULL);
+
+	// create a concatenated transform from world to screen space
+	// test
+	//	Vector3 endpoints[8];
+	//	p_cam_projection.get_endpoints(p_cam_transform, endpoints);
+
+	//	Transform cam_transform_inv = p_cam_transform.affine_inverse();
+	const CameraMatrix *pointer_world_to_screen = nullptr;
+	CameraMatrix world_to_screen;
+	if (p_viewport_size) {
+		Transform viewport_scale;
+		viewport_scale.translate(Vector3(1.0, 1.0, 0));
+		viewport_scale.scale(Vector3(p_viewport_size->x * 0.5, p_viewport_size->y * 0.5, 0.0));
+
+		world_to_screen = CameraMatrix(viewport_scale) * p_cam_projection * CameraMatrix(p_cam_transform.affine_inverse());
+		pointer_world_to_screen = &world_to_screen;
+	}
+
+	// run end points through the matrix to test
+	//	for (int n=0; n<8; n++)
+	//	{
+	//		endpoints[n] = world_to_screen.xform(endpoints[n]);
+	//	}
+
+	instance_cull_count = _cull_convex_from_point(scenario, p_cam_transform.origin, pointer_world_to_screen, planes, instance_cull_result, MAX_INSTANCE_CULL, &instance_cull_xportals);
 	light_cull_count = 0;
 
 	reflection_probe_cull_count = 0;
@@ -2611,7 +2645,7 @@ void VisualServerScene::_render_scene(const Transform p_cam_transform, const Cam
 
 	/* PROCESS GEOMETRY AND DRAW SCENE */
 
-	VSG::scene_render->render_scene(p_cam_transform, p_cam_projection, p_eye, p_cam_orthogonal, (RasterizerScene::InstanceBase **)instance_cull_result, instance_cull_count, light_instance_cull_result, light_cull_count + directional_light_count, reflection_probe_instance_cull_result, reflection_probe_cull_count, environment, p_shadow_atlas, scenario->reflection_atlas, p_reflection_probe, p_reflection_probe_pass);
+	VSG::scene_render->render_scene(p_cam_transform, p_cam_projection, p_eye, p_cam_orthogonal, (RasterizerScene::InstanceBase **)instance_cull_result, instance_cull_count, light_instance_cull_result, light_cull_count + directional_light_count, reflection_probe_instance_cull_result, reflection_probe_cull_count, environment, p_shadow_atlas, scenario->reflection_atlas, p_reflection_probe, p_reflection_probe_pass, instance_cull_xportals);
 }
 
 void VisualServerScene::render_empty_scene(RID p_scenario, RID p_shadow_atlas) {
@@ -2625,7 +2659,7 @@ void VisualServerScene::render_empty_scene(RID p_scenario, RID p_shadow_atlas) {
 	} else {
 		environment = scenario->fallback_environment;
 	}
-	VSG::scene_render->render_scene(Transform(), CameraMatrix(), 0, true, nullptr, 0, nullptr, 0, nullptr, 0, environment, p_shadow_atlas, scenario->reflection_atlas, RID(), 0);
+	VSG::scene_render->render_scene(Transform(), CameraMatrix(), 0, true, nullptr, 0, nullptr, 0, nullptr, 0, environment, p_shadow_atlas, scenario->reflection_atlas, RID(), 0, nullptr);
 #endif
 }
 

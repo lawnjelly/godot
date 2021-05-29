@@ -148,14 +148,20 @@ public:
 	// note that this relies on a 'frustum' type cull, from a point, and that the planes are specified as in
 	// CameraMatrix, i.e.
 	// order PLANE_NEAR,PLANE_FAR,PLANE_LEFT,PLANE_TOP,PLANE_RIGHT,PLANE_BOTTOM
-	int cull_convex(const Vector3 &p_point, const Vector<Plane> &p_convex, VSInstance **p_result_array, int p_result_max, uint32_t p_mask) {
-		if (!_override_camera)
-			return cull_convex_implementation(p_point, p_convex, p_result_array, p_result_max, p_mask);
+	int cull_convex(const Vector3 &p_point, const CameraMatrix *p_xform, const Vector<Plane> &p_convex, VSInstance **p_result_array, int p_result_max, uint32_t p_mask, const Rect2i **r_xportals) {
+		if (!_scissor_enabled) {
+			p_xform = nullptr;
+		}
 
-		return cull_convex_implementation(_override_camera_pos, _override_camera_planes, p_result_array, p_result_max, p_mask);
+		// *r_xportals should be already set to nullptr in the calling function for safety, in case we don't set it here
+		if (!_override_camera) {
+			return cull_convex_implementation(p_point, p_xform, p_convex, p_result_array, p_result_max, p_mask, r_xportals);
+		}
+
+		return cull_convex_implementation(_override_camera_pos, nullptr, _override_camera_planes, p_result_array, p_result_max, p_mask, r_xportals);
 	}
 
-	int cull_convex_implementation(const Vector3 &p_point, const Vector<Plane> &p_convex, VSInstance **p_result_array, int p_result_max, uint32_t p_mask);
+	int cull_convex_implementation(const Vector3 &p_point, const CameraMatrix *p_xform, const Vector<Plane> &p_convex, VSInstance **p_result_array, int p_result_max, uint32_t p_mask, const Rect2i **r_xportals);
 
 	bool is_active() const { return _active && _loaded; }
 
@@ -229,6 +235,7 @@ private:
 
 	// if the pvs is generated, we can either cull using dynamic portals or PVS
 	bool _cull_using_pvs = false;
+	bool _scissor_enabled = true;
 
 	PortalTracer _tracer;
 	PortalTracer::TraceResult _trace_results;
@@ -250,6 +257,8 @@ private:
 public:
 	static String _rid_to_string(RID p_rid);
 	static String _addr_to_string(const void *p_addr);
+
+	PortalRenderer();
 };
 
 #endif

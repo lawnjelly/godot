@@ -87,7 +87,7 @@ void PortalTracer::trace_debug_sprawl(PortalRenderer &p_portal_renderer, const V
 	trace_debug_sprawl_recursive(0, p_start_room_id);
 }
 
-void PortalTracer::trace(PortalRenderer &p_portal_renderer, const Vector3 &p_pos, const LocalVector<Plane> &p_planes, int p_start_room_id, TraceResult &r_result) {
+void PortalTracer::trace(PortalRenderer &p_portal_renderer, const Vector3 &p_pos, const CameraMatrix *p_xform, const LocalVector<Plane> &p_planes, int p_start_room_id, TraceResult &r_result) {
 	// store local versions to prevent passing around recursive functions
 	_portal_renderer = &p_portal_renderer;
 	_trace_start_point = p_pos;
@@ -129,6 +129,7 @@ void PortalTracer::trace(PortalRenderer &p_portal_renderer, const Vector3 &p_pos
 
 		TraceParams params;
 		params.use_pvs = p_portal_renderer.get_pvs().is_loaded();
+		params.xform = p_xform;
 
 		// create bitfield
 		if (params.use_pvs) {
@@ -241,7 +242,11 @@ void PortalTracer::cull_statics_debug_sprawl(const VSRoom &p_room) {
 	}
 }
 
+#ifdef GODOT_PORTALS_USE_SCISSOR
+void PortalTracer::cull_statics(const VSRoom &p_room, const LocalVector<Plane> &p_planes, uint32_t p_xportal_id) {
+#else
 void PortalTracer::cull_statics(const VSRoom &p_room, const LocalVector<Plane> &p_planes) {
+#endif
 	int num_statics = p_room._static_ids.size();
 
 	for (int n = 0; n < num_statics; n++) {
@@ -264,10 +269,24 @@ void PortalTracer::cull_statics(const VSRoom &p_room, const LocalVector<Plane> &
 			//stat.show(bShow);
 
 			// set the visible bit if not set
+			uint32_t stored_xportal_id = 0;
+
 			if (_result->bf_visible_statics.check_and_set(static_id)) {
 				// if wasn't previously set, add to the visible list
 				_result->visible_static_ids.push_back(static_id);
+#ifndef GODOT_PORTALS_USE_SCISSOR
 			}
+#else
+				_result->static_xportal_ids[static_id] = p_xportal_id;
+				stored_xportal_id = p_xportal_id;
+			} else {
+				// if visible by more than one portal, we don't scissor
+				_result->static_xportal_ids[static_id] = 0;
+			}
+
+			// set the portal scissor rect?
+			VSG::scene->_instance_set_scissor_rect_id(stat.instance, stored_xportal_id);
+#endif
 		}
 
 	} // for n through statics
@@ -358,12 +377,78 @@ void PortalTracer::trace_pvs(int p_source_room_id, const LocalVector<Plane> &p_p
 		// get the room
 		const VSRoom &room = _portal_renderer->get_room(room_id);
 
+#ifdef GODOT_PORTALS_USE_SCISSOR
+		cull_statics(room, p_planes, 0);
+#else
 		cull_statics(room, p_planes);
+#endif
 		cull_roamers(room, p_planes);
 	}
 }
 
+#ifdef GODOT_PORTALS_USE_SCISSOR
+uint32_t PortalTracer::create_xportal(const VSPortal &p_portal, const CameraMatrix *p_xform, uint32_t p_parent_xportal_id) {
+	// if there is no camera transform, can't create xportal
+	if (!p_xform) {
+		return 0;
+	}
+
+	if (!p_portal._pts_world.size()) {
+		return 0;
+	}
+
+	int top, left, right, bottom;
+
+	//ScreenRect2i r;
+	Vector3 p;
+	p = p_portal._pts_world[0];
+	p = p_xform->xform(p);
+
+	left = p.x;
+	right = p.x;
+	top = p.y;
+	bottom = p.y;
+
+	//	r.set(p.x, p.y);
+
+	for (int n = 1; n < p_portal._pts_world.size(); n++) {
+		p = p_portal._pts_world[n];
+		p = p_xform->xform(p);
+
+		left = MIN(left, p.x);
+		right = MAX(right, p.x);
+		top = MIN(top, p.y);
+		bottom = MAX(bottom, p.y);
+
+		//		r.expand_to_include(p.x, p.y);
+	}
+
+	uint32_t count = _result->xportal_rects.size();
+
+	Rect2i r(left, top, right - left, bottom - top);
+
+	// expand by 1 pixel to account for float error
+	r = r.grow(1);
+
+	// if there was a parent portal, we can further reduce this
+	if (p_parent_xportal_id) {
+		const Rect2i &parent_rect = _result->xportal_rects[p_parent_xportal_id];
+		r = r.clip(parent_rect);
+	}
+
+	_result->xportal_rects.push_back(r);
+
+	//print_line(r.to_string());
+
+	return count;
+}
+#endif
+
+#ifdef GODOT_PORTALS_USE_SCISSOR
+void PortalTracer::trace_recursive(const TraceParams &p_params, int p_depth, int p_room_id, const LocalVector<Plane> &p_planes, uint32_t p_xportal_id) {
+#else
 void PortalTracer::trace_recursive(const TraceParams &p_params, int p_depth, int p_room_id, const LocalVector<Plane> &p_planes) {
+#endif
 	// prevent too much depth
 	if (p_depth > 16) {
 		WARN_PRINT_ONCE("Portal Depth Limit reached (seeing through > 16 portals)");
@@ -373,7 +458,11 @@ void PortalTracer::trace_recursive(const TraceParams &p_params, int p_depth, int
 	// get the room
 	const VSRoom &room = _portal_renderer->get_room(p_room_id);
 
+#ifdef GODOT_PORTALS_USE_SCISSOR
+	cull_statics(room, p_planes, p_xportal_id);
+#else
 	cull_statics(room, p_planes);
+#endif
 	cull_roamers(room, p_planes);
 
 	int num_portals = room._portal_ids.size();
@@ -498,7 +587,12 @@ void PortalTracer::trace_recursive(const TraceParams &p_params, int p_depth, int
 				new_planes.push_back(_near_and_far_planes[1]);
 
 				// go and do the whole lot again in the next room
+#ifdef GODOT_PORTALS_USE_SCISSOR
+				uint32_t xportal_id = create_xportal(portal, p_params.xform, p_xportal_id);
+				trace_recursive(p_params, p_depth + 1, linked_room_id, new_planes, xportal_id);
+#else
 				trace_recursive(p_params, p_depth + 1, linked_room_id, new_planes);
+#endif
 
 				// no longer need these planes, return them to the pool
 				_planes_pool.free(pool_mem);
