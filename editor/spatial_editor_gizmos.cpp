@@ -32,6 +32,8 @@
 
 #include "core/math/convex_hull.h"
 #include "core/math/geometry.h"
+#include "core/math/quick_hull.h"
+#include "core/math/slow_hull.h"
 #include "scene/3d/audio_stream_player_3d.h"
 #include "scene/3d/baked_lightmap.h"
 #include "scene/3d/collision_polygon.h"
@@ -3543,8 +3545,11 @@ void CollisionShapeSpatialGizmoPlugin::redraw(EditorSpatialGizmo *p_gizmo) {
 		if (points.size() > 3) {
 			Vector<Vector3> varr = Variant(points);
 			Geometry::MeshData md;
-			Error err = ConvexHullComputer::convex_hull(varr, md);
-			if (err == OK) {
+			//			Error err = ConvexHullComputer::convex_hull(varr, md);
+			SlowHull slowhull;
+			if (slowhull.build(varr, md)) {
+				//			Error err = QuickHull::build(varr, md);
+				//			if (err == OK) {
 				Vector<Vector3> points2;
 				points2.resize(md.edges.size() * 2);
 				for (int i = 0; i < md.edges.size(); i++) {
@@ -4429,3 +4434,5 @@ void JointSpatialGizmoPlugin::CreateGeneric6DOFJointGizmo(
 
 #undef ADD_VTX
 }
+
+////

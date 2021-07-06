@@ -173,6 +173,7 @@
 #include "scene/3d/world_environment.h"
 
 #ifndef _3D_DISABLED
+#include "core/math/slow_hull.h"
 #include "scene/3d/area.h"
 #include "scene/3d/arvr_nodes.h"
 #include "scene/3d/audio_stream_player_3d.h"
@@ -426,6 +427,7 @@ void register_scene_types() {
 	ClassDB::register_class<NavigationMeshInstance>();
 	ClassDB::register_class<NavigationMesh>();
 	ClassDB::register_class<Navigation>();
+	ClassDB::register_class<SlowHull>();
 
 	ClassDB::register_class<RootMotionView>();
 	ClassDB::set_class_enabled("RootMotionView", false); //disabled by default, enabled by editor

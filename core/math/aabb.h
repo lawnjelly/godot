@@ -81,6 +81,8 @@ public:
 	_FORCE_INLINE_ bool has_point(const Vector3 &p_point) const;
 	_FORCE_INLINE_ Vector3 get_support(const Vector3 &p_normal) const;
 
+	Vector3 get_center() const { return position + (size * 0.5); }
+
 	Vector3 get_longest_axis() const;
 	int get_longest_axis_index() const;
 	_FORCE_INLINE_ real_t get_longest_axis_size() const;
@@ -104,6 +106,8 @@ public:
 	}
 
 	operator String() const;
+
+	bool create_from_points(const Vector<Vector3> &p_points);
 
 	_FORCE_INLINE_ AABB() {}
 	inline AABB(const Vector3 &p_pos, const Vector3 &p_size) :
