@@ -1090,7 +1090,11 @@ Vector3 ConvexPolygonShapeSW::get_moment_of_inertia(real_t p_mass) const {
 }
 
 void ConvexPolygonShapeSW::_setup(const Vector<Vector3> &p_vertices) {
-	Error err = ConvexHullComputer::convex_hull(p_vertices, mesh);
+	Error err = ConvexHullComputer::convex_hull(p_vertices, mesh_orig);
+
+	// start with the active mesh having no transform applied
+	mesh = mesh_orig;
+
 	if (err != OK)
 		ERR_PRINT("Failed to build convex hull");
 
@@ -1105,6 +1109,44 @@ void ConvexPolygonShapeSW::_setup(const Vector<Vector3> &p_vertices) {
 	}
 
 	configure(_aabb);
+}
+
+void ConvexPolygonShapeSW::update_local_transform(const Transform &p_xform) {
+	//print_line("ConvexPolygonShapeSW::update_local_transform" + String(Variant(p_xform)));
+	local_xform = p_xform;
+	inv_local_xform = p_xform.affine_inverse();
+	// start with the active mesh having no transform applied
+	// mesh = mesh_orig;
+
+	ERR_FAIL_COND(mesh.vertices.size() != mesh_orig.vertices.size());
+	ERR_FAIL_COND(mesh.faces.size() != mesh_orig.faces.size());
+	ERR_FAIL_COND(mesh.edges.size() != mesh_orig.edges.size());
+
+	// transform the verts
+	for (int n = 0; n < mesh.vertices.size(); n++) {
+		mesh.vertices.set(n, p_xform.xform(mesh_orig.vertices[n]));
+	}
+
+	// recalculate planes
+	Geometry::MeshData::Face *out_faces = mesh.faces.ptrw();
+	for (int n = 0; n < mesh.faces.size(); n++) {
+		const Geometry::MeshData::Face &in_face = mesh_orig.faces[n];
+		out_faces[n].plane = p_xform.xform(in_face.plane);
+	}
+
+	//	AABB _aabb;
+
+	//	for (int i = 0; i < mesh.vertices.size(); i++) {
+	//		if (i == 0) {
+	//			_aabb.position = mesh.vertices[i];
+	//		} else {
+	//			_aabb.expand_to(mesh.vertices[i]);
+	//		}
+	//	}
+
+	//	aabb = _aabb;
+
+	//	configure(_aabb);
 }
 
 void ConvexPolygonShapeSW::set_data(const Variant &p_data) {

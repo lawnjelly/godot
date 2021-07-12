@@ -58,13 +58,13 @@ public:
 
 class ShapeSW : public RID_Data {
 	RID self;
-	AABB aabb;
 	bool configured;
 	real_t custom_bias;
 
 	Map<ShapeOwnerSW *, int> owners;
 
 protected:
+	AABB aabb;
 	void configure(const AABB &p_aabb);
 
 public:
@@ -97,6 +97,10 @@ public:
 
 	virtual void set_data(const Variant &p_data) = 0;
 	virtual Variant get_data() const = 0;
+
+	// opportunity to change the local shape mesh if the user changes
+	// scale etc in the editor
+	virtual void update_local_transform(const Transform &p_xform) {}
 
 	_FORCE_INLINE_ void set_custom_bias(real_t p_bias) { custom_bias = p_bias; }
 	_FORCE_INLINE_ real_t get_custom_bias() const { return custom_bias; }
@@ -284,8 +288,16 @@ public:
 	CylinderShapeSW();
 };
 
+#define GODOT_CONVEX_POLYGON_SHAPE_DETRANSFORM
+
 struct ConvexPolygonShapeSW : public ShapeSW {
+	// local transform applied
 	Geometry::MeshData mesh;
+	Transform local_xform;
+	Transform inv_local_xform;
+
+	// original mesh initialized with
+	Geometry::MeshData mesh_orig;
 
 	void _setup(const Vector<Vector3> &p_vertices);
 
@@ -305,6 +317,10 @@ public:
 
 	virtual void set_data(const Variant &p_data);
 	virtual Variant get_data() const;
+
+	// opportunity to change the local shape mesh if the user changes
+	// scale etc in the editor
+	virtual void update_local_transform(const Transform &p_xform);
 
 	ConvexPolygonShapeSW();
 };

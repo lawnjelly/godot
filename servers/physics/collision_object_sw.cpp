@@ -161,9 +161,16 @@ void CollisionObjectSW::_update_shapes() {
 			continue;
 		}
 
+		// update the shape star wars. It needs to have an opportunity
+		// to apply local transform
+		if (s.shape) {
+			s.shape->update_local_transform(s.xform);
+		}
+
 		//not quite correct, should compute the next matrix..
 		AABB shape_aabb = s.shape->get_aabb();
 		Transform xform = transform * s.xform;
+
 		shape_aabb = xform.xform(shape_aabb);
 		shape_aabb.grow_by((s.aabb_cache.size.x + s.aabb_cache.size.y) * 0.5 * 0.05);
 		s.aabb_cache = shape_aabb;
