@@ -547,6 +547,59 @@ void PortalRenderer::occluder_refresh_room_within(uint32_t p_occluder_pool_id) {
 	}
 }
 
+void PortalRenderer::occluder_update_polys(OccluderHandle p_handle, const Vector<Geometry::MeshData::Face> &p_faces, const Vector<Vector3> &p_vertices) {
+	p_handle--;
+	VSOccluder &occ = _occluder_pool[p_handle];
+	ERR_FAIL_COND(occ.type != VSOccluder::OT_POLY);
+
+	// first deal with the situation where the number of spheres has changed (rare)
+	if (occ.list_ids.size() != p_faces.size()) {
+		// not the most efficient, but works...
+		// remove existing
+		for (int n = 0; n < occ.list_ids.size(); n++) {
+			uint32_t id = occ.list_ids[n];
+			_occluder_poly_pool.free(id);
+		}
+
+		occ.list_ids.clear();
+		// create new
+		for (int n = 0; n < p_faces.size(); n++) {
+			uint32_t id;
+			VSOccluder_Poly *poly = _occluder_poly_pool.request(id);
+			poly->create();
+			occ.list_ids.push_back(id);
+		}
+	}
+
+	// new data
+	for (int n = 0; n < occ.list_ids.size(); n++) {
+		uint32_t id = occ.list_ids[n];
+
+		VSOccluder_Poly &opoly = _occluder_poly_pool[id];
+		Occlusion::Poly &poly = opoly.poly;
+		opoly.area = 1.0; // NYI
+
+		// source face
+		const Geometry::MeshData::Face &face = p_faces[n];
+		poly.plane = face.plane;
+
+		poly.num_verts = MIN(face.indices.size(), Occlusion::Poly::MAX_POLY_VERTS);
+
+		opoly.center = Vector3(0, 0, 0);
+		for (int c = 0; c < poly.num_verts; c++) {
+			int vert_index = face.indices[c];
+
+			// warn message instead?
+			if (vert_index < p_vertices.size()) {
+				poly.verts[c] = p_vertices[face.indices[c]];
+				opoly.center += poly.verts[c];
+			}
+		}
+
+		opoly.center /= poly.num_verts;
+	}
+}
+
 void PortalRenderer::occluder_update_spheres(OccluderHandle p_handle, const Vector<Plane> &p_spheres) {
 	p_handle--;
 	VSOccluder &occ = _occluder_pool[p_handle];

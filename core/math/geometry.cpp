@@ -1363,6 +1363,69 @@ Vector<Geometry::PackRectsResult> Geometry::partial_pack_rects(const Vector<Vect
 	return ret;
 }
 
+// Clockwise. If you want reverse, flip the poly normal.
+// Returns the poly center.
+Vector3 Geometry::sort_polygon_winding(Vector<Vector3> &r_verts, const Vector3 &p_poly_normal) {
+	// find centroid
+	int num_points = r_verts.size();
+	Vector3 pt_center = Vector3(0, 0, 0);
+
+	for (int n = 0; n < num_points; n++) {
+		pt_center += r_verts[n];
+	}
+	pt_center /= num_points;
+
+	// cannot sort less than 3 verts
+	if (r_verts.size() < 3) {
+		return pt_center;
+	}
+
+	// now algorithm
+	for (int n = 0; n < num_points - 2; n++) {
+		Vector3 a = r_verts[n] - pt_center;
+		a.normalize();
+
+		Plane p = Plane(r_verts[n], pt_center, pt_center + p_poly_normal);
+
+		double smallest_angle = -1;
+		int smallest = -1;
+
+		for (int m = n + 1; m < num_points; m++) {
+			if (p.distance_to(r_verts[m]) > 0.0) {
+				Vector3 b = r_verts[m] - pt_center;
+				b.normalize();
+
+				double angle = a.dot(b);
+
+				if (angle > smallest_angle) {
+					smallest_angle = angle;
+					smallest = m;
+				}
+			} // which side
+
+		} // for m
+
+		// swap smallest and n+1 vert
+		if (smallest != -1) {
+			Vector3 temp = r_verts[smallest];
+			r_verts.set(smallest, r_verts[n + 1]);
+			r_verts.set(n + 1, temp);
+		}
+	} // for n
+
+	// the vertices are now sorted, but may be in the opposite order to that wanted.
+	// we detect this by calculating the normal of the poly, then flipping the order if the normal is pointing
+	// the wrong way.
+	Plane plane = Plane(r_verts[0], r_verts[1], r_verts[2]);
+
+	if (p_poly_normal.dot(plane.normal) < 0.0f) {
+		// reverse winding order of verts
+		r_verts.invert();
+	}
+
+	return pt_center;
+}
+
 // adapted from:
 // https://stackoverflow.com/questions/6989100/sort-points-in-clockwise-order
 void Geometry::sort_polygon_winding(Vector<Vector2> &r_verts, bool p_clockwise) {

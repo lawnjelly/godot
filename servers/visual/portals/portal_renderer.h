@@ -31,6 +31,7 @@
 #ifndef PORTAL_RENDERER_H
 #define PORTAL_RENDERER_H
 
+#include "core/math/geometry.h"
 #include "core/math/plane.h"
 #include "core/pooled_list.h"
 #include "core/vector.h"
@@ -181,6 +182,7 @@ public:
 	// occluders
 	OccluderHandle occluder_create(VSOccluder::Type p_type);
 	void occluder_update_spheres(OccluderHandle p_handle, const Vector<Plane> &p_spheres);
+	void occluder_update_polys(OccluderHandle p_handle, const Vector<Geometry::MeshData::Face> &p_faces, const Vector<Vector3> &p_vertices);
 	void occluder_set_transform(OccluderHandle p_handle, const Transform &p_xform);
 	void occluder_set_active(OccluderHandle p_handle, bool p_active);
 	void occluder_destroy(OccluderHandle p_handle);
@@ -229,10 +231,11 @@ public:
 	RGhost &get_pool_rghost(uint32_t p_pool_id) { return _rghost_pool[p_pool_id]; }
 	const RGhost &get_pool_rghost(uint32_t p_pool_id) const { return _rghost_pool[p_pool_id]; }
 
+	const LocalVector<uint32_t, uint32_t> &get_occluders_active_list() const { return _occluder_pool.get_active_list(); }
 	const VSOccluder &get_pool_occluder(uint32_t p_pool_id) const { return _occluder_pool[p_pool_id]; }
 	VSOccluder &get_pool_occluder(uint32_t p_pool_id) { return _occluder_pool[p_pool_id]; }
 	const VSOccluder_Sphere &get_pool_occluder_sphere(uint32_t p_pool_id) const { return _occluder_sphere_pool[p_pool_id]; }
-	const LocalVector<uint32_t, uint32_t> &get_occluders_active_list() const { return _occluder_pool.get_active_list(); }
+	const VSOccluder_Poly &get_pool_occluder_poly(uint32_t p_pool_id) const { return _occluder_poly_pool[p_pool_id]; }
 
 	VSStaticGhost &get_static_ghost(uint32_t p_id) { return _static_ghosts[p_id]; }
 
@@ -289,6 +292,7 @@ private:
 	// occluders
 	TrackedPooledList<VSOccluder> _occluder_pool;
 	TrackedPooledList<VSOccluder_Sphere> _occluder_sphere_pool;
+	TrackedPooledList<VSOccluder_Poly> _occluder_poly_pool;
 
 	PVS _pvs;
 

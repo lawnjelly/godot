@@ -64,6 +64,7 @@ class OccluderShapeSphere : public OccluderShape {
 
 	// We bandit a plane to store position / radius
 	Vector<Plane> _spheres;
+
 	const real_t _min_radius = 0.1;
 
 protected:

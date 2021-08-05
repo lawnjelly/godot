@@ -390,6 +390,7 @@ struct VSOccluder {
 	enum Type : uint32_t {
 		OT_UNDEFINED,
 		OT_SPHERE,
+		OT_POLY,
 		OT_NUM_TYPES,
 	} type;
 
@@ -440,6 +441,17 @@ struct Sphere {
 		return true;
 	}
 };
+
+struct Poly {
+	static const int MAX_POLY_VERTS = 8;
+	void create() {
+		num_verts = 0;
+	}
+	Plane plane;
+	int num_verts;
+	Vector3 verts[MAX_POLY_VERTS];
+};
+
 } // namespace Occlusion
 
 struct VSOccluder_Sphere {
@@ -450,6 +462,16 @@ struct VSOccluder_Sphere {
 
 	Occlusion::Sphere local;
 	Occlusion::Sphere world;
+};
+
+struct VSOccluder_Poly {
+	void create() {
+		poly.create();
+		area = 0.0;
+	}
+	Occlusion::Poly poly;
+	real_t area;
+	Vector3 center;
 };
 
 #endif

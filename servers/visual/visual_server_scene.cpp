@@ -1212,6 +1212,13 @@ void VisualServerScene::occluder_spheres_update(RID p_occluder, const Vector<Pla
 	ro->scenario->_portal_renderer.occluder_update_spheres(ro->scenario_occluder_id, p_spheres);
 }
 
+void VisualServerScene::occluder_polys_update(RID p_occluder, const Vector<Geometry::MeshData::Face> &p_faces, const Vector<Vector3> &p_vertices) {
+	Occluder *ro = occluder_owner.getornull(p_occluder);
+	ERR_FAIL_COND(!ro);
+	ERR_FAIL_COND(!ro->scenario);
+	ro->scenario->_portal_renderer.occluder_update_polys(ro->scenario_occluder_id, p_faces, p_vertices);
+}
+
 void VisualServerScene::set_use_occlusion_culling(bool p_enable) {
 	// this is not scenario specific, and is global
 	// (mainly for debugging)

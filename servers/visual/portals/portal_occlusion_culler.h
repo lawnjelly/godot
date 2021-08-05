@@ -37,6 +37,7 @@ class PortalRenderer;
 class PortalOcclusionCuller {
 	enum {
 		MAX_SPHERES = 64,
+		MAX_POLYS = 8,
 	};
 
 public:
@@ -46,16 +47,25 @@ public:
 	}
 
 	void prepare_generic(PortalRenderer &p_portal_renderer, const LocalVector<uint32_t, uint32_t> &p_occluder_pool_ids, const Vector3 &pt_camera, const LocalVector<Plane> &p_planes, const Plane *p_near_plane);
+
 	bool cull_aabb(const AABB &p_aabb) const {
-		if (!_num_spheres) {
+		if (!_occluders_present) {
 			return false;
 		}
+		if (cull_aabb_to_polys(p_aabb)) {
+			return true;
+		}
 
-		return cull_sphere(p_aabb.get_center(), p_aabb.size.length() * 0.5);
+		return cull_sphere(p_aabb.get_center(), p_aabb.size.length() * 0.5, false);
 	}
-	bool cull_sphere(const Vector3 &p_occludee_center, real_t p_occludee_radius) const;
+
+	bool cull_sphere(const Vector3 &p_occludee_center, real_t p_occludee_radius, bool p_cull_to_polys = true) const;
 
 private:
+	bool cull_sphere_to_spheres(const Vector3 &p_occludee_center, real_t p_occludee_radius, const Vector3 &p_ray_dir, real_t p_dist_to_occludee) const;
+	bool cull_sphere_to_polys(const Vector3 &p_occludee_center, real_t p_occludee_radius) const;
+	bool cull_aabb_to_polys(const AABB &p_aabb) const;
+
 	// if a sphere is entirely in front of any of the culling planes, it can't be seen so returns false
 	bool is_sphere_culled(const Vector3 &p_pos, real_t p_radius, const LocalVector<Plane> &p_planes, const Plane *p_near_plane) const {
 		if (p_near_plane) {
@@ -83,7 +93,13 @@ private:
 	int _num_spheres = 0;
 	int _max_spheres = 8;
 
+	Occlusion::Poly _polys[MAX_POLYS];
+	bool _poly_faces_camera[MAX_POLYS];
+	int _num_polys = 0;
+	int _max_polys = 8;
+
 	Vector3 _pt_camera;
+	bool _occluders_present = false;
 };
 
 #endif // PORTAL_OCCLUSION_CULLER_H
