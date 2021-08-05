@@ -33,6 +33,7 @@
 
 #include "core/bitfield_dynamic.h"
 #include "core/local_vector.h"
+#include "portal_occlusion_culler.h"
 #include "portal_types.h"
 
 #ifdef TOOLS_ENABLED
@@ -156,6 +157,7 @@ private:
 
 	PlanesPool _planes_pool;
 	int _depth_limit = 16;
+	PortalOcclusionCuller _occlusion_culler;
 
 	// keep a tick count for each trace, to avoid adding a visible
 	// object to the hit list more than once per tick

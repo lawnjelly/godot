@@ -171,7 +171,9 @@ void PortalTracer::cull_roamers(const VSRoom &p_room, const LocalVector<Plane> &
 		moving.last_tick_hit = _tick;
 
 		if (test_cull_inside(moving.exact_aabb, p_planes)) {
-			_result->visible_roamer_pool_ids.push_back(pool_id);
+			if (!_occlusion_culler.cull_aabb(moving.exact_aabb)) {
+				_result->visible_roamer_pool_ids.push_back(pool_id);
+			}
 		}
 	}
 }
@@ -215,6 +217,10 @@ void PortalTracer::cull_statics(const VSRoom &p_room, const LocalVector<Plane> &
 		// print("\t\t\tculling object " + pObj->get_name());
 
 		if (test_cull_inside(bb, p_planes)) {
+			if (_occlusion_culler.cull_aabb(bb)) {
+				continue;
+			}
+
 			// bypass the bitfield for now and just show / hide
 			//stat.show(bShow);
 
@@ -348,6 +354,9 @@ void PortalTracer::trace_recursive(const TraceParams &p_params, int p_depth, int
 	// get the room
 	const VSRoom &room = _portal_renderer->get_room(p_room_id);
 
+	// set up the occlusion culler as a one off
+	_occlusion_culler.prepare(*_portal_renderer, room, _trace_start_point, p_planes, &_near_and_far_planes[0]);
+
 	cull_statics(room, p_planes);
 	cull_roamers(room, p_planes);
 
@@ -456,6 +465,11 @@ void PortalTracer::trace_recursive(const TraceParams &p_params, int p_depth, int
 				// is possible in this scenario).
 				p_from_external_room_id = p_room_id;
 			}
+		}
+
+		// occlusion culling of portals
+		if (_occlusion_culler.cull_sphere(portal._pt_center, portal._bounding_sphere_radius)) {
+			continue;
 		}
 
 		// hopefully the portal actually leads somewhere...

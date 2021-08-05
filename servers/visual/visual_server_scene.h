@@ -617,6 +617,26 @@ public:
 	virtual void roomgroup_set_scenario(RID p_roomgroup, RID p_scenario);
 	virtual void roomgroup_add_room(RID p_roomgroup, RID p_room);
 
+	// Occluders
+	struct Occluder : RID_Data {
+		uint32_t scenario_occluder_id = 0;
+		Scenario *scenario = nullptr;
+		virtual ~Occluder() {
+			if (scenario) {
+				scenario->_portal_renderer.occluder_destroy(scenario_occluder_id);
+				scenario = nullptr;
+				scenario_occluder_id = 0;
+			}
+		}
+	};
+	RID_Owner<Occluder> occluder_owner;
+
+	virtual RID occluder_create();
+	virtual void occluder_set_scenario(RID p_occluder, RID p_scenario, VisualServer::OccluderType p_type);
+	virtual void occluder_spheres_update(RID p_occluder, const Vector<Plane> &p_spheres);
+	virtual void occluder_set_transform(RID p_occluder, const Transform &p_xform);
+	virtual void occluder_set_active(RID p_occluder, bool p_active);
+
 	// Rooms
 	struct Room : RID_Data {
 		// all interations with actual rooms are indirect, as the room is part of the scenario
