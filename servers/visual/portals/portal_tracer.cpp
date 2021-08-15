@@ -531,3 +531,37 @@ void PortalTracer::trace_recursive(const TraceParams &p_params, int p_depth, int
 		} // if a linked room exists
 	} // for p through portals
 }
+
+int PortalTracer::occlusion_cull(PortalRenderer &p_portal_renderer, const Vector3 &p_point, const Vector<Plane> &p_convex, VSInstance **p_result_array, int p_num_results) {
+	// silly conversion of vector to local vector
+	// can this be avoided? NYI
+	static LocalVector<Plane> local_planes;
+	if (local_planes.size() != p_convex.size()) {
+		local_planes.resize(p_convex.size());
+	}
+	for (int n = 0; n < p_convex.size(); n++) {
+		local_planes[n] = p_convex[n];
+	}
+
+	_occlusion_culler.prepare_generic(p_portal_renderer, p_portal_renderer.get_occluders_active_list(), p_point, local_planes, nullptr);
+
+	// cull each instance
+	int count = p_num_results;
+	AABB bb;
+
+	for (int n = 0; n < count; n++) {
+		VSInstance *instance = p_result_array[n];
+
+		// this will return false for GLOBAL instances, so we don't occlusion cull gizmos
+		if (VSG::scene->_instance_get_transformed_aabb_for_occlusion(instance, bb)) {
+			if (_occlusion_culler.cull_aabb(bb)) {
+				// remove from list with unordered swap from the end of list
+				p_result_array[n] = p_result_array[count - 1];
+				count--;
+				n--; // repeat this element, as it will have changed
+			}
+		}
+	}
+
+	return count;
+}

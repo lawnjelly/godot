@@ -196,6 +196,16 @@ public:
 
 	int cull_convex_implementation(const Vector3 &p_point, const Vector<Plane> &p_convex, VSInstance **p_result_array, int p_result_max, uint32_t p_mask, int32_t &r_previous_room_id_hint);
 
+	// special function for occlusion culling only that does not use portals / rooms,
+	// but allows using occluders with the main scene
+	int occlusion_cull(const Vector3 &p_point, const Vector<Plane> &p_convex, VSInstance **p_result_array, int p_num_results) {
+		// inactive?
+		if (!_occluder_pool.active_size()) {
+			return p_num_results;
+		}
+		return _tracer.occlusion_cull(*this, p_point, p_convex, p_result_array, p_num_results);
+	}
+
 	bool is_active() const { return _active && _loaded; }
 
 	VSStatic &get_static(int p_id) { return _statics[p_id]; }
@@ -221,6 +231,7 @@ public:
 	const VSOccluder &get_pool_occluder(uint32_t p_pool_id) const { return _occluder_pool[p_pool_id]; }
 	VSOccluder &get_pool_occluder(uint32_t p_pool_id) { return _occluder_pool[p_pool_id]; }
 	const VSOccluder_Sphere &get_pool_occluder_sphere(uint32_t p_pool_id) const { return _occluder_sphere_pool[p_pool_id]; }
+	const LocalVector<uint32_t, uint32_t> &get_occluders_active_list() const { return _occluder_pool.get_active_list(); }
 
 	VSStaticGhost &get_static_ghost(uint32_t p_id) { return _static_ghosts[p_id]; }
 

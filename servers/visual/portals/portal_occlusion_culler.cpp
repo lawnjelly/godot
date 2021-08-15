@@ -33,7 +33,7 @@
 #include "core/project_settings.h"
 #include "portal_renderer.h"
 
-void PortalOcclusionCuller::prepare(PortalRenderer &p_portal_renderer, const VSRoom &p_room, const Vector3 &pt_camera, const LocalVector<Plane> &p_planes, const Plane *p_near_plane) {
+void PortalOcclusionCuller::prepare_generic(PortalRenderer &p_portal_renderer, const LocalVector<uint32_t, uint32_t> &p_occluder_pool_ids, const Vector3 &pt_camera, const LocalVector<Plane> &p_planes, const Plane *p_near_plane) {
 	_num_spheres = 0;
 	_pt_camera = pt_camera;
 
@@ -50,9 +50,16 @@ void PortalOcclusionCuller::prepare(PortalRenderer &p_portal_renderer, const VSR
 	// use as an occluder...
 
 	// find sphere occluders
-	for (int o = 0; o < p_room._occluder_pool_ids.size(); o++) {
-		int id = p_room._occluder_pool_ids[o];
+	for (int o = 0; o < p_occluder_pool_ids.size(); o++) {
+		int id = p_occluder_pool_ids[o];
 		VSOccluder &occ = p_portal_renderer.get_pool_occluder(id);
+
+		// is it active?
+		// in the case of rooms, they will always be active, as inactive
+		// are removed from rooms. But for whole scene mode, some may be inactive.
+		if (!occ.active) {
+			continue;
+		}
 
 		if (occ.type == VSOccluder::OT_SPHERE) {
 			// make sure world space spheres are up to date

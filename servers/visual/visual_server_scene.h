@@ -533,6 +533,10 @@ public:
 	// Portals
 	virtual void instance_set_portal_mode(RID p_instance, VisualServer::InstancePortalMode p_mode);
 	bool _instance_get_transformed_aabb(RID p_instance, AABB &r_aabb);
+	bool _instance_get_transformed_aabb_for_occlusion(VSInstance *p_instance, AABB &r_aabb) const {
+		r_aabb = ((Instance *)p_instance)->transformed_aabb;
+		return ((Instance *)p_instance)->portal_mode != VisualServer::INSTANCE_PORTAL_MODE_GLOBAL;
+	}
 	void *_instance_get_from_rid(RID p_instance);
 	bool _instance_cull_check(VSInstance *p_instance, uint32_t p_cull_mask) const {
 		uint32_t pairable_type = 1 << ((Instance *)p_instance)->base_type;

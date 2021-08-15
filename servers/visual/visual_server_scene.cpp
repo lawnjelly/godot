@@ -1451,6 +1451,9 @@ int VisualServerScene::_cull_convex_from_point(Scenario *p_scenario, const Vecto
 	// fallback to BVH  / octree if portals not active
 	if (res == -1) {
 		res = p_scenario->sps->cull_convex(p_convex, p_result_array, p_result_max, p_mask);
+
+		// Opportunity for occlusion culling on the main scene. This will be a noop if no occluders.
+		res = p_scenario->_portal_renderer.occlusion_cull(p_point, p_convex, (VSInstance **)p_result_array, res);
 	}
 	return res;
 }

@@ -368,7 +368,10 @@ struct VSRoom {
 	// roaming movers currently in the room
 	LocalVector<uint32_t, int32_t> _roamer_pool_ids;
 	LocalVector<uint32_t, int32_t> _rghost_pool_ids;
-	LocalVector<uint32_t, int32_t> _occluder_pool_ids;
+
+	// only using uint here for compatibility with TrackerPoolList,
+	// as we will use either this or TrackedPoolList for occlusion testing
+	LocalVector<uint32_t, uint32_t> _occluder_pool_ids;
 
 	// keep track of which roomgroups the room is in, that
 	// way we can switch on and off roomgroups as they enter / exit view

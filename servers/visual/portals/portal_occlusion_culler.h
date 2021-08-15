@@ -41,7 +41,11 @@ class PortalOcclusionCuller {
 
 public:
 	PortalOcclusionCuller();
-	void prepare(PortalRenderer &p_portal_renderer, const VSRoom &p_room, const Vector3 &pt_camera, const LocalVector<Plane> &p_planes, const Plane *p_near_plane);
+	void prepare(PortalRenderer &p_portal_renderer, const VSRoom &p_room, const Vector3 &pt_camera, const LocalVector<Plane> &p_planes, const Plane *p_near_plane) {
+		prepare_generic(p_portal_renderer, p_room._occluder_pool_ids, pt_camera, p_planes, p_near_plane);
+	}
+
+	void prepare_generic(PortalRenderer &p_portal_renderer, const LocalVector<uint32_t, uint32_t> &p_occluder_pool_ids, const Vector3 &pt_camera, const LocalVector<Plane> &p_planes, const Plane *p_near_plane);
 	bool cull_aabb(const AABB &p_aabb) const {
 		if (!_num_spheres) {
 			return false;
