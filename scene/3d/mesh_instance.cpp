@@ -1096,9 +1096,9 @@ bool MeshInstance::_triangle_is_degenerate(const Vector3 &p_a, const Vector3 &p_
 	return false;
 }
 
-bool MeshInstance::create_by_merging(Vector<MeshInstance *> p_list) {
+bool MeshInstance::create_by_merging(Vector<MeshInstance *> p_list, real_t p_simplify) {
 	// must be at least 2 meshes to merge
-	if (p_list.size() < 2) {
+	if (p_list.size() < 1) {
 		// should not happen but just in case
 		return false;
 	}
@@ -1133,6 +1133,17 @@ bool MeshInstance::create_by_merging(Vector<MeshInstance *> p_list) {
 				WARN_PRINT_ONCE("Mesh index out of range, invalid mesh, aborting");
 				return false;
 			}
+		}
+
+		// simplifcation?
+		if (p_simplify >= 0.0) {
+			real_t epsilon = get_lod_max_hysteresis();
+			epsilon /= 32768.0; // 200000.0;
+
+			real_t edge_simplification = get_lod_max_distance() / 32768.0;
+
+			ArrayMesh::simplify_mesh_data(verts, normals, tangents, colors, uvs, uv2s, inds, epsilon, edge_simplification);
+			//_simplify_mesh_data(verts, normals, tangents, colors, uvs, uv2s, inds, p_simplify);
 		}
 
 		Array arr;
@@ -1173,6 +1184,16 @@ bool MeshInstance::create_by_merging(Vector<MeshInstance *> p_list) {
 	return true;
 }
 
+bool MeshInstance::create_lod(Node *p_source, real_t p_simplify) {
+	MeshInstance *mi = Object::cast_to<MeshInstance>(p_source);
+	if (!mi)
+		return false;
+
+	Vector<MeshInstance *> list;
+	list.push_back(mi);
+	return create_by_merging(list, p_simplify);
+}
+
 void MeshInstance::_merge_log(String p_string) {
 	print_verbose(p_string);
 }
@@ -1204,6 +1225,8 @@ void MeshInstance::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("create_debug_tangents"), &MeshInstance::create_debug_tangents);
 	ClassDB::set_method_flags("MeshInstance", "create_debug_tangents", METHOD_FLAGS_DEFAULT | METHOD_FLAG_EDITOR);
+
+	ClassDB::bind_method(D_METHOD("create_lod"), &MeshInstance::create_lod);
 
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "mesh", PROPERTY_HINT_RESOURCE_TYPE, "Mesh"), "set_mesh", "get_mesh");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "skin", PROPERTY_HINT_RESOURCE_TYPE, "Skin"), "set_skin", "get_skin");

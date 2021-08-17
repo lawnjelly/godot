@@ -38,7 +38,7 @@
 
 template <class T, class U = uint32_t, bool force_trivial = false>
 class LocalVector {
-private:
+protected:
 	U count = 0;
 	U capacity = 0;
 	T *data = nullptr;
@@ -104,6 +104,12 @@ public:
 	void invert() {
 		for (U i = 0; i < count / 2; i++) {
 			SWAP(data[i], data[count - i - 1]);
+		}
+	}
+
+	void fill(const T &p_val) {
+		for (U i = 0; i < count; i++) {
+			data[i] = p_val;
 		}
 	}
 
@@ -210,6 +216,16 @@ public:
 		insert(i, p_val);
 	}
 
+	U find_or_push_back(const T &p_val) {
+		int64_t found = find(p_val);
+		if (found == -1) {
+			U id = size();
+			push_back(p_val);
+			return id;
+		}
+		return (U)found;
+	}
+
 	operator Vector<T>() const {
 		Vector<T> ret;
 		ret.resize(size());
@@ -252,6 +268,33 @@ public:
 		if (data) {
 			reset();
 		}
+	}
+};
+
+// Integer default version
+template <class T, class I = int32_t, bool force_trivial = false>
+class LocalVectori : public LocalVector<T, I, force_trivial> {
+public:
+	using LocalVector<T, I, force_trivial>::operator=;
+	using LocalVector<T, I, force_trivial>::operator Vector<T>;
+
+	const T &get_wrapped(I p_index) const {
+		return this->data[wrap_index(p_index)];
+	}
+
+	T &get_wrapped(I p_index) {
+		return this->data[wrap_index(p_index)];
+	}
+
+	I wrap_index(I p_index) const {
+		if (p_index >= 0) {
+			p_index %= this->size();
+		} else {
+			p_index = -p_index;
+			p_index %= this->size();
+			p_index = this->size() - p_index;
+		}
+		return p_index;
 	}
 };
 
