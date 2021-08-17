@@ -31,6 +31,8 @@
 #ifndef PORTAL_RENDERER_H
 #define PORTAL_RENDERER_H
 
+#include "core/math/camera_matrix.h"
+#include "core/math/geometry.h"
 #include "core/math/plane.h"
 #include "core/pooled_list.h"
 #include "core/vector.h"
@@ -181,6 +183,7 @@ public:
 	// occluders
 	OccluderHandle occluder_create(VSOccluder::Type p_type);
 	void occluder_update_spheres(OccluderHandle p_handle, const Vector<Plane> &p_spheres);
+	void occluder_update_polys(OccluderHandle p_handle, const Vector<Geometry::MeshData::Face> &p_faces, const Vector<Vector3> &p_vertices);
 	void occluder_set_transform(OccluderHandle p_handle, const Transform &p_xform);
 	void occluder_set_active(OccluderHandle p_handle, bool p_active);
 	void occluder_destroy(OccluderHandle p_handle);
@@ -188,23 +191,37 @@ public:
 	// note that this relies on a 'frustum' type cull, from a point, and that the planes are specified as in
 	// CameraMatrix, i.e.
 	// order PLANE_NEAR,PLANE_FAR,PLANE_LEFT,PLANE_TOP,PLANE_RIGHT,PLANE_BOTTOM
-	int cull_convex(const Vector3 &p_point, const Vector<Plane> &p_convex, VSInstance **p_result_array, int p_result_max, uint32_t p_mask, int32_t &r_previous_room_id_hint) {
-		if (!_override_camera)
-			return cull_convex_implementation(p_point, p_convex, p_result_array, p_result_max, p_mask, r_previous_room_id_hint);
+	int cull_convex(const Transform &p_cam_transform, const CameraMatrix &p_cam_projection, const Vector<Plane> &p_convex, VSInstance **p_result_array, int p_result_max, uint32_t p_mask, int32_t &r_previous_room_id_hint) {
+		// combined camera matrix
+		CameraMatrix cm = CameraMatrix(p_cam_transform.affine_inverse());
+		cm = p_cam_projection * cm;
+		Vector3 point = p_cam_transform.origin;
 
-		return cull_convex_implementation(_override_camera_pos, _override_camera_planes, p_result_array, p_result_max, p_mask, r_previous_room_id_hint);
+		if (!_override_camera)
+			return cull_convex_implementation(point, cm, p_convex, p_result_array, p_result_max, p_mask, r_previous_room_id_hint);
+
+		// override camera matrix NYI
+		return cull_convex_implementation(_override_camera_pos, cm, _override_camera_planes, p_result_array, p_result_max, p_mask, r_previous_room_id_hint);
 	}
 
-	int cull_convex_implementation(const Vector3 &p_point, const Vector<Plane> &p_convex, VSInstance **p_result_array, int p_result_max, uint32_t p_mask, int32_t &r_previous_room_id_hint);
+	int cull_convex_implementation(const Vector3 &p_point, const CameraMatrix &p_cam_matrix, const Vector<Plane> &p_convex, VSInstance **p_result_array, int p_result_max, uint32_t p_mask, int32_t &r_previous_room_id_hint);
+
+	bool occlusion_is_active() const { return _occluder_pool.active_size() && use_occlusion_culling; }
 
 	// special function for occlusion culling only that does not use portals / rooms,
 	// but allows using occluders with the main scene
-	int occlusion_cull(const Vector3 &p_point, const Vector<Plane> &p_convex, VSInstance **p_result_array, int p_num_results) {
+	int occlusion_cull(const Transform &p_cam_transform, const CameraMatrix &p_cam_projection, const Vector<Plane> &p_convex, VSInstance **p_result_array, int p_num_results) {
 		// inactive?
 		if (!_occluder_pool.active_size() || !use_occlusion_culling) {
 			return p_num_results;
 		}
-		return _tracer.occlusion_cull(*this, p_point, p_convex, p_result_array, p_num_results);
+
+		// combined camera matrix
+		CameraMatrix cm = CameraMatrix(p_cam_transform.affine_inverse());
+		cm = p_cam_projection * cm;
+		Vector3 point = p_cam_transform.origin;
+
+		return _tracer.occlusion_cull(*this, point, cm, p_convex, p_result_array, p_num_results);
 	}
 
 	bool is_active() const { return _active && _loaded; }
@@ -229,10 +246,11 @@ public:
 	RGhost &get_pool_rghost(uint32_t p_pool_id) { return _rghost_pool[p_pool_id]; }
 	const RGhost &get_pool_rghost(uint32_t p_pool_id) const { return _rghost_pool[p_pool_id]; }
 
+	const LocalVector<uint32_t, uint32_t> &get_occluders_active_list() const { return _occluder_pool.get_active_list(); }
 	const VSOccluder &get_pool_occluder(uint32_t p_pool_id) const { return _occluder_pool[p_pool_id]; }
 	VSOccluder &get_pool_occluder(uint32_t p_pool_id) { return _occluder_pool[p_pool_id]; }
 	const VSOccluder_Sphere &get_pool_occluder_sphere(uint32_t p_pool_id) const { return _occluder_sphere_pool[p_pool_id]; }
-	const LocalVector<uint32_t, uint32_t> &get_occluders_active_list() const { return _occluder_pool.get_active_list(); }
+	const VSOccluder_Poly &get_pool_occluder_poly(uint32_t p_pool_id) const { return _occluder_poly_pool[p_pool_id]; }
 
 	VSStaticGhost &get_static_ghost(uint32_t p_id) { return _static_ghosts[p_id]; }
 
@@ -289,6 +307,7 @@ private:
 	// occluders
 	TrackedPooledList<VSOccluder> _occluder_pool;
 	TrackedPooledList<VSOccluder_Sphere> _occluder_sphere_pool;
+	TrackedPooledList<VSOccluder_Poly> _occluder_poly_pool;
 
 	PVS _pvs;
 

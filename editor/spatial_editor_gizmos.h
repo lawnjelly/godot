@@ -493,6 +493,7 @@ public:
 
 class Occluder;
 class OccluderShapeSphere;
+class OccluderShapePoly;
 
 class OccluderSpatialGizmo : public EditorSpatialGizmo {
 	GDCLASS(OccluderSpatialGizmo, EditorSpatialGizmo);
@@ -501,6 +502,7 @@ class OccluderSpatialGizmo : public EditorSpatialGizmo {
 
 	OccluderShapeSphere *get_occluder_shape_sphere();
 	const OccluderShapeSphere *get_occluder_shape_sphere() const;
+	const OccluderShapePoly *get_occluder_shape_poly() const;
 
 public:
 	virtual String get_handle_name(int p_idx) const;

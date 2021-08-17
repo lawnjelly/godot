@@ -894,12 +894,14 @@ public:
 	enum OccluderType {
 		OCCLUDER_TYPE_UNDEFINED,
 		OCCLUDER_TYPE_SPHERE,
+		OCCLUDER_TYPE_POLY,
 		OCCLUDER_TYPE_NUM_TYPES,
 	};
 
 	virtual RID occluder_create() = 0;
 	virtual void occluder_set_scenario(RID p_occluder, RID p_scenario, VisualServer::OccluderType p_type) = 0;
 	virtual void occluder_spheres_update(RID p_occluder, const Vector<Plane> &p_spheres) = 0;
+	virtual void occluder_polys_update(RID p_occluder, const Vector<Geometry::MeshData::Face> &p_faces, const Vector<Vector3> &p_vertices) = 0;
 	virtual void occluder_set_transform(RID p_occluder, const Transform &p_xform) = 0;
 	virtual void occluder_set_active(RID p_occluder, bool p_active) = 0;
 	virtual void set_use_occlusion_culling(bool p_enable) = 0;

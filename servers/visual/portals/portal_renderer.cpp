@@ -547,6 +547,62 @@ void PortalRenderer::occluder_refresh_room_within(uint32_t p_occluder_pool_id) {
 	}
 }
 
+void PortalRenderer::occluder_update_polys(OccluderHandle p_handle, const Vector<Geometry::MeshData::Face> &p_faces, const Vector<Vector3> &p_vertices) {
+	p_handle--;
+	VSOccluder &occ = _occluder_pool[p_handle];
+	ERR_FAIL_COND(occ.type != VSOccluder::OT_POLY);
+
+	// first deal with the situation where the number of spheres has changed (rare)
+	if (occ.list_ids.size() != p_faces.size()) {
+		// not the most efficient, but works...
+		// remove existing
+		for (int n = 0; n < occ.list_ids.size(); n++) {
+			uint32_t id = occ.list_ids[n];
+			_occluder_poly_pool.free(id);
+		}
+
+		occ.list_ids.clear();
+		// create new
+		for (int n = 0; n < p_faces.size(); n++) {
+			uint32_t id;
+			VSOccluder_Poly *poly = _occluder_poly_pool.request(id);
+			poly->create();
+			occ.list_ids.push_back(id);
+		}
+	}
+
+	// new data
+	for (int n = 0; n < occ.list_ids.size(); n++) {
+		uint32_t id = occ.list_ids[n];
+
+		VSOccluder_Poly &opoly = _occluder_poly_pool[id];
+		Occlusion::Poly &poly = opoly.poly;
+
+		// source face
+		const Geometry::MeshData::Face &face = p_faces[n];
+		poly.plane = face.plane;
+
+		poly.num_verts = MIN(face.indices.size(), Occlusion::Poly::MAX_POLY_VERTS);
+
+		opoly.center = Vector3(0, 0, 0);
+		for (int c = 0; c < poly.num_verts; c++) {
+			int vert_index = face.indices[c];
+
+			// warn message instead?
+			if (vert_index < p_vertices.size()) {
+				poly.verts[c] = p_vertices[face.indices[c]];
+				opoly.center += poly.verts[c];
+			}
+		}
+
+		opoly.center /= poly.num_verts;
+
+		// precalculate area (used in goodness of fit for finding
+		// the best occluders)
+		opoly.area = MAX(Geometry::find_polygon_area(&poly.verts[0], poly.num_verts), 0.01);
+	}
+}
+
 void PortalRenderer::occluder_update_spheres(OccluderHandle p_handle, const Vector<Plane> &p_spheres) {
 	p_handle--;
 	VSOccluder &occ = _occluder_pool[p_handle];
@@ -1094,7 +1150,7 @@ void PortalRenderer::rooms_update_gameplay_monitor(const Vector<Vector3> &p_came
 	_gameplay_monitor.update_gameplay(*this, source_rooms, num_source_rooms);
 }
 
-int PortalRenderer::cull_convex_implementation(const Vector3 &p_point, const Vector<Plane> &p_convex, VSInstance **p_result_array, int p_result_max, uint32_t p_mask, int32_t &r_previous_room_id_hint) {
+int PortalRenderer::cull_convex_implementation(const Vector3 &p_point, const CameraMatrix &p_cam_matrix, const Vector<Plane> &p_convex, VSInstance **p_result_array, int p_result_max, uint32_t p_mask, int32_t &r_previous_room_id_hint) {
 	// start room
 	int start_room_id = find_room_within(p_point, r_previous_room_id_hint);
 
@@ -1104,6 +1160,9 @@ int PortalRenderer::cull_convex_implementation(const Vector3 &p_point, const Vec
 	if (start_room_id == -1) {
 		return -1;
 	}
+
+	// set up the occlusion culler once off .. this is a prepare before the prepare is done PER room
+	_tracer.get_occlusion_culler().prepare_camera(p_cam_matrix);
 
 	// planes must be in CameraMatrix order
 	DEV_ASSERT(p_convex.size() == 6);

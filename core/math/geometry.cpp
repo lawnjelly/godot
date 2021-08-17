@@ -1363,6 +1363,176 @@ Vector<Geometry::PackRectsResult> Geometry::partial_pack_rects(const Vector<Vect
 	return ret;
 }
 
+// Expects a list of vertices sorted by winding (use sort_polygon_winding beforehand).
+// Returns a subset list of these forming a convex poly, or false if fails.
+bool Geometry::make_polygon_convex(Vector<Vector3> &r_verts, const Vector3 &p_poly_normal, real_t p_epsilon) {
+	// cannot sort less than 3 verts
+	if (r_verts.size() < 3) {
+		return false;
+	}
+
+	// first edge
+	struct Edge {
+		int a, b;
+		Plane p;
+		void calculate_plane(const Vector<Vector3> &p_verts, const Vector3 &p_normal) {
+			p = Plane(p_verts[b], p_verts[a], p_verts[a] + p_normal);
+		}
+	};
+
+	Edge e;
+	e.a = 0;
+	e.b = 1;
+
+	Vector<int> out_inds;
+	out_inds.push_back(0);
+	out_inds.push_back(1);
+
+	// each edge in turn
+	for (int n = 2; n < r_verts.size(); n++) {
+		e.calculate_plane(r_verts, p_poly_normal);
+
+		// test point
+		const Vector3 &pt = r_verts[n];
+
+		// ahead of current plane?
+		real_t dist = e.p.distance_to(pt);
+
+		if (dist > p_epsilon) {
+			// is ok
+			out_inds.push_back(n);
+			e.a = e.b;
+			e.b = n;
+		} else {
+			// forms concave!
+			// we need to eliminate previous point and recalc the plane
+			out_inds.set(out_inds.size() - 1, n);
+			e.b = n;
+		}
+	}
+
+	if (out_inds.size() < 3) {
+		return false;
+	}
+
+	// one more possibility, that the first vertex itself is concave
+	e.a = out_inds[out_inds.size() - 1];
+	e.b = out_inds[1];
+	e.calculate_plane(r_verts, p_poly_normal);
+
+	const Vector3 &pt = r_verts[out_inds[0]];
+	real_t dist = e.p.distance_to(pt);
+	if (dist > -p_epsilon) {
+		// remove first vertex
+		out_inds.remove(0);
+	}
+
+	if (out_inds.size() < 3) {
+		return false;
+	}
+
+	// reconstruct the final verts
+	Vector<Vector3> out_verts;
+	out_verts.resize(out_inds.size());
+	for (int n = 0; n < out_inds.size(); n++) {
+		out_verts.set(n, r_verts[out_inds[n]]);
+	}
+	r_verts = out_verts;
+
+	return true;
+}
+
+// Expects polygon as a triangle fan
+real_t Geometry::find_polygon_area(const Vector3 *p_verts, int p_num_verts) {
+	if (!p_verts || (p_num_verts < 3)) {
+		return 0.0;
+	}
+
+	Face3 f;
+	f.vertex[0] = p_verts[0];
+	f.vertex[1] = p_verts[1];
+	f.vertex[2] = p_verts[1];
+
+	real_t area = 0.0;
+
+	for (int n = 2; n < p_num_verts; n++) {
+		f.vertex[1] = f.vertex[2];
+		f.vertex[2] = p_verts[n];
+		area += Math::sqrt(f.get_twice_area_squared());
+	}
+
+	return area * 0.5;
+}
+
+Vector3 Geometry::find_point_average(const Vector<Vector3> &p_verts) {
+	Vector3 pt = Vector3(0, 0, 0);
+
+	for (int n = 0; n < p_verts.size(); n++) {
+		pt += p_verts[n];
+	}
+	pt /= p_verts.size();
+
+	return pt;
+}
+
+// Clockwise. If you want reverse, flip the poly normal.
+// Returns the poly center.
+Vector3 Geometry::sort_polygon_winding(Vector<Vector3> &r_verts, const Vector3 &p_poly_normal) {
+	// find centroid
+	int num_points = r_verts.size();
+	Vector3 pt_center = find_point_average(r_verts);
+
+	// cannot sort less than 3 verts
+	if (r_verts.size() < 3) {
+		return pt_center;
+	}
+
+	// now algorithm
+	for (int n = 0; n < num_points - 2; n++) {
+		Vector3 a = r_verts[n] - pt_center;
+		a.normalize();
+
+		Plane p = Plane(r_verts[n], pt_center, pt_center + p_poly_normal);
+
+		double smallest_angle = -1;
+		int smallest = -1;
+
+		for (int m = n + 1; m < num_points; m++) {
+			if (p.distance_to(r_verts[m]) > 0.0) {
+				Vector3 b = r_verts[m] - pt_center;
+				b.normalize();
+
+				double angle = a.dot(b);
+
+				if (angle > smallest_angle) {
+					smallest_angle = angle;
+					smallest = m;
+				}
+			} // which side
+
+		} // for m
+
+		// swap smallest and n+1 vert
+		if (smallest != -1) {
+			Vector3 temp = r_verts[smallest];
+			r_verts.set(smallest, r_verts[n + 1]);
+			r_verts.set(n + 1, temp);
+		}
+	} // for n
+
+	// the vertices are now sorted, but may be in the opposite order to that wanted.
+	// we detect this by calculating the normal of the poly, then flipping the order if the normal is pointing
+	// the wrong way.
+	Plane plane = Plane(r_verts[0], r_verts[1], r_verts[2]);
+
+	if (p_poly_normal.dot(plane.normal) < 0.0f) {
+		// reverse winding order of verts
+		r_verts.invert();
+	}
+
+	return pt_center;
+}
+
 // adapted from:
 // https://stackoverflow.com/questions/6989100/sort-points-in-clockwise-order
 void Geometry::sort_polygon_winding(Vector<Vector2> &r_verts, bool p_clockwise) {

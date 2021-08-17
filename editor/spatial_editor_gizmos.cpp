@@ -62,6 +62,7 @@
 #include "scene/resources/cylinder_shape.h"
 #include "scene/resources/height_map_shape.h"
 #include "scene/resources/occluder_shape.h"
+#include "scene/resources/occluder_shape_poly.h"
 #include "scene/resources/plane_shape.h"
 #include "scene/resources/primitive_meshes.h"
 #include "scene/resources/ray_shape.h"
@@ -4946,6 +4947,7 @@ PortalSpatialGizmo::PortalSpatialGizmo(Portal *p_portal) {
 OccluderGizmoPlugin::OccluderGizmoPlugin() {
 	Color color_occluder = EDITOR_DEF("editors/3d_gizmos/gizmo_colors/occluder", Color(1.0, 0.0, 1.0));
 	create_material("occluder", color_occluder, false, true, false);
+	create_material("occluder_poly", Color(1.0, 0.0, 1.0, 0.3), false, false, true);
 
 	create_handle_material("occluder_handle");
 	create_handle_material("extra_handle", false, SpatialEditor::get_singleton()->get_icon("EditorInternalHandle", "EditorIcons"));
@@ -5134,6 +5136,21 @@ OccluderShapeSphere *OccluderSpatialGizmo::get_occluder_shape_sphere() {
 	return occ_sphere;
 }
 
+const OccluderShapePoly *OccluderSpatialGizmo::get_occluder_shape_poly() const {
+	if (!_occluder) {
+		return nullptr;
+	}
+
+	Ref<OccluderShape> rshape = _occluder->get_shape();
+	if (rshape.is_null() || !rshape.is_valid()) {
+		return nullptr;
+	}
+
+	const OccluderShape *shape = rshape.ptr();
+	const OccluderShapePoly *occ_poly = Object::cast_to<OccluderShapePoly>(shape);
+	return occ_poly;
+}
+
 const OccluderShapeSphere *OccluderSpatialGizmo::get_occluder_shape_sphere() const {
 	if (!_occluder) {
 		return nullptr;
@@ -5204,6 +5221,58 @@ void OccluderSpatialGizmo::redraw() {
 		Ref<Material> material_extra_handle = gizmo_plugin->get_material("extra_handle", this);
 		add_handles(handles, material_handle);
 		add_handles(radius_handles, material_extra_handle, false, true);
+	}
+
+	const OccluderShapePoly *occ_poly = get_occluder_shape_poly();
+	if (occ_poly) {
+		const Geometry::MeshData &md = occ_poly->get_mesh_data();
+		if (!md.faces.size()) {
+			return;
+		}
+
+		Vector<Vector3> points;
+		Vector<Vector3> lines;
+
+		for (int n = 0; n < md.faces.size(); n++) {
+			const Geometry::MeshData::Face &face = md.faces[n];
+
+			for (int c = 0; c < face.indices.size(); c++) {
+				int i0 = face.indices[c];
+				int i1 = face.indices[(c + 1) % face.indices.size()];
+				lines.push_back(md.vertices[i0]);
+				lines.push_back(md.vertices[i1]);
+			}
+
+			for (int c = 2; c < face.indices.size(); c++) {
+				int i0 = face.indices[0];
+				int i1 = face.indices[c - 1];
+				int i2 = face.indices[c];
+
+				//				points.push_back(md.vertices[i0]);
+				//				points.push_back(md.vertices[i1]);
+				//				points.push_back(md.vertices[i1]);
+				//				points.push_back(md.vertices[i2]);
+				//				points.push_back(md.vertices[i2]);
+				//				points.push_back(md.vertices[i0]);
+
+				points.push_back(md.vertices[i0]);
+				points.push_back(md.vertices[i1]);
+				points.push_back(md.vertices[i2]);
+			}
+		}
+
+		{
+			Ref<ArrayMesh> mesh = memnew(ArrayMesh);
+			Array array;
+			array.resize(Mesh::ARRAY_MAX);
+			array[Mesh::ARRAY_VERTEX] = points;
+			//array[Mesh::ARRAY_COLOR] = cols_portal;
+			mesh->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, array);
+			Ref<Material> material_poly = gizmo_plugin->get_material("occluder_poly", this);
+			add_mesh(mesh, false, Ref<SkinReference>(), material_poly);
+		}
+
+		add_lines(lines, material_occluder, false, color);
 	}
 }
 
