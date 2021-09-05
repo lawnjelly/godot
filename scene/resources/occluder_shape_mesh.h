@@ -250,10 +250,35 @@ class OccluderShapeMesh : public OccluderShape {
 	};
 
 	struct BakeFace {
-		BakeFace() { area = 0.0; }
+		BakeFace() {
+			area = 0.0;
+			done = false;
+			last_processed_tick = 0;
+			island = 0;
+		}
+		int num_sides() const { return indices.size(); }
 		Plane plane;
 		real_t area;
+		bool done;
+		uint32_t island;
+		uint32_t last_processed_tick;
 		LocalVectori<uint32_t> indices;
+		LocalVectori<uint32_t> neighbour_face_ids;
+		LocalVectori<uint32_t> adjacent_face_ids; // may not be neighbours if not within angle
+	};
+
+	struct BakeIsland {
+		BakeIsland() {
+			adjacent_null = false;
+			first_face_id = UINT32_MAX;
+		}
+		LocalVectori<uint32_t> neighbour_island_ids;
+		// if any triangle in the island has an edge with no neighbour.
+		// this means it cannot be an internal island.
+		bool adjacent_null;
+
+		// allows flooding from a face in the island
+		uint32_t first_face_id;
 	};
 
 	struct SortFace {
@@ -263,13 +288,22 @@ class OccluderShapeMesh : public OccluderShape {
 		real_t area;
 	};
 
+	struct IndexedPoint {
+		// used for sort
+		bool operator<(const IndexedPoint &p_ip2) const { return pos < p_ip2.pos; }
+		Vector2 pos;
+		uint32_t idx;
+	};
+
 	// used in baking
 	struct BakeData {
 		void clear() {
 			//face_areas.clear();
 			verts.clear();
 			faces.clear();
-			sort_faces.clear();
+			out_faces.clear();
+			//sort_faces.clear();
+			islands.clear();
 			hash_verts.clear();
 			hash_triangles._table.clear();
 		}
@@ -302,13 +336,15 @@ class OccluderShapeMesh : public OccluderShape {
 
 		LocalVectori<BakeVertex> verts;
 		LocalVectori<BakeFace> faces;
+		LocalVectori<BakeFace> out_faces;
+		LocalVectori<BakeIsland> islands;
 
 		HashTable_Pos hash_verts;
 		HashTable_Tri hash_triangles;
 
 		// sorted by the largest face,
 		// so we can process the largest faces first
-		LocalVectori<SortFace> sort_faces;
+		//LocalVectori<SortFace> sort_faces;
 	} _bd;
 
 	NodePath _settings_bake_path;
@@ -322,23 +358,38 @@ class OccluderShapeMesh : public OccluderShape {
 	int _settings_remove_floor_angle = 20;
 	uint32_t _settings_bake_mask = 0xFFFFFFFF;
 
+	int _settings_debug_face_id = 0;
+
 	bool _bake_material_check(Ref<Material> p_material);
 	void _bake_recursive(Spatial *p_node);
 	bool _try_bake_face(const Face3 &p_face);
 	void _simplify_triangles();
-	bool _make_faces(uint32_t p_process_tick);
-	bool _merge_matching_faces(const LocalVectori<uint32_t> &p_faces);
+
+	// new method
+	bool _make_faces_new(uint32_t p_process_tick);
+	bool _flood_fill_from_face(int p_face_id, uint32_t p_process_tick, LocalVectori<uint32_t> &r_face_ids);
+	bool _merge_face_zone(const LocalVectori<uint32_t> &p_face_ids);
+	void _find_face_zone_edges(const LocalVectori<uint32_t> &p_face_ids, LocalVectori<uint32_t> &r_edges);
+	uint32_t _trace_zone_edge(uint32_t p_face_id, uint32_t &r_join_vert_id, LocalVectori<uint32_t> &r_edges);
+	Vector3 _normal_from_edge_verts_newell(const LocalVectori<uint32_t> &p_edge_verts) const;
+	bool _make_convex_chunk(const LocalVectori<uint32_t> &p_edge_verts, const Plane &p_poly_plane, LocalVectori<uint32_t> &r_convex_inds);
+	void _process_out_faces();
+	bool _any_further_points_within(const Vector<IndexedPoint> &p_pts, int p_test_pt) const;
+	void _finalize_out_face(BakeFace &r_face);
+	bool _can_see(const Vector<IndexedPoint> &p_points, int p_test_point) const;
+	void _debug_draw(const Vector<IndexedPoint> &p_points, String p_filename);
+
+	void _debug_print_face(uint32_t p_face_id, String p_before_string = "");
+	void _print_line(String p_sz);
 
 	void _finalize_faces();
-	bool _face_replace_index(Geometry::MeshData::Face &r_face, uint32_t p_face_id, int p_del_index, int p_replace_index, bool p_fix_vertex_linked_faces);
 	real_t _find_face_area(const Geometry::MeshData::Face &p_face) const;
-	bool _are_faces_neighbours(const BakeFace &p_a, const BakeFace &p_b) const;
-	bool _are_faces_disallowed(const LocalVectori<LocalVectori<uint32_t>> &p_disallowed, const LocalVectori<uint32_t> &p_faces) const;
+	bool _are_faces_neighbours(const BakeFace &p_a, const BakeFace &p_b, int &r_edge_a, int &r_edge_b) const;
 	real_t _find_matching_faces_total_area(const LocalVectori<uint32_t> &p_faces) const;
-	void _sort_vertex_faces_by_area(uint32_t p_vertex_id);
-	void _create_sort_faces();
 
 	void _verify_verts();
+	void _find_neighbour_face_ids();
+	void _process_islands();
 
 	uint32_t _find_or_create_vert(const Vector3 &p_pos) {
 		uint32_t id = _bd.hash_verts.find(p_pos);
@@ -406,6 +457,9 @@ class OccluderShapeMesh : public OccluderShape {
 
 	void set_bake_mask_value(int p_layer_number, bool p_value);
 	bool get_bake_mask_value(int p_layer_number) const;
+
+	void set_debug_face_id(int p_id) { _settings_debug_face_id = p_id; }
+	int get_debug_face_id() const { return _settings_debug_face_id; }
 
 	// serializing
 	void _set_data(const Dictionary &p_d);
