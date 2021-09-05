@@ -910,7 +910,7 @@ bool PortalOcclusionCuller::cull_sphere_to_polys(const Vector3 &p_occludee_cente
 	return false;
 }
 
-bool PortalOcclusionCuller::cull_sphere_to_spheres(const Vector3 &p_occludee_center, real_t p_occludee_radius, const Vector3 &p_ray_dir, real_t p_dist_to_occludee) const {
+bool PortalOcclusionCuller::cull_sphere_to_spheres(const Vector3 &p_occludee_center, real_t p_occludee_radius, const Vector3 &p_ray_dir, real_t p_dist_to_occludee, int p_ignore_sphere) const {
 	// maybe not required
 	if (!_num_spheres) {
 		return false;
@@ -955,7 +955,7 @@ bool PortalOcclusionCuller::cull_sphere_to_spheres(const Vector3 &p_occludee_cen
 	return false;
 }
 
-bool PortalOcclusionCuller::cull_sphere(const Vector3 &p_occludee_center, real_t p_occludee_radius, bool p_cull_to_polys) const {
+bool PortalOcclusionCuller::cull_sphere(const Vector3 &p_occludee_center, real_t p_occludee_radius, int p_ignore_sphere, bool p_cull_to_polys) const {
 	if (!_occluders_present) {
 		return false;
 	}
@@ -976,7 +976,7 @@ bool PortalOcclusionCuller::cull_sphere(const Vector3 &p_occludee_center, real_t
 	// hopefully by this point, dist_to_occludee_raw cannot possibly be zero due to above check
 	ray_dir *= 1.0 / dist_to_occludee_raw;
 
-	if (cull_sphere_to_spheres(p_occludee_center, p_occludee_radius, ray_dir, dist_to_occludee)) {
+	if (cull_sphere_to_spheres(p_occludee_center, p_occludee_radius, ray_dir, dist_to_occludee, p_ignore_sphere)) {
 		return true;
 	}
 

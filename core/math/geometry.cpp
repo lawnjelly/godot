@@ -1375,7 +1375,7 @@ bool Geometry::make_polygon_convex(Vector<Vector3> &r_verts, const Vector3 &p_po
 	// simplify the problem to 2d
 	Vector3 center = find_point_average(r_verts);
 
-	// change the portal transform to match our plane and the center of the portal
+	// transform to match the plane and center of the poly
 	Transform tr;
 
 	// prevent warnings when poly normal matches the up vector

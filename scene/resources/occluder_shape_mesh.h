@@ -34,6 +34,7 @@
 #include "core/hash_map.h"
 #include "core/local_vector.h"
 #include "core/math/geometry.h"
+#include "core/math/vec2i.h"
 #include "occluder_shape.h"
 
 class Spatial;
@@ -43,7 +44,16 @@ class OccluderShapeMesh : public OccluderShape {
 	GDCLASS(OccluderShapeMesh, OccluderShape);
 	OBJ_SAVE_TYPE(OccluderShapeMesh);
 
+	const int QUANTIZE_RES = 256;
+	const int QUANTIZE_RES_2D = 256;
+
 	Geometry::MeshData _mesh_data;
+
+	struct Vec3i {
+		bool operator==(const Vec3i &p_o) const { return x == p_o.x && y == p_o.y && z == p_o.z; }
+		bool operator!=(const Vec3i &p_o) const { return (*this == p_o) == false; }
+		int32_t x, y, z;
+	};
 
 	template <uint32_t NUM_BINS, class ELEMENT>
 	struct HashTable {
@@ -118,58 +128,16 @@ class OccluderShapeMesh : public OccluderShape {
 
 	struct HashTable_Pos {
 		struct Element {
-			Vector3 pos;
+			Vec3i pos;
 			uint32_t id;
 		};
 		HashTable<4096, Element> _table;
 
-		struct Vec3i {
-			bool operator==(const Vec3i &p_o) const { return x == p_o.x && y == p_o.y && z == p_o.z; }
-			bool operator!=(const Vec3i &p_o) const { return (*this == p_o) == false; }
-			int32_t x, y, z;
-		};
-
-		Vec3i hash_to_i(Vector3 p_pos) const {
-			Vec3i res;
-
-			_process_pos(p_pos);
-			res.x = hash(p_pos.x);
-			res.y = hash(p_pos.y);
-			res.z = hash(p_pos.z);
-			return res;
+		uint32_t hash_pos(const Vec3i &p_pos) const {
+			return p_pos.x + p_pos.y + p_pos.z;
 		}
 
-		void _process_pos(Vector3 &p_pos) const {
-			p_pos.x *= 1309.2;
-			p_pos.y *= 6053.5;
-			p_pos.z *= 185.9;
-		}
-
-		bool hash_range(Vector3 p_pos, Vec3i &r_range_lo, Vec3i &r_range_hi) const {
-			const real_t epsilon = 0.01;
-
-			_process_pos(p_pos);
-			r_range_lo.x = hash(p_pos.x - epsilon);
-			r_range_lo.y = hash(p_pos.y - epsilon);
-			r_range_lo.z = hash(p_pos.z - epsilon);
-			r_range_hi.x = hash(p_pos.x + epsilon);
-			r_range_hi.y = hash(p_pos.y + epsilon);
-			r_range_hi.z = hash(p_pos.z + epsilon);
-			return r_range_lo != r_range_hi;
-		}
-
-		uint32_t hash(real_t p_val) const {
-			return p_val; // + 0.34;
-		}
-
-		uint32_t hash_3i(const Vec3i &p_vec) const {
-			return p_vec.x + p_vec.y + p_vec.z;
-		};
-
-		uint32_t hash_pos(const Vector3 &p_pos) const {
-			return hash_3i(hash_to_i(p_pos));
-		}
-		void add(const Vector3 &p_pos, uint32_t p_id) {
+		void add(const Vec3i &p_pos, uint32_t p_id) {
 			uint32_t hash = hash_pos(p_pos);
 			Element e;
 			e.pos = p_pos;
@@ -177,43 +145,23 @@ class OccluderShapeMesh : public OccluderShape {
 			_table.add(e, hash);
 		}
 
-		uint32_t find_single_bin(uint32_t p_hash, const Vector3 &p_pos) const {
+		uint32_t find_single_bin(uint32_t p_hash, const Vec3i &p_pos) const {
 			const LocalVectori<Element> &bin = _table.get_bin(p_hash);
 			uint32_t bsize = bin.size();
 
 			for (uint32_t n = 0; n < bsize; n++) {
 				const Element &e = bin[n];
-				if (e.pos.is_equal_approx(p_pos)) {
+				if (e.pos == (p_pos)) {
 					return e.id;
 				}
 			}
+			// not found
 			return UINT32_MAX;
 		}
 
-		uint32_t find(const Vector3 &p_pos) const {
-			Vec3i lo, hi;
-			// if there is no range
-			if (!hash_range(p_pos, lo, hi)) {
-				return find_single_bin(hash_3i(lo), p_pos);
-			}
-
-			// test immediate neighbours that might be caused by
-			// crossing a boundary... (often there is just one extra, there is no
-			// need to test all boundaries of the 3x3)
-			Vec3i test;
-			for (test.z = lo.z; test.z <= hi.z; test.z++) {
-				for (test.y = lo.y; test.y <= hi.y; test.y++) {
-					for (test.x = lo.x; test.x <= hi.x; test.x++) {
-						uint32_t id = find_single_bin(hash_3i(test), p_pos);
-						if (id != UINT32_MAX) {
-							return id;
-						}
-					}
-				}
-			}
-
-			// not found
-			return UINT32_MAX;
+		uint32_t find(const Vec3i &p_pos) const {
+			uint32_t h = hash_pos(p_pos);
+			return find_single_bin(h, p_pos);
 		}
 
 		void clear() {
@@ -242,7 +190,9 @@ class OccluderShapeMesh : public OccluderShape {
 			last_processed_tick = 0;
 			dirty = true;
 		};
-		Vector3 pos;
+		Vec3i posi;
+		Vector3 posf;
+
 		// try and merge faces from a vertex once with each run
 		uint32_t last_processed_tick;
 		bool dirty;
@@ -250,10 +200,35 @@ class OccluderShapeMesh : public OccluderShape {
 	};
 
 	struct BakeFace {
-		BakeFace() { area = 0.0; }
+		BakeFace() {
+			area = 0.0;
+			done = false;
+			last_processed_tick = 0;
+			island = 0;
+		}
+		int num_sides() const { return indices.size(); }
 		Plane plane;
 		real_t area;
+		bool done;
+		uint32_t island;
+		uint32_t last_processed_tick;
 		LocalVectori<uint32_t> indices;
+		LocalVectori<uint32_t> neighbour_face_ids;
+		LocalVectori<uint32_t> adjacent_face_ids; // may not be neighbours if not within angle
+	};
+
+	struct BakeIsland {
+		BakeIsland() {
+			adjacent_null = false;
+			first_face_id = UINT32_MAX;
+		}
+		LocalVectori<uint32_t> neighbour_island_ids;
+		// if any triangle in the island has an edge with no neighbour.
+		// this means it cannot be an internal island.
+		bool adjacent_null;
+
+		// allows flooding from a face in the island
+		uint32_t first_face_id;
 	};
 
 	struct SortFace {
@@ -263,18 +238,124 @@ class OccluderShapeMesh : public OccluderShape {
 		real_t area;
 	};
 
+	struct IndexedPoint {
+		// used for sort
+		bool operator<(const IndexedPoint &p_ip2) const { return pos < p_ip2.pos; }
+		Vec2i pos;
+		uint32_t idx;
+	};
+
+	/*
+	class Keil {
+		struct Line {
+			Line(const IndexedPoint &aa, const IndexedPoint &bb) {
+				a = aa.pos;
+				b = bb.pos;
+			}
+			//Line(const Vector2 &aa, const Vector2 &bb) {a = aa; b = bb;}
+			Line(){};
+			union {
+				struct {
+					Vector2 a, b;
+				};
+				struct {
+					Vector2 first, second;
+				};
+			};
+			static Vector2 lineInt(const Line &l1, const Line &l2);
+			static bool eq(const real_t &a, const real_t &b) {
+				return Math::abs(a - b) <= 1e-8;
+			}
+		};
+
+		struct Edge {
+			Edge() {}
+			Edge(const IndexedPoint &aa, const IndexedPoint &bb) {
+				a = aa;
+				b = bb;
+			}
+			IndexedPoint a, b;
+		};
+		typedef LocalVectori<Edge> EdgeList;
+
+		struct Point {
+			static real_t area(const IndexedPoint &a, const IndexedPoint &b, const IndexedPoint &c) {
+				return (((b.pos.x - a.pos.x) * (c.pos.y - a.pos.y)) - ((c.pos.x - a.pos.x) * (b.pos.y - a.pos.y)));
+			}
+
+			static bool left(const IndexedPoint &a, const IndexedPoint &b, const IndexedPoint &c) {
+				return area(a, b, c) > 0;
+			}
+
+			static bool leftOn(const IndexedPoint &a, const IndexedPoint &b, const IndexedPoint &c) {
+				return area(a, b, c) >= 0;
+			}
+
+			static bool right(const IndexedPoint &a, const IndexedPoint &b, const IndexedPoint &c) {
+				return area(a, b, c) < 0;
+			}
+
+			static bool rightOn(const IndexedPoint &a, const IndexedPoint &b, const IndexedPoint &c) {
+				return area(a, b, c) <= 0;
+			}
+
+			static bool collinear(const IndexedPoint &a, const IndexedPoint &b, const IndexedPoint &c) {
+				return area(a, b, c) == 0;
+			}
+
+			static real_t sqdist(const IndexedPoint &a, const IndexedPoint &b) {
+				return (b.pos - a.pos).length_squared();
+			}
+		};
+
+		class Polygon {
+		public:
+			IndexedPoint &operator[](const int &i);
+			IndexedPoint &at(const int &i);
+			IndexedPoint &first();
+			IndexedPoint &last();
+			int size() const;
+			EdgeList decomp(int depth = 0);
+			bool isReflex(const int &i);
+			bool canSee(const int &a, const int &b);
+			void push(const IndexedPoint &p);
+			void clear();
+			void makeCCW();
+			void reverse();
+			Polygon copy(const int &i, const int &j);
+
+			//LocalVectori<IndexedPoint> tp;
+			//LocalVectori<Line> tl;
+
+		private:
+			LocalVectori<IndexedPoint> v;
+		};
+
+	public:
+		void decompose(const Vector<IndexedPoint> &p_input, List<Vector<IndexedPoint>> &r_results);
+	};
+	*/
+
 	// used in baking
 	struct BakeData {
 		void clear() {
+			float_input_faces.clear();
 			//face_areas.clear();
 			verts.clear();
 			faces.clear();
+			out_faces.clear();
 			sort_faces.clear();
+			islands.clear();
 			hash_verts.clear();
 			hash_triangles._table.clear();
 		}
 		uint32_t find_or_create_vert(const Vector3 &p_pos, uint32_t p_face_id) {
-			uint32_t id = hash_verts.find(p_pos);
+			Vec3i posi;
+			vec3_to_vec3i(p_pos, posi);
+			Vector3 posf;
+			vec3i_to_vec3(posi, posf);
+
+			uint32_t id = hash_verts.find(posi);
 			if (id != UINT32_MAX) {
 				verts[id].linked_faces.push_back(p_face_id);
 				return id;
@@ -292,16 +373,42 @@ class OccluderShapeMesh : public OccluderShape {
 
 			id = verts.size();
 			verts.resize(id + 1);
-			verts[id].pos = p_pos;
+			verts[id].posi = posi;
+			verts[id].posf = posf;
 			verts[id].linked_faces.push_back(p_face_id);
 
-			hash_verts.add(p_pos, id);
+			hash_verts.add(posi, id);
 
 			return id;
 		}
 
+		void vec3_to_vec3i(Vector3 p_pt, Vec3i &r_pt) {
+			p_pt -= input_aabb.position;
+			p_pt *= world_to_int_multiplier;
+			r_pt.x = p_pt.x;
+			r_pt.y = p_pt.y;
+			r_pt.z = p_pt.z;
+		}
+
+		void vec3i_to_vec3(const Vec3i &p_pt, Vector3 &r_pt) {
+			r_pt.x = p_pt.x;
+			r_pt.y = p_pt.y;
+			r_pt.z = p_pt.z;
+
+			r_pt *= int_to_world_multiplier;
+			r_pt += input_aabb.position;
+		}
+
+		// floating point coords to integer
+		LocalVectori<Face3> float_input_faces;
+		AABB input_aabb;
+		real_t world_to_int_multiplier;
+		real_t int_to_world_multiplier;
+
 		LocalVectori<BakeVertex> verts;
 		LocalVectori<BakeFace> faces;
+		LocalVectori<BakeFace> out_faces;
+		LocalVectori<BakeIsland> islands;
 
 		HashTable_Pos hash_verts;
 		HashTable_Tri hash_triangles;
@@ -322,29 +429,61 @@ class OccluderShapeMesh : public OccluderShape {
 	int _settings_remove_floor_angle = 20;
 	uint32_t _settings_bake_mask = 0xFFFFFFFF;
 
+	int _settings_debug_face_id = 0;
+
 	bool _bake_material_check(Ref<Material> p_material);
+	void _bake_quantize_float_faces();
+	void _bake_input_face(const Face3 &p_face);
 	void _bake_recursive(Spatial *p_node);
 	bool _try_bake_face(const Face3 &p_face);
 	void _simplify_triangles();
 	bool _make_faces(uint32_t p_process_tick);
 	bool _merge_matching_faces(const LocalVectori<uint32_t> &p_faces);
 
+	// new method
+	bool _make_faces_new(uint32_t p_process_tick);
+	bool _flood_fill_from_face(int p_face_id, uint32_t p_process_tick, LocalVectori<uint32_t> &r_face_ids);
+	bool _merge_face_zone(const LocalVectori<uint32_t> &p_face_ids);
+	void _find_face_zone_edges(const LocalVectori<uint32_t> &p_face_ids, LocalVectori<uint32_t> &r_edges);
+	uint32_t _trace_zone_edge(uint32_t p_face_id, uint32_t &r_join_vert_id, LocalVectori<uint32_t> &r_edges);
+	Vector3 _normal_from_edge_verts_newell(const LocalVectori<uint32_t> &p_edge_verts) const;
+	void _find_convex_chunk(const LocalVectori<uint32_t> &p_edge_verts, LocalVectori<uint32_t> &r_convex, const Plane &p_poly_plane);
+	bool _make_convex_chunk(const LocalVectori<uint32_t> &p_edge_verts, const Plane &p_poly_plane, LocalVectori<uint32_t> &r_convex_inds);
+	void _process_out_faces();
+	bool _any_further_points_within(const Vector<IndexedPoint> &p_pts, int p_test_pt) const;
+	void _finalize_out_face(BakeFace &r_face);
+	bool _can_see(const Vector<IndexedPoint> &p_points, int p_test_point) const;
+	void _debug_draw(const Vector<IndexedPoint> &p_points, String p_filename);
+
+	void _debug_print_face(uint32_t p_face_id, String p_before_string = "");
+	void _print_line(String p_sz);
+
 	void _finalize_faces();
 	bool _face_replace_index(Geometry::MeshData::Face &r_face, uint32_t p_face_id, int p_del_index, int p_replace_index, bool p_fix_vertex_linked_faces);
 	real_t _find_face_area(const Geometry::MeshData::Face &p_face) const;
-	bool _are_faces_neighbours(const BakeFace &p_a, const BakeFace &p_b) const;
+	bool _are_faces_neighbours(const BakeFace &p_a, const BakeFace &p_b, int &r_edge_a, int &r_edge_b) const;
 	bool _are_faces_disallowed(const LocalVectori<LocalVectori<uint32_t>> &p_disallowed, const LocalVectori<uint32_t> &p_faces) const;
 	real_t _find_matching_faces_total_area(const LocalVectori<uint32_t> &p_faces) const;
 	void _sort_vertex_faces_by_area(uint32_t p_vertex_id);
 	void _create_sort_faces();
 
 	void _verify_verts();
+	void _find_neighbour_face_ids();
+	void _process_islands();
 
 	uint32_t _find_or_create_vert(const Vector3 &p_pos) {
-		uint32_t id = _bd.hash_verts.find(p_pos);
+		// quantize
+		Vec3i posi;
+		_bd.vec3_to_vec3i(p_pos, posi);
+
+		uint32_t id = _bd.hash_verts.find(posi);
 		if (id != UINT32_MAX) {
 			return id;
 		}
+
+		// back to quantized world coords
+		Vector3 pos_world;
+		_bd.vec3i_to_vec3(posi, pos_world);
 
 #if 0
 		// use this to detect any that are present but not found in the hash table
@@ -358,9 +497,9 @@ class OccluderShapeMesh : public OccluderShape {
 #endif
 
 		id = _mesh_data.vertices.size();
-		_mesh_data.vertices.push_back(p_pos);
+		_mesh_data.vertices.push_back(pos_world);
 
-		_bd.hash_verts.add(p_pos, id);
+		_bd.hash_verts.add(posi, id);
 
 		return id;
 	}
@@ -406,6 +545,9 @@ class OccluderShapeMesh : public OccluderShape {
 
 	void set_bake_mask_value(int p_layer_number, bool p_value);
 	bool get_bake_mask_value(int p_layer_number) const;
+
+	void set_debug_face_id(int p_id) { _settings_debug_face_id = p_id; }
+	int get_debug_face_id() const { return _settings_debug_face_id; }
 
 	// serializing
 	void _set_data(const Dictionary &p_d);

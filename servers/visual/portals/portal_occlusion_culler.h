@@ -123,7 +123,7 @@ public:
 	static bool _redraw_gizmo;
 
 private:
-	bool cull_sphere_to_spheres(const Vector3 &p_occludee_center, real_t p_occludee_radius, const Vector3 &p_ray_dir, real_t p_dist_to_occludee) const;
+	bool cull_sphere_to_spheres(const Vector3 &p_occludee_center, real_t p_occludee_radius, const Vector3 &p_ray_dir, real_t p_dist_to_occludee, int p_ignore_sphere) const;
 	bool cull_sphere_to_polys(const Vector3 &p_occludee_center, real_t p_occludee_radius) const;
 	bool cull_aabb_to_polys(const AABB &p_aabb) const;
 
