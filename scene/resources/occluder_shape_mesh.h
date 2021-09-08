@@ -271,11 +271,19 @@ class OccluderShapeMesh : public OccluderShape {
 		BakeIsland() {
 			adjacent_null = false;
 			first_face_id = UINT32_MAX;
+			num_tris = 0;
 		}
 		LocalVectori<uint32_t> neighbour_island_ids;
+
+		// a face adjacent to each hole
+		//LocalVectori<uint32_t> hole_face_ids;
+		List<LocalVectori<uint32_t>> hole_edges;
+
 		// if any triangle in the island has an edge with no neighbour.
 		// this means it cannot be an internal island.
 		bool adjacent_null;
+
+		uint32_t num_tris;
 
 		// allows flooding from a face in the island
 		uint32_t first_face_id;
@@ -306,6 +314,7 @@ class OccluderShapeMesh : public OccluderShape {
 			islands.clear();
 			hash_verts.clear();
 			hash_triangles._table.clear();
+			_face_process_tick = 1;
 		}
 		uint32_t find_or_create_vert(const Vector3 &p_pos, uint32_t p_face_id) {
 			uint32_t id = hash_verts.find(p_pos);
@@ -342,6 +351,8 @@ class OccluderShapeMesh : public OccluderShape {
 		HashTable_Pos hash_verts;
 		HashTable_Tri hash_triangles;
 
+		uint32_t _face_process_tick = 1;
+
 		// sorted by the largest face,
 		// so we can process the largest faces first
 		//LocalVectori<SortFace> sort_faces;
@@ -373,6 +384,7 @@ class OccluderShapeMesh : public OccluderShape {
 	uint32_t _trace_zone_edge(uint32_t p_face_id, uint32_t &r_join_vert_id, LocalVectori<uint32_t> &r_edges);
 	Vector3 _normal_from_edge_verts_newell(const LocalVectori<uint32_t> &p_edge_verts) const;
 	bool _make_convex_chunk(const LocalVectori<uint32_t> &p_edge_verts, const Plane &p_poly_plane, LocalVectori<uint32_t> &r_convex_inds);
+	bool _make_convex_chunk_external(const LocalVectori<uint32_t> &p_edge_verts, const Plane &p_poly_plane, LocalVectori<uint32_t> &r_convex_inds);
 	void _process_out_faces();
 	bool _any_further_points_within(const Vector<IndexedPoint> &p_pts, int p_test_pt) const;
 	void _finalize_out_face(BakeFace &r_face);
@@ -380,6 +392,7 @@ class OccluderShapeMesh : public OccluderShape {
 	void _debug_draw(const Vector<IndexedPoint> &p_points, String p_filename);
 
 	void _debug_print_face(uint32_t p_face_id, String p_before_string = "");
+	String _debug_vector_to_string(const LocalVectori<uint32_t> &p_list);
 	void _print_line(String p_sz);
 
 	void _finalize_faces();
@@ -390,6 +403,9 @@ class OccluderShapeMesh : public OccluderShape {
 	void _verify_verts();
 	void _find_neighbour_face_ids();
 	void _process_islands();
+	void _process_islands_find_neighbours(uint32_t p_face_id, uint32_t p_island_id, uint32_t p_process_tick);
+	void _process_islands_trace_hole(uint32_t p_face_id, uint32_t p_process_tick);
+	void _edgelist_add_holes(uint32_t p_island_id, LocalVectori<uint32_t> &r_edges);
 
 	uint32_t _find_or_create_vert(const Vector3 &p_pos) {
 		uint32_t id = _bd.hash_verts.find(p_pos);

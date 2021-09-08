@@ -38,7 +38,7 @@ void DebugImage::reset() {
 	_cursor_y = 0;
 }
 
-void DebugImage::l_flush() {
+void DebugImage::l_flush(bool clear_logical_viewport) {
 	// calculate overall viewport
 	_logical_viewport.position = _commands_rect_min;
 	_logical_viewport.size = _commands_rect_max - _commands_rect_min;
@@ -60,18 +60,24 @@ void DebugImage::l_flush() {
 				l_to_i(c.x, c.y, x, y);
 				line_to(x, y);
 			} break;
+			case CT_DRAW_NUM: {
+				draw_num(c.num);
+			} break;
 			default: {
 			} break;
 		}
 	}
 
-	l_begin();
+	l_begin(clear_logical_viewport);
 }
 
-void DebugImage::l_begin() {
+void DebugImage::l_begin(bool clear_logical_viewport) {
 	_commands.clear();
-	_commands_rect_min = Vector2(FLT_MAX, FLT_MAX);
-	_commands_rect_max = Vector2(-FLT_MAX, -FLT_MAX);
+
+	if (clear_logical_viewport) {
+		_commands_rect_min = Vector2(FLT_MAX, FLT_MAX);
+		_commands_rect_max = Vector2(-FLT_MAX, -FLT_MAX);
+	}
 }
 
 void DebugImage::move(int x, int y) {
@@ -79,6 +85,125 @@ void DebugImage::move(int x, int y) {
 	_cursor_y = y;
 	Col c = Col(0, 255, 0, 255);
 	mark(4, &c);
+}
+
+void DebugImage::pset_bin(int x, int y, int bin) {
+	if ((bin >> 3) & 1) {
+		pset(x, y);
+	}
+	if ((bin >> 2) & 1) {
+		pset(x + 1, y);
+	}
+	if ((bin >> 1) & 1) {
+		pset(x + 2, y);
+	}
+	if ((bin)&1) {
+		pset(x + 3, y);
+	}
+}
+
+void DebugImage::_draw_digit(int num, int ox, int oy) {
+	//	int x = _cursor_x + ox;
+	//	int y = _cursor_y + oy;
+	int x = ox;
+	int y = oy;
+
+	switch (num) {
+		default: {
+			pset_bin(x, y + 0, 0b0110);
+			pset_bin(x, y + 1, 0b1001);
+			pset_bin(x, y + 2, 0b1001);
+			pset_bin(x, y + 3, 0b1001);
+			pset_bin(x, y + 4, 0b0110);
+		} break;
+		case 1: {
+			pset_bin(x, y + 0, 0b0110);
+			pset_bin(x, y + 1, 0b0010);
+			pset_bin(x, y + 2, 0b0010);
+			pset_bin(x, y + 3, 0b0010);
+			pset_bin(x, y + 4, 0b0010);
+		} break;
+		case 2: {
+			pset_bin(x, y + 0, 0b0110);
+			pset_bin(x, y + 1, 0b1001);
+			pset_bin(x, y + 2, 0b0010);
+			pset_bin(x, y + 3, 0b0100);
+			pset_bin(x, y + 4, 0b1111);
+		} break;
+		case 3: {
+			pset_bin(x, y + 0, 0b1110);
+			pset_bin(x, y + 1, 0b0001);
+			pset_bin(x, y + 2, 0b0110);
+			pset_bin(x, y + 3, 0b0001);
+			pset_bin(x, y + 4, 0b1110);
+		} break;
+		case 4: {
+			pset_bin(x, y + 0, 0b0110);
+			pset_bin(x, y + 1, 0b1010);
+			pset_bin(x, y + 2, 0b1111);
+			pset_bin(x, y + 3, 0b0010);
+			pset_bin(x, y + 4, 0b0010);
+		} break;
+		case 5: {
+			pset_bin(x, y + 0, 0b1111);
+			pset_bin(x, y + 1, 0b1000);
+			pset_bin(x, y + 2, 0b1110);
+			pset_bin(x, y + 3, 0b0001);
+			pset_bin(x, y + 4, 0b1110);
+		} break;
+		case 6: {
+			pset_bin(x, y + 0, 0b0111);
+			pset_bin(x, y + 1, 0b1000);
+			pset_bin(x, y + 2, 0b1110);
+			pset_bin(x, y + 3, 0b1001);
+			pset_bin(x, y + 4, 0b0110);
+		} break;
+		case 7: {
+			pset_bin(x, y + 0, 0b1111);
+			pset_bin(x, y + 1, 0b0001);
+			pset_bin(x, y + 2, 0b0010);
+			pset_bin(x, y + 3, 0b0010);
+			pset_bin(x, y + 4, 0b0010);
+		} break;
+		case 8: {
+			pset_bin(x, y + 0, 0b0110);
+			pset_bin(x, y + 1, 0b1001);
+			pset_bin(x, y + 2, 0b0110);
+			pset_bin(x, y + 3, 0b1001);
+			pset_bin(x, y + 4, 0b0110);
+		} break;
+		case 9: {
+			pset_bin(x, y + 0, 0b0111);
+			pset_bin(x, y + 1, 0b1001);
+			pset_bin(x, y + 2, 0b0111);
+			pset_bin(x, y + 3, 0b0001);
+			pset_bin(x, y + 4, 0b0110);
+		} break;
+	}
+}
+
+void DebugImage::draw_num(int num) {
+	int digits = 1;
+	if (num > 9)
+		digits = 2;
+
+	int x = _cursor_x;
+	int y = _cursor_y;
+
+	if ((_height - y) < 10) {
+		y -= 22;
+	}
+
+	if ((_width - x) < 10) {
+		x -= 22;
+	}
+
+	if (num <= 9) {
+		_draw_digit(num % 10, x + 6, y + 8);
+	} else {
+		_draw_digit(num % 10, x + 12, y + 8);
+		_draw_digit((num / 10) % 10, x + 6, y + 8);
+	}
 }
 
 void DebugImage::mark(int size, const Col *col) {
