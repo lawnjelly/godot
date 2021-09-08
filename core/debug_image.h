@@ -36,6 +36,7 @@ private:
 		CT_MOVE,
 		CT_LINE_TO,
 		CT_SET_BRUSH_COLOR,
+		CT_DRAW_NUM,
 	};
 
 	struct Command {
@@ -43,6 +44,7 @@ private:
 		real_t x;
 		real_t y;
 		Col color;
+		int num;
 	};
 	LocalVectori<Command> _commands;
 	Vector2 _commands_rect_min;
@@ -58,6 +60,10 @@ public:
 	void set_fill_color(const Col &col) { _fill_col = col; }
 
 	// inline for speed
+	void pset_bin(int x, int y, int bin);
+	bool pset(int x, int y) {
+		return pset(x, y, _brush_col);
+	}
 	bool pset(int x, int y, const Col &col) {
 		unsigned int pnum;
 		if (!get_pixel_num(x, y, pnum))
@@ -73,6 +79,7 @@ public:
 		line_to(x_to, y_to);
 	}
 	void mark(int size = 2, const Col *col = nullptr);
+	void draw_num(int num);
 
 	bool save_png(String p_filename);
 
@@ -110,6 +117,13 @@ public:
 		_commands_rect_max.y = MAX(_commands_rect_max.y, fy);
 	}
 
+	void l_draw_num(int num) {
+		Command c;
+		c.type = CT_DRAW_NUM;
+		c.num = num;
+		_commands.push_back(c);
+	}
+
 	void l_move(real_t fx, real_t fy) {
 		fy = -fy;
 
@@ -136,8 +150,8 @@ public:
 		l_line_to(fx_to, fy_to);
 	}
 
-	void l_begin();
-	void l_flush();
+	void l_begin(bool clear_logical_viewport = true);
+	void l_flush(bool clear_logical_viewport = true);
 
 	void set_logical_viewport(const Rect2 &rt) {
 		_logical_viewport = rt;
@@ -152,6 +166,8 @@ private:
 		num = (y * _width) + x;
 		return true;
 	}
+
+	void _draw_digit(int num, int ox, int oy);
 
 	void draw_line_wu(short X0, short Y0, short X1, short Y1,
 			short BaseColor, short NumLevels, unsigned short IntensityBits);
