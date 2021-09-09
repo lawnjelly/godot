@@ -383,13 +383,11 @@ class OccluderShapeMesh : public OccluderShape {
 	void _find_face_zone_edges(const LocalVectori<uint32_t> &p_face_ids, LocalVectori<uint32_t> &r_edges);
 	uint32_t _trace_zone_edge(uint32_t p_face_id, uint32_t &r_join_vert_id, LocalVectori<uint32_t> &r_edges);
 	Vector3 _normal_from_edge_verts_newell(const LocalVectori<uint32_t> &p_edge_verts) const;
-	bool _make_convex_chunk(const LocalVectori<uint32_t> &p_edge_verts, const Plane &p_poly_plane, LocalVectori<uint32_t> &r_convex_inds);
 	bool _make_convex_chunk_external(const LocalVectori<uint32_t> &p_edge_verts, const Plane &p_poly_plane, LocalVectori<uint32_t> &r_convex_inds);
 	void _process_out_faces();
 	bool _any_further_points_within(const Vector<IndexedPoint> &p_pts, int p_test_pt) const;
 	void _finalize_out_face(BakeFace &r_face);
 	bool _can_see(const Vector<IndexedPoint> &p_points, int p_test_point) const;
-	void _debug_draw(const Vector<IndexedPoint> &p_points, String p_filename);
 
 	void _debug_print_face(uint32_t p_face_id, String p_before_string = "");
 	String _debug_vector_to_string(const LocalVectori<uint32_t> &p_list);

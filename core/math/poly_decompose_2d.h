@@ -5,18 +5,28 @@
 #include "core/math/geometry.h"
 #include "core/math/vector2.h"
 
-//#define GODOT_POLY_DECOMPOSE_DEBUG_DRAW
+#define GODOT_POLY_DECOMPOSE_DEBUG_DRAW
 #ifdef GODOT_POLY_DECOMPOSE_DEBUG_DRAW
 #include "core/debug_image.h"
 #endif
 
 class PolyDecompose2D {
+	/*
+	struct Point
+	{
+		bool is_reflex() const {return 
+		uint32_t idx;
+		real_t cross;
+	};
+	*/
+
 public:
 	// ordered list of positions, counterclockwise
 	bool decompose(const LocalVectori<Vector2> &p_positions, List<LocalVectori<uint32_t>> &r_result);
 
 private:
 	void remove_colinear(LocalVectori<uint32_t> &r_edges);
+	void remove_zero_area_segments(LocalVectori<uint32_t> &r_edges);
 	void sort_edgelist(LocalVectori<uint32_t> &r_edges);
 	void split_recursive(LocalVectori<uint32_t> p_edges, List<LocalVectori<uint32_t>> &r_result, int p_count = 0);
 	int split_opposite(LocalVectori<uint32_t> p_edges, int p_reflex_id);
