@@ -46,7 +46,20 @@ bool PolyDecompose2D::decompose(const LocalVectori<Vector2> &p_positions, List<L
 	// create a list of edges
 	LocalVectori<uint32_t> edges;
 	for (int n = 0; n < p_positions.size(); n++) {
-		edges.push_back(n);
+		int idx = n;
+
+		// deduplicate
+#define GODOT_POLY_DECOMPOSE_DEDUPLICATE
+#ifdef GODOT_POLY_DECOMPOSE_DEDUPLICATE
+		for (int d = 0; d < n; d++) {
+			if (p_positions[d] == p_positions[n]) {
+				idx = d;
+				break;
+			}
+		}
+#endif
+
+		edges.push_back(idx);
 	}
 
 	// as a preprocess, remove superfluous verts
@@ -60,6 +73,10 @@ bool PolyDecompose2D::decompose(const LocalVectori<Vector2> &p_positions, List<L
 	split_recursive(edges, r_result);
 
 	return true;
+}
+
+void PolyDecompose2D::remove_zero_area_segments(LocalVectori<uint32_t> &r_edges) {
+	remove_colinear(r_edges);
 }
 
 void PolyDecompose2D::remove_colinear(LocalVectori<uint32_t> &r_edges) {
@@ -125,7 +142,7 @@ int PolyDecompose2D::split_opposite(LocalVectori<uint32_t> p_edges, int p_reflex
 		// is it reflex? if so terminate
 		if (is_reflex(p_edges, t)) {
 			// this should not happen
-			CRASH_COND(true);
+			//CRASH_COND(true);
 			break;
 		}
 	}
@@ -140,7 +157,7 @@ void PolyDecompose2D::split_recursive(LocalVectori<uint32_t> p_edges, List<Local
 	sort_edgelist(p_edges);
 
 	_debug_draw(p_edges, "input/facein" + itos(p_count) + ".png");
-	//print_line("split " + itos(p_count) + " : " + _debug_vector_to_string(p_edges));
+	print_line("split " + itos(p_count) + " : " + _debug_vector_to_string(p_edges));
 
 	// find first reflex
 	int reflex_id = -1;
@@ -187,11 +204,15 @@ void PolyDecompose2D::split_recursive(LocalVectori<uint32_t> p_edges, List<Local
 			const Vector2 &reflex_pos2 = get_edge_pos(p_edges, t);
 			const Vector2 &reflex_pos_next2 = get_edge_pos(p_edges, t + 1);
 
+			int start_vert_opp = split_opposite(p_edges, t);
+
 			real_t cross2 = Geometry::vec2_cross(reflex_pos2, reflex_pos_next2, reflex_pos);
-			if (cross2 < -_cross_epsilon) {
+			if ((cross2 < -_cross_epsilon) || (start_vert_opp != reflex_id)) {
 				// we need to take the opposite approach
+				//				reflex_id = t;
+				//				start_vert = split_opposite(p_edges, reflex_id);
 				reflex_id = t;
-				start_vert = split_opposite(p_edges, reflex_id);
+				start_vert = start_vert_opp;
 
 				// we need to reverse the order of the reflex and start vertex, because the remaining logic is based
 				// around the cut segment from start to reflex, not reflex to start
@@ -212,7 +233,7 @@ void PolyDecompose2D::split_recursive(LocalVectori<uint32_t> p_edges, List<Local
 		start_vert -= num_edges;
 	}
 
-	//print_line("\tstart_vert: " + itos(start_vert) + ", reflex_vert: " + itos(reflex_id));
+	print_line("\tstart_vert: " + itos(start_vert) + " (" + itos(p_edges[wrap_index(num_edges, start_vert)]) + "), reflex_vert: " + itos(reflex_id) + " (" + itos(p_edges[wrap_index(num_edges, reflex_id)]) + ")");
 
 	// add the clockwise segment (not including zero)
 	for (int n = start_vert; n <= reflex_id; n++) {
@@ -223,7 +244,7 @@ void PolyDecompose2D::split_recursive(LocalVectori<uint32_t> p_edges, List<Local
 	r_result.push_back(segment);
 
 	_debug_draw(segment, "output/faceout" + itos(p_count) + ".png");
-	//print_line("\tcut : " + _debug_vector_to_string(segment));
+	print_line("\tcut : " + _debug_vector_to_string(segment));
 
 	// remove the segment from the original edgelist, and call recursively
 
@@ -236,6 +257,10 @@ void PolyDecompose2D::split_recursive(LocalVectori<uint32_t> p_edges, List<Local
 		int i = wrap_index(num_edges, n);
 		segment.push_back(p_edges[i]);
 	}
+
+	// as a result of a removal we can sometimes end up with a zero area
+	// segment .. this can muck up and cause folding in on itself so we need to remove these
+	remove_zero_area_segments(segment);
 
 	split_recursive(segment, r_result, p_count + 1);
 }
