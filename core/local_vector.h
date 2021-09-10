@@ -38,7 +38,7 @@
 
 template <class T, class U = uint32_t, bool force_trivial = false>
 class LocalVector {
-private:
+protected:
 	U count = 0;
 	U capacity = 0;
 	T *data = nullptr;
@@ -257,6 +257,26 @@ public:
 
 // Integer default version
 template <class T, class I = int32_t, bool force_trivial = false>
-class LocalVectori : public LocalVector<T, I, force_trivial> {};
+class LocalVectori : public LocalVector<T, I, force_trivial> {
+public:
+	const T &get_wrapped(I p_index) const {
+		return this->data[wrap_index(p_index)];
+	}
+
+	T &get_wrapped(I p_index) {
+		return this->data[wrap_index(p_index)];
+	}
+
+	I wrap_index(I p_index) const {
+		if (p_index >= 0) {
+			p_index %= this->size();
+		} else {
+			p_index = -p_index;
+			p_index %= this->size();
+			p_index = this->size() - p_index;
+		}
+		return p_index;
+	}
+};
 
 #endif // LOCAL_VECTOR_H
