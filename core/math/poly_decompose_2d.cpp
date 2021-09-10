@@ -1,5 +1,11 @@
 #include "poly_decompose_2d.h"
 
+#include "core/debug_image.h"
+
+#ifdef GODOT_POLY_DECOMPOSE_DEBUG_DRAW
+#define GODOT_POLY_DECOMPOSE_DEBUG_VERBOSE
+#endif
+
 const real_t PolyDecompose2D::_cross_epsilon = 0.001;
 
 String PolyDecompose2D::_debug_vector_to_string(const LocalVectori<Point> &p_list) {
@@ -90,10 +96,6 @@ bool PolyDecompose2D::decompose(const LocalVectori<Vector2> &p_positions, List<L
 	return true;
 }
 
-void PolyDecompose2D::remove_zero_area_segments(LocalVectori<Point> &r_edges) {
-	remove_colinear(r_edges);
-}
-
 void PolyDecompose2D::remove_colinear(LocalVectori<Point> &r_edges) {
 	for (int n = 0; n < r_edges.size(); n++) {
 		const Point &pt = r_edges[n];
@@ -133,42 +135,6 @@ void PolyDecompose2D::sort_edgelist(LocalVectori<Point> &r_edges) {
 	}
 }
 
-int PolyDecompose2D::split_opposite(LocalVectori<Point> p_edges, int p_reflex_id) {
-	// find the first edge of the reflex vert
-	const Vector2 &reflex_pos = get_edge_pos(p_edges, p_reflex_id);
-	const Vector2 &reflex_pos_next = get_edge_pos(p_edges, p_reflex_id + 1);
-
-	int num_edges = p_edges.size();
-
-	// find the furthest vert in clockwise direction from the reflex that is on the left of the reflex edge, or is reflex itself
-	int start_vert = -1;
-	for (int n = 1; n < num_edges; n++) {
-		int t = p_edges.wrap_index(p_reflex_id + n);
-
-		const Vector2 &pos = get_edge_pos(p_edges, t);
-		real_t cross = Geometry::vec2_cross(reflex_pos, reflex_pos_next, pos);
-
-		if (cross < -_cross_epsilon) {
-			// we are done, the previous start_vert must be used
-			// because we are becoming concave
-			break;
-		}
-
-		start_vert = t;
-
-		// is it reflex? if so terminate
-		if (is_reflex(p_edges, t)) {
-			// this should not happen
-			//CRASH_COND(true);
-			break;
-		}
-	}
-
-	CRASH_COND(start_vert == -1);
-
-	return start_vert;
-}
-
 real_t PolyDecompose2D::try_split_reflex_generic(const LocalVectori<Point> &p_edges, int p_reflex_id, int p_change, const Vector2 &p_reflex_edge_a, const Vector2 &p_reflex_edge_b, int &r_seg_start, int &r_seg_end) {
 	// can't use if next to another reflex, cannot form a triangle
 	if (p_edges.get_wrapped(p_reflex_id + p_change).is_reflex()) {
@@ -176,6 +142,7 @@ real_t PolyDecompose2D::try_split_reflex_generic(const LocalVectori<Point> &p_ed
 	}
 
 	int num_edges = p_edges.size();
+	const Vector2 &reflex_pos = get_edge_pos(p_edges, p_reflex_id);
 
 	// find the furthest vert in counter clockwise direction from the reflex that is on the left of the reflex edge, or is reflex itself
 	int start_vert = -1;
@@ -187,6 +154,21 @@ real_t PolyDecompose2D::try_split_reflex_generic(const LocalVectori<Point> &p_ed
 
 		const Vector2 &pos = get_edge_pos(p_edges, t);
 		real_t cross = Geometry::vec2_cross(p_reflex_edge_a, p_reflex_edge_b, pos);
+
+		if (cross < -_cross_epsilon) {
+			// we are done, the previous start_vert must be used
+			// because we are becoming concave
+			break;
+		}
+
+		// don't allow if the t vert edge has the reflex vert on the wrong side
+		const Vector2 &pos_before = get_edge_pos(p_edges, t - p_change);
+
+		if (p_change > 0) {
+			cross = Geometry::vec2_cross(pos_before, pos, reflex_pos);
+		} else {
+			cross = Geometry::vec2_cross(pos, pos_before, reflex_pos);
+		}
 
 		if (cross < -_cross_epsilon) {
 			// we are done, the previous start_vert must be used
@@ -223,7 +205,7 @@ real_t PolyDecompose2D::try_split_reflex_generic(const LocalVectori<Point> &p_ed
 void PolyDecompose2D::try_split_reflex(const LocalVectori<Point> &p_edges, int p_reflex_id, int &r_seg_start, int &r_seg_end, real_t &r_best_fit) {
 	//	real_t best_fit = 0.0;
 
-	print_line("try_split_reflex " + itos(p_edges.get_wrapped(p_reflex_id).pos_idx));
+	//print_line("try_split_reflex " + itos(p_edges.get_wrapped(p_reflex_id).pos_idx));
 
 	// try counterclockwise
 
@@ -237,9 +219,9 @@ void PolyDecompose2D::try_split_reflex(const LocalVectori<Point> &p_edges, int p
 
 		real_t fit = try_split_reflex_generic(p_edges, p_reflex_id, 1, reflex_pos, reflex_pos_next, seg_start, seg_end);
 		if (fit < FLT_MAX) {
-			print_line("\t\tccw " + rtos(fit));
+			//print_line("\t\tccw " + rtos(fit));
 		} else {
-			print_line("\t\tccw -");
+			//print_line("\t\tccw -");
 		}
 		if (fit < r_best_fit) {
 			r_best_fit = fit;
@@ -256,9 +238,9 @@ void PolyDecompose2D::try_split_reflex(const LocalVectori<Point> &p_edges, int p
 
 		real_t fit = try_split_reflex_generic(p_edges, p_reflex_id, -1, reflex_pos_prev, reflex_pos, seg_start, seg_end);
 		if (fit < FLT_MAX) {
-			print_line("\t\tcw " + rtos(fit));
+			//print_line("\t\tcw " + rtos(fit));
 		} else {
-			print_line("\t\tcw -");
+			//print_line("\t\tcw -");
 		}
 		if (fit < r_best_fit) {
 			r_best_fit = fit;
@@ -272,8 +254,10 @@ void PolyDecompose2D::split_recursive(LocalVectori<Point> p_edges, List<LocalVec
 	int num_edges = p_edges.size();
 	sort_edgelist(p_edges);
 
+#ifdef GODOT_POLY_DECOMPOSE_DEBUG_VERBOSE
 	_debug_draw(p_edges, "input/facein" + itos(p_count) + ".png");
 	print_line("split " + itos(p_count) + " : " + _debug_vector_to_string(p_edges));
+#endif
 
 	// find all the reflex verts, and consider each in turn
 	//LocalVectori<uint32_t> reflexes;
@@ -308,7 +292,9 @@ void PolyDecompose2D::split_recursive(LocalVectori<Point> p_edges, List<LocalVec
 		seg_start -= num_edges;
 	}
 
+#ifdef GODOT_POLY_DECOMPOSE_DEBUG_VERBOSE
 	print_line("\tseg_start: " + itos(seg_start) + " (" + itos(p_edges.get_wrapped(seg_start).pos_idx) + "), seg_end: " + itos(seg_end) + " (" + itos(p_edges.get_wrapped(seg_end).pos_idx) + ")");
+#endif
 
 	// add the clockwise segment (not including zero)
 	for (int n = seg_start; n <= seg_end; n++) {
@@ -317,8 +303,10 @@ void PolyDecompose2D::split_recursive(LocalVectori<Point> p_edges, List<LocalVec
 
 	write_result(segment, r_result);
 
+#ifdef GODOT_POLY_DECOMPOSE_DEBUG_VERBOSE
 	_debug_draw(segment, "output/faceout" + itos(p_count) + ".png");
 	print_line("\tcut : " + _debug_vector_to_string(segment));
+#endif
 
 	// remove the segment from the original edgelist, and call recursively
 
@@ -336,117 +324,9 @@ void PolyDecompose2D::split_recursive(LocalVectori<Point> p_edges, List<LocalVec
 
 	// as a result of a removal we can sometimes end up with a zero area
 	// segment .. this can muck up and cause folding in on itself so we need to remove these
-	remove_zero_area_segments(segment);
+	remove_colinear(segment);
 
 	split_recursive(segment, r_result, p_count + 1);
-
-	/*
-	
-	//////////////////////////////////////
-	
-	// find first reflex
-	int reflex_id = -1;
-	for (int n = 0; n < num_edges; n++) {
-		if (is_reflex(p_edges, n)) {
-			//  special .. can't use it if the vertex prior is also reflex (can't form triangle)
-			if (is_reflex(p_edges, n - 1))
-				continue;
-
-			reflex_id = n;
-			break;
-		}
-	}
-
-	// no more reflex, just copy the remaining edges to the result
-	if (reflex_id == -1) {
-		write_result(p_edges, r_result);
-		return;
-	}
-
-	// find the first edge of the reflex vert
-	const Vector2 &reflex_pos_prev = get_edge_pos(p_edges, reflex_id - 1);
-	const Vector2 &reflex_pos = get_edge_pos(p_edges, reflex_id);
-
-	// find the furthest vert in clockwise direction from the reflex that is on the left of the reflex edge, or is reflex itself
-	int start_vert = -1;
-	for (int n = 1; n < num_edges; n++) {
-		int t = p_edges.wrap_index(reflex_id - n);
-
-		const Vector2 &pos = get_edge_pos(p_edges, t);
-		real_t cross = Geometry::vec2_cross(reflex_pos_prev, reflex_pos, pos);
-
-		if (cross < -_cross_epsilon) {
-			// we are done, the previous start_vert must be used
-			// because we are becoming concave
-			break;
-		}
-
-		start_vert = t;
-
-		// is it reflex? if so terminate
-		if (is_reflex(p_edges, t)) {
-			// this reflex may be better than the first .. we need to check this
-			const Vector2 &reflex_pos2 = get_edge_pos(p_edges, t);
-			const Vector2 &reflex_pos_next2 = get_edge_pos(p_edges, t + 1);
-
-			int start_vert_opp = split_opposite(p_edges, t);
-
-			real_t cross2 = Geometry::vec2_cross(reflex_pos2, reflex_pos_next2, reflex_pos);
-			if ((cross2 < -_cross_epsilon) || (start_vert_opp != reflex_id)) {
-				// we need to take the opposite approach
-				//				reflex_id = t;
-				//				start_vert = split_opposite(p_edges, reflex_id);
-				reflex_id = t;
-				start_vert = start_vert_opp;
-
-				// we need to reverse the order of the reflex and start vertex, because the remaining logic is based
-				// around the cut segment from start to reflex, not reflex to start
-				SWAP(start_vert, reflex_id);
-			}
-			break;
-		}
-	}
-
-	// check for -1 .. should not happen...
-	CRASH_COND(start_vert == -1);
-
-	// create a new segment for this edgelist
-	LocalVectori<Point> segment;
-
-	// make sure we loop upwards
-	if (start_vert > reflex_id) {
-		start_vert -= num_edges;
-	}
-
-	print_line("\tstart_vert: " + itos(start_vert) + " (" + itos(p_edges.get_wrapped(start_vert).pos_idx) + "), reflex_vert: " + itos(reflex_id) + " (" + itos(p_edges.get_wrapped(reflex_id).pos_idx) + ")");
-
-	// add the clockwise segment (not including zero)
-	for (int n = start_vert; n <= reflex_id; n++) {
-		segment.push_back(p_edges.get_wrapped(n));
-	}
-
-	write_result(segment, r_result);
-
-	_debug_draw(segment, "output/faceout" + itos(p_count) + ".png");
-	print_line("\tcut : " + _debug_vector_to_string(segment));
-
-	// remove the segment from the original edgelist, and call recursively
-
-	// reuse same vector .. add the remnants to it
-	segment.clear();
-
-	start_vert += num_edges;
-
-	for (int n = reflex_id; n <= start_vert; n++) {
-		segment.push_back(p_edges.get_wrapped(n));
-	}
-
-	// as a result of a removal we can sometimes end up with a zero area
-	// segment .. this can muck up and cause folding in on itself so we need to remove these
-	remove_zero_area_segments(segment);
-
-	split_recursive(segment, r_result, p_count + 1);
-	*/
 }
 
 void PolyDecompose2D::write_result(const LocalVectori<Point> &p_edges, List<LocalVectori<uint32_t>> &r_result) {
