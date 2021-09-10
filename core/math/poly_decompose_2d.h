@@ -11,53 +11,77 @@
 #endif
 
 class PolyDecompose2D {
-	/*
-	struct Point
-	{
-		bool is_reflex() const {return 
-		uint32_t idx;
+	struct Point {
+		Point() {
+			pos_idx = -1;
+			cross = 0.0;
+			length = 0.0;
+			reflex = false;
+		}
+		uint32_t pos_idx; // position index
 		real_t cross;
+		real_t length; // edge length formed from this to next point
+		bool reflex;
+		bool is_reflex() const { return reflex; }
 	};
-	*/
 
 public:
 	// ordered list of positions, counterclockwise
 	bool decompose(const LocalVectori<Vector2> &p_positions, List<LocalVectori<uint32_t>> &r_result);
 
 private:
-	void remove_colinear(LocalVectori<uint32_t> &r_edges);
-	void remove_zero_area_segments(LocalVectori<uint32_t> &r_edges);
-	void sort_edgelist(LocalVectori<uint32_t> &r_edges);
-	void split_recursive(LocalVectori<uint32_t> p_edges, List<LocalVectori<uint32_t>> &r_result, int p_count = 0);
-	int split_opposite(LocalVectori<uint32_t> p_edges, int p_reflex_id);
+	// helper funcs
+	void remove_colinear(LocalVectori<Point> &r_edges);
+	void remove_zero_area_segments(LocalVectori<Point> &r_edges);
+	void sort_edgelist(LocalVectori<Point> &r_edges);
+	void split_recursive(LocalVectori<Point> p_edges, List<LocalVectori<uint32_t>> &r_result, int p_count = 0);
+	int split_opposite(LocalVectori<Point> p_edges, int p_reflex_id);
 
-	void _debug_draw(const LocalVectori<uint32_t> &p_edges, String p_filename);
-	String _debug_vector_to_string(const LocalVectori<uint32_t> &p_list);
+	void try_split_reflex(const LocalVectori<Point> &p_edges, int p_reflex_id, int &r_seg_start, int &r_seg_end, real_t &r_best_fit);
+	real_t try_split_reflex_generic(const LocalVectori<Point> &p_edges, int p_reflex_id, int p_change, const Vector2 &p_reflex_edge_a, const Vector2 &p_reflex_edge_b, int &r_seg_start, int &r_seg_end);
 
-	bool is_reflex(const LocalVectori<uint32_t> &p_edges, int p_test_id) {
-		return get_cross(p_edges, p_test_id + 1) < -_cross_epsilon;
+	void calculate_crosses(LocalVectori<Point> &r_edges);
+
+	void write_result(const LocalVectori<Point> &p_edges, List<LocalVectori<uint32_t>> &r_result);
+
+	// debugging
+	void _debug_draw(const LocalVectori<Point> &p_edges, String p_filename);
+	String _debug_vector_to_string(const LocalVectori<Point> &p_list);
+
+	// inlines
+	bool is_reflex(const LocalVectori<Point> &p_edges, int p_test_id) {
+		return p_edges.get_wrapped(p_test_id).is_reflex();
 	}
 
-	// note this is from the edge BEFORE the test vert
-	real_t get_cross(const LocalVectori<uint32_t> &p_edges, int p_test_id) const {
-		const Vector2 &prev2 = get_edge_pos(p_edges, p_test_id - 2);
+	real_t get_cross(const LocalVectori<Point> &p_edges, int p_test_id) const {
 		const Vector2 &prev = get_edge_pos(p_edges, p_test_id - 1);
 		const Vector2 &curr = get_edge_pos(p_edges, p_test_id);
-		return Geometry::vec2_cross(prev2, prev, curr);
+		const Vector2 &next = get_edge_pos(p_edges, p_test_id + 1);
+		return Geometry::vec2_cross(prev, curr, next);
 	}
 
-	int wrap_index(int p_size, int p_idx) const {
-		if (p_idx >= 0) {
-			return p_idx % p_size;
+	real_t get_length(const LocalVectori<Point> &p_edges, int p_test_id) const {
+		const Vector2 &next = get_edge_pos(p_edges, p_test_id + 1);
+		const Vector2 &curr = get_edge_pos(p_edges, p_test_id);
+		return (next - curr).length();
+	}
+
+	real_t get_edge_length(const LocalVectori<Point> &p_edges, int p_from, int p_to) const {
+		if (p_from > p_to) {
+			p_from -= p_edges.size();
 		}
-		return p_idx + p_size;
+		real_t l = 0.0;
+		for (int n = p_from; n < p_to; n++) {
+			l += p_edges.get_wrapped(n).length;
+		}
+		return l;
 	}
 
-	const Vector2 &get_edge_pos(const LocalVectori<uint32_t> &p_edges, int p_id) const {
-		p_id = wrap_index(p_edges.size(), p_id);
-		return _positions[p_edges[p_id]];
+	const Vector2 &get_edge_pos(const LocalVectori<Point> &p_edges, int p_id) const {
+		return _positions[p_edges.get_wrapped(p_id).pos_idx];
 	}
 
+	// mem vars
 	const Vector2 *_positions = nullptr;
 	int _num_positions = 0;
 	const static real_t _cross_epsilon;
