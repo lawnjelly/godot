@@ -40,6 +40,8 @@
 
 #include <iostream>
 
+//#define GODOT_OCCLUDER_SHAPE_MESH_SINGLE_FACE
+
 ////////////////////////////////////////////////////
 
 void OccluderShapeMesh::_bind_methods() {
@@ -577,11 +579,13 @@ uint32_t OccluderShapeMesh::_trace_zone_edge(uint32_t p_face_id, uint32_t &r_joi
 	for (int c = 0; c < num_sides; c++) {
 		int e = (c + first_edge) % num_sides;
 		face_id_next = face.neighbour_face_ids[e];
+		uint32_t vert_next = face.indices[e];
 
 		if (face_id_next == UINT32_MAX) {
-			r_edges.push_back(face.indices[e]);
+			//print_line("\tadding edge " + itos(vert_next) + " at " + String(Variant(_bd.verts[vert_next].pos)));
+			r_edges.push_back(vert_next);
 		} else {
-			r_join_vert_id = face.indices[e];
+			r_join_vert_id = vert_next;
 			break;
 		}
 	}
@@ -812,10 +816,12 @@ Vector3 OccluderShapeMesh::_normal_from_edge_verts_newell(const LocalVectori<uin
 }
 
 bool OccluderShapeMesh::_make_faces_new(uint32_t p_process_tick) {
-#define GODOT_OCCLUDER_SHAPE_MESH_SINGLE_FACE
 // find a seed face
 #ifdef GODOT_OCCLUDER_SHAPE_MESH_SINGLE_FACE
 	for (int n = _settings_debug_face_id; n < _bd.faces.size(); n++) {
+		if (n > _settings_debug_face_id) {
+			break;
+		}
 #else
 	for (int n = 0; n < _bd.faces.size(); n++) {
 #endif
@@ -837,15 +843,33 @@ bool OccluderShapeMesh::_make_faces_new(uint32_t p_process_tick) {
 			if (!num_neighs) {
 				face.done = true;
 
-				// add to out faces
+#if 0
+				// debugging
+				String sz = "face with no neighbours : " + itos(n);
+				print_line(sz);
+				for (int i = 0; i < face.indices.size(); i++) {
+					print_line("\tcorn : " + itos(face.indices[i]));
 
+					const BakeVertex &bv = _bd.verts[face.indices[i]];
+
+					for (int f = 0; f < bv.linked_faces.size(); f++) {
+						uint32_t id = bv.linked_faces[f];
+						if (id == n)
+							continue;
+
+						sz = "\t\tneigh face : " + itos(id) + " : ";
+						const BakeFace &nface = _bd.faces[id];
+						for (int c = 0; c < nface.indices.size(); c++) {
+							sz += itos(nface.indices[c]) + ", ";
+						}
+						print_line(sz);
+					}
+				}
+#endif
 				// create out face
 				_bd.out_faces.resize(_bd.out_faces.size() + 1);
 				BakeFace &out = _bd.out_faces[_bd.out_faces.size() - 1];
 				out = face;
-				//				out.indices = r_convex_inds;
-				//				out.area = 100.0;
-
 				continue;
 			}
 
@@ -862,10 +886,6 @@ bool OccluderShapeMesh::_make_faces_new(uint32_t p_process_tick) {
 				return true;
 			}
 		}
-
-#ifdef GODOT_OCCLUDER_SHAPE_MESH_SINGLE_FACE
-		break;
-#endif
 	}
 
 	return false;
@@ -902,38 +922,6 @@ real_t OccluderShapeMesh::_find_matching_faces_total_area(const LocalVectori<uin
 		area += _bd.faces[p_faces[n]].area;
 	}
 	return area;
-}
-
-void OccluderShapeMesh::_process_islands_find_neighbours(uint32_t p_face_id, uint32_t p_island_id, uint32_t p_process_tick) {
-	BakeIsland &island = _bd.islands[p_island_id];
-	BakeFace &face = _bd.faces[p_face_id];
-	face.last_processed_tick = p_process_tick;
-
-	// trace the holes BEFORE tracing the neighbours
-	for (int n = 0; n < face.neighbour_face_ids.size(); n++) {
-		uint32_t id = face.neighbour_face_ids[n];
-
-		if (id == UINT32_MAX) {
-			// neighbouring a null
-			island.adjacent_null = true;
-
-			// see if it is a hole
-			// need some minimum number of tris to form a hole
-			if (island.num_tris > 3) {
-				_process_islands_trace_hole(p_face_id, p_process_tick);
-			}
-		}
-	}
-
-	for (int n = 0; n < face.neighbour_face_ids.size(); n++) {
-		uint32_t id = face.neighbour_face_ids[n];
-		if (id != UINT32_MAX) {
-			const BakeFace &nface = _bd.faces[id];
-			if ((nface.island == p_island_id) && (nface.last_processed_tick != p_process_tick)) {
-				_process_islands_find_neighbours(id, p_island_id, p_process_tick);
-			}
-		}
-	}
 }
 
 void OccluderShapeMesh::_process_islands_trace_hole(uint32_t p_face_id, uint32_t p_process_tick) {
@@ -985,6 +973,7 @@ void OccluderShapeMesh::_process_islands_trace_hole(uint32_t p_face_id, uint32_t
 
 	while (true) {
 		face_id = _trace_zone_edge(face_id, join_vert_id, edges);
+		//print_line("\t\t\ttrace_hole " + itos(face_id));
 
 		// mark the face as processed
 		_bd.faces[face_id].last_processed_tick = p_process_tick;
@@ -993,6 +982,23 @@ void OccluderShapeMesh::_process_islands_trace_hole(uint32_t p_face_id, uint32_t
 			break;
 		}
 	}
+
+	//	{
+	//		DebugImage im;
+	//		im.create(240, 240);
+
+	//		for (int n = 0; n <= edges.size(); n++) {
+	//			const BakeVertex &bv = _bd.verts[edges[n % edges.size()]];
+
+	//			if (!n) {
+	//				im.l_move(bv.pos.z, bv.pos.y);
+	//			} else {
+	//				im.l_line_to(bv.pos.z, bv.pos.y);
+	//			}
+	//		}
+	//		im.l_flush();
+	//		im.save_png("hole_" + itos(p_face_id) + ".png");
+	//	}
 
 	// is this edge a hole, or an external edge?
 	const Vector3 *prev2 = &_bd.verts[edges[0]].pos;
@@ -1016,12 +1022,44 @@ void OccluderShapeMesh::_process_islands_trace_hole(uint32_t p_face_id, uint32_t
 
 void OccluderShapeMesh::_process_islands() {
 	_bd._face_process_tick++;
+	int process_tick = _bd._face_process_tick;
 
 	for (int island_id = 1; island_id < _bd.islands.size(); island_id++) {
 		BakeIsland &island = _bd.islands[island_id];
 
-		// flood from the first face
-		_process_islands_find_neighbours(island.first_face_id, island_id, _bd._face_process_tick);
+		// go through every face in the island
+		for (int n = 0; n < island.face_ids.size(); n++) {
+			uint32_t face_id = island.face_ids[n];
+
+			BakeFace &face = _bd.faces[face_id];
+
+			// already done?
+			if (face.last_processed_tick == process_tick) {
+				continue;
+			}
+
+			face.last_processed_tick = process_tick;
+
+			//print_line("_process_islands_find_neighbours face " + itos(p_face_id));
+
+			// trace the holes BEFORE tracing the neighbours
+			for (int n = 0; n < face.neighbour_face_ids.size(); n++) {
+				uint32_t id = face.neighbour_face_ids[n];
+
+				if (id == UINT32_MAX) {
+					// neighbouring a null
+					island.adjacent_null = true;
+
+					// see if it is a hole
+					// need some minimum number of tris to form a hole
+					if (island.face_ids.size() > 3) {
+						//print_line("\tfound hole");
+						_process_islands_trace_hole(face_id, process_tick);
+					}
+				}
+			}
+
+		} // for n through island faces
 	}
 }
 
@@ -1084,8 +1122,6 @@ void OccluderShapeMesh::_find_neighbour_face_ids() {
 		island_id++;
 		_bd.islands.resize(_bd.islands.size() + 1);
 		BakeIsland &island = _bd.islands[_bd.islands.size() - 1];
-		island.first_face_id = n;
-		island.num_tris = 0;
 
 		while (!face_stack.empty()) {
 			// pop face
@@ -1099,7 +1135,9 @@ void OccluderShapeMesh::_find_neighbour_face_ids() {
 
 			// mark which island
 			face_a.island = island_id;
-			island.num_tris += 1;
+
+			// add the face list in the island
+			island.face_ids.push_back(face_id_a);
 
 			// traverse to neighbours
 			for (int n = 0; n < face_a.num_sides(); n++) {

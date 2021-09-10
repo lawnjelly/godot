@@ -5,7 +5,7 @@
 #include "core/math/geometry.h"
 #include "core/math/vector2.h"
 
-#define GODOT_POLY_DECOMPOSE_DEBUG_DRAW
+//#define GODOT_POLY_DECOMPOSE_DEBUG_DRAW
 #ifdef GODOT_POLY_DECOMPOSE_DEBUG_DRAW
 #include "core/debug_image.h"
 #endif
@@ -32,10 +32,8 @@ public:
 private:
 	// helper funcs
 	void remove_colinear(LocalVectori<Point> &r_edges);
-	void remove_zero_area_segments(LocalVectori<Point> &r_edges);
 	void sort_edgelist(LocalVectori<Point> &r_edges);
 	void split_recursive(LocalVectori<Point> p_edges, List<LocalVectori<uint32_t>> &r_result, int p_count = 0);
-	int split_opposite(LocalVectori<Point> p_edges, int p_reflex_id);
 
 	void try_split_reflex(const LocalVectori<Point> &p_edges, int p_reflex_id, int &r_seg_start, int &r_seg_end, real_t &r_best_fit);
 	real_t try_split_reflex_generic(const LocalVectori<Point> &p_edges, int p_reflex_id, int p_change, const Vector2 &p_reflex_edge_a, const Vector2 &p_reflex_edge_b, int &r_seg_start, int &r_seg_end);

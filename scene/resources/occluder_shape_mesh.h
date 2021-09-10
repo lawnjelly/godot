@@ -270,8 +270,6 @@ class OccluderShapeMesh : public OccluderShape {
 	struct BakeIsland {
 		BakeIsland() {
 			adjacent_null = false;
-			first_face_id = UINT32_MAX;
-			num_tris = 0;
 		}
 		LocalVectori<uint32_t> neighbour_island_ids;
 
@@ -279,14 +277,12 @@ class OccluderShapeMesh : public OccluderShape {
 		//LocalVectori<uint32_t> hole_face_ids;
 		List<LocalVectori<uint32_t>> hole_edges;
 
+		// list of faces in this island
+		LocalVectori<uint32_t> face_ids;
+
 		// if any triangle in the island has an edge with no neighbour.
 		// this means it cannot be an internal island.
 		bool adjacent_null;
-
-		uint32_t num_tris;
-
-		// allows flooding from a face in the island
-		uint32_t first_face_id;
 	};
 
 	struct SortFace {
@@ -353,9 +349,6 @@ class OccluderShapeMesh : public OccluderShape {
 
 		uint32_t _face_process_tick = 1;
 
-		// sorted by the largest face,
-		// so we can process the largest faces first
-		//LocalVectori<SortFace> sort_faces;
 	} _bd;
 
 	NodePath _settings_bake_path;
@@ -401,7 +394,6 @@ class OccluderShapeMesh : public OccluderShape {
 	void _verify_verts();
 	void _find_neighbour_face_ids();
 	void _process_islands();
-	void _process_islands_find_neighbours(uint32_t p_face_id, uint32_t p_island_id, uint32_t p_process_tick);
 	void _process_islands_trace_hole(uint32_t p_face_id, uint32_t p_process_tick);
 	void _edgelist_add_holes(uint32_t p_island_id, LocalVectori<uint32_t> &r_edges);
 
@@ -448,7 +440,10 @@ class OccluderShapeMesh : public OccluderShape {
 		_settings_threshold_input_size = p_threshold;
 		// can't be zero, we want to prevent zero area triangles which could
 		// cause divide by zero in the occlusion culler goodness of fit
-		_settings_threshold_input_size_squared = MAX(p_threshold * p_threshold, 0.01);
+
+		// NOTE: Investigate this. Tiny triangles that are not registered could break up larger faces.
+		// Maybe the cap against zero area could be later in the pipeline.
+		_settings_threshold_input_size_squared = MAX(p_threshold * p_threshold, 0.00001);
 	}
 	real_t get_threshold_input_size() const { return _settings_threshold_input_size; }
 
