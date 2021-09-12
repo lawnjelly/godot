@@ -219,6 +219,30 @@ void OccluderShapeMesh::_log(String p_string) {
 }
 
 void OccluderShapeMesh::bake(Node *owner) {
+#ifdef GODOT_POLY_DECOMPOSE_DEBUG_DRAW
+	{
+		LocalVectori<Vector2> pts;
+		List<LocalVectori<uint32_t>> result;
+
+		pts.push_back(Vector2(0, -1));
+		pts.push_back(Vector2(1, -1));
+		pts.push_back(Vector2(2, -6));
+		pts.push_back(Vector2(4, -2));
+
+		pts.push_back(Vector2(0.5, 0));
+
+		pts.push_back(Vector2(4, 2));
+		pts.push_back(Vector2(2, 6));
+		pts.push_back(Vector2(1, 1));
+		pts.push_back(Vector2(0, 1));
+
+		// test decompose
+		PolyDecompose2D decomp;
+		decomp.decompose(pts, result);
+	}
+	return;
+#endif
+
 	clear();
 
 	// make sure precalced values are correct

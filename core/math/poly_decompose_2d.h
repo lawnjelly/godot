@@ -34,11 +34,13 @@ private:
 	void remove_colinear(LocalVectori<Point> &r_edges);
 	void sort_edgelist(LocalVectori<Point> &r_edges);
 	void split_recursive(LocalVectori<Point> p_edges, List<LocalVectori<uint32_t>> &r_result, int p_count = 0);
+	bool can_see(const LocalVectori<Point> &p_edges, int p_from, int p_to, bool p_change_is_positive) const;
 
 	void try_split_reflex(const LocalVectori<Point> &p_edges, int p_reflex_id, int &r_seg_start, int &r_seg_end, real_t &r_best_fit);
 	real_t try_split_reflex_generic(const LocalVectori<Point> &p_edges, int p_reflex_id, int p_change, const Vector2 &p_reflex_edge_a, const Vector2 &p_reflex_edge_b, int &r_seg_start, int &r_seg_end);
 
 	void calculate_crosses(LocalVectori<Point> &r_edges);
+	bool line_intersect_test(const Vector2 &p_0, const Vector2 &p_1, const Vector2 &p_2, const Vector2 &p_3) const;
 
 	void write_result(const LocalVectori<Point> &p_edges, List<LocalVectori<uint32_t>> &r_result);
 
