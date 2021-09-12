@@ -137,7 +137,7 @@ void PolyDecompose2D::sort_edgelist(LocalVectori<Point> &r_edges) {
 
 // p_from and p_to indices are wrapped coming into this routine. We need to account for this.
 bool PolyDecompose2D::can_see(const LocalVectori<Point> &p_edges, int p_from, int p_to, bool p_change_is_positive) const {
-	return true;
+	//return true;
 
 	// ignore if one apart
 	if (Math::abs(p_to - p_from) <= 1) {
