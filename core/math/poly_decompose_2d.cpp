@@ -135,6 +135,76 @@ void PolyDecompose2D::sort_edgelist(LocalVectori<Point> &r_edges) {
 	}
 }
 
+// p_from and p_to indices are wrapped coming into this routine. We need to account for this.
+bool PolyDecompose2D::can_see(const LocalVectori<Point> &p_edges, int p_from, int p_to, bool p_change_is_positive) const {
+	return true;
+
+	// ignore if one apart
+	if (Math::abs(p_to - p_from) <= 1) {
+		return true;
+	}
+
+	const Vector2 &from_a = _positions[p_edges[p_from].pos_idx];
+	const Vector2 &to_a = _positions[p_edges[p_to].pos_idx];
+
+	// prevent doing any checks if another line segment shares the same vertex id.
+	// these will obviously collide at the ends, but should not prevent a merge.
+	uint32_t idx_from = p_edges[p_from].pos_idx;
+	uint32_t idx_to = p_edges[p_to].pos_idx;
+
+	// Determine which other edges to check.
+	// We don't need to check from p_from TO p_to as these will already be guaranteed
+	// no collisions. Also we don't want to check line segments that adjoin these two points,
+	// as these will always 'collide' at the end points.
+
+	int num_edges = p_edges.size();
+
+	if (!p_change_is_positive) {
+		SWAP(p_from, p_to);
+	}
+
+	int range_from = p_to;
+	int range_to = p_from;
+
+	if (range_from > range_to) {
+		range_from -= num_edges;
+	}
+
+	// shrink the range by 1 each side to prevent adjacent edges
+	range_from++;
+	range_to--;
+
+	// check every other edge
+	//	for (int i = 0; i < p_edges.size(); i++) {
+	for (int i = range_from; i < range_to; i++) {
+		int n = p_edges.wrap_index(i);
+		int m = p_edges.wrap_index(i + 1);
+
+		//		if ((n == p_from) || (m == p_from)) {
+		//			continue;
+		//		}
+		//		if ((n == p_to) || (m == p_to)) {
+		//			continue;
+		//		}
+		uint32_t idx_n = p_edges[n].pos_idx;
+		uint32_t idx_m = p_edges[m].pos_idx;
+
+		if ((idx_n == idx_from) || (idx_m == idx_from) ||
+				(idx_n == idx_to) || (idx_m == idx_to)) {
+			continue;
+		}
+
+		const Vector2 &from_b = _positions[p_edges[n].pos_idx];
+		const Vector2 &to_b = _positions[p_edges[m].pos_idx];
+
+		if (line_intersect_test(from_a, to_a, from_b, to_b)) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
 real_t PolyDecompose2D::try_split_reflex_generic(const LocalVectori<Point> &p_edges, int p_reflex_id, int p_change, const Vector2 &p_reflex_edge_a, const Vector2 &p_reflex_edge_b, int &r_seg_start, int &r_seg_end) {
 	// can't use if next to another reflex, cannot form a triangle
 	if (p_edges.get_wrapped(p_reflex_id + p_change).is_reflex()) {
@@ -176,6 +246,16 @@ real_t PolyDecompose2D::try_split_reflex_generic(const LocalVectori<Point> &p_ed
 			break;
 		}
 
+		// annoyingly, we seem to have to do this expensive check every time
+		// (maybe it can be made cheaper).
+		// 99% of the time it doesn't matter, but it does prevent problems with special cases.
+		// We don't need to check from p_reflex_id TO t as these will already be guaranteed
+		// no collisions. Also we don't want to check line segments that adjoin p_reflex_id and t,
+		// as these will always 'collide' at the end points.
+		if (!can_see(p_edges, p_reflex_id, t, p_change > 0)) {
+			break;
+		}
+
 		start_vert = t;
 
 		// is it reflex? if so terminate
@@ -184,8 +264,15 @@ real_t PolyDecompose2D::try_split_reflex_generic(const LocalVectori<Point> &p_ed
 		}
 	}
 
-	// check for -1 .. should not happen...
-	CRASH_COND(start_vert == -1);
+	// if -1, we likely could not see the vertex, and could not traverse in this direction
+	if (start_vert == -1) {
+		return FLT_MAX;
+	}
+
+	// disallow if less than 2 verts apart (i.e. not even a triangle)
+	if (start_vert == p_edges.wrap_index(p_reflex_id + p_change)) {
+		return FLT_MAX;
+	}
 
 	real_t fit = 0.0;
 	if (p_change > 0) {
@@ -205,7 +292,9 @@ real_t PolyDecompose2D::try_split_reflex_generic(const LocalVectori<Point> &p_ed
 void PolyDecompose2D::try_split_reflex(const LocalVectori<Point> &p_edges, int p_reflex_id, int &r_seg_start, int &r_seg_end, real_t &r_best_fit) {
 	//	real_t best_fit = 0.0;
 
-	//print_line("try_split_reflex " + itos(p_edges.get_wrapped(p_reflex_id).pos_idx));
+#ifdef GODOT_POLY_DECOMPOSE_DEBUG_VERBOSE
+	print_line("try_split_reflex " + itos(p_edges.get_wrapped(p_reflex_id).pos_idx));
+#endif
 
 	// try counterclockwise
 
@@ -218,11 +307,13 @@ void PolyDecompose2D::try_split_reflex(const LocalVectori<Point> &p_edges, int p
 		const Vector2 &reflex_pos_next = get_edge_pos(p_edges, p_reflex_id + 1);
 
 		real_t fit = try_split_reflex_generic(p_edges, p_reflex_id, 1, reflex_pos, reflex_pos_next, seg_start, seg_end);
+#ifdef GODOT_POLY_DECOMPOSE_DEBUG_VERBOSE
 		if (fit < FLT_MAX) {
-			//print_line("\t\tccw " + rtos(fit));
+			print_line("\t\tccw " + rtos(fit));
 		} else {
-			//print_line("\t\tccw -");
+			print_line("\t\tccw -");
 		}
+#endif
 		if (fit < r_best_fit) {
 			r_best_fit = fit;
 			r_seg_start = seg_start;
@@ -237,11 +328,13 @@ void PolyDecompose2D::try_split_reflex(const LocalVectori<Point> &p_edges, int p
 		const Vector2 &reflex_pos = get_edge_pos(p_edges, p_reflex_id);
 
 		real_t fit = try_split_reflex_generic(p_edges, p_reflex_id, -1, reflex_pos_prev, reflex_pos, seg_start, seg_end);
+#ifdef GODOT_POLY_DECOMPOSE_DEBUG_VERBOSE
 		if (fit < FLT_MAX) {
-			//print_line("\t\tcw " + rtos(fit));
+			print_line("\t\tcw " + rtos(fit));
 		} else {
-			//print_line("\t\tcw -");
+			print_line("\t\tcw -");
 		}
+#endif
 		if (fit < r_best_fit) {
 			r_best_fit = fit;
 			r_seg_start = seg_start;
@@ -337,4 +430,44 @@ void PolyDecompose2D::write_result(const LocalVectori<Point> &p_edges, List<Loca
 		res[n] = p_edges[n].pos_idx;
 	}
 	r_result.push_back(res);
+}
+
+// Adapted from https://stackoverflow.com/questions/563198/how-do-you-detect-where-two-line-segments-intersect
+// from Andre LeMothe "Tricks of the game programming gurus"
+// from, to, from , to params.
+bool PolyDecompose2D::line_intersect_test(const Vector2 &p_0, const Vector2 &p_1, const Vector2 &p_2, const Vector2 &p_3) const {
+	Vector2 s1 = p_1 - p_0;
+	Vector2 s2 = p_3 - p_2;
+
+	// prevent divide by zero .. not sure if this can occur
+	real_t denom_s = (-s2.x * s1.y + s1.x * s2.y);
+	real_t denom_t = (-s2.x * s1.y + s1.x * s2.y);
+
+	// this can occur if the lines are parallel.
+	// we are not interested in these collisions here.
+	if ((denom_s == 0.0) || (denom_t == 0.0)) {
+		return false;
+	}
+
+	real_t s = (-s1.y * (p_0.x - p_2.x) + s1.x * (p_0.y - p_2.y)) / denom_s;
+	real_t t = (s2.x * (p_0.y - p_2.y) - s2.y * (p_0.x - p_2.x)) / denom_t;
+
+	if (s >= 0 && s <= 1 && t >= 0 && t <= 1) {
+#if 0
+		// Intersection point
+		if (i_x != NULL)
+			*i_x = p_0.x + (t * s1.x);
+		if (i_y != NULL)
+			*i_y = p_0.y + (t * s1.y);
+#endif
+
+		// don't allow end to end collisions,
+		// only allow if one of the lines is not colliding at the end
+		real_t test = s * t;
+		if ((test > 0.001) && (test < 0.999)) {
+			return true;
+		}
+	}
+
+	return false; // No collision
 }
