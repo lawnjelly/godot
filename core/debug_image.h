@@ -2,6 +2,7 @@
 
 #include "core/local_vector.h"
 #include "core/math/rect2.h"
+#include "core/math/vector3.h"
 #include <stdint.h>
 
 // simple 32 bit RGBA image with line drawing funcs
@@ -100,6 +101,14 @@ public:
 		} else {
 			r_y = 0;
 		}
+	}
+
+	void l_move3(const Vector3 &pt) {
+		l_move(Vector2(pt.x, pt.y));
+	}
+
+	void l_line_to3(const Vector3 &pt) {
+		l_line_to(Vector2(pt.x, pt.y));
 	}
 
 	void l_move(const Vector2 &pt) {

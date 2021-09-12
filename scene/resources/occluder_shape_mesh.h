@@ -394,7 +394,7 @@ class OccluderShapeMesh : public OccluderShape {
 	void _verify_verts();
 	void _find_neighbour_face_ids();
 	void _process_islands();
-	void _process_islands_trace_hole(uint32_t p_face_id, uint32_t p_process_tick);
+	bool _process_islands_trace_hole(uint32_t p_face_id, uint32_t p_process_tick);
 	void _edgelist_add_holes(uint32_t p_island_id, LocalVectori<uint32_t> &r_edges);
 
 	uint32_t _find_or_create_vert(const Vector3 &p_pos) {

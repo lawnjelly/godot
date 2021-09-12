@@ -40,7 +40,7 @@
 
 #include <iostream>
 
-//#define GODOT_OCCLUDER_SHAPE_MESH_SINGLE_FACE
+#define GODOT_OCCLUDER_SHAPE_MESH_SINGLE_FACE
 
 ////////////////////////////////////////////////////
 
@@ -219,6 +219,7 @@ void OccluderShapeMesh::_log(String p_string) {
 }
 
 void OccluderShapeMesh::bake(Node *owner) {
+	/*
 #ifdef GODOT_POLY_DECOMPOSE_DEBUG_DRAW
 	{
 		LocalVectori<Vector2> pts;
@@ -242,7 +243,7 @@ void OccluderShapeMesh::bake(Node *owner) {
 	}
 	return;
 #endif
-
+*/
 	clear();
 
 	// make sure precalced values are correct
@@ -363,6 +364,8 @@ void OccluderShapeMesh::_simplify_triangles() {
 	//real_t target_error = 0.001;
 	//	real_t target_error = 0.01;
 
+	print_line("Before simplify " + itos(_bd.faces.size()) + " triangles, " + itos(_mesh_data.vertices.size()) + " vertices.");
+
 	size_t result = 0;
 	if (_settings_simplify > 0.0) {
 #define GODOT_OCCLUDER_POLY_USE_ERROR_METRIC
@@ -413,6 +416,8 @@ void OccluderShapeMesh::_simplify_triangles() {
 
 	// clear hash table no longer need
 	_bd.hash_verts.clear();
+
+	print_line("After simplify " + itos(_bd.faces.size()) + " triangles, " + itos(_bd.verts.size()) + " vertices.");
 }
 
 void OccluderShapeMesh::_print_line(String p_sz) {
@@ -584,7 +589,10 @@ void OccluderShapeMesh::_edgelist_add_holes(uint32_t p_island_id, LocalVectori<u
 uint32_t OccluderShapeMesh::_trace_zone_edge(uint32_t p_face_id, uint32_t &r_join_vert_id, LocalVectori<uint32_t> &r_edges) {
 	BakeFace &face = _bd.faces[p_face_id];
 
+#ifdef GODOT_POLY_DECOMPOSE_DEBUG_DRAW
 	_debug_print_face(p_face_id, "trace");
+#endif
+	//print_line("_trace_zone_edge" + itos(p_face_id))
 
 	int num_sides = face.indices.size();
 
@@ -606,7 +614,9 @@ uint32_t OccluderShapeMesh::_trace_zone_edge(uint32_t p_face_id, uint32_t &r_joi
 		uint32_t vert_next = face.indices[e];
 
 		if (face_id_next == UINT32_MAX) {
-			//print_line("\tadding edge " + itos(vert_next) + " at " + String(Variant(_bd.verts[vert_next].pos)));
+#ifdef GODOT_POLY_DECOMPOSE_DEBUG_DRAW
+			print_line("\tadding edge " + itos(vert_next) + " at " + String(Variant(_bd.verts[vert_next].pos)));
+#endif
 			r_edges.push_back(vert_next);
 		} else {
 			r_join_vert_id = vert_next;
@@ -948,7 +958,7 @@ real_t OccluderShapeMesh::_find_matching_faces_total_area(const LocalVectori<uin
 	return area;
 }
 
-void OccluderShapeMesh::_process_islands_trace_hole(uint32_t p_face_id, uint32_t p_process_tick) {
+bool OccluderShapeMesh::_process_islands_trace_hole(uint32_t p_face_id, uint32_t p_process_tick) {
 	BakeFace &face = _bd.faces[p_face_id];
 	int num_sides = face.neighbour_face_ids.size();
 
@@ -977,6 +987,12 @@ void OccluderShapeMesh::_process_islands_trace_hole(uint32_t p_face_id, uint32_t
 		first_edge = 0;
 	}
 
+	// has this edgeloop already been processed?
+	BakeVertex &bv = _bd.verts[face.indices[first_edge]];
+	if (bv.last_processed_tick == p_process_tick) {
+		return false;
+	}
+
 	// first add the edges from the first poly to the list
 	uint32_t face_id;
 	uint32_t join_vert_id = 0;
@@ -996,52 +1012,95 @@ void OccluderShapeMesh::_process_islands_trace_hole(uint32_t p_face_id, uint32_t
 	}
 
 	while (true) {
-		face_id = _trace_zone_edge(face_id, join_vert_id, edges);
-		//print_line("\t\t\ttrace_hole " + itos(face_id));
+		//int edges_count_before = edges.size();
 
-		// mark the face as processed
-		_bd.faces[face_id].last_processed_tick = p_process_tick;
+		face_id = _trace_zone_edge(face_id, join_vert_id, edges);
+#ifdef GODOT_POLY_DECOMPOSE_DEBUG_DRAW
+		print_line("\t\t\ttrace_hole face " + itos(face_id) + ", vert ID " + itos(join_vert_id));
+#endif
+
+#ifdef GODOT_POLY_DECOMPOSE_DEBUG_DRAW
+		if (face_id != p_face_id) {
+			//CRASH_COND(_bd.faces[face_id].last_processed_tick == p_process_tick);
+			if (_bd.faces[face_id].last_processed_tick == p_process_tick) {
+				print_line("DUPLICATE during trace hole face " + itos(face_id) + ", vert ID " + itos(join_vert_id));
+			}
+		}
+#endif
+
+		// mark the face as processed ONLY if an extra edge was added from this face
+		//		if (edges.size() != edges_count_before)
+		//		{
+		//			_bd.faces[face_id].last_processed_tick = p_process_tick;
+		//		}
 
 		if (join_vert_id == edges[0]) {
 			break;
 		}
 	}
 
-	//	{
-	//		DebugImage im;
-	//		im.create(240, 240);
+#if 0
+		{
+			DebugImage im;
+			im.create(240, 240);
 
-	//		for (int n = 0; n <= edges.size(); n++) {
-	//			const BakeVertex &bv = _bd.verts[edges[n % edges.size()]];
+			// first draw all the triangles of the mesh
+			if (false)
+			{
+			for (int n=0; n<_bd.faces.size(); n++)
+			{
+				const BakeFace &bf = _bd.faces[n];
+				im.l_move3(_bd.verts[bf.indices[0]].pos);
+				
+				for (int c=0; c < bf.indices.size(); c++)
+				{
+					im.l_line_to3(_bd.verts[bf.indices.get_wrapped(c+1)].pos);
+				}
+			}
+			}
+			
+			for (int n = 0; n <= edges.size(); n++) {
+				const BakeVertex &bv = _bd.verts[edges.get_wrapped(n)];
 
-	//			if (!n) {
-	//				im.l_move(bv.pos.z, bv.pos.y);
-	//			} else {
-	//				im.l_line_to(bv.pos.z, bv.pos.y);
-	//			}
-	//		}
-	//		im.l_flush();
-	//		im.save_png("hole_" + itos(p_face_id) + ".png");
-	//	}
+				if (!n) {
+					im.l_move3(bv.pos);
+				} else {
+					im.l_line_to3(bv.pos);
+				}
+				im.l_draw_num(edges.get_wrapped(n));
+			}
+			im.l_flush();
+			im.save_png("hole_" + itos(p_face_id) + ".png");
+		}
+#endif
 
 	// is this edge a hole, or an external edge?
-	const Vector3 *prev2 = &_bd.verts[edges[0]].pos;
-	const Vector3 *prev = &_bd.verts[edges[1]].pos;
+	//	const Vector3 *prev2 = &_bd.verts[edges[0]].pos;
+	//	const Vector3 *prev = &_bd.verts[edges[1]].pos;
 
-	Vector3 cross;
-	for (int n = 2; n < edges.size(); n++) {
-		const Vector3 *curr = &_bd.verts[edges[n]].pos;
-		cross += (*prev - *prev2).cross(*curr - *prev);
+	//	Vector3 cross;
+	//	for (int n = 2; n < edges.size(); n++) {
+	//		const Vector3 *curr = &_bd.verts[edges[n]].pos;
+	//		cross += (*prev - *prev2).cross(*curr - *prev);
 
-		prev2 = prev;
-		prev = curr;
+	//		prev2 = prev;
+	//		prev = curr;
+	//	}
+
+	// mark all edge verts as processed so we don't hit them more than once in the search for holes
+	for (int n = 0; n < edges.size(); n++) {
+		BakeVertex &bv = _bd.verts[edges[n]];
+		bv.last_processed_tick = p_process_tick;
 	}
 
 	// if the cross is in the same direction as the normal, the edge angles are inward, else outward
-	if (face.plane.normal.dot(cross) > 0.0) {
-		BakeIsland &island = _bd.islands[face.island];
-		island.hole_edges.push_back(edges);
-	}
+	//	if (face.plane.normal.dot(cross) > 0.0) {
+	BakeIsland &island = _bd.islands[face.island];
+	island.hole_edges.push_back(edges);
+	return true;
+	//	}
+
+	//	return false;
 }
 
 void OccluderShapeMesh::_process_islands() {
@@ -1064,9 +1123,10 @@ void OccluderShapeMesh::_process_islands() {
 
 			face.last_processed_tick = process_tick;
 
-			//print_line("_process_islands_find_neighbours face " + itos(p_face_id));
+#ifdef GODOT_POLY_DECOMPOSE_DEBUG_DRAW
+			print_line("_process_islands face " + itos(face_id));
+#endif
 
-			// trace the holes BEFORE tracing the neighbours
 			for (int n = 0; n < face.neighbour_face_ids.size(); n++) {
 				uint32_t id = face.neighbour_face_ids[n];
 
@@ -1077,14 +1137,56 @@ void OccluderShapeMesh::_process_islands() {
 					// see if it is a hole
 					// need some minimum number of tris to form a hole
 					if (island.face_ids.size() > 3) {
-						//print_line("\tfound hole");
+#ifdef GODOT_POLY_DECOMPOSE_DEBUG_DRAW
+						print_line("\tfound hole");
+#endif
 						_process_islands_trace_hole(face_id, process_tick);
 					}
+					break;
 				}
 			}
 
 		} // for n through island faces
-	}
+
+		// kind of sucky but we can determine whether a hole is actually the outside by it being the largest AABB
+		Vector<Vector3> pts;
+		List<LocalVectori<uint32_t>>::Element *ele = island.hole_edges.front();
+		List<LocalVectori<uint32_t>>::Element *ele_biggest = nullptr;
+		real_t biggest_volume = 0.0;
+
+		while (ele) {
+			const LocalVectori<uint32_t> &hole = ele->get();
+
+			pts.clear();
+			for (int n = 0; n < hole.size(); n++) {
+				pts.push_back(_bd.verts[hole[n]].pos);
+			}
+
+			AABB bb;
+			bb.create_from_points(pts);
+
+			bb.size.x = MAX(bb.size.x, 0.01);
+			bb.size.y = MAX(bb.size.y, 0.01);
+			bb.size.z = MAX(bb.size.z, 0.01);
+
+			real_t vol = bb.get_area();
+			if (vol > biggest_volume) {
+				biggest_volume = vol;
+				ele_biggest = ele;
+			}
+
+			ele = ele->next();
+		}
+
+		if (ele_biggest) {
+			island.hole_edges.erase(ele_biggest);
+		}
+
+#ifdef GODOT_POLY_DECOMPOSE_DEBUG_DRAW
+		print_line("Island holes (after deleting biggest) : " + itos(island.hole_edges.size()));
+#endif
+
+	} // for island
 }
 
 void OccluderShapeMesh::_find_neighbour_face_ids() {
