@@ -453,11 +453,17 @@ void OccluderShapeMesh::_debug_print_face(uint32_t p_face_id, String p_before_st
 
 // MUST start from a face with at least one neighbour, and at least one free edge
 // (not a central tri)
+// CHECK - Could this start tracing from a hole? Not what we want. Perhaps we can pre-identify the outer edge of the island.
 void OccluderShapeMesh::_find_face_zone_edges(const LocalVectori<uint32_t> &p_face_ids, LocalVectori<uint32_t> &r_edges) {
 	// first find the first non neighbour edge
 	uint32_t first_face_id = p_face_ids[0];
 	BakeFace &face = _bd.faces[first_face_id];
 
+#define GODOT_USE_PRECALCED_OUTER_EDGE
+#ifdef GODOT_USE_PRECALCED_OUTER_EDGE
+	const BakeIsland &island = _bd.islands[face.island];
+	r_edges = island.outer_edge;
+#else
 	_debug_print_face(first_face_id, "first");
 
 	int num_sides = face.neighbour_face_ids.size();
@@ -508,6 +514,8 @@ void OccluderShapeMesh::_find_face_zone_edges(const LocalVectori<uint32_t> &p_fa
 	// add the last point? (from the first triangle)
 	//_trace_zone_edge(face_id, join_vert_id, r_edges);
 
+#endif
+
 	// new... add links to all the holes
 	_edgelist_add_holes(face.island, r_edges, face.plane.normal);
 
@@ -519,13 +527,33 @@ void OccluderShapeMesh::_find_face_zone_edges(const LocalVectori<uint32_t> &p_fa
 	_print_line(sz);
 }
 
+real_t OccluderShapeMesh::_angle_between_vectors(Vector3 p_a, Vector3 p_b, const Vector3 &p_normal) const {
+	p_a.normalize();
+	p_b.normalize();
+
+	real_t dot = p_a.dot(p_b);
+	dot = CLAMP(dot, -1.0, 1.0);
+	real_t angle = Math::acos(dot);
+
+	// find polarity
+	Vector3 cross = p_a.cross(p_b);
+	if (cross.dot(p_normal) < 0.0) {
+		angle = (2.0 * Math_PI) - angle;
+	}
+
+	return angle;
+}
+
 void OccluderShapeMesh::_edgelist_add_holes(uint32_t p_island_id, LocalVectori<uint32_t> &r_edges, const Vector3 &p_face_normal) {
+	//return;
 	BakeIsland &island = _bd.islands[p_island_id];
 	if (island.hole_edges.empty()) {
 		return;
 	}
 
-	// print_line("edges orig : " + _debug_vector_to_string(r_edges));
+#ifdef GODOT_POLY_DECOMPOSE_DEBUG_DRAW
+	print_line("edges orig : " + _debug_vector_to_string(r_edges));
+#endif
 
 	const List<LocalVectori<uint32_t>>::Element *ele = island.hole_edges.front();
 	LocalVectori<uint32_t> temp;
@@ -539,7 +567,9 @@ void OccluderShapeMesh::_edgelist_add_holes(uint32_t p_island_id, LocalVectori<u
 	while (ele) {
 		const LocalVectori<uint32_t> &hole = ele->get();
 
-		// print_line("hole : " + _debug_vector_to_string(hole));
+#ifdef GODOT_POLY_DECOMPOSE_DEBUG_DRAW
+		print_line("hole : " + _debug_vector_to_string(hole));
+#endif
 
 		// find the closest pair of points
 		int best_i = -1;
@@ -575,11 +605,20 @@ void OccluderShapeMesh::_edgelist_add_holes(uint32_t p_island_id, LocalVectori<u
 		// this should never happen, but we will put in some protection in case.
 		int panic_count = 0;
 		while (true) {
-			const Vector3 &join_edge0 = _bd.verts[r_edges[best_i]].pos;
-			const Vector3 &join_edge1 = _bd.verts[r_edges.get_wrapped(best_i + 1)].pos;
-			Plane join_plane = Plane(join_edge0, join_edge1, join_edge0 + p_face_normal);
-			real_t dist = join_plane.distance_to(hole_point);
-			if (dist <= 0.0) {
+			const Vector3 &join_prev = _bd.verts[r_edges.get_wrapped(best_i - 1)].pos;
+			const Vector3 &join_mid = _bd.verts[r_edges[best_i]].pos;
+			const Vector3 &join_next = _bd.verts[r_edges.get_wrapped(best_i + 1)].pos;
+
+			Vector3 edge_before = join_prev - join_mid;
+			Vector3 edge_after = join_next - join_mid;
+
+			real_t angle_existing = _angle_between_vectors(edge_before, edge_after, p_face_normal);
+			real_t angle_to_new = _angle_between_vectors(edge_before, (hole_point - join_mid), p_face_normal);
+
+			if (angle_to_new < angle_existing) {
+				//			Plane join_plane = Plane(join_edge0, join_edge1, join_edge0 + p_face_normal);
+				//			real_t dist = join_plane.distance_to(hole_point);
+				//			if (dist <= 0.0) {
 				// is on the left, can add BEFORE
 				break;
 			} else {
@@ -626,11 +665,13 @@ void OccluderShapeMesh::_edgelist_add_holes(uint32_t p_island_id, LocalVectori<u
 
 		r_edges = temp;
 
-		//		break;
+#ifdef GODOT_POLY_DECOMPOSE_DEBUG_DRAW
+		print_line("edges after : " + _debug_vector_to_string(r_edges));
+#endif
+
+		//				break;
 		ele = ele->next();
 	}
-
-	// print_line("edges after : " + _debug_vector_to_string(r_edges));
 }
 
 uint32_t OccluderShapeMesh::_trace_zone_edge(uint32_t p_face_id, uint32_t &r_join_vert_id, LocalVectori<uint32_t> &r_edges) {
@@ -1009,15 +1050,26 @@ bool OccluderShapeMesh::_process_islands_trace_hole(uint32_t p_face_id, uint32_t
 	BakeFace &face = _bd.faces[p_face_id];
 	int num_sides = face.neighbour_face_ids.size();
 
-#ifdef DEBUG_ENABLED
 	int num_neighs = 0;
 	for (int c = 0; c < num_sides; c++) {
 		if (face.neighbour_face_ids[c] != UINT32_MAX) {
 			num_neighs++;
 		}
 	}
-	CRASH_COND(!num_neighs);
-#endif
+
+	// single triangle
+	if (!num_neighs) {
+		// add hole
+		BakeIsland &island = _bd.islands[face.island];
+		LocalVectori<uint32_t> edges;
+		edges.push_back(face.indices[0]);
+		edges.push_back(face.indices[1]);
+		edges.push_back(face.indices[2]);
+
+		island.hole_edges.push_back(edges);
+
+		return true;
+	}
 
 	// must be zero if none of the other edges have neighbours
 	// (providing there are any neighbours at all .. this should be checked earlier)
@@ -1151,10 +1203,10 @@ bool OccluderShapeMesh::_process_islands_trace_hole(uint32_t p_face_id, uint32_t
 }
 
 void OccluderShapeMesh::_process_islands() {
-	_bd._face_process_tick++;
-	int process_tick = _bd._face_process_tick;
-
 	for (int island_id = 1; island_id < _bd.islands.size(); island_id++) {
+		_bd._face_process_tick++;
+		int process_tick = _bd._face_process_tick;
+
 		BakeIsland &island = _bd.islands[island_id];
 
 		// go through every face in the island
@@ -1183,7 +1235,8 @@ void OccluderShapeMesh::_process_islands() {
 
 					// see if it is a hole
 					// need some minimum number of tris to form a hole
-					if (island.face_ids.size() > 3) {
+					//					if (island.face_ids.size() > 3) {
+					if (true) {
 #ifdef GODOT_POLY_DECOMPOSE_DEBUG_DRAW
 						print_line("\tfound hole");
 #endif
@@ -1209,14 +1262,18 @@ void OccluderShapeMesh::_process_islands() {
 				pts.push_back(_bd.verts[hole[n]].pos);
 			}
 
+			//real_t vol = Geometry::find_polygon_area(&pts[0], pts.size());
+
 			AABB bb;
 			bb.create_from_points(pts);
 
-			bb.size.x = MAX(bb.size.x, 0.01);
-			bb.size.y = MAX(bb.size.y, 0.01);
-			bb.size.z = MAX(bb.size.z, 0.01);
+			//			bb.size.x = MAX(bb.size.x, 0.01);
+			//			bb.size.y = MAX(bb.size.y, 0.01);
+			//			bb.size.z = MAX(bb.size.z, 0.01);
+			//			real_t vol = bb.get_area();
 
-			real_t vol = bb.get_area();
+			real_t vol = bb.size.x + bb.size.y + bb.size.z;
+
 			if (vol > biggest_volume) {
 				biggest_volume = vol;
 				ele_biggest = ele;
@@ -1226,6 +1283,10 @@ void OccluderShapeMesh::_process_islands() {
 		}
 
 		if (ele_biggest) {
+			// copy to the outer edge, no need to calculate this again later
+			island.outer_edge = ele_biggest->get();
+
+			// delete from the list of holes
 			island.hole_edges.erase(ele_biggest);
 		}
 
