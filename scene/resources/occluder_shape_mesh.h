@@ -277,6 +277,8 @@ class OccluderShapeMesh : public OccluderShape {
 		//LocalVectori<uint32_t> hole_face_ids;
 		List<LocalVectori<uint32_t>> hole_edges;
 
+		LocalVectori<uint32_t> outer_edge;
+
 		// list of faces in this island
 		LocalVectori<uint32_t> face_ids;
 
@@ -396,6 +398,8 @@ class OccluderShapeMesh : public OccluderShape {
 	void _process_islands();
 	bool _process_islands_trace_hole(uint32_t p_face_id, uint32_t p_process_tick);
 	void _edgelist_add_holes(uint32_t p_island_id, LocalVectori<uint32_t> &r_edges, const Vector3 &p_face_normal);
+
+	real_t _angle_between_vectors(Vector3 p_a, Vector3 p_b, const Vector3 &p_normal) const;
 
 	uint32_t _find_or_create_vert(const Vector3 &p_pos) {
 		uint32_t id = _bd.hash_verts.find(p_pos);
