@@ -40,7 +40,7 @@
 
 #include <iostream>
 
-#define GODOT_OCCLUDER_SHAPE_MESH_SINGLE_FACE
+//#define GODOT_OCCLUDER_SHAPE_MESH_SINGLE_FACE
 
 ////////////////////////////////////////////////////
 
@@ -509,7 +509,7 @@ void OccluderShapeMesh::_find_face_zone_edges(const LocalVectori<uint32_t> &p_fa
 	//_trace_zone_edge(face_id, join_vert_id, r_edges);
 
 	// new... add links to all the holes
-	_edgelist_add_holes(face.island, r_edges);
+	_edgelist_add_holes(face.island, r_edges, face.plane.normal);
 
 	// print the edge list
 	String sz = "edge list : ";
@@ -519,21 +519,27 @@ void OccluderShapeMesh::_find_face_zone_edges(const LocalVectori<uint32_t> &p_fa
 	_print_line(sz);
 }
 
-void OccluderShapeMesh::_edgelist_add_holes(uint32_t p_island_id, LocalVectori<uint32_t> &r_edges) {
+void OccluderShapeMesh::_edgelist_add_holes(uint32_t p_island_id, LocalVectori<uint32_t> &r_edges, const Vector3 &p_face_normal) {
 	BakeIsland &island = _bd.islands[p_island_id];
 	if (island.hole_edges.empty()) {
 		return;
 	}
 
-	//print_line("edges orig : " + _debug_vector_to_string(r_edges));
+	// print_line("edges orig : " + _debug_vector_to_string(r_edges));
 
 	const List<LocalVectori<uint32_t>>::Element *ele = island.hole_edges.front();
 	LocalVectori<uint32_t> temp;
 
+	// Do the closest holes first. This ensures that if the closest path to the
+	// outer edge from hole B is through hole A, A will be added first, and B will
+	// join to a B vertex instead of through A.
+	// Note this is not perfect and does not catch every case, ideally we would do
+	// a 'can see' routine here, but that would mean transforming verts to 2d.
+
 	while (ele) {
 		const LocalVectori<uint32_t> &hole = ele->get();
 
-		//print_line("hole : " + _debug_vector_to_string(hole));
+		// print_line("hole : " + _debug_vector_to_string(hole));
 
 		// find the closest pair of points
 		int best_i = -1;
@@ -548,10 +554,51 @@ void OccluderShapeMesh::_edgelist_add_holes(uint32_t p_island_id, LocalVectori<u
 
 				real_t dist = (pt_j - pt_i).length_squared();
 				if (dist < best_dist) {
+					// also there must be a clear path, use a can see
+
 					best_dist = dist;
 					best_i = i;
 					best_j = j;
 				}
+			}
+		}
+
+		// Deal with the case where multiple holes join to the same vertex.
+		// The vertex will thus appear more than once in the edgelist if a hole
+		// has previously been added.
+		// we can't allow the holes to be added to the edgelist out of order,
+		// or this will corrupt the final polys. A hole on the left has to be added first,
+		// a hole on the right added after.
+		const Vector3 &hole_point = _bd.verts[hole[best_j]].pos;
+
+		// Note this has the potential for an infinite loop..
+		// this should never happen, but we will put in some protection in case.
+		int panic_count = 0;
+		while (true) {
+			const Vector3 &join_edge0 = _bd.verts[r_edges[best_i]].pos;
+			const Vector3 &join_edge1 = _bd.verts[r_edges.get_wrapped(best_i + 1)].pos;
+			Plane join_plane = Plane(join_edge0, join_edge1, join_edge0 + p_face_normal);
+			real_t dist = join_plane.distance_to(hole_point);
+			if (dist <= 0.0) {
+				// is on the left, can add BEFORE
+				break;
+			} else {
+				// is on the right, we must choose the next occurrence of the join vertex in the edge list,
+				// and try again (there may be more than 1 previous join to this vertex)
+				uint32_t join_vert_id = r_edges[best_i];
+				for (int n = 1; n < r_edges.size(); n++) {
+					int i = (best_i + n) % r_edges.size();
+					if (r_edges[i] == join_vert_id) {
+						best_i = i;
+						break;
+					}
+				}
+			}
+
+			panic_count++;
+			if (panic_count > 256) {
+				WARN_PRINT_ONCE("OccluderShapeMesh::_edgelist_add_holes : infinite loop detected, recovering");
+				break;
 			}
 		}
 
@@ -583,7 +630,7 @@ void OccluderShapeMesh::_edgelist_add_holes(uint32_t p_island_id, LocalVectori<u
 		ele = ele->next();
 	}
 
-	//print_line("edges after : " + _debug_vector_to_string(r_edges));
+	// print_line("edges after : " + _debug_vector_to_string(r_edges));
 }
 
 uint32_t OccluderShapeMesh::_trace_zone_edge(uint32_t p_face_id, uint32_t &r_join_vert_id, LocalVectori<uint32_t> &r_edges) {
