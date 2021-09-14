@@ -122,6 +122,7 @@ class OccluderShapeMesh : public OccluderShape {
 			uint32_t id;
 		};
 		HashTable<4096, Element> _table;
+		real_t _tolerance = 0.0001;
 
 		struct Vec3i {
 			bool operator==(const Vec3i &p_o) const { return x == p_o.x && y == p_o.y && z == p_o.z; }
@@ -184,6 +185,7 @@ class OccluderShapeMesh : public OccluderShape {
 			for (uint32_t n = 0; n < bsize; n++) {
 				const Element &e = bin[n];
 				if (e.pos.is_equal_approx(p_pos)) {
+					//				if (e.pos.is_equal_approx(p_pos), _tolerance) {
 					return e.id;
 				}
 			}
@@ -232,11 +234,13 @@ class OccluderShapeMesh : public OccluderShape {
 			}
 			return false;
 		}
-		void add_linked_face(uint32_t p_id) {
+		bool add_linked_face(uint32_t p_id) {
 			if (linked_faces.find(p_id) == -1) {
 				linked_faces.push_back(p_id);
 				dirty = true;
+				return true;
 			}
+			return false;
 		}
 		BakeVertex() {
 			last_processed_tick = 0;
@@ -314,10 +318,11 @@ class OccluderShapeMesh : public OccluderShape {
 			hash_triangles._table.clear();
 			_face_process_tick = 1;
 		}
-		uint32_t find_or_create_vert(const Vector3 &p_pos, uint32_t p_face_id) {
+		//		uint32_t find_or_create_vert(const Vector3 &p_pos, uint32_t p_face_id) {
+		uint32_t find_or_create_vert(const Vector3 &p_pos) {
 			uint32_t id = hash_verts.find(p_pos);
 			if (id != UINT32_MAX) {
-				verts[id].linked_faces.push_back(p_face_id);
+				//verts[id].linked_faces.push_back(p_face_id);
 				return id;
 			}
 
@@ -334,7 +339,7 @@ class OccluderShapeMesh : public OccluderShape {
 			id = verts.size();
 			verts.resize(id + 1);
 			verts[id].pos = p_pos;
-			verts[id].linked_faces.push_back(p_face_id);
+			//verts[id].linked_faces.push_back(p_face_id);
 
 			hash_verts.add(p_pos, id);
 
@@ -361,6 +366,7 @@ class OccluderShapeMesh : public OccluderShape {
 	real_t _settings_plane_simplify_degrees = 11.0;
 	real_t _settings_plane_simplify_dot = 0.98;
 	real_t _settings_remove_floor_dot = 0.0;
+	real_t _settings_vertex_tolerance = 0.001;
 	int _settings_remove_floor_angle = 20;
 	uint32_t _settings_bake_mask = 0xFFFFFFFF;
 
@@ -383,6 +389,7 @@ class OccluderShapeMesh : public OccluderShape {
 	bool _any_further_points_within(const Vector<IndexedPoint> &p_pts, int p_test_pt) const;
 	void _finalize_out_face(BakeFace &r_face);
 	bool _can_see(const Vector<IndexedPoint> &p_points, int p_test_point) const;
+	bool face_has_worked(const LocalVectori<uint32_t> &p_face, const Vector3 &p_face_normal) const;
 
 	void _debug_print_face(uint32_t p_face_id, String p_before_string = "");
 	String _debug_vector_to_string(const LocalVectori<uint32_t> &p_list);
@@ -461,6 +468,9 @@ class OccluderShapeMesh : public OccluderShape {
 
 	void set_plane_simplify_angle(real_t p_angle) { _settings_plane_simplify_degrees = p_angle; }
 	real_t get_plane_simplify_angle() const { return _settings_plane_simplify_degrees; }
+
+	void set_vertex_tolerance(real_t p_tolerance) { _settings_vertex_tolerance = p_tolerance; }
+	real_t get_vertex_tolerance() const { return _settings_vertex_tolerance; }
 
 	void set_remove_floor(int p_angle);
 	int get_remove_floor() const { return _settings_remove_floor_angle; }
