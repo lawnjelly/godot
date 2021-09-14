@@ -394,6 +394,8 @@ void PolyDecompose2D::split_recursive(LocalVectori<Point> p_edges, List<LocalVec
 		segment.push_back(p_edges.get_wrapped(n));
 	}
 
+	calculate_crosses(segment);
+	remove_colinear(segment);
 	write_result(segment, r_result);
 
 #ifdef GODOT_POLY_DECOMPOSE_DEBUG_VERBOSE

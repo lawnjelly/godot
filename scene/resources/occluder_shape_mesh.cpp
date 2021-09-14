@@ -40,7 +40,7 @@
 
 #include <iostream>
 
-//#define GODOT_OCCLUDER_SHAPE_MESH_SINGLE_FACE
+#define GODOT_OCCLUDER_SHAPE_MESH_SINGLE_FACE
 
 ////////////////////////////////////////////////////
 
@@ -59,6 +59,9 @@ void OccluderShapeMesh::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("set_plane_simplify_angle", "angle"), &OccluderShapeMesh::set_plane_simplify_angle);
 	ClassDB::bind_method(D_METHOD("get_plane_simplify_angle"), &OccluderShapeMesh::get_plane_simplify_angle);
+
+	ClassDB::bind_method(D_METHOD("set_vertex_tolerance", "tolerance"), &OccluderShapeMesh::set_vertex_tolerance);
+	ClassDB::bind_method(D_METHOD("get_vertex_tolerance"), &OccluderShapeMesh::get_vertex_tolerance);
 
 	ClassDB::bind_method(D_METHOD("set_debug_face_id", "id"), &OccluderShapeMesh::set_debug_face_id);
 	ClassDB::bind_method(D_METHOD("get_debug_face_id"), &OccluderShapeMesh::get_debug_face_id);
@@ -81,6 +84,7 @@ void OccluderShapeMesh::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "threshold_output_size", PROPERTY_HINT_RANGE, "0.0,10.0,0.1"), "set_threshold_output_size", "get_threshold_output_size");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "plane_angle", PROPERTY_HINT_RANGE, "0.0,45.0,0.1"), "set_plane_simplify_angle", "get_plane_simplify_angle");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "simplify", PROPERTY_HINT_RANGE, "0.0,1.0,0.01"), "set_simplify", "get_simplify");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "vertex_tolerance", PROPERTY_HINT_RANGE, "0.0,0.1,0.001"), "set_vertex_tolerance", "get_vertex_tolerance");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "remove_floor", PROPERTY_HINT_RANGE, "0, 90, 1"), "set_remove_floor", "get_remove_floor");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "debug_face_id", PROPERTY_HINT_RANGE, "0, 1000, 1"), "set_debug_face_id", "get_debug_face_id");
 
@@ -212,6 +216,7 @@ void OccluderShapeMesh::clear() {
 	_mesh_data.vertices.clear();
 	_mesh_data.faces.clear();
 	_bd.clear();
+	_bd.hash_verts._tolerance = _settings_vertex_tolerance * _settings_vertex_tolerance;
 }
 
 void OccluderShapeMesh::_log(String p_string) {
@@ -391,7 +396,10 @@ void OccluderShapeMesh::_simplify_triangles() {
 	_bd.faces.clear();
 	_bd.faces.resize(result / 3);
 
+	// some faces may fail if they are degenerate
+	int faces_written = 0;
 	int count = 0;
+
 	for (int n = 0; n < _bd.faces.size(); n++) {
 		BakeFace face;
 		face.indices.resize(3);
@@ -400,16 +408,33 @@ void OccluderShapeMesh::_simplify_triangles() {
 
 		for (int c = 0; c < 3; c++) {
 			const Vector3 &pos = _mesh_data.vertices[inds_out[count++]];
-			int new_ind = _bd.find_or_create_vert(pos, n);
+			//			int new_ind = _bd.find_or_create_vert(pos, n);
+			int new_ind = _bd.find_or_create_vert(pos);
 			face.indices[c] = new_ind;
 			f3.vertex[c] = pos;
+		}
+
+		// test for degenerate
+		if ((face.indices[0] == face.indices[1]) ||
+				(face.indices[0] == face.indices[2]) ||
+				(face.indices[1] == face.indices[2])) {
+			// degenerate
+			continue;
+		}
+
+		// now we are sure of the face, add the linked face to each vert
+		for (int c = 0; c < 3; c++) {
+			_bd.verts[face.indices[c]].linked_faces.push_back(faces_written);
 		}
 
 		face.plane = f3.get_plane();
 
 		face.area = f3.get_area();
-		_bd.faces[n] = face;
+		_bd.faces[faces_written++] = face;
 	}
+
+	// less faces may be written than originally intended
+	_bd.faces.resize(faces_written);
 
 	// delete the orig verts
 	_mesh_data.vertices.clear();
@@ -699,6 +724,9 @@ uint32_t OccluderShapeMesh::_trace_zone_edge(uint32_t p_face_id, uint32_t &r_joi
 	for (int c = 0; c < num_sides; c++) {
 		int e = (c + first_edge) % num_sides;
 		face_id_next = face.neighbour_face_ids[e];
+
+		CRASH_COND(face_id_next == p_face_id);
+
 		uint32_t vert_next = face.indices[e];
 
 		if (face_id_next == UINT32_MAX) {
@@ -881,24 +909,61 @@ bool OccluderShapeMesh::_make_convex_chunk_external(const LocalVectori<uint32_t>
 
 	int panic_count = 0;
 	while (ele) {
-		const LocalVectori<uint32_t> &chunk = ele->get();
+		LocalVectori<uint32_t> &chunk = ele->get();
 
-		// create out face
-		_bd.out_faces.resize(_bd.out_faces.size() + 1);
-		BakeFace &out = _bd.out_faces[_bd.out_faces.size() - 1];
+		if (!chunk.empty()) {
+			// translate chunk indices to vertices
+			for (int n = 0; n < chunk.size(); n++) {
+				chunk[n] = pts_orig[chunk[n]].idx;
+			}
 
-		// copy the indices across
-		out.indices.resize(chunk.size());
-		for (int n = 0; n < chunk.size(); n++) {
-			out.indices[n] = pts_orig[chunk[n]].idx;
-		}
+			if (face_has_worked(chunk, p_poly_plane.normal)) {
+				// create out face
+				_bd.out_faces.resize(_bd.out_faces.size() + 1);
+				BakeFace &out = _bd.out_faces[_bd.out_faces.size() - 1];
 
-		out.area = 100.0;
-		out.plane = p_poly_plane;
-		_finalize_out_face(out);
+				// copy the indices across
+				out.indices.resize(chunk.size());
+				for (int n = 0; n < chunk.size(); n++) {
+					//out.indices[n] = pts_orig[chunk[n]].idx;
+					out.indices[n] = chunk[n];
+				}
+
+				out.area = 100.0;
+				out.plane = p_poly_plane;
+				_finalize_out_face(out);
+			} // if worked
+		} // if chunk not empty
 
 		panic_count++;
 		ele = ele->next();
+	}
+
+	return true;
+}
+
+bool OccluderShapeMesh::face_has_worked(const LocalVectori<uint32_t> &p_face, const Vector3 &p_face_normal) const {
+	// last attempt to find faces that mucked up during processing .. non convex, overlapping, backfacing etc
+	//	for (int n=0; n<p_face.size(); n++)
+	//	{
+	//		const Vector3 &pt = _bd.verts[p_face[n]].pos;
+
+	//		print_line(itos(n) + " " + String(Variant(pt)));
+	//	}
+
+	for (int n = 2; n < p_face.size(); n++) {
+		int i0 = p_face[0];
+		int i1 = p_face[n - 1];
+		int i2 = p_face[n];
+
+		Face3 f(_bd.verts[i0].pos, _bd.verts[i1].pos, _bd.verts[i2].pos);
+
+		Vector3 norm = f.get_plane().normal;
+		real_t dot = p_face_normal.dot(norm);
+		if (dot < 0.5) {
+			return false;
+		}
+		//print_line(itos(n) + " dot " + rtos(dot));
 	}
 
 	return true;
@@ -1324,6 +1389,8 @@ void OccluderShapeMesh::_find_neighbour_face_ids() {
 			for (int j = i + 1; j < bv.linked_faces.size(); j++) {
 				uint32_t linked_face_b_id = bv.linked_faces[j];
 				BakeFace &face_b = _bd.faces[linked_face_b_id];
+
+				CRASH_COND(linked_face_a_id == linked_face_b_id);
 
 				int edge_a, edge_b;
 				if (!_are_faces_neighbours(face_a, face_b, edge_a, edge_b)) {
