@@ -99,6 +99,10 @@ void CPUParticles::set_lifetime_randomness(float p_random) {
 }
 void CPUParticles::set_use_local_coordinates(bool p_enable) {
 	local_coords = p_enable;
+
+	if (!p_enable) {
+		set_physics_interpolated(false);
+	}
 }
 void CPUParticles::set_speed_scale(float p_scale) {
 	speed_scale = p_scale;
