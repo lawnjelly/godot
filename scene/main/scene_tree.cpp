@@ -465,10 +465,42 @@ void SceneTree::init() {
 	MainLoop::init();
 }
 
+void SceneTree::set_physics_interpolation_enabled(bool p_enabled) {
+	// disallow interpolation in editor
+	if (Engine::get_singleton()->is_editor_hint()) {
+		p_enabled = false;
+	}
+
+	if (p_enabled == _physics_interpolation_enabled) {
+		return;
+	}
+
+	_physics_interpolation_enabled = p_enabled;
+
+	if (root->get_world().is_valid()) {
+		RID scenario = root->get_world()->get_scenario();
+		if (scenario.is_valid()) {
+			VisualServer::get_singleton()->scenario_set_physics_interpolation_enabled(scenario, p_enabled);
+		}
+	}
+}
+
+bool SceneTree::is_physics_interpolation_enabled() const {
+	return _physics_interpolation_enabled;
+}
+
 bool SceneTree::iteration(float p_time) {
 	root_lock++;
 
 	current_frame++;
+
+	// not sure yet whether this should go before or after  the flush_transform_notifications below
+	if (root->get_world().is_valid()) {
+		RID scenario = root->get_world()->get_scenario();
+		if (scenario.is_valid()) {
+			VisualServer::get_singleton()->scenario_tick(scenario);
+		}
+	}
 
 	flush_transform_notifications();
 
@@ -601,6 +633,13 @@ bool SceneTree::idle(float p_time) {
 	}
 
 #endif
+
+	if (root->get_world().is_valid()) {
+		RID scenario = root->get_world()->get_scenario();
+		if (scenario.is_valid()) {
+			VisualServer::get_singleton()->scenario_pre_draw(scenario, true);
+		}
+	}
 
 	return _quit;
 }
@@ -2033,6 +2072,7 @@ SceneTree::SceneTree() {
 	call_lock = 0;
 	root_lock = 0;
 	node_count = 0;
+	_physics_interpolation_enabled = false;
 
 	//create with mainloop
 
@@ -2042,6 +2082,7 @@ SceneTree::SceneTree() {
 	if (!root->get_world().is_valid()) {
 		root->set_world(Ref<World>(memnew(World)));
 	}
+	set_physics_interpolation_enabled(GLOBAL_DEF("physics/common/physics_interpolation", true));
 
 	// Initialize network state
 	multiplayer_poll = true;
