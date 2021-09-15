@@ -118,6 +118,9 @@ protected:
 
 	_FORCE_INLINE_ void _update_local_transform() const;
 
+	void _physics_set_global_transform(const Transform &p_transform);
+	void _physics_set_transform(const Transform &p_transform);
+
 	uint32_t _get_spatial_flags() const { return data.spatial_flags; }
 	void _replace_spatial_flags(uint32_t p_flags) { data.spatial_flags = p_flags; }
 	void _set_spatial_flag(uint32_t p_flag, bool p_set) {

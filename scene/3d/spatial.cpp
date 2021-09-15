@@ -242,6 +242,11 @@ void Spatial::_notification(int p_what) {
 	}
 }
 
+//void Spatial::_set_transform_interpolated(const Transform &p_transform, bool p_interpolated) {
+//	_set_branch_interpolated(Engine::get_singleton()->is_physics_interpolation_enabled() && p_interpolated);
+//	_set_transform(p_transform);
+//}
+
 void Spatial::set_transform(const Transform &p_transform) {
 	data.local_transform = p_transform;
 	data.dirty |= DIRTY_VECTORS;
@@ -260,6 +265,24 @@ void Spatial::set_global_transform(const Transform &p_transform) {
 
 	set_transform(xform);
 }
+
+void Spatial::_physics_set_global_transform(const Transform &p_transform) {
+	_set_branch_interpolated(true);
+	set_global_transform(p_transform);
+}
+void Spatial::_physics_set_transform(const Transform &p_transform) {
+	_set_branch_interpolated(true);
+	set_transform(p_transform);
+}
+
+//void Spatial::_set_global_transform_interpolated(const Transform &p_transform, bool p_interpolated) {
+//	Transform xform = (data.parent && !data.toplevel_active) ? data.parent->get_global_transform().affine_inverse() * p_transform : p_transform;
+//	if (Engine::get_singleton()->is_physics_interpolation_enabled() && p_interpolated) {
+//		_set_transform_interpolated(xform, true);
+//	} else {
+//		set_transform(xform);
+//	}
+//}
 
 Transform Spatial::get_transform() const {
 	if (data.dirty & DIRTY_LOCAL) {

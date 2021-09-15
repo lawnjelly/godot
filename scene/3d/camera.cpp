@@ -79,7 +79,7 @@ void Camera::_update_camera() {
 		return;
 	}
 
-	VisualServer::get_singleton()->camera_set_transform(camera, get_camera_transform());
+	VisualServer::get_singleton()->camera_set_transform_interpolated(camera, get_camera_transform(), is_physics_interpolated());
 
 	// here goes listener stuff
 	/*
@@ -666,6 +666,7 @@ Camera::Camera() {
 	doppler_tracking = DOPPLER_TRACKING_DISABLED;
 	set_notify_transform(true);
 	set_disable_scale(true);
+	_set_branch_interpolated(true);
 }
 
 Camera::~Camera() {
