@@ -144,8 +144,6 @@ private:
 	int fixed_fps;
 	bool fractional_delta;
 
-	Transform inv_emission_transform;
-
 	SafeFlag can_update;
 
 	DrawOrder draw_order;

@@ -135,6 +135,12 @@
 				Returns [code]true[/code] if this [SceneTree]'s [member network_peer] is in server mode (listening for connections).
 			</description>
 		</method>
+		<method name="is_scene_tree_physics_interpolation_enabled" qualifiers="const">
+			<return type="bool" />
+			<description>
+				Returns [code]true[/code] if physics interpolation is enabled globally in this [SceneTree].
+			</description>
+		</method>
 		<method name="notify_group">
 			<return type="void" />
 			<argument index="0" name="group" type="String" />
@@ -213,6 +219,13 @@
 			<description>
 				If [code]true[/code], the application quits automatically on going back (e.g. on Android). Enabled by default.
 				To handle 'Go Back' button when this option is disabled, use [constant MainLoop.NOTIFICATION_WM_GO_BACK_REQUEST].
+			</description>
+		</method>
+		<method name="set_scene_tree_physics_interpolation_enabled">
+			<return type="void" />
+			<argument index="0" name="enabled" type="bool" />
+			<description>
+				Although physics interpolation would normally be globally turned on and off using the [ProjectSettings] [code]physics/common/physics_interpolation[/code], this function allows control over interpolation at runtime.
 			</description>
 		</method>
 		<method name="set_screen_stretch">
