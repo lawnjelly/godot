@@ -66,6 +66,8 @@ class OccluderShapeSphere : public OccluderShape {
 	Vector<Plane> _spheres;
 	const real_t _min_radius = 0.1;
 
+	real_t _globbiness = 5.0;
+
 protected:
 	static void _bind_methods();
 
@@ -75,6 +77,9 @@ public:
 
 	void set_sphere_position(int p_idx, const Vector3 &p_position);
 	void set_sphere_radius(int p_idx, real_t p_radius);
+
+	void set_globbiness(real_t p_globbiness);
+	real_t get_globbiness() const { return _globbiness; }
 
 	virtual void notification_enter_world(RID p_scenario);
 	virtual void update_shape_to_visual_server();

@@ -39,6 +39,33 @@ class PortalOcclusionCuller {
 		MAX_SPHERES = 64,
 	};
 
+	struct Metaball : public Occlusion::Sphere {
+		void set(const Occlusion::Sphere &p_sphere, real_t p_distance, real_t p_globbiness, uint32_t p_glob_group) {
+			pos = p_sphere.pos;
+			radius = p_sphere.radius;
+			distance = p_distance;
+			globbiness = p_globbiness;
+			glob_group = p_glob_group;
+		}
+		// from camera, or culling source point
+		real_t distance = 0.0;
+		// 0 if no globbing (i.e. not a metaball)
+		// this is basically the occluder ID + 1, or zero.
+		uint32_t glob_group = 0;
+		real_t globbiness = 0.0;
+	};
+
+	// metaball groups are groups of metaballs that form a glob
+	// these can be quick rejected with a bounding sphere around the whole
+	// group
+	struct MetaballGroup {
+		Occlusion::Sphere sphere;
+		uint32_t first_metaball = 0;
+		uint32_t num_metaballs = 0;
+		real_t dist_to_center = 0.0;
+		real_t dist_to_sphere_start = 0.0;
+	};
+
 public:
 	PortalOcclusionCuller();
 	void prepare(PortalRenderer &p_portal_renderer, const VSRoom &p_room, const Vector3 &pt_camera, const LocalVector<Plane> &p_planes, const Plane *p_near_plane) {
@@ -71,6 +98,15 @@ public:
 	bool cull_sphere(const Vector3 &p_occludee_center, real_t p_occludee_radius, int p_ignore_sphere = -1) const;
 
 private:
+	bool _cull_sphere_metaball_groups(const Vector3 &p_occludee_center, real_t p_occludee_radius, const Vector3 &p_ray_dir, real_t p_dist_to_occludee) const;
+	bool _cull_sphere_metaball_group(const MetaballGroup &p_group, const Vector3 &p_occludee_center, real_t p_occludee_radius, const Vector3 &p_ray_dir, real_t p_dist_to_occludee) const;
+
+	bool _cull_sphere_metaballs(const Vector3 &p_occludee_center, real_t p_occludee_radius, const Vector3 &p_ray_dir, real_t p_dist_to_occludee) const;
+	real_t _evaluate_metaball_group_SDF(const MetaballGroup &p_group, const Vector3 &p_pt) const;
+	real_t _evaluate_metaball_SDF(const Vector3 &p_pt) const;
+	real_t _SDF_smooth_union(real_t d1, real_t d2, real_t k) const;
+	void _create_metaball_group(uint32_t p_first_metaball, uint32_t p_num_metaballs);
+
 	// if a sphere is entirely in front of any of the culling planes, it can't be seen so returns false
 	bool is_sphere_culled(const Vector3 &p_pos, real_t p_radius, const LocalVector<Plane> &p_planes) const {
 		for (unsigned int p = 0; p < p_planes.size(); p++) {
@@ -105,13 +141,70 @@ private:
 
 	// only a number of the spheres in the scene will be chosen to be
 	// active based on their distance to the camera, screen space etc.
-	Occlusion::Sphere _spheres[MAX_SPHERES];
-	real_t _sphere_distances[MAX_SPHERES];
+	Metaball _spheres[MAX_SPHERES];
 	real_t _sphere_closest_dist = 0.0;
 	int _num_spheres = 0;
 	int _max_spheres = 8;
 
+	Metaball _metaballs[MAX_SPHERES];
+	int _num_metaballs = 0;
+
+	MetaballGroup _metaball_groups[MAX_SPHERES];
+	int _num_metaball_groups = 0;
+
 	Vector3 _pt_camera;
 };
+
+inline real_t PortalOcclusionCuller::_evaluate_metaball_group_SDF(const MetaballGroup &p_group, const Vector3 &p_pt) const {
+	real_t res = FLT_MAX;
+	uint32_t last_ball = p_group.first_metaball + p_group.num_metaballs;
+
+	for (int s = p_group.first_metaball; s < last_ball; s++) {
+		const Metaball &ball = _metaballs[s];
+
+		Vector3 offset = p_pt - ball.pos;
+		real_t d = offset.length();
+		d -= ball.radius;
+		res = _SDF_smooth_union(res, d, ball.globbiness);
+	}
+
+	return res;
+}
+
+inline real_t PortalOcclusionCuller::_evaluate_metaball_SDF(const Vector3 &p_pt) const {
+	real_t res = FLT_MAX;
+	real_t overall_res = FLT_MAX;
+	uint32_t current_group = 0;
+
+	for (int s = 0; s < _num_metaballs; s++) {
+		const Metaball &ball = _metaballs[s];
+
+		// new glob group?
+		if (ball.glob_group != current_group) {
+			overall_res = MIN(overall_res, res);
+			current_group = ball.glob_group;
+			res = FLT_MAX;
+		}
+
+		Vector3 offset = p_pt - ball.pos;
+		real_t d = offset.length();
+
+		d -= ball.radius;
+
+		// res = _SDF_smooth_union(res, d, 10.0);
+		res = _SDF_smooth_union(res, d, ball.globbiness);
+	}
+
+	// final
+	overall_res = MIN(overall_res, res);
+
+	return overall_res;
+}
+
+inline real_t PortalOcclusionCuller::_SDF_smooth_union(real_t d1, real_t d2, real_t k) const {
+	real_t h = CLAMP(0.5 + 0.5 * (d2 - d1) / k, 0.0, 1.0);
+	real_t mix = d2 + ((d1 - d2) * h);
+	return mix - (k * h * (1.0 - h));
+}
 
 #endif // PORTAL_OCCLUSION_CULLER_H

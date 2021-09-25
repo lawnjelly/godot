@@ -637,7 +637,7 @@ public:
 
 	virtual RID occluder_create();
 	virtual void occluder_set_scenario(RID p_occluder, RID p_scenario, VisualServer::OccluderType p_type);
-	virtual void occluder_spheres_update(RID p_occluder, const Vector<Plane> &p_spheres);
+	virtual void occluder_spheres_update(RID p_occluder, const Vector<Plane> &p_spheres, real_t p_globbiness);
 	virtual void occluder_set_transform(RID p_occluder, const Transform &p_xform);
 	virtual void occluder_set_active(RID p_occluder, bool p_active);
 	virtual void set_use_occlusion_culling(bool p_enable);

@@ -180,7 +180,7 @@ public:
 
 	// occluders
 	OccluderHandle occluder_create(VSOccluder::Type p_type);
-	void occluder_update_spheres(OccluderHandle p_handle, const Vector<Plane> &p_spheres);
+	void occluder_update_spheres(OccluderHandle p_handle, const Vector<Plane> &p_spheres, real_t p_globbiness);
 	void occluder_set_transform(OccluderHandle p_handle, const Transform &p_xform);
 	void occluder_set_active(OccluderHandle p_handle, bool p_active);
 	void occluder_destroy(OccluderHandle p_handle);

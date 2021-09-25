@@ -1205,11 +1205,11 @@ void VisualServerScene::occluder_set_transform(RID p_occluder, const Transform &
 	ro->scenario->_portal_renderer.occluder_set_transform(ro->scenario_occluder_id, p_xform);
 }
 
-void VisualServerScene::occluder_spheres_update(RID p_occluder, const Vector<Plane> &p_spheres) {
+void VisualServerScene::occluder_spheres_update(RID p_occluder, const Vector<Plane> &p_spheres, real_t p_globbiness) {
 	Occluder *ro = occluder_owner.getornull(p_occluder);
 	ERR_FAIL_COND(!ro);
 	ERR_FAIL_COND(!ro->scenario);
-	ro->scenario->_portal_renderer.occluder_update_spheres(ro->scenario_occluder_id, p_spheres);
+	ro->scenario->_portal_renderer.occluder_update_spheres(ro->scenario_occluder_id, p_spheres, p_globbiness);
 }
 
 void VisualServerScene::set_use_occlusion_culling(bool p_enable) {

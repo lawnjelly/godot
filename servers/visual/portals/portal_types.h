@@ -384,6 +384,7 @@ struct VSOccluder {
 		room_id = -1;
 		dirty = false;
 		active = true;
+		globbiness = 5.0;
 	}
 
 	// these should match the values in VisualServer::OccluderType
@@ -407,10 +408,13 @@ struct VSOccluder {
 	Transform xform;
 
 	// whether world space need calculating
-	bool dirty;
+	bool dirty : 1;
 
 	// controlled by the visible flag on the occluder
-	bool active;
+	bool active : 1;
+
+	// params section, may end up being a union
+	real_t globbiness; // metaballs
 
 	// ids of multiple objects in the appropriate occluder pool
 	LocalVector<uint32_t, int32_t> list_ids;
@@ -441,6 +445,37 @@ struct Sphere {
 
 		r_dist = (v - Math::sqrt(d));
 		return true;
+	}
+
+	// from "real time collision detection" christer ericson p267
+	void merge(const Sphere &p_o) {
+		Vector3 d = p_o.pos - pos;
+		// squared distance between the centres
+		real_t dist2 = d.length_squared();
+
+		real_t radius_diff = p_o.radius - radius;
+		if ((radius_diff * radius_diff) >= dist2) {
+			// the sphere with the larger radius encloses the other
+			// just return the larger of the two spheres
+			if (p_o.radius >= radius) {
+				*this = p_o;
+			} else {
+				// this one is largest
+			}
+		} else {
+			Sphere s;
+
+			// spheres partially overlapping or disjoint
+			real_t dist = Math::sqrt(dist2);
+			s.radius = (dist + radius + p_o.radius) * 0.5;
+			s.pos = pos;
+
+			// guessed this epsilon, should be okay for godot kind of scales
+			if (dist > 0.001) {
+				s.pos += ((s.radius - radius) / dist) * d;
+			}
+			*this = s;
+		}
 	}
 };
 } // namespace Occlusion

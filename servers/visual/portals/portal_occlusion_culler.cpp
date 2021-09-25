@@ -30,11 +30,13 @@
 
 #include "portal_occlusion_culler.h"
 
+#include "core/os/os.h"
 #include "core/project_settings.h"
 #include "portal_renderer.h"
 
 void PortalOcclusionCuller::prepare_generic(PortalRenderer &p_portal_renderer, const LocalVector<uint32_t, uint32_t> &p_occluder_pool_ids, const Vector3 &pt_camera, const LocalVector<Plane> &p_planes) {
 	_num_spheres = 0;
+	_num_metaballs = 0;
 	_pt_camera = pt_camera;
 
 	real_t goodness_of_fit[MAX_SPHERES];
@@ -51,7 +53,7 @@ void PortalOcclusionCuller::prepare_generic(PortalRenderer &p_portal_renderer, c
 
 	// find sphere occluders
 	for (unsigned int o = 0; o < p_occluder_pool_ids.size(); o++) {
-		int id = p_occluder_pool_ids[o];
+		uint32_t id = p_occluder_pool_ids[o];
 		VSOccluder &occ = p_portal_renderer.get_pool_occluder(id);
 
 		// is it active?
@@ -69,6 +71,9 @@ void PortalOcclusionCuller::prepare_generic(PortalRenderer &p_portal_renderer, c
 			if (is_aabb_culled(occ.aabb, p_planes)) {
 				continue;
 			}
+
+			// we use zero to signify no metaballs
+			uint32_t glob_group = (occ.globbiness > 0.0) ? id + 1 : 0;
 
 			// multiple spheres
 			for (int n = 0; n < occ.list_ids.size(); n++) {
@@ -89,8 +94,7 @@ void PortalOcclusionCuller::prepare_generic(PortalRenderer &p_portal_renderer, c
 				// until we reach the max, just keep recording, and keep track
 				// of the worst fit
 				if (_num_spheres < _max_spheres) {
-					_spheres[_num_spheres] = occluder_sphere;
-					_sphere_distances[_num_spheres] = dist;
+					_spheres[_num_spheres].set(occluder_sphere, dist, occ.globbiness, glob_group);
 					goodness_of_fit[_num_spheres] = fit;
 
 					if (fit < weakest_fit) {
@@ -107,8 +111,7 @@ void PortalOcclusionCuller::prepare_generic(PortalRenderer &p_portal_renderer, c
 				} else {
 					// must beat the weakest
 					if (fit > weakest_fit) {
-						_spheres[weakest_sphere] = occluder_sphere;
-						_sphere_distances[weakest_sphere] = dist;
+						_spheres[weakest_sphere].set(occluder_sphere, dist, occ.globbiness, glob_group);
 						goodness_of_fit[weakest_sphere] = fit;
 
 						// keep a record of the closest sphere for quick rejects
@@ -137,19 +140,96 @@ void PortalOcclusionCuller::prepare_generic(PortalRenderer &p_portal_renderer, c
 	// sphere self occlusion.
 	// we could avoid testing the closest sphere, but the complexity isn't worth any speed benefit
 	for (int n = 0; n < _num_spheres; n++) {
-		const Occlusion::Sphere &sphere = _spheres[n];
+		const Metaball &sphere = _spheres[n];
 
 		// is it occluded by another sphere?
 		if (cull_sphere(sphere.pos, sphere.radius, n)) {
 			// yes, unordered remove
 			_num_spheres--;
 			_spheres[n] = _spheres[_num_spheres];
-			_sphere_distances[n] = _sphere_distances[_num_spheres];
 
 			// repeat this n
 			n--;
 		}
 	}
+
+	// find metaballs
+	uint8_t sphere_ids[MAX_SPHERES];
+	int num_ids = 0;
+
+	_num_metaball_groups = 0;
+
+	for (int n = 0; n < _num_spheres; n++) {
+		const Metaball &sphere_a = _spheres[n];
+
+		// zero indicates metaballs is turned off
+		if (!sphere_a.glob_group) {
+			continue;
+		}
+
+		sphere_ids[0] = n;
+		num_ids = 1;
+
+		for (int m = n + 1; m < _num_spheres; m++) {
+			const Metaball &sphere_b = _spheres[m];
+
+			// can only glob with the same group (occluder)
+			if (sphere_b.glob_group != sphere_a.glob_group) {
+				continue;
+			}
+
+			Vector3 offset = sphere_b.pos - sphere_a.pos;
+			real_t dist = offset.length();
+
+			if (dist < (sphere_a.radius + sphere_b.radius)) {
+				sphere_ids[num_ids++] = m;
+			}
+		} // for m
+
+		if (num_ids > 1) {
+			// move to metaballs
+			for (int i = 0; i < num_ids; i++) {
+				_metaballs[_num_metaballs] = _spheres[sphere_ids[i]];
+				_metaballs[_num_metaballs].glob_group = _num_metaball_groups;
+				_num_metaballs++;
+			}
+
+			_create_metaball_group(_num_metaballs - num_ids, num_ids);
+			_num_metaball_groups++;
+
+			// delete the orig spheres
+			for (int i = 0; i < num_ids; i++) {
+				int remove_id = sphere_ids[num_ids - i - 1];
+				int last_id = _num_spheres - 1;
+
+				// unordered remove (backwards)
+				_spheres[remove_id] = _spheres[last_id];
+				_num_spheres--;
+			}
+		}
+	} // for n
+}
+
+void PortalOcclusionCuller::_create_metaball_group(uint32_t p_first_metaball, uint32_t p_num_metaballs) {
+	MetaballGroup &group = _metaball_groups[_num_metaball_groups];
+	group.first_metaball = p_first_metaball;
+	group.num_metaballs = p_num_metaballs;
+
+	const Metaball &first = _metaballs[p_first_metaball];
+
+	// calculate bounding sphere
+	DEV_ASSERT(p_num_metaballs);
+	group.sphere.pos = first.pos;
+	group.sphere.radius = first.radius;
+
+	for (int n = 1; n < p_num_metaballs; n++) {
+		const Metaball &second = _metaballs[p_first_metaball + n];
+		group.sphere.merge(second);
+	}
+
+	// precalculate the distance camera to metaball group
+	group.dist_to_center = (group.sphere.pos - _pt_camera).length();
+	group.dist_to_sphere_start = group.dist_to_center - group.sphere.radius;
 }
 
 bool PortalOcclusionCuller::cull_sphere(const Vector3 &p_occludee_center, real_t p_occludee_radius, int p_ignore_sphere) const {
@@ -176,8 +256,10 @@ bool PortalOcclusionCuller::cull_sphere(const Vector3 &p_occludee_center, real_t
 
 	// this can probably be done cheaper with dot products but the math might be a bit fiddly to get right
 	for (int s = 0; s < _num_spheres; s++) {
+		const Metaball &occluder_sphere = _spheres[s];
+
 		//  first get the sphere distance
-		real_t occluder_dist_to_cam = _sphere_distances[s];
+		real_t occluder_dist_to_cam = occluder_sphere.distance;
 		if (dist_to_occludee < occluder_dist_to_cam) {
 			// can't occlude
 			continue;
@@ -186,7 +268,6 @@ bool PortalOcclusionCuller::cull_sphere(const Vector3 &p_occludee_center, real_t
 		// the perspective adjusted occludee radius
 		real_t adjusted_occludee_radius = p_occludee_radius * (occluder_dist_to_cam / dist_to_occludee);
 
-		const Occlusion::Sphere &occluder_sphere = _spheres[s];
 		real_t occluder_radius = occluder_sphere.radius - adjusted_occludee_radius;
 
 		if (occluder_radius > 0.0) {
@@ -202,6 +283,96 @@ bool PortalOcclusionCuller::cull_sphere(const Vector3 &p_occludee_center, real_t
 				}
 			}
 		} // expanded occluder radius is more than 0
+	}
+
+	// cull metaballs by ray marching
+	if (_num_metaballs) {
+		//		uint64_t before = OS::get_singleton()->get_ticks_usec();
+		//		for (int n = 0; n < 100; n++) {
+		if (_cull_sphere_metaballs(p_occludee_center, p_occludee_radius, ray_dir, dist_to_occludee)) {
+			return true;
+		}
+		//		}
+		//		uint64_t after = OS::get_singleton()->get_ticks_usec();
+
+		//		print_line("sdf took " + itos(after - before) + " us");
+	}
+
+	return false;
+}
+
+bool PortalOcclusionCuller::_cull_sphere_metaball_groups(const Vector3 &p_occludee_center, real_t p_occludee_radius, const Vector3 &p_ray_dir, real_t p_dist_to_occludee) const {
+	// first identify the groups which are hit (very roughly)
+	for (int g = 0; g < _num_metaball_groups; g++) {
+		const MetaballGroup &group = _metaball_groups[g];
+
+		// if the occludee is closer, can't be culled by group
+		if (p_dist_to_occludee <= group.dist_to_sphere_start) {
+			continue;
+		}
+
+		// distance to hit
+		real_t dist;
+
+		if (group.sphere.intersect_ray(_pt_camera, p_ray_dir, dist, group.sphere.radius)) {
+			// we need to check this group
+			if (_cull_sphere_metaball_group(group, p_occludee_center, p_occludee_radius, p_ray_dir, p_dist_to_occludee)) {
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+bool PortalOcclusionCuller::_cull_sphere_metaball_group(const MetaballGroup &p_group, const Vector3 &p_occludee_center, real_t p_occludee_radius, const Vector3 &p_ray_dir, real_t p_dist_to_occludee) const {
+	// start point is at the camera
+	Vector3 pt = _pt_camera;
+	real_t dist_travelled = 0.0;
+
+	const real_t epsilon = 0.1;
+
+	while (dist_travelled < p_dist_to_occludee) {
+		real_t d = _evaluate_metaball_group_SDF(p_group, pt);
+
+		// account for the occludee radius
+		d += p_occludee_radius;
+
+		// if we got close enough to hit the occluder, the occludee is culled
+		if (d <= epsilon) {
+			return true;
+		}
+
+		// move the ray marching point on
+		pt += p_ray_dir * d;
+		dist_travelled += d;
+	}
+
+	return false;
+}
+
+// ray march the distance field
+bool PortalOcclusionCuller::_cull_sphere_metaballs(const Vector3 &p_occludee_center, real_t p_occludee_radius, const Vector3 &p_ray_dir, real_t p_dist_to_occludee) const {
+	// start point is at the camera
+	Vector3 pt = _pt_camera;
+	real_t dist_travelled = 0.0;
+
+	const real_t epsilon = 0.1;
+
+	while (dist_travelled < p_dist_to_occludee) {
+		real_t d = _evaluate_metaball_SDF(pt);
+
+		// account for the occludee radius
+		d += p_occludee_radius;
+
+		// if we got close enough to hit the occluder, the occludee is culled
+		if (d <= epsilon) {
+			return true;
+		}
+
+		// move the ray marching point on
+		pt += p_ray_dir * d;
+		dist_travelled += d;
 	}
 
 	return false;

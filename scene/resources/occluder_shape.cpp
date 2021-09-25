@@ -72,11 +72,15 @@ void OccluderShapeSphere::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_sphere_position", "index", "position"), &OccluderShapeSphere::set_sphere_position);
 	ClassDB::bind_method(D_METHOD("set_sphere_radius", "index", "radius"), &OccluderShapeSphere::set_sphere_radius);
 
+	ClassDB::bind_method(D_METHOD("set_globbiness", "globbiness"), &OccluderShapeSphere::set_globbiness);
+	ClassDB::bind_method(D_METHOD("get_globbiness"), &OccluderShapeSphere::get_globbiness);
+
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "globbiness", PROPERTY_HINT_RANGE, "0.0,100.0,0.1"), "set_globbiness", "get_globbiness");
 	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "spheres", PROPERTY_HINT_NONE, itos(Variant::PLANE) + ":"), "set_spheres", "get_spheres");
 }
 
 void OccluderShapeSphere::update_shape_to_visual_server() {
-	VisualServer::get_singleton()->occluder_spheres_update(get_shape(), _spheres);
+	VisualServer::get_singleton()->occluder_spheres_update(get_shape(), _spheres, _globbiness);
 }
 
 Transform OccluderShapeSphere::center_node(const Transform &p_global_xform, const Transform &p_parent_xform, real_t p_snap) {
@@ -209,6 +213,11 @@ void OccluderShapeSphere::set_sphere_radius(int p_idx, real_t p_radius) {
 		_spheres.set(p_idx, p);
 		notify_change_to_owners();
 	}
+}
+
+void OccluderShapeSphere::set_globbiness(real_t p_globbiness) {
+	_globbiness = p_globbiness;
+	notify_change_to_owners();
 }
 
 OccluderShapeSphere::OccluderShapeSphere() :

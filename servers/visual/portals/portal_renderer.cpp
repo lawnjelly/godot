@@ -547,10 +547,12 @@ void PortalRenderer::occluder_refresh_room_within(uint32_t p_occluder_pool_id) {
 	}
 }
 
-void PortalRenderer::occluder_update_spheres(OccluderHandle p_handle, const Vector<Plane> &p_spheres) {
+void PortalRenderer::occluder_update_spheres(OccluderHandle p_handle, const Vector<Plane> &p_spheres, real_t p_globbiness) {
 	p_handle--;
 	VSOccluder &occ = _occluder_pool[p_handle];
 	ERR_FAIL_COND(occ.type != VSOccluder::OT_SPHERE);
+
+	occ.globbiness = p_globbiness;
 
 	// first deal with the situation where the number of spheres has changed (rare)
 	if (occ.list_ids.size() != p_spheres.size()) {
@@ -589,7 +591,7 @@ void PortalRenderer::occluder_destroy(OccluderHandle p_handle) {
 	VSOccluder &occ = _occluder_pool[p_handle];
 	switch (occ.type) {
 		case VSOccluder::OT_SPHERE: {
-			occluder_update_spheres(p_handle + 1, Vector<Plane>());
+			occluder_update_spheres(p_handle + 1, Vector<Plane>(), 0.0);
 		} break;
 		default: {
 		} break;
