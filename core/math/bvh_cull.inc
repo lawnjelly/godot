@@ -12,6 +12,7 @@ struct CullParams {
 	// nobody truly understands how masks are intended to work.
 	uint32_t mask;
 	uint32_t pairable_type;
+	const USER_CULL_INFO *user_cull_info;
 
 	// optional components for different tests
 	Point point;
@@ -164,6 +165,11 @@ void _cull_hit(uint32_t p_ref_id, CullParams &p) {
 	// but done here for ease to get started
 	if (USE_PAIRS) {
 		const ItemExtra &ex = _extra[p_ref_id];
+
+		// user supplied function (for e.g. pairable types and pairable masks in the render tree)
+		if (!USER_CULL_TEST_FUNCTION::user_cull_check(p.user_cull_info, ex.userdata)) {
+			return;
+		}
 
 		if (!_cull_pairing_mask_test_hit(p.mask, p.pairable_type, ex.pairable_mask, ex.pairable_type)) {
 			return;

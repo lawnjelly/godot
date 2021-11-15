@@ -148,7 +148,27 @@ public:
 	}
 };
 
-template <class T, int MAX_CHILDREN, int MAX_ITEMS, bool USE_PAIRS = false, class Bounds = AABB, class Point = Vector3>
+template <class T>
+class BVH_DummyPairTestFunction {
+public:
+	static bool user_collision_check(T *p_a, T *p_b) {
+		// return false if no collision, decided by masks etc
+		return true;
+	}
+};
+
+class BVH_DummyCullInfo {
+};
+
+template <class USER_CULL_INFO, class T>
+class BVH_DummyCullTestFunction {
+public:
+	static bool user_cull_check(const USER_CULL_INFO *p_cull_info, T *p_object) {
+		return true;
+	}
+};
+
+template <class T, int MAX_CHILDREN, int MAX_ITEMS, class USER_PAIR_TEST_FUNCTION = BVH_DummyPairTestFunction<T>, class USER_CULL_INFO = BVH_DummyCullInfo, class USER_CULL_TEST_FUNCTION = BVH_DummyCullTestFunction<USER_CULL_INFO, T>, bool USE_PAIRS = false, class Bounds = AABB, class Point = Vector3>
 class BVH_Tree {
 	friend class BVH;
 

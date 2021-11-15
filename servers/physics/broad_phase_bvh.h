@@ -35,7 +35,16 @@
 #include "core/math/bvh.h"
 
 class BroadPhaseBVH : public BroadPhaseSW {
-	BVH_Manager<CollisionObjectSW, true, 128> bvh;
+	template <class T>
+	class UserCollisionFunction {
+	public:
+		static bool user_collision_check(T *p_a, T *p_b) {
+			// return false if no collision, decided by masks etc
+			return p_a->test_collision_mask(p_b);
+		}
+	};
+
+	BVH_Manager<CollisionObjectSW, true, 128, UserCollisionFunction<CollisionObjectSW>> bvh;
 
 	static void *_pair_callback(void *p_self, uint32_t p_id_A, CollisionObjectSW *p_object_A, int p_subindex_A, uint32_t p_id_B, CollisionObjectSW *p_object_B, int p_subindex_B);
 	static void _unpair_callback(void *p_self, uint32_t p_id_A, CollisionObjectSW *p_object_A, int p_subindex_A, uint32_t p_id_B, CollisionObjectSW *p_object_B, int p_subindex_B, void *p_pair_data);

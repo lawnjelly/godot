@@ -49,10 +49,12 @@
 #include "bvh_tree.h"
 #include "core/os/mutex.h"
 
-#define BVHTREE_CLASS BVH_Tree<T, 2, MAX_ITEMS, USE_PAIRS, Bounds, Point>
+#define BVHTREE_CLASS BVH_Tree<T, 2, MAX_ITEMS, USER_PAIR_TEST_FUNCTION, USER_CULL_INFO, USER_CULL_TEST_FUNCTION, USE_PAIRS, Bounds, Point>
 #define BVH_LOCKED_FUNCTION BVHLockedFunction(&_mutex, BVH_THREAD_SAFE &&_thread_safe);
 
-template <class T, bool USE_PAIRS = false, int MAX_ITEMS = 32, class Bounds = AABB, class Point = Vector3, bool BVH_THREAD_SAFE = true>
+//template <class T, bool USE_PAIRS = false, int MAX_ITEMS = 32, class USER_PAIR_TEST_FUNCTION = BVH_DummyPairTestFunction<T>, class Bounds = AABB, class Point = Vector3, bool BVH_THREAD_SAFE = true>
+
+template <class T, bool USE_PAIRS = false, int MAX_ITEMS = 32, class USER_PAIR_TEST_FUNCTION = BVH_DummyPairTestFunction<T>, class USER_CULL_INFO = BVH_DummyCullInfo, class USER_CULL_TEST_FUNCTION = BVH_DummyCullTestFunction<USER_CULL_INFO, T>, class Bounds = AABB, class Point = Vector3, bool BVH_THREAD_SAFE = true>
 class BVH_Manager {
 public:
 	// note we are using uint32_t instead of BVHHandle, losing type safety, but this
@@ -213,10 +215,11 @@ public:
 	}
 
 	void recheck_pairs(BVHHandle p_handle) {
-		BVH_LOCKED_FUNCTION
-		if (USE_PAIRS) {
-			_recheck_pairs(p_handle);
-		}
+		force_collision_check(p_handle);
+		//		BVH_LOCKED_FUNCTION
+		//		if (USE_PAIRS) {
+		//			_recheck_pairs(p_handle);
+		//		}
 	}
 
 	void erase(BVHHandle p_handle) {
@@ -348,7 +351,7 @@ public:
 	}
 
 	// cull tests
-	int cull_aabb(const Bounds &p_aabb, T **p_result_array, int p_result_max, int *p_subindex_array = nullptr, uint32_t p_mask = 0xFFFFFFFF) {
+	int cull_aabb(const Bounds &p_aabb, T **p_result_array, int p_result_max, int *p_subindex_array = nullptr, uint32_t p_mask = 0xFFFFFFFF, const USER_CULL_INFO *p_user_cull_info = nullptr) {
 		BVH_LOCKED_FUNCTION
 		typename BVHTREE_CLASS::CullParams params;
 
@@ -359,6 +362,7 @@ public:
 		params.mask = p_mask;
 		params.pairable_type = 0;
 		params.test_pairable_only = false;
+		params.user_cull_info = p_user_cull_info;
 		params.abb.from(p_aabb);
 
 		tree.cull_aabb(params);
@@ -366,7 +370,7 @@ public:
 		return params.result_count_overall;
 	}
 
-	int cull_segment(const Point &p_from, const Point &p_to, T **p_result_array, int p_result_max, int *p_subindex_array = nullptr, uint32_t p_mask = 0xFFFFFFFF) {
+	int cull_segment(const Point &p_from, const Point &p_to, T **p_result_array, int p_result_max, int *p_subindex_array = nullptr, uint32_t p_mask = 0xFFFFFFFF, const USER_CULL_INFO *p_user_cull_info = nullptr) {
 		BVH_LOCKED_FUNCTION
 		typename BVHTREE_CLASS::CullParams params;
 
@@ -376,6 +380,7 @@ public:
 		params.subindex_array = p_subindex_array;
 		params.mask = p_mask;
 		params.pairable_type = 0;
+		params.user_cull_info = p_user_cull_info;
 
 		params.segment.from = p_from;
 		params.segment.to = p_to;
@@ -385,7 +390,7 @@ public:
 		return params.result_count_overall;
 	}
 
-	int cull_point(const Point &p_point, T **p_result_array, int p_result_max, int *p_subindex_array = nullptr, uint32_t p_mask = 0xFFFFFFFF) {
+	int cull_point(const Point &p_point, T **p_result_array, int p_result_max, int *p_subindex_array = nullptr, uint32_t p_mask = 0xFFFFFFFF, const USER_CULL_INFO *p_user_cull_info = nullptr) {
 		BVH_LOCKED_FUNCTION
 		typename BVHTREE_CLASS::CullParams params;
 
@@ -395,6 +400,7 @@ public:
 		params.subindex_array = p_subindex_array;
 		params.mask = p_mask;
 		params.pairable_type = 0;
+		params.user_cull_info = p_user_cull_info;
 
 		params.point = p_point;
 
@@ -402,7 +408,7 @@ public:
 		return params.result_count_overall;
 	}
 
-	int cull_convex(const Vector<Plane> &p_convex, T **p_result_array, int p_result_max, uint32_t p_mask = 0xFFFFFFFF) {
+	int cull_convex(const Vector<Plane> &p_convex, T **p_result_array, int p_result_max, uint32_t p_mask = 0xFFFFFFFF, const USER_CULL_INFO *p_user_cull_info = nullptr) {
 		BVH_LOCKED_FUNCTION
 		if (!p_convex.size()) {
 			return 0;
@@ -420,6 +426,7 @@ public:
 		params.subindex_array = nullptr;
 		params.mask = p_mask;
 		params.pairable_type = 0;
+		params.user_cull_info = p_user_cull_info;
 
 		params.hull.planes = &p_convex[0];
 		params.hull.num_planes = p_convex.size();
@@ -580,6 +587,11 @@ private:
 					return false;
 				}
 			}
+
+			// user collision check
+			if (!USER_PAIR_TEST_FUNCTION::user_collision_check(exa.userdata, exb.userdata)) {
+				return false;
+			}
 		}
 
 		_unpair(p_from, p_to);
@@ -613,6 +625,11 @@ private:
 
 		const typename BVHTREE_CLASS::ItemExtra &exa = _get_extra(p_ha);
 		const typename BVHTREE_CLASS::ItemExtra &exb = _get_extra(p_hb);
+
+		// user collision callback
+		if (!USER_PAIR_TEST_FUNCTION::user_collision_check(exa.userdata, exb.userdata)) {
+			return;
+		}
 
 		// if the userdata is the same, no collisions should occur
 		if ((exa.userdata == exb.userdata) && exa.userdata) {

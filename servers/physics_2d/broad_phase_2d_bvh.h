@@ -37,7 +37,17 @@
 #include "core/math/vector2.h"
 
 class BroadPhase2DBVH : public BroadPhase2DSW {
-	BVH_Manager<CollisionObject2DSW, true, 128, Rect2, Vector2> bvh;
+	template <class T>
+	class UserCollisionFunction {
+	public:
+		static bool user_collision_check(T *p_a, T *p_b) {
+			// return false if no collision, decided by masks etc
+			return p_a->test_collision_mask(p_b);
+		}
+	};
+
+	//BVH_Manager<CollisionObject2DSW, true, 128, UserCollisionFunction<CollisionObject2DSW>, Rect2, Vector2> bvh;
+	BVH_Manager<CollisionObject2DSW, true, 128, UserCollisionFunction<CollisionObject2DSW>, BVH_DummyCullInfo, BVH_DummyCullTestFunction<BVH_DummyCullInfo, CollisionObject2DSW>, Rect2, Vector2> bvh;
 
 	static void *_pair_callback(void *p_self, uint32_t p_id_A, CollisionObject2DSW *p_object_A, int p_subindex_A, uint32_t p_id_B, CollisionObject2DSW *p_object_B, int p_subindex_B);
 	static void _unpair_callback(void *p_self, uint32_t p_id_A, CollisionObject2DSW *p_object_A, int p_subindex_A, uint32_t p_id_B, CollisionObject2DSW *p_object_B, int p_subindex_B, void *p_pair_data);

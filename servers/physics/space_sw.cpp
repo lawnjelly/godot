@@ -1080,7 +1080,8 @@ bool SpaceSW::test_body_motion(BodySW *p_body, const Transform &p_from, const Ve
 }
 
 void *SpaceSW::_broadphase_pair(CollisionObjectSW *p_object_A, int p_subindex_A, CollisionObjectSW *p_object_B, int p_subindex_B, void *p_pair_data, void *p_self) {
-	bool valid_collision_pair = p_object_A->test_collision_mask(p_object_B);
+	//bool valid_collision_pair = p_object_A->test_collision_mask(p_object_B);
+	bool valid_collision_pair = true;
 
 	if (p_pair_data) {
 		// Checking an existing pair.

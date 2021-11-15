@@ -1198,7 +1198,8 @@ bool Space2DSW::test_body_motion(Body2DSW *p_body, const Transform2D &p_from, co
 }
 
 void *Space2DSW::_broadphase_pair(CollisionObject2DSW *p_object_A, int p_subindex_A, CollisionObject2DSW *p_object_B, int p_subindex_B, void *p_pair_data, void *p_self) {
-	bool valid_collision_pair = p_object_A->test_collision_mask(p_object_B);
+	//bool valid_collision_pair = p_object_A->test_collision_mask(p_object_B);
+	bool valid_collision_pair = true;
 
 	if (p_pair_data) {
 		// Checking an existing pair.
