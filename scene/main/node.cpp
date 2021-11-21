@@ -781,7 +781,7 @@ void Node::set_physics_interpolated(bool p_interpolated) {
 }
 
 void Node::reset_physics_interpolation() {
-	if ((get_tree() && get_tree()->is_physics_interpolation_enabled()) && is_physics_interpolated()) {
+	if ((get_tree() && get_tree()->is_scene_tree_physics_interpolation_enabled()) && is_physics_interpolated()) {
 		propagate_notification(NOTIFICATION_RESET_PHYSICS_INTERPOLATION);
 	}
 }
@@ -2860,9 +2860,8 @@ void Node::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_physics_process_internal", "enable"), &Node::set_physics_process_internal);
 	ClassDB::bind_method(D_METHOD("is_physics_processing_internal"), &Node::is_physics_processing_internal);
 
-	// Disabled for now
-	// ClassDB::bind_method(D_METHOD("set_physics_interpolated", "p_interpolated"), &Node::set_physics_interpolated);
-	// ClassDB::bind_method(D_METHOD("is_physics_interpolated"), &Node::is_physics_interpolated);
+	ClassDB::bind_method(D_METHOD("set_physics_interpolated", "p_interpolated"), &Node::set_physics_interpolated);
+	ClassDB::bind_method(D_METHOD("is_physics_interpolated"), &Node::is_physics_interpolated);
 	ClassDB::bind_method(D_METHOD("reset_physics_interpolation"), &Node::reset_physics_interpolation);
 
 	ClassDB::bind_method(D_METHOD("get_tree"), &Node::get_tree);

@@ -465,17 +465,17 @@ void SceneTree::init() {
 	MainLoop::init();
 }
 
-void SceneTree::set_physics_interpolation_enabled(bool p_enabled) {
+void SceneTree::set_scene_tree_physics_interpolation_enabled(bool p_enabled) {
 	// disallow interpolation in editor
 	if (Engine::get_singleton()->is_editor_hint()) {
 		p_enabled = false;
 	}
 
-	if (p_enabled == _physics_interpolation_enabled) {
+	if (p_enabled == _scene_tree_physics_interpolation_enabled) {
 		return;
 	}
 
-	_physics_interpolation_enabled = p_enabled;
+	_scene_tree_physics_interpolation_enabled = p_enabled;
 
 	if (root->get_world().is_valid()) {
 		RID scenario = root->get_world()->get_scenario();
@@ -485,8 +485,8 @@ void SceneTree::set_physics_interpolation_enabled(bool p_enabled) {
 	}
 }
 
-bool SceneTree::is_physics_interpolation_enabled() const {
-	return _physics_interpolation_enabled;
+bool SceneTree::is_scene_tree_physics_interpolation_enabled() const {
+	return _scene_tree_physics_interpolation_enabled;
 }
 
 bool SceneTree::iteration(float p_time) {
@@ -1869,6 +1869,9 @@ void SceneTree::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("set_screen_stretch", "mode", "aspect", "minsize", "scale"), &SceneTree::set_screen_stretch, DEFVAL(1));
 
+	ClassDB::bind_method(D_METHOD("set_scene_tree_physics_interpolation_enabled", "enabled"), &SceneTree::set_scene_tree_physics_interpolation_enabled);
+	ClassDB::bind_method(D_METHOD("is_scene_tree_physics_interpolation_enabled"), &SceneTree::is_scene_tree_physics_interpolation_enabled);
+
 	ClassDB::bind_method(D_METHOD("queue_delete", "obj"), &SceneTree::queue_delete);
 
 	MethodInfo mi;
@@ -2074,7 +2077,7 @@ SceneTree::SceneTree() {
 	call_lock = 0;
 	root_lock = 0;
 	node_count = 0;
-	_physics_interpolation_enabled = false;
+	_scene_tree_physics_interpolation_enabled = false;
 
 	//create with mainloop
 
@@ -2084,7 +2087,7 @@ SceneTree::SceneTree() {
 	if (!root->get_world().is_valid()) {
 		root->set_world(Ref<World>(memnew(World)));
 	}
-	set_physics_interpolation_enabled(GLOBAL_DEF("physics/common/physics_interpolation", true));
+	set_scene_tree_physics_interpolation_enabled(GLOBAL_DEF("physics/common/physics_interpolation", true));
 
 	// Initialize network state
 	multiplayer_poll = true;
