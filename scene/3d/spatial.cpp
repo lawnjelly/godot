@@ -31,6 +31,7 @@
 #include "spatial.h"
 
 #include "core/engine.h"
+#include "core/math/transform_interpolator.h"
 #include "core/message_queue.h"
 #include "scene/main/scene_tree.h"
 #include "scene/main/viewport.h"
@@ -236,6 +237,11 @@ void Spatial::_notification(int p_what) {
 			}
 #endif
 		} break;
+		case NOTIFICATION_RESET_PHYSICS_INTERPOLATION: {
+			if (data.physics_interpolation_data) {
+				data.physics_interpolation_data->global_xform_prev = data.physics_interpolation_data->global_xform_curr;
+			}
+		} break;
 
 		default: {
 		}
@@ -268,6 +274,47 @@ Transform Spatial::get_transform() const {
 
 	return data.local_transform;
 }
+
+void Spatial::_update_physics_interpolation_data() {
+	if (!_is_physics_interpolated_client_side()) {
+		return;
+	}
+	ERR_FAIL_NULL(data.physics_interpolation_data);
+	PhysicsInterpolationData &pid = *data.physics_interpolation_data;
+
+	uint64_t tick = Engine::get_singleton()->get_physics_frames();
+	if (tick != pid.current_physics_tick) {
+		pid.global_xform_prev = pid.global_xform_curr;
+		pid.current_physics_tick = tick;
+	}
+
+	pid.global_xform_curr = get_global_transform();
+}
+
+Transform Spatial::get_global_transform_interpolated() {
+	// set in motion the mechanisms for client side interpolation if not already active
+	if (!_is_physics_interpolated_client_side()) {
+		_set_physics_interpolated_client_side(true);
+
+		ERR_FAIL_COND_V(data.physics_interpolation_data, Transform());
+		data.physics_interpolation_data = memnew(PhysicsInterpolationData);
+		data.physics_interpolation_data->global_xform_curr = get_global_transform();
+		data.physics_interpolation_data->global_xform_prev = data.physics_interpolation_data->global_xform_curr;
+		data.physics_interpolation_data->current_physics_tick = Engine::get_singleton()->get_physics_frames();
+	}
+
+	// make sure data is up to date
+	_update_physics_interpolation_data();
+
+	// interpolate the current data
+	const Transform &xform_curr = data.physics_interpolation_data->global_xform_curr;
+	const Transform &xform_prev = data.physics_interpolation_data->global_xform_prev;
+
+	Transform res;
+	TransformInterpolator::interpolate_transform(xform_prev, xform_curr, res, Engine::get_singleton()->get_physics_interpolation_fraction());
+	return res;
+}
+
 Transform Spatial::get_global_transform() const {
 	ERR_FAIL_COND_V(!is_inside_tree(), Transform());
 
@@ -304,6 +351,10 @@ Transform Spatial::get_local_gizmo_transform() const {
 
 Spatial *Spatial::get_parent_spatial() const {
 	return data.parent;
+}
+
+void Spatial::_set_vi_visible(bool p_visible) {
+	data.vi_visible = p_visible;
 }
 
 Transform Spatial::get_relative_transform(const Node *p_parent) const {
@@ -726,6 +777,7 @@ void Spatial::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_scale"), &Spatial::get_scale);
 	ClassDB::bind_method(D_METHOD("set_global_transform", "global"), &Spatial::set_global_transform);
 	ClassDB::bind_method(D_METHOD("get_global_transform"), &Spatial::get_global_transform);
+	ClassDB::bind_method(D_METHOD("get_global_transform_interpolated"), &Spatial::get_global_transform_interpolated);
 	ClassDB::bind_method(D_METHOD("get_parent_spatial"), &Spatial::get_parent_spatial);
 	ClassDB::bind_method(D_METHOD("set_ignore_transform_notification", "enabled"), &Spatial::set_ignore_transform_notification);
 	ClassDB::bind_method(D_METHOD("set_as_toplevel", "enable"), &Spatial::set_as_toplevel);
@@ -812,8 +864,9 @@ Spatial::Spatial() :
 	data.inside_world = false;
 	data.visible = true;
 	data.disable_scale = false;
+	data.vi_visible = true;
 
-	data.spatial_flags = SPATIAL_FLAG_VI_VISIBLE;
+	data.physics_interpolation_data = nullptr;
 
 #ifdef TOOLS_ENABLED
 	data.gizmo_disabled = false;
@@ -826,4 +879,8 @@ Spatial::Spatial() :
 }
 
 Spatial::~Spatial() {
+	if (data.physics_interpolation_data) {
+		memdelete(data.physics_interpolation_data);
+		data.physics_interpolation_data = nullptr;
+	}
 }

@@ -130,7 +130,23 @@ private:
 		bool input : 1;
 		bool unhandled_input : 1;
 		bool unhandled_key_input : 1;
+
+		// Physics interpolation can be turned on and off on a per node basis.
+		// This only takes effect when the SceneTree (or project setting) physics interpolation
+		// is switched on.
 		bool physics_interpolated : 1;
+
+		// Most nodes need not be interpolated in the scene tree, physics interpolation
+		// is normally only needed in the VisualServer. However if we need to read the
+		// interpolated transform of a node in the SceneTree, it is necessary to duplicate
+		// the interpolation logic client side, in order to prevent stalling the VisualServer
+		// by reading back.
+		bool physics_interpolated_client_side : 1;
+
+		// For certain nodes (e.g. CPU Particles in global mode)
+		// It can be useful to not send the instance transform to the
+		// VisualServer, and specify the mesh in world space.
+		bool use_identity_transform : 1;
 
 		bool parent_owned : 1;
 		bool in_constructor : 1;
@@ -209,6 +225,10 @@ protected:
 	void _add_child_nocheck(Node *p_child, const StringName &p_name);
 	void _set_owner_nocheck(Node *p_owner);
 	void _set_name_nocheck(const StringName &p_name);
+	void _set_physics_interpolated_client_side(bool p_interpolated);
+	bool _is_physics_interpolated_client_side() const { return data.physics_interpolated_client_side; }
+	void _set_use_identity_transform(bool p_enable);
+	bool _is_using_identity_transform() const { return data.use_identity_transform; }
 
 public:
 	enum {

@@ -932,6 +932,14 @@ bool Node::is_processing_unhandled_key_input() const {
 	return data.unhandled_key_input;
 }
 
+void Node::_set_physics_interpolated_client_side(bool p_interpolated) {
+	data.physics_interpolated_client_side = p_interpolated;
+}
+
+void Node::_set_use_identity_transform(bool p_enable) {
+	data.use_identity_transform = p_enable;
+}
+
 StringName Node::get_name() const {
 	return data.name;
 }
@@ -3031,6 +3039,8 @@ Node::Node() {
 	data.inside_tree = false;
 	data.ready_notified = false;
 	data.physics_interpolated = true;
+	data.physics_interpolated_client_side = false;
+	data.use_identity_transform = false;
 
 	data.owner = nullptr;
 	data.OW = nullptr;

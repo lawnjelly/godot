@@ -100,7 +100,14 @@ void CPUParticles::set_lifetime_randomness(float p_random) {
 void CPUParticles::set_use_local_coordinates(bool p_enable) {
 	local_coords = p_enable;
 
+	// prevent sending instance transforms when using global coords
+	set_instance_use_identity_transform(!p_enable);
+
 	if (!p_enable) {
+		// We will lose the physics interpolated setting for when
+		// using local coordinates by doing this. We could back it up,
+		// but it's probably overkill as this will typically just be done as a one off
+		// at runtime (although may be flipped in the editor).
 		set_physics_interpolated(false);
 	}
 }
@@ -596,7 +603,11 @@ void CPUParticles::_particles_process(float p_delta) {
 	Transform emission_xform;
 	Basis velocity_xform;
 	if (!local_coords) {
-		emission_xform = get_global_transform();
+		if (get_tree()->is_scene_tree_physics_interpolation_enabled()) {
+			emission_xform = get_global_transform_interpolated();
+		} else {
+			emission_xform = get_global_transform();
+		}
 		velocity_xform = emission_xform.basis;
 	}
 
@@ -1058,13 +1069,12 @@ void CPUParticles::_update_particle_data_buffer() {
 				if (c) {
 					Vector3 dir = c->get_global_transform().basis.get_axis(2); //far away to close
 
-					if (local_coords) {
-						// will look different from Particles in editor as this is based on the camera in the scenetree
-						// and not the editor camera
-						dir = inv_emission_transform.xform(dir).normalized();
-					} else {
-						dir = dir.normalized();
-					}
+					// now if local_coords is not set, the particles are in global coords
+					// so should be sorted according to the camera direction
+
+					// will look different from Particles in editor as this is based on the camera in the scenetree
+					// and not the editor camera
+					dir = dir.normalized();
 
 					SortArray<int, SortAxis> sorter;
 					sorter.compare.particles = r.ptr();
@@ -1078,10 +1088,6 @@ void CPUParticles::_update_particle_data_buffer() {
 			int idx = order ? order[i] : i;
 
 			Transform t = r[idx].transform;
-
-			if (!local_coords) {
-				t = inv_emission_transform * t;
-			}
 
 			if (r[idx].active) {
 				ptr[0] = t.basis.elements[0][0];
@@ -1175,43 +1181,6 @@ void CPUParticles::_notification(int p_what) {
 
 	if (p_what == NOTIFICATION_INTERNAL_PROCESS) {
 		_update_internal();
-	}
-
-	if (p_what == NOTIFICATION_TRANSFORM_CHANGED) {
-		inv_emission_transform = get_global_transform().affine_inverse();
-
-		if (!local_coords) {
-			int pc = particles.size();
-
-			PoolVector<float>::Write w = particle_data.write();
-			PoolVector<Particle>::Read r = particles.read();
-			float *ptr = w.ptr();
-
-			for (int i = 0; i < pc; i++) {
-				Transform t = inv_emission_transform * r[i].transform;
-
-				if (r[i].active) {
-					ptr[0] = t.basis.elements[0][0];
-					ptr[1] = t.basis.elements[0][1];
-					ptr[2] = t.basis.elements[0][2];
-					ptr[3] = t.origin.x;
-					ptr[4] = t.basis.elements[1][0];
-					ptr[5] = t.basis.elements[1][1];
-					ptr[6] = t.basis.elements[1][2];
-					ptr[7] = t.origin.y;
-					ptr[8] = t.basis.elements[2][0];
-					ptr[9] = t.basis.elements[2][1];
-					ptr[10] = t.basis.elements[2][2];
-					ptr[11] = t.origin.z;
-				} else {
-					memset(ptr, 0, sizeof(float) * 12);
-				}
-
-				ptr += 17;
-			}
-
-			can_update.set();
-		}
 	}
 }
 
