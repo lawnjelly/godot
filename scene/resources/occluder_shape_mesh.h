@@ -258,6 +258,7 @@ class OccluderShapeMesh : public OccluderShape {
 	struct BakeData {
 		void clear() {
 			//face_areas.clear();
+			float_input_faces.clear();
 			verts.clear();
 			faces.clear();
 			out_faces.clear();
@@ -376,7 +377,7 @@ class OccluderShapeMesh : public OccluderShape {
 	void _print_line(String p_sz);
 
 	void _finalize_faces();
-	real_t _find_face_area(const Geometry::MeshData::Face &p_face) const;
+	//real_t _find_face_area(const Geometry::MeshData::Face &p_face) const;
 	bool _are_faces_neighbours(const BakeFace &p_a, const BakeFace &p_b, int &r_edge_a, int &r_edge_b) const;
 	real_t _find_matching_faces_total_area(const LocalVectori<uint32_t> &p_faces) const;
 
@@ -422,7 +423,7 @@ class OccluderShapeMesh : public OccluderShape {
 		return id;
 	}
 
-	bool _create_merged_convex_face(BakeFace &r_face, real_t p_old_face_area, real_t &r_new_total_area);
+	//bool _create_merged_convex_face(BakeFace &r_face, real_t p_old_face_area, real_t &r_new_total_area);
 	String _vec3_to_string(const Vector3 &p_pt) const;
 	void _tri_face_remove_central_and_duplicates(BakeFace &p_face, uint32_t p_central_idx) const;
 	bool _are_faces_coplanar_for_merging(const BakeFace &p_a, const BakeFace &p_b, real_t &r_fit) const {

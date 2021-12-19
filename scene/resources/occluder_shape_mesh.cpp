@@ -733,7 +733,7 @@ uint32_t OccluderShapeMesh::_trace_zone_edge(uint32_t p_face_id, uint32_t &r_joi
 
 		if (face_id_next == UINT32_MAX) {
 #ifdef GODOT_POLY_DECOMPOSE_DEBUG_DRAW
-			print_line("\tadding edge " + itos(vert_next) + " at " + String(Variant(_bd.verts[vert_next].pos)));
+			print_line("\tadding edge " + itos(vert_next) + " at " + String(Variant(_bd.verts[vert_next].posf)));
 #endif
 			r_edges.push_back(vert_next);
 		} else {
@@ -924,10 +924,12 @@ bool OccluderShapeMesh::_make_convex_chunk_external(const LocalVectori<uint32_t>
 
 	// use the external function
 	List<LocalVectori<uint32_t>> convex_chunks;
-	LocalVectori<Vector2> input_positions;
+	//LocalVectori<Vector2> input_positions;
+	LocalVectori<Vec2i> input_positions;
 	input_positions.resize(pts_orig.size());
 	for (int n = 0; n < pts_orig.size(); n++) {
-		input_positions[n] = pts_orig[n].pos.vec2();
+		//input_positions[n] = pts_orig[n].pos.vec2();
+		input_positions[n] = pts_orig[n].pos;
 	}
 
 	PolyDecompose2D decomp;
@@ -1087,6 +1089,11 @@ bool OccluderShapeMesh::_make_faces_new(uint32_t p_process_tick) {
 				out = face;
 				continue;
 			}
+
+			// new december
+			//			if (num_neighs > face.neighbour_face_ids.size()-2) {
+			//				continue;
+			//			}
 
 			// if ALL sides are neighbours, can't use it as a seed for a zone
 			if (num_neighs == face.neighbour_face_ids.size()) {
@@ -1761,6 +1768,8 @@ void OccluderShapeMesh::_bake_quantize_float_faces() {
 void OccluderShapeMesh::_bake_input_face(const Face3 &p_face) {
 	_log("_bake_input_face " + _vec3_to_string(p_face.vertex[0]) + _vec3_to_string(p_face.vertex[1]) + _vec3_to_string(p_face.vertex[2]));
 
+	// should the face plane be from the original float verts, or the quantized verts?
+	// Not sure yet, uses the float verts for now...
 	BakeFace face;
 	face.plane = Plane(p_face.vertex[0], p_face.vertex[1], p_face.vertex[2]);
 
@@ -1874,6 +1883,7 @@ bool OccluderShapeMesh::_try_bake_face(const Face3 &p_face) {
 }
 */
 
+/*
 real_t OccluderShapeMesh::_find_face_area(const Geometry::MeshData::Face &p_face) const {
 	int num_inds = p_face.indices.size();
 
@@ -1884,7 +1894,9 @@ real_t OccluderShapeMesh::_find_face_area(const Geometry::MeshData::Face &p_face
 
 	return Geometry::find_polygon_area(pts.ptr(), pts.size());
 }
+*/
 
+/*
 // return false if not convex
 bool OccluderShapeMesh::_create_merged_convex_face(BakeFace &r_face, real_t p_old_face_area, real_t &r_new_total_area) {
 	int num_inds = r_face.indices.size();
@@ -1934,6 +1946,7 @@ bool OccluderShapeMesh::_create_merged_convex_face(BakeFace &r_face, real_t p_ol
 
 	return true;
 }
+*/
 
 bool OccluderShapeMesh::_bake_material_check(Ref<Material> p_material) {
 	SpatialMaterial *spat = Object::cast_to<SpatialMaterial>(p_material.ptr());
