@@ -3,9 +3,10 @@
 #include "core/list.h"
 #include "core/local_vector.h"
 #include "core/math/geometry.h"
+#include "core/math/vec2i.h"
 #include "core/math/vector2.h"
 
-//#define GODOT_POLY_DECOMPOSE_DEBUG_DRAW
+#define GODOT_POLY_DECOMPOSE_DEBUG_DRAW
 #ifdef GODOT_POLY_DECOMPOSE_DEBUG_DRAW
 #include "core/debug_image.h"
 #endif
@@ -14,12 +15,12 @@ class PolyDecompose2D {
 	struct Point {
 		Point() {
 			pos_idx = -1;
-			cross = 0.0;
+			cross = 0;
 			length = 0.0;
 			reflex = false;
 		}
 		uint32_t pos_idx; // position index
-		real_t cross;
+		int64_t cross;
 		real_t length; // edge length formed from this to next point
 		bool reflex;
 		bool is_reflex() const { return reflex; }
@@ -27,7 +28,7 @@ class PolyDecompose2D {
 
 public:
 	// ordered list of positions, counterclockwise
-	bool decompose(const LocalVectori<Vector2> &p_positions, List<LocalVectori<uint32_t>> &r_result);
+	bool decompose(const LocalVectori<Vec2i> &p_positions, List<LocalVectori<uint32_t>> &r_result);
 
 private:
 	// helper funcs
@@ -37,7 +38,7 @@ private:
 	bool can_see(const LocalVectori<Point> &p_edges, int p_from, int p_to, bool p_change_is_positive) const;
 
 	void try_split_reflex(const LocalVectori<Point> &p_edges, int p_reflex_id, int &r_seg_start, int &r_seg_end, real_t &r_best_fit);
-	real_t try_split_reflex_generic(const LocalVectori<Point> &p_edges, int p_reflex_id, int p_change, const Vector2 &p_reflex_edge_a, const Vector2 &p_reflex_edge_b, int &r_seg_start, int &r_seg_end);
+	real_t try_split_reflex_generic(const LocalVectori<Point> &p_edges, int p_reflex_id, int p_change, const Vec2i &p_reflex_edge_a, const Vec2i &p_reflex_edge_b, int &r_seg_start, int &r_seg_end);
 
 	void calculate_crosses(LocalVectori<Point> &r_edges);
 	bool line_intersect_test(const Vector2 &p_0, const Vector2 &p_1, const Vector2 &p_2, const Vector2 &p_3) const;
@@ -53,16 +54,16 @@ private:
 		return p_edges.get_wrapped(p_test_id).is_reflex();
 	}
 
-	real_t get_cross(const LocalVectori<Point> &p_edges, int p_test_id) const {
-		const Vector2 &prev = get_edge_pos(p_edges, p_test_id - 1);
-		const Vector2 &curr = get_edge_pos(p_edges, p_test_id);
-		const Vector2 &next = get_edge_pos(p_edges, p_test_id + 1);
-		return Geometry::vec2_cross(prev, curr, next);
+	int64_t get_cross(const LocalVectori<Point> &p_edges, int p_test_id) const {
+		const Vec2i &prev = get_edge_pos(p_edges, p_test_id - 1);
+		const Vec2i &curr = get_edge_pos(p_edges, p_test_id);
+		const Vec2i &next = get_edge_pos(p_edges, p_test_id + 1);
+		return prev.cross(curr, next);
 	}
 
 	real_t get_length(const LocalVectori<Point> &p_edges, int p_test_id) const {
-		const Vector2 &next = get_edge_pos(p_edges, p_test_id + 1);
-		const Vector2 &curr = get_edge_pos(p_edges, p_test_id);
+		const Vec2i &next = get_edge_pos(p_edges, p_test_id + 1);
+		const Vec2i &curr = get_edge_pos(p_edges, p_test_id);
 		return (next - curr).length();
 	}
 
@@ -77,14 +78,13 @@ private:
 		return l;
 	}
 
-	const Vector2 &get_edge_pos(const LocalVectori<Point> &p_edges, int p_id) const {
+	const Vec2i &get_edge_pos(const LocalVectori<Point> &p_edges, int p_id) const {
 		return _positions[p_edges.get_wrapped(p_id).pos_idx];
 	}
 
 	// mem vars
-	const Vector2 *_positions = nullptr;
+	const Vec2i *_positions = nullptr;
 	int _num_positions = 0;
-	const static real_t _cross_epsilon;
 
 #ifdef GODOT_POLY_DECOMPOSE_DEBUG_DRAW
 	DebugImage _debug_image;

@@ -38,6 +38,7 @@ public:
 	}
 
 	int64_t length_squared() const { return ((int64_t)x * x) + ((int64_t)y * y); }
+	real_t length() const { return Math::sqrt((double)length_squared()); }
 
 	// https://www.geeksforgeeks.org/check-if-two-given-line-segments-intersect/
 
