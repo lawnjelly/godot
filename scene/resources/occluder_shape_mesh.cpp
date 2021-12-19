@@ -40,6 +40,11 @@
 
 #include <iostream>
 
+#define GODOT_OCCLUDER_SHAPE_MESH_SIMPLIFY_DEBUG_DRAW
+#ifdef GODOT_OCCLUDER_SHAPE_MESH_SIMPLIFY_DEBUG_DRAW
+#include "core/debug_image.h"
+#endif
+
 #define GODOT_OCCLUDER_SHAPE_MESH_SINGLE_FACE
 
 ////////////////////////////////////////////////////
@@ -336,7 +341,9 @@ void OccluderShapeMesh::_simplify_triangles() {
 	_bd.hash_triangles._table.clear();
 
 	// get the data into a format that mesh optimizer can deal with
-	LocalVector<uint32_t> inds_in;
+
+	// simplify function expects indices as unsigned int, not uint32_t...
+	LocalVector<unsigned int> inds_in;
 	for (int n = 0; n < _bd.faces.size(); n++) {
 		const BakeFace &face = _bd.faces[n];
 		CRASH_COND(face.indices.size() != 3);
@@ -346,7 +353,7 @@ void OccluderShapeMesh::_simplify_triangles() {
 		inds_in.push_back(face.indices[2]);
 	}
 
-	LocalVector<uint32_t> inds_out;
+	LocalVector<unsigned int> inds_out;
 	inds_out.resize(inds_in.size());
 
 	struct Vec3f {
@@ -443,6 +450,29 @@ void OccluderShapeMesh::_simplify_triangles() {
 
 	// clear hash table no longer need
 	_bd.hash_verts.clear();
+
+#ifdef GODOT_OCCLUDER_SHAPE_MESH_SIMPLIFY_DEBUG_DRAW
+	DebugImage im;
+	im.create(240, 240);
+	im.fill();
+
+	for (int n = 0; n < _bd.faces.size(); n++) {
+		const BakeFace &bface = _bd.faces[n];
+		int num_inds = bface.indices.size();
+
+		for (int i = 0; i < num_inds; i++) {
+			const BakeVertex &bv0 = _bd.verts[bface.indices[i]];
+			const BakeVertex &bv1 = _bd.verts[bface.indices[(i + 1) % num_inds]];
+			Vector2 p0 = Vector2(bv0.posf.z, bv0.posf.y);
+			Vector2 p1 = Vector2(bv1.posf.z, bv1.posf.y);
+			im.l_move(p0);
+			im.l_line_to(p1);
+		}
+	}
+	im.l_flush(false);
+	im.save_png("simplify/simp.png");
+
+#endif
 
 	print_line("After simplify " + itos(_bd.faces.size()) + " triangles, " + itos(_bd.verts.size()) + " vertices.");
 }
