@@ -220,7 +220,7 @@ void OccluderShapeMesh::clear() {
 }
 
 void OccluderShapeMesh::_log(String p_string) {
-	//print_line(p_string);
+	print_line(p_string);
 }
 
 void OccluderShapeMesh::bake(Node *owner) {
@@ -282,6 +282,8 @@ void OccluderShapeMesh::bake(Node *owner) {
 		}
 
 		_bake_recursive(branch);
+
+		_bake_quantize_float_faces();
 	}
 
 	_simplify_triangles();
@@ -446,7 +448,7 @@ void OccluderShapeMesh::_simplify_triangles() {
 }
 
 void OccluderShapeMesh::_print_line(String p_sz) {
-	return;
+	//return;
 	print_line(p_sz);
 	std::cout << p_sz.c_str();
 	std::cout.flush();
@@ -602,10 +604,10 @@ void OccluderShapeMesh::_edgelist_add_holes(uint32_t p_island_id, LocalVectori<u
 		real_t best_dist = FLT_MAX;
 
 		for (int i = 0; i < r_edges.size(); i++) {
-			const Vector3 &pt_i = _bd.verts[r_edges[i]].pos;
+			const Vector3 &pt_i = _bd.verts[r_edges[i]].posf;
 
 			for (int j = 0; j < hole.size(); j++) {
-				const Vector3 &pt_j = _bd.verts[hole[j]].pos;
+				const Vector3 &pt_j = _bd.verts[hole[j]].posf;
 
 				real_t dist = (pt_j - pt_i).length_squared();
 				if (dist < best_dist) {
@@ -624,15 +626,15 @@ void OccluderShapeMesh::_edgelist_add_holes(uint32_t p_island_id, LocalVectori<u
 		// we can't allow the holes to be added to the edgelist out of order,
 		// or this will corrupt the final polys. A hole on the left has to be added first,
 		// a hole on the right added after.
-		const Vector3 &hole_point = _bd.verts[hole[best_j]].pos;
+		const Vector3 &hole_point = _bd.verts[hole[best_j]].posf;
 
 		// Note this has the potential for an infinite loop..
 		// this should never happen, but we will put in some protection in case.
 		int panic_count = 0;
 		while (true) {
-			const Vector3 &join_prev = _bd.verts[r_edges.get_wrapped(best_i - 1)].pos;
-			const Vector3 &join_mid = _bd.verts[r_edges[best_i]].pos;
-			const Vector3 &join_next = _bd.verts[r_edges.get_wrapped(best_i + 1)].pos;
+			const Vector3 &join_prev = _bd.verts[r_edges.get_wrapped(best_i - 1)].posf;
+			const Vector3 &join_mid = _bd.verts[r_edges[best_i]].posf;
+			const Vector3 &join_next = _bd.verts[r_edges.get_wrapped(best_i + 1)].posf;
 
 			Vector3 edge_before = join_prev - join_mid;
 			Vector3 edge_after = join_next - join_mid;
@@ -795,7 +797,7 @@ bool OccluderShapeMesh::_any_further_points_within(const Vector<IndexedPoint> &p
 	// as well as the edge going backward, we also want to test further points
 	// in case they form a concave polygon. If so, the point is disallowed
 	for (int t = p_test_pt + 1; t < p_pts.size(); t++) {
-		const Vector2 &pt_test = p_pts[t].pos;
+		const Vec2i &pt_test = p_pts[t].pos;
 
 		bool within = true;
 
@@ -805,19 +807,17 @@ bool OccluderShapeMesh::_any_further_points_within(const Vector<IndexedPoint> &p
 
 		// test this point against all the edges .. if it is inside all, then it forms concave, and is not allowed
 		for (int e = 0; e <= p_test_pt; e++) {
-			const Vector2 &a = p_pts[e].pos;
-			const Vector2 &b = p_pts[(e + 1) % p_test_pt].pos; // loop back to first point
+			const Vec2i &a = p_pts[e].pos;
+			const Vec2i &b = p_pts[(e + 1) % p_test_pt].pos; // loop back to first point
 
 			// test against the edge
-			real_t cross = Geometry::vec2_cross(a, b, pt_test);
+			int cross = a.cross(b, pt_test);
 
 #ifdef GODOT_OCCLUDER_SHAPE_MESH_DEBUG_POINTS_WITHIN
 			print_line("\t\tedge " + itos(e) + " a " + String(Variant(a)) + "b " + String(Variant(b)) + " cross: " + rtos(cross));
 #endif
 
-			const real_t epsilon = 0.001;
-
-			if (cross < epsilon) {
+			if (cross < 0) {
 				within = false;
 				break;
 			}
@@ -839,19 +839,18 @@ bool OccluderShapeMesh::_any_further_points_within(const Vector<IndexedPoint> &p
 
 bool OccluderShapeMesh::_can_see(const Vector<IndexedPoint> &p_points, int p_test_point) const {
 	// there must be a clear line between test point and zero, not crossed by any other edge
-	const Vector2 &a_from = p_points[0].pos;
-	const Vector2 &a_to = p_points[p_test_point].pos;
+	const Vec2i &a_from = p_points[0].pos;
+	const Vec2i &a_to = p_points[p_test_point].pos;
 
 	for (int n = p_test_point + 2; n < p_points.size(); n++) {
-		const Vector2 &b_from = p_points[n - 1].pos;
-		const Vector2 &b_to = p_points[n].pos;
+		const Vec2i &b_from = p_points[n - 1].pos;
+		const Vec2i &b_to = p_points[n].pos;
 
-		if (Geometry::segment_intersects_segment_2d(a_from, a_to, b_from, b_to, nullptr)) {
+		//if (Geometry::segment_intersects_segment_2d(a_from, a_to, b_from, b_to, nullptr)) {
+		if (Vec2i::intersect_test_lines(a_from, a_to, b_from, b_to)) {
 			return false;
 		}
 	}
-
-	//	static bool segment_intersects_segment_2d(const Vector2 &p_from_a, const Vector2 &p_to_a, const Vector2 &p_from_b, const Vector2 &p_to_b, Vector2 *r_result) {
 
 	return true;
 }
@@ -865,7 +864,7 @@ bool OccluderShapeMesh::_make_convex_chunk_external(const LocalVectori<uint32_t>
 	// simplify the problem to 2d
 	Vector3 center(0, 0, 0);
 	for (int n = 0; n < p_edge_verts.size(); n++) {
-		center += _bd.verts[p_edge_verts[n]].pos;
+		center += _bd.verts[p_edge_verts[n]].posf;
 	}
 	center /= p_edge_verts.size();
 
@@ -882,24 +881,53 @@ bool OccluderShapeMesh::_make_convex_chunk_external(const LocalVectori<uint32_t>
 	tr.origin = center;
 	Transform tr_inv = tr.affine_inverse();
 
+	// two passes, first calculate bound
+	Rect2 bound;
+	for (int n = 0; n < p_edge_verts.size(); n++) {
+		const Vector3 &orig_pt = _bd.verts[p_edge_verts[n]].posf;
+		Vector3 pt = tr_inv.xform(orig_pt);
+
+		if (n == 0) {
+			bound.position = Vector2(pt.x, pt.y);
+		} else {
+			bound.expand_to(Vector2(pt.x, pt.y));
+		}
+	}
+	real_t longest_axis = MAX(bound.size.x, bound.size.y);
+	real_t bound_mult = QUANTIZE_RES_2D / longest_axis;
+
 	Vector<IndexedPoint> pts_orig;
 	for (int n = 0; n < p_edge_verts.size(); n++) {
-		const Vector3 &orig_pt = _bd.verts[p_edge_verts[n]].pos;
+		const Vector3 &orig_pt = _bd.verts[p_edge_verts[n]].posf;
 		Vector3 pt = tr_inv.xform(orig_pt);
 
 		IndexedPoint ip;
-		ip.pos = Vector2(pt.x, pt.y);
+		ip.pos.x = (pt.x - bound.position.x) * bound_mult;
+		ip.pos.y = (pt.y - bound.position.y) * bound_mult;
+
 		ip.idx = p_edge_verts[n];
 
 		pts_orig.push_back(ip);
 	}
+
+	//	Vector<IndexedPoint> pts_orig;
+	//	for (int n = 0; n < p_edge_verts.size(); n++) {
+	//		const Vector3 &orig_pt = _bd.verts[p_edge_verts[n]].pos;
+	//		Vector3 pt = tr_inv.xform(orig_pt);
+
+	//		IndexedPoint ip;
+	//		ip.pos = Vector2(pt.x, pt.y);
+	//		ip.idx = p_edge_verts[n];
+
+	//		pts_orig.push_back(ip);
+	//	}
 
 	// use the external function
 	List<LocalVectori<uint32_t>> convex_chunks;
 	LocalVectori<Vector2> input_positions;
 	input_positions.resize(pts_orig.size());
 	for (int n = 0; n < pts_orig.size(); n++) {
-		input_positions[n] = pts_orig[n].pos;
+		input_positions[n] = pts_orig[n].pos.vec2();
 	}
 
 	PolyDecompose2D decomp;
@@ -956,7 +984,7 @@ bool OccluderShapeMesh::face_has_worked(const LocalVectori<uint32_t> &p_face, co
 		int i1 = p_face[n - 1];
 		int i2 = p_face[n];
 
-		Face3 f(_bd.verts[i0].pos, _bd.verts[i1].pos, _bd.verts[i2].pos);
+		Face3 f(_bd.verts[i0].posf, _bd.verts[i1].posf, _bd.verts[i2].posf);
 
 		Vector3 norm = f.get_plane().normal;
 		real_t dot = p_face_normal.dot(norm);
@@ -972,7 +1000,7 @@ bool OccluderShapeMesh::face_has_worked(const LocalVectori<uint32_t> &p_face, co
 void OccluderShapeMesh::_finalize_out_face(BakeFace &r_face) {
 	LocalVector<Vector3> pts;
 	for (int n = 0; n < r_face.indices.size(); n++) {
-		pts.push_back(_bd.verts[r_face.indices[n]].pos);
+		pts.push_back(_bd.verts[r_face.indices[n]].posf);
 	}
 	r_face.area = Geometry::find_polygon_area(&pts[0], pts.size());
 }
@@ -990,8 +1018,8 @@ Vector3 OccluderShapeMesh::_normal_from_edge_verts_newell(const LocalVectori<uin
 	for (int i = 0; i < num_points; i++) {
 		int j = (i + 1) % num_points;
 
-		const Vector3 &pi = _bd.verts[i].pos;
-		const Vector3 &pj = _bd.verts[j].pos;
+		const Vector3 &pi = _bd.verts[i].posf;
+		const Vector3 &pj = _bd.verts[j].posf;
 
 		normal.x += (((pi.z) + (pj.z)) * ((pj.y) - (pi.y)));
 		normal.y += (((pi.x) + (pj.x)) * ((pj.z) - (pi.z)));
@@ -1324,7 +1352,7 @@ void OccluderShapeMesh::_process_islands() {
 
 			pts.clear();
 			for (int n = 0; n < hole.size(); n++) {
-				pts.push_back(_bd.verts[hole[n]].pos);
+				pts.push_back(_bd.verts[hole[n]].posf);
 			}
 
 			//real_t vol = Geometry::find_polygon_area(&pts[0], pts.size());
@@ -1498,7 +1526,7 @@ void OccluderShapeMesh::_find_neighbour_face_ids() {
 	//		bool done;
 	//		Vector3 normal;
 	//	};
-	/*	
+	/*
 	LocalVector<SeedNormal> seed_normals;
 	seed_normals.resize(_bd.faces.size());
 
@@ -1517,22 +1545,22 @@ void OccluderShapeMesh::_find_neighbour_face_ids() {
 				if (!_are_faces_neighbours(face_a, face_b, edge_a, edge_b)) {
 					continue;
 				}
-				
+
 //				SeedNormal &sn_a = seed_normals[linked_face_a_id];
 //				SeedNormal &sn_b = seed_normals[linked_face_b_id];
-				
-				
+
+
 				// only consider them if they are coplanar
 				real_t fit;
 				if (!_are_faces_coplanar_for_merging(face_a, face_b, fit)) {
 					continue;
 				}
-				
+
 //				bool _are_faces_coplanar_for_merging(const BakeFace &p_a, const BakeFace &p_b, real_t &r_fit) const {
 //					r_fit = p_a.plane.normal.dot(p_b.plane.normal);
 //					return r_fit >= _settings_plane_simplify_dot;
 //				}
-				
+
 
 //				int edge_a, edge_b;
 //				if (_are_faces_neighbours(face_a, face_b, edge_a, edge_b)) {
@@ -1653,7 +1681,7 @@ void OccluderShapeMesh::_finalize_faces() {
 
 			// vertex not done yet
 			if (index_after == UINT32_MAX) {
-				_mesh_data.vertices.push_back(_bd.verts[index_before].pos);
+				_mesh_data.vertices.push_back(_bd.verts[index_before].posf);
 				index_after = _mesh_data.vertices.size() - 1;
 			}
 
@@ -1696,6 +1724,85 @@ String OccluderShapeMesh::_vec3_to_string(const Vector3 &p_pt) const {
 	return str;
 }
 
+void OccluderShapeMesh::_bake_quantize_float_faces() {
+	_bd.input_aabb = AABB();
+
+	if (!_bd.float_input_faces.size()) {
+		return;
+	}
+
+	_bd.input_aabb.position = _bd.float_input_faces[0].vertex[0];
+
+	for (int n = 0; n < _bd.float_input_faces.size(); n++) {
+		const Face3 &face = _bd.float_input_faces[n];
+
+		for (int i = 0; i < 3; i++) {
+			const Vector3 &v = face.vertex[i];
+			_bd.input_aabb.expand_to(v);
+		}
+	}
+
+	// calculate multiplier to go from world space to integers and vice verse
+	real_t world_size = _bd.input_aabb.get_longest_axis_size();
+	_bd.world_to_int_multiplier = 0.0;
+	_bd.int_to_world_multiplier = 0.0;
+	if (world_size > 0.001) {
+		_bd.world_to_int_multiplier = (real_t)QUANTIZE_RES / world_size;
+		_bd.int_to_world_multiplier = world_size / (real_t)QUANTIZE_RES;
+	}
+
+	// now add the faces
+	for (int n = 0; n < _bd.float_input_faces.size(); n++) {
+		const Face3 &face = _bd.float_input_faces[n];
+		_bake_input_face(face);
+	}
+}
+
+void OccluderShapeMesh::_bake_input_face(const Face3 &p_face) {
+	_log("_bake_input_face " + _vec3_to_string(p_face.vertex[0]) + _vec3_to_string(p_face.vertex[1]) + _vec3_to_string(p_face.vertex[2]));
+
+	BakeFace face;
+	face.plane = Plane(p_face.vertex[0], p_face.vertex[1], p_face.vertex[2]);
+
+	uint32_t inds[3];
+	face.indices.resize(3);
+	for (int c = 0; c < 3; c++) {
+		face.indices[c] = _find_or_create_vert(p_face.vertex[c]);
+		inds[c] = face.indices[c];
+	}
+
+	// already baked this face? a duplicate so ignore
+	uint32_t stored_face_id = _bd.hash_triangles.find(inds);
+	if (stored_face_id != UINT32_MAX)
+		return;
+
+	_bd.hash_triangles.add(inds, _bd.faces.size());
+	face.area = p_face.get_area();
+	_bd.faces.push_back(face);
+
+	_log("\tbaked initial face");
+}
+
+bool OccluderShapeMesh::_try_bake_face(const Face3 &p_face) {
+	real_t area = p_face.get_twice_area_squared() * 0.5;
+	if (area < _settings_threshold_input_size_squared) {
+		return false;
+	}
+
+	// face is big enough to use as occluder
+	BakeFace face;
+	face.plane = Plane(p_face.vertex[0], p_face.vertex[1], p_face.vertex[2]);
+
+	// reject floors
+	if ((_settings_remove_floor_angle) && (Math::abs(face.plane.normal.y) > (_settings_remove_floor_dot))) {
+		return false;
+	}
+
+	_bd.float_input_faces.push_back(p_face);
+	return true;
+}
+
+/*
 bool OccluderShapeMesh::_try_bake_face(const Face3 &p_face) {
 	real_t area = p_face.get_twice_area_squared() * 0.5;
 	if (area < _settings_threshold_input_size_squared) {
@@ -1765,13 +1872,14 @@ bool OccluderShapeMesh::_try_bake_face(const Face3 &p_face) {
 	_log("\tbaked initial face");
 	return true;
 }
+*/
 
 real_t OccluderShapeMesh::_find_face_area(const Geometry::MeshData::Face &p_face) const {
 	int num_inds = p_face.indices.size();
 
 	Vector<Vector3> pts;
 	for (int n = 0; n < num_inds; n++) {
-		pts.push_back(_bd.verts[p_face.indices[n]].pos);
+		pts.push_back(_bd.verts[p_face.indices[n]].posf);
 	}
 
 	return Geometry::find_polygon_area(pts.ptr(), pts.size());
@@ -1784,7 +1892,7 @@ bool OccluderShapeMesh::_create_merged_convex_face(BakeFace &r_face, real_t p_ol
 	Vector<Vector3> pts;
 	pts.resize(num_inds);
 	for (int n = 0; n < num_inds; n++) {
-		pts.set(n, _bd.verts[r_face.indices[n]].pos);
+		pts.set(n, _bd.verts[r_face.indices[n]].posf);
 	}
 	Vector<Vector3> pts_changed = pts;
 
