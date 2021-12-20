@@ -30,6 +30,7 @@
 
 #include "occluder_shape_mesh.h"
 
+#include "core/math/mesh_simplify.h"
 #include "core/math/poly_decompose_2d.h"
 #include "scene/3d/occluder.h"
 #include "scene/3d/spatial.h"
@@ -40,7 +41,7 @@
 
 #include <iostream>
 
-#define GODOT_OCCLUDER_SHAPE_MESH_SIMPLIFY_DEBUG_DRAW
+//#define GODOT_OCCLUDER_SHAPE_MESH_SIMPLIFY_DEBUG_DRAW
 #ifdef GODOT_OCCLUDER_SHAPE_MESH_SIMPLIFY_DEBUG_DRAW
 #include "core/debug_image.h"
 #endif
@@ -343,7 +344,7 @@ void OccluderShapeMesh::_simplify_triangles() {
 	// get the data into a format that mesh optimizer can deal with
 
 	// simplify function expects indices as unsigned int, not uint32_t...
-	LocalVector<unsigned int> inds_in;
+	LocalVector<uint32_t> inds_in;
 	for (int n = 0; n < _bd.faces.size(); n++) {
 		const BakeFace &face = _bd.faces[n];
 		CRASH_COND(face.indices.size() != 3);
@@ -353,7 +354,7 @@ void OccluderShapeMesh::_simplify_triangles() {
 		inds_in.push_back(face.indices[2]);
 	}
 
-	LocalVector<unsigned int> inds_out;
+	LocalVector<uint32_t> inds_out;
 	inds_out.resize(inds_in.size());
 
 	struct Vec3f {
@@ -382,6 +383,53 @@ void OccluderShapeMesh::_simplify_triangles() {
 
 	size_t result = 0;
 	if (_settings_simplify > 0.0) {
+#define GODOT_OCCLUDER_POLY_USE_INTERNAL_SIMPLIFICATION
+#ifdef GODOT_OCCLUDER_POLY_USE_INTERNAL_SIMPLIFICATION
+		MeshSimplify simp;
+
+		size_t result_prev = 0;
+		int counter = 0;
+		while (true) {
+			result = simp.simplify(&inds_in[0], inds_in.size(), (const Vector3 *)&verts[0], verts.size(), &inds_out[0]);
+
+			if (result != result_prev) {
+#ifdef GODOT_OCCLUDER_SHAPE_MESH_SIMPLIFY_DEBUG_DRAW
+				DebugImage im;
+				im.create(240, 240);
+				im.fill();
+
+				int num_tris = result / 3;
+				for (int n = 0; n < num_tris; n++) {
+					int idx = n * 3;
+
+					for (int i = 0; i < 3; i++) {
+						uint32_t i0 = inds_out[idx + i];
+						uint32_t i1 = inds_out[idx + ((i + 1) % 3)];
+
+						const Vec3f &v0 = verts[i0];
+						const Vec3f &v1 = verts[i1];
+						Vector2 p0 = Vector2(v0.z, v0.y);
+						Vector2 p1 = Vector2(v1.z, v1.y);
+						im.l_move(p0);
+						im.l_line_to(p1);
+					}
+				}
+				im.l_flush(false);
+				im.save_png("simplify/simp" + itos(counter) + ".png");
+
+#endif
+
+				inds_in = inds_out;
+				inds_in.resize(result);
+
+				counter++;
+				result_prev = result;
+			} else {
+				break;
+			}
+		}
+#else
+
 #define GODOT_OCCLUDER_POLY_USE_ERROR_METRIC
 #ifdef GODOT_OCCLUDER_POLY_USE_ERROR_METRIC
 		// by an error metric
@@ -394,6 +442,8 @@ void OccluderShapeMesh::_simplify_triangles() {
 		target_indices = CLAMP(target_indices, 3, inds_in.size());
 		result = SurfaceTool::simplify_func(&inds_out[0], &inds_in[0], inds_in.size(), (const float *)&verts[0], verts.size(), sizeof(Vec3f), target_indices, 0.9, nullptr);
 #endif
+
+#endif // use external
 
 	} else {
 		// no simplification, just copy
@@ -463,8 +513,8 @@ void OccluderShapeMesh::_simplify_triangles() {
 		for (int i = 0; i < num_inds; i++) {
 			const BakeVertex &bv0 = _bd.verts[bface.indices[i]];
 			const BakeVertex &bv1 = _bd.verts[bface.indices[(i + 1) % num_inds]];
-			Vector2 p0 = Vector2(bv0.posf.z, bv0.posf.y);
-			Vector2 p1 = Vector2(bv1.posf.z, bv1.posf.y);
+			Vector2 p0 = Vector2(bv0.posf.x, bv0.posf.z);
+			Vector2 p1 = Vector2(bv1.posf.x, bv1.posf.z);
 			im.l_move(p0);
 			im.l_line_to(p1);
 		}
