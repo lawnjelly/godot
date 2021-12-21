@@ -32,6 +32,7 @@
 
 #include "collision_shape.h"
 #include "core/core_string_names.h"
+#include "core/math/mesh_simplify.h"
 #include "core/project_settings.h"
 #include "physics_body.h"
 #include "scene/resources/material.h"
@@ -1096,9 +1097,9 @@ bool MeshInstance::_triangle_is_degenerate(const Vector3 &p_a, const Vector3 &p_
 	return false;
 }
 
-bool MeshInstance::create_by_merging(Vector<MeshInstance *> p_list) {
+bool MeshInstance::create_by_merging(Vector<MeshInstance *> p_list, real_t p_simplify) {
 	// must be at least 2 meshes to merge
-	if (p_list.size() < 2) {
+	if (p_list.size() < 1) {
 		// should not happen but just in case
 		return false;
 	}
@@ -1132,6 +1133,48 @@ bool MeshInstance::create_by_merging(Vector<MeshInstance *> p_list) {
 			if (i >= verts.size()) {
 				WARN_PRINT_ONCE("Mesh index out of range, invalid mesh, aborting");
 				return false;
+			}
+		}
+
+		// simplifcation?
+		if (p_simplify > 0.0) {
+			MeshSimplify simp;
+			LocalVectori<uint32_t> source_inds;
+			source_inds.resize(inds.size());
+			for (int n = 0; n < inds.size(); n++)
+				source_inds[n] = inds[n];
+
+			LocalVectori<Vector3> source_verts;
+			source_verts.resize(verts.size());
+			for (int n = 0; n < verts.size(); n++) {
+				source_verts[n] = verts[n];
+			}
+
+			LocalVectori<uint32_t> lod_inds;
+			lod_inds.resize(inds.size());
+
+			// max number of verts
+			LocalVectori<Vector3> deduped_verts;
+			deduped_verts.resize(verts.size());
+			uint32_t num_deduped_verts = 0;
+
+			uint32_t num_simplified_inds = 0;
+
+			num_simplified_inds = simp.simplify(&source_inds[0], source_inds.size(), &source_verts[0], source_verts.size(), &lod_inds[0], &deduped_verts[0], num_deduped_verts);
+			if (num_simplified_inds) {
+				inds.resize(num_simplified_inds);
+				for (int n = 0; n < num_simplified_inds; n++)
+					inds.set(n, lod_inds[n]);
+
+				verts.resize(num_deduped_verts);
+				for (int n = 0; n < num_deduped_verts; n++)
+					verts.set(n, deduped_verts[n]);
+
+				normals.resize(0);
+				colors.resize(0);
+				tangents.resize(0);
+				uvs.resize(0);
+				uv2s.resize(0);
 			}
 		}
 
@@ -1173,6 +1216,16 @@ bool MeshInstance::create_by_merging(Vector<MeshInstance *> p_list) {
 	return true;
 }
 
+bool MeshInstance::create_lod(Node *p_source, real_t p_simplify) {
+	MeshInstance *mi = Object::cast_to<MeshInstance>(p_source);
+	if (!mi)
+		return false;
+
+	Vector<MeshInstance *> list;
+	list.push_back(mi);
+	return create_by_merging(list, p_simplify);
+}
+
 void MeshInstance::_merge_log(String p_string) {
 	print_verbose(p_string);
 }
@@ -1204,6 +1257,8 @@ void MeshInstance::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("create_debug_tangents"), &MeshInstance::create_debug_tangents);
 	ClassDB::set_method_flags("MeshInstance", "create_debug_tangents", METHOD_FLAGS_DEFAULT | METHOD_FLAG_EDITOR);
+
+	ClassDB::bind_method(D_METHOD("create_lod"), &MeshInstance::create_lod);
 
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "mesh", PROPERTY_HINT_RESOURCE_TYPE, "Mesh"), "set_mesh", "get_mesh");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "skin", PROPERTY_HINT_RESOURCE_TYPE, "Skin"), "set_skin", "get_skin");

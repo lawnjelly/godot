@@ -145,7 +145,8 @@ public:
 
 	// merging
 	bool is_mergeable_with(const MeshInstance &p_other);
-	bool create_by_merging(Vector<MeshInstance *> p_list);
+	bool create_by_merging(Vector<MeshInstance *> p_list, real_t p_simplify);
+	bool create_lod(Node *p_source, real_t p_simplify);
 
 	virtual AABB get_aabb() const;
 	virtual PoolVector<Face3> get_faces(uint32_t p_usage_flags) const;

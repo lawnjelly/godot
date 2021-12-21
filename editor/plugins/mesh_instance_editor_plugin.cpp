@@ -283,13 +283,14 @@ void MeshInstanceEditor::_menu_option(int p_option) {
 			_create_uv_lines(0);
 		} break;
 		case MENU_OPTION_DEBUG_UV2: {
-			Ref<Mesh> mesh2 = node->get_mesh();
-			if (!mesh2.is_valid()) {
-				err_dialog->set_text(TTR("No mesh to debug."));
-				err_dialog->popup_centered_minsize();
-				return;
-			}
-			_create_uv_lines(1);
+			//			Ref<Mesh> mesh2 = node->get_mesh();
+			//			if (!mesh2.is_valid()) {
+			//				err_dialog->set_text(TTR("No mesh to debug."));
+			//				err_dialog->popup_centered_minsize();
+			//				return;
+			//			}
+			//_create_uv_lines(1);
+			node->create_lod(node->get_parent()->get_node(NodePath("Source")), 1.0);
 		} break;
 	}
 }
