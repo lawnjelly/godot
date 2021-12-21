@@ -358,6 +358,11 @@ void OccluderShapeMesh::_simplify_triangles() {
 	inds_out.resize(inds_in.size());
 
 	struct Vec3f {
+		void from(const Vector3 &p_o) {
+			x = p_o.x;
+			y = p_o.y;
+			z = p_o.z;
+		}
 		void set(real_t xx, real_t yy, real_t zz) {
 			x = xx;
 			y = yy;
@@ -390,7 +395,18 @@ void OccluderShapeMesh::_simplify_triangles() {
 		size_t result_prev = 0;
 		int counter = 0;
 		while (true) {
-			result = simp.simplify(&inds_in[0], inds_in.size(), (const Vector3 *)&verts[0], verts.size(), &inds_out[0]);
+			// max number of verts
+			LocalVectori<Vector3> deduped_verts;
+			deduped_verts.resize(verts.size());
+			uint32_t num_deduped_verts = 0;
+
+			result = simp.simplify(&inds_in[0], inds_in.size(), (const Vector3 *)&verts[0], verts.size(), &inds_out[0], &deduped_verts[0], num_deduped_verts);
+
+			_mesh_data.vertices.resize(num_deduped_verts);
+			for (int n = 0; n < num_deduped_verts; n++) {
+				_mesh_data.vertices.set(n, deduped_verts[n]);
+				verts[n].from(deduped_verts[n]);
+			}
 
 			if (result != result_prev) {
 #ifdef GODOT_OCCLUDER_SHAPE_MESH_SIMPLIFY_DEBUG_DRAW

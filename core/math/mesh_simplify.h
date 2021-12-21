@@ -56,13 +56,14 @@ class MeshSimplify {
 
 public:
 	// returns number of indices
-	uint32_t simplify(const uint32_t *p_inds, uint32_t p_num_inds, const Vector3 *p_verts, uint32_t p_num_verts, uint32_t *r_inds);
+	uint32_t simplify(const uint32_t *p_inds, uint32_t p_num_inds, const Vector3 *p_verts, uint32_t p_num_verts, uint32_t *r_inds, Vector3 *r_deduped_verts, uint32_t &r_num_deduped_verts, real_t p_threshold = 0.01);
 
 private:
 	bool _simplify();
+	bool _simplify_vert(uint32_t p_vert_id);
 	void _create_tris(const uint32_t *p_inds, uint32_t p_num_inds);
 	void _establish_neighbours(int p_tri0, int p_tri1);
-	uint32_t _choose_vert_to_merge() const;
+	uint32_t _choose_vert_to_merge(uint32_t p_start_from) const;
 	bool _find_vert_to_merge_to(uint32_t p_vert_from);
 	void _adjust_tri(uint32_t p_tri_id, uint32_t p_vert_from, uint32_t p_vert_to);
 	void _resync_tri(uint32_t p_tri_id);
@@ -73,4 +74,5 @@ private:
 	LocalVectori<Tri> _tris;
 
 	LocalVectori<uint32_t> _merge_vert_ids;
+	real_t _threshold_dist = 0.01;
 };

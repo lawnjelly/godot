@@ -1,9 +1,33 @@
 #include "mesh_simplify.h"
+#include "core/math/spatial_deduplicator.h"
 #include "core/print_string.h"
 
 // returns number of indices
-uint32_t MeshSimplify::simplify(const uint32_t *p_inds, uint32_t p_num_inds, const Vector3 *p_verts, uint32_t p_num_verts, uint32_t *r_inds) {
+uint32_t MeshSimplify::simplify(const uint32_t *p_inds, uint32_t p_num_inds, const Vector3 *p_verts, uint32_t p_num_verts, uint32_t *r_inds, Vector3 *r_deduped_verts, uint32_t &r_num_deduped_verts, real_t p_threshold) {
 	//bool MeshSimplify::simplify(const LocalVectori<uint32_t> &p_inds, const LocalVectori<Vector3> &p_verts, LocalVectori<uint32_t> &r_inds) {
+
+	_threshold_dist = p_threshold;
+
+	LocalVectori<Vector3> deduped_verts;
+	LocalVectori<uint32_t> deduped_inds;
+
+	SpatialDeduplicator dd;
+	dd.deduplicate(p_inds, p_num_inds, p_verts, p_num_verts, deduped_verts, deduped_inds);
+
+	DEV_ASSERT(deduped_verts.size() <= p_num_verts);
+
+	for (int n = 0; n < deduped_verts.size(); n++) {
+		r_deduped_verts[n] = deduped_verts[n];
+	}
+	r_num_deduped_verts = deduped_verts.size();
+
+	// change the indices to the deduped
+	p_inds = &deduped_inds[0];
+	p_num_inds = deduped_inds.size();
+
+	p_verts = &deduped_verts[0];
+	p_num_verts = deduped_verts.size();
+
 	_verts.clear();
 	_tris.clear();
 
@@ -25,11 +49,16 @@ uint32_t MeshSimplify::simplify(const uint32_t *p_inds, uint32_t p_num_inds, con
 	for (int n = 0; n < _tris.size(); n++) {
 		const Tri &tri = _tris[n];
 		if (tri.active) {
-			for (int c = 0; c < 3; c++)
+			for (int c = 0; c < 3; c++) {
+				DEV_ASSERT(tri.corn[c] < r_num_deduped_verts);
 				r_inds[count++] = tri.corn[c];
+			}
+
 			//r_inds.push_back(tri.corn[c]);
 		}
 	}
+
+	print_line("simplify tris before : " + itos(p_num_inds / 3) + ", after : " + itos(count / 3));
 
 	return count;
 }
@@ -125,9 +154,9 @@ void MeshSimplify::_establish_neighbours(int p_tri0, int p_tri1) {
 	}
 }
 
-uint32_t MeshSimplify::_choose_vert_to_merge() const {
+uint32_t MeshSimplify::_choose_vert_to_merge(uint32_t p_start_from) const {
 	// find a vertex that is not an edge vert
-	for (int n = 0; n < _verts.size(); n++) {
+	for (int n = p_start_from; n < _verts.size(); n++) {
 		const Vert &vert = _verts[n];
 		if (!vert.active)
 			continue;
@@ -161,15 +190,11 @@ bool MeshSimplify::_find_vert_to_merge_to(uint32_t p_vert_from) {
 	return _merge_vert_ids.size() != 0;
 }
 
-bool MeshSimplify::_simplify() {
-	uint32_t vert_id = _choose_vert_to_merge();
-	if (vert_id == UINT32_MAX)
+bool MeshSimplify::_simplify_vert(uint32_t p_vert_id) {
+	if (!_find_vert_to_merge_to(p_vert_id))
 		return false;
 
-	if (!_find_vert_to_merge_to(vert_id))
-		return false;
-
-	Vert &vert = _verts[vert_id];
+	Vert &vert = _verts[p_vert_id];
 
 	uint32_t merge_vert = UINT32_MAX;
 	for (int m = 0; m < _merge_vert_ids.size(); m++) {
@@ -178,7 +203,7 @@ bool MeshSimplify::_simplify() {
 		// is this suitable for collapse?
 		bool allow = true;
 		for (int n = 0; n < vert.tris.size(); n++) {
-			if (!_allow_collapse(vert.tris[n], vert_id, test_merge_vert)) {
+			if (!_allow_collapse(vert.tris[n], p_vert_id, test_merge_vert)) {
 				allow = false;
 				break;
 			}
@@ -193,13 +218,13 @@ bool MeshSimplify::_simplify() {
 	if (merge_vert == UINT32_MAX)
 		return false;
 
-	print_line("merging vert " + itos(vert_id) + " to vert " + itos(merge_vert));
+	// print_line("merging vert " + itos(p_vert_id) + " to vert " + itos(merge_vert));
 
 	vert.active = false;
 
 	// adjust all attached tris
 	for (int n = 0; n < vert.tris.size(); n++) {
-		_adjust_tri(vert.tris[n], vert_id, merge_vert);
+		_adjust_tri(vert.tris[n], p_vert_id, merge_vert);
 	}
 
 	for (int n = 0; n < vert.tris.size(); n++) {
@@ -207,6 +232,25 @@ bool MeshSimplify::_simplify() {
 	}
 
 	return true;
+}
+
+bool MeshSimplify::_simplify() {
+	uint32_t start_from = 0;
+
+	while (true) {
+		uint32_t vert_id = _choose_vert_to_merge(start_from);
+		if (vert_id == UINT32_MAX)
+			return false;
+
+		// for next loop
+		start_from = vert_id + 1;
+
+		if (_simplify_vert(vert_id)) {
+			return true;
+		}
+	}
+
+	return false;
 }
 
 bool MeshSimplify::_allow_collapse(uint32_t p_tri_id, uint32_t p_vert_from, uint32_t p_vert_to) const {
@@ -237,6 +281,14 @@ bool MeshSimplify::_allow_collapse(uint32_t p_tri_id, uint32_t p_vert_from, uint
 		return false;
 	}
 
+	// find the distance of the old vertex from this new plane ..
+	// if it is more than a certain threshold, disallow the collapse
+	Vector3 pt = _verts[p_vert_from].pos;
+	real_t dist = new_plane.distance_to(pt);
+
+	if (Math::abs(dist) > _threshold_dist)
+		return false;
+
 	return true;
 }
 
@@ -251,7 +303,7 @@ void MeshSimplify::_adjust_tri(uint32_t p_tri_id, uint32_t p_vert_from, uint32_t
 
 	// delete degenerates
 	if ((t.corn[0] == t.corn[1]) || (t.corn[1] == t.corn[2]) || (t.corn[0] == t.corn[2])) {
-		print_line("removed tri " + itos(p_tri_id));
+		// print_line("removed tri " + itos(p_tri_id));
 		t.active = false;
 		return;
 	}
