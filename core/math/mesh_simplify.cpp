@@ -2,6 +2,73 @@
 #include "core/math/spatial_deduplicator.h"
 #include "core/print_string.h"
 
+uint32_t MeshSimplify::simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in_inds, const Vector3 *p_in_verts, uint32_t p_num_in_verts, uint32_t *r_out_inds, LocalVectori<uint32_t> &r_vert_map, uint32_t &r_num_out_verts, real_t p_threshold, MeshSimplifyCallback p_callback, void *p_userdata) {
+	_callback = p_callback;
+	_callback_userdata = p_userdata;
+
+	_threshold_dist = p_threshold;
+
+	LocalVectori<Vector3> deduped_verts;
+	LocalVectori<uint32_t> deduped_inds;
+
+	SpatialDeduplicator dd;
+	SpatialDeduplicator::DummyAttributeTest tester;
+	dd.deduplicate_map(p_in_inds, p_num_in_inds, p_in_verts, p_num_in_verts, r_vert_map, r_num_out_verts, deduped_inds, tester);
+
+	// construct deduped verts
+	deduped_verts.resize(r_num_out_verts);
+
+	for (int n = 0; n < p_num_in_verts; n++) {
+		uint32_t new_vert_id = r_vert_map[n];
+		DEV_ASSERT(new_vert_id < r_num_out_verts);
+
+		deduped_verts[new_vert_id] = p_in_verts[n];
+	}
+
+	DEV_ASSERT(deduped_verts.size() <= p_num_in_verts);
+
+	// change the indices to the deduped
+	p_in_inds = &deduped_inds[0];
+	p_num_in_inds = deduped_inds.size();
+
+	p_in_verts = &deduped_verts[0];
+	p_num_in_verts = deduped_verts.size();
+
+	_verts.clear();
+	_tris.clear();
+
+	// setup the verts
+	_verts.resize(p_num_in_verts);
+	for (int n = 0; n < p_num_in_verts; n++) {
+		_verts[n].pos = p_in_verts[n];
+	}
+
+	_create_tris(p_in_inds, p_num_in_inds);
+
+	while (_simplify()) {
+		;
+	}
+
+	// export final list
+	uint32_t count = 0;
+
+	for (int n = 0; n < _tris.size(); n++) {
+		const Tri &tri = _tris[n];
+		if (tri.active) {
+			for (int c = 0; c < 3; c++) {
+				DEV_ASSERT(tri.corn[c] < deduped_verts.size());
+				r_out_inds[count++] = tri.corn[c];
+			}
+
+			//r_inds.push_back(tri.corn[c]);
+		}
+	}
+
+	print_line("simplify tris before : " + itos(p_num_in_inds / 3) + ", after : " + itos(count / 3));
+
+	return count;
+}
+
 // returns number of indices
 uint32_t MeshSimplify::simplify(const uint32_t *p_inds, uint32_t p_num_inds, const Vector3 *p_verts, uint32_t p_num_verts, uint32_t *r_inds, Vector3 *r_deduped_verts, uint32_t &r_num_deduped_verts, real_t p_threshold, MeshSimplifyCallback p_callback, void *p_userdata) {
 	//bool MeshSimplify::simplify(const LocalVectori<uint32_t> &p_inds, const LocalVectori<Vector3> &p_verts, LocalVectori<uint32_t> &r_inds) {
@@ -16,7 +83,7 @@ uint32_t MeshSimplify::simplify(const uint32_t *p_inds, uint32_t p_num_inds, con
 
 	SpatialDeduplicator dd;
 	SpatialDeduplicator::DummyAttributeTest tester;
-	dd.deduplicate(p_inds, p_num_inds, p_verts, p_num_verts, deduped_verts, deduped_inds, tester);
+	dd.deduplicate_verts_only(p_inds, p_num_inds, p_verts, p_num_verts, deduped_verts, deduped_inds, tester);
 
 	DEV_ASSERT(deduped_verts.size() <= p_num_verts);
 
@@ -85,6 +152,7 @@ void MeshSimplify::_create_tris(const uint32_t *p_inds, uint32_t p_num_inds) {
 	int num_tris = p_num_inds / 3;
 
 	uint32_t count = 0;
+
 	for (int t = 0; t < num_tris; t++) {
 		Tri tri;
 		tri.corn[0] = p_inds[count++];
@@ -110,7 +178,7 @@ void MeshSimplify::_create_tris(const uint32_t *p_inds, uint32_t p_num_inds) {
 
 		// add the tris to the verts
 		for (int c = 0; c < 3; c++) {
-			_verts[tri.corn[c]].link_tri(t);
+			_verts[tri.corn[c]].link_tri(_tris.size());
 
 			// mark this vertex as active (used by triangles)
 			_verts[tri.corn[c]].active = true;
@@ -181,7 +249,10 @@ bool MeshSimplify::_find_vert_to_merge_to(uint32_t p_vert_from) {
 	const Vert &vert = _verts[p_vert_from];
 
 	for (int t = 0; t < vert.tris.size(); t++) {
-		const Tri &tri = _tris[vert.tris[t]];
+		uint32_t tri_id = vert.tris[t];
+		DEV_ASSERT(tri_id < _tris.size());
+
+		const Tri &tri = _tris[tri_id];
 		if (!tri.active)
 			continue;
 		for (int c = 0; c < 3; c++) {

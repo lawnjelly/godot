@@ -1157,23 +1157,54 @@ bool MeshInstance::create_by_merging(Vector<MeshInstance *> p_list, real_t p_sim
 			LocalVectori<Vector3> deduped_verts;
 			deduped_verts.resize(verts.size());
 			uint32_t num_deduped_verts = 0;
-
 			uint32_t num_simplified_inds = 0;
 
-			num_simplified_inds = simp.simplify(&source_inds[0], source_inds.size(), &source_verts[0], source_verts.size(), &lod_inds[0], &deduped_verts[0], num_deduped_verts);
+			LocalVectori<uint32_t> vert_map;
+
+			//num_simplified_inds = simp.simplify(&source_inds[0], source_inds.size(), &source_verts[0], source_verts.size(), &lod_inds[0], &deduped_verts[0], num_deduped_verts);
+
+			real_t epsilon = get_lod_max_hysteresis();
+			epsilon /= 200000.0;
+
+			print_line("simplify epsilon is " + String(Variant(epsilon)));
+
+			num_simplified_inds = simp.simplify_map(&source_inds[0], source_inds.size(), &source_verts[0], source_verts.size(), &lod_inds[0], vert_map, num_deduped_verts, epsilon);
 			if (num_simplified_inds) {
 				inds.resize(num_simplified_inds);
 				for (int n = 0; n < num_simplified_inds; n++)
 					inds.set(n, lod_inds[n]);
 
 				verts.resize(num_deduped_verts);
-				for (int n = 0; n < num_deduped_verts; n++)
-					verts.set(n, deduped_verts[n]);
 
-				normals.resize(0);
+				PoolVector<Vector3> old_normals;
+				if (normals.size()) {
+					old_normals = normals;
+					normals.resize(num_deduped_verts);
+				}
+				PoolVector<Vector2> old_uvs;
+				if (uvs.size()) {
+					old_uvs = uvs;
+					uvs.resize(num_deduped_verts);
+				}
+
+				for (int n = 0; n < source_verts.size(); n++) {
+					uint32_t new_vert = vert_map[n];
+					DEV_ASSERT(new_vert < verts.size());
+					verts.set(new_vert, source_verts[n]);
+
+					if (normals.size()) {
+						normals.set(new_vert, old_normals[n]);
+					}
+
+					if (uvs.size()) {
+						uvs.set(new_vert, old_uvs[n]);
+					}
+				}
+
+				//normals.resize(0);
 				colors.resize(0);
 				tangents.resize(0);
-				uvs.resize(0);
+				//uvs.resize(0);
 				uv2s.resize(0);
 			}
 		}
