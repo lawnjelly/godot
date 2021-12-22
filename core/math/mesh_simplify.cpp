@@ -3,8 +3,11 @@
 #include "core/print_string.h"
 
 // returns number of indices
-uint32_t MeshSimplify::simplify(const uint32_t *p_inds, uint32_t p_num_inds, const Vector3 *p_verts, uint32_t p_num_verts, uint32_t *r_inds, Vector3 *r_deduped_verts, uint32_t &r_num_deduped_verts, real_t p_threshold) {
+uint32_t MeshSimplify::simplify(const uint32_t *p_inds, uint32_t p_num_inds, const Vector3 *p_verts, uint32_t p_num_verts, uint32_t *r_inds, Vector3 *r_deduped_verts, uint32_t &r_num_deduped_verts, real_t p_threshold, MeshSimplifyCallback p_callback, void *p_userdata) {
 	//bool MeshSimplify::simplify(const LocalVectori<uint32_t> &p_inds, const LocalVectori<Vector3> &p_verts, LocalVectori<uint32_t> &r_inds) {
+
+	_callback = p_callback;
+	_callback_userdata = p_userdata;
 
 	_threshold_dist = p_threshold;
 
@@ -12,7 +15,8 @@ uint32_t MeshSimplify::simplify(const uint32_t *p_inds, uint32_t p_num_inds, con
 	LocalVectori<uint32_t> deduped_inds;
 
 	SpatialDeduplicator dd;
-	dd.deduplicate(p_inds, p_num_inds, p_verts, p_num_verts, deduped_verts, deduped_inds);
+	SpatialDeduplicator::DummyAttributeTest tester;
+	dd.deduplicate(p_inds, p_num_inds, p_verts, p_num_verts, deduped_verts, deduped_inds, tester);
 
 	DEV_ASSERT(deduped_verts.size() <= p_num_verts);
 
@@ -288,6 +292,12 @@ bool MeshSimplify::_allow_collapse(uint32_t p_tri_id, uint32_t p_vert_from, uint
 
 	if (Math::abs(dist) > _threshold_dist)
 		return false;
+
+	// user callback?
+	if (_callback) {
+		if (!_callback(_callback_userdata, t.corn, new_corn))
+			return false;
+	}
 
 	return true;
 }

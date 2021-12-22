@@ -4,6 +4,11 @@
 #include "core/math/plane.h"
 #include "core/math/vector3.h"
 
+// The optional callback can test any triangle before allowing a merge, allowing testing normals, UVs etc to prevent
+// merging where the change in the attribute is too high.
+// This could alternatively be written as a template, which would be more efficient but require everything in the header.
+typedef bool (*MeshSimplifyCallback)(void *p_userdata, const uint32_t p_tri_from[3], const uint32_t p_tri_to[3]);
+
 class MeshSimplify {
 	struct Edge {
 		Edge() {
@@ -56,7 +61,7 @@ class MeshSimplify {
 
 public:
 	// returns number of indices
-	uint32_t simplify(const uint32_t *p_inds, uint32_t p_num_inds, const Vector3 *p_verts, uint32_t p_num_verts, uint32_t *r_inds, Vector3 *r_deduped_verts, uint32_t &r_num_deduped_verts, real_t p_threshold = 0.01);
+	uint32_t simplify(const uint32_t *p_inds, uint32_t p_num_inds, const Vector3 *p_verts, uint32_t p_num_verts, uint32_t *r_inds, Vector3 *r_deduped_verts, uint32_t &r_num_deduped_verts, real_t p_threshold = 0.01, MeshSimplifyCallback p_callback = nullptr, void *p_userdata = nullptr);
 
 private:
 	bool _simplify();
@@ -75,4 +80,6 @@ private:
 
 	LocalVectori<uint32_t> _merge_vert_ids;
 	real_t _threshold_dist = 0.01;
+	MeshSimplifyCallback _callback = nullptr;
+	void *_callback_userdata = nullptr;
 };
