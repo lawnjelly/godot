@@ -63,6 +63,8 @@ public:
 	// returns number of indices
 	uint32_t simplify(const uint32_t *p_inds, uint32_t p_num_inds, const Vector3 *p_verts, uint32_t p_num_verts, uint32_t *r_inds, Vector3 *r_deduped_verts, uint32_t &r_num_deduped_verts, real_t p_threshold = 0.01, MeshSimplifyCallback p_callback = nullptr, void *p_userdata = nullptr);
 
+	uint32_t simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in_inds, const Vector3 *p_in_verts, uint32_t p_num_in_verts, uint32_t *r_out_inds, LocalVectori<uint32_t> &r_vert_map, uint32_t &r_num_out_verts, real_t p_threshold = 0.01, MeshSimplifyCallback p_callback = nullptr, void *p_userdata = nullptr);
+
 private:
 	bool _simplify();
 	bool _simplify_vert(uint32_t p_vert_id);
