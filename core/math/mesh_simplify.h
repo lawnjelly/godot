@@ -57,6 +57,11 @@ class MeshSimplify {
 		LocalVectori<uint32_t> tris;
 		bool edge_vert = false;
 		bool active = false;
+
+		// The max displacement of the points merged to this vertex so far.
+		// This prevents "creep", where a vertex merges slowly a large displacement
+		// than would be possible over a single merge
+		real_t displacement = 0.0;
 	};
 
 public:
@@ -75,7 +80,7 @@ private:
 	void _adjust_tri(uint32_t p_tri_id, uint32_t p_vert_from, uint32_t p_vert_to);
 	void _resync_tri(uint32_t p_tri_id);
 	bool _calculate_plane(uint32_t p_corns[3], Plane &r_plane) const;
-	bool _allow_collapse(uint32_t p_tri_id, uint32_t p_vert_from, uint32_t p_vert_to) const;
+	bool _allow_collapse(uint32_t p_tri_id, uint32_t p_vert_from, uint32_t p_vert_to, real_t &r_max_displacement) const;
 
 	LocalVectori<Vert> _verts;
 	LocalVectori<Tri> _tris;
