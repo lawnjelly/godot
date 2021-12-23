@@ -32,7 +32,6 @@
 
 #include "collision_shape.h"
 #include "core/core_string_names.h"
-#include "core/math/mesh_simplify.h"
 #include "core/project_settings.h"
 #include "physics_body.h"
 #include "scene/resources/material.h"
@@ -1137,76 +1136,12 @@ bool MeshInstance::create_by_merging(Vector<MeshInstance *> p_list, real_t p_sim
 		}
 
 		// simplifcation?
-		if (p_simplify > 0.0) {
-			MeshSimplify simp;
-			LocalVectori<uint32_t> source_inds;
-			source_inds.resize(inds.size());
-			for (int n = 0; n < inds.size(); n++)
-				source_inds[n] = inds[n];
-
-			LocalVectori<Vector3> source_verts;
-			source_verts.resize(verts.size());
-			for (int n = 0; n < verts.size(); n++) {
-				source_verts[n] = verts[n];
-			}
-
-			LocalVectori<uint32_t> lod_inds;
-			lod_inds.resize(inds.size());
-
-			// max number of verts
-			LocalVectori<Vector3> deduped_verts;
-			deduped_verts.resize(verts.size());
-			uint32_t num_deduped_verts = 0;
-			uint32_t num_simplified_inds = 0;
-
-			LocalVectori<uint32_t> vert_map;
-
-			//num_simplified_inds = simp.simplify(&source_inds[0], source_inds.size(), &source_verts[0], source_verts.size(), &lod_inds[0], &deduped_verts[0], num_deduped_verts);
-
+		if (p_simplify >= 0.0) {
 			real_t epsilon = get_lod_max_hysteresis();
 			epsilon /= 200000.0;
 
-			print_line("simplify epsilon is " + String(Variant(epsilon)));
-
-			num_simplified_inds = simp.simplify_map(&source_inds[0], source_inds.size(), &source_verts[0], source_verts.size(), &lod_inds[0], vert_map, num_deduped_verts, epsilon);
-			if (num_simplified_inds) {
-				inds.resize(num_simplified_inds);
-				for (int n = 0; n < num_simplified_inds; n++)
-					inds.set(n, lod_inds[n]);
-
-				verts.resize(num_deduped_verts);
-
-				PoolVector<Vector3> old_normals;
-				if (normals.size()) {
-					old_normals = normals;
-					normals.resize(num_deduped_verts);
-				}
-				PoolVector<Vector2> old_uvs;
-				if (uvs.size()) {
-					old_uvs = uvs;
-					uvs.resize(num_deduped_verts);
-				}
-
-				for (int n = 0; n < source_verts.size(); n++) {
-					uint32_t new_vert = vert_map[n];
-					DEV_ASSERT(new_vert < verts.size());
-					verts.set(new_vert, source_verts[n]);
-
-					if (normals.size()) {
-						normals.set(new_vert, old_normals[n]);
-					}
-
-					if (uvs.size()) {
-						uvs.set(new_vert, old_uvs[n]);
-					}
-				}
-
-				//normals.resize(0);
-				colors.resize(0);
-				tangents.resize(0);
-				//uvs.resize(0);
-				uv2s.resize(0);
-			}
+			ArrayMesh::simplify_mesh_data(verts, normals, tangents, colors, uvs, uv2s, inds, epsilon);
+			//_simplify_mesh_data(verts, normals, tangents, colors, uvs, uv2s, inds, p_simplify);
 		}
 
 		Array arr;

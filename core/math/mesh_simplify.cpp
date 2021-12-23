@@ -59,8 +59,6 @@ uint32_t MeshSimplify::simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in
 				DEV_ASSERT(tri.corn[c] < deduped_verts.size());
 				r_out_inds[count++] = tri.corn[c];
 			}
-
-			//r_inds.push_back(tri.corn[c]);
 		}
 	}
 

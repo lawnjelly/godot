@@ -33,6 +33,7 @@
 #include "core/crypto/crypto_core.h"
 #include "core/local_vector.h"
 #include "core/math/convex_hull.h"
+#include "core/math/mesh_simplify.h"
 #include "core/pair.h"
 #include "scene/resources/concave_polygon_shape.h"
 #include "scene/resources/convex_polygon_shape.h"
@@ -1041,6 +1042,102 @@ void ArrayMesh::regen_normalmaps() {
 		surfs.write[i]->generate_tangents();
 		surfs.write[i]->commit(Ref<ArrayMesh>(this));
 	}
+}
+
+bool ArrayMesh::simplify_mesh_data(PoolVector<Vector3> &r_verts, PoolVector<Vector3> &r_normals, PoolVector<real_t> &r_tangents, PoolVector<Color> &r_colors, PoolVector<Vector2> &r_uvs, PoolVector<Vector2> &r_uv2s, PoolVector<int> &r_inds, real_t p_simplify) {
+	MeshSimplify simp;
+	LocalVectori<uint32_t> source_inds;
+	source_inds.resize(r_inds.size());
+	for (int n = 0; n < r_inds.size(); n++)
+		source_inds[n] = r_inds[n];
+
+	LocalVectori<Vector3> source_verts;
+	source_verts.resize(r_verts.size());
+	for (int n = 0; n < r_verts.size(); n++) {
+		source_verts[n] = r_verts[n];
+	}
+
+	LocalVectori<uint32_t> lod_inds;
+	lod_inds.resize(r_inds.size());
+
+	// max number of verts
+	LocalVectori<Vector3> deduped_verts;
+	deduped_verts.resize(r_verts.size());
+	uint32_t num_deduped_verts = 0;
+	uint32_t num_simplified_inds = 0;
+
+	LocalVectori<uint32_t> vert_map;
+
+	//real_t epsilon = get_lod_max_hysteresis();
+	real_t epsilon = p_simplify;
+	//epsilon /= 200000.0;
+
+	print_line("simplify epsilon is " + String(Variant(epsilon)));
+
+	num_simplified_inds = simp.simplify_map(&source_inds[0], source_inds.size(), &source_verts[0], source_verts.size(), &lod_inds[0], vert_map, num_deduped_verts, epsilon);
+	if (num_simplified_inds) {
+		r_inds.resize(num_simplified_inds);
+		for (int n = 0; n < num_simplified_inds; n++)
+			r_inds.set(n, lod_inds[n]);
+
+		r_verts.resize(num_deduped_verts);
+
+		PoolVector<Vector3> old_normals;
+		if (r_normals.size()) {
+			old_normals = r_normals;
+			r_normals.resize(num_deduped_verts);
+		}
+		PoolVector<real_t> old_tangents;
+		if (r_tangents.size()) {
+			old_tangents = r_tangents;
+			r_tangents.resize(num_deduped_verts);
+		}
+		PoolVector<Color> old_colors;
+		if (r_colors.size()) {
+			old_colors = r_colors;
+			r_colors.resize(num_deduped_verts);
+		}
+		PoolVector<Vector2> old_uvs;
+		if (r_uvs.size()) {
+			old_uvs = r_uvs;
+			r_uvs.resize(num_deduped_verts);
+		}
+		PoolVector<Vector2> old_uv2s;
+		if (r_uv2s.size()) {
+			old_uv2s = r_uv2s;
+			r_uv2s.resize(num_deduped_verts);
+		}
+
+		for (int n = 0; n < source_verts.size(); n++) {
+			uint32_t new_vert = vert_map[n];
+			DEV_ASSERT(new_vert < r_verts.size());
+			r_verts.set(new_vert, source_verts[n]);
+
+			if (r_normals.size()) {
+				r_normals.set(new_vert, old_normals[n]);
+			}
+			if (r_tangents.size()) {
+				r_tangents.set(new_vert, old_tangents[n]);
+			}
+			if (r_colors.size()) {
+				r_colors.set(new_vert, old_colors[n]);
+			}
+			if (r_uvs.size()) {
+				r_uvs.set(new_vert, old_uvs[n]);
+			}
+			if (r_uv2s.size()) {
+				r_uv2s.set(new_vert, old_uv2s[n]);
+			}
+		}
+
+		//normals.resize(0);
+		//r_colors.resize(0);
+		//r_tangents.resize(0);
+		//uvs.resize(0);
+		//r_uv2s.resize(0);
+	}
+
+	return true;
 }
 
 //dirty hack
