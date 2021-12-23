@@ -272,13 +272,16 @@ bool MeshSimplify::_simplify_vert(uint32_t p_vert_id) {
 	Vert &vert = _verts[p_vert_id];
 
 	uint32_t merge_vert = UINT32_MAX;
+	real_t max_displacement = 0.0;
+
 	for (int m = 0; m < _merge_vert_ids.size(); m++) {
 		uint32_t test_merge_vert = _merge_vert_ids[m];
+		max_displacement = 0.0;
 
 		// is this suitable for collapse?
 		bool allow = true;
 		for (int n = 0; n < vert.tris.size(); n++) {
-			if (!_allow_collapse(vert.tris[n], p_vert_id, test_merge_vert)) {
+			if (!_allow_collapse(vert.tris[n], p_vert_id, test_merge_vert, max_displacement)) {
 				allow = false;
 				break;
 			}
@@ -296,6 +299,9 @@ bool MeshSimplify::_simplify_vert(uint32_t p_vert_id) {
 	// print_line("merging vert " + itos(p_vert_id) + " to vert " + itos(merge_vert));
 
 	vert.active = false;
+
+	real_t &new_max_displacement = _verts[merge_vert].displacement;
+	new_max_displacement = MAX(new_max_displacement, max_displacement);
 
 	// adjust all attached tris
 	for (int n = 0; n < vert.tris.size(); n++) {
@@ -328,7 +334,7 @@ bool MeshSimplify::_simplify() {
 	return false;
 }
 
-bool MeshSimplify::_allow_collapse(uint32_t p_tri_id, uint32_t p_vert_from, uint32_t p_vert_to) const {
+bool MeshSimplify::_allow_collapse(uint32_t p_tri_id, uint32_t p_vert_from, uint32_t p_vert_to, real_t &r_max_displacement) const {
 	const Tri &t = _tris[p_tri_id];
 
 	uint32_t new_corn[3];
@@ -361,8 +367,11 @@ bool MeshSimplify::_allow_collapse(uint32_t p_tri_id, uint32_t p_vert_from, uint
 	Vector3 pt = _verts[p_vert_from].pos;
 	real_t dist = new_plane.distance_to(pt);
 
-	if (Math::abs(dist) > _threshold_dist)
+	real_t displacement = _verts[p_vert_from].displacement + Math::abs(dist);
+	if (displacement > _threshold_dist)
 		return false;
+
+	r_max_displacement = MAX(r_max_displacement, displacement);
 
 	// user callback?
 	if (_callback) {
