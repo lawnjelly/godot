@@ -88,6 +88,16 @@ uint32_t MeshSimplify::simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in
 	}
 
 	_optimize_vertex_cache(r_out_inds, count, r_num_out_verts);
+
+	// double check inds
+#ifdef DEV_ENABLED
+//	for (int n=0; n<count; n++)
+//	{
+//		uint32_t ind = r_out_inds[n];
+//		DEV_ASSERT(ind < r_num_out_verts);
+//	}
+#endif
+
 	print_line("simplify tris before : " + itos(p_num_in_inds / 3) + ", after : " + itos(count / 3) + ", orig num verts " + itos(orig_num_verts) + ", final verts : " + itos(r_num_out_verts));
 
 	return count;

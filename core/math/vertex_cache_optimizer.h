@@ -16,7 +16,7 @@
   arising from the use of this software.
   Permission is granted to anyone to use this software for any purpose,
   including commercial applications, and to alter it and redistribute it
-  freely, subject to the following restrictions:
+  memfreely, subject to the following restrictions:
   1. The origin of this software must not be misrepresented; you must not
 	 claim that you wrote the original software. If you use this software
 	 in a product, an acknowledgment in the product documentation would be
@@ -122,7 +122,7 @@ public:
 
 	// The main reordering function
 	VERTEX_INDEX_TYPE *reorder_indices(VERTEX_INDEX_TYPE *outIndices, const VERTEX_INDEX_TYPE *indices, int nTriangles, int nVertices) {
-		FORSYTH_ADJACENCY_TYPE *numActiveTris = (FORSYTH_ADJACENCY_TYPE *)malloc(sizeof(FORSYTH_ADJACENCY_TYPE) * nVertices);
+		FORSYTH_ADJACENCY_TYPE *numActiveTris = (FORSYTH_ADJACENCY_TYPE *)memalloc(sizeof(FORSYTH_ADJACENCY_TYPE) * nVertices);
 		memset(numActiveTris, 0, sizeof(FORSYTH_ADJACENCY_TYPE) * nVertices);
 
 		// First scan over the vertex data, count the total number of
@@ -131,20 +131,20 @@ public:
 			if (numActiveTris[indices[i]] == FORSYTH_MAX_ADJACENCY) {
 				// Unsupported mesh,
 				// vertex shared by too many triangles
-				free(numActiveTris);
+				memfree(numActiveTris);
 				return NULL;
 			}
 			numActiveTris[indices[i]]++;
 		}
 
 		// Allocate the rest of the arrays
-		FORSYTH_ARRAY_INDEX_TYPE *offsets = (FORSYTH_ARRAY_INDEX_TYPE *)malloc(sizeof(FORSYTH_ARRAY_INDEX_TYPE) * nVertices);
-		FORSYTH_SCORE_TYPE *lastScore = (FORSYTH_SCORE_TYPE *)malloc(sizeof(FORSYTH_SCORE_TYPE) * nVertices);
-		FORSYTH_CACHE_POS_TYPE *cacheTag = (FORSYTH_CACHE_POS_TYPE *)malloc(sizeof(FORSYTH_CACHE_POS_TYPE) * nVertices);
+		FORSYTH_ARRAY_INDEX_TYPE *offsets = (FORSYTH_ARRAY_INDEX_TYPE *)memalloc(sizeof(FORSYTH_ARRAY_INDEX_TYPE) * nVertices);
+		FORSYTH_SCORE_TYPE *lastScore = (FORSYTH_SCORE_TYPE *)memalloc(sizeof(FORSYTH_SCORE_TYPE) * nVertices);
+		FORSYTH_CACHE_POS_TYPE *cacheTag = (FORSYTH_CACHE_POS_TYPE *)memalloc(sizeof(FORSYTH_CACHE_POS_TYPE) * nVertices);
 
-		uint8_t *triangleAdded = (uint8_t *)malloc((nTriangles + 7) / 8);
-		FORSYTH_SCORE_TYPE *triangleScore = (FORSYTH_SCORE_TYPE *)malloc(sizeof(FORSYTH_SCORE_TYPE) * nTriangles);
-		FORSYTH_TRIANGLE_INDEX_TYPE *triangleIndices = (FORSYTH_TRIANGLE_INDEX_TYPE *)malloc(sizeof(FORSYTH_TRIANGLE_INDEX_TYPE) * 3 * nTriangles);
+		uint8_t *triangleAdded = (uint8_t *)memalloc((nTriangles + 7) / 8);
+		FORSYTH_SCORE_TYPE *triangleScore = (FORSYTH_SCORE_TYPE *)memalloc(sizeof(FORSYTH_SCORE_TYPE) * nTriangles);
+		FORSYTH_TRIANGLE_INDEX_TYPE *triangleIndices = (FORSYTH_TRIANGLE_INDEX_TYPE *)memalloc(sizeof(FORSYTH_TRIANGLE_INDEX_TYPE) * 3 * nTriangles);
 		memset(triangleAdded, 0, sizeof(uint8_t) * ((nTriangles + 7) / 8));
 		memset(triangleScore, 0, sizeof(FORSYTH_SCORE_TYPE) * nTriangles);
 		memset(triangleIndices, 0, sizeof(FORSYTH_TRIANGLE_INDEX_TYPE) * 3 * nTriangles);
@@ -188,7 +188,7 @@ public:
 		}
 
 		// Allocate the output array
-		FORSYTH_TRIANGLE_INDEX_TYPE *outTriangles = (FORSYTH_TRIANGLE_INDEX_TYPE *)malloc(sizeof(FORSYTH_TRIANGLE_INDEX_TYPE) * nTriangles);
+		FORSYTH_TRIANGLE_INDEX_TYPE *outTriangles = (FORSYTH_TRIANGLE_INDEX_TYPE *)memalloc(sizeof(FORSYTH_TRIANGLE_INDEX_TYPE) * nTriangles);
 		int outPos = 0;
 
 		// Initialize the cache
@@ -298,14 +298,14 @@ public:
 		}
 
 		// Clean up
-		free(triangleIndices);
-		free(offsets);
-		free(lastScore);
-		free(numActiveTris);
-		free(cacheTag);
-		free(triangleAdded);
-		free(triangleScore);
-		free(outTriangles);
+		memfree(triangleIndices);
+		memfree(offsets);
+		memfree(lastScore);
+		memfree(numActiveTris);
+		memfree(cacheTag);
+		memfree(triangleAdded);
+		memfree(triangleScore);
+		memfree(outTriangles);
 
 		return outIndices;
 	}
