@@ -1063,7 +1063,7 @@ bool ArrayMesh::simplify_mesh_data(PoolVector<Vector3> &r_verts, PoolVector<Vect
 	// max number of verts
 	LocalVectori<Vector3> deduped_verts;
 	deduped_verts.resize(r_verts.size());
-	uint32_t num_deduped_verts = 0;
+	uint32_t num_simplified_verts = 0;
 	uint32_t num_simplified_inds = 0;
 
 	LocalVectori<uint32_t> vert_map;
@@ -1074,43 +1074,47 @@ bool ArrayMesh::simplify_mesh_data(PoolVector<Vector3> &r_verts, PoolVector<Vect
 
 	print_line("simplify epsilon is " + String(Variant(epsilon)));
 
-	num_simplified_inds = simp.simplify_map(&source_inds[0], source_inds.size(), &source_verts[0], source_verts.size(), &lod_inds[0], vert_map, num_deduped_verts, epsilon);
+	num_simplified_inds = simp.simplify_map(&source_inds[0], source_inds.size(), &source_verts[0], source_verts.size(), &lod_inds[0], vert_map, num_simplified_verts, epsilon);
 	if (num_simplified_inds) {
 		r_inds.resize(num_simplified_inds);
 		for (int n = 0; n < num_simplified_inds; n++)
 			r_inds.set(n, lod_inds[n]);
 
-		r_verts.resize(num_deduped_verts);
+		r_verts.resize(num_simplified_verts);
 
 		PoolVector<Vector3> old_normals;
 		if (r_normals.size()) {
 			old_normals = r_normals;
-			r_normals.resize(num_deduped_verts);
+			r_normals.resize(num_simplified_verts);
 		}
 		PoolVector<real_t> old_tangents;
 		if (r_tangents.size()) {
 			old_tangents = r_tangents;
-			r_tangents.resize(num_deduped_verts);
+			r_tangents.resize(num_simplified_verts);
 		}
 		PoolVector<Color> old_colors;
 		if (r_colors.size()) {
 			old_colors = r_colors;
-			r_colors.resize(num_deduped_verts);
+			r_colors.resize(num_simplified_verts);
 		}
 		PoolVector<Vector2> old_uvs;
 		if (r_uvs.size()) {
 			old_uvs = r_uvs;
-			r_uvs.resize(num_deduped_verts);
+			r_uvs.resize(num_simplified_verts);
 		}
 		PoolVector<Vector2> old_uv2s;
 		if (r_uv2s.size()) {
 			old_uv2s = r_uv2s;
-			r_uv2s.resize(num_deduped_verts);
+			r_uv2s.resize(num_simplified_verts);
 		}
 
 		for (int n = 0; n < source_verts.size(); n++) {
 			uint32_t new_vert = vert_map[n];
-			DEV_ASSERT(new_vert < r_verts.size());
+
+			// unused may be marked as UINT32_MAX
+			if (new_vert >= r_verts.size())
+				continue;
+
 			r_verts.set(new_vert, source_verts[n]);
 
 			if (r_normals.size()) {

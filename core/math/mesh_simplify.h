@@ -81,6 +81,7 @@ private:
 	void _resync_tri(uint32_t p_tri_id);
 	bool _calculate_plane(uint32_t p_corns[3], Plane &r_plane) const;
 	bool _allow_collapse(uint32_t p_tri_id, uint32_t p_vert_from, uint32_t p_vert_to, real_t &r_max_displacement) const;
+	uint32_t _find_or_add(uint32_t p_val, LocalVectori<uint32_t> &r_list);
 
 	LocalVectori<Vert> _verts;
 	LocalVectori<Tri> _tris;
