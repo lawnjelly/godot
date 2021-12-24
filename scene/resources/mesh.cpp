@@ -1090,7 +1090,7 @@ bool ArrayMesh::simplify_mesh_data(PoolVector<Vector3> &r_verts, PoolVector<Vect
 		PoolVector<real_t> old_tangents;
 		if (r_tangents.size()) {
 			old_tangents = r_tangents;
-			r_tangents.resize(num_simplified_verts);
+			r_tangents.resize(num_simplified_verts * 4);
 		}
 		PoolVector<Color> old_colors;
 		if (r_colors.size()) {
@@ -1121,7 +1121,12 @@ bool ArrayMesh::simplify_mesh_data(PoolVector<Vector3> &r_verts, PoolVector<Vect
 				r_normals.set(new_vert, old_normals[n]);
 			}
 			if (r_tangents.size()) {
-				r_tangents.set(new_vert, old_tangents[n]);
+				uint32_t dest = new_vert * 4;
+				uint32_t src = n * 4;
+				r_tangents.set(dest, old_tangents[src]);
+				r_tangents.set(dest + 1, old_tangents[src + 1]);
+				r_tangents.set(dest + 2, old_tangents[src + 2]);
+				r_tangents.set(dest + 3, old_tangents[src + 3]);
 			}
 			if (r_colors.size()) {
 				r_colors.set(new_vert, old_colors[n]);
