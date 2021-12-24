@@ -8,6 +8,8 @@ uint32_t MeshSimplify::simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in
 
 	_threshold_dist = p_threshold;
 
+	uint32_t orig_num_verts = p_num_in_verts;
+
 	LocalVectori<Vector3> deduped_verts;
 	LocalVectori<uint32_t> deduped_inds;
 
@@ -18,11 +20,17 @@ uint32_t MeshSimplify::simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in
 	// construct deduped verts
 	deduped_verts.resize(r_num_out_verts);
 
+	// create a map from deduped verts to original
+	// for the final shrinking stage
+	LocalVectori<uint32_t> deduped_verts_source;
+	deduped_verts_source.resize(deduped_verts.size());
+
 	for (int n = 0; n < p_num_in_verts; n++) {
 		uint32_t new_vert_id = r_vert_map[n];
 		DEV_ASSERT(new_vert_id < r_num_out_verts);
 
 		deduped_verts[new_vert_id] = p_in_verts[n];
+		deduped_verts_source[new_vert_id] = n;
 	}
 
 	DEV_ASSERT(deduped_verts.size() <= p_num_in_verts);
@@ -52,19 +60,45 @@ uint32_t MeshSimplify::simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in
 	// export final list
 	uint32_t count = 0;
 
+	//LocalVectori<uint32_t> final_vertmap;
+	LocalVectori<uint32_t> final_sourceverts;
+
 	for (int n = 0; n < _tris.size(); n++) {
 		const Tri &tri = _tris[n];
 		if (tri.active) {
 			for (int c = 0; c < 3; c++) {
-				DEV_ASSERT(tri.corn[c] < deduped_verts.size());
-				r_out_inds[count++] = tri.corn[c];
+				uint32_t deduped_vert_id = tri.corn[c];
+				DEV_ASSERT(deduped_vert_id < deduped_verts.size());
+				// r_out_inds[count++] = deduped_vert_id;
+
+				uint32_t orig_source_vert_id = deduped_verts_source[deduped_vert_id];
+				uint32_t final_ind = _find_or_add(orig_source_vert_id, final_sourceverts);
+				r_out_inds[count++] = final_ind;
 			}
 		}
 	}
 
-	print_line("simplify tris before : " + itos(p_num_in_inds / 3) + ", after : " + itos(count / 3));
+	// adjust the final number of verts that are actually used
+	r_num_out_verts = final_sourceverts.size();
+	r_vert_map.fill(UINT32_MAX);
+	for (int n = 0; n < final_sourceverts.size(); n++) {
+		uint32_t source_id = final_sourceverts[n];
+		r_vert_map[source_id] = n;
+	}
+
+	print_line("simplify tris before : " + itos(p_num_in_inds / 3) + ", after : " + itos(count / 3) + ", orig num verts " + itos(orig_num_verts) + ", final verts : " + itos(r_num_out_verts));
 
 	return count;
+}
+
+uint32_t MeshSimplify::_find_or_add(uint32_t p_val, LocalVectori<uint32_t> &r_list) {
+	int64_t found = r_list.find(p_val);
+	if (found != -1) {
+		return found;
+	}
+	uint32_t id = r_list.size();
+	r_list.push_back(p_val);
+	return id;
 }
 
 // returns number of indices
