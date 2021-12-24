@@ -1,7 +1,11 @@
 #include "mesh_simplify.h"
-#include "core/math/spatial_deduplicator.h"
 #include "core/math/vertex_cache_optimizer.h"
 #include "core/print_string.h"
+
+//void MeshSimplify::_deduplicate_verts(const uint32_t *p_in_inds, uint32_t p_num_in_inds, const Vector3 *p_in_verts, uint32_t p_num_in_verts, LocalVectori<uint32_t> &r_vert_map, uint32_t &r_num_out_verts, LocalVectori<Vector3> &r_deduped_verts, LocalVectori<uint32_t> &r_deduped_verts_source, LocalVectori<uint32_t> &r_deduped_inds)
+//{
+
+//}
 
 uint32_t MeshSimplify::simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in_inds, const Vector3 *p_in_verts, uint32_t p_num_in_verts, uint32_t *r_out_inds, LocalVectori<uint32_t> &r_vert_map, uint32_t &r_num_out_verts, real_t p_threshold, MeshSimplifyCallback p_callback, void *p_userdata) {
 	_callback = p_callback;
@@ -11,12 +15,12 @@ uint32_t MeshSimplify::simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in
 
 	uint32_t orig_num_verts = p_num_in_verts;
 
+	// DEDUPLICATE
+	//////////////////////////////////////////////////////////////////////////////////
 	LocalVectori<Vector3> deduped_verts;
 	LocalVectori<uint32_t> deduped_inds;
 
-	SpatialDeduplicator dd;
-	SpatialDeduplicator::DummyAttributeTest tester;
-	dd.deduplicate_map(p_in_inds, p_num_in_inds, p_in_verts, p_num_in_verts, r_vert_map, r_num_out_verts, deduped_inds, tester);
+	_deduplicator.deduplicate_map(p_in_inds, p_num_in_inds, p_in_verts, p_num_in_verts, r_vert_map, r_num_out_verts, deduped_inds);
 
 	// construct deduped verts
 	deduped_verts.resize(r_num_out_verts);
@@ -42,6 +46,9 @@ uint32_t MeshSimplify::simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in
 
 	p_in_verts = &deduped_verts[0];
 	p_num_in_verts = deduped_verts.size();
+
+	print_line("orig num verts " + itos(orig_num_verts) + ", after dedup : " + itos(r_num_out_verts));
+	//////////////////////////////////////////////////////////////////////////////////
 
 	_verts.clear();
 	_tris.clear();
@@ -134,9 +141,7 @@ uint32_t MeshSimplify::simplify(const uint32_t *p_inds, uint32_t p_num_inds, con
 	LocalVectori<Vector3> deduped_verts;
 	LocalVectori<uint32_t> deduped_inds;
 
-	SpatialDeduplicator dd;
-	SpatialDeduplicator::DummyAttributeTest tester;
-	dd.deduplicate_verts_only(p_inds, p_num_inds, p_verts, p_num_verts, deduped_verts, deduped_inds, tester);
+	_deduplicator.deduplicate_verts_only(p_inds, p_num_inds, p_verts, p_num_verts, deduped_verts, deduped_inds);
 
 	DEV_ASSERT(deduped_verts.size() <= p_num_verts);
 

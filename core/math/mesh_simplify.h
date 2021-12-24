@@ -2,6 +2,7 @@
 
 #include "core/local_vector.h"
 #include "core/math/plane.h"
+#include "core/math/spatial_deduplicator.h"
 #include "core/math/vector3.h"
 
 // The optional callback can test any triangle before allowing a merge, allowing testing normals, UVs etc to prevent
@@ -10,6 +11,8 @@
 typedef bool (*MeshSimplifyCallback)(void *p_userdata, const uint32_t p_tri_from[3], const uint32_t p_tri_to[3]);
 
 class MeshSimplify {
+	SpatialDeduplicator _deduplicator;
+
 	struct Edge {
 		Edge() {
 			a = UINT32_MAX;
@@ -65,6 +68,13 @@ class MeshSimplify {
 	};
 
 public:
+	void add_attribute(const SpatialDeduplicator::Attribute &p_attr) {
+		_deduplicator._attributes.push_back(p_attr);
+	}
+	void clear_attributes() {
+		_deduplicator._attributes.clear();
+	}
+
 	// returns number of indices
 	uint32_t simplify(const uint32_t *p_inds, uint32_t p_num_inds, const Vector3 *p_verts, uint32_t p_num_verts, uint32_t *r_inds, Vector3 *r_deduped_verts, uint32_t &r_num_deduped_verts, real_t p_threshold = 0.01, MeshSimplifyCallback p_callback = nullptr, void *p_userdata = nullptr);
 
@@ -82,6 +92,8 @@ private:
 	bool _calculate_plane(uint32_t p_corns[3], Plane &r_plane) const;
 	bool _allow_collapse(uint32_t p_tri_id, uint32_t p_vert_from, uint32_t p_vert_to, real_t &r_max_displacement) const;
 	uint32_t _find_or_add(uint32_t p_val, LocalVectori<uint32_t> &r_list);
+
+	//	void _deduplicate_verts(const uint32_t *p_in_inds, uint32_t p_num_in_inds, const Vector3 *p_in_verts, uint32_t p_num_in_verts, LocalVectori<uint32_t> &r_vert_map, uint32_t &r_num_out_verts, LocalVectori<Vector3> &r_deduped_verts, LocalVectori<uint32_t> &r_deduped_verts_source, LocalVectori<uint32_t> &r_deduped_inds);
 	void _optimize_vertex_cache(uint32_t *r_inds, uint32_t p_num_inds, uint32_t p_num_verts) const;
 
 	LocalVectori<Vert> _verts;

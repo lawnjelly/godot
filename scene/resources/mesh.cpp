@@ -1074,6 +1074,37 @@ bool ArrayMesh::simplify_mesh_data(PoolVector<Vector3> &r_verts, PoolVector<Vect
 
 	print_line("simplify epsilon is " + String(Variant(epsilon)));
 
+	// test positions sync
+	{
+		//		SpatialDeduplicator::Attribute attr;
+		//		attr.type = SpatialDeduplicator::Attribute::AT_POSITION;
+		//		attr.epsilon_dedup = 0.6;
+		//		PoolVector<Vector3>::Read read = r_verts.read();
+		//		attr.vec3s = read.ptr();
+		//		simp.add_attribute(attr);
+	}
+
+	// Add optional attributes to the simplifier.
+	// This can prevent merging when the attributes (rather than just position)
+	// are further than a certain epsilon.
+	if (r_normals.size()) {
+		SpatialDeduplicator::Attribute attr;
+		attr.type = SpatialDeduplicator::Attribute::AT_NORMAL;
+		attr.epsilon_dedup = 0.2;
+		PoolVector<Vector3>::Read read = r_normals.read();
+		attr.vec3s = read.ptr();
+		simp.add_attribute(attr);
+	}
+
+	if (r_uvs.size()) {
+		SpatialDeduplicator::Attribute attr;
+		attr.type = SpatialDeduplicator::Attribute::AT_UV;
+		attr.epsilon_dedup = 1.0 / 2048.0;
+		PoolVector<Vector2>::Read read = r_uvs.read();
+		attr.vec2s = read.ptr();
+		simp.add_attribute(attr);
+	}
+
 	num_simplified_inds = simp.simplify_map(&source_inds[0], source_inds.size(), &source_verts[0], source_verts.size(), &lod_inds[0], vert_map, num_simplified_verts, epsilon);
 	if (num_simplified_inds) {
 		r_inds.resize(num_simplified_inds);
