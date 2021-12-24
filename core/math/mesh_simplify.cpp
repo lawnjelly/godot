@@ -1,5 +1,6 @@
 #include "mesh_simplify.h"
 #include "core/math/spatial_deduplicator.h"
+#include "core/math/vertex_cache_optimizer.h"
 #include "core/print_string.h"
 
 uint32_t MeshSimplify::simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in_inds, const Vector3 *p_in_verts, uint32_t p_num_in_verts, uint32_t *r_out_inds, LocalVectori<uint32_t> &r_vert_map, uint32_t &r_num_out_verts, real_t p_threshold, MeshSimplifyCallback p_callback, void *p_userdata) {
@@ -86,9 +87,19 @@ uint32_t MeshSimplify::simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in
 		r_vert_map[source_id] = n;
 	}
 
+	_optimize_vertex_cache(r_out_inds, count, r_num_out_verts);
 	print_line("simplify tris before : " + itos(p_num_in_inds / 3) + ", after : " + itos(count / 3) + ", orig num verts " + itos(orig_num_verts) + ", final verts : " + itos(r_num_out_verts));
 
 	return count;
+}
+
+void MeshSimplify::_optimize_vertex_cache(uint32_t *r_inds, uint32_t p_num_inds, uint32_t p_num_verts) const {
+	LocalVectori<uint32_t> inds_copy;
+	inds_copy.resize(p_num_inds);
+	memcpy(&inds_copy[0], r_inds, p_num_inds * sizeof(uint32_t));
+
+	VertexCacheOptimizer<uint32_t> opt;
+	opt.reorder_indices(r_inds, &inds_copy[0], p_num_inds / 3, p_num_verts);
 }
 
 uint32_t MeshSimplify::_find_or_add(uint32_t p_val, LocalVectori<uint32_t> &r_list) {
