@@ -26,47 +26,49 @@
   3. This notice may not be removed or altered from any source distribution.
 */
 
-//typedef uint16_t ForsythVertexIndexType;
-
-// Set these to adjust the performance and result quality
-#define FORSYTH_VERTEX_CACHE_SIZE 24
-#define FORSYTH_CACHE_FUNCTION_LENGTH 32
-
-// The size of these data types affect the memory usage
-typedef uint16_t ForsythScoreType;
-#define FORSYTH_SCORE_SCALING 7281
-
-typedef uint8_t ForsythAdjacencyType;
-#define FORSYTH_MAX_ADJACENCY UINT8_MAX
-
-typedef int8_t ForsythCachePosType;
-typedef int32_t ForsythTriangleIndexType;
-typedef int32_t ForsythArrayIndexType;
-
-// The size of the precalculated tables
-#define FORSYTH_CACHE_SCORE_TABLE_SIZE 32
-#define FORSYTH_VALENCE_SCORE_TABLE_SIZE 32
-#if FORSYTH_CACHE_SCORE_TABLE_SIZE < FORSYTH_VERTEX_CACHE_SIZE
-#error Vertex score table too small
-#endif
-
-#define FORSYTH_ISADDED(x) (triangleAdded[(x) >> 3] & (1 << (x & 7)))
-#define FORSYTH_SETADDED(x) (triangleAdded[(x) >> 3] |= (1 << (x & 7)))
-
-// Score function constants
-#define FORSYTH_CACHE_DECAY_POWER 1.5
-#define FORSYTH_LAST_TRI_SCORE 0.75
-#define FORSYTH_VALENCE_BOOST_SCALE 2.0
-#define FORSYTH_VALENCE_BOOST_POWER 0.5
-
 template <class VERTEX_INDEX_TYPE = uint32_t>
 class VertexCacheOptimizer {
+	// The size of these data types affect the memory usage
+	typedef uint16_t FORSYTH_SCORE_TYPE;
+	const int FORSYTH_SCORE_SCALING = 7281;
+
+	typedef uint8_t FORSYTH_ADJACENCY_TYPE;
+	const int FORSYTH_MAX_ADJACENCY = UINT8_MAX;
+
+	typedef int8_t FORSYTH_CACHE_POS_TYPE;
+	typedef int32_t FORSYTH_TRIANGLE_INDEX_TYPE;
+	typedef int32_t FORSYTH_ARRAY_INDEX_TYPE;
+
+	// The size of the precalculated tables
+	static const int FORSYTH_CACHE_SCORE_TABLE_SIZE = 32;
+	static const int FORSYTH_VALENCE_SCORE_TABLE_SIZE = 32;
+
+	// Score function constants
+	const real_t FORSYTH_CACHE_DECAY_POWER = 1.5;
+	const real_t FORSYTH_LAST_TRI_SCORE = 0.75;
+	const real_t FORSYTH_VALENCE_BOOST_SCALE = 2.0;
+	const real_t FORSYTH_VALENCE_BOOST_POWER = 0.5;
+
+	// Set these to adjust the performance and result quality
+	static const int FORSYTH_VERTEX_CACHE_SIZE = 24;
+	const int FORSYTH_CACHE_FUNCTION_LENGTH = 32;
+
+	static_assert(FORSYTH_CACHE_SCORE_TABLE_SIZE >= FORSYTH_VERTEX_CACHE_SIZE, "Vertex score table too small");
+
 	// Precalculated tables
-	ForsythScoreType forsythCachePositionScore[FORSYTH_CACHE_SCORE_TABLE_SIZE];
-	ForsythScoreType forsythValenceScore[FORSYTH_VALENCE_SCORE_TABLE_SIZE];
+	FORSYTH_SCORE_TYPE _forsyth_cache_position_score[FORSYTH_CACHE_SCORE_TABLE_SIZE];
+	FORSYTH_SCORE_TYPE _forsyth_valence_score[FORSYTH_VALENCE_SCORE_TABLE_SIZE];
+
+	int forsyth_is_added(const uint8_t *p_triangle_added, int p_x) const {
+		return p_triangle_added[(p_x) >> 3] & (1 << (p_x & 7));
+	}
+
+	void forsyth_set_added(uint8_t *p_triangle_added, int p_x) const {
+		p_triangle_added[(p_x) >> 3] |= (1 << (p_x & 7));
+	}
 
 	// Precalculate the tables
-	void forsythInit() {
+	void forsyth_init() {
 		for (int i = 0; i < FORSYTH_CACHE_SCORE_TABLE_SIZE; i++) {
 			float score = 0;
 			if (i < 3) {
@@ -82,7 +84,7 @@ class VertexCacheOptimizer {
 				score = 1.0f - (i - 3) * scaler;
 				score = powf(score, FORSYTH_CACHE_DECAY_POWER);
 			}
-			forsythCachePositionScore[i] = (ForsythScoreType)(FORSYTH_SCORE_SCALING * score);
+			_forsyth_cache_position_score[i] = (FORSYTH_SCORE_TYPE)(FORSYTH_SCORE_SCALING * score);
 		}
 
 		for (int i = 1; i < FORSYTH_VALENCE_SCORE_TABLE_SIZE; i++) {
@@ -90,40 +92,38 @@ class VertexCacheOptimizer {
 			// use the vert, so we get rid of lone verts quickly
 			float valenceBoost = powf(i, -FORSYTH_VALENCE_BOOST_POWER);
 			float score = FORSYTH_VALENCE_BOOST_SCALE * valenceBoost;
-			forsythValenceScore[i] = (ForsythScoreType)(FORSYTH_SCORE_SCALING * score);
+			_forsyth_valence_score[i] = (FORSYTH_SCORE_TYPE)(FORSYTH_SCORE_SCALING * score);
 		}
 	}
 
 	// Calculate the score for a vertex
-	ForsythScoreType forsythFindVertexScore(int numActiveTris, int cachePosition) {
+	FORSYTH_SCORE_TYPE forsythFindVertexScore(int numActiveTris, int cachePosition) {
 		if (numActiveTris == 0) {
 			// No triangles need this vertex!
 			return 0;
 		}
 
-		ForsythScoreType score = 0;
+		FORSYTH_SCORE_TYPE score = 0;
 		if (cachePosition < 0) {
 			// Vertex is not in LRU cache - no score
 		} else {
-			score = forsythCachePositionScore[cachePosition];
+			score = _forsyth_cache_position_score[cachePosition];
 		}
 
 		if (numActiveTris < FORSYTH_VALENCE_SCORE_TABLE_SIZE)
-			score += forsythValenceScore[numActiveTris];
+			score += _forsyth_valence_score[numActiveTris];
 		return score;
 	}
 
 public:
+	VertexCacheOptimizer() {
+		forsyth_init();
+	}
+
 	// The main reordering function
 	VERTEX_INDEX_TYPE *reorder_indices(VERTEX_INDEX_TYPE *outIndices, const VERTEX_INDEX_TYPE *indices, int nTriangles, int nVertices) {
-		static int init = 1;
-		if (init) {
-			forsythInit();
-			init = 0;
-		}
-
-		ForsythAdjacencyType *numActiveTris = (ForsythAdjacencyType *)malloc(sizeof(ForsythAdjacencyType) * nVertices);
-		memset(numActiveTris, 0, sizeof(ForsythAdjacencyType) * nVertices);
+		FORSYTH_ADJACENCY_TYPE *numActiveTris = (FORSYTH_ADJACENCY_TYPE *)malloc(sizeof(FORSYTH_ADJACENCY_TYPE) * nVertices);
+		memset(numActiveTris, 0, sizeof(FORSYTH_ADJACENCY_TYPE) * nVertices);
 
 		// First scan over the vertex data, count the total number of
 		// occurrances of each vertex
@@ -138,16 +138,16 @@ public:
 		}
 
 		// Allocate the rest of the arrays
-		ForsythArrayIndexType *offsets = (ForsythArrayIndexType *)malloc(sizeof(ForsythArrayIndexType) * nVertices);
-		ForsythScoreType *lastScore = (ForsythScoreType *)malloc(sizeof(ForsythScoreType) * nVertices);
-		ForsythCachePosType *cacheTag = (ForsythCachePosType *)malloc(sizeof(ForsythCachePosType) * nVertices);
+		FORSYTH_ARRAY_INDEX_TYPE *offsets = (FORSYTH_ARRAY_INDEX_TYPE *)malloc(sizeof(FORSYTH_ARRAY_INDEX_TYPE) * nVertices);
+		FORSYTH_SCORE_TYPE *lastScore = (FORSYTH_SCORE_TYPE *)malloc(sizeof(FORSYTH_SCORE_TYPE) * nVertices);
+		FORSYTH_CACHE_POS_TYPE *cacheTag = (FORSYTH_CACHE_POS_TYPE *)malloc(sizeof(FORSYTH_CACHE_POS_TYPE) * nVertices);
 
 		uint8_t *triangleAdded = (uint8_t *)malloc((nTriangles + 7) / 8);
-		ForsythScoreType *triangleScore = (ForsythScoreType *)malloc(sizeof(ForsythScoreType) * nTriangles);
-		ForsythTriangleIndexType *triangleIndices = (ForsythTriangleIndexType *)malloc(sizeof(ForsythTriangleIndexType) * 3 * nTriangles);
+		FORSYTH_SCORE_TYPE *triangleScore = (FORSYTH_SCORE_TYPE *)malloc(sizeof(FORSYTH_SCORE_TYPE) * nTriangles);
+		FORSYTH_TRIANGLE_INDEX_TYPE *triangleIndices = (FORSYTH_TRIANGLE_INDEX_TYPE *)malloc(sizeof(FORSYTH_TRIANGLE_INDEX_TYPE) * 3 * nTriangles);
 		memset(triangleAdded, 0, sizeof(uint8_t) * ((nTriangles + 7) / 8));
-		memset(triangleScore, 0, sizeof(ForsythScoreType) * nTriangles);
-		memset(triangleIndices, 0, sizeof(ForsythTriangleIndexType) * 3 * nTriangles);
+		memset(triangleScore, 0, sizeof(FORSYTH_SCORE_TYPE) * nTriangles);
+		memset(triangleIndices, 0, sizeof(FORSYTH_TRIANGLE_INDEX_TYPE) * 3 * nTriangles);
 
 		// Count the triangle array offset for each vertex,
 		// initialize the rest of the data.
@@ -188,7 +188,7 @@ public:
 		}
 
 		// Allocate the output array
-		ForsythTriangleIndexType *outTriangles = (ForsythTriangleIndexType *)malloc(sizeof(ForsythTriangleIndexType) * nTriangles);
+		FORSYTH_TRIANGLE_INDEX_TYPE *outTriangles = (FORSYTH_TRIANGLE_INDEX_TYPE *)malloc(sizeof(FORSYTH_TRIANGLE_INDEX_TYPE) * nTriangles);
 		int outPos = 0;
 
 		// Initialize the cache
@@ -202,7 +202,7 @@ public:
 		// are triangles left to output
 		while (bestTriangle >= 0) {
 			// Mark the triangle as added
-			FORSYTH_SETADDED(bestTriangle);
+			forsyth_set_added(triangleAdded, bestTriangle);
 			// Output this triangle
 			outTriangles[outPos++] = bestTriangle;
 			for (int i = 0; i < 3; i++) {
@@ -254,8 +254,8 @@ public:
 					cacheTag[v] = -1;
 					cache[i] = -1;
 				}
-				ForsythScoreType newScore = forsythFindVertexScore(numActiveTris[v], cacheTag[v]);
-				ForsythScoreType diff = newScore - lastScore[v];
+				FORSYTH_SCORE_TYPE newScore = forsythFindVertexScore(numActiveTris[v], cacheTag[v]);
+				FORSYTH_SCORE_TYPE diff = newScore - lastScore[v];
 				for (int j = 0; j < numActiveTris[v]; j++)
 					triangleScore[triangleIndices[offsets[v] + j]] += diff;
 				lastScore[v] = newScore;
@@ -279,7 +279,7 @@ public:
 			// scanning the whole list of triangles
 			if (bestTriangle < 0) {
 				for (; scanPos < nTriangles; scanPos++) {
-					if (!FORSYTH_ISADDED(scanPos)) {
+					if (!forsyth_is_added(triangleAdded, scanPos)) {
 						bestTriangle = scanPos;
 						break;
 					}
