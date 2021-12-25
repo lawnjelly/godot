@@ -1,4 +1,5 @@
 #include "mesh_simplify.h"
+#include "core/math/geometry.h"
 #include "core/math/vertex_cache_optimizer.h"
 #include "core/print_string.h"
 
@@ -7,9 +8,9 @@
 
 //}
 
-uint32_t MeshSimplify::simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in_inds, const Vector3 *p_in_verts, uint32_t p_num_in_verts, uint32_t *r_out_inds, LocalVectori<uint32_t> &r_vert_map, uint32_t &r_num_out_verts, real_t p_threshold, MeshSimplifyCallback p_callback, void *p_userdata) {
-	_callback = p_callback;
-	_callback_userdata = p_userdata;
+uint32_t MeshSimplify::simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in_inds, const Vector3 *p_in_verts, uint32_t p_num_in_verts, uint32_t *r_out_inds, LocalVectori<uint32_t> &r_vert_map, uint32_t &r_num_out_verts, real_t p_threshold) {
+	//	_callback = p_callback;
+	//	_callback_userdata = p_userdata;
 
 	_threshold_dist = p_threshold;
 
@@ -130,12 +131,7 @@ uint32_t MeshSimplify::_find_or_add(uint32_t p_val, LocalVectori<uint32_t> &r_li
 }
 
 // returns number of indices
-uint32_t MeshSimplify::simplify(const uint32_t *p_inds, uint32_t p_num_inds, const Vector3 *p_verts, uint32_t p_num_verts, uint32_t *r_inds, Vector3 *r_deduped_verts, uint32_t &r_num_deduped_verts, real_t p_threshold, MeshSimplifyCallback p_callback, void *p_userdata) {
-	//bool MeshSimplify::simplify(const LocalVectori<uint32_t> &p_inds, const LocalVectori<Vector3> &p_verts, LocalVectori<uint32_t> &r_inds) {
-
-	_callback = p_callback;
-	_callback_userdata = p_userdata;
-
+uint32_t MeshSimplify::simplify(const uint32_t *p_inds, uint32_t p_num_inds, const Vector3 *p_verts, uint32_t p_num_verts, uint32_t *r_inds, Vector3 *r_deduped_verts, uint32_t &r_num_deduped_verts, real_t p_threshold) {
 	_threshold_dist = p_threshold;
 
 	LocalVectori<Vector3> deduped_verts;
@@ -429,13 +425,46 @@ bool MeshSimplify::_allow_collapse(uint32_t p_tri_id, uint32_t p_vert_from, uint
 	if (displacement > _threshold_dist)
 		return false;
 
-	r_max_displacement = MAX(r_max_displacement, displacement);
+	// test user attributes
+	if (_deduplicator._attributes.size()) {
+		// find closest point on plane of deleted point
+		pt += new_plane.normal * -dist;
 
-	// user callback?
-	if (_callback) {
-		if (!_callback(_callback_userdata, t.corn, new_corn))
-			return false;
+		// find barycentric coordinates of the deleted vertex
+		Vector3 by = Geometry::barycentric_coordinates_3d(pt, _verts[new_corn[0]].pos, _verts[new_corn[1]].pos, _verts[new_corn[2]].pos);
+
+		// is it inside the new triangle?
+		// maybe increase this a little to catch colinear points? NYI
+		if ((by.x >= 0.0) && (by.y >= 0.0) && (by.z >= 0.0) && (by.x <= 1.0) && (by.y <= 1.0) && (by.z <= 1.0)) {
+			// if so compare the interpolated attributes with the delete vertex attributes
+			for (int n = 0; n < _deduplicator._attributes.size(); n++) {
+				const SpatialDeduplicator::Attribute &attr = _deduplicator._attributes[n];
+				switch (attr.type) {
+					case SpatialDeduplicator::Attribute::AT_UV: {
+						const Vector2 &uv0 = attr.vec2s[new_corn[0]];
+						const Vector2 &uv1 = attr.vec2s[new_corn[1]];
+						const Vector2 &uv2 = attr.vec2s[new_corn[2]];
+
+						// barycentric interpolation
+						Vector2 inter = (uv0 * by.x) + (uv1 * by.y) + (uv2 * by.z);
+
+						// find offset from old vertex UV
+						const Vector2 &uv_old = attr.vec2s[p_vert_from];
+
+						Vector2 offset = inter - uv_old;
+						real_t sl = offset.length_squared();
+						if (sl > attr.epsilon_merge) {
+							return false;
+						}
+					} break;
+					default: {
+					} break;
+				}
+			}
+		}
 	}
+
+	r_max_displacement = MAX(r_max_displacement, displacement);
 
 	return true;
 }

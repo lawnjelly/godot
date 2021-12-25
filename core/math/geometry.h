@@ -555,12 +555,46 @@ public:
 		double dot11 = v1.dot(v1);
 		double dot12 = v1.dot(v2);
 
+		// Check for divide by zero
+		double denom = dot00 * dot11 - dot01 * dot01;
+		if (denom == 0.0) {
+			return Vector3(0.0, 0.0, 0.0);
+		}
+
 		// Compute barycentric coordinates
-		double invDenom = 1.0f / (dot00 * dot11 - dot01 * dot01);
+		double invDenom = 1.0 / denom;
 		double b2 = (dot11 * dot02 - dot01 * dot12) * invDenom;
 		double b1 = (dot00 * dot12 - dot01 * dot02) * invDenom;
-		double b0 = 1.0f - b2 - b1;
+		double b0 = 1.0 - b2 - b1;
 		return Vector3(b0, b1, b2);
+	}
+
+	static Vector3 barycentric_coordinates_3d(const Vector3 &pt, const Vector3 &a, const Vector3 &b, const Vector3 &c) {
+		// These can be pre-cached in bottlenecks
+		Vector3 v0 = b - a;
+		Vector3 v1 = c - a;
+		Vector3 v2 = pt - a;
+
+		// Compute dot products
+		double d00 = v0.dot(v0);
+		double d01 = v0.dot(v1);
+		double d11 = v1.dot(v1);
+		double d20 = v2.dot(v0);
+		double d21 = v2.dot(v1);
+
+		double denom = d00 * d11 - d01 * d01;
+		if (denom == 0.0) {
+			// This does happen, degenerate triangles will give divide by zero.
+			// return something reasonable
+			return Vector3(0.0, 0.0, 0.0);
+		}
+
+		// Compute barycentric coordinates
+		double invDenom = 1.0 / denom;
+		double v = (d11 * d20 - d01 * d21) * invDenom;
+		double w = (d00 * d21 - d01 * d20) * invDenom;
+		double u = 1.0f - v - w;
+		return Vector3(u, v, w);
 	}
 
 	static Vector2 get_closest_point_to_segment_uncapped_2d(const Vector2 &p_point, const Vector2 *p_segment) {
