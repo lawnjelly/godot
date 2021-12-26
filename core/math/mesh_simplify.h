@@ -84,6 +84,7 @@ private:
 	bool _simplify();
 	bool _simplify_vert(uint32_t p_vert_id);
 	void _create_tris(const uint32_t *p_inds, uint32_t p_num_inds);
+	void _establish_neighbours_for_tri(int p_tri_id);
 	void _establish_neighbours(int p_tri0, int p_tri1);
 	uint32_t _choose_vert_to_merge(uint32_t p_start_from) const;
 	bool _find_vert_to_merge_to(uint32_t p_vert_from);

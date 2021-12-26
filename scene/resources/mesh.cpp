@@ -1091,6 +1091,7 @@ bool ArrayMesh::simplify_mesh_data(PoolVector<Vector3> &r_verts, PoolVector<Vect
 		SpatialDeduplicator::Attribute attr;
 		attr.type = SpatialDeduplicator::Attribute::AT_NORMAL;
 		attr.epsilon_dedup = 0.2;
+		attr.epsilon_merge = 0.2;
 		PoolVector<Vector3>::Read read = r_normals.read();
 		attr.vec3s = read.ptr();
 		simp.add_attribute(attr);
@@ -1100,6 +1101,9 @@ bool ArrayMesh::simplify_mesh_data(PoolVector<Vector3> &r_verts, PoolVector<Vect
 		SpatialDeduplicator::Attribute attr;
 		attr.type = SpatialDeduplicator::Attribute::AT_UV;
 		attr.epsilon_dedup = 1.0 / 2048.0;
+		attr.epsilon_dedup *= attr.epsilon_dedup;
+		attr.epsilon_merge = 1.0 / 64.0;
+		attr.epsilon_merge *= attr.epsilon_merge;
 		PoolVector<Vector2>::Read read = r_uvs.read();
 		attr.vec2s = read.ptr();
 		simp.add_attribute(attr);

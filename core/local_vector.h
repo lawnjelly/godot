@@ -216,6 +216,16 @@ public:
 		insert(i, p_val);
 	}
 
+	U find_or_push_back(const T &p_val) {
+		int64_t found = find(p_val);
+		if (found == -1) {
+			U id = size();
+			push_back(p_val);
+			return id;
+		}
+		return (U)found;
+	}
+
 	operator Vector<T>() const {
 		Vector<T> ret;
 		ret.resize(size());
