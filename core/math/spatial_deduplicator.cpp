@@ -2,6 +2,59 @@
 #include "core/print_string.h"
 #include "core/variant.h"
 
+void SpatialDeduplicator::Grid::calc_bound(const Vector3 *p_verts, uint32_t p_num_verts) {
+	if (!p_num_verts) {
+		return;
+	}
+
+	Rect2 rt;
+	rt.position = vec3_xy(p_verts[0]);
+
+	for (uint32_t n = 0; n < p_num_verts; n++) {
+		rt.expand_to(vec3_xy(p_verts[n]));
+	}
+
+	_bound_min = rt.position;
+	_bound_mult = Vector2();
+	if (rt.size.x > 0.0) {
+		_bound_mult.x = GRID_SIZE / rt.size.x;
+	}
+	if (rt.size.y > 0.0) {
+		_bound_mult.y = GRID_SIZE / rt.size.y;
+	}
+}
+
+void SpatialDeduplicator::Grid::add(const Vector3 &p_pos, uint32_t p_id) {
+	Vector2i loc = get_cell_xy(p_pos);
+	Vert v;
+	v.id = p_id;
+	v.pos = p_pos;
+
+	for (int y = loc.y - 1; y <= loc.y + 1; y++) {
+		for (int x = loc.x - 1; x <= loc.x + 1; x++) {
+			if (is_on_map(x, y)) {
+				Cell &cell = get_cell(x, y);
+				cell.verts.push_back(v);
+			}
+		}
+	}
+}
+
+bool SpatialDeduplicator::Grid::find(const Vector3 &p_pos, real_t p_epsilon, LocalVectori<uint32_t> &r_ids) const {
+	r_ids.clear();
+
+	const Cell &cell = get_cell_at_pos(p_pos);
+	for (int n = 0; n < cell.verts.size(); n++) {
+		const Vert &v = cell.verts[n];
+		if (p_pos.is_equal_approx(v.pos, p_epsilon)) {
+			//return v.id;
+			r_ids.push_back(v.id);
+		}
+	}
+
+	return r_ids.size() != 0;
+}
+
 bool SpatialDeduplicator::deduplicate_verts_only(const uint32_t *p_in_inds, uint32_t p_num_in_inds, const Vector3 *p_in_verts, uint32_t p_num_in_verts, LocalVectori<Vector3> &r_out_verts, LocalVectori<uint32_t> &r_out_inds, real_t p_epsilon) {
 	LocalVectori<uint32_t> vert_map;
 	uint32_t num_out_verts = 0;
@@ -36,6 +89,13 @@ bool SpatialDeduplicator::deduplicate_map(const uint32_t *p_in_inds, uint32_t p_
 	out_verts.clear();
 	r_out_inds.clear();
 
+#define GODOT_DEDUPLICATOR_USE_GRID
+#ifdef GODOT_DEDUPLICATOR_USE_GRID
+	Grid grid;
+	grid.calc_bound(p_in_verts, p_num_in_verts);
+	LocalVectori<uint32_t> found_ids;
+#endif
+
 	for (int n = 0; n < p_num_in_verts; n++) {
 		const Vector3 &pt = p_in_verts[n];
 
@@ -44,10 +104,18 @@ bool SpatialDeduplicator::deduplicate_map(const uint32_t *p_in_inds, uint32_t p_
 		// find existing?
 		bool found = false;
 
+#ifdef GODOT_DEDUPLICATOR_USE_GRID
+		grid.find(pt, _epsilon, found_ids);
+
+		for (int idc = 0; idc < found_ids.size(); idc++) {
+			int i = found_ids[idc];
+			{
+#else
 		for (int i = 0; i < out_verts.size(); i++) {
 			//print_line("\tout_vert " + itos(i) + " : ( " + String(Variant(out_verts[i])) + " ) ");
 
 			if (out_verts[i].is_equal_approx(pt, _epsilon)) {
+#endif
 				// attribute tests
 				int out_vert_orig_id = out_vert_sources[i];
 
@@ -101,6 +169,11 @@ bool SpatialDeduplicator::deduplicate_map(const uint32_t *p_in_inds, uint32_t p_
 
 		// not found...
 		r_vert_map[n] = out_verts.size();
+
+#ifdef GODOT_DEDUPLICATOR_USE_GRID
+		grid.add(pt, out_verts.size());
+#endif
+
 		out_verts.push_back(pt);
 		out_vert_sources.push_back(n);
 	}

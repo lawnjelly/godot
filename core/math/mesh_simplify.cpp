@@ -21,7 +21,9 @@ uint32_t MeshSimplify::simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in
 	LocalVectori<Vector3> deduped_verts;
 	LocalVectori<uint32_t> deduped_inds;
 
+	print_line("dedupe start");
 	_deduplicator.deduplicate_map(p_in_inds, p_num_in_inds, p_in_verts, p_num_in_verts, r_vert_map, r_num_out_verts, deduped_inds);
+	print_line("dedupe end");
 
 	// construct deduped verts
 	deduped_verts.resize(r_num_out_verts);
@@ -62,9 +64,14 @@ uint32_t MeshSimplify::simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in
 
 	_create_tris(p_in_inds, p_num_in_inds);
 
+	print_line("simplify start");
+	int debug_count = 0;
 	while (_simplify()) {
-		;
+		debug_count++;
+		if ((debug_count % 256) == 0)
+			print_line("\tsimplify " + itos(debug_count));
 	}
+	print_line("simplify end");
 
 	// export final list
 	uint32_t count = 0;
@@ -114,10 +121,12 @@ uint32_t MeshSimplify::simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in
 void MeshSimplify::_optimize_vertex_cache(uint32_t *r_inds, uint32_t p_num_inds, uint32_t p_num_verts) const {
 	LocalVectori<uint32_t> inds_copy;
 	inds_copy.resize(p_num_inds);
-	memcpy(&inds_copy[0], r_inds, p_num_inds * sizeof(uint32_t));
+	if (p_num_inds) {
+		memcpy(&inds_copy[0], r_inds, p_num_inds * sizeof(uint32_t));
 
-	VertexCacheOptimizer<uint32_t> opt;
-	opt.reorder_indices(r_inds, &inds_copy[0], p_num_inds / 3, p_num_verts);
+		VertexCacheOptimizer<uint32_t> opt;
+		opt.reorder_indices(r_inds, &inds_copy[0], p_num_inds / 3, p_num_verts);
+	}
 }
 
 uint32_t MeshSimplify::_find_or_add(uint32_t p_val, LocalVectori<uint32_t> &r_list) {
@@ -243,9 +252,10 @@ void MeshSimplify::_create_tris(const uint32_t *p_inds, uint32_t p_num_inds) {
 
 	// find neighbours
 	for (int n = 0; n < _tris.size(); n++) {
-		for (int i = n + 1; i < _tris.size(); i++) {
-			_establish_neighbours(n, i);
-		}
+		_establish_neighbours_for_tri(n);
+		//		for (int i = n + 1; i < _tris.size(); i++) {
+		//			_establish_neighbours(n, i);
+		//		}
 	}
 
 	// mark edge tris
@@ -265,7 +275,47 @@ void MeshSimplify::_create_tris(const uint32_t *p_inds, uint32_t p_num_inds) {
 	}
 }
 
+void MeshSimplify::_establish_neighbours_for_tri(int p_tri_id) {
+	// can only possibly be neighbours with tris that share our vertices.
+	Tri &tri = _tris[p_tri_id];
+	if (!tri.active) {
+		return;
+	}
+
+	// First reset all neighbours to NULL
+	// to clear any previous neighbour triangles that might have been
+	// removed.
+	for (int n = 0; n < 3; n++) {
+		tri.neigh[n] = UINT32_MAX;
+	}
+
+	// now create a list of neighbours
+	LocalVectori<uint32_t> poss_tris;
+	for (int c = 0; c < 3; c++) {
+		const Vert &vert = _verts[tri.corn[c]];
+		for (int n = 0; n < vert.tris.size(); n++) {
+			uint32_t ntri_id = vert.tris[n];
+			poss_tris.find_or_push_back(ntri_id);
+		}
+	}
+
+	for (int n = 0; n < poss_tris.size(); n++) {
+		uint32_t ntri_id = poss_tris[n];
+
+		if (_tris[ntri_id].active) {
+			_establish_neighbours(p_tri_id, poss_tris[n]);
+		}
+	}
+}
+
 void MeshSimplify::_establish_neighbours(int p_tri0, int p_tri1) {
+	if (p_tri0 == p_tri1) {
+		// Finding neighbouring edges with ourself
+		// will always find 3 matches, and pollute the outgoing neighbours,
+		// so we need to avoid testing against ourself.
+		return;
+	}
+
 	Tri &t0 = _tris[p_tri0];
 	Tri &t1 = _tris[p_tri1];
 
@@ -457,6 +507,23 @@ bool MeshSimplify::_allow_collapse(uint32_t p_tri_id, uint32_t p_vert_from, uint
 							return false;
 						}
 					} break;
+					case SpatialDeduplicator::Attribute::AT_NORMAL: {
+						const Vector3 &n0 = attr.vec3s[new_corn[0]];
+						const Vector3 &n1 = attr.vec3s[new_corn[1]];
+						const Vector3 &n2 = attr.vec3s[new_corn[2]];
+
+						// barycentric interpolation
+						Vector3 inter = (n0 * by.x) + (n1 * by.y) + (n2 * by.z);
+						inter.normalize();
+
+						// find offset from old vertex UV
+						const Vector3 &n_old = attr.vec3s[p_vert_from];
+
+						real_t dot = n_old.dot(inter);
+						if (dot < attr.epsilon_merge) {
+							return false;
+						}
+					} break;
 					default: {
 					} break;
 				}
@@ -507,11 +574,13 @@ void MeshSimplify::_resync_tri(uint32_t p_tri_id) {
 		tri.neigh[c] = UINT32_MAX;
 	}
 
-	// re-establish neighbours
-	for (int t = 0; t < _tris.size(); t++) {
-		if (t == p_tri_id)
-			continue;
+	_establish_neighbours_for_tri(p_tri_id);
 
-		_establish_neighbours(p_tri_id, t);
-	}
+	// re-establish neighbours
+	//	for (int t = 0; t < _tris.size(); t++) {
+	//		if (t == p_tri_id)
+	//			continue;
+
+	//		_establish_neighbours(p_tri_id, t);
+	//	}
 }
