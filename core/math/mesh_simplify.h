@@ -10,6 +10,9 @@
 // This could alternatively be written as a template, which would be more efficient but require everything in the header.
 //typedef bool (*MeshSimplifyCallback)(void *p_userdata, const uint32_t p_tri_from[3], const uint32_t p_tri_to[3]);
 
+#define GODOT_MESH_SIMPLIFY_USE_DIRTY_VERTS
+#define GODOT_MESH_SIMPLIFY_OPTIMIZED_NEIGHS
+
 class MeshSimplify {
 	SpatialDeduplicator _deduplicator;
 
@@ -61,6 +64,14 @@ class MeshSimplify {
 		bool edge_vert = false;
 		bool active = false;
 
+		// We only need to check dirty vertices for collapsing from..
+		// i.e. vertices that have recently had neighbours collapsed.
+		// If we have already checked a vertex for collapsing and no neighbours
+		// have changed, no need to check again in a new iteration.
+#ifdef GODOT_MESH_SIMPLIFY_USE_DIRTY_VERTS
+		bool dirty = true;
+#endif
+
 		// The max displacement of the points merged to this vertex so far.
 		// This prevents "creep", where a vertex merges slowly a large displacement
 		// than would be possible over a single merge
@@ -93,6 +104,7 @@ private:
 	bool _calculate_plane(uint32_t p_corns[3], Plane &r_plane) const;
 	bool _allow_collapse(uint32_t p_tri_id, uint32_t p_vert_from, uint32_t p_vert_to, real_t &r_max_displacement) const;
 	uint32_t _find_or_add(uint32_t p_val, LocalVectori<uint32_t> &r_list);
+	void _delete_triangle(uint32_t p_tri_id);
 
 	//	void _deduplicate_verts(const uint32_t *p_in_inds, uint32_t p_num_in_inds, const Vector3 *p_in_verts, uint32_t p_num_in_verts, LocalVectori<uint32_t> &r_vert_map, uint32_t &r_num_out_verts, LocalVectori<Vector3> &r_deduped_verts, LocalVectori<uint32_t> &r_deduped_verts_source, LocalVectori<uint32_t> &r_deduped_inds);
 	void _optimize_vertex_cache(uint32_t *r_inds, uint32_t p_num_inds, uint32_t p_num_verts) const;
@@ -102,6 +114,11 @@ private:
 
 	LocalVectori<uint32_t> _merge_vert_ids;
 	real_t _threshold_dist = 0.01;
+
+	// This temporary triangle list is used multiple times,
+	// and is stored on the object instead of recreating each time
+	// to save on allocations.
+	LocalVectori<uint32_t> _possible_tris;
 
 	//MeshSimplifyCallback _callback = nullptr;
 	//void *_callback_userdata = nullptr;

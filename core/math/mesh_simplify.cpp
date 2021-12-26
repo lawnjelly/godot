@@ -252,10 +252,13 @@ void MeshSimplify::_create_tris(const uint32_t *p_inds, uint32_t p_num_inds) {
 
 	// find neighbours
 	for (int n = 0; n < _tris.size(); n++) {
+#ifdef GODOT_MESH_SIMPLIFY_OPTIMIZED_NEIGHS
 		_establish_neighbours_for_tri(n);
-		//		for (int i = n + 1; i < _tris.size(); i++) {
-		//			_establish_neighbours(n, i);
-		//		}
+#else
+		for (int i = n + 1; i < _tris.size(); i++) {
+			_establish_neighbours(n, i);
+		}
+#endif
 	}
 
 	// mark edge tris
@@ -290,20 +293,20 @@ void MeshSimplify::_establish_neighbours_for_tri(int p_tri_id) {
 	}
 
 	// now create a list of neighbours
-	LocalVectori<uint32_t> poss_tris;
+	_possible_tris.clear();
 	for (int c = 0; c < 3; c++) {
 		const Vert &vert = _verts[tri.corn[c]];
 		for (int n = 0; n < vert.tris.size(); n++) {
 			uint32_t ntri_id = vert.tris[n];
-			poss_tris.find_or_push_back(ntri_id);
+			_possible_tris.find_or_push_back(ntri_id);
 		}
 	}
 
-	for (int n = 0; n < poss_tris.size(); n++) {
-		uint32_t ntri_id = poss_tris[n];
+	for (int n = 0; n < _possible_tris.size(); n++) {
+		uint32_t ntri_id = _possible_tris[n];
 
 		if (_tris[ntri_id].active) {
-			_establish_neighbours(p_tri_id, poss_tris[n]);
+			_establish_neighbours(p_tri_id, _possible_tris[n]);
 		}
 	}
 }
@@ -318,6 +321,10 @@ void MeshSimplify::_establish_neighbours(int p_tri0, int p_tri1) {
 
 	Tri &t0 = _tris[p_tri0];
 	Tri &t1 = _tris[p_tri1];
+
+	if (!t0.active || !t1.active) {
+		return;
+	}
 
 	for (int c = 0; c < 3; c++) {
 		for (int i = 0; i < 3; i++) {
@@ -334,6 +341,11 @@ uint32_t MeshSimplify::_choose_vert_to_merge(uint32_t p_start_from) const {
 	// find a vertex that is not an edge vert
 	for (int n = p_start_from; n < _verts.size(); n++) {
 		const Vert &vert = _verts[n];
+#ifdef GODOT_MESH_SIMPLIFY_USE_DIRTY_VERTS
+		if (!vert.dirty)
+			continue;
+#endif
+
 		if (!vert.active)
 			continue;
 
@@ -361,8 +373,8 @@ bool MeshSimplify::_find_vert_to_merge_to(uint32_t p_vert_from) {
 			continue;
 		for (int c = 0; c < 3; c++) {
 			if (tri.corn[c] != p_vert_from) {
-				_merge_vert_ids.push_back(tri.corn[c]);
-				//return tri.corn[c];
+				_merge_vert_ids.find_or_push_back(tri.corn[c]);
+				//_merge_vert_ids.push_back(tri.corn[c]);
 			}
 		}
 	}
@@ -433,6 +445,11 @@ bool MeshSimplify::_simplify() {
 		if (_simplify_vert(vert_id)) {
 			return true;
 		}
+
+		// mark this vertex as no longer dirty
+#ifdef GODOT_MESH_SIMPLIFY_USE_DIRTY_VERTS
+		_verts[vert_id].dirty = false;
+#endif
 	}
 
 	return false;
@@ -536,6 +553,21 @@ bool MeshSimplify::_allow_collapse(uint32_t p_tri_id, uint32_t p_vert_from, uint
 	return true;
 }
 
+void MeshSimplify::_delete_triangle(uint32_t p_tri_id) {
+	Tri &t = _tris[p_tri_id];
+	t.active = false;
+
+	// move from vertices
+	for (int n = 0; n < 3; n++) {
+		uint32_t vert_id = t.corn[n];
+		Vert &vert = _verts[vert_id];
+		vert.tris.erase(p_tri_id);
+	}
+
+	// remove from triangles that count it as a neighbour?
+	// not sure this needs doing...
+}
+
 void MeshSimplify::_adjust_tri(uint32_t p_tri_id, uint32_t p_vert_from, uint32_t p_vert_to) {
 	Tri &t = _tris[p_tri_id];
 
@@ -548,13 +580,21 @@ void MeshSimplify::_adjust_tri(uint32_t p_tri_id, uint32_t p_vert_from, uint32_t
 	// delete degenerates
 	if ((t.corn[0] == t.corn[1]) || (t.corn[1] == t.corn[2]) || (t.corn[0] == t.corn[2])) {
 		// print_line("removed tri " + itos(p_tri_id));
-		t.active = false;
+		_delete_triangle(p_tri_id);
 		return;
 	}
 
 	// link the tri to the vert if not linked already
 	Vert &vert = _verts[p_vert_to];
 	vert.link_tri(p_tri_id);
+
+	// make all corners dirty
+#ifdef GODOT_MESH_SIMPLIFY_USE_DIRTY_VERTS
+	for (int c = 0; c < 3; c++) {
+		Vert &vert = _verts[t.corn[c]];
+		vert.dirty = true;
+	}
+#endif
 }
 
 void MeshSimplify::_resync_tri(uint32_t p_tri_id) {
@@ -574,13 +614,57 @@ void MeshSimplify::_resync_tri(uint32_t p_tri_id) {
 		tri.neigh[c] = UINT32_MAX;
 	}
 
+#ifdef GODOT_MESH_SIMPLIFY_OPTIMIZED_NEIGHS
 	_establish_neighbours_for_tri(p_tri_id);
 
-	// re-establish neighbours
-	//	for (int t = 0; t < _tris.size(); t++) {
-	//		if (t == p_tri_id)
-	//			continue;
+#if 0
+	struct Vector3i {
+		Vector3i() { ; }
+		Vector3i(int a, int b, int c) {
+			x = a;
+			y = b;
+			z = c;
+		}
+		bool operator==(const Vector3i &o) const { return x == o.x && y == o.y && z == o.z; }
+		bool operator!=(const Vector3i &o) const { return (*this == o) == false; }
+		int x, y, z;
+	};
 
-	//		_establish_neighbours(p_tri_id, t);
-	//	}
+	// verify
+	LocalVectori<Vector3i> ver_neighs;
+	ver_neighs.resize(_tris.size());
+	for (int n = 0; n < _tris.size(); n++) {
+		const Tri &nt = _tris[n];
+		ver_neighs[n] = Vector3i(nt.neigh[0], nt.neigh[1], nt.neigh[2]);
+	}
+
+	// re-establish neighbours
+	for (int t = 0; t < _tris.size(); t++) {
+		if (t == p_tri_id)
+			continue;
+
+		_establish_neighbours(p_tri_id, t);
+	}
+
+	//  test
+	for (int n = 0; n < _tris.size(); n++) {
+		const Tri &nt = _tris[n];
+		if (nt.active) {
+			if (ver_neighs[n] != Vector3i(nt.neigh[0], nt.neigh[1], nt.neigh[2])) {
+				_establish_neighbours_for_tri(p_tri_id);
+			}
+		}
+		//DEV_ASSERT(ver_neighs[n] == Vector3i(nt.neigh[0], nt.neigh[1], nt.neigh[2]));
+	}
+#endif
+
+#else
+	// re-establish neighbours
+	for (int t = 0; t < _tris.size(); t++) {
+		if (t == p_tri_id)
+			continue;
+
+		_establish_neighbours(p_tri_id, t);
+	}
+#endif
 }
