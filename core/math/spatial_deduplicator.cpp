@@ -194,3 +194,35 @@ bool SpatialDeduplicator::deduplicate_map(const uint32_t *p_in_inds, uint32_t p_
 
 	return true;
 }
+
+void SpatialDeduplicator::find_duplicate_positions(const Vector3 *p_in_verts, uint32_t p_num_in_verts, LocalVectori<LinkedVerts> &r_linked_verts_list, real_t p_epsilon) {
+	// resize down at the end
+	r_linked_verts_list.resize(p_num_in_verts);
+	int used = 0;
+
+	for (uint32_t n = 0; n < p_num_in_verts; n++) {
+		const Vector3 &pos = p_in_verts[n];
+
+		// already exists?
+		bool found = false;
+
+		for (int i = 0; i < used; i++) {
+			LinkedVerts &lv = r_linked_verts_list[i];
+			if (lv.pos.is_equal_approx(pos, p_epsilon)) {
+				lv.vert_ids.push_back(n);
+				found = true;
+				break;
+			}
+		}
+
+		if (!found) {
+			LinkedVerts &lv = r_linked_verts_list[used];
+			lv.pos = pos;
+			lv.vert_ids.push_back(n);
+			used++;
+		}
+	}
+
+	// resize the array down
+	r_linked_verts_list.resize(used);
+}

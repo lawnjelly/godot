@@ -1138,7 +1138,7 @@ bool MeshInstance::create_by_merging(Vector<MeshInstance *> p_list, real_t p_sim
 		// simplifcation?
 		if (p_simplify >= 0.0) {
 			real_t epsilon = get_lod_max_hysteresis();
-			epsilon /= 200000.0;
+			epsilon /= 50000.0; // 200000.0;
 
 			ArrayMesh::simplify_mesh_data(verts, normals, tangents, colors, uvs, uv2s, inds, epsilon);
 			//_simplify_mesh_data(verts, normals, tangents, colors, uvs, uv2s, inds, p_simplify);

@@ -3,15 +3,9 @@
 #include "core/math/vertex_cache_optimizer.h"
 #include "core/print_string.h"
 
-//void MeshSimplify::_deduplicate_verts(const uint32_t *p_in_inds, uint32_t p_num_in_inds, const Vector3 *p_in_verts, uint32_t p_num_in_verts, LocalVectori<uint32_t> &r_vert_map, uint32_t &r_num_out_verts, LocalVectori<Vector3> &r_deduped_verts, LocalVectori<uint32_t> &r_deduped_verts_source, LocalVectori<uint32_t> &r_deduped_inds)
-//{
-
-//}
+#define GODOT_MESH_SIMPLIFY_VERBOSE
 
 uint32_t MeshSimplify::simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in_inds, const Vector3 *p_in_verts, uint32_t p_num_in_verts, uint32_t *r_out_inds, LocalVectori<uint32_t> &r_vert_map, uint32_t &r_num_out_verts, real_t p_threshold) {
-	//	_callback = p_callback;
-	//	_callback_userdata = p_userdata;
-
 	_threshold_dist = p_threshold;
 
 	uint32_t orig_num_verts = p_num_in_verts;
@@ -51,6 +45,7 @@ uint32_t MeshSimplify::simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in
 	p_num_in_verts = deduped_verts.size();
 
 	print_line("orig num verts " + itos(orig_num_verts) + ", after dedup : " + itos(r_num_out_verts));
+
 	//////////////////////////////////////////////////////////////////////////////////
 
 	_verts.clear();
@@ -62,16 +57,56 @@ uint32_t MeshSimplify::simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in
 		_verts[n].pos = p_in_verts[n];
 	}
 
+	////////////////////////////////////////////////////
+	// set up linked verts
+	LocalVectori<SpatialDeduplicator::LinkedVerts> linked_verts_list;
+	_deduplicator.find_duplicate_positions(p_in_verts, p_num_in_verts, linked_verts_list);
+
+	for (int n = 0; n < linked_verts_list.size(); n++) {
+		const SpatialDeduplicator::LinkedVerts &lv = linked_verts_list[n];
+
+		if (lv.vert_ids.size() > 1) {
+			for (int i = 0; i < lv.vert_ids.size(); i++) {
+				Vert &vert = _verts[lv.vert_ids[i]];
+				vert.linked_verts = lv.vert_ids;
+
+				// erase the id of the vert itself
+				vert.linked_verts.erase(lv.vert_ids[i]);
+			}
+		}
+	}
+
+	////////////////////////////////////////////////////
+
 	_create_tris(p_in_inds, p_num_in_inds);
+
+#ifdef GODOT_MESH_SIMPLIFY_VERBOSE
+	print_line("in verts:");
+	for (int n = 0; n < _verts.size(); n++) {
+		const Vert &vert = _verts[n];
+		String sz = "\t" + itos(n) + " : " + String(Variant(vert.pos));
+		if (vert.edge_vert)
+			sz += " E";
+		if (vert.edge_colinear)
+			sz += "C";
+
+		print_line(sz);
+	}
 
 	print_line("simplify start");
 	int debug_count = 0;
+#endif
 	while (_simplify()) {
+#ifdef GODOT_MESH_SIMPLIFY_VERBOSE
+		_debug_verify_verts();
 		debug_count++;
 		if ((debug_count % 256) == 0)
 			print_line("\tsimplify " + itos(debug_count));
+#endif
 	}
+#ifdef GODOT_MESH_SIMPLIFY_VERBOSE
 	print_line("simplify end");
+#endif
 
 	// export final list
 	uint32_t count = 0;
@@ -271,9 +306,32 @@ void MeshSimplify::_create_tris(const uint32_t *p_inds, uint32_t p_num_inds) {
 			} else {
 				// mark the verts as an edge vert
 				const Edge &edge = t.edge[c];
-				_verts[edge.a].edge_vert = true;
-				_verts[edge.b].edge_vert = true;
+				_verts[edge.a].add_edge_vert_neigh(edge.b);
+				_verts[edge.b].add_edge_vert_neigh(edge.a);
 			}
+		}
+	}
+
+	// for edge verts, also add a special check for colinearity
+	for (int n = 0; n < _verts.size(); n++) {
+		Vert &v1 = _verts[n];
+		if (!v1.edge_vert)
+			continue;
+
+		const Vert &v0 = _verts[v1.edge_vert_neighs[0]];
+		const Vert &v2 = _verts[v1.edge_vert_neighs[1]];
+
+		// colinear?
+		Vector3 d0 = v1.pos - v0.pos;
+		Vector3 d1 = v2.pos - v1.pos;
+
+		d0.normalize();
+		d1.normalize();
+
+		real_t dot = d0.dot(d1);
+		real_t epsilon_colinear = 0.2;
+		if (dot >= epsilon_colinear) {
+			v1.edge_colinear = true;
 		}
 	}
 }
@@ -349,13 +407,47 @@ uint32_t MeshSimplify::_choose_vert_to_merge(uint32_t p_start_from) const {
 		if (!vert.active)
 			continue;
 
-		if (vert.edge_vert)
+		if (vert.locked)
 			continue;
+
+		if (vert.edge_vert) {
+			if (vert.edge_colinear) {
+				// only allow if there is 1 or less linked tris
+				if (vert.linked_verts.size() > 1)
+					continue;
+
+				// if at the side of an edge, don't allow collapse
+				if (vert.has_edge_vert_neigh(UINT32_MAX))
+					continue;
+
+				//			print_line("choose_vert_to_merge from " + String(Variant(vert.pos)));
+			} else {
+				continue;
+			}
+		}
 
 		return n;
 	}
 
 	return UINT32_MAX;
+}
+
+bool MeshSimplify::_check_merge_allowed(uint32_t p_vert_from, uint32_t p_vert_to) const {
+	const Vert &a = _verts[p_vert_from];
+	const Vert &b = _verts[p_vert_to];
+
+	if (a.edge_vert) {
+		DEV_ASSERT(_is_reciprocal_edge(p_vert_from, p_vert_to));
+	}
+	return true;
+}
+
+bool MeshSimplify::_is_reciprocal_edge(uint32_t p_vert_a, uint32_t p_vert_b) const {
+	const Vert &a = _verts[p_vert_a];
+	const Vert &b = _verts[p_vert_b];
+
+	bool res = a.has_edge_vert_neigh(p_vert_b) && b.has_edge_vert_neigh(p_vert_a);
+	return res;
 }
 
 bool MeshSimplify::_find_vert_to_merge_to(uint32_t p_vert_from) {
@@ -364,21 +456,56 @@ bool MeshSimplify::_find_vert_to_merge_to(uint32_t p_vert_from) {
 	// can join to any using this edge
 	const Vert &vert = _verts[p_vert_from];
 
-	for (int t = 0; t < vert.tris.size(); t++) {
-		uint32_t tri_id = vert.tris[t];
-		DEV_ASSERT(tri_id < _tris.size());
+	if (!vert.edge_vert) {
+		for (int t = 0; t < vert.tris.size(); t++) {
+			uint32_t tri_id = vert.tris[t];
+			DEV_ASSERT(tri_id < _tris.size());
 
-		const Tri &tri = _tris[tri_id];
-		if (!tri.active)
-			continue;
-		for (int c = 0; c < 3; c++) {
-			if (tri.corn[c] != p_vert_from) {
-				_merge_vert_ids.find_or_push_back(tri.corn[c]);
-				//_merge_vert_ids.push_back(tri.corn[c]);
+			const Tri &tri = _tris[tri_id];
+			if (!tri.active)
+				continue;
+			for (int c = 0; c < 3; c++) {
+				uint32_t vid = tri.corn[c];
+				if (vid != p_vert_from) {
+					_merge_vert_ids.find_or_push_back(vid);
+				}
 			}
-		}
-	}
+		} // for t through tris
+	} else {
+		// edge vert
+		for (int t = 0; t < vert.tris.size(); t++) {
+			uint32_t tri_id = vert.tris[t];
+			DEV_ASSERT(tri_id < _tris.size());
+
+			const Tri &tri = _tris[tri_id];
+			if (!tri.active)
+				continue;
+			for (int c = 0; c < 3; c++) {
+				uint32_t vid = tri.corn[c];
+				if (vid != p_vert_from) {
+					if (_verts[vid].edge_vert)
+
+						// there must be a reciprocal edge for this collapse to be possible
+						if (_is_reciprocal_edge(p_vert_from, vid))
+							_merge_vert_ids.find_or_push_back(vid);
+				}
+			}
+		} // for t through tris
+	} // from edge vert
 	return _merge_vert_ids.size() != 0;
+}
+
+bool MeshSimplify::_tri_simplify_linked_merge_vert(uint32_t p_vert_from_id, uint32_t p_vert_to_id) {
+	Vert &vert_from = _verts[p_vert_from_id];
+
+	real_t max_displacement = 0.0;
+
+	if (_try_simplify_merge_vert(vert_from, p_vert_from_id, p_vert_to_id, max_displacement)) {
+		_finalize_merge(p_vert_from_id, p_vert_to_id, max_displacement);
+		return true;
+	}
+
+	return false;
 }
 
 bool MeshSimplify::_simplify_vert(uint32_t p_vert_id) {
@@ -392,43 +519,143 @@ bool MeshSimplify::_simplify_vert(uint32_t p_vert_id) {
 
 	for (int m = 0; m < _merge_vert_ids.size(); m++) {
 		uint32_t test_merge_vert = _merge_vert_ids[m];
-		max_displacement = 0.0;
 
-		// is this suitable for collapse?
-		bool allow = true;
-		for (int n = 0; n < vert.tris.size(); n++) {
-			if (!_allow_collapse(vert.tris[n], p_vert_id, test_merge_vert, max_displacement)) {
+		if (_try_simplify_merge_vert(vert, p_vert_id, test_merge_vert, max_displacement)) {
+			// special case, if we have a linked vert, that must also do a mirror merge for this to be allowed.
+			bool allow = true;
+			if (vert.linked_verts.size()) {
 				allow = false;
+				const Vert &merge_vert = _verts[test_merge_vert];
+				//if (merge_vert.linked_verts.size() == 1) {
+				if (true) {
+					uint32_t link_from = vert.linked_verts[0];
+
+					if (link_from != test_merge_vert) {
+						const Vert &link_from_vert = _verts[link_from];
+
+						// find the edge neighbour of the link_from that is also a linked vert
+						// of the merged_vert
+						uint32_t link_to = 0;
+						bool found = false;
+						for (int ln = 0; ln < 2; ln++) {
+							link_to = link_from_vert.edge_vert_neighs[ln];
+
+							// is link_to on the list?
+							for (int lv = 0; lv < merge_vert.linked_verts.size(); lv++) {
+								if (merge_vert.linked_verts[lv] == link_to) {
+									// found!
+									found = true;
+									break;
+								}
+							}
+						}
+
+						// if we didn't find, we are attempting to join a linked vert to a non-linked vert,
+						// and this will disrupt the border, so we do not allow
+						if (found) {
+							_check_merge_allowed(p_vert_id, test_merge_vert);
+
+							//						if (test_merge_vert == 2033)
+							//						{
+							//							;
+							//						}
+
+							// test and carry out the linked merge, if it can work
+							allow = _tri_simplify_linked_merge_vert(link_from, link_to);
+							_check_merge_allowed(p_vert_id, test_merge_vert);
+						} else {
+							allow = false;
+						}
+
+					} // if not trying to link to the merge vert
+				}
+			}
+
+			if (allow) {
+				merge_vert = test_merge_vert;
 				break;
 			}
 		}
 
-		if (allow) {
-			merge_vert = test_merge_vert;
-			break;
-		}
+		//		max_displacement = 0.0;
+
+		//		// is this suitable for collapse?
+		//		bool allow = true;
+		//		for (int n = 0; n < vert.tris.size(); n++) {
+		//			if (!_allow_collapse(vert.tris[n], p_vert_id, test_merge_vert, max_displacement)) {
+		//				allow = false;
+		//				break;
+		//			}
+		//		}
+
+		//		if (allow) {
+		//			merge_vert = test_merge_vert;
+		//			break;
+		//		}
 	}
 
 	if (merge_vert == UINT32_MAX)
 		return false;
 
 	// print_line("merging vert " + itos(p_vert_id) + " to vert " + itos(merge_vert));
+	_finalize_merge(p_vert_id, merge_vert, max_displacement);
 
+	//	vert.active = false;
+
+	//	real_t &new_max_displacement = _verts[merge_vert].displacement;
+	//	new_max_displacement = MAX(new_max_displacement, max_displacement);
+
+	//	// adjust all attached tris
+	//	for (int n = 0; n < vert.tris.size(); n++) {
+	//		_adjust_tri(vert.tris[n], p_vert_id, merge_vert);
+	//	}
+
+	//	for (int n = 0; n < vert.tris.size(); n++) {
+	//		_resync_tri(vert.tris[n]);
+	//	}
+
+	return true;
+}
+
+void MeshSimplify::_finalize_merge(uint32_t p_vert_from_id, uint32_t p_vert_to_id, real_t p_max_displacement) {
+	Vert &vert = _verts[p_vert_from_id];
 	vert.active = false;
 
-	real_t &new_max_displacement = _verts[merge_vert].displacement;
-	new_max_displacement = MAX(new_max_displacement, max_displacement);
+	Vert &vert_to = _verts[p_vert_to_id];
+#ifdef GODOT_MESH_SIMPLIFY_VERBOSE
+	print_line("finalize merge from " + itos(p_vert_from_id) + " (" + String(Variant(vert.pos)) + ") to " + itos(p_vert_to_id) + " (" + String(Variant(vert_to.pos)) + ")");
+#endif
+
+	real_t &new_max_displacement = vert_to.displacement;
+	new_max_displacement = MAX(new_max_displacement, p_max_displacement);
 
 	// adjust all attached tris
 	for (int n = 0; n < vert.tris.size(); n++) {
-		_adjust_tri(vert.tris[n], p_vert_id, merge_vert);
+		_adjust_tri(vert.tris[n], p_vert_from_id, p_vert_to_id);
 	}
 
 	for (int n = 0; n < vert.tris.size(); n++) {
 		_resync_tri(vert.tris[n]);
 	}
 
-	return true;
+	// special case, if we are merging between 2 edge verts, we need to rejig the neighbours to be correct after the merge
+	if (vert.edge_vert) {
+		uint32_t other_from = vert.get_other_edge_vert_neigh(p_vert_to_id);
+
+		if (!vert_to.locked) {
+			uint32_t other_to = vert_to.get_other_edge_vert_neigh(p_vert_from_id);
+
+			// only the merged vertex left needs to be altered ... the next neigh is the same,
+			// but the previous neighbour should be the previous neighbour of the deleted vertex
+			vert_to.set_other_edge_vert_neigh(other_to, other_from);
+		}
+
+		if (other_from != UINT32_MAX) {
+			Vert &vert_prev = _verts[other_from];
+			if (!vert_prev.locked)
+				vert_prev.exchange_edge_vert_neigh(p_vert_from_id, p_vert_to_id);
+		}
+	}
 }
 
 bool MeshSimplify::_simplify() {
@@ -568,6 +795,29 @@ void MeshSimplify::_delete_triangle(uint32_t p_tri_id) {
 	// not sure this needs doing...
 }
 
+void MeshSimplify::_debug_verify_verts() {
+	for (int n = 0; n < _verts.size(); n++) {
+		_debug_verify_vert(n);
+	}
+}
+
+void MeshSimplify::_debug_verify_vert(uint32_t p_vert_id) {
+	const Vert &vert = _verts[p_vert_id];
+	if (!vert.active)
+		return;
+
+	if (!vert.edge_vert)
+		return;
+
+	for (int n = 0; n < 2; n++) {
+		uint32_t vn = vert.edge_vert_neighs[n];
+		if (vn != UINT32_MAX) {
+			const Vert &vert2 = _verts[vn];
+			DEV_ASSERT(vert2.has_edge_vert_neigh(p_vert_id));
+		}
+	}
+}
+
 void MeshSimplify::_adjust_tri(uint32_t p_tri_id, uint32_t p_vert_from, uint32_t p_vert_to) {
 	Tri &t = _tris[p_tri_id];
 
@@ -579,7 +829,9 @@ void MeshSimplify::_adjust_tri(uint32_t p_tri_id, uint32_t p_vert_from, uint32_t
 
 	// delete degenerates
 	if ((t.corn[0] == t.corn[1]) || (t.corn[1] == t.corn[2]) || (t.corn[0] == t.corn[2])) {
-		// print_line("removed tri " + itos(p_tri_id));
+#ifdef GODOT_MESH_SIMPLIFY_VERBOSE
+		print_line("removed degenerate tri " + itos(p_tri_id) + " (" + itos(t.corn[0]) + ", " + itos(t.corn[1]) + ", " + itos(t.corn[2]) + ")");
+#endif
 		_delete_triangle(p_tri_id);
 		return;
 	}

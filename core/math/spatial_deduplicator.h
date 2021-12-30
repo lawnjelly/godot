@@ -82,6 +82,11 @@ public:
 		};
 	};
 
+	struct LinkedVerts {
+		Vector3 pos;
+		LocalVectori<uint32_t> vert_ids;
+	};
+
 	// As well as position, vertices can prevent merging based on
 	// multiple optional custom attributes.
 	// These will be tested prior to merging.
@@ -90,4 +95,6 @@ public:
 	bool deduplicate_verts_only(const uint32_t *p_in_inds, uint32_t p_num_in_inds, const Vector3 *p_in_verts, uint32_t p_num_in_verts, LocalVectori<Vector3> &r_out_verts, LocalVectori<uint32_t> &r_out_inds, real_t p_epsilon = 0.01);
 
 	bool deduplicate_map(const uint32_t *p_in_inds, uint32_t p_num_in_inds, const Vector3 *p_in_verts, uint32_t p_num_in_verts, LocalVectori<uint32_t> &r_vert_map, uint32_t &r_num_out_verts, LocalVectori<uint32_t> &r_out_inds, real_t p_epsilon = 0.01);
+
+	void find_duplicate_positions(const Vector3 *p_in_verts, uint32_t p_num_in_verts, LocalVectori<LinkedVerts> &r_linked_verts_list, real_t p_epsilon = 0.01);
 };
