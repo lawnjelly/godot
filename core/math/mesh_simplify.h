@@ -46,6 +46,10 @@ class MeshSimplify {
 
 		bool active = true;
 
+		// quicker detection of mirror verts by
+		// quick rejection
+		bool has_mirror = false;
+
 		// for detecting mirroring
 		AABB aabb;
 		real_t aabb_volume;
@@ -199,6 +203,18 @@ class MeshSimplify {
 		real_t displacement = 0.0;
 	};
 
+	class Collapse {
+	public:
+		Collapse() {
+			from = UINT32_MAX;
+			to = UINT32_MAX;
+			max_displacement = 0.0;
+		}
+		uint32_t from;
+		uint32_t to;
+		real_t max_displacement;
+	};
+
 public:
 	void add_attribute(const SpatialDeduplicator::Attribute &p_attr) {
 		_deduplicator._attributes.push_back(p_attr);
@@ -219,6 +235,9 @@ private:
 
 	bool _tri_simplify_linked_merge_vert(uint32_t p_vert_from_id, uint32_t p_vert_to_id);
 	void _finalize_merge(uint32_t p_vert_from_id, uint32_t p_vert_to_id, real_t p_max_displacement);
+
+	void _add_collapse(uint32_t p_vert_from_id, uint32_t p_vert_to_id, real_t p_max_displacement);
+	void _apply_collapses();
 
 	void _create_tris(const uint32_t *p_inds, uint32_t p_num_inds);
 	void _establish_neighbours_for_tri(int p_tri_id);
@@ -250,6 +269,10 @@ private:
 	LocalVectori<uint32_t> _merge_vert_ids;
 	real_t _threshold_dist = 0.01;
 	bool _mirror_verts_only = false;
+
+	// pending list of collapses, so we can backtrack and undo
+	// collapses in the case of mirror verts
+	LocalVectori<Collapse> _collapses;
 
 	// This temporary triangle list is used multiple times,
 	// and is stored on the object instead of recreating each time

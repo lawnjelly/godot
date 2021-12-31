@@ -4,6 +4,7 @@
 #include "core/print_string.h"
 
 //#define GODOT_MESH_SIMPLIFY_VERBOSE
+#define GODOT_MESH_SIMPLIFY_CACHE_COLLAPSES
 
 uint32_t MeshSimplify::simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in_inds, const Vector3 *p_in_verts, uint32_t p_num_in_verts, uint32_t *r_out_inds, LocalVectori<uint32_t> &r_vert_map, uint32_t &r_num_out_verts, real_t p_threshold) {
 	_threshold_dist = p_threshold;
@@ -110,6 +111,7 @@ uint32_t MeshSimplify::simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in
 		}
 
 		while (_simplify()) {
+			_apply_collapses();
 #ifdef GODOT_MESH_SIMPLIFY_VERBOSE
 			_debug_verify_verts();
 			debug_count++;
@@ -192,16 +194,19 @@ void MeshSimplify::_detect_mirror_verts() {
 	axis_hits[2] = 0;
 
 	for (int n = 0; n < _tris.size(); n++) {
-		const Tri &ta = _tris[n];
+		Tri &ta = _tris[n];
 
 		for (int i = n + 1; i < _tris.size(); i++) {
-			const Tri &tb = _tris[i];
+			Tri &tb = _tris[i];
 
 			int axis = -1;
 			real_t midpoint = 0.0;
 			if (_detect_mirror_tris(ta, tb, axis, midpoint)) {
-				if (Math::is_equal_approx(midpoint, (real_t)0.0, (real_t)0.01))
+				if (Math::is_equal_approx(midpoint, (real_t)0.0, (real_t)0.01)) {
 					axis_hits[axis] += 1;
+					ta.has_mirror = true;
+					tb.has_mirror = true;
+				}
 			}
 		}
 	}
@@ -222,9 +227,13 @@ void MeshSimplify::_detect_mirror_verts() {
 	// now find mirrors
 	for (int n = 0; n < _tris.size(); n++) {
 		const Tri &ta = _tris[n];
+		if (!ta.has_mirror)
+			continue;
 
 		for (int i = n + 1; i < _tris.size(); i++) {
 			const Tri &tb = _tris[i];
+			if (!tb.has_mirror)
+				continue;
 
 			_find_mirror_verts(ta, tb, best_axis, 0.0);
 		}
@@ -264,6 +273,8 @@ void MeshSimplify::_find_mirror_verts(const Tri &p_a, const Tri &p_b, int p_axis
 				match_to[n] = i;
 			}
 		} // for i
+		if (matches != (n + 1))
+			return;
 	} // for n
 
 	if (matches != 3) {
@@ -697,7 +708,7 @@ bool MeshSimplify::_tri_simplify_linked_merge_vert(uint32_t p_vert_from_id, uint
 	real_t max_displacement = 0.0;
 
 	if (_try_simplify_merge_vert(vert_from, p_vert_from_id, p_vert_to_id, max_displacement)) {
-		_finalize_merge(p_vert_from_id, p_vert_to_id, max_displacement);
+		_add_collapse(p_vert_from_id, p_vert_to_id, max_displacement);
 		return true;
 	}
 
@@ -717,52 +728,70 @@ bool MeshSimplify::_simplify_vert_primary(uint32_t p_vert_from_id, uint32_t p_ve
 			allow = false;
 
 			//if (merge_vert.linked_verts.size() == 1) {
-			if (true) {
-				uint32_t link_from = vert_from.linked_verts[0];
+			//			if (true) {
+			uint32_t link_from = vert_from.linked_verts[0];
 
-				if (link_from != p_vert_to_id) {
-					const Vert &link_from_vert = _verts[link_from];
+			if (link_from != p_vert_to_id) {
+				const Vert &link_from_vert = _verts[link_from];
 
-					// find the edge neighbour of the link_from that is also a linked vert
-					// of the merged_vert
-					uint32_t link_to = 0;
-					bool found = false;
-					for (int ln = 0; ln < 2; ln++) {
-						link_to = link_from_vert.edge_vert_neighs[ln];
+				// find the edge neighbour of the link_from that is also a linked vert
+				// of the merged_vert
+				uint32_t link_to = 0;
+				bool found = false;
+				for (int ln = 0; ln < 2; ln++) {
+					link_to = link_from_vert.edge_vert_neighs[ln];
 
-						// is link_to on the list?
-						for (int lv = 0; lv < vert_to.linked_verts.size(); lv++) {
-							if (vert_to.linked_verts[lv] == link_to) {
-								// found!
-								found = true;
-								break;
-							}
+					// is link_to on the list?
+					for (int lv = 0; lv < vert_to.linked_verts.size(); lv++) {
+						if (vert_to.linked_verts[lv] == link_to) {
+							// found!
+							found = true;
+							break;
 						}
 					}
+				}
 
-					// if we didn't find, we are attempting to join a linked vert to a non-linked vert,
-					// and this will disrupt the border, so we do not allow
-					if (found) {
-						//_check_merge_allowed(p_vert_id, test_merge_vert);
+				// if we didn't find, we are attempting to join a linked vert to a non-linked vert,
+				// and this will disrupt the border, so we do not allow
+				if (found) {
+					//_check_merge_allowed(p_vert_id, test_merge_vert);
 
-						// test and carry out the linked merge, if it can work
-						allow = _tri_simplify_linked_merge_vert(link_from, link_to);
-						//_check_merge_allowed(p_vert_id, test_merge_vert);
-					} else {
-						allow = false;
-					}
+					// test and carry out the linked merge, if it can work
+					allow = _tri_simplify_linked_merge_vert(link_from, link_to);
+					//_check_merge_allowed(p_vert_id, test_merge_vert);
+				} else {
+					allow = false;
+				}
 
-				} // if not trying to link to the merge vert
-			}
+			} // if not trying to link to the merge vert
+			//			}
 		}
 
 		if (allow) {
-			_finalize_merge(p_vert_from_id, p_vert_to_id, max_displacement);
+			_add_collapse(p_vert_from_id, p_vert_to_id, max_displacement);
 			return true;
 		}
 	}
 
 	return false;
+}
+
+void MeshSimplify::_apply_collapses() {
+	if (_mirror_verts_only) {
+		int s = _collapses.size();
+		if ((s != 2) && (s != 4)) {
+			// don't apply unless symetrical
+			_collapses.clear();
+			return;
+		}
+	}
+
+	for (int n = 0; n < _collapses.size(); n++) {
+		const Collapse &c = _collapses[n];
+		_finalize_merge(c.from, c.to, c.max_displacement);
+	}
+
+	_collapses.clear();
 }
 
 bool MeshSimplify::_simplify_vert(uint32_t p_vert_from_id) {
@@ -789,6 +818,18 @@ bool MeshSimplify::_simplify_vert(uint32_t p_vert_from_id) {
 	}
 
 	return false;
+}
+
+void MeshSimplify::_add_collapse(uint32_t p_vert_from_id, uint32_t p_vert_to_id, real_t p_max_displacement) {
+#ifdef GODOT_MESH_SIMPLIFY_CACHE_COLLAPSES
+	Collapse c;
+	c.from = p_vert_from_id;
+	c.to = p_vert_to_id;
+	c.max_displacement = p_max_displacement;
+	_collapses.push_back(c);
+#else
+	_finalize_merge(p_vert_from_id, p_vert_to_id, p_max_displacement);
+#endif
 }
 
 void MeshSimplify::_finalize_merge(uint32_t p_vert_from_id, uint32_t p_vert_to_id, real_t p_max_displacement) {
@@ -844,6 +885,9 @@ bool MeshSimplify::_simplify() {
 		start_from = vert_id + 1;
 
 		if (_simplify_vert(vert_id)) {
+#ifdef GODOT_MESH_SIMPLIFY_USE_DIRTY_VERTS
+			_verts[vert_id].dirty = false;
+#endif
 			return true;
 		}
 
