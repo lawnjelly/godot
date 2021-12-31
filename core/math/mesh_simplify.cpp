@@ -3,7 +3,7 @@
 #include "core/math/vertex_cache_optimizer.h"
 #include "core/print_string.h"
 
-#define GODOT_MESH_SIMPLIFY_VERBOSE
+//#define GODOT_MESH_SIMPLIFY_VERBOSE
 
 uint32_t MeshSimplify::simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in_inds, const Vector3 *p_in_verts, uint32_t p_num_in_verts, uint32_t *r_out_inds, LocalVectori<uint32_t> &r_vert_map, uint32_t &r_num_out_verts, real_t p_threshold) {
 	_threshold_dist = p_threshold;
@@ -79,6 +79,7 @@ uint32_t MeshSimplify::simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in
 	////////////////////////////////////////////////////
 
 	_create_tris(p_in_inds, p_num_in_inds);
+	_detect_mirror_verts();
 
 #ifdef GODOT_MESH_SIMPLIFY_VERBOSE
 	print_line("in verts:");
@@ -96,17 +97,30 @@ uint32_t MeshSimplify::simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in
 	print_line("simplify start");
 	int debug_count = 0;
 #endif
-	while (_simplify()) {
+
+	for (int n = 0; n < 2; n++) {
+		if (n == 0) {
+			_mirror_verts_only = true;
+		} else {
+			_mirror_verts_only = false;
+			// make the non-mirror verts dirty
+			for (int i = 0; i < _verts.size(); i++) {
+				_verts[i].dirty = true;
+			}
+		}
+
+		while (_simplify()) {
 #ifdef GODOT_MESH_SIMPLIFY_VERBOSE
-		_debug_verify_verts();
-		debug_count++;
-		if ((debug_count % 256) == 0)
-			print_line("\tsimplify " + itos(debug_count));
+			_debug_verify_verts();
+			debug_count++;
+			if ((debug_count % 256) == 0)
+				print_line("\tsimplify " + itos(debug_count));
+#endif
+		}
+#ifdef GODOT_MESH_SIMPLIFY_VERBOSE
+		print_line("simplify end");
 #endif
 	}
-#ifdef GODOT_MESH_SIMPLIFY_VERBOSE
-	print_line("simplify end");
-#endif
 
 	// export final list
 	uint32_t count = 0;
@@ -151,6 +165,185 @@ uint32_t MeshSimplify::simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in
 	print_line("simplify tris before : " + itos(p_num_in_inds / 3) + ", after : " + itos(count / 3) + ", orig num verts " + itos(orig_num_verts) + ", final verts : " + itos(r_num_out_verts));
 
 	return count;
+}
+
+void MeshSimplify::_detect_mirror_verts() {
+	// first create tri AABBs
+	for (int n = 0; n < _tris.size(); n++) {
+		Tri &tri = _tris[n];
+
+		const Vector3 &a = _verts[tri.corn[0]].pos;
+		const Vector3 &b = _verts[tri.corn[1]].pos;
+		const Vector3 &c = _verts[tri.corn[2]].pos;
+
+		tri.aabb.position = a;
+		tri.aabb.size = Vector3();
+		tri.aabb.expand_to(b);
+		tri.aabb.expand_to(c);
+		tri.aabb_volume = tri.aabb.get_area();
+	}
+
+	// first we need to find a mirror axis, and the central plane
+	//	for (int axis=0; axis<3; axis++)
+	//	{
+	int axis_hits[3];
+	axis_hits[0] = 0;
+	axis_hits[1] = 0;
+	axis_hits[2] = 0;
+
+	for (int n = 0; n < _tris.size(); n++) {
+		const Tri &ta = _tris[n];
+
+		for (int i = n + 1; i < _tris.size(); i++) {
+			const Tri &tb = _tris[i];
+
+			int axis = -1;
+			real_t midpoint = 0.0;
+			if (_detect_mirror_tris(ta, tb, axis, midpoint)) {
+				if (Math::is_equal_approx(midpoint, (real_t)0.0, (real_t)0.01))
+					axis_hits[axis] += 1;
+			}
+		}
+	}
+
+	// find the most common axis and mirror on this
+	int best_axis = -1;
+	int best_hits = 0;
+	for (int n = 0; n < 3; n++) {
+		if (axis_hits[n] > best_hits) {
+			best_axis = n;
+			best_hits = axis_hits[n];
+		}
+	}
+
+	if (best_axis == -1)
+		return;
+
+	// now find mirrors
+	for (int n = 0; n < _tris.size(); n++) {
+		const Tri &ta = _tris[n];
+
+		for (int i = n + 1; i < _tris.size(); i++) {
+			const Tri &tb = _tris[i];
+
+			_find_mirror_verts(ta, tb, best_axis, 0.0);
+		}
+	}
+
+	// count for debugging
+#ifdef DEV_ENABLED
+	int count = 0;
+	for (int n = 0; n < _verts.size(); n++) {
+		if (_verts[n].mirror_vert != UINT32_MAX)
+			count++;
+	}
+
+	print_line(itos(count) + " mirror verts detected.");
+#endif
+}
+
+void MeshSimplify::_find_mirror_verts(const Tri &p_a, const Tri &p_b, int p_axis, real_t p_midpoint) {
+	// detect mirror verts
+	int matches = 0;
+
+	uint32_t match_to[3];
+
+	for (int n = 0; n < 3; n++) {
+		const Vector3 &a = _verts[p_a.corn[n]].pos;
+
+		// reflect
+		Vector3 ra = a;
+		real_t dist = p_midpoint - ra.get_axis(p_axis);
+		ra.set_axis(p_axis, p_midpoint + dist);
+
+		for (int i = 0; i < 3; i++) {
+			const Vector3 &b = _verts[p_b.corn[i]].pos;
+
+			if (b.is_equal_approx(ra, 0.01)) {
+				matches++;
+				match_to[n] = i;
+			}
+		} // for i
+	} // for n
+
+	if (matches != 3) {
+		return;
+	}
+
+	// now link
+	for (int n = 0; n < 3; n++) {
+		uint32_t va = p_a.corn[n];
+		uint32_t vb = p_b.corn[match_to[n]];
+
+		_verts[va].mirror_vert = vb;
+		_verts[vb].mirror_vert = va;
+	}
+}
+
+bool MeshSimplify::_detect_mirror_tris(const Tri &p_a, const Tri &p_b, int &r_axis, real_t &r_midpoint) const {
+	real_t vol_diff = Math::abs(p_b.aabb_volume - p_a.aabb_volume);
+	if (vol_diff > 0.1)
+		return false;
+
+	bool axis_same[3];
+	r_axis = -1;
+	int count = 0;
+	for (int n = 0; n < 3; n++) {
+		real_t pa = p_a.aabb.position.get_axis(n);
+		real_t pb = p_b.aabb.position.get_axis(n);
+		axis_same[n] = Math::abs(pb - pa) < 0.01;
+		if (axis_same[n]) {
+			count++;
+		} else {
+			r_axis = n;
+		}
+	}
+
+	if (count < 2)
+		return false;
+
+	if (r_axis == -1)
+		return false;
+
+	if (Math::abs(p_b.aabb.size.x - p_a.aabb.size.x) > 0.01)
+		return false;
+	if (Math::abs(p_b.aabb.size.y - p_a.aabb.size.y) > 0.01)
+		return false;
+	if (Math::abs(p_b.aabb.size.z - p_a.aabb.size.z) > 0.01)
+		return false;
+
+	// find mid point
+	real_t mid_a = p_a.aabb.position.get_axis(r_axis) + (p_a.aabb.size.get_axis(r_axis) * 0.5);
+	real_t mid_b = p_b.aabb.position.get_axis(r_axis) + (p_b.aabb.size.get_axis(r_axis) * 0.5);
+
+	real_t midpoint = mid_a + ((mid_b - mid_a) * 0.5);
+
+	// detect mirror verts
+	int matches = 0;
+
+	for (int n = 0; n < 3; n++) {
+		const Vector3 &a = _verts[p_a.corn[n]].pos;
+
+		// reflect
+		Vector3 ra = a;
+		real_t dist = midpoint - ra.get_axis(r_axis);
+		ra.set_axis(r_axis, midpoint + dist);
+
+		for (int i = 0; i < 3; i++) {
+			const Vector3 &b = _verts[p_b.corn[i]].pos;
+
+			if (b.is_equal_approx(ra, 0.01)) {
+				matches++;
+			}
+		} // for i
+	} // for n
+
+	if (matches != 3) {
+		return false;
+	}
+
+	r_midpoint = midpoint;
+	return true;
 }
 
 void MeshSimplify::_optimize_vertex_cache(uint32_t *r_inds, uint32_t p_num_inds, uint32_t p_num_verts) const {
@@ -410,6 +603,9 @@ uint32_t MeshSimplify::_choose_vert_to_merge(uint32_t p_start_from) const {
 		if (vert.locked)
 			continue;
 
+		if (_mirror_verts_only && (vert.mirror_vert == UINT32_MAX))
+			continue;
+
 		if (vert.edge_vert) {
 			if (vert.edge_colinear) {
 				// only allow if there is 1 or less linked tris
@@ -434,7 +630,7 @@ uint32_t MeshSimplify::_choose_vert_to_merge(uint32_t p_start_from) const {
 
 bool MeshSimplify::_check_merge_allowed(uint32_t p_vert_from, uint32_t p_vert_to) const {
 	const Vert &a = _verts[p_vert_from];
-	const Vert &b = _verts[p_vert_to];
+	// const Vert &b = _verts[p_vert_to];
 
 	if (a.edge_vert) {
 		DEV_ASSERT(_is_reciprocal_edge(p_vert_from, p_vert_to));
@@ -508,113 +704,91 @@ bool MeshSimplify::_tri_simplify_linked_merge_vert(uint32_t p_vert_from_id, uint
 	return false;
 }
 
-bool MeshSimplify::_simplify_vert(uint32_t p_vert_id) {
-	if (!_find_vert_to_merge_to(p_vert_id))
-		return false;
-
-	Vert &vert = _verts[p_vert_id];
-
-	uint32_t merge_vert = UINT32_MAX;
+bool MeshSimplify::_simplify_vert_primary(uint32_t p_vert_from_id, uint32_t p_vert_to_id) {
 	real_t max_displacement = 0.0;
 
-	for (int m = 0; m < _merge_vert_ids.size(); m++) {
-		uint32_t test_merge_vert = _merge_vert_ids[m];
+	Vert &vert_from = _verts[p_vert_from_id];
+	Vert &vert_to = _verts[p_vert_to_id];
 
-		if (_try_simplify_merge_vert(vert, p_vert_id, test_merge_vert, max_displacement)) {
-			// special case, if we have a linked vert, that must also do a mirror merge for this to be allowed.
-			bool allow = true;
-			if (vert.linked_verts.size()) {
-				allow = false;
-				const Vert &merge_vert = _verts[test_merge_vert];
-				//if (merge_vert.linked_verts.size() == 1) {
-				if (true) {
-					uint32_t link_from = vert.linked_verts[0];
+	if (_try_simplify_merge_vert(vert_from, p_vert_from_id, p_vert_to_id, max_displacement)) {
+		// special case, if we have a linked vert, that must also do a mirror merge for this to be allowed.
+		bool allow = true;
+		if (vert_from.linked_verts.size()) {
+			allow = false;
 
-					if (link_from != test_merge_vert) {
-						const Vert &link_from_vert = _verts[link_from];
+			//if (merge_vert.linked_verts.size() == 1) {
+			if (true) {
+				uint32_t link_from = vert_from.linked_verts[0];
 
-						// find the edge neighbour of the link_from that is also a linked vert
-						// of the merged_vert
-						uint32_t link_to = 0;
-						bool found = false;
-						for (int ln = 0; ln < 2; ln++) {
-							link_to = link_from_vert.edge_vert_neighs[ln];
+				if (link_from != p_vert_to_id) {
+					const Vert &link_from_vert = _verts[link_from];
 
-							// is link_to on the list?
-							for (int lv = 0; lv < merge_vert.linked_verts.size(); lv++) {
-								if (merge_vert.linked_verts[lv] == link_to) {
-									// found!
-									found = true;
-									break;
-								}
+					// find the edge neighbour of the link_from that is also a linked vert
+					// of the merged_vert
+					uint32_t link_to = 0;
+					bool found = false;
+					for (int ln = 0; ln < 2; ln++) {
+						link_to = link_from_vert.edge_vert_neighs[ln];
+
+						// is link_to on the list?
+						for (int lv = 0; lv < vert_to.linked_verts.size(); lv++) {
+							if (vert_to.linked_verts[lv] == link_to) {
+								// found!
+								found = true;
+								break;
 							}
 						}
+					}
 
-						// if we didn't find, we are attempting to join a linked vert to a non-linked vert,
-						// and this will disrupt the border, so we do not allow
-						if (found) {
-							_check_merge_allowed(p_vert_id, test_merge_vert);
+					// if we didn't find, we are attempting to join a linked vert to a non-linked vert,
+					// and this will disrupt the border, so we do not allow
+					if (found) {
+						//_check_merge_allowed(p_vert_id, test_merge_vert);
 
-							//						if (test_merge_vert == 2033)
-							//						{
-							//							;
-							//						}
+						// test and carry out the linked merge, if it can work
+						allow = _tri_simplify_linked_merge_vert(link_from, link_to);
+						//_check_merge_allowed(p_vert_id, test_merge_vert);
+					} else {
+						allow = false;
+					}
 
-							// test and carry out the linked merge, if it can work
-							allow = _tri_simplify_linked_merge_vert(link_from, link_to);
-							_check_merge_allowed(p_vert_id, test_merge_vert);
-						} else {
-							allow = false;
-						}
-
-					} // if not trying to link to the merge vert
-				}
-			}
-
-			if (allow) {
-				merge_vert = test_merge_vert;
-				break;
+				} // if not trying to link to the merge vert
 			}
 		}
 
-		//		max_displacement = 0.0;
-
-		//		// is this suitable for collapse?
-		//		bool allow = true;
-		//		for (int n = 0; n < vert.tris.size(); n++) {
-		//			if (!_allow_collapse(vert.tris[n], p_vert_id, test_merge_vert, max_displacement)) {
-		//				allow = false;
-		//				break;
-		//			}
-		//		}
-
-		//		if (allow) {
-		//			merge_vert = test_merge_vert;
-		//			break;
-		//		}
+		if (allow) {
+			_finalize_merge(p_vert_from_id, p_vert_to_id, max_displacement);
+			return true;
+		}
 	}
 
-	if (merge_vert == UINT32_MAX)
+	return false;
+}
+
+bool MeshSimplify::_simplify_vert(uint32_t p_vert_from_id) {
+	// get a list of possible verts to merge to
+	if (!_find_vert_to_merge_to(p_vert_from_id))
 		return false;
 
-	// print_line("merging vert " + itos(p_vert_id) + " to vert " + itos(merge_vert));
-	_finalize_merge(p_vert_id, merge_vert, max_displacement);
+	for (int m = 0; m < _merge_vert_ids.size(); m++) {
+		uint32_t vert_to_id = _merge_vert_ids[m];
 
-	//	vert.active = false;
+		if (_simplify_vert_primary(p_vert_from_id, vert_to_id)) {
+			// special case of mirror verts, try and do the same but mirror merge
+			if (_mirror_verts_only) {
+				Vert &vert_from = _verts[p_vert_from_id];
+				Vert &vert_to = _verts[vert_to_id];
 
-	//	real_t &new_max_displacement = _verts[merge_vert].displacement;
-	//	new_max_displacement = MAX(new_max_displacement, max_displacement);
+				if ((vert_from.mirror_vert != UINT32_MAX) && (vert_to.mirror_vert != UINT32_MAX)) {
+					_simplify_vert_primary(vert_from.mirror_vert, vert_to.mirror_vert);
+				}
+			}
 
-	//	// adjust all attached tris
-	//	for (int n = 0; n < vert.tris.size(); n++) {
-	//		_adjust_tri(vert.tris[n], p_vert_id, merge_vert);
-	//	}
+			return true;
+		}
+	}
 
-	//	for (int n = 0; n < vert.tris.size(); n++) {
-	//		_resync_tri(vert.tris[n]);
-	//	}
-
-	return true;
+	return false;
 }
 
 void MeshSimplify::_finalize_merge(uint32_t p_vert_from_id, uint32_t p_vert_to_id, real_t p_max_displacement) {

@@ -1,14 +1,10 @@
 #pragma once
 
 #include "core/local_vector.h"
+#include "core/math/aabb.h"
 #include "core/math/plane.h"
 #include "core/math/spatial_deduplicator.h"
 #include "core/math/vector3.h"
-
-// The optional callback can test any triangle before allowing a merge, allowing testing normals, UVs etc to prevent
-// merging where the change in the attribute is too high.
-// This could alternatively be written as a template, which would be more efficient but require everything in the header.
-//typedef bool (*MeshSimplifyCallback)(void *p_userdata, const uint32_t p_tri_from[3], const uint32_t p_tri_to[3]);
 
 #define GODOT_MESH_SIMPLIFY_USE_DIRTY_VERTS
 #define GODOT_MESH_SIMPLIFY_OPTIMIZED_NEIGHS
@@ -36,12 +32,12 @@ class MeshSimplify {
 				corn[n] = UINT32_MAX;
 				neigh[n] = UINT32_MAX;
 			}
+			aabb_volume = 0.0;
 		}
 		// corner indices
 		uint32_t corn[3];
 
 		Edge edge[3];
-
 		Plane plane;
 
 		// neighboursing triangles
@@ -49,12 +45,17 @@ class MeshSimplify {
 		uint32_t num_neighs = 0;
 
 		bool active = true;
+
+		// for detecting mirroring
+		AABB aabb;
+		real_t aabb_volume;
 	};
 
 	struct Vert {
 		Vert() {
 			edge_vert_neighs[0] = UINT32_MAX;
 			edge_vert_neighs[1] = UINT32_MAX;
+			mirror_vert = UINT32_MAX;
 		}
 
 		void link_tri(uint32_t p_id) {
@@ -94,22 +95,44 @@ class MeshSimplify {
 		}
 
 		Vector3 pos;
+
+		// If mirroring is detected on an axis,
+		// a vert can have a mirror which can also be merged
+		// at the same time to give symmetrical LODs
+		uint32_t mirror_vert;
+
+		// List of triangles that use this vertex
 		LocalVectori<uint32_t> tris;
+
+		// List of verts that share the same position
+		// (these will usually be on another edge, and separated
+		// as a result of UVs or normals).
+		// When collapsing edge verts, we will only do if we can
+		// also similarly collapse the linked vert, to preserve the shared
+		// edge between the two zones (otherwise you get an ugly seam
+		// like Blender decimate).
 		LocalVectori<uint32_t> linked_verts;
+
+		// A vertex is active until it has been collapsed
 		bool active = false;
 
 		// if a vert has more than 2 edge neighbours
 		// (i.e. at a t junction of edges)
-		// lock it to prevent collapse
+		// lock it to prevent collapse, we want to preserve these cases
 		bool locked = false;
 
 		// If we are an edge vert, we will have neighbouring edge verts.
 		// We can use these to determine whether a collapse is allowed along the edge...
 		// A straight line is ok to collapse, but e.g. a right angle will change the outline too much.
 		bool edge_vert = false;
+
+		// Colinear is ok for collapsing to neighbouring edge vert, but non colinear is not
 		bool edge_colinear = false;
+
+		// The neighbouring verts on either side if we follow this edge
 		uint32_t edge_vert_neighs[2];
 
+		// Some helpful edge funcs.
 		bool edge_vert_neighs_same() const { return edge_vert_neighs[0] == edge_vert_neighs[1]; }
 		void check_edge_vert_neighs() {
 			DEV_ASSERT(!edge_vert_neighs_same());
@@ -191,7 +214,9 @@ public:
 
 private:
 	bool _simplify();
-	bool _simplify_vert(uint32_t p_vert_id);
+	bool _simplify_vert(uint32_t p_vert_from_id);
+	bool _simplify_vert_primary(uint32_t p_vert_from_id, uint32_t p_vert_to_id);
+
 	bool _tri_simplify_linked_merge_vert(uint32_t p_vert_from_id, uint32_t p_vert_to_id);
 	void _finalize_merge(uint32_t p_vert_from_id, uint32_t p_vert_to_id, real_t p_max_displacement);
 
@@ -211,8 +236,10 @@ private:
 	bool _is_reciprocal_edge(uint32_t p_vert_a, uint32_t p_vert_b) const;
 	bool _check_merge_allowed(uint32_t p_vert_from, uint32_t p_vert_to) const;
 
-	//	void _deduplicate_verts(const uint32_t *p_in_inds, uint32_t p_num_in_inds, const Vector3 *p_in_verts, uint32_t p_num_in_verts, LocalVectori<uint32_t> &r_vert_map, uint32_t &r_num_out_verts, LocalVectori<Vector3> &r_deduped_verts, LocalVectori<uint32_t> &r_deduped_verts_source, LocalVectori<uint32_t> &r_deduped_inds);
 	void _optimize_vertex_cache(uint32_t *r_inds, uint32_t p_num_inds, uint32_t p_num_verts) const;
+	void _detect_mirror_verts();
+	bool _detect_mirror_tris(const Tri &p_a, const Tri &p_b, int &r_axis, real_t &r_midpoint) const;
+	void _find_mirror_verts(const Tri &p_a, const Tri &p_b, int p_axis, real_t p_midpoint);
 
 	void _debug_verify_vert(uint32_t p_vert_id);
 	void _debug_verify_verts();
@@ -222,24 +249,37 @@ private:
 
 	LocalVectori<uint32_t> _merge_vert_ids;
 	real_t _threshold_dist = 0.01;
+	bool _mirror_verts_only = false;
 
 	// This temporary triangle list is used multiple times,
 	// and is stored on the object instead of recreating each time
 	// to save on allocations.
 	LocalVectori<uint32_t> _possible_tris;
 
-	//MeshSimplifyCallback _callback = nullptr;
-	//void *_callback_userdata = nullptr;
-
 	bool _try_simplify_merge_vert(Vert &p_vert_from, uint32_t p_vert_from_id, uint32_t p_vert_to_id, real_t &r_max_displacement) const {
+		const Vert &vert_to = _verts[p_vert_to_id];
+
+		// disallow if edge verts and not linked
+		if (p_vert_from.edge_vert || vert_to.edge_vert) {
+			if (!_is_reciprocal_edge(p_vert_from_id, p_vert_to_id))
+				return false;
+		}
+
 		r_max_displacement = 0.0;
 
-		// edge vert? can only collapse to a neighbouring edge vert
-		if (p_vert_from.edge_vert) {
-			if ((p_vert_from.edge_vert_neighs[0] != p_vert_to_id) && (p_vert_from.edge_vert_neighs[1] != p_vert_to_id)) {
+		// mirror vert only?
+		if (_mirror_verts_only) {
+			if (vert_to.mirror_vert == UINT32_MAX)
 				return false;
-			}
 		}
+
+		// edge vert? can only collapse to a neighbouring edge vert
+		// already checked above?
+		//		if (p_vert_from.edge_vert) {
+		//			if ((p_vert_from.edge_vert_neighs[0] != p_vert_to_id) && (p_vert_from.edge_vert_neighs[1] != p_vert_to_id)) {
+		//				return false;
+		//			}
+		//		}
 
 		// is this suitable for collapse?
 		for (int n = 0; n < p_vert_from.tris.size(); n++) {
