@@ -2,9 +2,11 @@
 #include "core/math/geometry.h"
 #include "core/math/vertex_cache_optimizer.h"
 #include "core/print_string.h"
+#include "scene/resources/surface_tool.h"
 
 //#define GODOT_MESH_SIMPLIFY_VERBOSE
 #define GODOT_MESH_SIMPLIFY_CACHE_COLLAPSES
+#define GODOT_MESH_SIMPLIFY_USE_ZEUS
 
 uint32_t MeshSimplify::simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in_inds, const Vector3 *p_in_verts, uint32_t p_num_in_verts, uint32_t *r_out_inds, LocalVectori<uint32_t> &r_vert_map, uint32_t &r_num_out_verts, real_t p_threshold) {
 	_threshold_dist = p_threshold;
@@ -46,6 +48,34 @@ uint32_t MeshSimplify::simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in
 	p_num_in_verts = deduped_verts.size();
 
 	print_line("orig num verts " + itos(orig_num_verts) + ", after dedup : " + itos(r_num_out_verts));
+
+#ifdef GODOT_MESH_SIMPLIFY_USE_ZEUS
+	// by a percentage of the indices
+	size_t target_indices = p_num_in_inds / 2;
+	target_indices = CLAMP(target_indices, 3, p_num_in_inds);
+
+	target_indices = 3000;
+
+	LocalVectori<unsigned int> inds_out;
+	inds_out.resize(p_num_in_inds);
+
+	//size_t result = SurfaceTool::simplify_func(&inds_out[0], p_in_inds, p_num_in_inds, (const float *)p_in_verts, p_num_in_verts, sizeof(Vector3), target_indices, 0.9, nullptr);
+	size_t result = SurfaceTool::simplify_func(&inds_out[0], p_in_inds, p_num_in_inds, (const float *)p_in_verts, p_num_in_verts, sizeof(Vector3), 1, p_threshold / 20.0, nullptr);
+
+	print_line("zeus before " + itos(p_num_in_inds / 3) + " after " + itos(result / 3));
+
+	for (int n = 0; n < result; n++) {
+		r_out_inds[n] = inds_out[n];
+	}
+
+	//	r_vert_map.resize(p_num_in_verts);
+	//	for (int n=0; n<p_num_in_verts; n++)
+	//	{
+	//		r_vert_map[n] = n;
+	//	}
+	//	r_num_out_verts = p_num_in_verts;
+	return result;
+#endif
 
 	//////////////////////////////////////////////////////////////////////////////////
 
