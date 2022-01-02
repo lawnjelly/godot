@@ -108,6 +108,15 @@ class MeshSimplify {
 		// List of triangles that use this vertex
 		LocalVectori<uint32_t> tris;
 
+		// ancestors
+		LocalVectori<uint32_t> ancestral_tris;
+		LocalVectori<uint32_t> ancestral_verts;
+
+		// list of vertices that this vertex is already registered to collapse
+		// to on the heap
+		LocalVectori<uint32_t> heap_collapse_to;
+		//LocalVectori<uint32_t> heap_collapse_from;
+
 		// List of verts that share the same position
 		// (these will usually be on another edge, and separated
 		// as a result of UVs or normals).
@@ -142,6 +151,14 @@ class MeshSimplify {
 			DEV_ASSERT(!edge_vert_neighs_same());
 		}
 
+		//		uint32_t count_edge_vert_neighs() const {
+		//			uint32_t count = 0;
+		//			if (edge_vert_neighs[0] != UINT32_MAX)
+		//				count++;
+		//			if (edge_vert_neighs[1] != UINT32_MAX)
+		//				count++;
+		//			return count;
+		//		}
 		uint32_t get_other_edge_vert_neigh(uint32_t p_first) {
 			if (edge_vert_neighs[0] == p_first) {
 				return edge_vert_neighs[1];
@@ -203,16 +220,18 @@ class MeshSimplify {
 		real_t displacement = 0.0;
 	};
 
-	class Collapse {
-	public:
+	struct Collapse {
 		Collapse() {
 			from = UINT32_MAX;
 			to = UINT32_MAX;
-			max_displacement = 0.0;
+			error = 0.0;
 		}
+
+		// we actually want the best at the end, so they are cheaper to pop
+		bool operator<(const Collapse &p_o) const { return error > p_o.error; }
 		uint32_t from;
 		uint32_t to;
-		real_t max_displacement;
+		real_t error;
 	};
 
 public:
@@ -248,7 +267,7 @@ private:
 	void _adjust_tri(uint32_t p_tri_id, uint32_t p_vert_from, uint32_t p_vert_to);
 	void _resync_tri(uint32_t p_tri_id);
 	bool _calculate_plane(uint32_t p_corns[3], Plane &r_plane) const;
-	bool _allow_collapse(uint32_t p_tri_id, uint32_t p_vert_from, uint32_t p_vert_to, real_t &r_max_displacement) const;
+	bool _allow_collapse(uint32_t p_tri_id, uint32_t p_vert_from, uint32_t p_vert_to, real_t &r_max_displacement, bool p_test_displacement = true) const;
 	uint32_t _find_or_add(uint32_t p_val, LocalVectori<uint32_t> &r_list);
 	void _delete_triangle(uint32_t p_tri_id);
 
@@ -263,6 +282,14 @@ private:
 	void _debug_verify_vert(uint32_t p_vert_id);
 	void _debug_verify_verts();
 
+	// NEW
+	void _create_heap();
+	void _evaluate_collapse(uint32_t p_vert_from_id, uint32_t p_vert_to_id);
+	bool _evaluate_collapses_from_vertex(uint32_t p_vert_from_id);
+	void _reevaluate_from_changed_vertex(uint32_t p_deleted_vert, uint32_t p_central_vert);
+	void _heap_remove(uint32_t p_vert_id);
+	bool _new_simplify();
+
 	LocalVectori<Vert> _verts;
 	LocalVectori<Tri> _tris;
 
@@ -273,6 +300,9 @@ private:
 	// pending list of collapses, so we can backtrack and undo
 	// collapses in the case of mirror verts
 	LocalVectori<Collapse> _collapses;
+
+	// sorted heap of collapses
+	LocalVectori<Collapse> _heap;
 
 	// This temporary triangle list is used multiple times,
 	// and is stored on the object instead of recreating each time
@@ -295,14 +325,6 @@ private:
 			if (vert_to.mirror_vert == UINT32_MAX)
 				return false;
 		}
-
-		// edge vert? can only collapse to a neighbouring edge vert
-		// already checked above?
-		//		if (p_vert_from.edge_vert) {
-		//			if ((p_vert_from.edge_vert_neighs[0] != p_vert_to_id) && (p_vert_from.edge_vert_neighs[1] != p_vert_to_id)) {
-		//				return false;
-		//			}
-		//		}
 
 		// is this suitable for collapse?
 		for (int n = 0; n < p_vert_from.tris.size(); n++) {

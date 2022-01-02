@@ -6,7 +6,7 @@
 
 //#define GODOT_MESH_SIMPLIFY_VERBOSE
 #define GODOT_MESH_SIMPLIFY_CACHE_COLLAPSES
-#define GODOT_MESH_SIMPLIFY_USE_ZEUS
+//#define GODOT_MESH_SIMPLIFY_USE_ZEUS
 
 uint32_t MeshSimplify::simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in_inds, const Vector3 *p_in_verts, uint32_t p_num_in_verts, uint32_t *r_out_inds, LocalVectori<uint32_t> &r_vert_map, uint32_t &r_num_out_verts, real_t p_threshold) {
 	_threshold_dist = p_threshold;
@@ -129,31 +129,39 @@ uint32_t MeshSimplify::simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in
 	int debug_count = 0;
 #endif
 
-	for (int n = 0; n < 2; n++) {
-		if (n == 0) {
-			_mirror_verts_only = true;
-		} else {
-			_mirror_verts_only = false;
-			// make the non-mirror verts dirty
-			for (int i = 0; i < _verts.size(); i++) {
-				_verts[i].dirty = true;
-			}
-		}
+	_create_heap();
 
-		while (_simplify()) {
-			_apply_collapses();
-#ifdef GODOT_MESH_SIMPLIFY_VERBOSE
-			_debug_verify_verts();
-			debug_count++;
-			if ((debug_count % 256) == 0)
-				print_line("\tsimplify " + itos(debug_count));
-#endif
-		}
-#ifdef GODOT_MESH_SIMPLIFY_VERBOSE
-		print_line("simplify end");
-#endif
+	for (int n = 0; n < 2500; n++) {
+		if (!_new_simplify())
+			break;
 	}
 
+	/*
+		for (int n = 0; n < 2; n++) {
+			if (n == 0) {
+				_mirror_verts_only = true;
+			} else {
+				_mirror_verts_only = false;
+				// make the non-mirror verts dirty
+				for (int i = 0; i < _verts.size(); i++) {
+					_verts[i].dirty = true;
+				}
+			}
+
+			while (_simplify()) {
+				_apply_collapses();
+	#ifdef GODOT_MESH_SIMPLIFY_VERBOSE
+				_debug_verify_verts();
+				debug_count++;
+				if ((debug_count % 256) == 0)
+					print_line("\tsimplify " + itos(debug_count));
+	#endif
+			}
+	#ifdef GODOT_MESH_SIMPLIFY_VERBOSE
+			print_line("simplify end");
+	#endif
+		}
+	*/
 	// export final list
 	uint32_t count = 0;
 
@@ -568,6 +576,12 @@ void MeshSimplify::_create_tris(const uint32_t *p_inds, uint32_t p_num_inds) {
 			v1.edge_colinear = true;
 		}
 	}
+
+	// add ancestral tris to each vertex
+	for (int n = 0; n < _verts.size(); n++) {
+		Vert &v = _verts[n];
+		v.ancestral_tris = v.tris;
+	}
 }
 
 void MeshSimplify::_establish_neighbours_for_tri(int p_tri_id) {
@@ -745,6 +759,60 @@ bool MeshSimplify::_tri_simplify_linked_merge_vert(uint32_t p_vert_from_id, uint
 	return false;
 }
 
+void MeshSimplify::_evaluate_collapse(uint32_t p_vert_from_id, uint32_t p_vert_to_id) {
+	Vert &vert_from = _verts[p_vert_from_id];
+	Vert &vert_to = _verts[p_vert_to_id];
+
+	// does the collapse already exist in the heap?
+	// (neighbouring edges will try and add similar collapses)
+	if (vert_from.heap_collapse_to.find(p_vert_to_id) != -1)
+		return;
+
+	// disallow if edge verts and not linked
+	if (vert_from.edge_vert || vert_to.edge_vert) {
+		if (!_is_reciprocal_edge(p_vert_from_id, p_vert_to_id))
+			return;
+
+		// if at the side of an edge, don't allow collapse
+		if (vert_from.has_edge_vert_neigh(UINT32_MAX))
+			return;
+	}
+
+	real_t error = 0.0;
+
+	// is this suitable for collapse?
+	for (int n = 0; n < vert_from.tris.size(); n++) {
+		uint32_t tri_id = vert_from.tris[n];
+		const Tri &tri = _tris[tri_id];
+
+		// various checks for validity of the collapse
+		real_t dummy_displacement;
+		if (!_allow_collapse(tri_id, p_vert_from_id, p_vert_to_id, dummy_displacement, false))
+			return;
+
+		// distance to new point
+		real_t dist = tri.plane.distance_to(vert_to.pos);
+
+		// used distance squared metric, and make sure positive
+		dist *= dist;
+
+		// keep track of total error
+		error += dist;
+	}
+
+	Collapse c;
+	c.from = p_vert_from_id;
+	c.to = p_vert_to_id;
+	c.error = error;
+
+	// As well as storing on the heap, store a quick
+	// to id on the vertex itself so we can quick reject adding
+	// collapses more than once.
+	_heap.push_back(c);
+	vert_from.heap_collapse_to.push_back(p_vert_to_id);
+	//vert_to.heap_collapse_from.push_back(p_vert_from_id);
+}
+
 bool MeshSimplify::_simplify_vert_primary(uint32_t p_vert_from_id, uint32_t p_vert_to_id) {
 	real_t max_displacement = 0.0;
 
@@ -818,7 +886,7 @@ void MeshSimplify::_apply_collapses() {
 
 	for (int n = 0; n < _collapses.size(); n++) {
 		const Collapse &c = _collapses[n];
-		_finalize_merge(c.from, c.to, c.max_displacement);
+		_finalize_merge(c.from, c.to, c.error);
 	}
 
 	_collapses.clear();
@@ -855,7 +923,7 @@ void MeshSimplify::_add_collapse(uint32_t p_vert_from_id, uint32_t p_vert_to_id,
 	Collapse c;
 	c.from = p_vert_from_id;
 	c.to = p_vert_to_id;
-	c.max_displacement = p_max_displacement;
+	c.error = p_max_displacement;
 	_collapses.push_back(c);
 #else
 	_finalize_merge(p_vert_from_id, p_vert_to_id, p_max_displacement);
@@ -863,29 +931,39 @@ void MeshSimplify::_add_collapse(uint32_t p_vert_from_id, uint32_t p_vert_to_id,
 }
 
 void MeshSimplify::_finalize_merge(uint32_t p_vert_from_id, uint32_t p_vert_to_id, real_t p_max_displacement) {
-	Vert &vert = _verts[p_vert_from_id];
-	vert.active = false;
+	Vert &vert_from = _verts[p_vert_from_id];
+	vert_from.active = false;
 
 	Vert &vert_to = _verts[p_vert_to_id];
 #ifdef GODOT_MESH_SIMPLIFY_VERBOSE
-	print_line("finalize merge from " + itos(p_vert_from_id) + " (" + String(Variant(vert.pos)) + ") to " + itos(p_vert_to_id) + " (" + String(Variant(vert_to.pos)) + ")");
+	print_line("finalize merge from " + itos(p_vert_from_id) + " (" + String(Variant(vert_from.pos)) + ") to " + itos(p_vert_to_id) + " (" + String(Variant(vert_to.pos)) + ")");
 #endif
+
+	// add the vert as an ancestor to the to vert, and also the original tris
+	vert_to.ancestral_verts.push_back(p_vert_from_id);
+	for (int n = 0; n < vert_from.tris.size(); n++) {
+		vert_to.ancestral_tris.find_or_push_back(vert_from.tris[n]);
+	}
 
 	real_t &new_max_displacement = vert_to.displacement;
 	new_max_displacement = MAX(new_max_displacement, p_max_displacement);
 
 	// adjust all attached tris
-	for (int n = 0; n < vert.tris.size(); n++) {
-		_adjust_tri(vert.tris[n], p_vert_from_id, p_vert_to_id);
+	for (int n = 0; n < vert_from.tris.size(); n++) {
+		_adjust_tri(vert_from.tris[n], p_vert_from_id, p_vert_to_id);
 	}
 
-	for (int n = 0; n < vert.tris.size(); n++) {
-		_resync_tri(vert.tris[n]);
+	for (int n = 0; n < vert_from.tris.size(); n++) {
+		_resync_tri(vert_from.tris[n]);
 	}
 
 	// special case, if we are merging between 2 edge verts, we need to rejig the neighbours to be correct after the merge
-	if (vert.edge_vert) {
-		uint32_t other_from = vert.get_other_edge_vert_neigh(p_vert_to_id);
+	if (vert_from.edge_vert) {
+		if (p_vert_from_id == 1350) {
+			;
+		}
+
+		uint32_t other_from = vert_from.get_other_edge_vert_neigh(p_vert_to_id);
 
 		if (!vert_to.locked) {
 			uint32_t other_to = vert_to.get_other_edge_vert_neigh(p_vert_from_id);
@@ -900,7 +978,119 @@ void MeshSimplify::_finalize_merge(uint32_t p_vert_from_id, uint32_t p_vert_to_i
 			if (!vert_prev.locked)
 				vert_prev.exchange_edge_vert_neigh(p_vert_from_id, p_vert_to_id);
 		}
+
+		DEV_ASSERT(!((vert_to.edge_vert_neighs[0] == UINT32_MAX) && (vert_to.edge_vert_neighs[1] == UINT32_MAX)));
 	}
+}
+
+void MeshSimplify::_heap_remove(uint32_t p_vert_id) {
+	for (int n = 0; n < _heap.size(); n++) {
+		const Collapse &c = _heap[n];
+		if ((c.from == p_vert_id) || (c.to == p_vert_id)) {
+			_heap.remove_unordered(n);
+			// change iterator to compensate
+			n--;
+
+			// remove from vertex
+			Vert &vert = _verts[c.from];
+			int64_t found = vert.heap_collapse_to.find(c.to);
+			if (found != -1)
+				vert.heap_collapse_to.remove_unordered(found);
+		}
+	}
+
+	//	Vert &vert = _verts[p_vert_id];
+	//	vert.active = false;
+}
+
+void MeshSimplify::_reevaluate_from_changed_vertex(uint32_t p_deleted_vert, uint32_t p_central_vert) {
+	// first remove any collapses in the heap referencing the deleted vert
+	_heap_remove(p_deleted_vert);
+	_heap_remove(p_central_vert);
+
+	//////////////////////////
+	_evaluate_collapses_from_vertex(p_central_vert);
+
+	const Vert &vert = _verts[p_central_vert];
+
+	LocalVectori<uint32_t> possibles;
+
+	for (int t = 0; t < vert.tris.size(); t++) {
+		uint32_t tri_id = vert.tris[t];
+		DEV_ASSERT(tri_id < _tris.size());
+
+		const Tri &tri = _tris[tri_id];
+		if (!tri.active)
+			continue;
+		for (int c = 0; c < 3; c++) {
+			uint32_t vid = tri.corn[c];
+			if (vid != p_central_vert) {
+				possibles.find_or_push_back(vid);
+			}
+		}
+	} // for t through tris
+
+	for (int n = 0; n < possibles.size(); n++) {
+		_evaluate_collapses_from_vertex(possibles[n]);
+	}
+
+	// expensive - can this be avoided?
+	_heap.sort();
+}
+
+bool MeshSimplify::_evaluate_collapses_from_vertex(uint32_t p_vert_from_id) {
+	// mark this vertex as no longer dirty
+#ifdef GODOT_MESH_SIMPLIFY_USE_DIRTY_VERTS
+	_verts[p_vert_from_id].dirty = false;
+#endif
+
+	// get a list of possible verts to merge to
+	if (!_find_vert_to_merge_to(p_vert_from_id))
+		return false;
+
+	for (int n = 0; n < _merge_vert_ids.size(); n++) {
+		_evaluate_collapse(p_vert_from_id, _merge_vert_ids[n]);
+	}
+
+	return true;
+}
+
+void MeshSimplify::_create_heap() {
+	uint32_t start_from = 0;
+
+	while (true) {
+		uint32_t vert_from_id = _choose_vert_to_merge(start_from);
+		if (vert_from_id == UINT32_MAX)
+			return;
+
+		_evaluate_collapses_from_vertex(vert_from_id);
+
+		// for next loop
+		start_from = vert_from_id + 1;
+	}
+
+	_heap.sort();
+
+	print_line("_create_heap heap size " + itos(_heap.size()));
+}
+
+bool MeshSimplify::_new_simplify() {
+	// pop off the heap
+	if (!_heap.size())
+		return false;
+
+	// pop collapse
+	Collapse c = _heap[_heap.size() - 1];
+	_heap.resize(_heap.size() - 1);
+
+	//_simplify_vert_primary(c.from, c.to);
+
+	//_add_collapse(c.from, c.to, 0.0);
+	_finalize_merge(c.from, c.to, 0.0);
+
+	_reevaluate_from_changed_vertex(c.from, c.to);
+
+	return true;
 }
 
 bool MeshSimplify::_simplify() {
@@ -930,7 +1120,7 @@ bool MeshSimplify::_simplify() {
 	return false;
 }
 
-bool MeshSimplify::_allow_collapse(uint32_t p_tri_id, uint32_t p_vert_from, uint32_t p_vert_to, real_t &r_max_displacement) const {
+bool MeshSimplify::_allow_collapse(uint32_t p_tri_id, uint32_t p_vert_from, uint32_t p_vert_to, real_t &r_max_displacement, bool p_test_displacement) const {
 	const Tri &t = _tris[p_tri_id];
 
 	uint32_t new_corn[3];
@@ -961,11 +1151,14 @@ bool MeshSimplify::_allow_collapse(uint32_t p_tri_id, uint32_t p_vert_from, uint
 	// find the distance of the old vertex from this new plane ..
 	// if it is more than a certain threshold, disallow the collapse
 	Vector3 pt = _verts[p_vert_from].pos;
-	real_t dist = new_plane.distance_to(pt);
 
-	real_t displacement = _verts[p_vert_from].displacement + Math::abs(dist);
-	if (displacement > _threshold_dist)
-		return false;
+	real_t displacement = 0.0;
+	real_t dist = new_plane.distance_to(pt);
+	if (p_test_displacement) {
+		real_t displacement = _verts[p_vert_from].displacement + Math::abs(dist);
+		if (displacement > _threshold_dist)
+			return false;
+	}
 
 	// test user attributes
 	if (_deduplicator._attributes.size()) {
