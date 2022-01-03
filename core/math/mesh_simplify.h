@@ -68,7 +68,6 @@ class MeshSimplify {
 				tris.push_back(p_id);
 			}
 		}
-
 		void add_edge_vert_neigh(uint32_t p_vert_id) {
 			edge_vert = true;
 			// already present?
@@ -125,6 +124,9 @@ class MeshSimplify {
 		// edge between the two zones (otherwise you get an ugly seam
 		// like Blender decimate).
 		LocalVectori<uint32_t> linked_verts;
+		bool is_linked_to(uint32_t p_vert_id) const {
+			return linked_verts.find(p_vert_id) != -1;
+		}
 
 		// A vertex is active until it has been collapsed
 		bool active = false;
@@ -148,7 +150,9 @@ class MeshSimplify {
 		// Some helpful edge funcs.
 		bool edge_vert_neighs_same() const { return edge_vert_neighs[0] == edge_vert_neighs[1]; }
 		void check_edge_vert_neighs() {
-			DEV_ASSERT(!edge_vert_neighs_same());
+			if (edge_vert_neighs[0] != UINT32_MAX) {
+				DEV_ASSERT(!edge_vert_neighs_same());
+			}
 		}
 
 		//		uint32_t count_edge_vert_neighs() const {
@@ -159,7 +163,7 @@ class MeshSimplify {
 		//				count++;
 		//			return count;
 		//		}
-		uint32_t get_other_edge_vert_neigh(uint32_t p_first) {
+		uint32_t get_other_edge_vert_neigh(uint32_t p_first) const {
 			if (edge_vert_neighs[0] == p_first) {
 				return edge_vert_neighs[1];
 			}
@@ -224,14 +228,53 @@ class MeshSimplify {
 		Collapse() {
 			from = UINT32_MAX;
 			to = UINT32_MAX;
+			//error = 0.0;
+		}
+
+		uint32_t from;
+		uint32_t to;
+		//real_t error;
+	};
+
+	struct CollapseGroup {
+		CollapseGroup() {
 			error = 0.0;
+			size = 0;
+		}
+		Collapse c[4];
+
+		// number of collapses used
+		uint32_t size;
+
+		// 1 = regular collapse
+		// 2 = mirror collapse or edge collapse
+		// 4 = mirror edge collapse
+
+		// highest error.
+		// apply a negative offset for mirror collapses, so they get processed first
+		float error;
+
+		bool contains(uint32_t p_id) const {
+			for (uint32_t n = 0; n < size; n++) {
+				const Collapse &co = c[n];
+				if ((co.from == p_id) || (co.to == p_id))
+					return true;
+			}
+
+			return false;
+		}
+
+		void add_collapse(uint32_t p_from, uint32_t p_to, float p_error) {
+			Collapse &co = c[size];
+			co.from = p_from;
+			co.to = p_to;
+			error = MAX(error, p_error);
+			size++;
+			DEV_ASSERT(size <= 4);
 		}
 
 		// we actually want the best at the end, so they are cheaper to pop
-		bool operator<(const Collapse &p_o) const { return error > p_o.error; }
-		uint32_t from;
-		uint32_t to;
-		real_t error;
+		bool operator<(const CollapseGroup &p_o) const { return error > p_o.error; }
 	};
 
 public:
@@ -248,15 +291,9 @@ public:
 	uint32_t simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in_inds, const Vector3 *p_in_verts, uint32_t p_num_in_verts, uint32_t *r_out_inds, LocalVectori<uint32_t> &r_vert_map, uint32_t &r_num_out_verts, real_t p_threshold = 0.01);
 
 private:
-	bool _simplify();
-	bool _simplify_vert(uint32_t p_vert_from_id);
-	bool _simplify_vert_primary(uint32_t p_vert_from_id, uint32_t p_vert_to_id);
+	void _finalize_merge(uint32_t p_vert_from_id, uint32_t p_vert_to_id);
 
-	bool _tri_simplify_linked_merge_vert(uint32_t p_vert_from_id, uint32_t p_vert_to_id);
-	void _finalize_merge(uint32_t p_vert_from_id, uint32_t p_vert_to_id, real_t p_max_displacement);
-
-	void _add_collapse(uint32_t p_vert_from_id, uint32_t p_vert_to_id, real_t p_max_displacement);
-	void _apply_collapses();
+	//void _add_collapse(uint32_t p_vert_from_id, uint32_t p_vert_to_id, real_t p_max_displacement);
 
 	void _create_tris(const uint32_t *p_inds, uint32_t p_num_inds);
 	void _establish_neighbours_for_tri(int p_tri_id);
@@ -267,12 +304,10 @@ private:
 	void _adjust_tri(uint32_t p_tri_id, uint32_t p_vert_from, uint32_t p_vert_to);
 	void _resync_tri(uint32_t p_tri_id);
 	bool _calculate_plane(uint32_t p_corns[3], Plane &r_plane) const;
-	bool _allow_collapse(uint32_t p_tri_id, uint32_t p_vert_from, uint32_t p_vert_to, real_t &r_max_displacement, bool p_test_displacement = true) const;
-	uint32_t _find_or_add(uint32_t p_val, LocalVectori<uint32_t> &r_list);
+	bool _allow_collapse(uint32_t p_tri_id, uint32_t p_vert_from, uint32_t p_vert_to) const;
 	void _delete_triangle(uint32_t p_tri_id);
 
 	bool _is_reciprocal_edge(uint32_t p_vert_a, uint32_t p_vert_b) const;
-	bool _check_merge_allowed(uint32_t p_vert_from, uint32_t p_vert_to) const;
 
 	void _optimize_vertex_cache(uint32_t *r_inds, uint32_t p_num_inds, uint32_t p_num_verts) const;
 	void _detect_mirror_verts();
@@ -284,31 +319,63 @@ private:
 
 	// NEW
 	void _create_heap();
-	void _evaluate_collapse(uint32_t p_vert_from_id, uint32_t p_vert_to_id);
+	bool _evaluate_collapse(uint32_t p_vert_from_id, uint32_t p_vert_to_id, CollapseGroup &r_cg, bool p_second_edge = false);
 	bool _evaluate_collapses_from_vertex(uint32_t p_vert_from_id);
 	void _reevaluate_from_changed_vertex(uint32_t p_deleted_vert, uint32_t p_central_vert);
 	void _heap_remove(uint32_t p_vert_id);
+	void _destroy_collapse_group(const CollapseGroup &p_cg);
+	//uint32_t _heap_find_collapse(uint32_t p_vert_from_id, uint32_t p_vert_to_id);
+
 	bool _new_simplify();
+	bool _collapse_matching_edge(const Collapse &p_collapse);
+
+	bool _cg_creates_flipped_tris(const CollapseGroup &p_cg);
+
+	bool _find_second_edge_from_to(uint32_t p_vert_from_id, uint32_t p_vert_to_id, uint32_t &r_vert_from_id, uint32_t &r_vert_to_id) const;
+	bool _are_verts_linked(uint32_t p_id_a, uint32_t p_id_b) const;
+	void _debug_print_collapse_group(const CollapseGroup &p_cg, int p_tabs = 0, String p_title = String()) const;
 
 	LocalVectori<Vert> _verts;
 	LocalVectori<Tri> _tris;
+	uint32_t _active_tri_count = 0;
 
 	LocalVectori<uint32_t> _merge_vert_ids;
-	real_t _threshold_dist = 0.01;
+	real_t _threshold = 0.01;
 	bool _mirror_verts_only = false;
 
 	// pending list of collapses, so we can backtrack and undo
 	// collapses in the case of mirror verts
-	LocalVectori<Collapse> _collapses;
+	//LocalVectori<Collapse> _collapses;
 
 	// sorted heap of collapses
-	LocalVectori<Collapse> _heap;
+	LocalVectori<CollapseGroup> _heap;
 
 	// This temporary triangle list is used multiple times,
 	// and is stored on the object instead of recreating each time
 	// to save on allocations.
 	LocalVectori<uint32_t> _possible_tris;
 
+	// Adapted from https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line
+	bool dist_point_from_line(const Vector3 &p_pt, const Vector3 &p_a, const Vector3 &p_b, real_t &r_dist) const {
+		Vector3 n = p_b - p_a;
+		real_t n_l = n.length();
+
+		// line is undefined in direction, because the two points are too close / zero..
+		// just return distance to the points.
+		if (n_l < 0.0001) {
+			r_dist = (p_pt - p_a).length();
+			return false;
+		}
+
+		Vector3 p_min_a = p_pt - p_a;
+		Vector3 cross = p_min_a.cross(n);
+		real_t l = cross.length();
+
+		r_dist = l / n_l;
+		return true;
+	}
+
+	/*
 	bool _try_simplify_merge_vert(Vert &p_vert_from, uint32_t p_vert_from_id, uint32_t p_vert_to_id, real_t &r_max_displacement) const {
 		const Vert &vert_to = _verts[p_vert_to_id];
 
@@ -335,4 +402,5 @@ private:
 
 		return true;
 	}
+	*/
 };

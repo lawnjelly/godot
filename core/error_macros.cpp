@@ -65,6 +65,10 @@ void remove_error_handler(ErrorHandlerList *p_handler) {
 	_global_unlock();
 }
 
+void _err_flush_stdout() {
+	fflush(stdout);
+}
+
 void _err_print_error(const char *p_function, const char *p_file, int p_line, const char *p_error, ErrorHandlerType p_type) {
 	_err_print_error(p_function, p_file, p_line, p_error, "", p_type);
 }
