@@ -108,7 +108,7 @@ class MeshSimplify {
 		LocalVectori<uint32_t> tris;
 
 		// ancestors
-		LocalVectori<uint32_t> ancestral_tris;
+		//LocalVectori<uint32_t> ancestral_tris;
 		LocalVectori<uint32_t> ancestral_verts;
 
 		// list of vertices that this vertex is already registered to collapse
@@ -230,6 +230,7 @@ class MeshSimplify {
 			to = UINT32_MAX;
 			//error = 0.0;
 		}
+		bool operator==(const Collapse &p_o) const { return (from == p_o.from) && (to == p_o.to); }
 
 		uint32_t from;
 		uint32_t to;
@@ -253,6 +254,14 @@ class MeshSimplify {
 		// highest error.
 		// apply a negative offset for mirror collapses, so they get processed first
 		float error;
+
+		bool contains_collapse(const Collapse &p_c) const {
+			for (int n = 0; n < 4; n++) {
+				if (c[n] == p_c)
+					return true;
+			}
+			return false;
+		}
 
 		bool contains(uint32_t p_id) const {
 			for (uint32_t n = 0; n < size; n++) {
@@ -304,7 +313,7 @@ private:
 	void _adjust_tri(uint32_t p_tri_id, uint32_t p_vert_from, uint32_t p_vert_to);
 	void _resync_tri(uint32_t p_tri_id);
 	bool _calculate_plane(uint32_t p_corns[3], Plane &r_plane) const;
-	bool _allow_collapse(uint32_t p_tri_id, uint32_t p_vert_from, uint32_t p_vert_to) const;
+	bool _allow_collapse(uint32_t p_tri_id, uint32_t p_vert_test, uint32_t p_vert_from, uint32_t p_vert_to, real_t &r_dist) const;
 	void _delete_triangle(uint32_t p_tri_id);
 
 	bool _is_reciprocal_edge(uint32_t p_vert_a, uint32_t p_vert_b) const;
@@ -333,6 +342,12 @@ private:
 
 	bool _find_second_edge_from_to(uint32_t p_vert_from_id, uint32_t p_vert_to_id, uint32_t &r_vert_from_id, uint32_t &r_vert_to_id) const;
 	bool _are_verts_linked(uint32_t p_id_a, uint32_t p_id_b) const;
+
+	// after collapsing to a vertex, and adding an ancestral vert,
+	// the cost of collapsing this vert to others has changed and needs recalculating
+	void _recalculate_collapse_errors_from_vert(uint32_t p_vert_from_id);
+	bool _evaluate_collapse_metric(uint32_t p_vert_from_id, uint32_t p_vert_to_id, real_t &r_error) const;
+
 	void _debug_print_collapse_group(const CollapseGroup &p_cg, int p_tabs = 0, String p_title = String()) const;
 
 	LocalVectori<Vert> _verts;
@@ -340,7 +355,7 @@ private:
 	uint32_t _active_tri_count = 0;
 
 	LocalVectori<uint32_t> _merge_vert_ids;
-	real_t _threshold = 0.01;
+	//real_t _threshold = 0.01;
 	bool _mirror_verts_only = false;
 
 	// pending list of collapses, so we can backtrack and undo

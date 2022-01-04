@@ -92,6 +92,12 @@ uint32_t MeshSimplify::simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in
 	_verts.resize(p_num_in_verts);
 	for (int n = 0; n < p_num_in_verts; n++) {
 		_verts[n].pos = p_in_verts[n];
+
+		// Seed each vert with the original vert number...
+		// this is to make the code that determines the error metric easier,
+		// as we can just loop through ancestral verts rather than treating the owner
+		// vert differently.
+		_verts[n].ancestral_verts.push_back(n);
 	}
 
 	////////////////////////////////////////////////////
@@ -586,10 +592,10 @@ void MeshSimplify::_create_tris(const uint32_t *p_inds, uint32_t p_num_inds) {
 	}
 
 	// add ancestral tris to each vertex
-	for (int n = 0; n < _verts.size(); n++) {
-		Vert &v = _verts[n];
-		v.ancestral_tris = v.tris;
-	}
+	//	for (int n = 0; n < _verts.size(); n++) {
+	//		Vert &v = _verts[n];
+	//		v.ancestral_tris = v.tris;
+	//	}
 }
 
 void MeshSimplify::_establish_neighbours_for_tri(int p_tri_id) {
@@ -754,6 +760,99 @@ bool MeshSimplify::_find_vert_to_merge_to(uint32_t p_vert_from) {
 	return _merge_vert_ids.size() != 0;
 }
 
+void MeshSimplify::_recalculate_collapse_errors_from_vert(uint32_t p_vert_from_id) {
+	Vert &vert_from = _verts[p_vert_from_id];
+
+	bool changed_heap = false;
+
+	for (int n = 0; n < vert_from.heap_collapse_to.size(); n++) {
+		uint32_t vert_to_id = vert_from.heap_collapse_to[n];
+
+		real_t new_error = 0.0;
+		if (_evaluate_collapse_metric(p_vert_from_id, vert_to_id, new_error)) {
+			// make sure the actual collapse group has this error or more
+			Collapse test_collapse;
+			test_collapse.from = p_vert_from_id;
+			test_collapse.to = vert_to_id;
+
+			// find any collapse groups on the heap containing this collapse
+			for (int i = 0; i < _heap.size(); i++) {
+				CollapseGroup &g = _heap[i];
+
+				if (!g.contains_collapse(test_collapse))
+					continue;
+
+				// cheap, no need to change if the error is no larger
+				if (g.error >= new_error)
+					continue;
+
+				// match!
+				g.error = new_error;
+				changed_heap = true;
+			}
+		}
+	}
+
+	// resort, as the errors have changed
+	if (changed_heap)
+		_heap.sort();
+}
+
+bool MeshSimplify::_evaluate_collapse_metric(uint32_t p_vert_from_id, uint32_t p_vert_to_id, real_t &r_error) const {
+	const Vert &vert_from = _verts[p_vert_from_id];
+	const Vert &vert_to = _verts[p_vert_to_id];
+
+	r_error = 0.0;
+
+	// disallow if edge verts and not linked
+	if (vert_from.edge_vert) {
+		if (!_is_reciprocal_edge(p_vert_from_id, p_vert_to_id))
+			return false;
+
+		// don't allow collapsing t junction edges
+		if (vert_from.linked_verts.size() > 1)
+			return false;
+
+		// the change to the edge angle must form
+		// part of the error metric, so we don't e.g. collapse
+		// right angle edges
+		uint32_t prev_vert_id = vert_from.get_other_edge_vert_neigh(p_vert_to_id);
+		if (prev_vert_id == UINT32_MAX)
+			return false;
+
+		const Vert &vert_prev = _verts[prev_vert_id];
+
+		real_t dist;
+		if (dist_point_from_line(vert_from.pos, vert_prev.pos, vert_to.pos, dist)) {
+			r_error += dist * dist;
+		} else {
+			// should hopefully not happen, as similar
+			// points should already be merged by this point.
+			return false;
+		}
+	}
+
+	// is this suitable for collapse?
+	for (int n = 0; n < vert_from.tris.size(); n++) {
+		uint32_t tri_id = vert_from.tris[n];
+		//const Tri &tri = _tris[tri_id];
+
+		// various checks for validity of the collapse
+		for (int i = 0; i < vert_from.ancestral_verts.size(); i++) {
+			uint32_t ancestral_vert_id = vert_from.ancestral_verts[i];
+
+			real_t dist;
+			if (!_allow_collapse(tri_id, ancestral_vert_id, p_vert_from_id, p_vert_to_id, dist))
+				return false;
+
+			// keep track of total error
+			r_error += dist;
+		}
+	}
+
+	return true;
+}
+
 bool MeshSimplify::_evaluate_collapse(uint32_t p_vert_from_id, uint32_t p_vert_to_id, CollapseGroup &r_cg, bool p_second_edge) {
 	Vert &vert_from = _verts[p_vert_from_id];
 	Vert &vert_to = _verts[p_vert_to_id];
@@ -801,17 +900,18 @@ bool MeshSimplify::_evaluate_collapse(uint32_t p_vert_from_id, uint32_t p_vert_t
 	// is this suitable for collapse?
 	for (int n = 0; n < vert_from.tris.size(); n++) {
 		uint32_t tri_id = vert_from.tris[n];
-		const Tri &tri = _tris[tri_id];
+		//const Tri &tri = _tris[tri_id];
 
 		// various checks for validity of the collapse
-		if (!_allow_collapse(tri_id, p_vert_from_id, p_vert_to_id))
+		real_t dist;
+		if (!_allow_collapse(tri_id, p_vert_from_id, p_vert_from_id, p_vert_to_id, dist))
 			return false;
 
 		// distance to new point
-		real_t dist = tri.plane.distance_to(vert_to.pos);
+		//real_t dist = tri.plane.distance_to(vert_to.pos);
 
 		// used distance squared metric, and make sure positive
-		dist *= dist;
+		//dist *= dist;
 
 		// keep track of total error
 		error += dist;
@@ -910,9 +1010,9 @@ void MeshSimplify::_finalize_merge(uint32_t p_vert_from_id, uint32_t p_vert_to_i
 
 	// add the vert as an ancestor to the to vert, and also the original tris
 	vert_to.ancestral_verts.push_back(p_vert_from_id);
-	for (int n = 0; n < vert_from.tris.size(); n++) {
-		vert_to.ancestral_tris.find_or_push_back(vert_from.tris[n]);
-	}
+	//	for (int n = 0; n < vert_from.tris.size(); n++) {
+	//		vert_to.ancestral_tris.find_or_push_back(vert_from.tris[n]);
+	//	}
 
 	//real_t &new_max_displacement = vert_to.displacement;
 	//new_max_displacement = MAX(new_max_displacement, p_max_displacement);
@@ -999,6 +1099,9 @@ void MeshSimplify::_reevaluate_from_changed_vertex(uint32_t p_deleted_vert, uint
 	// first remove any collapses in the heap referencing the deleted vert
 	_heap_remove(p_deleted_vert);
 	//_heap_remove(p_central_vert);
+
+	// maybe don't need heap sort here if doing later on
+	_recalculate_collapse_errors_from_vert(p_central_vert);
 
 	return;
 
@@ -1112,6 +1215,7 @@ void MeshSimplify::_create_heap() {
 
 void MeshSimplify::_debug_print_collapse_group(const CollapseGroup &p_cg, int p_tabs, String p_title) const {
 #ifdef DEV_ENABLED
+#ifdef GODOT_MESH_SIMPLIFY_VERBOSE
 	if (p_title != String()) {
 		GSM_LOG(p_title);
 	}
@@ -1126,6 +1230,7 @@ void MeshSimplify::_debug_print_collapse_group(const CollapseGroup &p_cg, int p_
 		const Collapse &c = p_cg.c[n];
 		GSM_LOG(sz + "\tcollapse " + itos(c.from) + " to " + itos(c.to));
 	}
+#endif
 #endif
 }
 
@@ -1251,7 +1356,8 @@ bool MeshSimplify::_cg_creates_flipped_tris(const CollapseGroup &p_cg) {
 			//const Tri &tri = _tris[tri_id];
 
 			// various checks for validity of the collapse
-			if (!_allow_collapse(tri_id, c.from, c.to)) {
+			real_t dist_dummy;
+			if (!_allow_collapse(tri_id, c.from, c.from, c.to, dist_dummy)) {
 				return true;
 			}
 		}
@@ -1260,7 +1366,9 @@ bool MeshSimplify::_cg_creates_flipped_tris(const CollapseGroup &p_cg) {
 	return false;
 }
 
-bool MeshSimplify::_allow_collapse(uint32_t p_tri_id, uint32_t p_vert_from, uint32_t p_vert_to) const {
+bool MeshSimplify::_allow_collapse(uint32_t p_tri_id, uint32_t p_vert_test, uint32_t p_vert_from, uint32_t p_vert_to, real_t &r_dist) const {
+	r_dist = 0.0;
+
 	const Tri &t = _tris[p_tri_id];
 
 	uint32_t new_corn[3];
@@ -1287,6 +1395,12 @@ bool MeshSimplify::_allow_collapse(uint32_t p_tri_id, uint32_t p_vert_from, uint
 	if (new_plane.normal.dot(t.plane.normal) < 0.0) {
 		return false;
 	}
+
+	// find the distance of the old vertex from this new plane ..
+	// if it is more than a certain threshold, disallow the collapse
+	Vector3 pt = _verts[p_vert_test].pos;
+	r_dist = new_plane.distance_to(pt);
+	r_dist *= r_dist;
 
 #if 0
 	// find the distance of the old vertex from this new plane ..
