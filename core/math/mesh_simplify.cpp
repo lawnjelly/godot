@@ -760,38 +760,74 @@ bool MeshSimplify::_find_vert_to_merge_to(uint32_t p_vert_from) {
 	return _merge_vert_ids.size() != 0;
 }
 
-void MeshSimplify::_recalculate_collapse_errors_from_vert(uint32_t p_vert_from_id) {
-	Vert &vert_from = _verts[p_vert_from_id];
+void MeshSimplify::_recalculate_collapse_errors_from_vert(uint32_t p_vert_merge_id) {
+	Vert &vert_merge = _verts[p_vert_merge_id];
 
 	bool changed_heap = false;
+	/*
+		for (int n = 0; n < vert_merge.heap_collapse_to.size(); n++) {
+			uint32_t vert_to_id = vert_merge.heap_collapse_to[n];
 
-	for (int n = 0; n < vert_from.heap_collapse_to.size(); n++) {
-		uint32_t vert_to_id = vert_from.heap_collapse_to[n];
+			real_t new_error = 0.0;
+			if (_evaluate_collapse_metric(p_vert_merge_id, vert_to_id, new_error)) {
+				// make sure the actual collapse group has this error or more
+				Collapse test_collapse;
+				test_collapse.from = p_vert_from_id;
+				test_collapse.to = vert_to_id;
 
-		real_t new_error = 0.0;
-		if (_evaluate_collapse_metric(p_vert_from_id, vert_to_id, new_error)) {
-			// make sure the actual collapse group has this error or more
-			Collapse test_collapse;
-			test_collapse.from = p_vert_from_id;
-			test_collapse.to = vert_to_id;
+				// find any collapse groups on the heap containing this collapse
+				for (int i = 0; i < _heap.size(); i++) {
+					CollapseGroup &g = _heap[i];
 
-			// find any collapse groups on the heap containing this collapse
-			for (int i = 0; i < _heap.size(); i++) {
-				CollapseGroup &g = _heap[i];
+					if (!g.contains_collapse(test_collapse))
+						continue;
 
-				if (!g.contains_collapse(test_collapse))
-					continue;
+					// cheap, no need to change if the error is no larger
+					if (g.error >= new_error)
+						continue;
 
-				// cheap, no need to change if the error is no larger
-				if (g.error >= new_error)
-					continue;
+					// match!
+					g.error = new_error;
+					changed_heap = true;
+				}
+			}
+		}
+	*/
 
-				// match!
-				g.error = new_error;
-				changed_heap = true;
+	// find new collapses that have been opened up by the collapse
+	// verts TO the merge vert
+	LocalVectori<uint32_t> neigh_verts;
+	for (int n = 0; n < vert_merge.tris.size(); n++) {
+		const Tri &tri = _tris[vert_merge.tris[n]];
+		for (int c = 0; c < 3; c++) {
+			uint32_t id = tri.corn[c];
+			if (id != p_vert_merge_id) {
+				if (_verts[id].active) {
+					neigh_verts.find_or_push_back(id);
+				}
 			}
 		}
 	}
+
+	int heap_size_before = _heap.size();
+
+	for (int n = 0; n < neigh_verts.size(); n++) {
+		uint32_t nid = neigh_verts[n];
+		const Vert &vert = _verts[nid];
+
+		// incoming?
+		if (vert.heap_collapse_to.find(p_vert_merge_id) == -1) {
+			_evaluate_collapse_group(nid, p_vert_merge_id);
+		}
+
+		// outgoing?
+		if (vert_merge.heap_collapse_to.find(nid) == -1) {
+			_evaluate_collapse_group(p_vert_merge_id, nid);
+		}
+	}
+
+	if (heap_size_before != _heap.size())
+		changed_heap = true;
 
 	// resort, as the errors have changed
 	if (changed_heap)
@@ -900,7 +936,8 @@ bool MeshSimplify::_evaluate_collapse(uint32_t p_vert_from_id, uint32_t p_vert_t
 	// is this suitable for collapse?
 	for (int n = 0; n < vert_from.tris.size(); n++) {
 		uint32_t tri_id = vert_from.tris[n];
-		//const Tri &tri = _tris[tri_id];
+		const Tri &tri = _tris[tri_id];
+		DEV_ASSERT(tri.active);
 
 		// various checks for validity of the collapse
 		real_t dist;
@@ -1135,6 +1172,23 @@ void MeshSimplify::_reevaluate_from_changed_vertex(uint32_t p_deleted_vert, uint
 	_heap.sort();
 }
 
+void MeshSimplify::_evaluate_collapse_group(uint32_t p_vert_from_id, uint32_t p_vert_to_id) {
+	CollapseGroup cg;
+
+	// if the collapse was any good, add to the heap
+	if (_evaluate_collapse(p_vert_from_id, p_vert_to_id, cg) && (cg.size > 0)) {
+		_heap.push_back(cg);
+
+		// As well as storing on the heap, store a quick
+		// to id on the vertex itself so we can quick reject adding
+		// collapses more than once.
+		for (int i = 0; i < cg.size; i++) {
+			const Collapse &c = cg.c[i];
+			_verts[c.from].heap_collapse_to.push_back(c.to);
+		}
+	}
+}
+
 bool MeshSimplify::_evaluate_collapses_from_vertex(uint32_t p_vert_from_id) {
 	Vert &vert = _verts[p_vert_from_id];
 	if (!vert.active)
@@ -1150,24 +1204,7 @@ bool MeshSimplify::_evaluate_collapses_from_vertex(uint32_t p_vert_from_id) {
 		return false;
 
 	for (int n = 0; n < _merge_vert_ids.size(); n++) {
-		CollapseGroup cg;
-
-		if (!_evaluate_collapse(p_vert_from_id, _merge_vert_ids[n], cg)) {
-			cg.size = 0;
-		}
-
-		// if the collapse was any good, add to the heap
-		if (cg.size > 0) {
-			_heap.push_back(cg);
-
-			// As well as storing on the heap, store a quick
-			// to id on the vertex itself so we can quick reject adding
-			// collapses more than once.
-			for (int i = 0; i < cg.size; i++) {
-				const Collapse &c = cg.c[i];
-				_verts[c.from].heap_collapse_to.push_back(c.to);
-			}
-		}
+		_evaluate_collapse_group(p_vert_from_id, _merge_vert_ids[n]);
 	}
 
 	return true;
@@ -1392,7 +1429,8 @@ bool MeshSimplify::_allow_collapse(uint32_t p_tri_id, uint32_t p_vert_test, uint
 	}
 
 	// has the normal flipped?
-	if (new_plane.normal.dot(t.plane.normal) < 0.0) {
+	real_t dot = new_plane.normal.dot(t.plane.normal);
+	if (dot < 0.0) {
 		return false;
 	}
 

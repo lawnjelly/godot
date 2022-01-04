@@ -329,6 +329,7 @@ private:
 	// NEW
 	void _create_heap();
 	bool _evaluate_collapse(uint32_t p_vert_from_id, uint32_t p_vert_to_id, CollapseGroup &r_cg, bool p_second_edge = false);
+	void _evaluate_collapse_group(uint32_t p_vert_from_id, uint32_t p_vert_to_id);
 	bool _evaluate_collapses_from_vertex(uint32_t p_vert_from_id);
 	void _reevaluate_from_changed_vertex(uint32_t p_deleted_vert, uint32_t p_central_vert);
 	void _heap_remove(uint32_t p_vert_id);
@@ -345,7 +346,7 @@ private:
 
 	// after collapsing to a vertex, and adding an ancestral vert,
 	// the cost of collapsing this vert to others has changed and needs recalculating
-	void _recalculate_collapse_errors_from_vert(uint32_t p_vert_from_id);
+	void _recalculate_collapse_errors_from_vert(uint32_t p_vert_merge_id);
 	bool _evaluate_collapse_metric(uint32_t p_vert_from_id, uint32_t p_vert_to_id, real_t &r_error) const;
 
 	void _debug_print_collapse_group(const CollapseGroup &p_cg, int p_tabs = 0, String p_title = String()) const;
