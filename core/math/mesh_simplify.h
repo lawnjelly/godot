@@ -366,6 +366,13 @@ private:
 	// sorted heap of collapses
 	LocalVectori<CollapseGroup> _heap;
 
+	// we don't add new collapses directly to the heap..
+	// this saves us doing lots of sorting, and also makes the verts
+	// mirroring more likely to work correctly.
+	LocalVectori<CollapseGroup> _heap_pending;
+
+	void _consolidate_heap();
+
 	// This temporary triangle list is used multiple times,
 	// and is stored on the object instead of recreating each time
 	// to save on allocations.

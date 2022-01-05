@@ -152,7 +152,10 @@ uint32_t MeshSimplify::simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in
 		if (_new_simplify()) {
 			//_apply_collapses();
 		} else {
-			break;
+			_consolidate_heap();
+
+			if (!_heap.size())
+				break;
 		}
 	}
 
@@ -830,8 +833,8 @@ void MeshSimplify::_recalculate_collapse_errors_from_vert(uint32_t p_vert_merge_
 		changed_heap = true;
 
 	// resort, as the errors have changed
-	if (changed_heap)
-		_heap.sort();
+	//	if (changed_heap)
+	//		_heap.sort();
 }
 
 bool MeshSimplify::_evaluate_collapse_metric(uint32_t p_vert_from_id, uint32_t p_vert_to_id, real_t &r_error) const {
@@ -1130,6 +1133,20 @@ void MeshSimplify::_heap_remove(uint32_t p_vert_id) {
 			n--;
 		}
 	}
+
+	for (int n = 0; n < _heap_pending.size(); n++) {
+		const CollapseGroup &cg = _heap_pending[n];
+
+		if (cg.contains(p_vert_id)) {
+			_debug_print_collapse_group(cg, 1, "heap_remove cg:");
+
+			_destroy_collapse_group(cg);
+
+			// could do remove_unordered if sorting later?
+			_heap_pending.remove(n);
+			n--;
+		}
+	}
 }
 
 void MeshSimplify::_reevaluate_from_changed_vertex(uint32_t p_deleted_vert, uint32_t p_central_vert) {
@@ -1172,12 +1189,29 @@ void MeshSimplify::_reevaluate_from_changed_vertex(uint32_t p_deleted_vert, uint
 	_heap.sort();
 }
 
+void MeshSimplify::_consolidate_heap() {
+	print_line("consolidating heap");
+
+	// move all from the pending heap to the heap, and sort
+	int heap_size_before = _heap.size();
+
+	for (int n = 0; n < _heap_pending.size(); n++) {
+		_heap.push_back(_heap_pending[n]);
+	}
+
+	_heap_pending.clear();
+
+	if (_heap.size() != heap_size_before) {
+		_heap.sort();
+	}
+}
+
 void MeshSimplify::_evaluate_collapse_group(uint32_t p_vert_from_id, uint32_t p_vert_to_id) {
 	CollapseGroup cg;
 
 	// if the collapse was any good, add to the heap
 	if (_evaluate_collapse(p_vert_from_id, p_vert_to_id, cg) && (cg.size > 0)) {
-		_heap.push_back(cg);
+		_heap_pending.push_back(cg);
 
 		// As well as storing on the heap, store a quick
 		// to id on the vertex itself so we can quick reject adding
@@ -1234,7 +1268,8 @@ void MeshSimplify::_create_heap() {
 	//		start_from = vert_from_id + 1;
 	//	}
 
-	_heap.sort();
+	_consolidate_heap();
+	//_heap.sort();
 
 	// print initial heap
 #ifdef DEV_ENABLED
