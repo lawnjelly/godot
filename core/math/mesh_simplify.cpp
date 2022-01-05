@@ -11,8 +11,8 @@
 #define GSM_LOG(a)
 //#define GSM_LOG(a) print_line(a)
 
-uint32_t MeshSimplify::simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in_inds, const Vector3 *p_in_verts, uint32_t p_num_in_verts, uint32_t *r_out_inds, LocalVectori<uint32_t> &r_vert_map, uint32_t &r_num_out_verts, real_t p_threshold) {
-	//_threshold = p_threshold * p_threshold;
+uint32_t MeshSimplify::simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in_inds, const Vector3 *p_in_verts, uint32_t p_num_in_verts, uint32_t *r_out_inds, LocalVectori<uint32_t> &r_vert_map, uint32_t &r_num_out_verts, real_t p_threshold, real_t p_edge_simplification) {
+	_edge_simplification = CLAMP(1.0 - p_edge_simplification, 0.0, 1.0);
 
 	uint32_t target_num_tris = (p_num_in_inds / 3) * p_threshold;
 	target_num_tris = CLAMP(target_num_tris, 1, p_num_in_inds / 3);
@@ -148,7 +148,7 @@ uint32_t MeshSimplify::simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in
 		if (_active_tri_count <= target_num_tris)
 			break;
 
-		GSM_LOG(itos(n));
+		//GSM_LOG(itos(n));
 		if (_new_simplify()) {
 			//_apply_collapses();
 		} else {
@@ -926,6 +926,11 @@ bool MeshSimplify::_evaluate_collapse(uint32_t p_vert_from_id, uint32_t p_vert_t
 
 		const Vert &vert_prev = _verts[prev_vert_id];
 
+		// edge simplification limit
+		if (!dot_edge_test(vert_prev.pos, vert_from.pos, vert_to.pos)) {
+			return false;
+		}
+
 		real_t dist;
 		if (dist_point_from_line(vert_from.pos, vert_prev.pos, vert_to.pos, dist)) {
 			error += dist * dist;
@@ -978,6 +983,10 @@ bool MeshSimplify::_evaluate_collapse(uint32_t p_vert_from_id, uint32_t p_vert_t
 
 			// are these linked?
 			if (_are_verts_linked(next1, next2) && _evaluate_collapse(from_id2, to_id2, r_cg, true)) {
+				// one last case .. disallow if the verts are the same but opposite in both collapses
+				if (r_cg.is_invalid())
+					return false;
+
 				return true;
 			}
 		}
@@ -1211,6 +1220,17 @@ void MeshSimplify::_evaluate_collapse_group(uint32_t p_vert_from_id, uint32_t p_
 
 	// if the collapse was any good, add to the heap
 	if (_evaluate_collapse(p_vert_from_id, p_vert_to_id, cg) && (cg.size > 0)) {
+#ifdef DEV_ENABLED
+		for (int n = 0; n < cg.size; n++) {
+			const Collapse &c = cg.c[n];
+			const Vert &vert_from = _verts[c.from];
+			const Vert &vert_to = _verts[c.to];
+
+			DEV_ASSERT(vert_from.active);
+			DEV_ASSERT(vert_to.active);
+		}
+#endif
+
 		_heap_pending.push_back(cg);
 
 		// As well as storing on the heap, store a quick

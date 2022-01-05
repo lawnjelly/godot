@@ -232,8 +232,13 @@ class MeshSimplify {
 		}
 		bool operator==(const Collapse &p_o) const { return (from == p_o.from) && (to == p_o.to); }
 
-		uint32_t from;
-		uint32_t to;
+		union {
+			struct {
+				uint32_t from;
+				uint32_t to;
+			};
+			uint32_t ids[2];
+		};
 		//real_t error;
 	};
 
@@ -254,6 +259,21 @@ class MeshSimplify {
 		// highest error.
 		// apply a negative offset for mirror collapses, so they get processed first
 		float error;
+
+		// disallow if two collapses contain the same verts
+		bool is_invalid() const {
+			for (int n = 0; n < size; n++) {
+				for (int i = 0; i < 2; i++) {
+					uint32_t id = c[n].ids[i];
+
+					for (int m = n + 1; m < size; m++) {
+						if ((c[m].ids[0] == id) || (c[m].ids[1] == id))
+							return true;
+					}
+				}
+			}
+			return false;
+		}
 
 		bool contains_collapse(const Collapse &p_c) const {
 			for (int n = 0; n < 4; n++) {
@@ -297,7 +317,7 @@ public:
 	// returns number of indices
 	uint32_t simplify(const uint32_t *p_inds, uint32_t p_num_inds, const Vector3 *p_verts, uint32_t p_num_verts, uint32_t *r_inds, Vector3 *r_deduped_verts, uint32_t &r_num_deduped_verts, real_t p_threshold = 0.01);
 
-	uint32_t simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in_inds, const Vector3 *p_in_verts, uint32_t p_num_in_verts, uint32_t *r_out_inds, LocalVectori<uint32_t> &r_vert_map, uint32_t &r_num_out_verts, real_t p_threshold = 0.01);
+	uint32_t simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in_inds, const Vector3 *p_in_verts, uint32_t p_num_in_verts, uint32_t *r_out_inds, LocalVectori<uint32_t> &r_vert_map, uint32_t &r_num_out_verts, real_t p_threshold = 0.01, real_t p_edge_simplification = 1.0);
 
 private:
 	void _finalize_merge(uint32_t p_vert_from_id, uint32_t p_vert_to_id);
@@ -356,8 +376,8 @@ private:
 	uint32_t _active_tri_count = 0;
 
 	LocalVectori<uint32_t> _merge_vert_ids;
-	//real_t _threshold = 0.01;
 	bool _mirror_verts_only = false;
+	real_t _edge_simplification = 1.0;
 
 	// pending list of collapses, so we can backtrack and undo
 	// collapses in the case of mirror verts
@@ -377,6 +397,35 @@ private:
 	// and is stored on the object instead of recreating each time
 	// to save on allocations.
 	LocalVectori<uint32_t> _possible_tris;
+
+	bool dot_edge_test(const Vector3 &p_a, const Vector3 &p_b, const Vector3 &p_c) const {
+		if (_edge_simplification > 0.0) {
+			// never allow edge
+			if (_edge_simplification == 1.0)
+				return false;
+
+			Vector3 a = p_b - p_a;
+			Vector3 b = p_c - p_b;
+
+			real_t la = a.length();
+			real_t lb = b.length();
+
+			// always pass if points are close together, we want to get rid of this edge vert
+			if ((la < 0.001) || (lb < 0.001))
+				return true;
+
+			// normalize
+			a *= 1.0 / la;
+			b *= 1.0 / lb;
+
+			real_t dot = a.dot(b);
+			if (dot < _edge_simplification)
+				return false;
+		}
+
+		// always allow edge
+		return true;
+	}
 
 	// Adapted from https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line
 	bool dist_point_from_line(const Vector3 &p_pt, const Vector3 &p_a, const Vector3 &p_b, real_t &r_dist) const {

@@ -232,7 +232,7 @@ public:
 
 	void regen_normalmaps();
 
-	static bool simplify_mesh_data(PoolVector<Vector3> &r_verts, PoolVector<Vector3> &r_normals, PoolVector<real_t> &r_tangents, PoolVector<Color> &r_colors, PoolVector<Vector2> &r_uvs, PoolVector<Vector2> &r_uv2s, PoolVector<int> &r_inds, real_t p_simplify);
+	static bool simplify_mesh_data(PoolVector<Vector3> &r_verts, PoolVector<Vector3> &r_normals, PoolVector<real_t> &r_tangents, PoolVector<Color> &r_colors, PoolVector<Vector2> &r_uvs, PoolVector<Vector2> &r_uv2s, PoolVector<int> &r_inds, real_t p_simplify, real_t p_simplify_edges);
 
 	Error lightmap_unwrap(const Transform &p_base_transform = Transform(), float p_texel_size = 0.05);
 	Error lightmap_unwrap_cached(int *&r_cache_data, unsigned int &r_cache_size, bool &r_used_cache, const Transform &p_base_transform = Transform(), float p_texel_size = 0.05);
