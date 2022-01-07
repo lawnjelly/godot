@@ -2922,12 +2922,12 @@ void RasterizerStorageGLES2::mesh_clear(RID p_mesh) {
 
 /* MULTIMESH API */
 
-RID RasterizerStorageGLES2::multimesh_create() {
+RID RasterizerStorageGLES2::_multimesh_create() {
 	MultiMesh *multimesh = memnew(MultiMesh);
 	return multimesh_owner.make_rid(multimesh);
 }
 
-void RasterizerStorageGLES2::multimesh_allocate(RID p_multimesh, int p_instances, VS::MultimeshTransformFormat p_transform_format, VS::MultimeshColorFormat p_color_format, VS::MultimeshCustomDataFormat p_data) {
+void RasterizerStorageGLES2::_multimesh_allocate(RID p_multimesh, int p_instances, VS::MultimeshTransformFormat p_transform_format, VS::MultimeshColorFormat p_color_format, VS::MultimeshCustomDataFormat p_data) {
 	MultiMesh *multimesh = multimesh_owner.getornull(p_multimesh);
 	ERR_FAIL_COND(!multimesh);
 
@@ -3044,14 +3044,14 @@ void RasterizerStorageGLES2::multimesh_allocate(RID p_multimesh, int p_instances
 	}
 }
 
-int RasterizerStorageGLES2::multimesh_get_instance_count(RID p_multimesh) const {
+int RasterizerStorageGLES2::_multimesh_get_instance_count(RID p_multimesh) const {
 	MultiMesh *multimesh = multimesh_owner.getornull(p_multimesh);
 	ERR_FAIL_COND_V(!multimesh, 0);
 
 	return multimesh->size;
 }
 
-void RasterizerStorageGLES2::multimesh_set_mesh(RID p_multimesh, RID p_mesh) {
+void RasterizerStorageGLES2::_multimesh_set_mesh(RID p_multimesh, RID p_mesh) {
 	MultiMesh *multimesh = multimesh_owner.getornull(p_multimesh);
 	ERR_FAIL_COND(!multimesh);
 
@@ -3078,7 +3078,7 @@ void RasterizerStorageGLES2::multimesh_set_mesh(RID p_multimesh, RID p_mesh) {
 	}
 }
 
-void RasterizerStorageGLES2::multimesh_instance_set_transform(RID p_multimesh, int p_index, const Transform &p_transform) {
+void RasterizerStorageGLES2::_multimesh_instance_set_transform(RID p_multimesh, int p_index, const Transform &p_transform) {
 	MultiMesh *multimesh = multimesh_owner.getornull(p_multimesh);
 	ERR_FAIL_COND(!multimesh);
 	ERR_FAIL_INDEX(p_index, multimesh->size);
@@ -3109,7 +3109,7 @@ void RasterizerStorageGLES2::multimesh_instance_set_transform(RID p_multimesh, i
 	}
 }
 
-void RasterizerStorageGLES2::multimesh_instance_set_transform_2d(RID p_multimesh, int p_index, const Transform2D &p_transform) {
+void RasterizerStorageGLES2::_multimesh_instance_set_transform_2d(RID p_multimesh, int p_index, const Transform2D &p_transform) {
 	MultiMesh *multimesh = multimesh_owner.getornull(p_multimesh);
 	ERR_FAIL_COND(!multimesh);
 	ERR_FAIL_INDEX(p_index, multimesh->size);
@@ -3135,7 +3135,7 @@ void RasterizerStorageGLES2::multimesh_instance_set_transform_2d(RID p_multimesh
 	}
 }
 
-void RasterizerStorageGLES2::multimesh_instance_set_color(RID p_multimesh, int p_index, const Color &p_color) {
+void RasterizerStorageGLES2::_multimesh_instance_set_color(RID p_multimesh, int p_index, const Color &p_color) {
 	MultiMesh *multimesh = multimesh_owner.getornull(p_multimesh);
 	ERR_FAIL_COND(!multimesh);
 	ERR_FAIL_INDEX(p_index, multimesh->size);
@@ -3167,7 +3167,7 @@ void RasterizerStorageGLES2::multimesh_instance_set_color(RID p_multimesh, int p
 	}
 }
 
-void RasterizerStorageGLES2::multimesh_instance_set_custom_data(RID p_multimesh, int p_index, const Color &p_custom_data) {
+void RasterizerStorageGLES2::_multimesh_instance_set_custom_data(RID p_multimesh, int p_index, const Color &p_custom_data) {
 	MultiMesh *multimesh = multimesh_owner.getornull(p_multimesh);
 	ERR_FAIL_COND(!multimesh);
 	ERR_FAIL_INDEX(p_index, multimesh->size);
@@ -3199,14 +3199,14 @@ void RasterizerStorageGLES2::multimesh_instance_set_custom_data(RID p_multimesh,
 	}
 }
 
-RID RasterizerStorageGLES2::multimesh_get_mesh(RID p_multimesh) const {
+RID RasterizerStorageGLES2::_multimesh_get_mesh(RID p_multimesh) const {
 	MultiMesh *multimesh = multimesh_owner.getornull(p_multimesh);
 	ERR_FAIL_COND_V(!multimesh, RID());
 
 	return multimesh->mesh;
 }
 
-Transform RasterizerStorageGLES2::multimesh_instance_get_transform(RID p_multimesh, int p_index) const {
+Transform RasterizerStorageGLES2::_multimesh_instance_get_transform(RID p_multimesh, int p_index) const {
 	MultiMesh *multimesh = multimesh_owner.getornull(p_multimesh);
 	ERR_FAIL_COND_V(!multimesh, Transform());
 	ERR_FAIL_INDEX_V(p_index, multimesh->size, Transform());
@@ -3233,7 +3233,7 @@ Transform RasterizerStorageGLES2::multimesh_instance_get_transform(RID p_multime
 	return xform;
 }
 
-Transform2D RasterizerStorageGLES2::multimesh_instance_get_transform_2d(RID p_multimesh, int p_index) const {
+Transform2D RasterizerStorageGLES2::_multimesh_instance_get_transform_2d(RID p_multimesh, int p_index) const {
 	MultiMesh *multimesh = multimesh_owner.getornull(p_multimesh);
 	ERR_FAIL_COND_V(!multimesh, Transform2D());
 	ERR_FAIL_INDEX_V(p_index, multimesh->size, Transform2D());
@@ -3254,7 +3254,7 @@ Transform2D RasterizerStorageGLES2::multimesh_instance_get_transform_2d(RID p_mu
 	return xform;
 }
 
-Color RasterizerStorageGLES2::multimesh_instance_get_color(RID p_multimesh, int p_index) const {
+Color RasterizerStorageGLES2::_multimesh_instance_get_color(RID p_multimesh, int p_index) const {
 	MultiMesh *multimesh = multimesh_owner.getornull(p_multimesh);
 	ERR_FAIL_COND_V(!multimesh, Color());
 	ERR_FAIL_INDEX_V(p_index, multimesh->size, Color());
@@ -3287,7 +3287,7 @@ Color RasterizerStorageGLES2::multimesh_instance_get_color(RID p_multimesh, int 
 	return Color();
 }
 
-Color RasterizerStorageGLES2::multimesh_instance_get_custom_data(RID p_multimesh, int p_index) const {
+Color RasterizerStorageGLES2::_multimesh_instance_get_custom_data(RID p_multimesh, int p_index) const {
 	MultiMesh *multimesh = multimesh_owner.getornull(p_multimesh);
 	ERR_FAIL_COND_V(!multimesh, Color());
 	ERR_FAIL_INDEX_V(p_index, multimesh->size, Color());
@@ -3320,7 +3320,7 @@ Color RasterizerStorageGLES2::multimesh_instance_get_custom_data(RID p_multimesh
 	return Color();
 }
 
-void RasterizerStorageGLES2::multimesh_set_as_bulk_array(RID p_multimesh, const PoolVector<float> &p_array) {
+void RasterizerStorageGLES2::_multimesh_set_as_bulk_array(RID p_multimesh, const PoolVector<float> &p_array) {
 	MultiMesh *multimesh = multimesh_owner.getornull(p_multimesh);
 	ERR_FAIL_COND(!multimesh);
 	ERR_FAIL_COND(!multimesh->data.ptr());
@@ -3341,21 +3341,21 @@ void RasterizerStorageGLES2::multimesh_set_as_bulk_array(RID p_multimesh, const 
 	}
 }
 
-void RasterizerStorageGLES2::multimesh_set_visible_instances(RID p_multimesh, int p_visible) {
+void RasterizerStorageGLES2::_multimesh_set_visible_instances(RID p_multimesh, int p_visible) {
 	MultiMesh *multimesh = multimesh_owner.getornull(p_multimesh);
 	ERR_FAIL_COND(!multimesh);
 
 	multimesh->visible_instances = p_visible;
 }
 
-int RasterizerStorageGLES2::multimesh_get_visible_instances(RID p_multimesh) const {
+int RasterizerStorageGLES2::_multimesh_get_visible_instances(RID p_multimesh) const {
 	MultiMesh *multimesh = multimesh_owner.getornull(p_multimesh);
 	ERR_FAIL_COND_V(!multimesh, -1);
 
 	return multimesh->visible_instances;
 }
 
-AABB RasterizerStorageGLES2::multimesh_get_aabb(RID p_multimesh) const {
+AABB RasterizerStorageGLES2::_multimesh_get_aabb(RID p_multimesh) const {
 	MultiMesh *multimesh = multimesh_owner.getornull(p_multimesh);
 	ERR_FAIL_COND_V(!multimesh, AABB());
 
