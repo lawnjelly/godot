@@ -210,6 +210,10 @@ public:
 
 	FUNC2(multimesh_set_as_bulk_array, RID, const PoolVector<float> &)
 
+	FUNC3(multimesh_set_as_bulk_array_interpolated, RID, const PoolVector<float> &, const PoolVector<float> &)
+	FUNC2(multimesh_set_interpolated, RID, bool)
+	FUNC2(multimesh_instance_reset_physics_interpolation, RID, int)
+
 	FUNC2(multimesh_set_visible_instances, RID, int)
 	FUNC1RC(int, multimesh_get_visible_instances, RID)
 

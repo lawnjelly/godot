@@ -787,6 +787,8 @@ public:
 		bool dirty_aabb;
 		bool dirty_data;
 
+		MMInterpolator interpolator;
+
 		MultiMesh() :
 				size(0),
 				transform_format(VS::MULTIMESH_TRANSFORM_2D),
@@ -831,6 +833,7 @@ public:
 	virtual int _multimesh_get_visible_instances(RID p_multimesh) const;
 
 	virtual AABB _multimesh_get_aabb(RID p_multimesh) const;
+	virtual MMInterpolator *_multimesh_get_interpolator(RID p_multimesh) const;
 
 	void update_dirty_multimeshes();
 

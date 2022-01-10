@@ -52,8 +52,8 @@ void CPUParticles::set_emitting(bool p_emitting) {
 		set_process_internal(true);
 
 		// first update before rendering to avoid one frame delay after emitting starts
-		if (time == 0) {
-			_update_internal();
+		if ((time == 0) && !_interpolated) {
+			_update_internal(false);
 		}
 	}
 }
@@ -62,16 +62,20 @@ void CPUParticles::set_amount(int p_amount) {
 	ERR_FAIL_COND_MSG(p_amount < 1, "Amount of particles must be greater than 0.");
 
 	particles.resize(p_amount);
+	particles_prev.resize(p_amount);
 	{
 		PoolVector<Particle>::Write w = particles.write();
 
 		for (int i = 0; i < p_amount; i++) {
 			w[i].active = false;
 			w[i].custom[3] = 0.0; // Make sure w component isn't garbage data
+
+			particles_prev[i].blank();
 		}
 	}
 
 	particle_data.resize((12 + 4 + 1) * p_amount);
+	particle_data_prev.resize(particle_data.size());
 	VS::get_singleton()->multimesh_allocate(multimesh, p_amount, VS::MULTIMESH_TRANSFORM_3D, VS::MULTIMESH_COLOR_8BIT, VS::MULTIMESH_CUSTOM_DATA_FLOAT);
 
 	particle_order.resize(p_amount);
@@ -102,14 +106,6 @@ void CPUParticles::set_use_local_coordinates(bool p_enable) {
 
 	// prevent sending instance transforms when using global coords
 	set_instance_use_identity_transform(!p_enable);
-
-	if (!p_enable) {
-		// We will lose the physics interpolated setting for when
-		// using local coordinates by doing this. We could back it up,
-		// but it's probably overkill as this will typically just be done as a one off
-		// at runtime (although may be flipped in the editor).
-		set_physics_interpolated(false);
-	}
 }
 void CPUParticles::set_speed_scale(float p_scale) {
 	speed_scale = p_scale;
@@ -515,13 +511,23 @@ static float rand_from_seed(uint32_t &seed) {
 	return float(seed % uint32_t(65536)) / 65535.0;
 }
 
-void CPUParticles::_update_internal() {
+void CPUParticles::_update_internal(bool p_on_physics_tick) {
 	if (particles.size() == 0 || !is_visible_in_tree()) {
 		_set_redraw(false);
 		return;
 	}
 
-	float delta = get_process_delta_time();
+	// change update mode?
+	_set_interpolated(get_tree()->is_scene_tree_physics_interpolation_enabled() && is_physics_interpolated());
+
+	float delta = 0.0f;
+
+	// Is this update occurring on a physics tick (i.e. interpolated), or a frame tick?
+	if (p_on_physics_tick) {
+		delta = get_physics_process_delta_time();
+	} else {
+		delta = get_process_delta_time();
+	}
 	if (emitting) {
 		inactive_time = 0;
 	} else {
@@ -587,6 +593,12 @@ void CPUParticles::_update_internal() {
 	if (processed) {
 		_update_particle_data_buffer();
 	}
+
+	// If we are interpolating, we send the data to the VisualServer
+	// right away on a physics tick instead of waiting until a render frame.
+	if (p_on_physics_tick && redraw) {
+		_update_render_thread();
+	}
 }
 
 void CPUParticles::_particles_process(float p_delta) {
@@ -611,11 +623,7 @@ void CPUParticles::_particles_process(float p_delta) {
 	Transform emission_xform;
 	Basis velocity_xform;
 	if (!local_coords) {
-		if (get_tree()->is_scene_tree_physics_interpolation_enabled()) {
-			emission_xform = get_global_transform_interpolated();
-		} else {
-			emission_xform = get_global_transform();
-		}
+		emission_xform = get_global_transform();
 		velocity_xform = emission_xform.basis;
 	}
 
@@ -626,6 +634,11 @@ void CPUParticles::_particles_process(float p_delta) {
 
 		if (!emitting && !p.active) {
 			continue;
+		}
+
+		// For interpolation we need to keep a record of previous particles
+		if (_interpolated) {
+			p.copy_to(particles_prev[i]);
 		}
 
 		float local_delta = p_delta;
@@ -834,6 +847,13 @@ void CPUParticles::_particles_process(float p_delta) {
 			if (flags[FLAG_DISABLE_Z]) {
 				p.velocity.z = 0.0;
 				p.transform.origin.z = 0.0;
+			}
+
+			// Teleport if starting a new particle, so
+			// we don't get a streak from the old position
+			// to this new start.
+			if (_interpolated) {
+				p.copy_to(particles_prev[i]);
 			}
 
 		} else if (!p.active) {
@@ -1066,6 +1086,14 @@ void CPUParticles::_update_particle_data_buffer() {
 		PoolVector<Particle>::Read r = particles.read();
 		float *ptr = w.ptr();
 
+		PoolVector<float>::Write w_prev;
+		float *ptr_prev = nullptr;
+
+		if (_interpolated) {
+			w_prev = particle_data_prev.write();
+			ptr_prev = w_prev.ptr();
+		}
+
 		if (draw_order != DRAW_ORDER_INDEX) {
 			ow = particle_order.write();
 			order = ow.ptr();
@@ -1098,41 +1126,20 @@ void CPUParticles::_update_particle_data_buffer() {
 			}
 		}
 
-		for (int i = 0; i < pc; i++) {
-			int idx = order ? order[i] : i;
-
-			Transform t = r[idx].transform;
-
-			if (r[idx].active) {
-				ptr[0] = t.basis.elements[0][0];
-				ptr[1] = t.basis.elements[0][1];
-				ptr[2] = t.basis.elements[0][2];
-				ptr[3] = t.origin.x;
-				ptr[4] = t.basis.elements[1][0];
-				ptr[5] = t.basis.elements[1][1];
-				ptr[6] = t.basis.elements[1][2];
-				ptr[7] = t.origin.y;
-				ptr[8] = t.basis.elements[2][0];
-				ptr[9] = t.basis.elements[2][1];
-				ptr[10] = t.basis.elements[2][2];
-				ptr[11] = t.origin.z;
-			} else {
-				memset(ptr, 0, sizeof(float) * 12);
+		if (_interpolated) {
+			for (int i = 0; i < pc; i++) {
+				int idx = order ? order[i] : i;
+				_fill_particle_data(r[idx], ptr, r[idx].active);
+				ptr += 17;
+				_fill_particle_data(particles_prev[idx], ptr_prev, r[idx].active);
+				ptr_prev += 17;
 			}
-
-			Color c = r[idx].color;
-			uint8_t *data8 = (uint8_t *)&ptr[12];
-			data8[0] = CLAMP(c.r * 255.0, 0, 255);
-			data8[1] = CLAMP(c.g * 255.0, 0, 255);
-			data8[2] = CLAMP(c.b * 255.0, 0, 255);
-			data8[3] = CLAMP(c.a * 255.0, 0, 255);
-
-			ptr[13] = r[idx].custom[0];
-			ptr[14] = r[idx].custom[1];
-			ptr[15] = r[idx].custom[2];
-			ptr[16] = r[idx].custom[3];
-
-			ptr += 17;
+		} else {
+			for (int i = 0; i < pc; i++) {
+				int idx = order ? order[i] : i;
+				_fill_particle_data(r[idx], ptr, r[idx].active);
+				ptr += 17;
+			}
 		}
 
 		can_update.set();
@@ -1141,20 +1148,46 @@ void CPUParticles::_update_particle_data_buffer() {
 	update_mutex.unlock();
 }
 
+void CPUParticles::_set_interpolated(bool p_interpolated) {
+	if (_interpolated == p_interpolated) {
+		return;
+	}
+
+	bool curr_redraw = redraw;
+
+	// Remove all connections
+	// This isn't super efficient, but should only happen rarely.
+	_set_redraw(false);
+
+	_interpolated = p_interpolated;
+	set_process_internal(!_interpolated);
+	set_physics_process_internal(_interpolated);
+
+	// re-establish all connections
+	_set_redraw(curr_redraw);
+}
+
 void CPUParticles::_set_redraw(bool p_redraw) {
 	if (redraw == p_redraw) {
 		return;
 	}
 	redraw = p_redraw;
 	update_mutex.lock();
+
+	if (!_interpolated) {
+		if (redraw) {
+			VS::get_singleton()->connect("frame_pre_draw", this, "_update_render_thread");
+		} else {
+			if (VS::get_singleton()->is_connected("frame_pre_draw", this, "_update_render_thread")) {
+				VS::get_singleton()->disconnect("frame_pre_draw", this, "_update_render_thread");
+			}
+		}
+	}
+
 	if (redraw) {
-		VS::get_singleton()->connect("frame_pre_draw", this, "_update_render_thread");
 		VS::get_singleton()->instance_geometry_set_flag(get_instance(), VS::INSTANCE_FLAG_DRAW_NEXT_FRAME_IF_VISIBLE, true);
 		VS::get_singleton()->multimesh_set_visible_instances(multimesh, -1);
 	} else {
-		if (VS::get_singleton()->is_connected("frame_pre_draw", this, "_update_render_thread")) {
-			VS::get_singleton()->disconnect("frame_pre_draw", this, "_update_render_thread");
-		}
 		VS::get_singleton()->instance_geometry_set_flag(get_instance(), VS::INSTANCE_FLAG_DRAW_NEXT_FRAME_IF_VISIBLE, false);
 		VS::get_singleton()->multimesh_set_visible_instances(multimesh, 0);
 	}
@@ -1165,7 +1198,11 @@ void CPUParticles::_update_render_thread() {
 	update_mutex.lock();
 
 	if (can_update.is_set()) {
-		VS::get_singleton()->multimesh_set_as_bulk_array(multimesh, particle_data);
+		if (_interpolated) {
+			VS::get_singleton()->multimesh_set_as_bulk_array_interpolated(multimesh, particle_data, particle_data_prev);
+		} else {
+			VS::get_singleton()->multimesh_set_as_bulk_array(multimesh, particle_data);
+		}
 		can_update.clear(); //wait for next time
 	}
 
@@ -1177,8 +1214,8 @@ void CPUParticles::_notification(int p_what) {
 		set_process_internal(emitting);
 
 		// first update before rendering to avoid one frame delay after emitting starts
-		if (emitting && (time == 0)) {
-			_update_internal();
+		if (emitting && (time == 0) && !_interpolated) {
+			_update_internal(false);
 		}
 	}
 
@@ -1188,13 +1225,17 @@ void CPUParticles::_notification(int p_what) {
 
 	if (p_what == NOTIFICATION_VISIBILITY_CHANGED) {
 		// first update before rendering to avoid one frame delay after emitting starts
-		if (emitting && (time == 0)) {
-			_update_internal();
+		if (emitting && (time == 0) && !_interpolated) {
+			_update_internal(false);
 		}
 	}
 
 	if (p_what == NOTIFICATION_INTERNAL_PROCESS) {
-		_update_internal();
+		_update_internal(false);
+	}
+
+	if (p_what == NOTIFICATION_INTERNAL_PHYSICS_PROCESS) {
+		_update_internal(true);
 	}
 }
 

@@ -220,6 +220,10 @@ int MultiMesh::get_visible_instance_count() const {
 	return visible_instance_count;
 }
 
+void MultiMesh::reset_instance_physics_interpolation(int p_instance) {
+	VisualServer::get_singleton()->multimesh_instance_reset_physics_interpolation(multimesh, p_instance);
+}
+
 void MultiMesh::set_instance_transform(int p_instance, const Transform &p_transform) {
 	VisualServer::get_singleton()->multimesh_instance_set_transform(multimesh, p_instance, p_transform);
 }
@@ -253,6 +257,10 @@ Color MultiMesh::get_instance_custom_data(int p_instance) const {
 
 void MultiMesh::set_as_bulk_array(const PoolVector<float> &p_array) {
 	VisualServer::get_singleton()->multimesh_set_as_bulk_array(multimesh, p_array);
+}
+
+void MultiMesh::set_interpolated(bool p_interpolated) {
+	VisualServer::get_singleton()->multimesh_set_interpolated(multimesh, p_interpolated);
 }
 
 AABB MultiMesh::get_aabb() const {
@@ -311,6 +319,7 @@ void MultiMesh::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_instance_color", "instance"), &MultiMesh::get_instance_color);
 	ClassDB::bind_method(D_METHOD("set_instance_custom_data", "instance", "custom_data"), &MultiMesh::set_instance_custom_data);
 	ClassDB::bind_method(D_METHOD("get_instance_custom_data", "instance"), &MultiMesh::get_instance_custom_data);
+	ClassDB::bind_method(D_METHOD("reset_instance_physics_interpolation", "instance"), &MultiMesh::reset_instance_physics_interpolation);
 	ClassDB::bind_method(D_METHOD("set_as_bulk_array", "array"), &MultiMesh::set_as_bulk_array);
 	ClassDB::bind_method(D_METHOD("get_aabb"), &MultiMesh::get_aabb);
 

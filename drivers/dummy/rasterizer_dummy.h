@@ -455,6 +455,10 @@ public:
 
 	void multimesh_set_as_bulk_array(RID p_multimesh, const PoolVector<float> &p_array) {}
 
+	void multimesh_set_as_bulk_array_interpolated(RID p_multimesh, const PoolVector<float> &p_array, const PoolVector<float> &p_array_prev) {}
+	void multimesh_set_interpolated(RID p_multimesh, bool p_interpolated) {}
+	void multimesh_instance_reset_physics_interpolation(RID p_multimesh, int p_index) {}
+
 	void multimesh_set_visible_instances(RID p_multimesh, int p_visible) {}
 	int multimesh_get_visible_instances(RID p_multimesh) const { return 0; }
 

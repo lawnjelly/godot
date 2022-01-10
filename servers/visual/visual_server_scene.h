@@ -226,8 +226,8 @@ public:
 
 		// fixed timestep interpolation
 		struct InterpolationData {
-			void notify_free_camera(RID p_rid);
-			void notify_free_instance(RID p_rid);
+			void notify_free_camera(RID p_rid, Camera &r_camera);
+			void notify_free_instance(RID p_rid, Instance &r_instance);
 			LocalVector<RID> instance_interpolate_update_list;
 			LocalVector<RID> instance_transform_update_lists[2];
 			LocalVector<RID> *instance_transform_update_list_curr = &instance_transform_update_lists[0];
@@ -762,8 +762,8 @@ public:
 	void update_dirty_instances();
 
 	// interpolation
-	void update_interpolation_transform_list(Scenario::InterpolationData &r_interpolation_data, bool p_process = true);
-	void update_interpolate_list(Scenario::InterpolationData &r_interpolation_data, bool p_process = true);
+	void update_interpolation_tick(Scenario::InterpolationData &r_interpolation_data, bool p_process = true);
+	void update_interpolation_frame(Scenario::InterpolationData &r_interpolation_data, bool p_process = true);
 
 	//probes
 	struct GIProbeDataHeader {

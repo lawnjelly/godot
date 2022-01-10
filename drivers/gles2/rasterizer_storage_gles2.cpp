@@ -3364,6 +3364,13 @@ AABB RasterizerStorageGLES2::_multimesh_get_aabb(RID p_multimesh) const {
 	return multimesh->aabb;
 }
 
+RasterizerStorage::MMInterpolator *RasterizerStorageGLES2::_multimesh_get_interpolator(RID p_multimesh) const {
+	MultiMesh *multimesh = multimesh_owner.getornull(p_multimesh);
+	ERR_FAIL_COND_V(!multimesh, nullptr);
+
+	return &multimesh->interpolator;
+}
+
 void RasterizerStorageGLES2::update_dirty_multimeshes() {
 	while (multimesh_update_list.first()) {
 		MultiMesh *multimesh = multimesh_update_list.first()->self();
@@ -5960,6 +5967,9 @@ bool RasterizerStorageGLES2::free(RID p_rid) {
 
 		return true;
 	} else if (multimesh_owner.owns(p_rid)) {
+		// remove from interpolator
+		_interpolation_data.notify_free_multimesh(p_rid);
+
 		MultiMesh *multimesh = multimesh_owner.get(p_rid);
 		multimesh->instance_remove_deps();
 
