@@ -2,17 +2,26 @@
 #include "core/print_string.h"
 #include "core/variant.h"
 
-void SpatialDeduplicator::Grid::calc_bound(const Vector3 *p_verts, uint32_t p_num_verts) {
+AABB SpatialDeduplicator::Grid::calc_bound(const Vector3 *p_verts, uint32_t p_num_verts) {
 	if (!p_num_verts) {
-		return;
+		return AABB();
+	}
+
+	AABB aabb;
+	aabb.position = p_verts[0];
+	for (uint32_t n = 1; n < p_num_verts; n++) {
+		aabb.expand_to(p_verts[n]);
 	}
 
 	Rect2 rt;
-	rt.position = vec3_xy(p_verts[0]);
+	rt.position = vec3_xy(aabb.position);
+	rt.size = vec3_xy(aabb.size);
 
-	for (uint32_t n = 0; n < p_num_verts; n++) {
-		rt.expand_to(vec3_xy(p_verts[n]));
-	}
+	//	rt.position = vec3_xy(p_verts[0]);
+
+	//	for (uint32_t n = 0; n < p_num_verts; n++) {
+	//		rt.expand_to(vec3_xy(p_verts[n]));
+	//	}
 
 	_bound_min = rt.position;
 	_bound_mult = Vector2();
@@ -22,6 +31,8 @@ void SpatialDeduplicator::Grid::calc_bound(const Vector3 *p_verts, uint32_t p_nu
 	if (rt.size.y > 0.0) {
 		_bound_mult.y = GRID_SIZE / rt.size.y;
 	}
+
+	return aabb;
 }
 
 void SpatialDeduplicator::Grid::add(const Vector3 &p_pos, uint32_t p_id) {
@@ -58,7 +69,7 @@ bool SpatialDeduplicator::Grid::find(const Vector3 &p_pos, real_t p_epsilon, Loc
 bool SpatialDeduplicator::deduplicate_verts_only(const uint32_t *p_in_inds, uint32_t p_num_in_inds, const Vector3 *p_in_verts, uint32_t p_num_in_verts, LocalVectori<Vector3> &r_out_verts, LocalVectori<uint32_t> &r_out_inds, real_t p_epsilon) {
 	LocalVectori<uint32_t> vert_map;
 	uint32_t num_out_verts = 0;
-	if (!deduplicate_map(p_in_inds, p_num_in_inds, p_in_verts, p_num_in_verts, vert_map, num_out_verts, r_out_inds, p_epsilon))
+	if (!deduplicate_map(p_in_inds, p_num_in_inds, p_in_verts, p_num_in_verts, vert_map, num_out_verts, r_out_inds, nullptr, p_epsilon))
 		return false;
 
 	// create new verts list
@@ -76,7 +87,7 @@ bool SpatialDeduplicator::deduplicate_verts_only(const uint32_t *p_in_inds, uint
 
 // The spatial deduplication is done automatically, but the user can provide a template function following the form above
 // to detect whether a vertex is similar enough to be merged based on e.g. normal, UVs etc.
-bool SpatialDeduplicator::deduplicate_map(const uint32_t *p_in_inds, uint32_t p_num_in_inds, const Vector3 *p_in_verts, uint32_t p_num_in_verts, LocalVectori<uint32_t> &r_vert_map, uint32_t &r_num_out_verts, LocalVectori<uint32_t> &r_out_inds, real_t p_epsilon) {
+bool SpatialDeduplicator::deduplicate_map(const uint32_t *p_in_inds, uint32_t p_num_in_inds, const Vector3 *p_in_verts, uint32_t p_num_in_verts, LocalVectori<uint32_t> &r_vert_map, uint32_t &r_num_out_verts, LocalVectori<uint32_t> &r_out_inds, AABB *r_bound, real_t p_epsilon) {
 	_epsilon = p_epsilon;
 
 	//LocalVectori<uint32_t> vert_map;
@@ -92,7 +103,10 @@ bool SpatialDeduplicator::deduplicate_map(const uint32_t *p_in_inds, uint32_t p_
 #define GODOT_DEDUPLICATOR_USE_GRID
 #ifdef GODOT_DEDUPLICATOR_USE_GRID
 	Grid grid;
-	grid.calc_bound(p_in_verts, p_num_in_verts);
+	AABB world_bound = grid.calc_bound(p_in_verts, p_num_in_verts);
+	if (r_bound) {
+		*r_bound = world_bound;
+	}
 	LocalVectori<uint32_t> found_ids;
 #endif
 

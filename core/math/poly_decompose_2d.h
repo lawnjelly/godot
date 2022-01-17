@@ -6,7 +6,7 @@
 #include "core/math/vec2i.h"
 #include "core/math/vector2.h"
 
-#define GODOT_POLY_DECOMPOSE_DEBUG_DRAW
+//#define GODOT_POLY_DECOMPOSE_DEBUG_DRAW
 #ifdef GODOT_POLY_DECOMPOSE_DEBUG_DRAW
 #include "core/debug_image.h"
 #endif

@@ -1044,7 +1044,7 @@ void ArrayMesh::regen_normalmaps() {
 	}
 }
 
-bool ArrayMesh::simplify_mesh_data(PoolVector<Vector3> &r_verts, PoolVector<Vector3> &r_normals, PoolVector<real_t> &r_tangents, PoolVector<Color> &r_colors, PoolVector<Vector2> &r_uvs, PoolVector<Vector2> &r_uv2s, PoolVector<int> &r_inds, real_t p_simplify, real_t p_simplify_edges) {
+bool ArrayMesh::simplify_mesh_data(PoolVector<Vector3> &r_verts, PoolVector<Vector3> &r_normals, PoolVector<real_t> &r_tangents, PoolVector<Color> &r_colors, PoolVector<Vector2> &r_uvs, PoolVector<Vector2> &r_uv2s, PoolVector<int> &r_inds, real_t p_simplify_tri_fraction, real_t p_simplify_edges) {
 	MeshSimplify simp;
 	LocalVectori<uint32_t> source_inds;
 	source_inds.resize(r_inds.size());
@@ -1069,10 +1069,8 @@ bool ArrayMesh::simplify_mesh_data(PoolVector<Vector3> &r_verts, PoolVector<Vect
 	LocalVectori<uint32_t> vert_map;
 
 	//real_t epsilon = get_lod_max_hysteresis();
-	real_t epsilon = p_simplify;
+	//real_t epsilon = p_simplify;
 	//epsilon /= 200000.0;
-
-	print_line("simplify epsilon is " + String(Variant(epsilon)));
 
 	// test positions sync
 	{
@@ -1109,7 +1107,7 @@ bool ArrayMesh::simplify_mesh_data(PoolVector<Vector3> &r_verts, PoolVector<Vect
 		simp.add_attribute(attr);
 	}
 
-	num_simplified_inds = simp.simplify_map(&source_inds[0], source_inds.size(), &source_verts[0], source_verts.size(), &lod_inds[0], vert_map, num_simplified_verts, epsilon, p_simplify_edges);
+	num_simplified_inds = simp.simplify_map(&source_inds[0], source_inds.size(), &source_verts[0], source_verts.size(), &lod_inds[0], vert_map, num_simplified_verts, 0.0, p_simplify_tri_fraction, p_simplify_edges);
 	if (num_simplified_inds) {
 		r_inds.resize(num_simplified_inds);
 		for (int n = 0; n < num_simplified_inds; n++)

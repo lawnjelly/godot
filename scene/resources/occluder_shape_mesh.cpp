@@ -46,7 +46,7 @@
 #include "core/debug_image.h"
 #endif
 
-#define GODOT_OCCLUDER_SHAPE_MESH_SINGLE_FACE
+//#define GODOT_OCCLUDER_SHAPE_MESH_SINGLE_FACE
 
 ////////////////////////////////////////////////////
 
@@ -288,11 +288,12 @@ void OccluderShapeMesh::bake(Node *owner) {
 		}
 
 		_bake_recursive(branch);
-
-		_bake_quantize_float_faces();
+		_simplify_triangles();
+		_bake_quantize_input();
+		_simplify_triangles_second();
+	} else {
+		ERR_FAIL_MSG("Bake path is not to a valid Spatial");
 	}
-
-	_simplify_triangles();
 
 	_verify_verts();
 	_find_neighbour_face_ids();
@@ -333,6 +334,158 @@ void OccluderShapeMesh::bake(Node *owner) {
 
 void OccluderShapeMesh::_simplify_triangles() {
 	// noop
+	if (!_bd.float_input_faces.size()) {
+		return;
+	}
+
+	// clear hash table to reuse
+	// maybe not needed?
+	_bd.hash_verts.clear();
+	_bd.hash_triangles._table.clear();
+
+	struct Vec3f {
+		void from(const Vector3 &p_o) {
+			x = p_o.x;
+			y = p_o.y;
+			z = p_o.z;
+		}
+		void set(real_t xx, real_t yy, real_t zz) {
+			x = xx;
+			y = yy;
+			z = zz;
+		}
+		float x, y, z;
+	};
+
+	// simplify function expects indices as unsigned int, not uint32_t...
+	LocalVector<uint32_t> inds_in;
+	int num_in_tris = _bd.float_input_faces.size();
+	for (int n = 0; n < num_in_tris * 3; n++) {
+		inds_in.push_back(inds_in.size());
+	}
+
+	// prevent a screwup if real_t is double,
+	// as the mesh optimizer lib expects floats
+	LocalVector<Vec3f> verts;
+	verts.resize(num_in_tris * 3);
+
+	for (int n = 0; n < num_in_tris; n++) {
+		const Face3 &face = _bd.float_input_faces[n];
+		for (int c = 0; c < 3; c++) {
+			verts[(n * 3) + c].from(face.vertex[c]);
+		}
+	}
+
+	// max number of verts
+	_bd.input_positions.resize(verts.size());
+	uint32_t num_deduped_verts = 0;
+	_bd.input_inds.resize(inds_in.size());
+
+	MeshSimplify simp;
+
+	size_t result = simp.simplify_occluders(&inds_in[0], inds_in.size(), (const Vector3 *)&verts[0], verts.size(), &_bd.input_inds[0], &_bd.input_positions[0], num_deduped_verts, _settings_simplify);
+
+	// discard unneeded
+	_bd.input_positions.resize(num_deduped_verts);
+	_bd.input_inds.resize(result);
+
+	// no longer need the float input
+	_bd.float_input_faces.clear();
+
+	////////////////////////////////
+}
+
+// Goes through the indices AGAIN
+// and this time calls _bd.find_or_create_vert which
+// creates a set of "BakeVertices"
+void OccluderShapeMesh::_simplify_triangles_second() {
+	// clear hash table no longer need
+	_bd.hash_verts.clear();
+
+	LocalVectori<uint32_t> temp_inds;
+	for (int n = 0; n < _bd.faces.size(); n++) {
+		const BakeFace &face = _bd.faces[n];
+		temp_inds.push_back(face.indices[0]);
+		temp_inds.push_back(face.indices[1]);
+		temp_inds.push_back(face.indices[2]);
+	}
+
+	// resave
+	_bd.faces.clear();
+	_bd.faces.resize(temp_inds.size() / 3);
+
+	// some faces may fail if they are degenerate
+	int faces_written = 0;
+	int count = 0;
+
+	for (int n = 0; n < _bd.faces.size(); n++) {
+		BakeFace face;
+		face.indices.resize(3);
+
+		Face3 f3;
+
+		for (int c = 0; c < 3; c++) {
+			const Vector3 &pos = _mesh_data.vertices[temp_inds[count++]];
+			int new_ind = _bd.find_or_create_vert(pos);
+			face.indices[c] = new_ind;
+			f3.vertex[c] = pos;
+		}
+
+		// test for degenerate
+		if ((face.indices[0] == face.indices[1]) ||
+				(face.indices[0] == face.indices[2]) ||
+				(face.indices[1] == face.indices[2])) {
+			// degenerate
+			continue;
+		}
+
+		// now we are sure of the face, add the linked face to each vert
+		for (int c = 0; c < 3; c++) {
+			_bd.verts[face.indices[c]].linked_faces.push_back(faces_written);
+		}
+
+		face.plane = f3.get_plane();
+
+		face.area = f3.get_area();
+		_bd.faces[faces_written++] = face;
+	}
+
+	// less faces may be written than originally intended
+	_bd.faces.resize(faces_written);
+
+	// delete the orig verts
+	_mesh_data.vertices.clear();
+
+	// clear hash table no longer need
+	_bd.hash_verts.clear();
+
+#ifdef GODOT_OCCLUDER_SHAPE_MESH_SIMPLIFY_DEBUG_DRAW
+	DebugImage im;
+	im.create(240, 240);
+	im.fill();
+
+	for (int n = 0; n < _bd.faces.size(); n++) {
+		const BakeFace &bface = _bd.faces[n];
+		int num_inds = bface.indices.size();
+
+		for (int i = 0; i < num_inds; i++) {
+			const BakeVertex &bv0 = _bd.verts[bface.indices[i]];
+			const BakeVertex &bv1 = _bd.verts[bface.indices[(i + 1) % num_inds]];
+			Vector2 p0 = Vector2(bv0.posf.x, bv0.posf.z);
+			Vector2 p1 = Vector2(bv1.posf.x, bv1.posf.z);
+			im.l_move(p0);
+			im.l_line_to(p1);
+		}
+	}
+	im.l_flush(false);
+	im.save_png("simplify/simp.png");
+
+#endif
+
+	print_line("After simplify " + itos(_bd.faces.size()) + " triangles, " + itos(_bd.verts.size()) + " vertices.");
+}
+
+void OccluderShapeMesh::_simplify_trianglesOLD() {
 	if (!_mesh_data.vertices.size()) {
 		return;
 	}
@@ -392,57 +545,59 @@ void OccluderShapeMesh::_simplify_triangles() {
 #ifdef GODOT_OCCLUDER_POLY_USE_INTERNAL_SIMPLIFICATION
 		MeshSimplify simp;
 
-		size_t result_prev = 0;
-		int counter = 0;
+		//size_t result_prev = 0;
+		//int counter = 0;
 		while (true) {
 			// max number of verts
 			LocalVectori<Vector3> deduped_verts;
 			deduped_verts.resize(verts.size());
 			uint32_t num_deduped_verts = 0;
 
-			result = simp.simplify(&inds_in[0], inds_in.size(), (const Vector3 *)&verts[0], verts.size(), &inds_out[0], &deduped_verts[0], num_deduped_verts);
+			result = simp.simplify_occluders(&inds_in[0], inds_in.size(), (const Vector3 *)&verts[0], verts.size(), &inds_out[0], &deduped_verts[0], num_deduped_verts, _settings_simplify);
 
 			_mesh_data.vertices.resize(num_deduped_verts);
 			for (int n = 0; n < num_deduped_verts; n++) {
 				_mesh_data.vertices.set(n, deduped_verts[n]);
 				verts[n].from(deduped_verts[n]);
 			}
+			/*
+						if (result != result_prev) {
+			#ifdef GODOT_OCCLUDER_SHAPE_MESH_SIMPLIFY_DEBUG_DRAW
+							DebugImage im;
+							im.create(240, 240);
+							im.fill();
 
-			if (result != result_prev) {
-#ifdef GODOT_OCCLUDER_SHAPE_MESH_SIMPLIFY_DEBUG_DRAW
-				DebugImage im;
-				im.create(240, 240);
-				im.fill();
+							int num_tris = result / 3;
+							for (int n = 0; n < num_tris; n++) {
+								int idx = n * 3;
 
-				int num_tris = result / 3;
-				for (int n = 0; n < num_tris; n++) {
-					int idx = n * 3;
+								for (int i = 0; i < 3; i++) {
+									uint32_t i0 = inds_out[idx + i];
+									uint32_t i1 = inds_out[idx + ((i + 1) % 3)];
 
-					for (int i = 0; i < 3; i++) {
-						uint32_t i0 = inds_out[idx + i];
-						uint32_t i1 = inds_out[idx + ((i + 1) % 3)];
+									const Vec3f &v0 = verts[i0];
+									const Vec3f &v1 = verts[i1];
+									Vector2 p0 = Vector2(v0.z, v0.y);
+									Vector2 p1 = Vector2(v1.z, v1.y);
+									im.l_move(p0);
+									im.l_line_to(p1);
+								}
+							}
+							im.l_flush(false);
+							im.save_png("simplify/simp" + itos(counter) + ".png");
 
-						const Vec3f &v0 = verts[i0];
-						const Vec3f &v1 = verts[i1];
-						Vector2 p0 = Vector2(v0.z, v0.y);
-						Vector2 p1 = Vector2(v1.z, v1.y);
-						im.l_move(p0);
-						im.l_line_to(p1);
-					}
-				}
-				im.l_flush(false);
-				im.save_png("simplify/simp" + itos(counter) + ".png");
+			#endif
 
-#endif
+							inds_in = inds_out;
+							inds_in.resize(result);
 
-				inds_in = inds_out;
-				inds_in.resize(result);
-
-				counter++;
-				result_prev = result;
-			} else {
-				break;
-			}
+							counter++;
+							result_prev = result;
+						} else {
+							break;
+						}
+						*/
+			break;
 		}
 #else
 
@@ -1827,22 +1982,19 @@ String OccluderShapeMesh::_vec3_to_string(const Vector3 &p_pt) const {
 	return str;
 }
 
-void OccluderShapeMesh::_bake_quantize_float_faces() {
+// Creates a set of quantized world space float verts in
+// _mesh_data.vertices
+// and the indices stored in _bd.faces
+void OccluderShapeMesh::_bake_quantize_input() {
 	_bd.input_aabb = AABB();
 
-	if (!_bd.float_input_faces.size()) {
+	if (!_bd.input_positions.size()) {
 		return;
 	}
 
-	_bd.input_aabb.position = _bd.float_input_faces[0].vertex[0];
-
-	for (int n = 0; n < _bd.float_input_faces.size(); n++) {
-		const Face3 &face = _bd.float_input_faces[n];
-
-		for (int i = 0; i < 3; i++) {
-			const Vector3 &v = face.vertex[i];
-			_bd.input_aabb.expand_to(v);
-		}
+	_bd.input_aabb.position = _bd.input_positions[0];
+	for (int n = 1; n < _bd.input_positions.size(); n++) {
+		_bd.input_aabb.expand_to(_bd.input_positions[n]);
 	}
 
 	// calculate multiplier to go from world space to integers and vice verse
@@ -1855,34 +2007,48 @@ void OccluderShapeMesh::_bake_quantize_float_faces() {
 	}
 
 	// now add the faces
-	for (int n = 0; n < _bd.float_input_faces.size(); n++) {
-		const Face3 &face = _bd.float_input_faces[n];
-		_bake_input_face(face);
+	for (int n = 0; n < _bd.input_inds.size(); n += 3) {
+		_bake_input_face(n);
 	}
 }
 
-void OccluderShapeMesh::_bake_input_face(const Face3 &p_face) {
-	_log("_bake_input_face " + _vec3_to_string(p_face.vertex[0]) + _vec3_to_string(p_face.vertex[1]) + _vec3_to_string(p_face.vertex[2]));
+void OccluderShapeMesh::_bake_input_face(int p_first_tri_index) {
+	uint32_t inds[3];
+	for (int c = 0; c < 3; c++) {
+		inds[c] = _bd.input_inds[p_first_tri_index + c];
+	}
+
+	const Vector3 &v0 = _bd.input_positions[inds[0]];
+	const Vector3 &v1 = _bd.input_positions[inds[1]];
+	const Vector3 &v2 = _bd.input_positions[inds[2]];
+
+	_log("_bake_input_face " + _vec3_to_string(v0) + _vec3_to_string(v1) + _vec3_to_string(v2));
 
 	// should the face plane be from the original float verts, or the quantized verts?
 	// Not sure yet, uses the float verts for now...
 	BakeFace face;
-	face.plane = Plane(p_face.vertex[0], p_face.vertex[1], p_face.vertex[2]);
+	face.plane = Plane(v0, v1, v2);
 
-	uint32_t inds[3];
+	uint32_t new_inds[3];
 	face.indices.resize(3);
+
+	face.indices[0] = _find_or_create_vert(v0);
+	face.indices[1] = _find_or_create_vert(v1);
+	face.indices[2] = _find_or_create_vert(v2);
+
 	for (int c = 0; c < 3; c++) {
-		face.indices[c] = _find_or_create_vert(p_face.vertex[c]);
-		inds[c] = face.indices[c];
+		new_inds[c] = face.indices[c];
 	}
 
 	// already baked this face? a duplicate so ignore
-	uint32_t stored_face_id = _bd.hash_triangles.find(inds);
+	uint32_t stored_face_id = _bd.hash_triangles.find(new_inds);
 	if (stored_face_id != UINT32_MAX)
 		return;
 
-	_bd.hash_triangles.add(inds, _bd.faces.size());
-	face.area = p_face.get_area();
+	_bd.hash_triangles.add(new_inds, _bd.faces.size());
+
+	Face3 temp(v0, v1, v2);
+	face.area = temp.get_area();
 	_bd.faces.push_back(face);
 
 	_log("\tbaked initial face");

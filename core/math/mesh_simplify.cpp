@@ -11,10 +11,10 @@
 #define GSM_LOG(a)
 //#define GSM_LOG(a) print_line(a)
 
-uint32_t MeshSimplify::simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in_inds, const Vector3 *p_in_verts, uint32_t p_num_in_verts, uint32_t *r_out_inds, LocalVectori<uint32_t> &r_vert_map, uint32_t &r_num_out_verts, real_t p_threshold, real_t p_edge_simplification) {
+uint32_t MeshSimplify::simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in_inds, const Vector3 *p_in_verts, uint32_t p_num_in_verts, uint32_t *r_out_inds, LocalVectori<uint32_t> &r_vert_map, uint32_t &r_num_out_verts, real_t p_tri_target_fraction, real_t p_surf_detail, real_t p_edge_simplification) {
 	_edge_simplification = CLAMP(1.0 - p_edge_simplification, 0.0, 1.0);
 
-	uint32_t target_num_tris = (p_num_in_inds / 3) * p_threshold;
+	uint32_t target_num_tris = (p_num_in_inds / 3) * p_tri_target_fraction;
 	target_num_tris = CLAMP(target_num_tris, 1, p_num_in_inds / 3);
 
 	uint32_t orig_num_verts = p_num_in_verts;
@@ -25,8 +25,27 @@ uint32_t MeshSimplify::simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in
 	LocalVectori<uint32_t> deduped_inds;
 
 	print_line("dedupe start");
-	_deduplicator.deduplicate_map(p_in_inds, p_num_in_inds, p_in_verts, p_num_in_verts, r_vert_map, r_num_out_verts, deduped_inds);
+	AABB world_bound;
+	_deduplicator.deduplicate_map(p_in_inds, p_num_in_inds, p_in_verts, p_num_in_verts, r_vert_map, r_num_out_verts, deduped_inds, &world_bound);
 	print_line("dedupe end");
+
+	// scale surface detail allowed error according to the mesh size
+	{
+		// low error with high detail
+		real_t e = 1.0 - p_surf_detail;
+		e *= e;
+		e *= e;
+		//e *= e;
+		//e *= 0.4;
+		//p_surf_detail *= p_surf_detail;
+		//p_surf_detail *= p_surf_detail;
+		real_t max_error = world_bound.get_longest_axis_size();
+		e *= max_error * 0.2;
+		e *= e;
+		_allowed_surface_error = e;
+
+		print_line("allowable surface area is " + String(Variant(_allowed_surface_error)));
+	}
 
 	// construct deduped verts
 	deduped_verts.resize(r_num_out_verts);
@@ -430,7 +449,24 @@ void MeshSimplify::_optimize_vertex_cache(uint32_t *r_inds, uint32_t p_num_inds,
 }
 
 // returns number of indices
-uint32_t MeshSimplify::simplify(const uint32_t *p_inds, uint32_t p_num_inds, const Vector3 *p_verts, uint32_t p_num_verts, uint32_t *r_inds, Vector3 *r_deduped_verts, uint32_t &r_num_deduped_verts, real_t p_threshold) {
+uint32_t MeshSimplify::simplify_occluders(const uint32_t *p_in_inds, uint32_t p_num_in_inds, const Vector3 *p_in_verts, uint32_t p_num_in_verts, uint32_t *r_out_inds, Vector3 *r_out_verts, uint32_t &r_num_out_verts, real_t p_simplification) {
+	LocalVectori<uint32_t> vert_map;
+
+	uint32_t num_out_inds = simplify_map(p_in_inds, p_num_in_inds, p_in_verts, p_num_in_verts, r_out_inds, vert_map, r_num_out_verts, 0.0, 1.0 - p_simplification, 0.0);
+
+	// convert output verts
+	for (int n = 0; n < p_num_in_verts; n++) {
+		uint32_t new_vert = vert_map[n];
+
+		// unused may be marked as UINT32_MAX
+		if (new_vert >= r_num_out_verts)
+			continue;
+
+		r_out_verts[new_vert] = p_in_verts[n];
+	}
+
+	return num_out_inds;
+
 	/*
 	_threshold_dist = p_threshold;
 
@@ -1230,6 +1266,11 @@ void MeshSimplify::_evaluate_collapse_group(uint32_t p_vert_from_id, uint32_t p_
 			DEV_ASSERT(vert_to.active);
 		}
 #endif
+
+		// only allow if within surface error metric
+		if (cg.error > _allowed_surface_error) {
+			return;
+		}
 
 		_heap_pending.push_back(cg);
 

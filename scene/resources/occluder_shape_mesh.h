@@ -319,8 +319,14 @@ class OccluderShapeMesh : public OccluderShape {
 			r_pt += input_aabb.position;
 		}
 
-		// floating point coords to integer
+		// raw input faces
 		LocalVectori<Face3> float_input_faces;
+
+		// simplified input verts
+		LocalVectori<Vector3> input_positions;
+		LocalVectori<uint32_t> input_inds;
+
+		// floating point coords to integer
 		AABB input_aabb;
 		real_t world_to_int_multiplier;
 		real_t int_to_world_multiplier;
@@ -352,11 +358,13 @@ class OccluderShapeMesh : public OccluderShape {
 	int _settings_debug_face_id = 0;
 
 	bool _bake_material_check(Ref<Material> p_material);
-	void _bake_quantize_float_faces();
-	void _bake_input_face(const Face3 &p_face);
+	void _bake_quantize_input();
+	void _bake_input_face(int p_first_tri_index);
 	void _bake_recursive(Spatial *p_node);
 	bool _try_bake_face(const Face3 &p_face);
 	void _simplify_triangles();
+	void _simplify_triangles_second();
+	void _simplify_trianglesOLD();
 
 	// new method
 	bool _make_faces_new(uint32_t p_process_tick);

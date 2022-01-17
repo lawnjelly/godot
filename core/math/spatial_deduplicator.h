@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/local_vector.h"
+#include "core/math/aabb.h"
 #include "core/math/rect2.h"
 #include "core/math/vector2.h"
 #include "core/math/vector3.h"
@@ -61,7 +62,7 @@ class SpatialDeduplicator {
 			Vector2i loc = get_cell_xy(p_pos);
 			return get_cell(loc.x, loc.y);
 		}
-		void calc_bound(const Vector3 *p_verts, uint32_t p_num_verts);
+		AABB calc_bound(const Vector3 *p_verts, uint32_t p_num_verts);
 		void add(const Vector3 &p_pos, uint32_t p_id);
 		bool find(const Vector3 &p_pos, real_t p_epsilon, LocalVectori<uint32_t> &r_ids) const;
 	};
@@ -94,7 +95,7 @@ public:
 
 	bool deduplicate_verts_only(const uint32_t *p_in_inds, uint32_t p_num_in_inds, const Vector3 *p_in_verts, uint32_t p_num_in_verts, LocalVectori<Vector3> &r_out_verts, LocalVectori<uint32_t> &r_out_inds, real_t p_epsilon = 0.01);
 
-	bool deduplicate_map(const uint32_t *p_in_inds, uint32_t p_num_in_inds, const Vector3 *p_in_verts, uint32_t p_num_in_verts, LocalVectori<uint32_t> &r_vert_map, uint32_t &r_num_out_verts, LocalVectori<uint32_t> &r_out_inds, real_t p_epsilon = 0.01);
+	bool deduplicate_map(const uint32_t *p_in_inds, uint32_t p_num_in_inds, const Vector3 *p_in_verts, uint32_t p_num_in_verts, LocalVectori<uint32_t> &r_vert_map, uint32_t &r_num_out_verts, LocalVectori<uint32_t> &r_out_inds, AABB *r_bound = nullptr, real_t p_epsilon = 0.01);
 
 	void find_duplicate_positions(const Vector3 *p_in_verts, uint32_t p_num_in_verts, LocalVectori<LinkedVerts> &r_linked_verts_list, real_t p_epsilon = 0.01);
 };
