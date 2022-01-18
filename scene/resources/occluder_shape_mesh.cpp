@@ -42,9 +42,9 @@
 #include <iostream>
 
 //#define GODOT_OCCLUDER_SHAPE_MESH_SIMPLIFY_DEBUG_DRAW
-#ifdef GODOT_OCCLUDER_SHAPE_MESH_SIMPLIFY_DEBUG_DRAW
+//#ifdef GODOT_OCCLUDER_SHAPE_MESH_SIMPLIFY_DEBUG_DRAW
 #include "core/debug_image.h"
-#endif
+//#endif
 
 //#define GODOT_OCCLUDER_SHAPE_MESH_SINGLE_FACE
 
@@ -69,6 +69,12 @@ void OccluderShapeMesh::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_vertex_tolerance", "tolerance"), &OccluderShapeMesh::set_vertex_tolerance);
 	ClassDB::bind_method(D_METHOD("get_vertex_tolerance"), &OccluderShapeMesh::get_vertex_tolerance);
 
+	ClassDB::bind_method(D_METHOD("set_quantize_resolution_3d", "resolution"), &OccluderShapeMesh::set_quantize_resolution_3d);
+	ClassDB::bind_method(D_METHOD("get_quantize_resolution_3d", "resolution"), &OccluderShapeMesh::get_quantize_resolution_3d);
+
+	ClassDB::bind_method(D_METHOD("set_quantize_resolution_2d", "resolution"), &OccluderShapeMesh::set_quantize_resolution_2d);
+	ClassDB::bind_method(D_METHOD("get_quantize_resolution_2d", "resolution"), &OccluderShapeMesh::get_quantize_resolution_2d);
+
 	ClassDB::bind_method(D_METHOD("set_debug_face_id", "id"), &OccluderShapeMesh::set_debug_face_id);
 	ClassDB::bind_method(D_METHOD("get_debug_face_id"), &OccluderShapeMesh::get_debug_face_id);
 
@@ -91,6 +97,9 @@ void OccluderShapeMesh::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "plane_angle", PROPERTY_HINT_RANGE, "0.0,45.0,0.1"), "set_plane_simplify_angle", "get_plane_simplify_angle");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "simplify", PROPERTY_HINT_RANGE, "0.0,1.0,0.01"), "set_simplify", "get_simplify");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "vertex_tolerance", PROPERTY_HINT_RANGE, "0.0,0.1,0.001"), "set_vertex_tolerance", "get_vertex_tolerance");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "resolution_3d", PROPERTY_HINT_RANGE, "8, 24, 1"), "set_quantize_resolution_3d", "get_quantize_resolution_3d");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "resolution_2d", PROPERTY_HINT_RANGE, "8, 24, 1"), "set_quantize_resolution_2d", "get_quantize_resolution_2d");
+
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "remove_floor", PROPERTY_HINT_RANGE, "0, 90, 1"), "set_remove_floor", "get_remove_floor");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "debug_face_id", PROPERTY_HINT_RANGE, "0, 1000, 1"), "set_debug_face_id", "get_debug_face_id");
 
@@ -222,10 +231,11 @@ void OccluderShapeMesh::clear() {
 	_mesh_data.vertices.clear();
 	_mesh_data.faces.clear();
 	_bd.clear();
-	_bd.hash_verts._tolerance = _settings_vertex_tolerance * _settings_vertex_tolerance;
+	//_bd.hash_verts._tolerance = _settings_vertex_tolerance * _settings_vertex_tolerance;
 }
 
 void OccluderShapeMesh::_log(String p_string) {
+	return;
 	print_line(p_string);
 }
 
@@ -383,7 +393,7 @@ void OccluderShapeMesh::_simplify_triangles() {
 
 	MeshSimplify simp;
 
-	size_t result = simp.simplify_occluders(&inds_in[0], inds_in.size(), (const Vector3 *)&verts[0], verts.size(), &_bd.input_inds[0], &_bd.input_positions[0], num_deduped_verts, _settings_simplify);
+	size_t result = simp.simplify_occluders(&inds_in[0], inds_in.size(), (const Vector3 *)&verts[0], verts.size(), &_bd.input_inds[0], &_bd.input_positions[0], num_deduped_verts, _settings_simplify, _settings_vertex_tolerance);
 
 	// discard unneeded
 	_bd.input_positions.resize(num_deduped_verts);
@@ -553,7 +563,7 @@ void OccluderShapeMesh::_simplify_trianglesOLD() {
 			deduped_verts.resize(verts.size());
 			uint32_t num_deduped_verts = 0;
 
-			result = simp.simplify_occluders(&inds_in[0], inds_in.size(), (const Vector3 *)&verts[0], verts.size(), &inds_out[0], &deduped_verts[0], num_deduped_verts, _settings_simplify);
+			result = simp.simplify_occluders(&inds_in[0], inds_in.size(), (const Vector3 *)&verts[0], verts.size(), &inds_out[0], &deduped_verts[0], num_deduped_verts, _settings_simplify, _settings_vertex_tolerance);
 
 			_mesh_data.vertices.resize(num_deduped_verts);
 			for (int n = 0; n < num_deduped_verts; n++) {
@@ -699,7 +709,7 @@ void OccluderShapeMesh::_simplify_trianglesOLD() {
 }
 
 void OccluderShapeMesh::_print_line(String p_sz) {
-	//return;
+	return;
 	print_line(p_sz);
 	std::cout << p_sz.c_str();
 	std::cout.flush();
@@ -714,13 +724,13 @@ String OccluderShapeMesh::_debug_vector_to_string(const LocalVectori<uint32_t> &
 }
 
 void OccluderShapeMesh::_debug_print_face(uint32_t p_face_id, String p_before_string) {
-	return;
+	//	return;
 
 	BakeFace &face = _bd.faces[p_face_id];
 
 	String sz;
 	sz = p_before_string;
-	sz += " face " + itos(p_face_id) + " " + itos(face.indices.size()) + " sides.";
+	sz += " face " + itos(p_face_id) + " " + itos(face.indices.size()) + " sides." + "\tisland " + itos(face.island);
 
 	for (int n = 0; n < face.indices.size(); n++) {
 		sz += "\n\tind " + itos(face.indices[n]) + ", neigh " + itos(face.neighbour_face_ids[n]);
@@ -952,8 +962,12 @@ void OccluderShapeMesh::_edgelist_add_holes(uint32_t p_island_id, LocalVectori<u
 	}
 }
 
-uint32_t OccluderShapeMesh::_trace_zone_edge(uint32_t p_face_id, uint32_t &r_join_vert_id, LocalVectori<uint32_t> &r_edges) {
+uint32_t OccluderShapeMesh::_trace_zone_edge(uint32_t p_island_id, uint32_t p_face_id, uint32_t p_prev_face_id, uint32_t &r_join_vert_id, LocalVectori<uint32_t> &r_edges) {
 	BakeFace &face = _bd.faces[p_face_id];
+
+	if (r_join_vert_id == 27) {
+		;
+	}
 
 #ifdef GODOT_POLY_DECOMPOSE_DEBUG_DRAW
 	_debug_print_face(p_face_id, "trace");
@@ -972,13 +986,19 @@ uint32_t OccluderShapeMesh::_trace_zone_edge(uint32_t p_face_id, uint32_t &r_joi
 	}
 	CRASH_COND(first_edge == -1);
 
+	// special .. is the face not in the island? if so we want to zip past it to the first that IS in the island
+	if (face.island != p_island_id) {
+		print_line("not part of island");
+	}
+
 	// add all edges till we find the next poly to traverse to
 	uint32_t face_id_next;
 	for (int c = 0; c < num_sides; c++) {
 		int e = (c + first_edge) % num_sides;
 		face_id_next = face.neighbour_face_ids[e];
 
-		CRASH_COND(face_id_next == p_face_id);
+		// don't traverse to ourself
+		DEV_ASSERT(face_id_next != p_face_id);
 
 		uint32_t vert_next = face.indices[e];
 
@@ -986,12 +1006,17 @@ uint32_t OccluderShapeMesh::_trace_zone_edge(uint32_t p_face_id, uint32_t &r_joi
 #ifdef GODOT_POLY_DECOMPOSE_DEBUG_DRAW
 			print_line("\tadding edge " + itos(vert_next) + " at " + String(Variant(_bd.verts[vert_next].posf)));
 #endif
+
+			//DEV_ASSERT(r_edges.find(vert_next) == -1);
+
 			r_edges.push_back(vert_next);
 		} else {
 			r_join_vert_id = vert_next;
 			break;
 		}
 	}
+
+	//	DEV_ASSERT(face_id_next != p_prev_face_id);
 
 	// face_id_next is now the neighbour face we are traversing to
 	return face_id_next;
@@ -1397,7 +1422,7 @@ real_t OccluderShapeMesh::_find_matching_faces_total_area(const LocalVectori<uin
 	return area;
 }
 
-bool OccluderShapeMesh::_process_islands_trace_hole(uint32_t p_face_id, uint32_t p_process_tick) {
+bool OccluderShapeMesh::_process_islands_trace_hole(uint32_t p_island_id, uint32_t p_face_id, uint32_t p_process_tick) {
 	BakeFace &face = _bd.faces[p_face_id];
 	int num_sides = face.neighbour_face_ids.size();
 
@@ -1461,10 +1486,22 @@ bool OccluderShapeMesh::_process_islands_trace_hole(uint32_t p_face_id, uint32_t
 		}
 	}
 
-	while (true) {
-		//int edges_count_before = edges.size();
+	uint32_t prev_face_id = -1;
+	int panic = 0;
 
-		face_id = _trace_zone_edge(face_id, join_vert_id, edges);
+	while (true) {
+		int edges_count_before = edges.size();
+
+		uint32_t new_face_id = _trace_zone_edge(p_island_id, face_id, prev_face_id, join_vert_id, edges);
+		prev_face_id = face_id;
+		face_id = new_face_id;
+
+		if (edges.size() == edges_count_before) {
+			panic++;
+		} else {
+			panic = 0;
+		}
+
 #ifdef GODOT_POLY_DECOMPOSE_DEBUG_DRAW
 		print_line("\t\t\ttrace_hole face " + itos(face_id) + ", vert ID " + itos(join_vert_id));
 #endif
@@ -1486,6 +1523,17 @@ bool OccluderShapeMesh::_process_islands_trace_hole(uint32_t p_face_id, uint32_t
 
 		if (join_vert_id == edges[0]) {
 			break;
+		}
+
+		if ((edges.size() > 100) || (panic > 30)) {
+			_debug_draw_edges(p_island_id, edges);
+			String sz;
+			for (int n = 0; n < edges.size(); n++) {
+				sz += itos(edges[n]) + ", ";
+			}
+			print_line(sz);
+
+			CRASH_NOW();
 		}
 	}
 
@@ -1553,6 +1601,61 @@ bool OccluderShapeMesh::_process_islands_trace_hole(uint32_t p_face_id, uint32_t
 	//	return false;
 }
 
+void OccluderShapeMesh::_debug_draw_edges(uint32_t p_island_id, const LocalVectori<uint32_t> &p_edges) {
+	DebugImage im;
+	im.create(800, 800);
+
+	// first draw all the triangles of the mesh
+	if (true) {
+		const BakeIsland &island = _bd.islands[p_island_id];
+
+		//int num_draw = _bd.faces.size();
+		//		if (num_draw > 50)
+		//			num_draw = 50;
+		//	for (int n=0; n<num_draw; n++)
+
+		DebugImage::Col col_face(255, 128, 128, 255);
+		im.l_set_brush_color(col_face);
+
+		for (int n = 0; n < island.face_ids.size(); n++) {
+			uint32_t face_id = island.face_ids[n];
+
+			print_line("drawing face_id " + itos(face_id));
+
+			Vector3 avg;
+			const BakeFace &bf = _bd.faces[face_id];
+			im.l_move3(_bd.verts[bf.indices[0]].posf);
+
+			for (int c = 0; c < bf.indices.size(); c++) {
+				int ind = bf.indices.get_wrapped(c + 1);
+				im.l_line_to3(_bd.verts[ind].posf);
+				im.l_draw_num(ind);
+				avg += _bd.verts[ind].posf;
+			}
+
+			avg /= 3.0;
+			im.l_move3(avg);
+			im.l_set_brush_color(DebugImage::Col(0, 255, 255, 255));
+			im.l_draw_num(n);
+			im.l_set_brush_color(col_face);
+		}
+	}
+
+	im.l_set_brush_color(DebugImage::Col(255, 255, 255, 255));
+	for (int n = 0; n <= p_edges.size(); n++) {
+		const BakeVertex &bv = _bd.verts[p_edges.get_wrapped(n)];
+
+		if (!n) {
+			im.l_move3(bv.posf);
+		} else {
+			im.l_line_to3(bv.posf);
+		}
+		im.l_draw_num(p_edges.get_wrapped(n));
+	}
+	im.l_flush();
+	im.save_png("edges.png");
+}
+
 void OccluderShapeMesh::_process_islands() {
 	for (int island_id = 1; island_id < _bd.islands.size(); island_id++) {
 		_bd._face_process_tick++;
@@ -1591,7 +1694,7 @@ void OccluderShapeMesh::_process_islands() {
 #ifdef GODOT_POLY_DECOMPOSE_DEBUG_DRAW
 						print_line("\tfound hole");
 #endif
-						_process_islands_trace_hole(face_id, process_tick);
+						_process_islands_trace_hole(island_id, face_id, process_tick);
 					}
 					break;
 				}
@@ -1683,12 +1786,39 @@ void OccluderShapeMesh::_find_neighbour_face_ids() {
 					continue;
 				}
 
-				face_a.adjacent_face_ids[edge_a] = linked_face_b_id;
-				face_b.adjacent_face_ids[edge_b] = linked_face_a_id;
+				// NEW! only allow ONE adjacent link per edge.
+				// prevent T junction shaped islands.
+				bool allow = true;
+
+				uint32_t existing_a = face_a.adjacent_face_ids[edge_a];
+				if ((existing_a != UINT32_MAX) && (existing_a != linked_face_b_id)) {
+					allow = false;
+				}
+				uint32_t existing_b = face_b.adjacent_face_ids[edge_b];
+				if ((existing_b != UINT32_MAX) && (existing_b != linked_face_a_id)) {
+					allow = false;
+				}
+
+				if (allow) {
+					face_a.adjacent_face_ids[edge_a] = linked_face_b_id;
+					face_b.adjacent_face_ids[edge_b] = linked_face_a_id;
+				} else {
+					// mark both as disallowed
+					face_a.disallow_adjacent(edge_a);
+					face_b.disallow_adjacent(edge_b);
+				}
 			} // for j
 
 		} // for i
 	} // for n
+
+	// finalize any disallowed adjacents
+	// i.e. prevent T junction edges which will form odd 3d islands
+	// and mess up the later routines
+	for (int n = 0; n < _bd.faces.size(); n++) {
+		BakeFace &face = _bd.faces[n];
+		face.finalize_disallowed_adjacent();
+	}
 
 	// flood fill from each face
 	// make sure face edge neighbours array correct size
@@ -1710,6 +1840,9 @@ void OccluderShapeMesh::_find_neighbour_face_ids() {
 		_bd.islands.resize(_bd.islands.size() + 1);
 		BakeIsland &island = _bd.islands[_bd.islands.size() - 1];
 
+		// ISLANDS ARE DEFINED BY ADJACENT NEIGHBOURS
+		// THAT ARE COPLANAR ENOUGH TO JOIN
+
 		while (!face_stack.empty()) {
 			// pop face
 			uint32_t face_id_a = face_stack[face_stack.size() - 1];
@@ -1717,13 +1850,17 @@ void OccluderShapeMesh::_find_neighbour_face_ids() {
 			BakeFace &face_a = _bd.faces[face_id_a];
 
 			// done already
-			if (face_a.island)
+			if (face_a.island) {
+				DEV_ASSERT(island.face_ids.find(face_id_a) != -1);
+				DEV_ASSERT(face_a.island == island_id);
 				continue;
+			}
 
 			// mark which island
 			face_a.island = island_id;
 
 			// add the face list in the island
+			DEV_ASSERT(island.face_ids.find(face_id_a) == -1);
 			island.face_ids.push_back(face_id_a);
 
 			// traverse to neighbours
@@ -1732,12 +1869,18 @@ void OccluderShapeMesh::_find_neighbour_face_ids() {
 				if (face_id_b != UINT32_MAX) {
 					BakeFace &face_b = _bd.faces[face_id_b];
 
+					// if the face is part of another island, do not allow
+					if (face_b.island && (face_b.island != island_id)) {
+						continue;
+					}
+
 					// only consider them if they are coplanar
 					real_t fit;
 					if (!_are_faces_coplanar_for_merging(face_a, face_b, fit)) {
 						continue;
 					}
 
+					// already calculated through adjacency?
 					int edge_a, edge_b;
 					if (!_are_faces_neighbours(face_a, face_b, edge_a, edge_b)) {
 						continue;
@@ -1855,19 +1998,20 @@ bool OccluderShapeMesh::_are_faces_neighbours(const BakeFace &p_a, const BakeFac
 		int a0 = p_a.indices[n];
 		int a1 = p_a.indices[(n + 1) % p_a.indices.size()];
 
-		if (a1 < a0) {
-			SWAP(a0, a1);
-		}
+		//		if (a1 < a0) {
+		//			SWAP(a0, a1);
+		//		}
 
 		for (int m = 0; m < p_b.indices.size(); m++) {
 			int b0 = p_b.indices[m];
 			int b1 = p_b.indices[(m + 1) % p_b.indices.size()];
 
-			if (b1 < b0) {
-				SWAP(b0, b1);
-			}
+			//			if (b1 < b0) {
+			//				SWAP(b0, b1);
+			//			}
 
-			if ((a0 == b0) && (a1 == b1)) {
+			//			if ((a0 == b0) && (a1 == b1)) {
+			if ((a0 == b1) && (a1 == b0)) {
 				// return which edges are neighbours
 				r_edge_a = n;
 				r_edge_b = m;

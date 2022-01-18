@@ -50,6 +50,9 @@ void DebugImage::l_flush(bool clear_logical_viewport) {
 		const Command &c = _commands[n];
 
 		switch (c.type) {
+			case CT_SET_BRUSH_COLOR: {
+				set_brush_color(c.color);
+			} break;
 			case CT_MOVE: {
 				int x, y;
 				l_to_i(c.x, c.y, x, y);

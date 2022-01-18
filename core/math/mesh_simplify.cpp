@@ -11,7 +11,7 @@
 #define GSM_LOG(a)
 //#define GSM_LOG(a) print_line(a)
 
-uint32_t MeshSimplify::simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in_inds, const Vector3 *p_in_verts, uint32_t p_num_in_verts, uint32_t *r_out_inds, LocalVectori<uint32_t> &r_vert_map, uint32_t &r_num_out_verts, real_t p_tri_target_fraction, real_t p_surf_detail, real_t p_edge_simplification) {
+uint32_t MeshSimplify::simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in_inds, const Vector3 *p_in_verts, uint32_t p_num_in_verts, uint32_t *r_out_inds, LocalVectori<uint32_t> &r_vert_map, uint32_t &r_num_out_verts, real_t p_tri_target_fraction, real_t p_surf_detail, real_t p_edge_simplification, real_t p_vertex_tolerance) {
 	_edge_simplification = CLAMP(1.0 - p_edge_simplification, 0.0, 1.0);
 
 	uint32_t target_num_tris = (p_num_in_inds / 3) * p_tri_target_fraction;
@@ -26,7 +26,7 @@ uint32_t MeshSimplify::simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in
 
 	print_line("dedupe start");
 	AABB world_bound;
-	_deduplicator.deduplicate_map(p_in_inds, p_num_in_inds, p_in_verts, p_num_in_verts, r_vert_map, r_num_out_verts, deduped_inds, &world_bound);
+	_deduplicator.deduplicate_map(p_in_inds, p_num_in_inds, p_in_verts, p_num_in_verts, r_vert_map, r_num_out_verts, deduped_inds, &world_bound, p_vertex_tolerance);
 	print_line("dedupe end");
 
 	// scale surface detail allowed error according to the mesh size
@@ -449,10 +449,10 @@ void MeshSimplify::_optimize_vertex_cache(uint32_t *r_inds, uint32_t p_num_inds,
 }
 
 // returns number of indices
-uint32_t MeshSimplify::simplify_occluders(const uint32_t *p_in_inds, uint32_t p_num_in_inds, const Vector3 *p_in_verts, uint32_t p_num_in_verts, uint32_t *r_out_inds, Vector3 *r_out_verts, uint32_t &r_num_out_verts, real_t p_simplification) {
+uint32_t MeshSimplify::simplify_occluders(const uint32_t *p_in_inds, uint32_t p_num_in_inds, const Vector3 *p_in_verts, uint32_t p_num_in_verts, uint32_t *r_out_inds, Vector3 *r_out_verts, uint32_t &r_num_out_verts, real_t p_simplification, real_t p_vertex_tolerance) {
 	LocalVectori<uint32_t> vert_map;
 
-	uint32_t num_out_inds = simplify_map(p_in_inds, p_num_in_inds, p_in_verts, p_num_in_verts, r_out_inds, vert_map, r_num_out_verts, 0.0, 1.0 - p_simplification, 0.0);
+	uint32_t num_out_inds = simplify_map(p_in_inds, p_num_in_inds, p_in_verts, p_num_in_verts, r_out_inds, vert_map, r_num_out_verts, 0.0, 1.0 - p_simplification, 0.01);
 
 	// convert output verts
 	for (int n = 0; n < p_num_in_verts; n++) {

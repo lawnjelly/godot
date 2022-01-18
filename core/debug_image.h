@@ -104,11 +104,11 @@ public:
 	}
 
 	void l_move3(const Vector3 &pt) {
-		l_move(Vector2(pt.x, pt.y));
+		l_move(Vector2(pt.x, pt.z));
 	}
 
 	void l_line_to3(const Vector3 &pt) {
-		l_line_to(Vector2(pt.x, pt.y));
+		l_line_to(Vector2(pt.x, pt.z));
 	}
 
 	void l_move(const Vector2 &pt) {
@@ -117,6 +117,13 @@ public:
 
 	void l_line_to(const Vector2 &pt) {
 		l_line_to(pt.x, pt.y);
+	}
+
+	void l_set_brush_color(const Col &col) {
+		Command c;
+		c.type = CT_SET_BRUSH_COLOR;
+		c.color = col;
+		_commands.push_back(c);
 	}
 
 	void l_expand(real_t fx, real_t fy) {

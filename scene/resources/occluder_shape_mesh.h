@@ -44,8 +44,8 @@ class OccluderShapeMesh : public OccluderShape {
 	GDCLASS(OccluderShapeMesh, OccluderShape);
 	OBJ_SAVE_TYPE(OccluderShapeMesh);
 
-	const int QUANTIZE_RES = 256;
-	const int QUANTIZE_RES_2D = 256;
+	int QUANTIZE_RES = 256;
+	int QUANTIZE_RES_2D = 256;
 
 	struct Vec3i {
 		bool operator==(const Vec3i &p_o) const { return x == p_o.x && y == p_o.y && z == p_o.z; }
@@ -132,7 +132,7 @@ class OccluderShapeMesh : public OccluderShape {
 			uint32_t id;
 		};
 		HashTable<4096, Element> _table;
-		real_t _tolerance = 0.0001;
+		//real_t _tolerance = 0.0001;
 
 		uint32_t hash_pos(const Vec3i &p_pos) const {
 			return p_pos.x + p_pos.y + p_pos.z;
@@ -208,6 +208,7 @@ class OccluderShapeMesh : public OccluderShape {
 			done = false;
 			last_processed_tick = 0;
 			island = 0;
+			adjacent_disallow_bits = 0;
 		}
 		int num_sides() const { return indices.size(); }
 		Plane plane;
@@ -218,6 +219,24 @@ class OccluderShapeMesh : public OccluderShape {
 		LocalVectori<uint32_t> indices;
 		LocalVectori<uint32_t> neighbour_face_ids;
 		LocalVectori<uint32_t> adjacent_face_ids; // may not be neighbours if not within angle
+
+		void disallow_adjacent(uint32_t p_which) {
+			DEV_ASSERT(p_which <= 3);
+			adjacent_disallow_bits |= 1 << p_which;
+		}
+		void finalize_disallowed_adjacent() {
+			for (uint32_t n = 0; n < 3; n++) {
+				if ((adjacent_disallow_bits & (1 << n)) == (1 << n)) {
+					adjacent_face_ids[n] = UINT32_MAX;
+				}
+			}
+		}
+
+	private:
+		// Disallow islands spreading over T junctions, i.e. an edge that joins with one than one neighbour.
+		// This will corrupt the edge lists due to infinite loops.
+		// We prevent this by noting which adjacent faces are more than one, then removing them in a post process.
+		uint8_t adjacent_disallow_bits;
 	};
 
 	struct BakeIsland {
@@ -351,9 +370,12 @@ class OccluderShapeMesh : public OccluderShape {
 	real_t _settings_plane_simplify_degrees = 11.0;
 	real_t _settings_plane_simplify_dot = 0.98;
 	real_t _settings_remove_floor_dot = 0.0;
-	real_t _settings_vertex_tolerance = 0.001;
+	real_t _settings_vertex_tolerance = 0.01;
 	int _settings_remove_floor_angle = 20;
 	uint32_t _settings_bake_mask = 0xFFFFFFFF;
+
+	int _settings_quantize_res_3d = 8;
+	int _settings_quantize_res_2d = 8;
 
 	int _settings_debug_face_id = 0;
 
@@ -371,7 +393,7 @@ class OccluderShapeMesh : public OccluderShape {
 	bool _flood_fill_from_face(int p_face_id, uint32_t p_process_tick, LocalVectori<uint32_t> &r_face_ids);
 	bool _merge_face_zone(const LocalVectori<uint32_t> &p_face_ids);
 	void _find_face_zone_edges(const LocalVectori<uint32_t> &p_face_ids, LocalVectori<uint32_t> &r_edges);
-	uint32_t _trace_zone_edge(uint32_t p_face_id, uint32_t &r_join_vert_id, LocalVectori<uint32_t> &r_edges);
+	uint32_t _trace_zone_edge(uint32_t p_island_id, uint32_t p_face_id, uint32_t p_prev_face_id, uint32_t &r_join_vert_id, LocalVectori<uint32_t> &r_edges);
 	Vector3 _normal_from_edge_verts_newell(const LocalVectori<uint32_t> &p_edge_verts) const;
 	bool _make_convex_chunk_external(const LocalVectori<uint32_t> &p_edge_verts, const Plane &p_poly_plane, LocalVectori<uint32_t> &r_convex_inds);
 	void _process_out_faces();
@@ -380,6 +402,7 @@ class OccluderShapeMesh : public OccluderShape {
 	bool _can_see(const Vector<IndexedPoint> &p_points, int p_test_point) const;
 	bool face_has_worked(const LocalVectori<uint32_t> &p_face, const Vector3 &p_face_normal) const;
 
+	void _debug_draw_edges(uint32_t p_island_id, const LocalVectori<uint32_t> &p_edges);
 	void _debug_print_face(uint32_t p_face_id, String p_before_string = "");
 	String _debug_vector_to_string(const LocalVectori<uint32_t> &p_list);
 	void _print_line(String p_sz);
@@ -392,7 +415,7 @@ class OccluderShapeMesh : public OccluderShape {
 	void _verify_verts();
 	void _find_neighbour_face_ids();
 	void _process_islands();
-	bool _process_islands_trace_hole(uint32_t p_face_id, uint32_t p_process_tick);
+	bool _process_islands_trace_hole(uint32_t p_island_id, uint32_t p_face_id, uint32_t p_process_tick);
 	void _edgelist_add_holes(uint32_t p_island_id, LocalVectori<uint32_t> &r_edges, const Vector3 &p_face_normal);
 
 	real_t _angle_between_vectors(Vector3 p_a, Vector3 p_b, const Vector3 &p_normal) const;
@@ -469,6 +492,18 @@ class OccluderShapeMesh : public OccluderShape {
 
 	void set_vertex_tolerance(real_t p_tolerance) { _settings_vertex_tolerance = p_tolerance; }
 	real_t get_vertex_tolerance() const { return _settings_vertex_tolerance; }
+
+	void set_quantize_resolution_2d(int p_resolution) {
+		_settings_quantize_res_2d = p_resolution;
+		QUANTIZE_RES_2D = 1 << _settings_quantize_res_2d;
+	}
+	int get_quantize_resolution_2d() const { return _settings_quantize_res_2d; }
+
+	void set_quantize_resolution_3d(int p_resolution) {
+		_settings_quantize_res_3d = p_resolution;
+		QUANTIZE_RES = 1 << _settings_quantize_res_3d;
+	}
+	int get_quantize_resolution_3d() const { return _settings_quantize_res_3d; }
 
 	void set_remove_floor(int p_angle);
 	int get_remove_floor() const { return _settings_remove_floor_angle; }

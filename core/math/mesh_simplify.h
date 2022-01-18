@@ -315,12 +315,12 @@ public:
 	}
 
 	// returns number of indices
-	uint32_t simplify_occluders(const uint32_t *p_in_inds, uint32_t p_num_in_inds, const Vector3 *p_in_verts, uint32_t p_num_in_verts, uint32_t *r_out_inds, Vector3 *r_out_verts, uint32_t &r_num_out_verts, real_t p_simplification);
+	uint32_t simplify_occluders(const uint32_t *p_in_inds, uint32_t p_num_in_inds, const Vector3 *p_in_verts, uint32_t p_num_in_verts, uint32_t *r_out_inds, Vector3 *r_out_verts, uint32_t &r_num_out_verts, real_t p_simplification, real_t p_vertex_tolerance);
 
 	// target fraction is number of target tris / start tris
 	// surf error is the allowed error over a surface (0 to 1)
 	// edge simplification is the amount of angle in edges allowed to be simplified (0 is no edge simp)
-	uint32_t simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in_inds, const Vector3 *p_in_verts, uint32_t p_num_in_verts, uint32_t *r_out_inds, LocalVectori<uint32_t> &r_vert_map, uint32_t &r_num_out_verts, real_t p_tri_target_fraction = 0.01, real_t p_surf_detail = 1.0, real_t p_edge_simplification = 1.0);
+	uint32_t simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in_inds, const Vector3 *p_in_verts, uint32_t p_num_in_verts, uint32_t *r_out_inds, LocalVectori<uint32_t> &r_vert_map, uint32_t &r_num_out_verts, real_t p_tri_target_fraction = 0.01, real_t p_surf_detail = 1.0, real_t p_edge_simplification = 1.0, real_t p_vertex_tolerance = 0.01);
 
 private:
 	void _finalize_merge(uint32_t p_vert_from_id, uint32_t p_vert_to_id);
