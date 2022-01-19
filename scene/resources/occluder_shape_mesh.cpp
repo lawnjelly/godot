@@ -70,10 +70,10 @@ void OccluderShapeMesh::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_vertex_tolerance"), &OccluderShapeMesh::get_vertex_tolerance);
 
 	ClassDB::bind_method(D_METHOD("set_quantize_resolution_3d", "resolution"), &OccluderShapeMesh::set_quantize_resolution_3d);
-	ClassDB::bind_method(D_METHOD("get_quantize_resolution_3d", "resolution"), &OccluderShapeMesh::get_quantize_resolution_3d);
+	ClassDB::bind_method(D_METHOD("get_quantize_resolution_3d"), &OccluderShapeMesh::get_quantize_resolution_3d);
 
 	ClassDB::bind_method(D_METHOD("set_quantize_resolution_2d", "resolution"), &OccluderShapeMesh::set_quantize_resolution_2d);
-	ClassDB::bind_method(D_METHOD("get_quantize_resolution_2d", "resolution"), &OccluderShapeMesh::get_quantize_resolution_2d);
+	ClassDB::bind_method(D_METHOD("get_quantize_resolution_2d"), &OccluderShapeMesh::get_quantize_resolution_2d);
 
 	ClassDB::bind_method(D_METHOD("set_debug_face_id", "id"), &OccluderShapeMesh::set_debug_face_id);
 	ClassDB::bind_method(D_METHOD("get_debug_face_id"), &OccluderShapeMesh::get_debug_face_id);
@@ -1087,7 +1087,7 @@ bool OccluderShapeMesh::_any_further_points_within(const Vector<IndexedPoint> &p
 			const Vec2i &b = p_pts[(e + 1) % p_test_pt].pos; // loop back to first point
 
 			// test against the edge
-			int cross = a.cross(b, pt_test);
+			int64_t cross = a.cross(b, pt_test);
 
 #ifdef GODOT_OCCLUDER_SHAPE_MESH_DEBUG_POINTS_WITHIN
 			print_line("\t\tedge " + itos(e) + " a " + String(Variant(a)) + "b " + String(Variant(b)) + " cross: " + rtos(cross));
@@ -2056,6 +2056,10 @@ void OccluderShapeMesh::_finalize_faces() {
 	// first delete blank faces in the mesh
 	for (int n = 0; n < _bd.faces.size(); n++) {
 		const BakeFace &face = _bd.faces[n];
+
+		// delete thin faces
+		// calculate the length of each edge, then use the ratio of the total length to area to
+		// determine the thinness.
 
 		// delete the face if no indices, or the size below the threshold
 		if (!face.indices.size() || (face.area < _settings_threshold_output_size)) {

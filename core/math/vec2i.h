@@ -33,8 +33,8 @@ public:
 	bool operator!=(const Vec2i &p_o) const { return (*this == p_o) == false; }
 	bool operator<(const Vec2i &p_o) const { return x == p_o.x ? (y < p_o.y) : (x < p_o.x); }
 
-	int32_t cross(const Vec2i &A, const Vec2i &B) const {
-		return (A.x - x) * (B.y - y) - (A.y - y) * (B.x - x);
+	int64_t cross(const Vec2i &A, const Vec2i &B) const {
+		return ((int64_t)A.x - x) * ((int64_t)B.y - y) - ((int64_t)A.y - y) * ((int64_t)B.x - x);
 	}
 
 	int64_t length_squared() const { return ((int64_t)x * x) + ((int64_t)y * y); }
@@ -60,8 +60,10 @@ public:
 	static int orientation(Vec2i p, Vec2i q, Vec2i r) {
 		// See https://www.geeksforgeeks.org/orientation-3-ordered-points/
 		// for details of below formula.
-		int val = (q.y - p.y) * (r.x - q.x) -
-				(q.x - p.x) * (r.y - q.y);
+
+		// Needs 64 bit to prevent overflow .. confirmed
+		int64_t val = ((int64_t)q.y - p.y) * ((int64_t)r.x - q.x) -
+				((int64_t)q.x - p.x) * ((int64_t)r.y - q.y);
 
 		if (val == 0)
 			return 0; // collinear

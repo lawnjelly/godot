@@ -48,8 +48,8 @@ void PolyDecompose2D::calculate_crosses(LocalVectori<Point> &r_edges) {
 	for (int n = 0; n < r_edges.size(); n++) {
 		Point &pt = r_edges[n];
 		pt.cross = get_cross(r_edges, n);
-		pt.length = get_length(r_edges, n);
 		pt.reflex = pt.cross < 0;
+		pt.length = get_length(r_edges, n);
 	}
 }
 
@@ -105,7 +105,7 @@ bool PolyDecompose2D::decompose(const LocalVectori<Vec2i> &p_positions, List<Loc
 void PolyDecompose2D::remove_colinear(LocalVectori<Point> &r_edges) {
 	for (int n = 0; n < r_edges.size(); n++) {
 		const Point &pt = r_edges[n];
-		if (Math::abs((int)pt.cross) == 0) {
+		if (Math::abs(pt.cross) == 0) {
 			// we must add the removed length to the next
 			r_edges.get_wrapped(n - 1).length += r_edges[n].length;
 			r_edges.remove(n);
@@ -204,7 +204,6 @@ bool PolyDecompose2D::can_see(const LocalVectori<Point> &p_edges, int p_from, in
 		const Vec2i &to_b = _positions[p_edges[m].pos_idx];
 
 		if (Vec2i::intersect_test_lines(from_a, to_a, from_b, to_b)) {
-			//if (line_intersect_test(from_a, to_a, from_b, to_b)) {
 			return false;
 		}
 	}
@@ -230,7 +229,7 @@ real_t PolyDecompose2D::try_split_reflex_generic(const LocalVectori<Point> &p_ed
 		int t = p_edges.wrap_index(p_reflex_id + offset);
 
 		const Vec2i &pos = get_edge_pos(p_edges, t);
-		int32_t cross = p_reflex_edge_a.cross(p_reflex_edge_b, pos);
+		int64_t cross = p_reflex_edge_a.cross(p_reflex_edge_b, pos);
 
 		// use or equal to prevent coinlinear
 		if (cross < 0) {

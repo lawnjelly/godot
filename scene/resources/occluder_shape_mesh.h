@@ -324,6 +324,7 @@ class OccluderShapeMesh : public OccluderShape {
 		void vec3_to_vec3i(Vector3 p_pt, Vec3i &r_pt) {
 			p_pt -= input_aabb.position;
 			p_pt *= world_to_int_multiplier;
+			p_pt = p_pt.round();
 			r_pt.x = p_pt.x;
 			r_pt.y = p_pt.y;
 			r_pt.z = p_pt.z;
@@ -363,10 +364,10 @@ class OccluderShapeMesh : public OccluderShape {
 	} _bd;
 
 	NodePath _settings_bake_path;
-	real_t _settings_threshold_input_size = 1.0;
-	real_t _settings_threshold_input_size_squared = 1.0;
+	real_t _settings_threshold_input_size = 0.0;
+	real_t _settings_threshold_input_size_squared = 0.0;
 	real_t _settings_threshold_output_size = 1.0;
-	real_t _settings_simplify = 0.0;
+	real_t _settings_simplify = 0.1;
 	real_t _settings_plane_simplify_degrees = 11.0;
 	real_t _settings_plane_simplify_dot = 0.98;
 	real_t _settings_remove_floor_dot = 0.0;
