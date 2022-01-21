@@ -613,8 +613,14 @@ void MeshSimplify::_create_tris(const uint32_t *p_inds, uint32_t p_num_inds) {
 		if (!v1.edge_vert)
 			continue;
 
-		const Vert &v0 = _verts[v1.edge_vert_neighs[0]];
-		const Vert &v2 = _verts[v1.edge_vert_neighs[1]];
+		uint32_t evn0 = v1.edge_vert_neighs[0];
+		uint32_t evn1 = v1.edge_vert_neighs[1];
+
+		if ((evn0 == UINT32_MAX) || (evn1 == UINT32_MAX))
+			continue;
+
+		const Vert &v0 = _verts[evn0];
+		const Vert &v2 = _verts[evn1];
 
 		// colinear?
 		Vector3 d0 = v1.pos - v0.pos;

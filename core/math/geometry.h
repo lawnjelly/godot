@@ -1012,6 +1012,7 @@ public:
 		Vector<Vector3> vertices;
 
 		void optimize_vertices();
+		void clear();
 	};
 
 	_FORCE_INLINE_ static int get_uv84_normal_bit(const Vector3 &p_vector) {

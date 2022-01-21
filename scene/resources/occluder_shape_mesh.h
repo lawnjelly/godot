@@ -278,11 +278,18 @@ class OccluderShapeMesh : public OccluderShape {
 		void clear() {
 			//face_areas.clear();
 			float_input_faces.clear();
+			input_positions.clear();
+			input_inds.clear();
+
+			input_aabb = AABB();
+			world_to_int_multiplier = 0.0;
+			int_to_world_multiplier = 0;
+
 			verts.clear();
 			faces.clear();
 			out_faces.clear();
-			//sort_faces.clear();
 			islands.clear();
+
 			hash_verts.clear();
 			hash_triangles._table.clear();
 			_face_process_tick = 1;
@@ -339,6 +346,7 @@ class OccluderShapeMesh : public OccluderShape {
 			r_pt += input_aabb.position;
 		}
 
+		////////////////////////////////////////////////
 		// raw input faces
 		LocalVectori<Face3> float_input_faces;
 
@@ -363,10 +371,21 @@ class OccluderShapeMesh : public OccluderShape {
 
 	} _bd;
 
+	////////////////////////////////////////////////
+
 	NodePath _settings_bake_path;
+
+	// These are set in the UI and standardized 0.0 to 1.0,
+	// and will be modified according to the world size.
 	real_t _settings_threshold_input_size = 0.0;
-	real_t _settings_threshold_input_size_squared = 0.0;
-	real_t _settings_threshold_output_size = 1.0;
+	real_t _settings_threshold_output_size = 0.0;
+	real_t _settings_threshold_output_fatness = 0.0;
+
+	// actual used modified versions
+	real_t _threshold_input_area = 0.0;
+	real_t _threshold_output_area = 0.0;
+	real_t _threshold_output_fatness = 0.0;
+
 	real_t _settings_simplify = 0.1;
 	real_t _settings_plane_simplify_degrees = 11.0;
 	real_t _settings_plane_simplify_dot = 0.98;
@@ -379,6 +398,7 @@ class OccluderShapeMesh : public OccluderShape {
 	int _settings_quantize_res_2d = 8;
 
 	int _settings_debug_face_id = 0;
+	////////////////////////////////////////////////
 
 	bool _bake_material_check(Ref<Material> p_material);
 	void _bake_quantize_input();
@@ -390,6 +410,7 @@ class OccluderShapeMesh : public OccluderShape {
 	void _simplify_trianglesOLD();
 
 	// new method
+	void _precalc_thresholds();
 	bool _make_faces_new(uint32_t p_process_tick);
 	bool _flood_fill_from_face(int p_face_id, uint32_t p_process_tick, LocalVectori<uint32_t> &r_face_ids);
 	bool _merge_face_zone(const LocalVectori<uint32_t> &p_face_ids);
@@ -399,7 +420,7 @@ class OccluderShapeMesh : public OccluderShape {
 	bool _make_convex_chunk_external(const LocalVectori<uint32_t> &p_edge_verts, const Plane &p_poly_plane, LocalVectori<uint32_t> &r_convex_inds);
 	void _process_out_faces();
 	bool _any_further_points_within(const Vector<IndexedPoint> &p_pts, int p_test_pt) const;
-	void _finalize_out_face(BakeFace &r_face);
+	real_t _finalize_out_face(BakeFace &r_face);
 	bool _can_see(const Vector<IndexedPoint> &p_points, int p_test_point) const;
 	bool face_has_worked(const LocalVectori<uint32_t> &p_face, const Vector3 &p_face_normal) const;
 
@@ -471,12 +492,6 @@ class OccluderShapeMesh : public OccluderShape {
 
 	void set_threshold_input_size(real_t p_threshold) {
 		_settings_threshold_input_size = p_threshold;
-		// can't be zero, we want to prevent zero area triangles which could
-		// cause divide by zero in the occlusion culler goodness of fit
-
-		// NOTE: Investigate this. Tiny triangles that are not registered could break up larger faces.
-		// Maybe the cap against zero area could be later in the pipeline.
-		_settings_threshold_input_size_squared = MAX(p_threshold * p_threshold, 0.00001);
 	}
 	real_t get_threshold_input_size() const { return _settings_threshold_input_size; }
 
@@ -484,6 +499,11 @@ class OccluderShapeMesh : public OccluderShape {
 		_settings_threshold_output_size = p_threshold;
 	}
 	real_t get_threshold_output_size() const { return _settings_threshold_output_size; }
+
+	void set_threshold_output_fatness(real_t p_fatness) {
+		_settings_threshold_output_fatness = p_fatness;
+	}
+	real_t get_threshold_output_fatness() const { return _settings_threshold_output_fatness; }
 
 	void set_simplify(real_t p_simplify) { _settings_simplify = p_simplify; }
 	real_t get_simplify() const { return _settings_simplify; }

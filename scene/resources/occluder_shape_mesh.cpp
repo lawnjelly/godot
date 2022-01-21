@@ -60,6 +60,9 @@ void OccluderShapeMesh::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_threshold_output_size", "size"), &OccluderShapeMesh::set_threshold_output_size);
 	ClassDB::bind_method(D_METHOD("get_threshold_output_size"), &OccluderShapeMesh::get_threshold_output_size);
 
+	ClassDB::bind_method(D_METHOD("set_threshold_output_fatness", "fatness"), &OccluderShapeMesh::set_threshold_output_fatness);
+	ClassDB::bind_method(D_METHOD("get_threshold_output_fatness"), &OccluderShapeMesh::get_threshold_output_fatness);
+
 	ClassDB::bind_method(D_METHOD("set_simplify", "simplify"), &OccluderShapeMesh::set_simplify);
 	ClassDB::bind_method(D_METHOD("get_simplify"), &OccluderShapeMesh::get_simplify);
 
@@ -92,8 +95,9 @@ void OccluderShapeMesh::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "bake_path", PROPERTY_HINT_NODE_PATH_VALID_TYPES, "Spatial"), "set_bake_path", "get_bake_path");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "bake_mask", PROPERTY_HINT_LAYERS_3D_RENDER), "set_bake_mask", "get_bake_mask");
 
-	ADD_PROPERTY(PropertyInfo(Variant::REAL, "threshold_input_size", PROPERTY_HINT_RANGE, "0.0,10.0,0.1"), "set_threshold_input_size", "get_threshold_input_size");
-	ADD_PROPERTY(PropertyInfo(Variant::REAL, "threshold_output_size", PROPERTY_HINT_RANGE, "0.0,10.0,0.1"), "set_threshold_output_size", "get_threshold_output_size");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "threshold_input_size", PROPERTY_HINT_RANGE, "0.0,1.0,0.01"), "set_threshold_input_size", "get_threshold_input_size");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "threshold_output_size", PROPERTY_HINT_RANGE, "0.0,1.0,0.01"), "set_threshold_output_size", "get_threshold_output_size");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "threshold_output_fatness", PROPERTY_HINT_RANGE, "0.0,1.0,0.01"), "set_threshold_output_fatness", "get_threshold_output_fatness");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "plane_angle", PROPERTY_HINT_RANGE, "0.0,45.0,0.1"), "set_plane_simplify_angle", "get_plane_simplify_angle");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "simplify", PROPERTY_HINT_RANGE, "0.0,1.0,0.01"), "set_simplify", "get_simplify");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "vertex_tolerance", PROPERTY_HINT_RANGE, "0.0,0.1,0.001"), "set_vertex_tolerance", "get_vertex_tolerance");
@@ -228,8 +232,8 @@ void OccluderShapeMesh::notification_enter_world(RID p_scenario) {
 }
 
 void OccluderShapeMesh::clear() {
-	_mesh_data.vertices.clear();
-	_mesh_data.faces.clear();
+	_mesh_data.clear();
+
 	_bd.clear();
 	//_bd.hash_verts._tolerance = _settings_vertex_tolerance * _settings_vertex_tolerance;
 }
@@ -239,42 +243,51 @@ void OccluderShapeMesh::_log(String p_string) {
 	print_line(p_string);
 }
 
-void OccluderShapeMesh::bake(Node *owner) {
-	/*
-#ifdef GODOT_POLY_DECOMPOSE_DEBUG_DRAW
-	{
-		LocalVectori<Vector2> pts;
-		List<LocalVectori<uint32_t>> result;
-
-		pts.push_back(Vector2(0, -1));
-		pts.push_back(Vector2(1, -1));
-		pts.push_back(Vector2(2, -6));
-		pts.push_back(Vector2(4, -2));
-
-		pts.push_back(Vector2(0.5, 0));
-
-		pts.push_back(Vector2(4, 2));
-		pts.push_back(Vector2(2, 6));
-		pts.push_back(Vector2(1, 1));
-		pts.push_back(Vector2(0, 1));
-
-		// test decompose
-		PolyDecompose2D decomp;
-		decomp.decompose(pts, result);
-	}
-	return;
-#endif
-*/
-	clear();
-
+void OccluderShapeMesh::_precalc_thresholds() {
 	// make sure precalced values are correct
 	_settings_remove_floor_dot = Math::cos(Math::deg2rad((real_t)_settings_remove_floor_angle));
 
-	// test debug image
-	//	DebugImage im;
-	//	im.create(320, 240);
-	//	im.line(5, 5, 200, 220);
-	//	im.save_png("test_png.png");
+	// 0 to 1
+	_threshold_input_area = _settings_threshold_input_size;
+	// bunch up towards lower values
+	_threshold_input_area *= _threshold_input_area;
+	// scale to max in world size
+	_threshold_input_area *= 50.0;
+	// must be squared
+	_threshold_input_area *= _threshold_input_area;
+
+	// can't be zero, we want to prevent zero area triangles which could
+	// cause divide by zero in the occlusion culler goodness of fit
+	// don't want to accept zero size tris
+	_threshold_input_area = MAX(_threshold_input_area, 0.0001);
+
+	// 0 to 1
+	_threshold_output_area = _settings_threshold_output_size;
+	// bunch up towards lower values
+	_threshold_output_area *= _threshold_output_area;
+	// scale to world
+	_threshold_output_area *= 50.0;
+	// area is squared
+	_threshold_output_area *= _threshold_output_area;
+
+	// 0 to 1
+	//	_threshold_output_fatness = _settings_threshold_output_fatness;
+	//	_threshold_output_fatness *= 1.0 / 16.0;
+
+	_threshold_output_fatness = _settings_threshold_output_fatness;
+	// bunch up towards lower values
+	_threshold_output_fatness *= _threshold_output_fatness;
+	// scale to world
+	_threshold_output_fatness *= 50.0;
+	// area is squared
+	_threshold_output_fatness *= _threshold_output_fatness;
+	// account for thinness ratio
+	_threshold_output_fatness *= 1.0 / 16.0;
+}
+
+void OccluderShapeMesh::bake(Node *owner) {
+	clear();
+	_precalc_thresholds();
 
 	// the owner must be the occluder
 	Occluder *occ = Object::cast_to<Occluder>(owner);
@@ -1237,7 +1250,30 @@ bool OccluderShapeMesh::_make_convex_chunk_external(const LocalVectori<uint32_t>
 
 				out.area = 100.0;
 				out.plane = p_poly_plane;
-				_finalize_out_face(out);
+
+				// Calculate the total edge length and area of the face.
+				// We can use this to reject out faces that are too long and thin to be useful.
+				real_t total_edge_length = _finalize_out_face(out);
+
+				bool allow = false;
+
+				if (out.area > 0.0) {
+					// Bigger ratio, rounder / squarer, smaller ratio is small slivers
+					real_t ratio = out.area / (total_edge_length * total_edge_length);
+					//					if (ratio >= _threshold_output_fatness) {
+					//						allow = true;
+					//					}
+
+					real_t magic_factor = ratio * out.area;
+					if (magic_factor >= _threshold_output_fatness) {
+						allow = true;
+					}
+				}
+
+				if (!allow) {
+					// pop last
+					_bd.out_faces.resize(_bd.out_faces.size() - 1);
+				}
 			} // if worked
 		} // if chunk not empty
 
@@ -1275,12 +1311,25 @@ bool OccluderShapeMesh::face_has_worked(const LocalVectori<uint32_t> &p_face, co
 	return true;
 }
 
-void OccluderShapeMesh::_finalize_out_face(BakeFace &r_face) {
+// Return the edge length, so we can reject output faces that are too long and thin
+real_t OccluderShapeMesh::_finalize_out_face(BakeFace &r_face) {
 	LocalVector<Vector3> pts;
 	for (int n = 0; n < r_face.indices.size(); n++) {
 		pts.push_back(_bd.verts[r_face.indices[n]].posf);
 	}
 	r_face.area = Geometry::find_polygon_area(&pts[0], pts.size());
+
+	real_t edge_length = 0.0;
+
+	if (pts.size()) {
+		Vector3 pt_prev = pts[pts.size() - 1];
+
+		for (int n = 0; n < pts.size(); n++) {
+			edge_length += (pts[n] - pt_prev).length();
+			pt_prev = pts[n];
+		}
+	}
+	return edge_length;
 }
 
 Vector3 OccluderShapeMesh::_normal_from_edge_verts_newell(const LocalVectori<uint32_t> &p_edge_verts) const {
@@ -1525,16 +1574,16 @@ bool OccluderShapeMesh::_process_islands_trace_hole(uint32_t p_island_id, uint32
 			break;
 		}
 
-		if ((edges.size() > 100) || (panic > 30)) {
-			_debug_draw_edges(p_island_id, edges);
-			String sz;
-			for (int n = 0; n < edges.size(); n++) {
-				sz += itos(edges[n]) + ", ";
-			}
-			print_line(sz);
+		//		if ((edges.size() > 1000) || (panic > 30)) {
+		//			//_debug_draw_edges(p_island_id, edges);
+		//			String sz;
+		//			for (int n = 0; n < edges.size(); n++) {
+		//				sz += itos(edges[n]) + ", ";
+		//			}
+		//			print_line(sz);
 
-			CRASH_NOW();
-		}
+		//			CRASH_NOW();
+		//		}
 	}
 
 #if 0
@@ -2062,7 +2111,7 @@ void OccluderShapeMesh::_finalize_faces() {
 		// determine the thinness.
 
 		// delete the face if no indices, or the size below the threshold
-		if (!face.indices.size() || (face.area < _settings_threshold_output_size)) {
+		if (!face.indices.size() || (face.area < _threshold_output_area)) {
 			// face can be deleted
 			_bd.faces.remove(n);
 
@@ -2204,7 +2253,7 @@ void OccluderShapeMesh::_bake_input_face(int p_first_tri_index) {
 
 bool OccluderShapeMesh::_try_bake_face(const Face3 &p_face) {
 	real_t area = p_face.get_twice_area_squared() * 0.5;
-	if (area < _settings_threshold_input_size_squared) {
+	if (area < _threshold_input_area) {
 		return false;
 	}
 

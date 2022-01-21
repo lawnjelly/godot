@@ -54,6 +54,12 @@ bool Geometry::is_point_in_polygon(const Vector2 &p_point, const Vector<Vector2>
 }
 */
 
+void Geometry::MeshData::clear() {
+	faces.clear();
+	edges.clear();
+	vertices.clear();
+}
+
 void Geometry::MeshData::optimize_vertices() {
 	Map<int, int> vtx_remap;
 
