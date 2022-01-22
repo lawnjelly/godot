@@ -114,13 +114,19 @@ void OccluderShapeMesh::_set_data(const Dictionary &p_d) {
 	ERR_FAIL_COND(!p_d.has("version"));
 
 	int version = p_d["version"];
-	ERR_FAIL_COND(version != 100);
+	ERR_FAIL_COND(version != 101);
 
 	ERR_FAIL_COND(!p_d.has("verts"));
 	ERR_FAIL_COND(!p_d.has("planes"));
 	ERR_FAIL_COND(!p_d.has("indices"));
 	ERR_FAIL_COND(!p_d.has("first_indices"));
 	ERR_FAIL_COND(!p_d.has("num_indices"));
+
+	ERR_FAIL_COND(!p_d.has("hole_indices"));
+	ERR_FAIL_COND(!p_d.has("first_hole"));
+	ERR_FAIL_COND(!p_d.has("num_holes"));
+	ERR_FAIL_COND(!p_d.has("hole_first_indices"));
+	ERR_FAIL_COND(!p_d.has("hole_num_indices"));
 
 	_mesh_data.vertices = p_d["verts"];
 
@@ -129,12 +135,19 @@ void OccluderShapeMesh::_set_data(const Dictionary &p_d) {
 	Vector<int> face_first_indices = p_d["first_indices"];
 	Vector<int> face_num_indices = p_d["num_indices"];
 
+	Vector<int> hole_indices = p_d["hole_indices"];
+	Vector<int> face_first_holes = p_d["first_hole"];
+	Vector<int> face_num_holes = p_d["num_holes"];
+
+	Vector<int> hole_first_indices = p_d["hole_first_indices"];
+	Vector<int> hole_num_indices = p_d["hole_num_indices"];
+
 	ERR_FAIL_COND(planes.size() != face_first_indices.size());
 	ERR_FAIL_COND(planes.size() != face_num_indices.size());
 
 	_mesh_data.faces.resize(planes.size());
 	for (int n = 0; n < planes.size(); n++) {
-		Geometry::MeshData::Face f;
+		Geometry::OccluderMeshData::Face f;
 		f.plane = planes[n];
 		f.indices.resize(face_num_indices[n]);
 
@@ -149,37 +162,87 @@ void OccluderShapeMesh::_set_data(const Dictionary &p_d) {
 			}
 
 			int ind = indices[ind_id];
-			f.indices.set(i, ind);
+			f.indices[i] = ind;
 		}
 
-		_mesh_data.faces.set(n, f);
+		// holes
+		f.holes.resize(face_num_holes[n]);
+		int face_first_hole = face_first_holes[n];
+
+		for (int i = 0; i < f.holes.size(); i++) {
+			Geometry::OccluderMeshData::Hole &hole = f.holes[i];
+
+			int first_ind = hole_first_indices[face_first_hole + i];
+			int num_inds = hole_num_indices[face_first_hole + i];
+
+			hole.indices.resize(num_inds);
+			for (int c = 0; c < num_inds; c++) {
+				hole.indices[c] = hole_indices[first_ind + c];
+			}
+		}
+
+		_mesh_data.faces[n] = f;
 	}
 }
 
 Dictionary OccluderShapeMesh::_get_data() const {
 	Dictionary d;
-	d["version"] = 100;
-	d["verts"] = _mesh_data.vertices;
+	d["version"] = 101;
+	d["verts"] = (Vector<Vector3>)_mesh_data.vertices;
 
 	Vector<Plane> planes;
 	Vector<int> indices;
 	Vector<int> face_first_indices;
 	Vector<int> face_num_indices;
+
+	Vector<int> face_first_hole;
+	Vector<int> face_num_holes;
+
+	Vector<int> hole_first_indices;
+	Vector<int> hole_num_indices;
+	Vector<int> hole_indices;
+
 	for (int n = 0; n < _mesh_data.faces.size(); n++) {
-		const Geometry::MeshData::Face &f = _mesh_data.faces[n];
+		const Geometry::OccluderMeshData::Face &f = _mesh_data.faces[n];
 		planes.push_back(f.plane);
 		face_first_indices.push_back(indices.size());
+		face_first_hole.push_back(hole_first_indices.size());
 
+		// face indices
 		for (int i = 0; i < f.indices.size(); i++) {
 			indices.push_back(f.indices[i]);
 		}
+
+		// holes
+		for (int h = 0; h < f.holes.size(); h++) {
+			const Geometry::OccluderMeshData::Hole hole = f.holes[h];
+
+			hole_first_indices.push_back(hole_indices.size());
+
+			for (int i = 0; i < hole.indices.size(); i++) {
+				hole_indices.push_back(hole.indices[i]);
+			}
+
+			hole_num_indices.push_back(hole.indices.size());
+		}
+
 		face_num_indices.push_back(f.indices.size());
+		face_num_holes.push_back(f.holes.size());
 	}
 
 	d["planes"] = planes;
+
 	d["indices"] = indices;
+	d["hole_indices"] = hole_indices;
+
 	d["first_indices"] = face_first_indices;
 	d["num_indices"] = face_num_indices;
+
+	d["first_hole"] = face_first_hole;
+	d["num_holes"] = face_num_holes;
+	d["hole_first_indices"] = hole_first_indices;
+	d["hole_num_indices"] = hole_num_indices;
+
 	return d;
 }
 
@@ -193,7 +256,7 @@ void OccluderShapeMesh::update_transform_to_visual_server(const Transform &p_glo
 }
 
 void OccluderShapeMesh::update_shape_to_visual_server() {
-	VisualServer::get_singleton()->occluder_mesh_update(get_shape(), _mesh_data.faces, _mesh_data.vertices);
+	VisualServer::get_singleton()->occluder_mesh_update(get_shape(), _mesh_data);
 }
 
 Transform OccluderShapeMesh::center_node(const Transform &p_global_xform, const Transform &p_parent_xform, real_t p_snap) {
@@ -341,14 +404,14 @@ void OccluderShapeMesh::bake(Node *owner) {
 		// transform all the verts etc from world space to local space
 		for (int n = 0; n < _mesh_data.vertices.size(); n++) {
 			const Vector3 &pt = _mesh_data.vertices[n];
-			_mesh_data.vertices.set(n, xform_inv.xform(pt));
+			_mesh_data.vertices[n] = xform_inv.xform(pt);
 		}
 
 		// planes
 		for (int n = 0; n < _mesh_data.faces.size(); n++) {
-			Geometry::MeshData::Face face = _mesh_data.faces[n];
+			Geometry::OccluderMeshData::Face face = _mesh_data.faces[n];
 			face.plane = xform_inv.xform(face.plane);
-			_mesh_data.faces.set(n, face);
+			_mesh_data.faces[n] = face;
 		}
 	}
 
@@ -580,7 +643,7 @@ void OccluderShapeMesh::_simplify_trianglesOLD() {
 
 			_mesh_data.vertices.resize(num_deduped_verts);
 			for (int n = 0; n < num_deduped_verts; n++) {
-				_mesh_data.vertices.set(n, deduped_verts[n]);
+				_mesh_data.vertices[n] = deduped_verts[n];
 				verts[n].from(deduped_verts[n]);
 			}
 			/*
@@ -2153,15 +2216,15 @@ void OccluderShapeMesh::_finalize_faces() {
 	_mesh_data.faces.resize(_bd.faces.size());
 	for (int n = 0; n < _mesh_data.faces.size(); n++) {
 		const BakeFace &src = _bd.faces[n];
-		Geometry::MeshData::Face dest;
+		Geometry::OccluderMeshData::Face dest;
 		dest.plane = src.plane;
 
 		dest.indices.resize(src.indices.size());
 		for (int i = 0; i < src.indices.size(); i++) {
-			dest.indices.set(i, src.indices[i]);
+			dest.indices[i] = src.indices[i];
 		}
 
-		_mesh_data.faces.set(n, dest);
+		_mesh_data.faces[n] = dest;
 	}
 
 	// display some stats

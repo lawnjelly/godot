@@ -547,7 +547,7 @@ void PortalRenderer::occluder_refresh_room_within(uint32_t p_occluder_pool_id) {
 	}
 }
 
-void PortalRenderer::occluder_update_mesh(OccluderHandle p_handle, const Vector<Geometry::MeshData::Face> &p_faces, const Vector<Vector3> &p_vertices) {
+void PortalRenderer::occluder_update_mesh(OccluderHandle p_handle, const Geometry::OccluderMeshData &p_mesh_data) {
 	p_handle--;
 	VSOccluder &occ = _occluder_pool[p_handle];
 	ERR_FAIL_COND(occ.type != VSOccluder::OT_MESH);
@@ -555,8 +555,11 @@ void PortalRenderer::occluder_update_mesh(OccluderHandle p_handle, const Vector<
 	// needs world points updating next time
 	occ.dirty = true;
 
+	const LocalVectori<Geometry::OccluderMeshData::Face> &faces = p_mesh_data.faces;
+	const LocalVectori<Vector3> &vertices = p_mesh_data.vertices;
+
 	// first deal with the situation where the number of polys has changed (rare)
-	if (occ.list_ids.size() != p_faces.size()) {
+	if (occ.list_ids.size() != faces.size()) {
 		// not the most efficient, but works...
 		// remove existing
 		for (int n = 0; n < occ.list_ids.size(); n++) {
@@ -566,7 +569,7 @@ void PortalRenderer::occluder_update_mesh(OccluderHandle p_handle, const Vector<
 
 		occ.list_ids.clear();
 		// create new
-		for (int n = 0; n < p_faces.size(); n++) {
+		for (int n = 0; n < faces.size(); n++) {
 			uint32_t id;
 			VSOccluder_Mesh *poly = _occluder_mesh_pool.request(id);
 			poly->create();
@@ -582,7 +585,7 @@ void PortalRenderer::occluder_update_mesh(OccluderHandle p_handle, const Vector<
 		Occlusion::Poly &poly = opoly.poly_local;
 
 		// source face
-		const Geometry::MeshData::Face &face = p_faces[n];
+		const Geometry::OccluderMeshData::Face &face = faces[n];
 		poly.plane = face.plane;
 
 		poly.num_verts = MIN(face.indices.size(), Occlusion::Poly::MAX_POLY_VERTS);
@@ -593,8 +596,8 @@ void PortalRenderer::occluder_update_mesh(OccluderHandle p_handle, const Vector<
 		for (int c = 0; c < poly.num_verts; c++) {
 			int vert_index = face.indices[c];
 
-			if (vert_index < p_vertices.size()) {
-				poly.verts[c] = p_vertices[face.indices[c]];
+			if (vert_index < vertices.size()) {
+				poly.verts[c] = vertices[face.indices[c]];
 			} else {
 				WARN_PRINT_ONCE("occluder_update_mesh : index out of range");
 			}

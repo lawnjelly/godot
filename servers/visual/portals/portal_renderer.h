@@ -189,7 +189,7 @@ public:
 	// occluders
 	OccluderHandle occluder_create(VSOccluder::Type p_type);
 	void occluder_update_spheres(OccluderHandle p_handle, const Vector<Plane> &p_spheres);
-	void occluder_update_mesh(OccluderHandle p_handle, const Vector<Geometry::MeshData::Face> &p_faces, const Vector<Vector3> &p_vertices);
+	void occluder_update_mesh(OccluderHandle p_handle, const Geometry::OccluderMeshData &p_mesh_data);
 	void occluder_set_transform(OccluderHandle p_handle, const Transform &p_xform);
 	void occluder_set_active(OccluderHandle p_handle, bool p_active);
 	void occluder_destroy(OccluderHandle p_handle);

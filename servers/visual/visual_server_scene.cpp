@@ -1246,11 +1246,11 @@ void VisualServerScene::occluder_spheres_update(RID p_occluder, const Vector<Pla
 	ro->scenario->_portal_renderer.occluder_update_spheres(ro->scenario_occluder_id, p_spheres);
 }
 
-void VisualServerScene::occluder_mesh_update(RID p_occluder, const Vector<Geometry::MeshData::Face> &p_faces, const Vector<Vector3> &p_vertices) {
+void VisualServerScene::occluder_mesh_update(RID p_occluder, const Geometry::OccluderMeshData &p_mesh_data) {
 	Occluder *ro = occluder_owner.getornull(p_occluder);
 	ERR_FAIL_COND(!ro);
 	ERR_FAIL_COND(!ro->scenario);
-	ro->scenario->_portal_renderer.occluder_update_mesh(ro->scenario_occluder_id, p_faces, p_vertices);
+	ro->scenario->_portal_renderer.occluder_update_mesh(ro->scenario_occluder_id, p_mesh_data);
 }
 
 void VisualServerScene::set_use_occlusion_culling(bool p_enable) {

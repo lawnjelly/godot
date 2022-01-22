@@ -275,6 +275,9 @@ public:
 template <class T, class I = int32_t, bool force_trivial = false>
 class LocalVectori : public LocalVector<T, I, force_trivial> {
 public:
+	using LocalVector<T, I, force_trivial>::operator=;
+	using LocalVector<T, I, force_trivial>::operator Vector<T>;
+
 	const T &get_wrapped(I p_index) const {
 		return this->data[wrap_index(p_index)];
 	}

@@ -270,11 +270,6 @@ Geometry::MeshData PortalOcclusionCuller::debug_get_current_polys() const {
 	return md;
 }
 
-//<<<<<<< HEAD
-//void PortalOcclusionCuller::prepare_generic(PortalRenderer &p_portal_renderer, const LocalVector<uint32_t, uint32_t> &p_occluder_pool_ids, const Vector3 &pt_camera, const LocalVector<Plane> &p_planes) {
-//	_num_spheres = 0;
-//=======
-
 void PortalOcclusionCuller::prepare_generic(PortalRenderer &p_portal_renderer, const LocalVector<uint32_t, uint32_t> &p_occluder_pool_ids, const Vector3 &pt_camera, const LocalVector<Plane> &p_planes) {
 	// bodge to keep settings up to date
 #ifdef TOOLS_ENABLED
@@ -284,7 +279,6 @@ void PortalOcclusionCuller::prepare_generic(PortalRenderer &p_portal_renderer, c
 #endif
 	_num_spheres = 0;
 
-	//>>>>>>> c7cca166a3... Add OccluderShapeMesh
 	_pt_camera = pt_camera;
 
 	// spheres

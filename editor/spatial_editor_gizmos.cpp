@@ -5282,7 +5282,7 @@ void OccluderSpatialGizmo::redraw() {
 
 	const OccluderShapeMesh *occ_mesh = get_occluder_shape_mesh();
 	if (occ_mesh) {
-		const Geometry::MeshData &md = occ_mesh->get_mesh_data();
+		const Geometry::OccluderMeshData &md = occ_mesh->get_mesh_data();
 		if (!md.faces.size()) {
 			return;
 		}
@@ -5291,7 +5291,7 @@ void OccluderSpatialGizmo::redraw() {
 		Vector<Vector3> lines;
 
 		for (int n = 0; n < md.faces.size(); n++) {
-			const Geometry::MeshData::Face &face = md.faces[n];
+			const Geometry::OccluderMeshData::Face &face = md.faces[n];
 
 			//print_line("face " + itos(n) + " numinds : " + itos(face.indices.size()));
 
