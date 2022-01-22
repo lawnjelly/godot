@@ -280,7 +280,7 @@ void OccluderShapeMesh::_precalc_thresholds() {
 	// scale to world
 	_threshold_output_fatness *= 50.0;
 	// area is squared
-	_threshold_output_fatness *= _threshold_output_fatness;
+	//_threshold_output_fatness *= _threshold_output_fatness;
 	// account for thinness ratio
 	_threshold_output_fatness *= 1.0 / 16.0;
 }
@@ -1264,7 +1264,8 @@ bool OccluderShapeMesh::_make_convex_chunk_external(const LocalVectori<uint32_t>
 					//						allow = true;
 					//					}
 
-					real_t magic_factor = ratio * out.area;
+					//real_t magic_factor = ratio * out.area;
+					real_t magic_factor = ratio * total_edge_length;
 					if (magic_factor >= _threshold_output_fatness) {
 						allow = true;
 					}

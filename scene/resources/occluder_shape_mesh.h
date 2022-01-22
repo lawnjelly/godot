@@ -53,7 +53,7 @@ class OccluderShapeMesh : public OccluderShape {
 		int32_t x, y, z;
 	};
 
-	Geometry::MeshData _mesh_data;
+	Geometry::OccluderMeshData _mesh_data;
 
 	template <uint32_t NUM_BINS, class ELEMENT>
 	struct HashTable {
@@ -548,7 +548,7 @@ protected:
 	static void _bind_methods();
 
 public:
-	const Geometry::MeshData &get_mesh_data() const { return _mesh_data; }
+	const Geometry::OccluderMeshData &get_mesh_data() const { return _mesh_data; }
 
 	virtual void notification_enter_world(RID p_scenario);
 	virtual void update_shape_to_visual_server();

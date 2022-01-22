@@ -1015,6 +1015,22 @@ public:
 		void clear();
 	};
 
+	// Occluder Meshes contain convex faces which may contain 0 to many convex holes.
+	// (holes are analogous to portals)
+	struct OccluderMeshData {
+		struct Hole {
+			LocalVectori<uint32_t> indices;
+		};
+		struct Face {
+			Plane plane;
+			LocalVectori<uint32_t> indices;
+			LocalVectori<Hole> holes;
+		};
+		LocalVectori<Face> faces;
+		LocalVectori<Vector3> vertices;
+		void clear();
+	};
+
 	_FORCE_INLINE_ static int get_uv84_normal_bit(const Vector3 &p_vector) {
 		int lat = Math::fast_ftoi(Math::floor(Math::acos(p_vector.dot(Vector3(0, 1, 0))) * 4.0 / Math_PI + 0.5));
 

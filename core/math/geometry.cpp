@@ -54,6 +54,11 @@ bool Geometry::is_point_in_polygon(const Vector2 &p_point, const Vector<Vector2>
 }
 */
 
+void Geometry::OccluderMeshData::clear() {
+	faces.clear();
+	vertices.clear();
+}
+
 void Geometry::MeshData::clear() {
 	faces.clear();
 	edges.clear();
