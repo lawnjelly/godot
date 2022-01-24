@@ -665,7 +665,6 @@ bool PortalOcclusionCuller::calculate_poly_goodness_of_fit(bool debug, const VSO
 	// find screen space area
 	real_t area = _clipper.clip_and_find_poly_area(debug, xpoints, num_verts);
 	if (area <= 0.0) {
-		//>>>>>>> c7cca166a3... Add OccluderShapeMesh
 		return false;
 	}
 

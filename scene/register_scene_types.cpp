@@ -221,6 +221,7 @@
 #include "scene/resources/mesh_library.h"
 #include "scene/resources/occluder_shape.h"
 #include "scene/resources/occluder_shape_mesh.h"
+#include "scene/resources/occluder_shape_poly.h"
 #endif
 
 #include "modules/modules_enabled.gen.h" // For freetype.
@@ -670,6 +671,7 @@ void register_scene_types() {
 	ClassDB::register_virtual_class<OccluderShape>();
 	ClassDB::register_class<OccluderShapeSphere>();
 	ClassDB::register_class<OccluderShapeMesh>();
+	ClassDB::register_class<OccluderShapePoly>();
 
 	OS::get_singleton()->yield(); //may take time to init
 

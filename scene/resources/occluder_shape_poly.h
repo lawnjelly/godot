@@ -36,6 +36,58 @@
 class OccluderShapePoly : public OccluderShape {
 	GDCLASS(OccluderShapePoly, OccluderShape);
 	OBJ_SAVE_TYPE(OccluderShapePoly);
+
+	friend class OccluderSpatialGizmo;
+
+	// normal determined by winding order
+	//Vector<Vector3> _pts_world;
+
+	// points in local space of the plane,
+	// not necessary in correct winding order
+	// (as they can be edited by the user)
+	// Note: these are saved by the IDE
+	PoolVector<Vector2> _poly_pts_local_raw;
+	PoolVector<Vector2> _hole_pts_local_raw;
+
+	// sanitized
+	Vector<Vector2> _poly_pts_local;
+	Vector<Vector2> _hole_pts_local;
+	AABB _aabb_local;
+
+	// center of the world points
+	//Vector3 _pt_center_world;
+
+	// portal plane in world space, always pointing OUTWARD from the source room
+	//Plane _plane;
+
+	// mem funcs
+	void _sanitize_points();
+	void _sanitize_points_internal(const PoolVector<Vector2> &p_from, Vector<Vector2> &r_to);
+	void _update_aabb();
+	static Vector3 _vec2to3(const Vector2 &p_pt) { return Vector3(p_pt.x, p_pt.y, 0.0); }
+
+protected:
+	static void _bind_methods();
+
+public:
+	// the raw points are used for the IDE Inspector, and also to allow the user
+	// to edit the geometry of the poly at runtime (they can also just change the node transform)
+	void set_poly_points(const PoolVector<Vector2> &p_points);
+	PoolVector<Vector2> get_poly_points() const;
+	void set_hole_points(const PoolVector<Vector2> &p_points);
+	PoolVector<Vector2> get_hole_points() const;
+
+	// primarily for the gizmo
+	void set_poly_point(int p_idx, const Vector2 &p_point);
+	void set_hole_point(int p_idx, const Vector2 &p_point);
+
+	void clear();
+
+	virtual void notification_enter_world(RID p_scenario);
+	virtual void update_shape_to_visual_server();
+	virtual Transform center_node(const Transform &p_global_xform, const Transform &p_parent_xform, real_t p_snap);
+
+	OccluderShapePoly();
 };
 
 #endif // OCCLUDER_SHAPE_POLY_H

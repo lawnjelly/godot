@@ -63,6 +63,7 @@
 #include "scene/resources/height_map_shape.h"
 #include "scene/resources/occluder_shape.h"
 #include "scene/resources/occluder_shape_mesh.h"
+#include "scene/resources/occluder_shape_poly.h"
 #include "scene/resources/plane_shape.h"
 #include "scene/resources/primitive_meshes.h"
 #include "scene/resources/ray_shape.h"
@@ -5049,6 +5050,11 @@ String OccluderSpatialGizmo::get_handle_name(int p_idx) const {
 		}
 	}
 
+	const OccluderShapePoly *occ_poly = get_occluder_shape_poly();
+	if (occ_poly) {
+		return "Point " + itos(p_idx);
+	}
+
 	return "Unknown";
 }
 
@@ -5064,6 +5070,16 @@ Variant OccluderSpatialGizmo::get_handle_value(int p_idx) {
 		} else {
 			return spheres[p_idx].normal;
 		}
+	}
+
+	const OccluderShapePoly *occ_poly = get_occluder_shape_poly();
+	if (occ_poly) {
+		int num_points = occ_poly->_poly_pts_local_raw.size();
+		if (p_idx >= num_points) {
+			return Vector2(0, 0);
+		}
+
+		return occ_poly->_poly_pts_local_raw[p_idx];
 	}
 
 	return 0;
@@ -5148,15 +5164,51 @@ void OccluderSpatialGizmo::set_handle(int p_idx, Camera *p_camera, const Point2 
 			return;
 		}
 	}
+
+	OccluderShapePoly *occ_poly = get_occluder_shape_poly();
+	if (occ_poly) {
+		int num_points = occ_poly->_poly_pts_local_raw.size();
+		if (p_idx >= num_points) {
+			return;
+		}
+
+		Vector3 pt_local = OccluderShapePoly::_vec2to3(occ_poly->_poly_pts_local_raw[p_idx]);
+		Vector3 pt_world = tr.xform(pt_local);
+
+		// get a normal from the global transform
+		Plane plane(Vector3(0, 0, 0), Vector3(0, 0, 1));
+		plane = tr.xform(plane);
+
+		// construct the plane that the 2d portal is defined in
+		plane = Plane(pt_world, plane.normal);
+
+		Vector3 inters;
+
+		if (plane.intersects_ray(ray_from, ray_dir, &inters)) {
+			// back calculate from the 3d intersection to the 2d portal plane
+			inters = tr_inv.xform(inters);
+
+			// snapping will be in 2d for portals, and the scale may make less sense,
+			// but better to offer at least some functionality
+			if (SpatialEditor::get_singleton()->is_snap_enabled()) {
+				float snap = SpatialEditor::get_singleton()->get_translate_snap();
+				inters.snap(Vector3(snap, snap, snap));
+			}
+
+			occ_poly->set_poly_point(p_idx, Vector2(inters.x, inters.y));
+
+			return;
+		}
+	}
 }
 
 void OccluderSpatialGizmo::commit_handle(int p_idx, const Variant &p_restore, bool p_cancel) {
+	UndoRedo *ur = SpatialEditor::get_singleton()->get_undo_redo();
+
 	OccluderShapeSphere *occ_sphere = get_occluder_shape_sphere();
 	if (occ_sphere) {
 		Vector<Plane> spheres = occ_sphere->get_spheres();
 		int num_spheres = spheres.size();
-
-		UndoRedo *ur = SpatialEditor::get_singleton()->get_undo_redo();
 
 		if (p_idx >= num_spheres) {
 			p_idx -= num_spheres;
@@ -5173,39 +5225,49 @@ void OccluderSpatialGizmo::commit_handle(int p_idx, const Variant &p_restore, bo
 		ur->commit_action();
 		_occluder->property_list_changed_notify();
 	}
+
+	OccluderShapePoly *occ_poly = get_occluder_shape_poly();
+	if (occ_poly) {
+		int num_points = occ_poly->_poly_pts_local_raw.size();
+		if (p_idx >= num_points) {
+			return;
+		}
+
+		ur->create_action(TTR("Set Occluder Poly Point Position"));
+		ur->add_do_method(occ_poly, "set_poly_point", p_idx, occ_poly->_poly_pts_local_raw[p_idx]);
+		ur->add_undo_method(occ_poly, "set_poly_point", p_idx, p_restore);
+		ur->commit_action();
+
+		_occluder->property_list_changed_notify();
+	}
 }
 
 OccluderShapeSphere *OccluderSpatialGizmo::get_occluder_shape_sphere() {
-	if (!_occluder) {
-		return nullptr;
-	}
-
-	Ref<OccluderShape> rshape = _occluder->get_shape();
-	if (rshape.is_null() || !rshape.is_valid()) {
-		return nullptr;
-	}
-
-	OccluderShape *shape = rshape.ptr();
-	OccluderShapeSphere *occ_sphere = Object::cast_to<OccluderShapeSphere>(shape);
+	OccluderShapeSphere *occ_sphere = Object::cast_to<OccluderShapeSphere>(get_occluder_shape());
 	return occ_sphere;
 }
 
 const OccluderShapeMesh *OccluderSpatialGizmo::get_occluder_shape_mesh() const {
-	if (!_occluder) {
-		return nullptr;
-	}
-
-	Ref<OccluderShape> rshape = _occluder->get_shape();
-	if (rshape.is_null() || !rshape.is_valid()) {
-		return nullptr;
-	}
-
-	const OccluderShape *shape = rshape.ptr();
-	const OccluderShapeMesh *occ_mesh = Object::cast_to<OccluderShapeMesh>(shape);
+	const OccluderShapeMesh *occ_mesh = Object::cast_to<OccluderShapeMesh>(get_occluder_shape());
 	return occ_mesh;
 }
 
+const OccluderShapePoly *OccluderSpatialGizmo::get_occluder_shape_poly() const {
+	const OccluderShapePoly *occ_poly = Object::cast_to<OccluderShapePoly>(get_occluder_shape());
+	return occ_poly;
+}
+
+OccluderShapePoly *OccluderSpatialGizmo::get_occluder_shape_poly() {
+	OccluderShapePoly *occ_poly = Object::cast_to<OccluderShapePoly>(get_occluder_shape());
+	return occ_poly;
+}
+
 const OccluderShapeSphere *OccluderSpatialGizmo::get_occluder_shape_sphere() const {
+	const OccluderShapeSphere *occ_sphere = Object::cast_to<OccluderShapeSphere>(get_occluder_shape());
+	return occ_sphere;
+}
+
+const OccluderShape *OccluderSpatialGizmo::get_occluder_shape() const {
 	if (!_occluder) {
 		return nullptr;
 	}
@@ -5215,9 +5277,20 @@ const OccluderShapeSphere *OccluderSpatialGizmo::get_occluder_shape_sphere() con
 		return nullptr;
 	}
 
-	const OccluderShape *shape = rshape.ptr();
-	const OccluderShapeSphere *occ_sphere = Object::cast_to<OccluderShapeSphere>(shape);
-	return occ_sphere;
+	return rshape.ptr();
+}
+
+OccluderShape *OccluderSpatialGizmo::get_occluder_shape() {
+	if (!_occluder) {
+		return nullptr;
+	}
+
+	Ref<OccluderShape> rshape = _occluder->get_shape();
+	if (rshape.is_null() || !rshape.is_valid()) {
+		return nullptr;
+	}
+
+	return rshape.ptr();
 }
 
 void OccluderSpatialGizmo::redraw() {
@@ -5278,6 +5351,56 @@ void OccluderSpatialGizmo::redraw() {
 		Ref<Material> material_extra_handle = gizmo_plugin->get_material("extra_handle", this);
 		add_handles(handles, material_handle);
 		add_handles(radius_handles, material_extra_handle, false, true);
+	}
+
+	const OccluderShapePoly *occ_poly = get_occluder_shape_poly();
+	if (occ_poly) {
+		const Vector<Vector2> &pts = occ_poly->_poly_pts_local;
+
+		if (pts.size() < 3) {
+			return;
+		}
+
+		PoolVector<Vector3> pts_edge;
+		Vector3 pt_first = OccluderShapePoly::_vec2to3(pts[0]);
+		Vector3 pt_prev = OccluderShapePoly::_vec2to3(pts[pts.size() - 1]);
+		for (int n = 0; n < pts.size(); n++) {
+			Vector3 pt_curr = occ_poly->_vec2to3(pts[n]);
+			pts_edge.push_back(pt_first);
+			pts_edge.push_back(pt_prev);
+			pts_edge.push_back(pt_curr);
+
+			pts_edge.push_back(pt_first);
+			pts_edge.push_back(pt_curr);
+			pts_edge.push_back(pt_prev);
+
+			pt_prev = pt_curr;
+		}
+
+		// draw the handles separately because these must correspond to the raw points
+		// for editing
+		Vector<Vector3> handles;
+		for (int n = 0; n < occ_poly->_poly_pts_local_raw.size(); n++) {
+			Vector3 pt = OccluderShapePoly::_vec2to3(occ_poly->_poly_pts_local_raw[n]);
+			handles.push_back(pt);
+		}
+
+		// poly itself
+		{
+			Ref<ArrayMesh> mesh = memnew(ArrayMesh);
+			Array array;
+			array.resize(Mesh::ARRAY_MAX);
+			array[Mesh::ARRAY_VERTEX] = pts_edge;
+			//array[Mesh::ARRAY_COLOR] = cols_portal;
+			mesh->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, array);
+
+			Ref<Material> material_poly = gizmo_plugin->get_material("occluder_mesh", this);
+			add_mesh(mesh, false, Ref<SkinReference>(), material_poly);
+
+			// handles
+			Ref<Material> material_handle = gizmo_plugin->get_material("occluder_handle", this);
+			add_handles(handles, material_handle);
+		}
 	}
 
 	const OccluderShapeMesh *occ_mesh = get_occluder_shape_mesh();
