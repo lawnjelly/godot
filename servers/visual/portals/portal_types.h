@@ -451,16 +451,34 @@ struct Poly {
 	static const int MAX_POLY_VERTS = PortalDefines::OCCLUSION_POLY_MAX_VERTS;
 	void create() {
 		num_verts = 0;
+		//		num_poly_verts = 0;
+		//		num_hole_verts = 0;
 	}
 	void flip() {
-		plane = -plane;
 		for (int n = 0; n < num_verts / 2; n++) {
 			SWAP(verts[n], verts[num_verts - n - 1]);
 		}
+		//		for (int n = 0; n < num_poly_verts / 2; n++) {
+		//			SWAP(verts[n], verts[num_poly_verts - n - 1]);
+		//		}
+
+		//		for (int n = 0; n < num_hole_verts / 2; n++) {
+		//			SWAP(verts[n + num_poly_verts], verts[num_verts - n - 1]);
+		//		}
+	}
+
+	int num_verts;
+	//	uint8_t num_poly_verts;
+	//	uint8_t num_hole_verts;
+	Vector3 verts[MAX_POLY_VERTS];
+};
+
+struct PolyPlane : public Poly {
+	void flip() {
+		plane = -plane;
+		Poly::flip();
 	}
 	Plane plane;
-	int num_verts;
-	Vector3 verts[MAX_POLY_VERTS];
 };
 
 } // namespace Occlusion
@@ -476,6 +494,23 @@ struct VSOccluder_Sphere {
 };
 
 struct VSOccluder_Mesh {
+	static const int MAX_POLY_HOLES = PortalDefines::OCCLUSION_POLY_MAX_HOLES;
+	void create() {
+		poly_local.create();
+		poly_world.create();
+		num_holes = 0;
+		for (int n = 0; n < MAX_POLY_HOLES; n++) {
+			hole_pool_ids[n] = UINT32_MAX;
+		}
+	}
+	Occlusion::PolyPlane poly_local;
+	Occlusion::PolyPlane poly_world;
+
+	int num_holes;
+	uint32_t hole_pool_ids[MAX_POLY_HOLES];
+};
+
+struct VSOccluder_Hole {
 	void create() {
 		poly_local.create();
 		poly_world.create();

@@ -36,6 +36,7 @@
 
 struct PortalDefines {
 	static const int OCCLUSION_POLY_MAX_VERTS = 8;
+	static const int OCCLUSION_POLY_MAX_HOLES = 4;
 };
 
 #endif // PORTAL_DEFINES_H

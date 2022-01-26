@@ -243,7 +243,7 @@ Geometry::MeshData PortalOcclusionCuller::debug_get_current_polys() const {
 	Geometry::MeshData md;
 
 	for (int n = 0; n < _num_polys; n++) {
-		const Occlusion::Poly &p = _polys[n].poly;
+		const Occlusion::PolyPlane &p = _polys[n].poly;
 
 		int first_index = md.vertices.size();
 
@@ -271,6 +271,8 @@ Geometry::MeshData PortalOcclusionCuller::debug_get_current_polys() const {
 }
 
 void PortalOcclusionCuller::prepare_generic(PortalRenderer &p_portal_renderer, const LocalVector<uint32_t, uint32_t> &p_occluder_pool_ids, const Vector3 &pt_camera, const LocalVector<Plane> &p_planes) {
+	_portal_renderer = &p_portal_renderer;
+
 	// bodge to keep settings up to date
 #ifdef TOOLS_ENABLED
 	if (Engine::get_singleton()->is_editor_hint() && ((Engine::get_singleton()->get_frames_drawn() % 16) == 0)) {
@@ -389,7 +391,7 @@ void PortalOcclusionCuller::prepare_generic(PortalRenderer &p_portal_renderer, c
 			// multiple polys
 			for (int n = 0; n < occ.list_ids.size(); n++) {
 				const VSOccluder_Mesh &opoly = p_portal_renderer.get_pool_occluder_mesh(occ.list_ids[n]);
-				const Occlusion::Poly &poly = opoly.poly_world;
+				const Occlusion::PolyPlane &poly = opoly.poly_world;
 
 				// backface cull
 				bool faces_camera = poly.plane.is_point_over(pt_camera);
@@ -432,7 +434,11 @@ void PortalOcclusionCuller::prepare_generic(PortalRenderer &p_portal_renderer, c
 					SortPoly &dest = _polys[_num_polys];
 					dest.poly = poly;
 					dest.flags = faces_camera ? SortPoly::SPF_FACES_CAMERA : 0;
+					if (opoly.num_holes) {
+						dest.flags |= SortPoly::SPF_HAS_HOLES;
+					}
 					dest.poly_source_id = n;
+					dest.mesh_source_id = occ.list_ids[n];
 					dest.goodness_of_fit = fit;
 
 					if (fit < weakest_fit_poly) {
@@ -448,7 +454,11 @@ void PortalOcclusionCuller::prepare_generic(PortalRenderer &p_portal_renderer, c
 						dest.poly = poly;
 						//dest.faces_camera = faces_camera;
 						dest.flags = faces_camera ? SortPoly::SPF_FACES_CAMERA : 0;
+						if (opoly.num_holes) {
+							dest.flags |= SortPoly::SPF_HAS_HOLES;
+						}
 						dest.poly_source_id = n;
+						dest.mesh_source_id = occ.list_ids[n];
 						dest.goodness_of_fit = fit;
 
 						// the weakest may have changed (this could be done more efficiently)
@@ -550,7 +560,7 @@ void PortalOcclusionCuller::whittle_polys() {
 				continue;
 			}
 
-			const Occlusion::Poly &poly = _polys[n].poly;
+			const Occlusion::PolyPlane &poly = _polys[n].poly;
 			planes.clear();
 
 			// the goodness of fit is the screen space area at the moment,
@@ -586,7 +596,7 @@ void PortalOcclusionCuller::whittle_polys() {
 					continue;
 				}
 
-				const Occlusion::Poly &test_poly = _polys[t].poly;
+				const Occlusion::PolyPlane &test_poly = _polys[t].poly;
 
 				if (is_poly_inside_occlusion_volume(test_poly, planes)) {
 					// yes .. we can remove this poly .. but do not muck up the iteration of the list
@@ -626,7 +636,7 @@ bool PortalOcclusionCuller::calculate_poly_goodness_of_fit(bool debug, const VSO
 	// the perspective divide, in clip space. They will have the perspective
 	// divide applied after clipping, to calculate the area.
 	// We therefore store them as planes to store the w coordinate as d.
-	Plane xpoints[Occlusion::Poly::MAX_POLY_VERTS];
+	Plane xpoints[Occlusion::PolyPlane::MAX_POLY_VERTS];
 	int num_verts = p_opoly.poly_world.num_verts;
 
 	//	real_t z_min = 1.0;
@@ -694,7 +704,7 @@ bool PortalOcclusionCuller::calculate_poly_goodness_of_fit(bool debug, const VSO
 }
 
 bool PortalOcclusionCuller::_is_poly_of_interest_to_split_plane(const Plane *p_poly_split_plane, int p_poly_id) const {
-	const Occlusion::Poly &poly = _polys[p_poly_id].poly;
+	const Occlusion::PolyPlane &poly = _polys[p_poly_id].poly;
 
 	int over = 0;
 	int under = 0;
@@ -742,7 +752,8 @@ bool PortalOcclusionCuller::cull_aabb_to_polys_ex(int p_ignore_poly_id, const AA
 
 		_log("\tchecking poly " + itos(n), p_depth);
 
-		const Occlusion::Poly &poly = _polys[n].poly;
+		const SortPoly &sortpoly = _polys[n];
+		const Occlusion::PolyPlane &poly = sortpoly.poly;
 
 		// we allow exactly one crossing
 		// (in order to allow an aabb to be shared between 2 polys)
@@ -804,6 +815,45 @@ bool PortalOcclusionCuller::cull_aabb_to_polys_ex(int p_ignore_poly_id, const AA
 			}
 		}
 
+		// if it hit, check against holes
+		if (hit && (sortpoly.flags & SortPoly::SPF_HAS_HOLES)) {
+			// get the mesh poly and the holes
+			const VSOccluder_Mesh &mesh = _portal_renderer->get_pool_occluder_mesh(sortpoly.mesh_source_id);
+			for (int h = 0; h < mesh.num_holes; h++) {
+				uint32_t hid = mesh.hole_pool_ids[h];
+				const VSOccluder_Hole &hole = _portal_renderer->get_pool_occluder_hole(hid);
+
+				int hole_num_verts = hole.poly_world.num_verts;
+				const Vector3 *hverts = hole.poly_world.verts;
+
+				// if the AABB is totally outside any edge, it is safe for a hit
+				bool safe = false;
+				for (int e = 0; e < hole_num_verts; e++) {
+					// point a and b of the edge
+					const Vector3 &pt_a = hverts[e];
+					const Vector3 &pt_b = hverts[(e + 1) % hole_num_verts];
+
+					// edge plane to camera
+					plane = Plane(_pt_camera, pt_a, pt_b);
+					p_aabb.project_range_in_plane(plane, omin, omax);
+
+					// if inside the hole, no longer a hit on this poly
+					if (omin > 0.0) {
+						safe = true;
+						break;
+					}
+				} // for e
+
+				if (!safe) {
+					hit = false;
+				}
+
+				if (!hit) {
+					break;
+				}
+			} // for h
+		} // if has holes
+
 		// hit?
 
 		if (hit) {
@@ -838,7 +888,7 @@ bool PortalOcclusionCuller::cull_aabb_to_polys(const AABB &p_aabb) const {
 	Plane plane;
 
 	for (int n = 0; n < _num_polys; n++) {
-		const Occlusion::Poly &poly = _polys[n].poly;
+		const Occlusion::PolyPlane &poly = _polys[n].poly;
 
 		// test against each edge of the poly, and expand the edge
 		bool hit = true;
@@ -878,7 +928,7 @@ bool PortalOcclusionCuller::cull_sphere_to_polys(const Vector3 &p_occludee_cente
 	Plane plane;
 
 	for (int n = 0; n < _num_polys; n++) {
-		const Occlusion::Poly &poly = _polys[n].poly;
+		const Occlusion::PolyPlane &poly = _polys[n].poly;
 
 		// test against each edge of the poly, and expand the edge
 		bool hit = true;

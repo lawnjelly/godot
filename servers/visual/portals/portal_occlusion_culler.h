@@ -170,7 +170,7 @@ private:
 	}
 
 	// If all the points of the poly are beyond one of the planes (e.g. frustum), it is completely culled.
-	bool is_poly_culled(const Occlusion::Poly &p_opoly, const LocalVector<Plane> &p_planes) const {
+	bool is_poly_culled(const Occlusion::PolyPlane &p_opoly, const LocalVector<Plane> &p_planes) const {
 		for (unsigned int p = 0; p < p_planes.size(); p++) {
 			const Plane &plane = p_planes[p];
 
@@ -192,7 +192,7 @@ private:
 	}
 
 	// All the points of the poly must be within ALL the planes to return true.
-	bool is_poly_inside_occlusion_volume(const Occlusion::Poly &p_opoly, const LocalVector<Plane> &p_planes) const {
+	bool is_poly_inside_occlusion_volume(const Occlusion::PolyPlane &p_opoly, const LocalVector<Plane> &p_planes) const {
 		for (unsigned int p = 0; p < p_planes.size(); p++) {
 			const Plane &plane = p_planes[p];
 
@@ -221,11 +221,13 @@ private:
 			SPF_FACES_CAMERA = 1,
 			SPF_DONE = 2,
 			SPF_TESTED_AS_OCCLUDER = 4,
+			SPF_HAS_HOLES = 8,
 		};
 
-		Occlusion::Poly poly;
+		Occlusion::PolyPlane poly;
 		uint32_t flags;
 		uint32_t poly_source_id;
+		uint32_t mesh_source_id;
 		real_t goodness_of_fit;
 	};
 
@@ -241,6 +243,7 @@ private:
 	Vector3 _pt_cam_dir;
 
 	CameraMatrix _matrix_camera;
+	PortalRenderer *_portal_renderer = nullptr;
 
 	Clipper _clipper;
 

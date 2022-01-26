@@ -262,6 +262,8 @@ public:
 	VSOccluder &get_pool_occluder(uint32_t p_pool_id) { return _occluder_pool[p_pool_id]; }
 	const VSOccluder_Sphere &get_pool_occluder_sphere(uint32_t p_pool_id) const { return _occluder_sphere_pool[p_pool_id]; }
 	const VSOccluder_Mesh &get_pool_occluder_mesh(uint32_t p_pool_id) const { return _occluder_mesh_pool[p_pool_id]; }
+	const VSOccluder_Hole &get_pool_occluder_hole(uint32_t p_pool_id) const { return _occluder_hole_pool[p_pool_id]; }
+	VSOccluder_Hole &get_pool_occluder_hole(uint32_t p_pool_id) { return _occluder_hole_pool[p_pool_id]; }
 
 	VSStaticGhost &get_static_ghost(uint32_t p_id) { return _static_ghosts[p_id]; }
 
@@ -319,6 +321,7 @@ private:
 	TrackedPooledList<VSOccluder> _occluder_pool;
 	TrackedPooledList<VSOccluder_Sphere, uint32_t, true> _occluder_sphere_pool;
 	TrackedPooledList<VSOccluder_Mesh, uint32_t, true> _occluder_mesh_pool;
+	TrackedPooledList<VSOccluder_Hole, uint32_t, true> _occluder_hole_pool;
 
 	PVS _pvs;
 
@@ -412,6 +415,17 @@ inline void PortalRenderer::occluder_ensure_up_to_date_polys(VSOccluder &r_occlu
 		}
 
 		opoly.poly_world.plane = tr.xform(opoly.poly_local.plane);
+
+		// holes
+		for (int h = 0; h < opoly.num_holes; h++) {
+			uint32_t hid = opoly.hole_pool_ids[h];
+
+			VSOccluder_Hole &hole = _occluder_hole_pool[hid];
+
+			for (int i = 0; i < hole.poly_local.num_verts; i++) {
+				hole.poly_world.verts[i] = tr.xform(hole.poly_local.verts[i]);
+			}
+		}
 	}
 }
 

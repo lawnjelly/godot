@@ -582,13 +582,32 @@ void PortalRenderer::occluder_update_mesh(OccluderHandle p_handle, const Geometr
 		uint32_t id = occ.list_ids[n];
 
 		VSOccluder_Mesh &opoly = _occluder_mesh_pool[id];
-		Occlusion::Poly &poly = opoly.poly_local;
+		Occlusion::PolyPlane &poly = opoly.poly_local;
 
 		// source face
 		const Geometry::OccluderMeshData::Face &face = faces[n];
+
+		// make sure the number of holes is correct
+		if (face.holes.size() != opoly.num_holes) {
+			// slow but hey ho
+			// delete existing holes
+			for (int i = 0; i < opoly.num_holes; i++) {
+				_occluder_hole_pool.free(opoly.hole_pool_ids[i]);
+				opoly.hole_pool_ids[i] = UINT32_MAX;
+			}
+			// create any new holes
+			opoly.num_holes = face.holes.size();
+			for (int i = 0; i < opoly.num_holes; i++) {
+				uint32_t id;
+				VSOccluder_Hole *hole = _occluder_hole_pool.request(id);
+				opoly.hole_pool_ids[i] = id;
+				hole->create();
+			}
+		}
+
 		poly.plane = face.plane;
 
-		poly.num_verts = MIN(face.indices.size(), Occlusion::Poly::MAX_POLY_VERTS);
+		poly.num_verts = MIN(face.indices.size(), Occlusion::PolyPlane::MAX_POLY_VERTS);
 
 		// make sure the world poly also has the correct num verts
 		opoly.poly_world.num_verts = poly.num_verts;
@@ -597,9 +616,28 @@ void PortalRenderer::occluder_update_mesh(OccluderHandle p_handle, const Geometr
 			int vert_index = face.indices[c];
 
 			if (vert_index < vertices.size()) {
-				poly.verts[c] = vertices[face.indices[c]];
+				poly.verts[c] = vertices[vert_index];
 			} else {
-				WARN_PRINT_ONCE("occluder_update_mesh : index out of range");
+				WARN_PRINT_ONCE("occluder_update_mesh : poly index out of range");
+			}
+		}
+
+		// holes
+		for (int h = 0; h < opoly.num_holes; h++) {
+			VSOccluder_Hole &dhole = get_pool_occluder_hole(opoly.hole_pool_ids[h]);
+			const Geometry::OccluderMeshData::Hole &shole = face.holes[h];
+
+			dhole.poly_local.num_verts = shole.indices.size();
+			dhole.poly_local.num_verts = MIN(dhole.poly_local.num_verts, Occlusion::Poly::MAX_POLY_VERTS);
+			dhole.poly_world.num_verts = dhole.poly_local.num_verts;
+
+			for (int c = 0; c < dhole.poly_local.num_verts; c++) {
+				int vert_index = shole.indices[c];
+				if (vert_index < vertices.size()) {
+					dhole.poly_local.verts[c] = vertices[vert_index];
+				} else {
+					WARN_PRINT_ONCE("occluder_update_mesh : hole index out of range");
+				}
 			}
 		}
 	}
@@ -648,6 +686,9 @@ void PortalRenderer::occluder_destroy(OccluderHandle p_handle) {
 	switch (occ.type) {
 		case VSOccluder::OT_SPHERE: {
 			occluder_update_spheres(p_handle + 1, Vector<Plane>());
+		} break;
+		case VSOccluder::OT_MESH: {
+			occluder_update_mesh(p_handle + 1, Geometry::OccluderMeshData());
 		} break;
 		default: {
 		} break;
