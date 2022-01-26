@@ -32,6 +32,7 @@
 
 #include "servers/visual_server.h"
 
+#ifdef TOOLS_ENABLED
 void OccluderShapePoly::_update_aabb() {
 	_aabb_local = AABB();
 
@@ -91,6 +92,12 @@ void OccluderShapePoly::_update_aabb() {
 	}
 }
 
+AABB OccluderShapePoly::get_fallback_gizmo_aabb() const {
+	return _aabb_local;
+}
+
+#endif
+
 void OccluderShapePoly::_sanitize_points_internal(const PoolVector<Vector2> &p_from, Vector<Vector2> &r_to) {
 	// remove duplicates? NYI maybe not necessary
 	Vector<Vector2> raw;
@@ -116,7 +123,9 @@ void OccluderShapePoly::_sanitize_points() {
 	_sanitize_points_internal(_poly_pts_local_raw, _poly_pts_local);
 	_sanitize_points_internal(_hole_pts_local_raw, _hole_pts_local);
 
+#ifdef TOOLS_ENABLED
 	_update_aabb();
+#endif
 }
 
 void OccluderShapePoly::set_poly_point(int p_idx, const Vector2 &p_point) {
@@ -204,6 +213,10 @@ void OccluderShapePoly::update_shape_to_visual_server() {
 	VisualServer::get_singleton()->occluder_mesh_update(get_shape(), md);
 }
 
+void OccluderShapePoly::set_two_way(bool p_two_way) {
+	_settings_two_way = p_two_way;
+}
+
 Transform OccluderShapePoly::center_node(const Transform &p_global_xform, const Transform &p_parent_xform, real_t p_snap) {
 	return Transform();
 }
@@ -213,17 +226,29 @@ void OccluderShapePoly::clear() {
 	_poly_pts_local_raw.resize(0);
 	_hole_pts_local.clear();
 	_hole_pts_local_raw.resize(0);
+#ifdef TOOLS_ENABLED
 	_aabb_local = AABB();
+#endif
 }
 
 void OccluderShapePoly::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("set_two_way", "two_way"), &OccluderShapePoly::set_two_way);
+	ClassDB::bind_method(D_METHOD("is_two_way"), &OccluderShapePoly::is_two_way);
+
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "two_way"), "set_two_way", "is_two_way");
+
 	ClassDB::bind_method(D_METHOD("set_poly_points", "points"), &OccluderShapePoly::set_poly_points);
 	ClassDB::bind_method(D_METHOD("get_poly_points"), &OccluderShapePoly::get_poly_points);
 
 	ClassDB::bind_method(D_METHOD("set_poly_point", "index", "position"), &OccluderShapePoly::set_poly_point);
 
-	//ADD_PROPERTY(PropertyInfo(Variant::BOOL, "two_way"), "set_two_way", "is_two_way");
 	ADD_PROPERTY(PropertyInfo(Variant::POOL_VECTOR2_ARRAY, "poly_points"), "set_poly_points", "get_poly_points");
+
+	ClassDB::bind_method(D_METHOD("set_hole_points", "points"), &OccluderShapePoly::set_hole_points);
+	ClassDB::bind_method(D_METHOD("get_hole_points"), &OccluderShapePoly::get_hole_points);
+	ClassDB::bind_method(D_METHOD("set_hole_point", "index", "position"), &OccluderShapePoly::set_hole_point);
+
+	ADD_PROPERTY(PropertyInfo(Variant::POOL_VECTOR2_ARRAY, "hole_points"), "set_hole_points", "get_hole_points");
 }
 
 OccluderShapePoly::OccluderShapePoly() :

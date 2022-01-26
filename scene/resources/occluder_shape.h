@@ -57,6 +57,11 @@ public:
 	void update_active_to_visual_server(bool p_active);
 	void notification_exit_world();
 	virtual Transform center_node(const Transform &p_global_xform, const Transform &p_parent_xform, real_t p_snap) = 0;
+
+#ifdef TOOLS_ENABLED
+	// for editor gizmo
+	virtual AABB get_fallback_gizmo_aabb() const;
+#endif
 };
 
 class OccluderShapeSphere : public OccluderShape {
@@ -65,6 +70,11 @@ class OccluderShapeSphere : public OccluderShape {
 	// We bandit a plane to store position / radius
 	Vector<Plane> _spheres;
 	const real_t _min_radius = 0.1;
+
+#ifdef TOOLS_ENABLED
+	AABB _aabb_local;
+	void _update_aabb();
+#endif
 
 protected:
 	static void _bind_methods();
@@ -79,6 +89,10 @@ public:
 	virtual void notification_enter_world(RID p_scenario);
 	virtual void update_shape_to_visual_server();
 	virtual Transform center_node(const Transform &p_global_xform, const Transform &p_parent_xform, real_t p_snap);
+
+#ifdef TOOLS_ENABLED
+	virtual AABB get_fallback_gizmo_aabb() const;
+#endif
 
 	OccluderShapeSphere();
 };

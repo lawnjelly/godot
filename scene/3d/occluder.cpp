@@ -73,6 +73,15 @@ Ref<OccluderShape> Occluder::get_shape() const {
 	return _shape;
 }
 
+#ifdef TOOLS_ENABLED
+AABB Occluder::get_fallback_gizmo_aabb() const {
+	if (_shape.is_valid()) {
+		return _shape->get_fallback_gizmo_aabb();
+	}
+	return Spatial::get_fallback_gizmo_aabb();
+}
+#endif
+
 String Occluder::get_configuration_warning() const {
 	String warning = Spatial::get_configuration_warning();
 

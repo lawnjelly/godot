@@ -503,7 +503,6 @@ void PortalOcclusionCuller::prepare_generic(PortalRenderer &p_portal_renderer, c
 	// divide by zero in the quick reject
 	_sphere_closest_dist = MAX(_sphere_closest_dist, 0.001);
 
-	//<<<<<<< HEAD
 	// sphere self occlusion.
 	// we could avoid testing the closest sphere, but the complexity isn't worth any speed benefit
 	for (int n = 0; n < _num_spheres; n++) {

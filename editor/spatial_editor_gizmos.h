@@ -523,6 +523,8 @@ class OccluderSpatialGizmo : public EditorSpatialGizmo {
 	OccluderShapeSphere *get_occluder_shape_sphere();
 	OccluderShapePoly *get_occluder_shape_poly();
 
+	void _redraw_poly(bool p_hole, const Vector<Vector2> &p_pts, const PoolVector<Vector2> &p_pts_raw);
+
 public:
 	virtual String get_handle_name(int p_idx) const;
 	virtual Variant get_handle_value(int p_idx);

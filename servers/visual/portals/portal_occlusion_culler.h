@@ -113,7 +113,7 @@ public:
 			return true;
 		}
 
-		return cull_sphere(p_aabb.get_center(), p_aabb.size.length() * 0.5, false);
+		return cull_sphere(p_aabb.get_center(), p_aabb.size.length() * 0.5, -1, false);
 	}
 
 	bool cull_sphere(const Vector3 &p_occludee_center, real_t p_occludee_radius, int p_ignore_sphere = -1, bool p_cull_to_polys = true) const;
