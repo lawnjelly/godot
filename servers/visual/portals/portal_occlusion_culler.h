@@ -164,6 +164,7 @@ private:
 
 	bool calculate_poly_goodness_of_fit(bool debug, const VSOccluder_Mesh &p_opoly, real_t &r_fit);
 	void whittle_polys();
+	void precalc_poly_edge_planes(const Vector3 &p_pt_camera);
 
 	bool is_vso_poly_culled(const VSOccluder_Mesh &p_opoly, const LocalVector<Plane> &p_planes) const {
 		return is_poly_culled(p_opoly.poly_world, p_planes);
@@ -226,12 +227,38 @@ private:
 
 		Occlusion::PolyPlane poly;
 		uint32_t flags;
+#ifdef TOOLS_ENABLED
 		uint32_t poly_source_id;
+#endif
 		uint32_t mesh_source_id;
 		real_t goodness_of_fit;
 	};
 
+	struct PlaneSet {
+		void flip() {
+			for (int n = 0; n < num_planes; n++) {
+				planes[n] = -planes[n];
+			}
+		}
+		// pre-calculated edge planes to the camera
+		int num_planes = 0;
+		Plane planes[PortalDefines::OCCLUSION_POLY_MAX_VERTS];
+	};
+
+	struct PreCalcedPoly {
+		void flip() {
+			edge_planes.flip();
+			for (int n = 0; n < num_holes; n++) {
+				hole_edge_planes[n].flip();
+			}
+		}
+		int num_holes = 0;
+		PlaneSet edge_planes;
+		PlaneSet hole_edge_planes[PortalDefines::OCCLUSION_POLY_MAX_HOLES];
+	};
+
 	SortPoly _polys[MAX_POLYS];
+	PreCalcedPoly _precalced_poly[MAX_POLYS];
 	int _num_polys = 0;
 	int _max_polys = 8;
 

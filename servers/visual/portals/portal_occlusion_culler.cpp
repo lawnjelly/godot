@@ -301,6 +301,10 @@ void PortalOcclusionCuller::prepare_generic(PortalRenderer &p_portal_renderer, c
 	real_t weakest_fit_poly = FLT_MAX;
 	int weakest_poly_id = 0;
 
+#ifdef TOOLS_ENABLED
+	uint32_t polycount = 0;
+#endif
+
 	// find occluders
 	for (unsigned int o = 0; o < p_occluder_pool_ids.size(); o++) {
 		int id = p_occluder_pool_ids[o];
@@ -397,7 +401,7 @@ void PortalOcclusionCuller::prepare_generic(PortalRenderer &p_portal_renderer, c
 				bool faces_camera = poly.plane.is_point_over(pt_camera);
 
 				if (!faces_camera) {
-					continue;
+					//					continue;
 				}
 
 				// try culling by center
@@ -437,7 +441,9 @@ void PortalOcclusionCuller::prepare_generic(PortalRenderer &p_portal_renderer, c
 					if (opoly.num_holes) {
 						dest.flags |= SortPoly::SPF_HAS_HOLES;
 					}
-					dest.poly_source_id = n;
+#ifdef TOOLS_ENABLED
+					dest.poly_source_id = polycount++;
+#endif
 					dest.mesh_source_id = occ.list_ids[n];
 					dest.goodness_of_fit = fit;
 
@@ -457,7 +463,9 @@ void PortalOcclusionCuller::prepare_generic(PortalRenderer &p_portal_renderer, c
 						if (opoly.num_holes) {
 							dest.flags |= SortPoly::SPF_HAS_HOLES;
 						}
-						dest.poly_source_id = n;
+#ifdef TOOLS_ENABLED
+						dest.poly_source_id = polycount++;
+#endif
 						dest.mesh_source_id = occ.list_ids[n];
 						dest.goodness_of_fit = fit;
 
@@ -478,15 +486,20 @@ void PortalOcclusionCuller::prepare_generic(PortalRenderer &p_portal_renderer, c
 		}
 	} // for o
 
-	// flip polys so always facing camera
+	precalc_poly_edge_planes(pt_camera);
 
+	// flip polys so always facing camera
 	for (int n = 0; n < _num_polys; n++) {
 		if (!(_polys[n].flags & SortPoly::SPF_FACES_CAMERA)) {
 			_polys[n].poly.flip();
+
+			// must flip holes and planes too
+			_precalced_poly[n].flip();
 		}
 	}
 
 	// call polys against each other.
+	// NOTE does not work with holes yet NYI
 	whittle_polys();
 
 	// checksum is used only in the editor, to decide
@@ -532,6 +545,54 @@ void PortalOcclusionCuller::prepare_generic(PortalRenderer &p_portal_renderer, c
 
 	// record whether to do any occlusion culling at all..
 	_occluders_present = _num_spheres || _num_polys;
+}
+
+void PortalOcclusionCuller::precalc_poly_edge_planes(const Vector3 &p_pt_camera) {
+	for (int n = 0; n < _num_polys; n++) {
+		const SortPoly &sortpoly = _polys[n];
+		const Occlusion::PolyPlane &spoly = sortpoly.poly;
+
+		PreCalcedPoly &dpoly = _precalced_poly[n];
+		dpoly.edge_planes.num_planes = spoly.num_verts;
+
+		for (int e = 0; e < spoly.num_verts; e++) {
+			// point a and b of the edge
+			const Vector3 &pt_a = spoly.verts[e];
+			const Vector3 &pt_b = spoly.verts[(e + 1) % spoly.num_verts];
+
+			// edge plane to camera
+			dpoly.edge_planes.planes[e] = Plane(p_pt_camera, pt_a, pt_b);
+		}
+
+		dpoly.num_holes = 0;
+
+		// holes
+		if (sortpoly.flags & SortPoly::SPF_HAS_HOLES) {
+			// get the mesh poly and the holes
+			const VSOccluder_Mesh &mesh = _portal_renderer->get_pool_occluder_mesh(sortpoly.mesh_source_id);
+
+			dpoly.num_holes = mesh.num_holes;
+
+			for (int h = 0; h < mesh.num_holes; h++) {
+				uint32_t hid = mesh.hole_pool_ids[h];
+				const VSOccluder_Hole &hole = _portal_renderer->get_pool_occluder_hole(hid);
+
+				int hole_num_verts = hole.poly_world.num_verts;
+				const Vector3 *hverts = hole.poly_world.verts;
+
+				// number of planes equals number of verts forming edges
+				dpoly.hole_edge_planes[h].num_planes = hole_num_verts;
+
+				for (int e = 0; e < hole_num_verts; e++) {
+					const Vector3 &pt_a = hverts[e];
+					const Vector3 &pt_b = hverts[(e + 1) % hole_num_verts];
+
+					dpoly.hole_edge_planes[h].planes[e] = Plane(p_pt_camera, pt_a, pt_b);
+				} // for e
+
+			} // for h
+		} // if has holes
+	}
 }
 
 void PortalOcclusionCuller::whittle_polys() {
@@ -607,6 +668,7 @@ void PortalOcclusionCuller::whittle_polys() {
 
 					// unordered remove
 					_polys[t] = _polys[_num_polys - 1];
+					_precalced_poly[t] = _precalced_poly[_num_polys - 1];
 					_num_polys--;
 
 					// no NOT repeat the test poly if it was copied from n, i.e. the occludee would
@@ -776,19 +838,21 @@ bool PortalOcclusionCuller::cull_aabb_to_polys_ex(int p_ignore_poly_id, const AA
 			continue;
 		}
 
-		for (int e = 0; e < poly.num_verts; e++) {
-			// point a and b of the edge
-			const Vector3 &pt_a = poly.verts[e];
-			const Vector3 &pt_b = poly.verts[(e + 1) % poly.num_verts];
+		const PreCalcedPoly &pcp = _precalced_poly[n];
 
+		for (int e = 0; e < pcp.edge_planes.num_planes; e++) {
 			// edge plane to camera
-			plane = Plane(_pt_camera, pt_a, pt_b);
+			plane = pcp.edge_planes.planes[e];
 			p_aabb.project_range_in_plane(plane, omin, omax);
 
 			if (omax > 0.0) {
 				_log("\tover edge " + itos(e), p_depth);
 				// is this edge allowed by a recursion?
 				if (p_poly_split_plane) {
+					// point a and b of the edge
+					const Vector3 &pt_a = poly.verts[e];
+					const Vector3 &pt_b = poly.verts[(e + 1) % poly.num_verts];
+
 					real_t over_a = p_poly_split_plane->distance_to(pt_a);
 					real_t over_b = p_poly_split_plane->distance_to(pt_b);
 					const real_t edge_epsilon = 0.01;
@@ -817,24 +881,14 @@ bool PortalOcclusionCuller::cull_aabb_to_polys_ex(int p_ignore_poly_id, const AA
 
 		// if it hit, check against holes
 		if (hit && (sortpoly.flags & SortPoly::SPF_HAS_HOLES)) {
-			// get the mesh poly and the holes
-			const VSOccluder_Mesh &mesh = _portal_renderer->get_pool_occluder_mesh(sortpoly.mesh_source_id);
-			for (int h = 0; h < mesh.num_holes; h++) {
-				uint32_t hid = mesh.hole_pool_ids[h];
-				const VSOccluder_Hole &hole = _portal_renderer->get_pool_occluder_hole(hid);
-
-				int hole_num_verts = hole.poly_world.num_verts;
-				const Vector3 *hverts = hole.poly_world.verts;
+			for (int h = 0; h < pcp.num_holes; h++) {
+				const PlaneSet &hole = pcp.hole_edge_planes[h];
 
 				// if the AABB is totally outside any edge, it is safe for a hit
 				bool safe = false;
-				for (int e = 0; e < hole_num_verts; e++) {
-					// point a and b of the edge
-					const Vector3 &pt_a = hverts[e];
-					const Vector3 &pt_b = hverts[(e + 1) % hole_num_verts];
-
+				for (int e = 0; e < hole.num_planes; e++) {
 					// edge plane to camera
-					plane = Plane(_pt_camera, pt_a, pt_b);
+					plane = hole.planes[e];
 					p_aabb.project_range_in_plane(plane, omin, omax);
 
 					// if inside the hole, no longer a hit on this poly
@@ -884,40 +938,41 @@ bool PortalOcclusionCuller::cull_aabb_to_polys(const AABB &p_aabb) const {
 	}
 
 	return cull_aabb_to_polys_ex(-1, p_aabb, nullptr);
+	/*
+		Plane plane;
 
-	Plane plane;
+		for (int n = 0; n < _num_polys; n++) {
+			const Occlusion::PolyPlane &poly = _polys[n].poly;
 
-	for (int n = 0; n < _num_polys; n++) {
-		const Occlusion::PolyPlane &poly = _polys[n].poly;
+			// test against each edge of the poly, and expand the edge
+			bool hit = true;
 
-		// test against each edge of the poly, and expand the edge
-		bool hit = true;
+			// occludee must be on opposite side to camera
+			real_t omin, omax;
+			p_aabb.project_range_in_plane(poly.plane, omin, omax);
 
-		// occludee must be on opposite side to camera
-		real_t omin, omax;
-		p_aabb.project_range_in_plane(poly.plane, omin, omax);
+			if (omax > -0.2) {
+				continue;
+			}
 
-		if (omax > -0.2) {
-			continue;
-		}
+			for (int e = 0; e < poly.num_verts; e++) {
+				plane = Plane(_pt_camera, poly.verts[e], poly.verts[(e + 1) % poly.num_verts]);
+				p_aabb.project_range_in_plane(plane, omin, omax);
 
-		for (int e = 0; e < poly.num_verts; e++) {
-			plane = Plane(_pt_camera, poly.verts[e], poly.verts[(e + 1) % poly.num_verts]);
-			p_aabb.project_range_in_plane(plane, omin, omax);
+				if (omax > 0.0) {
+					hit = false;
+					break;
+				}
+			}
 
-			if (omax > 0.0) {
-				hit = false;
-				break;
+			// hit?
+			if (hit) {
+				return true;
 			}
 		}
 
-		// hit?
-		if (hit) {
-			return true;
-		}
-	}
-
-	return false;
+		return false;
+		*/
 }
 
 bool PortalOcclusionCuller::cull_sphere_to_polys(const Vector3 &p_occludee_center, real_t p_occludee_radius) const {
