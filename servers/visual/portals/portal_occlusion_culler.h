@@ -193,17 +193,69 @@ private:
 	}
 
 	// All the points of the poly must be within ALL the planes to return true.
-	bool is_poly_inside_occlusion_volume(const Occlusion::PolyPlane &p_opoly, const LocalVector<Plane> &p_planes) const {
-		for (unsigned int p = 0; p < p_planes.size(); p++) {
-			const Plane &plane = p_planes[p];
+	struct PlaneSet;
+	bool is_poly_inside_occlusion_volume(const Occlusion::Poly &p_test_poly, const Plane &p_occluder_plane, const PlaneSet &p_planeset) const {
+		// first test against the occluder poly plane
+		for (int n = 0; n < p_test_poly.num_verts; n++) {
+			const Vector3 &pt = p_test_poly.verts[n];
+			if (p_occluder_plane.is_point_over(pt)) {
+				return false;
+			}
+		}
 
-			for (int n = 0; n < p_opoly.num_verts; n++) {
-				const Vector3 &pt = p_opoly.verts[n];
+		for (int p = 0; p < p_planeset.num_planes; p++) {
+			const Plane &plane = p_planeset.planes[p];
+
+			for (int n = 0; n < p_test_poly.num_verts; n++) {
+				const Vector3 &pt = p_test_poly.verts[n];
 				if (plane.is_point_over(pt)) {
 					return false;
 				}
 			}
 		}
+		return true;
+	}
+
+	// All the points of the poly must be within ALL the planes to return true.
+	//	bool is_poly_inside_occlusion_volume(const Occlusion::PolyPlane &p_opoly, const LocalVector<Plane> &p_planes) const {
+	//		for (unsigned int p = 0; p < p_planes.size(); p++) {
+	//			const Plane &plane = p_planes[p];
+
+	//			for (int n = 0; n < p_opoly.num_verts; n++) {
+	//				const Vector3 &pt = p_opoly.verts[n];
+	//				if (plane.is_point_over(pt)) {
+	//					return false;
+	//				}
+	//			}
+	//		}
+	//		return true;
+	//	}
+	bool is_poly_touching_hole(const Occlusion::Poly &p_opoly, const PlaneSet &p_planeset) const {
+		if (!p_opoly.num_verts) {
+			// should not happen?
+			return false;
+		}
+		// find aabb
+		AABB bb;
+		bb.position = p_opoly.verts[0];
+		for (int n = 1; n < p_opoly.num_verts; n++) {
+			bb.expand_to(p_opoly.verts[n]);
+		}
+
+		// if the AABB is totally outside any edge, it is safe for a hit
+		real_t omin, omax;
+
+		for (int e = 0; e < p_planeset.num_planes; e++) {
+			// edge plane to camera
+			const Plane &plane = p_planeset.planes[e];
+			bb.project_range_in_plane(plane, omin, omax);
+
+			// if inside the hole, no longer a hit on this poly
+			if (omin > 0.0) {
+				return false;
+			}
+		} // for e
+
 		return true;
 	}
 
@@ -255,6 +307,7 @@ private:
 		int num_holes = 0;
 		PlaneSet edge_planes;
 		PlaneSet hole_edge_planes[PortalDefines::OCCLUSION_POLY_MAX_HOLES];
+		Occlusion::Poly hole_polys[PortalDefines::OCCLUSION_POLY_MAX_HOLES];
 	};
 
 	SortPoly _polys[MAX_POLYS];

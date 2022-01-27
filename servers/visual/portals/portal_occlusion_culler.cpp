@@ -35,6 +35,8 @@
 #include "core/project_settings.h"
 #include "portal_renderer.h"
 
+//#define PORTAL_OCCLUSION_CULLER_POLY_SPLIT_PLANE_ENABLED
+
 #define _log(a, b) ;
 //#define _log_prepare(a) log(a, 0)
 #define _log_prepare(a) ;
@@ -577,6 +579,11 @@ void PortalOcclusionCuller::precalc_poly_edge_planes(const Vector3 &p_pt_camera)
 				uint32_t hid = mesh.hole_pool_ids[h];
 				const VSOccluder_Hole &hole = _portal_renderer->get_pool_occluder_hole(hid);
 
+				// copy the verts to the precalced poly,
+				// we will need these later for whittling polys.
+				// We could alternatively link back to the original verts, but that gets messy.
+				dpoly.hole_polys[h] = hole.poly_world;
+
 				int hole_num_verts = hole.poly_world.num_verts;
 				const Vector3 *hverts = hole.poly_world.verts;
 
@@ -603,8 +610,6 @@ void PortalOcclusionCuller::whittle_polys() {
 	}
 #endif
 
-	LocalVector<Plane> planes;
-
 	bool repeat = true;
 
 	while (repeat) {
@@ -622,27 +627,13 @@ void PortalOcclusionCuller::whittle_polys() {
 			}
 
 			const Occlusion::PolyPlane &poly = _polys[n].poly;
-			planes.clear();
+			const Plane &occluder_plane = poly.plane;
+			const PreCalcedPoly &pcp = _precalced_poly[n];
 
 			// the goodness of fit is the screen space area at the moment,
 			// so we can use it as a quick reject .. polys behind occluders will always
 			// be smaller area than the occluder.
 			real_t occluder_area = _polys[n].goodness_of_fit;
-
-			// add a plane for the occluder poly itself, anything occluded must be BEHIND it
-			planes.push_back(poly.plane);
-
-			// construct planes from camera to this occluder
-			for (int e = 0; e < poly.num_verts; e++) {
-				// point a and b of the edge
-				const Vector3 &pt_a = poly.verts[e];
-				const Vector3 &pt_b = poly.verts[(e + 1) % poly.num_verts];
-
-				// edge plane to camera
-				Plane plane = Plane(_pt_camera, pt_a, pt_b);
-				planes.push_back(plane);
-
-			} // for e through edges
 
 			// check each other poly as an occludee
 			for (int t = 0; t < _num_polys; t++) {
@@ -653,35 +644,90 @@ void PortalOcclusionCuller::whittle_polys() {
 				// quick reject based on screen space area.
 				// if the area of the test poly is larger, it can't be completely behind
 				// the occluder.
-				if (_polys[t].goodness_of_fit > occluder_area) {
-					continue;
-				}
+				bool quick_reject_entire_occludee = _polys[t].goodness_of_fit > occluder_area;
 
 				const Occlusion::PolyPlane &test_poly = _polys[t].poly;
+				PreCalcedPoly &pcp_test = _precalced_poly[t];
 
-				if (is_poly_inside_occlusion_volume(test_poly, planes)) {
-					// yes .. we can remove this poly .. but do not muck up the iteration of the list
-					//print_line("poly is occluded " + itos(t));
+				// We have two considerations:
+				// (1) Entire poly is occluded
+				// (2) If not (1), then maybe a hole is occluded
 
-					// this condition should never happen, we should never be checking occludee against itself
-					DEV_ASSERT(_polys[t].poly_source_id != _polys[n].poly_source_id);
+				bool completely_reject = false;
 
-					// unordered remove
-					_polys[t] = _polys[_num_polys - 1];
-					_precalced_poly[t] = _precalced_poly[_num_polys - 1];
-					_num_polys--;
+				if (!quick_reject_entire_occludee && is_poly_inside_occlusion_volume(test_poly, occluder_plane, pcp.edge_planes)) {
+					//if (is_poly_inside_occlusion_volume(test_poly, planes)) {
 
-					// no NOT repeat the test poly if it was copied from n, i.e. the occludee would
-					// be the same as the occluder
-					if (_num_polys != n) {
-						// repeat this test poly as it will be the next
-						t--;
+					completely_reject = true;
+
+					// we must also test against all holes if some are present
+					for (int h = 0; h < pcp.num_holes; h++) {
+						if (is_poly_touching_hole(test_poly, pcp.hole_edge_planes[h])) {
+							completely_reject = false;
+							break;
+						}
 					}
 
-					// If we end up removing a poly BEFORE n, the replacement poly (from the unordered remove)
-					// will never get tested as an occluder. So we have to account for this by rerunning the routine.
-					repeat = true;
-				}
+					if (completely_reject) {
+						// yes .. we can remove this poly .. but do not muck up the iteration of the list
+						//print_line("poly is occluded " + itos(t));
+
+						// this condition should never happen, we should never be checking occludee against itself
+						DEV_ASSERT(_polys[t].poly_source_id != _polys[n].poly_source_id);
+
+						// unordered remove
+						_polys[t] = _polys[_num_polys - 1];
+						_precalced_poly[t] = _precalced_poly[_num_polys - 1];
+						_num_polys--;
+
+						// no NOT repeat the test poly if it was copied from n, i.e. the occludee would
+						// be the same as the occluder
+						if (_num_polys != n) {
+							// repeat this test poly as it will be the next
+							t--;
+						}
+
+						// If we end up removing a poly BEFORE n, the replacement poly (from the unordered remove)
+						// will never get tested as an occluder. So we have to account for this by rerunning the routine.
+						repeat = true;
+					} // allow due to holes
+				} // if poly inside occlusion volume
+
+				// if we did not completely reject, there could be holes that could be rejected
+				// only considering occluders with no holes for now
+				//				if (!completely_reject && !pcp.num_holes) {
+				if (!completely_reject) {
+					if (pcp_test.num_holes) {
+						for (int h = 0; h < pcp_test.num_holes; h++) {
+							const Occlusion::Poly &hole_poly = pcp_test.hole_polys[h];
+
+							// is the hole within the occluder?
+							if (is_poly_inside_occlusion_volume(hole_poly, occluder_plane, pcp.edge_planes)) {
+								// if the hole touching a hole in the occluder? if so we can't eliminate it
+								bool allow = true;
+
+								for (int oh = 0; oh < pcp.num_holes; oh++) {
+									if (is_poly_touching_hole(hole_poly, pcp.hole_edge_planes[oh])) {
+										allow = false;
+										break;
+									}
+								}
+
+								if (allow) {
+									// Unordered remove the hole. No need to repeat the whole while loop I don't think?
+									// As this just makes it more efficient at runtime, it doesn't make the further whittling more accurate.
+									pcp_test.num_holes--;
+									pcp_test.hole_edge_planes[h] = pcp_test.hole_edge_planes[pcp_test.num_holes];
+									pcp_test.hole_polys[h] = pcp_test.hole_polys[pcp_test.num_holes];
+
+									h--; // repeat this as the unordered remove has placed a new member into h slot
+								} // allow
+
+							} // hole is within
+						}
+					} // has holes
+				} // did not completely reject
+
 			} // for t through occludees
 
 		} // for n through occluders
@@ -804,9 +850,11 @@ bool PortalOcclusionCuller::cull_aabb_to_polys_ex(int p_ignore_poly_id, const AA
 	Plane plane;
 
 	for (int n = 0; n < _num_polys; n++) {
+#ifdef PORTAL_OCCLUSION_CULLER_POLY_SPLIT_PLANE_ENABLED
 		if (n == p_ignore_poly_id) {
 			continue;
 		}
+#endif
 
 		//		if (_polys[n].done) {
 		//			continue;
@@ -817,13 +865,6 @@ bool PortalOcclusionCuller::cull_aabb_to_polys_ex(int p_ignore_poly_id, const AA
 		const SortPoly &sortpoly = _polys[n];
 		const Occlusion::PolyPlane &poly = sortpoly.poly;
 
-		// we allow exactly one crossing
-		// (in order to allow an aabb to be shared between 2 polys)
-		int crossed_edge_p1 = 0;
-
-		// test against each edge of the poly, and expand the edge
-		bool hit = true;
-
 		// occludee must be on opposite side to camera
 		real_t omin, omax;
 		p_aabb.project_range_in_plane(poly.plane, omin, omax);
@@ -833,10 +874,19 @@ bool PortalOcclusionCuller::cull_aabb_to_polys_ex(int p_ignore_poly_id, const AA
 			continue;
 		}
 
+		// test against each edge of the poly, and expand the edge
+		bool hit = true;
+
 		// if we have a split plane, this poly to be tested must straddle it to be of interest
+#ifdef PORTAL_OCCLUSION_CULLER_POLY_SPLIT_PLANE_ENABLED
+		// we allow exactly one crossing
+		// (in order to allow an aabb to be shared between 2 polys)
+		int crossed_edge_p1 = 0;
+
 		if (p_poly_split_plane && !_is_poly_of_interest_to_split_plane(p_poly_split_plane, n)) {
 			continue;
 		}
+#endif
 
 		const PreCalcedPoly &pcp = _precalced_poly[n];
 
@@ -846,6 +896,7 @@ bool PortalOcclusionCuller::cull_aabb_to_polys_ex(int p_ignore_poly_id, const AA
 			p_aabb.project_range_in_plane(plane, omin, omax);
 
 			if (omax > 0.0) {
+#ifdef PORTAL_OCCLUSION_CULLER_POLY_SPLIT_PLANE_ENABLED
 				_log("\tover edge " + itos(e), p_depth);
 				// is this edge allowed by a recursion?
 				if (p_poly_split_plane) {
@@ -876,11 +927,15 @@ bool PortalOcclusionCuller::cull_aabb_to_polys_ex(int p_ignore_poly_id, const AA
 						break;
 					}
 				} // can't discount this edge crossing
+#else
+				hit = false;
+				break;
+#endif
 			}
 		}
 
 		// if it hit, check against holes
-		if (hit && (sortpoly.flags & SortPoly::SPF_HAS_HOLES)) {
+		if (hit && pcp.num_holes) {
 			for (int h = 0; h < pcp.num_holes; h++) {
 				const PlaneSet &hole = pcp.hole_edge_planes[h];
 
@@ -911,6 +966,7 @@ bool PortalOcclusionCuller::cull_aabb_to_polys_ex(int p_ignore_poly_id, const AA
 		// hit?
 
 		if (hit) {
+#ifdef PORTAL_OCCLUSION_CULLER_POLY_SPLIT_PLANE_ENABLED
 			if (!crossed_edge_p1) {
 				_log("\t\tHIT", p_depth);
 				return true;
@@ -925,6 +981,9 @@ bool PortalOcclusionCuller::cull_aabb_to_polys_ex(int p_ignore_poly_id, const AA
 					return true;
 				}
 			}
+#else
+			return true;
+#endif
 		}
 	}
 

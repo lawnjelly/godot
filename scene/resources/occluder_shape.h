@@ -61,6 +61,7 @@ public:
 #ifdef TOOLS_ENABLED
 	// for editor gizmo
 	virtual AABB get_fallback_gizmo_aabb() const;
+	virtual bool requires_uniform_scale() const { return false; }
 #endif
 };
 
@@ -92,6 +93,7 @@ public:
 
 #ifdef TOOLS_ENABLED
 	virtual AABB get_fallback_gizmo_aabb() const;
+	virtual bool requires_uniform_scale() const { return false; }
 #endif
 
 	OccluderShapeSphere();
