@@ -237,6 +237,12 @@ void Spatial::_notification(int p_what) {
 			}
 #endif
 		} break;
+		case NOTIFICATION_INTERNAL_PHYSICS_PROCESS: {
+			if (data.physics_interpolation_data) {
+				// make sure data is up to date
+				_update_physics_interpolation_data();
+			}
+		} break;
 		case NOTIFICATION_RESET_PHYSICS_INTERPOLATION: {
 			if (data.physics_interpolation_data) {
 				data.physics_interpolation_data->global_xform_prev = data.physics_interpolation_data->global_xform_curr;
@@ -303,6 +309,8 @@ Transform Spatial::_get_global_transform_interpolated(real_t p_interpolation_fra
 		data.physics_interpolation_data->global_xform_curr = get_global_transform();
 		data.physics_interpolation_data->global_xform_prev = data.physics_interpolation_data->global_xform_curr;
 		data.physics_interpolation_data->current_physics_tick = Engine::get_singleton()->get_physics_frames();
+
+		set_physics_process_internal(true);
 	}
 
 	// make sure data is up to date
