@@ -100,8 +100,6 @@ extern void register_variant_methods();
 extern void unregister_variant_methods();
 
 void register_core_types() {
-	MemoryPool::setup();
-
 	StringName::setup();
 
 	register_global_constants();
@@ -317,5 +315,7 @@ void unregister_core_types() {
 	CoreStringNames::free();
 	StringName::cleanup();
 
-	MemoryPool::cleanup();
+#ifdef GODOT_POOL_VECTOR_REPORT_LEAKS
+	MemoryPool::report_leaks();
+#endif
 }
