@@ -37,10 +37,10 @@
 #ifdef GODOT_POOL_VECTOR_USE_GLOBAL_LOCK
 Mutex MemoryPool::global_mutex;
 #endif
-Mutex MemoryPool::counter_mutex;
-uint32_t MemoryPool::allocs_used = 0;
-size_t MemoryPool::total_memory = 0;
-size_t MemoryPool::max_memory = 0;
+
+SafeNumeric<uint32_t> MemoryPool::allocs_used(0);
+SafeNumeric<size_t> MemoryPool::total_memory(0);
+SafeNumeric<size_t> MemoryPool::max_memory(0);
 
 #ifdef GODOT_POOL_VECTOR_REPORT_LEAKS
 struct PoolVector_AllocLog {

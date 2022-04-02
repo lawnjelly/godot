@@ -421,7 +421,7 @@ uint64_t OS::get_static_memory_usage() const {
 	return Memory::get_mem_usage();
 }
 uint64_t OS::get_dynamic_memory_usage() const {
-	return MemoryPool::total_memory;
+	return MemoryPool::total_memory.get();
 }
 
 uint64_t OS::get_static_memory_peak_usage() const {

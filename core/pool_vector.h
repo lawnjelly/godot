@@ -61,10 +61,11 @@
 
 #ifndef GODOT_POOL_VECTOR_USE_LOCK_PER_ALLOC
 #define GODOT_POOL_VECTOR_USE_GLOBAL_LOCK
-#ifdef DEV_ENABLED
-#define GODOT_POOL_VECTOR_USE_CONTENTION_MONITOR
-#endif
 #endif // ndef GODOT_POOL_VECTOR_USE_LOCK_PER_ALLOC
+
+#ifdef DEV_ENABLED
+#define GODOT_POOL_VECTOR_SHOW_CONTENTION
+#endif
 
 #endif // GODOT_POOL_VECTOR_THREAD_SAFE
 
@@ -86,10 +87,9 @@ struct MemoryPool {
 	static Mutex global_mutex;
 #endif
 
-	static Mutex counter_mutex;
-	static uint32_t allocs_used;
-	static size_t total_memory;
-	static size_t max_memory;
+	static SafeNumeric<uint32_t> allocs_used;
+	static SafeNumeric<size_t> total_memory;
+	static SafeNumeric<size_t> max_memory;
 };
 
 template <class T>
@@ -111,7 +111,7 @@ class PoolVector {
 		Mutex mutex;
 #endif
 
-#ifdef GODOT_POOL_VECTOR_USE_CONTENTION_MONITOR
+#if defined(GODOT_POOL_VECTOR_USE_GLOBAL_LOCK) && defined(GODOT_POOL_VECTOR_SHOW_CONTENTION)
 		SafeNumeric<uint32_t> contention_lock;
 		Alloc() :
 				contention_lock(0) {}
@@ -138,14 +138,17 @@ class PoolVector {
 		void lock(bool p_report_simultaneous = false) {
 #ifdef GODOT_POOL_VECTOR_USE_LOCK_PER_ALLOC
 			// Can uncomment this version to show when contention is occurring.
-			// if (mutex.try_lock() != OK) {
-			// WARN_PRINT("Contended poolvector lock.");
-			// mutex.lock();
-			// }
+#ifdef GODOT_POOL_VECTOR_SHOW_CONTENTION
+			if (mutex.try_lock() == OK) {
+				return;
+			}
+			WARN_PRINT_ONCE("Contended poolvector lock.");
+#endif // GODOT_POOL_VECTOR_SHOW_CONTENTION
+
 			mutex.lock();
 #endif
 
-#ifdef GODOT_POOL_VECTOR_USE_CONTENTION_MONITOR
+#if defined(GODOT_POOL_VECTOR_USE_GLOBAL_LOCK) && defined(GODOT_POOL_VECTOR_SHOW_CONTENTION)
 			if ((contention_lock.postincrement() != 0) && p_report_simultaneous) {
 				WARN_PRINT_ONCE("Poolvector simultaneous access detected, possible race condition.");
 			}
@@ -156,7 +159,7 @@ class PoolVector {
 			mutex.unlock();
 #endif
 
-#ifdef GODOT_POOL_VECTOR_USE_CONTENTION_MONITOR
+#if defined(GODOT_POOL_VECTOR_USE_GLOBAL_LOCK) && defined(GODOT_POOL_VECTOR_SHOW_CONTENTION)
 			contention_lock.postdecrement();
 #endif
 		}
@@ -193,13 +196,9 @@ class PoolVector {
 		_alloc->super_unlock();
 
 #ifdef DEBUG_ENABLED
-		MemoryPool::counter_mutex.lock();
-		MemoryPool::allocs_used++;
-		MemoryPool::total_memory += (alloc->vector.size() * sizeof(T)) + sizeof(Alloc);
-		if (MemoryPool::total_memory > MemoryPool::max_memory) {
-			MemoryPool::max_memory = MemoryPool::total_memory;
-		}
-		MemoryPool::counter_mutex.unlock();
+		MemoryPool::allocs_used.increment();
+		MemoryPool::total_memory.add((alloc->vector.size() * sizeof(T)) + sizeof(Alloc));
+		MemoryPool::max_memory.exchange_if_greater(MemoryPool::total_memory.get());
 #endif
 
 		// release old alloc
@@ -244,13 +243,9 @@ class PoolVector {
 		alloc->refcount.init(1);
 
 #ifdef DEBUG_ENABLED
-		MemoryPool::counter_mutex.lock();
-		MemoryPool::allocs_used++;
-		MemoryPool::total_memory += sizeof(Alloc);
-		if (MemoryPool::total_memory > MemoryPool::max_memory) {
-			MemoryPool::max_memory = MemoryPool::total_memory;
-		}
-		MemoryPool::counter_mutex.unlock();
+		MemoryPool::allocs_used.increment();
+		MemoryPool::total_memory.add(sizeof(Alloc));
+		MemoryPool::max_memory.exchange_if_greater(MemoryPool::total_memory.get());
 #endif
 
 #ifdef GODOT_POOL_VECTOR_REPORT_LEAKS
@@ -279,10 +274,8 @@ class PoolVector {
 #endif
 
 #ifdef DEBUG_ENABLED
-		MemoryPool::counter_mutex.lock();
-		MemoryPool::allocs_used--;
-		MemoryPool::total_memory -= (_alloc->vector.size() * sizeof(T)) + sizeof(Alloc);
-		MemoryPool::counter_mutex.unlock();
+		MemoryPool::allocs_used.decrement();
+		MemoryPool::total_memory.sub((_alloc->vector.size() * sizeof(T)) + sizeof(Alloc));
 #endif
 		memdelete(_alloc);
 		_alloc = nullptr;
@@ -503,13 +496,9 @@ public:
 		_alloc->refcount.init(1);
 
 #ifdef DEBUG_ENABLED
-		MemoryPool::counter_mutex.lock();
-		MemoryPool::allocs_used++;
-		MemoryPool::total_memory += sizeof(Alloc);
-		if (MemoryPool::total_memory > MemoryPool::max_memory) {
-			MemoryPool::max_memory = MemoryPool::total_memory;
-		}
-		MemoryPool::counter_mutex.unlock();
+		MemoryPool::allocs_used.increment();
+		MemoryPool::total_memory.add(sizeof(Alloc));
+		MemoryPool::max_memory.exchange_if_greater(MemoryPool::total_memory.get());
 #endif
 
 #ifdef GODOT_POOL_VECTOR_REPORT_LEAKS
@@ -583,12 +572,8 @@ Error PoolVector<T>::resize(int p_size) {
 	}
 
 #ifdef DEBUG_ENABLED
-	MemoryPool::counter_mutex.lock();
-	MemoryPool::total_memory += (p_size - size()) * sizeof(T);
-	if (MemoryPool::total_memory > MemoryPool::max_memory) {
-		MemoryPool::max_memory = MemoryPool::total_memory;
-	}
-	MemoryPool::counter_mutex.unlock();
+	MemoryPool::total_memory.add((p_size - size()) * sizeof(T));
+	MemoryPool::max_memory.exchange_if_greater(MemoryPool::total_memory.get());
 #endif
 
 	_copy_on_write(); // make it unique
