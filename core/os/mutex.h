@@ -42,6 +42,7 @@ template <class StdMutexT>
 class MutexImpl {
 	mutable StdMutexT mutex;
 	friend class MutexLock;
+	friend class MutexLockEx;
 
 public:
 	_ALWAYS_INLINE_ void lock() const {
@@ -87,6 +88,56 @@ public:
 	}
 };
 
+// Debug MutexLock that can detect contention.
+class MutexLockEx {
+	union {
+		std::recursive_mutex *recursive_mutex;
+		std::mutex *mutex;
+	};
+	bool recursive;
+#ifdef DEV_ENABLED
+	bool _contended;
+#endif
+
+public:
+	_ALWAYS_INLINE_ explicit MutexLockEx(const MutexImpl<std::recursive_mutex> &p_mutex) :
+			recursive_mutex(&p_mutex.mutex),
+			recursive(true) {
+#ifdef DEV_ENABLED
+		_contended = recursive_mutex->try_lock() == false;
+		if (!_contended) {
+			return;
+		}
+#endif
+		recursive_mutex->lock();
+	}
+	_ALWAYS_INLINE_ explicit MutexLockEx(const MutexImpl<std::mutex> &p_mutex) :
+			mutex(&p_mutex.mutex),
+			recursive(false) {
+#ifdef DEV_ENABLED
+		_contended = mutex->try_lock() == false;
+		if (!_contended) {
+			return;
+		}
+#endif
+		mutex->lock();
+	}
+
+	_ALWAYS_INLINE_ ~MutexLockEx() {
+		if (recursive) {
+			recursive_mutex->unlock();
+		} else {
+			mutex->unlock();
+		}
+	}
+
+#ifdef DEV_ENABLED
+	bool contended() const { return _contended; }
+#else
+	bool contended() const { return false; }
+#endif
+};
+
 using Mutex = MutexImpl<std::recursive_mutex>; // Recursive, for general use
 using BinaryMutex = MutexImpl<std::mutex>; // Non-recursive, handle with care
 
@@ -110,6 +161,12 @@ public:
 class MutexLock {
 public:
 	explicit MutexLock(const MutexImpl<FakeMutex> &p_mutex) {}
+};
+
+class MutexLockEx {
+public:
+	explicit MutexLockEx(const MutexImpl<FakeMutex> &p_mutex) {}
+	bool contended() const { return false; }
 };
 
 using Mutex = MutexImpl<FakeMutex>;
