@@ -305,8 +305,9 @@ public:
 		SelfList<Instance> scenario_item;
 
 		//aabb stuff
-		bool update_aabb;
-		bool update_materials;
+		bool update_aabb : 1;
+		bool update_materials : 1;
+		bool lod_active : 1;
 
 		SelfList<Instance> update_item;
 
@@ -320,7 +321,6 @@ public:
 		float lod_end;
 		float lod_begin_hysteresis;
 		float lod_end_hysteresis;
-		RID lod_instance;
 
 		// These are used for the user cull testing function
 		// in the BVH, this is precached rather than recalculated each time.
@@ -350,6 +350,7 @@ public:
 
 			update_aabb = false;
 			update_materials = false;
+			lod_active = false;
 
 			extra_margin = 0;
 

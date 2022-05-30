@@ -1985,6 +1985,8 @@ void VisualServerScene::instance_geometry_set_draw_range(RID p_instance, float p
 	instance->lod_end = p_max;
 	instance->lod_begin_hysteresis = p_min_margin;
 	instance->lod_end_hysteresis = p_max_margin;
+
+	instance->lod_active = (p_min > CMP_EPSILON) || (p_max > CMP_EPSILON);
 }
 void VisualServerScene::instance_geometry_set_as_instance_lod(RID p_instance, RID p_as_lod_of_instance) {
 }
@@ -3042,16 +3044,17 @@ void VisualServerScene::_prepare_scene(const Transform p_cam_transform, const Ca
 
 			InstanceGeometryData *geom = static_cast<InstanceGeometryData *>(ins->base_data);
 
-			// Calculate instance->depth from the camera.
-			const Vector3 aabb_center = ins->transformed_aabb.position + (ins->transformed_aabb.size * 0.5);
-			if (p_cam_orthogonal) {
-				ins->depth = near_plane.distance_to(aabb_center);
-			} else {
-				ins->depth = p_cam_transform.origin.distance_to(aabb_center);
-			}
-
 			// If LOD is active, and the instance is not within its LOD range, don't render it.
-			if (ins->lod_begin > CMP_EPSILON || ins->lod_end > CMP_EPSILON) { // LOD valid
+			if (ins->lod_active) {
+				// Calculate instance->depth from the camera.
+				// Only necessary here if LOD is active.
+				const Vector3 aabb_center = ins->transformed_aabb.position + (ins->transformed_aabb.size * 0.5);
+				if (p_cam_orthogonal) {
+					ins->depth = near_plane.distance_to(aabb_center);
+				} else {
+					ins->depth = p_cam_transform.origin.distance_to(aabb_center);
+				}
+
 				bool prev_lod_state = false;
 				if (lod_visible_state != nullptr) {
 					lod_visible_state->lookup(ins->self.get_id(), prev_lod_state);
