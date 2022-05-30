@@ -37,6 +37,30 @@
 
 #include <new>
 
+uint32_t VisualServerScene::LODCameras::request_slot() {
+	LOD_CAMERA_BITTYPE testbit = 1;
+	for (uint32_t n = 0; n < LOD_CAMERA_NUM_BITS; n++) {
+		if (!(used_slots & testbit)) {
+			used_slots |= testbit;
+			return n;
+		}
+		testbit <<= 1;
+	}
+
+	// no free slots
+	return UINT32_MAX;
+}
+
+void VisualServerScene::LODCameras::free_slot(uint32_t p_slot) {
+	// This can occur if we have more cameras than slots.
+	// Hysteresis won't be stored on such cameras.
+	if (p_slot >= LOD_CAMERA_NUM_BITS) {
+		return;
+	}
+	LOD_CAMERA_BITTYPE mask = p_slot;
+	used_slots |= ~mask;
+}
+
 /* CAMERA API */
 
 Transform VisualServerScene::Camera::get_transform_interpolated() const {
@@ -51,6 +75,7 @@ Transform VisualServerScene::Camera::get_transform_interpolated() const {
 
 RID VisualServerScene::camera_create() {
 	Camera *camera = memnew(Camera);
+	camera->lod_camera_id = _lod_cameras.request_slot();
 	return camera_owner.make_rid(camera);
 }
 
@@ -2856,7 +2881,7 @@ void VisualServerScene::render_camera(RID p_camera, RID p_scenario, Size2 p_view
 
 	Transform camera_transform = _interpolation_data.interpolation_enabled ? camera->get_transform_interpolated() : camera->transform;
 
-	_prepare_scene(camera_transform, camera_matrix, ortho, camera->env, camera->visible_layers, p_scenario, p_shadow_atlas, RID(), camera->previous_room_id_hint, &camera->lod_hysteresis_visible_state);
+	_prepare_scene(camera_transform, camera_matrix, ortho, camera->env, camera->visible_layers, p_scenario, p_shadow_atlas, RID(), camera->previous_room_id_hint, camera);
 	_render_scene(camera_transform, camera_matrix, 0, ortho, camera->env, p_scenario, p_shadow_atlas, RID(), -1);
 #endif
 }
@@ -2935,22 +2960,29 @@ void VisualServerScene::render_camera(Ref<ARVRInterface> &p_interface, ARVRInter
 		mono_transform *= apply_z_shift;
 
 		// now prepare our scene with our adjusted transform projection matrix
-		_prepare_scene(mono_transform, combined_matrix, false, camera->env, camera->visible_layers, p_scenario, p_shadow_atlas, RID(), camera->previous_room_id_hint, &camera->lod_hysteresis_visible_state);
+		_prepare_scene(mono_transform, combined_matrix, false, camera->env, camera->visible_layers, p_scenario, p_shadow_atlas, RID(), camera->previous_room_id_hint, camera);
 	} else if (p_eye == ARVRInterface::EYE_MONO) {
 		// For mono render, prepare as per usual
-		_prepare_scene(cam_transform, camera_matrix, false, camera->env, camera->visible_layers, p_scenario, p_shadow_atlas, RID(), camera->previous_room_id_hint, &camera->lod_hysteresis_visible_state);
+		_prepare_scene(cam_transform, camera_matrix, false, camera->env, camera->visible_layers, p_scenario, p_shadow_atlas, RID(), camera->previous_room_id_hint, camera);
 	}
 
 	// And render our scene...
 	_render_scene(cam_transform, camera_matrix, p_eye, false, camera->env, p_scenario, p_shadow_atlas, RID(), -1);
 };
 
-void VisualServerScene::_prepare_scene(const Transform p_cam_transform, const CameraMatrix &p_cam_projection, bool p_cam_orthogonal, RID p_force_environment, uint32_t p_visible_layers, RID p_scenario, RID p_shadow_atlas, RID p_reflection_probe, int32_t &r_previous_room_id_hint, OAHashMap<uint32_t, bool> *lod_visible_state) {
+void VisualServerScene::_prepare_scene(const Transform p_cam_transform, const CameraMatrix &p_cam_projection, bool p_cam_orthogonal, RID p_force_environment, uint32_t p_visible_layers, RID p_scenario, RID p_shadow_atlas, RID p_reflection_probe, int32_t &r_previous_room_id_hint, const Camera *p_camera) {
 	// Note, in stereo rendering:
 	// - p_cam_transform will be a transform in the middle of our two eyes
 	// - p_cam_projection is a wider frustrum that encompasses both eyes
 
 	Scenario *scenario = scenario_owner.getornull(p_scenario);
+
+	// Each camera can optionally have a bit which stores the lod hysteresis state
+	// in each instance.
+	LOD_CAMERA_BITTYPE lod_camera_mask = 0;
+	if (p_camera && (p_camera->lod_camera_id != UINT32_MAX)) {
+		lod_camera_mask = 1 << p_camera->lod_camera_id;
+	}
 
 	render_pass++;
 	uint32_t camera_layer_mask = p_visible_layers;
@@ -3055,10 +3087,7 @@ void VisualServerScene::_prepare_scene(const Transform p_cam_transform, const Ca
 					ins->depth = p_cam_transform.origin.distance_to(aabb_center);
 				}
 
-				bool prev_lod_state = false;
-				if (lod_visible_state != nullptr) {
-					lod_visible_state->lookup(ins->self.get_id(), prev_lod_state);
-				}
+				bool prev_lod_state = (ins->lod_camera_hysteresis_state & lod_camera_mask) != 0;
 
 				float lod_begin_with_hys = ins->lod_begin;
 				float lod_end_with_hys = ins->lod_end;
@@ -3078,13 +3107,9 @@ void VisualServerScene::_prepare_scene(const Transform p_cam_transform, const Ca
 				}
 
 				if (lod_begin_with_hys <= ins->depth && ins->depth < lod_end_with_hys) {
-					if (lod_visible_state != nullptr) {
-						lod_visible_state->set(ins->self.get_id(), true);
-					}
+					ins->lod_camera_hysteresis_state |= lod_camera_mask;
 				} else {
-					if (lod_visible_state != nullptr) {
-						lod_visible_state->set(ins->self.get_id(), false);
-					}
+					ins->lod_camera_hysteresis_state &= ~lod_camera_mask;
 					keep = false;
 				}
 			}
@@ -4559,6 +4584,7 @@ bool VisualServerScene::free(RID p_rid) {
 		_interpolation_data.notify_free_camera(p_rid, *camera);
 
 		camera_owner.free(p_rid);
+		_lod_cameras.free_slot(camera->lod_camera_id);
 		memdelete(camera);
 	} else if (scenario_owner.owns(p_rid)) {
 		Scenario *scenario = scenario_owner.get(p_rid);

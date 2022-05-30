@@ -66,6 +66,16 @@ public:
 	/* CAMERA API */
 	struct Scenario;
 
+	enum { LOD_CAMERA_NUM_BITS = 32 };
+	using LOD_CAMERA_BITTYPE = uint32_t;
+	class LODCameras {
+		LOD_CAMERA_BITTYPE used_slots = 0;
+
+	public:
+		uint32_t request_slot();
+		void free_slot(uint32_t p_slot);
+	} _lod_cameras;
+
 	struct Camera : public RID_Data {
 		enum Type {
 			PERSPECTIVE,
@@ -90,7 +100,7 @@ public:
 		bool vaspect : 1;
 		TransformInterpolator::Method interpolation_method : 3;
 
-		OAHashMap<uint32_t, bool> lod_hysteresis_visible_state;
+		uint32_t lod_camera_id;
 		int32_t previous_room_id_hint;
 
 		Transform get_transform_interpolated() const;
@@ -108,6 +118,7 @@ public:
 			interpolated = true;
 			on_interpolate_transform_list = false;
 			interpolation_method = TransformInterpolator::INTERP_LERP;
+			lod_camera_id = UINT32_MAX;
 		}
 	};
 
@@ -321,6 +332,7 @@ public:
 		float lod_end;
 		float lod_begin_hysteresis;
 		float lod_end_hysteresis;
+		LOD_CAMERA_BITTYPE lod_camera_hysteresis_state;
 
 		// These are used for the user cull testing function
 		// in the BVH, this is precached rather than recalculated each time.
@@ -364,6 +376,7 @@ public:
 			lod_end = 0;
 			lod_begin_hysteresis = 0;
 			lod_end_hysteresis = 0;
+			lod_camera_hysteresis_state = 0;
 
 			bvh_pairable_mask = 0;
 			bvh_pairable_type = 0;
@@ -838,7 +851,7 @@ public:
 
 	_FORCE_INLINE_ bool _light_instance_update_shadow(Instance *p_instance, const Transform p_cam_transform, const CameraMatrix &p_cam_projection, bool p_cam_orthogonal, RID p_shadow_atlas, Scenario *p_scenario);
 
-	void _prepare_scene(const Transform p_cam_transform, const CameraMatrix &p_cam_projection, bool p_cam_orthogonal, RID p_force_environment, uint32_t p_visible_layers, RID p_scenario, RID p_shadow_atlas, RID p_reflection_probe, int32_t &r_previous_room_id_hint, OAHashMap<uint32_t, bool> *lod_visible_state);
+	void _prepare_scene(const Transform p_cam_transform, const CameraMatrix &p_cam_projection, bool p_cam_orthogonal, RID p_force_environment, uint32_t p_visible_layers, RID p_scenario, RID p_shadow_atlas, RID p_reflection_probe, int32_t &r_previous_room_id_hint, const Camera *p_camera);
 	void _render_scene(const Transform p_cam_transform, const CameraMatrix &p_cam_projection, const int p_eye, bool p_cam_orthogonal, RID p_force_environment, RID p_scenario, RID p_shadow_atlas, RID p_reflection_probe, int p_reflection_probe_pass);
 	void render_empty_scene(RID p_scenario, RID p_shadow_atlas);
 
