@@ -3089,65 +3089,67 @@ void VisualServerScene::_prepare_scene(const Transform p_cam_transform, const Ca
 				}
 			}
 
-			if (ins->redraw_if_visible) {
-				VisualServerRaster::redraw_request(false);
-			}
+			if (keep) {
+				if (ins->redraw_if_visible) {
+					VisualServerRaster::redraw_request(false);
+				}
 
-			if (ins->base_type == VS::INSTANCE_PARTICLES) {
-				//particles visible? process them
-				if (VSG::storage->particles_is_inactive(ins->base)) {
-					//but if nothing is going on, don't do it.
-					keep = false;
-				} else {
-					if (OS::get_singleton()->is_update_pending(true)) {
-						VSG::storage->particles_request_process(ins->base);
-						//particles visible? request redraw
-						VisualServerRaster::redraw_request(false);
+				if (ins->base_type == VS::INSTANCE_PARTICLES) {
+					//particles visible? process them
+					if (VSG::storage->particles_is_inactive(ins->base)) {
+						//but if nothing is going on, don't do it.
+						keep = false;
+					} else {
+						if (OS::get_singleton()->is_update_pending(true)) {
+							VSG::storage->particles_request_process(ins->base);
+							//particles visible? request redraw
+							VisualServerRaster::redraw_request(false);
+						}
 					}
 				}
-			}
 
-			if (geom->lighting_dirty) {
-				int l = 0;
-				//only called when lights AABB enter/exit this geometry
-				ins->light_instances.resize(geom->lighting.size());
+				if (geom->lighting_dirty) {
+					int l = 0;
+					//only called when lights AABB enter/exit this geometry
+					ins->light_instances.resize(geom->lighting.size());
 
-				for (List<Instance *>::Element *E = geom->lighting.front(); E; E = E->next()) {
-					InstanceLightData *light = static_cast<InstanceLightData *>(E->get()->base_data);
+					for (List<Instance *>::Element *E = geom->lighting.front(); E; E = E->next()) {
+						InstanceLightData *light = static_cast<InstanceLightData *>(E->get()->base_data);
 
-					ins->light_instances.write[l++] = light->instance;
+						ins->light_instances.write[l++] = light->instance;
+					}
+
+					geom->lighting_dirty = false;
 				}
 
-				geom->lighting_dirty = false;
-			}
+				if (geom->reflection_dirty) {
+					int l = 0;
+					//only called when reflection probe AABB enter/exit this geometry
+					ins->reflection_probe_instances.resize(geom->reflection_probes.size());
 
-			if (geom->reflection_dirty) {
-				int l = 0;
-				//only called when reflection probe AABB enter/exit this geometry
-				ins->reflection_probe_instances.resize(geom->reflection_probes.size());
+					for (List<Instance *>::Element *E = geom->reflection_probes.front(); E; E = E->next()) {
+						InstanceReflectionProbeData *reflection_probe = static_cast<InstanceReflectionProbeData *>(E->get()->base_data);
 
-				for (List<Instance *>::Element *E = geom->reflection_probes.front(); E; E = E->next()) {
-					InstanceReflectionProbeData *reflection_probe = static_cast<InstanceReflectionProbeData *>(E->get()->base_data);
+						ins->reflection_probe_instances.write[l++] = reflection_probe->instance;
+					}
 
-					ins->reflection_probe_instances.write[l++] = reflection_probe->instance;
+					geom->reflection_dirty = false;
 				}
 
-				geom->reflection_dirty = false;
-			}
+				if (geom->gi_probes_dirty) {
+					int l = 0;
+					//only called when reflection probe AABB enter/exit this geometry
+					ins->gi_probe_instances.resize(geom->gi_probes.size());
 
-			if (geom->gi_probes_dirty) {
-				int l = 0;
-				//only called when reflection probe AABB enter/exit this geometry
-				ins->gi_probe_instances.resize(geom->gi_probes.size());
+					for (List<Instance *>::Element *E = geom->gi_probes.front(); E; E = E->next()) {
+						InstanceGIProbeData *gi_probe = static_cast<InstanceGIProbeData *>(E->get()->base_data);
 
-				for (List<Instance *>::Element *E = geom->gi_probes.front(); E; E = E->next()) {
-					InstanceGIProbeData *gi_probe = static_cast<InstanceGIProbeData *>(E->get()->base_data);
+						ins->gi_probe_instances.write[l++] = gi_probe->probe_instance;
+					}
 
-					ins->gi_probe_instances.write[l++] = gi_probe->probe_instance;
+					geom->gi_probes_dirty = false;
 				}
-
-				geom->gi_probes_dirty = false;
-			}
+			} // only necessary if we are keeping this instance
 		}
 
 		if (!keep) {
