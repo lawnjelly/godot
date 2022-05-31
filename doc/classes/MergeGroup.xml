@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="MergeGroup" inherits="Spatial" version="3.6" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../class.xsd">
+	<brief_description>
+		MergeGroups allow merging of suitable meshes, which can enhance performance.
+	</brief_description>
+	<description>
+		[MergeGroup] is a way of grouping nodes into logical blocks that contain meshes that are suitable for joining together, in order to increase rendering efficiency and reduce the number of nodes to simplify the scene.
+		Meshes to be joined must be static (non-moving) in relation to one another. For instance, a level background is often intended to be static. However, logical blocks that [b]move[/b], such as a ship, or car, are also good candidates for merging.
+		Within these blocks you will often want to prevent certain nodes or branches from being merged, because they [b]are[/b] intended to move, or change visibility, in relation to the main block. An example might be a steering wheel on a ship. You can finely control this with [member Spatial.merging_mode].
+		There are two ways of performing merging:
+		- At runtime, using [method merge_meshes] or [member auto_merge].
+		- Baking at design time to a separate scene, using the [code]bake[/code] button in the Editor inspector.
+		Merging at runtime is usually best, because it is non-destructive, and will minimize the binary size of the [code]pck[/code] file. It can however take a small amount of time to merge the meshes (usually during level load), but this will usually be well under a second.
+		Baking ahead of time allows fastest possible load times, but it is by nature a [i]destructive[/i] operation - you should keep a copy of the source scene for later editing, because you cannot reconstruct an unmerged scene from a baked scene. It can also bloat the size of the [code]pck[/code] file considerably, as for example storing 10 merged trees will have 10x the geometry of the scene before merging.
+		On the other hand, baking ahead of time is very useful for previewing what will happen after merging, and diagnosing problems. It is also convenient for some workflows such as constructing a scene out of merged modular units.
+	</description>
+	<tutorials>
+	</tutorials>
+	<methods>
+		<method name="merge_meshes">
+			<return type="void" />
+			<description>
+				You can choose to either automatically merge when the [MergeGroup] enters the scene (usually during loading) using [member auto_merge], or you can manually trigger merging by calling this function.
+				Manually activating merging is especially useful when you are [i]procedurally generating[/i] your level.
+			</description>
+		</method>
+	</methods>
+	<members>
+		<member name="auto_merge" type="bool" setter="set_auto_merge" getter="get_auto_merge" default="true">
+			Activates merging automatically when the [MergeGroup] enters the scene (usually during loading).
+			Alternatively you can switch this off and use [method merge_meshes] to manually activate merging.
+		</member>
+		<member name="clean_meshes" type="bool" setter="set_clean_meshes" getter="get_clean_meshes" default="false">
+			Removes degenerate triangles from meshes, which can make them more suitable for later processing, such as generating secondary UVs for lightmapping.
+			[b]Note:[/b] This step can be slow and should typically only be used when [i]baking[/i] the [MergeGroup].
+		</member>
+		<member name="convert_csgs" type="bool" setter="set_convert_csgs" getter="get_convert_csgs" default="true">
+			If [code]true[/code], [code]CSG[/code] nodes will be converted to [MeshInstance]s. These [MeshInstance]s can then be merged if suitable matches are found.
+		</member>
+		<member name="convert_gridmaps" type="bool" setter="set_convert_gridmaps" getter="get_convert_gridmaps" default="false">
+			If [code]true[/code], [GridMap]s will be converted to [MeshInstance]s. These [MeshInstance]s can then be merged if suitable matches are found.
+			[b]Note:[/b] [GridMap]s are usually rendered as [MultiMesh]es very efficiently, so converting these will often be counterproductive. Exceptions include when using the [code]GLES2[/code] backend, which can be inefficient at rendering [MultiMesh].
+		</member>
+		<member name="join_meshes" type="bool" setter="set_join_meshes" getter="get_join_meshes" default="true">
+			If [code]true[/code], as a final step, matching [MeshInstance]s can be joined by combining their surfaces to form an [i]ubermesh[/i].
+			While this is convenient, it does have the downside that all the constituent meshes will be culled as one unit, which can make culling less efficient in some situations.
+		</member>
+		<member name="max_merges" type="int" setter="set_max_merges" getter="get_max_merges" default="0">
+			When set to [code]0[/code], all matching meshes will be merged within the [MergeGroup].
+			If set to [code]1[/code] or above, only groups of a maximum of [code]max_merges[/code] meshes will be merged together. These groups will be chosen by locality. This enables getting some of the benefits of merging, while still allowing some culling to take place.
+			[b]Tip:[/b] Use [i]baking[/i] to preview what the scene will look like after merging.
+		</member>
+		<member name="min_split_poly_count" type="int" setter="set_min_split_poly_count" getter="get_min_split_poly_count" default="1024">
+			When using [i]split by locality[/i] using [member splits_horizontal] and / or [member splits_vertical], you can specify that the split will only occur for meshes above this specified poly count.
+			There is often little to gain by splitting meshes with low poly count.
+		</member>
+		<member name="shadow_proxy" type="bool" setter="set_shadow_proxy" getter="get_shadow_proxy" default="true">
+			If [code]true[/code], a [b]shadow proxy[/b] will be generated. This is a merged mesh that is a duplicate of the existing opaque geometry, set to cast shadows only. The source meshes will have shadow casting switched off.
+			This can be more efficient for rendering shadows, because the requirements for merging a [b]shadow mesh[/b] are far lower than for regular merging. Providing materials are opaque, meshes with different materials can often be merged together for the purposes of shadow casting. This can reduce drawcalls.
+			[b]Tip:[/b] Try running with and without a [b]shadow proxy[/b] and measure performance, sometimes it will be faster, sometimes not.
+		</member>
+		<member name="splits_horizontal" type="int" setter="set_splits_horizontal" getter="get_splits_horizontal" default="1">
+			When set to a value above [code]1[/code], mesh geometry will be [i]split by locality[/i] into a grid of [MeshInstance]s.
+			For instance a value of [code]2[/code] will split meshes into a grid of 2x2 (on the [code]x[/code] and [code]z[/code] axes), for greater culling efficiency.
+			[b]Note:[/b] Greater culling efficiency must be balanced against a greater number of drawcalls.
+		</member>
+		<member name="splits_vertical" type="int" setter="set_splits_vertical" getter="get_splits_vertical" default="1">
+			This setting acts exactly as [member splits_horizontal], except it determines the grid split on the vertical axis.
+			A grid with [member splits_horizontal] [code]3[/code], and [member splits_vertical] [code]2[/code] will produce a grid of 3x2x3 (on the [code]x[/code] and [code]y[/code] and [code]z[/code] axes respectively).
+		</member>
+	</members>
+	<constants>
+	</constants>
+</class>
