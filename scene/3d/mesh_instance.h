@@ -103,6 +103,11 @@ private:
 	bool _check_for_valid_indices(const PoolVector<int> &p_inds, const PoolVector<Vector3> &p_verts, LocalVector<int, int32_t> *r_inds) const;
 	bool _triangle_is_degenerate(const Vector3 &p_a, const Vector3 &p_b, const Vector3 &p_c, real_t p_epsilon) const;
 	void _merge_log(String p_string) const;
+	bool _merge_shadow_meshes(Vector<MeshInstance *> p_list, bool p_use_global_space, bool p_check_compatibility);
+	bool _is_shadow_mergeable_with(const MeshInstance &p_other) const;
+	bool _is_shadow_mergeable() const;
+	bool _is_material_opaque(const Ref<Material> &p_mat) const;
+	void _merge_shadow_into_mesh_data(const MeshInstance &p_mi, const Transform &p_dest_tr_inv, int p_surface_id, PoolVector<Vector3> &r_verts, PoolVector<int> &r_inds);
 
 protected:
 	bool _set(const StringName &p_name, const Variant &p_value);
@@ -148,6 +153,8 @@ public:
 	// merging
 	bool is_mergeable_with(Node *p_other) const;
 	bool merge_meshes(Vector<Variant> p_list, bool p_use_global_space, bool p_check_compatibility);
+	bool is_shadow_mergeable_with(Node *p_other) const;
+	bool merge_shadow_meshes(Vector<Variant> p_list, bool p_use_global_space, bool p_check_compatibility);
 
 	virtual AABB get_aabb() const;
 	virtual PoolVector<Face3> get_faces(uint32_t p_usage_flags) const;

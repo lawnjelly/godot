@@ -847,6 +847,27 @@ void MeshInstance::create_debug_tangents() {
 	}
 }
 
+bool MeshInstance::merge_shadow_meshes(Vector<Variant> p_list, bool p_use_global_space, bool p_check_compatibility) {
+	// bound function only support variants, so we need to convert to a list of MeshInstances
+	Vector<MeshInstance *> mis;
+
+	for (int n = 0; n < p_list.size(); n++) {
+		MeshInstance *mi = Object::cast_to<MeshInstance>(p_list[n]);
+		if (mi) {
+			if (mi != this) {
+				mis.push_back(mi);
+			} else {
+				ERR_PRINT("Destination MeshInstance cannot be a source.");
+			}
+		} else {
+			ERR_PRINT("Only MeshInstances can be merged.");
+		}
+	}
+
+	ERR_FAIL_COND_V(!mis.size(), "Array contains no MeshInstances");
+	return _merge_shadow_meshes(mis, p_use_global_space, p_check_compatibility);
+}
+
 bool MeshInstance::merge_meshes(Vector<Variant> p_list, bool p_use_global_space, bool p_check_compatibility) {
 	// bound function only support variants, so we need to convert to a list of MeshInstances
 	Vector<MeshInstance *> mis;
@@ -868,6 +889,16 @@ bool MeshInstance::merge_meshes(Vector<Variant> p_list, bool p_use_global_space,
 	return _merge_meshes(mis, p_use_global_space, p_check_compatibility);
 }
 
+bool MeshInstance::is_shadow_mergeable_with(Node *p_other) const {
+	const MeshInstance *mi = Object::cast_to<MeshInstance>(p_other);
+
+	if (mi) {
+		return _is_shadow_mergeable_with(*mi);
+	}
+
+	return false;
+}
+
 bool MeshInstance::is_mergeable_with(Node *p_other) const {
 	const MeshInstance *mi = Object::cast_to<MeshInstance>(p_other);
 
@@ -876,6 +907,62 @@ bool MeshInstance::is_mergeable_with(Node *p_other) const {
 	}
 
 	return false;
+}
+
+bool MeshInstance::_is_material_opaque(const Ref<Material> &p_mat) const {
+	if (p_mat.is_null()) {
+		return true;
+	}
+
+	return true;
+}
+
+bool MeshInstance::_is_shadow_mergeable() const {
+	if (!get_mesh().is_valid()) {
+		return false;
+	}
+	if (!get_allow_merging()) {
+		return false;
+	}
+
+	if (get_cast_shadows_setting() == GeometryInstance::ShadowCastingSetting::SHADOW_CASTING_SETTING_OFF) {
+		return false;
+	}
+
+	if (!_is_material_opaque(get_material_overlay())) {
+		return false;
+	}
+
+	if (!_is_material_opaque(get_material_override())) {
+		return false;
+	}
+
+	for (int n = 0; n < get_surface_material_count(); n++) {
+		if (!_is_material_opaque(get_surface_material(n))) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+bool MeshInstance::_is_shadow_mergeable_with(const MeshInstance &p_other) const {
+	if (!_is_shadow_mergeable() || !p_other._is_shadow_mergeable()) {
+		return false;
+	}
+
+	// various settings that must match
+	if (get_cast_shadows_setting() != p_other.get_cast_shadows_setting()) {
+		return false;
+	}
+	if (get_flag(FLAG_USE_BAKED_LIGHT) != p_other.get_flag(FLAG_USE_BAKED_LIGHT)) {
+		return false;
+	}
+	if (is_visible() != p_other.is_visible()) {
+		return false;
+	}
+
+	return true;
 }
 
 bool MeshInstance::_is_mergeable_with(const MeshInstance &p_other) const {
@@ -947,6 +1034,9 @@ bool MeshInstance::_is_mergeable_with(const MeshInstance &p_other) const {
 	//	}
 
 	return true;
+}
+
+void MeshInstance::_merge_shadow_into_mesh_data(const MeshInstance &p_mi, const Transform &p_dest_tr_inv, int p_surface_id, PoolVector<Vector3> &r_verts, PoolVector<int> &r_inds) {
 }
 
 void MeshInstance::_merge_into_mesh_data(const MeshInstance &p_mi, const Transform &p_dest_tr_inv, int p_surface_id, PoolVector<Vector3> &r_verts, PoolVector<Vector3> &r_norms, PoolVector<real_t> &r_tangents, PoolVector<Color> &r_colors, PoolVector<Vector2> &r_uvs, PoolVector<Vector2> &r_uv2s, PoolVector<int> &r_inds) {
@@ -1170,6 +1260,106 @@ bool MeshInstance::_triangle_is_degenerate(const Vector3 &p_a, const Vector3 &p_
 	}
 
 	return false;
+}
+
+// If p_check_compatibility is set to false you MUST have performed a prior check using
+// is_shadow_mergeable_with, otherwise you could get mismatching surface formats leading to graphical errors etc.
+bool MeshInstance::_merge_shadow_meshes(Vector<MeshInstance *> p_list, bool p_use_global_space, bool p_check_compatibility) {
+	if (p_list.size() < 1) {
+		// should not happen but just in case
+		return false;
+	}
+
+	// use the first mesh instance to get common data like number of surfaces
+	const MeshInstance *first = p_list[0];
+
+	// Mesh compatibility checking. This is relatively expensive, so if done already (e.g. in Room system)
+	// this step can be avoided.
+	LocalVector<bool> compat_list;
+	if (p_check_compatibility) {
+		compat_list.resize(p_list.size());
+
+		for (int n = 0; n < p_list.size(); n++) {
+			compat_list[n] = false;
+		}
+
+		compat_list[0] = true;
+
+		for (uint32_t n = 1; n < compat_list.size(); n++) {
+			compat_list[n] = first->_is_shadow_mergeable_with(*p_list[n]);
+
+			if (compat_list[n] == false) {
+				WARN_PRINT("MeshInstance " + p_list[n]->get_name() + " is incompatible for shadow merging with " + first->get_name() + ", ignoring.");
+			}
+		}
+	}
+
+	Ref<ArrayMesh> am;
+	am.instance();
+
+	// If we want a local space result, we need the world space transform of this MeshInstance
+	// available to back transform verts from world space.
+	Transform dest_tr_inv;
+	if (!p_use_global_space) {
+		if (is_inside_tree()) {
+			dest_tr_inv = get_global_transform();
+			dest_tr_inv.affine_invert();
+		} else {
+			WARN_PRINT("MeshInstance must be inside tree to merge using local space, falling back to global space.");
+		}
+	}
+
+	PoolVector<Vector3> verts;
+	PoolVector<int> inds;
+
+	for (int s = 0; s < first->get_mesh()->get_surface_count(); s++) {
+		for (int n = 0; n < p_list.size(); n++) {
+			// Ignore if the mesh is incompatible
+			if (p_check_compatibility && (!compat_list[n])) {
+				continue;
+			}
+
+			_merge_shadow_into_mesh_data(*p_list[n], dest_tr_inv, s, verts, inds);
+		} // for n through source meshes
+
+		if (!verts.size()) {
+			WARN_PRINT_ONCE("No vertices for surface");
+		}
+
+	} // for s through surfaces
+
+	// sanity check on the indices
+	for (int n = 0; n < inds.size(); n++) {
+		int i = inds[n];
+		if (i >= verts.size()) {
+			WARN_PRINT_ONCE("Mesh index out of range, invalid mesh, aborting");
+			return false;
+		}
+	}
+
+	Array arr;
+	arr.resize(Mesh::ARRAY_MAX);
+	arr[Mesh::ARRAY_VERTEX] = verts;
+	arr[Mesh::ARRAY_INDEX] = inds;
+
+	am->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, arr, Array(), Mesh::ARRAY_COMPRESS_DEFAULT);
+
+	// set all the surfaces on the mesh
+	set_mesh(am);
+
+	// set standard shadow material NYI
+	//	int num_surfaces = first->get_mesh()->get_surface_count();
+	//	for (int n = 0; n < num_surfaces; n++) {
+	//		set_surface_material(n, first->get_active_material(n));
+	//	}
+
+	// set some properties to match the merged meshes
+	//	set_material_overlay(first->get_material_overlay());
+	//	set_material_override(first->get_material_override());
+	set_cast_shadows_setting(first->get_cast_shadows_setting());
+	set_flag(FLAG_USE_BAKED_LIGHT, first->get_flag(FLAG_USE_BAKED_LIGHT));
+
+	return true;
 }
 
 // If p_check_compatibility is set to false you MUST have performed a prior check using
