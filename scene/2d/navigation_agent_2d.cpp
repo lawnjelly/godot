@@ -171,13 +171,17 @@ void NavigationAgent2D::_notification(int p_what) {
 			set_physics_process_internal(false);
 		} break;
 		case NOTIFICATION_INTERNAL_PHYSICS_PROCESS: {
-			if (agent_parent) {
+			// perhaps is always inside tree here, could assert?
+			if (agent_parent && agent_parent->is_inside_tree()) {
+				// keep track of the previous position so we can detect waypoint overshoot
+				agent_pos_prev = agent_pos_curr;
+				agent_pos_curr = agent_parent->get_global_position();
+
 				if (avoidance_enabled) {
 					// agent_position on NavigationServer is avoidance only and has nothing to do with pathfinding
 					// no point in flooding NavigationServer queue with agent position updates that get send to the void if avoidance is not used
-					Navigation2DServer::get_singleton()->agent_set_position(agent, agent_parent->get_global_position());
+					Navigation2DServer::get_singleton()->agent_set_position(agent, agent_pos_curr);
 				}
-				_check_distance_to_target();
 			}
 		} break;
 	}
@@ -199,6 +203,7 @@ NavigationAgent2D::NavigationAgent2D() :
 	set_time_horizon(20.0);
 	set_radius(10.0);
 	set_max_speed(200.0);
+	path_max_distance_squared = path_max_distance * path_max_distance;
 }
 
 NavigationAgent2D::~NavigationAgent2D() {
@@ -324,6 +329,7 @@ void NavigationAgent2D::set_max_speed(real_t p_max_speed) {
 
 void NavigationAgent2D::set_path_max_distance(real_t p_pmd) {
 	path_max_distance = p_pmd;
+	path_max_distance_squared = p_pmd * p_pmd;
 }
 
 real_t NavigationAgent2D::get_path_max_distance() {
@@ -404,19 +410,23 @@ String NavigationAgent2D::get_configuration_warning() const {
 }
 
 void NavigationAgent2D::update_navigation() {
-	if (agent_parent == nullptr) {
-		return;
-	}
-	if (!agent_parent->is_inside_tree()) {
-		return;
-	}
 	if (update_frame_id == Engine::get_singleton()->get_physics_frames()) {
 		return;
 	}
 
 	update_frame_id = Engine::get_singleton()->get_physics_frames();
 
-	Vector2 o = agent_parent->get_global_transform().get_origin();
+	if (navigation_finished) {
+		return;
+	}
+	if (agent_parent == nullptr) {
+		return;
+	}
+	if (!agent_parent->is_inside_tree()) {
+		return;
+	}
+
+	const Vector2 &o = agent_parent->get_global_position();
 
 	bool reload_path = false;
 
@@ -426,15 +436,16 @@ void NavigationAgent2D::update_navigation() {
 		reload_path = true;
 	} else {
 		// Check if too far from the navigation path
-		if (nav_path_index > 0) {
-			Vector2 segment[2];
-			segment[0] = navigation_path[nav_path_index - 1];
-			segment[1] = navigation_path[nav_path_index];
-			Vector2 p = Geometry::get_closest_point_to_segment_2d(o, segment);
-			if (o.distance_to(p) >= path_max_distance) {
-				// To faraway, reload path
-				reload_path = true;
-			}
+		DEV_ASSERT(navigation_path.size() >= 2);
+		int segment_start = MAX(nav_path_index - 1, 0);
+
+		Vector2 segment[2];
+		segment[0] = navigation_path[segment_start];
+		segment[1] = navigation_path[segment_start + 1];
+		Vector2 p = Geometry::get_closest_point_to_segment_2d(o, segment);
+		if (o.distance_squared_to(p) >= path_max_distance_squared) {
+			// To faraway, reload path
+			reload_path = true;
 		}
 	}
 
@@ -446,8 +457,9 @@ void NavigationAgent2D::update_navigation() {
 		} else {
 			navigation_path = Navigation2DServer::get_singleton()->map_get_path(agent_parent->get_world_2d()->get_navigation_map(), o, target_location, true, navigation_layers);
 		}
-		navigation_finished = false;
+		//navigation_finished = false;
 		nav_path_index = 0;
+		current_threshold_dist_squared = path_desired_distance * path_desired_distance;
 		emit_signal("path_changed");
 	}
 
@@ -458,14 +470,24 @@ void NavigationAgent2D::update_navigation() {
 	// Check if we can advance the navigation path
 	if (navigation_finished == false) {
 		// Advances to the next far away location.
-		while (o.distance_to(navigation_path[nav_path_index]) < path_desired_distance) {
+		while (_has_reached_waypoint(o, navigation_path[nav_path_index])) {
 			nav_path_index += 1;
-			if (nav_path_index == navigation_path.size()) {
-				_check_distance_to_target();
-				nav_path_index -= 1;
-				navigation_finished = true;
-				emit_signal("navigation_finished");
-				break;
+
+			// assuming the last index is the target location
+			if (nav_path_index >= (navigation_path.size() - 1)) {
+				current_threshold_dist_squared = target_desired_distance * target_desired_distance;
+
+				// reached the target
+				if (nav_path_index == navigation_path.size()) {
+					emit_signal("target_reached");
+					target_reached = true;
+
+					//_check_distance_to_target();
+					nav_path_index -= 1;
+					navigation_finished = true;
+					emit_signal("navigation_finished");
+					break;
+				}
 			}
 		}
 	}
@@ -476,13 +498,28 @@ void NavigationAgent2D::_request_repath() {
 	target_reached = false;
 	navigation_finished = false;
 	update_frame_id = 0;
-}
 
-void NavigationAgent2D::_check_distance_to_target() {
-	if (!target_reached) {
-		if (distance_to_target() < target_desired_distance) {
-			emit_signal("target_reached");
+	// Detect NOOP situation where the target is within range of the agent,
+	// this can prevent a pathfind call.
+	if (agent_parent && agent_parent->is_inside_tree()) {
+		const Vector2 &pos_agent = agent_parent->get_global_position();
+		if (pos_agent.distance_squared_to(target_location) <= (target_desired_distance * target_desired_distance)) {
+			// do nothing!
 			target_reached = true;
+			navigation_finished = true;
+			nav_path_index -= 1;
+			emit_signal("target_reached");
+			emit_signal("navigation_finished");
 		}
 	}
+}
+
+bool NavigationAgent2D::_has_reached_waypoint(const Vector2 &p_agent_pos, const Vector2 &p_waypoint_pos) {
+	Vector2 segment[2];
+	segment[0] = agent_pos_prev;
+	segment[1] = p_agent_pos;
+
+	Vector2 closest_pt = Geometry::get_closest_point_to_segment_2d(p_waypoint_pos, segment);
+	real_t dist2 = closest_pt.distance_squared_to(p_waypoint_pos);
+	return dist2 < current_threshold_dist_squared;
 }

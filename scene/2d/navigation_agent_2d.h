@@ -52,6 +52,10 @@ class NavigationAgent2D : public Node {
 
 	real_t path_desired_distance = 1.0;
 	real_t target_desired_distance = 1.0;
+
+	// depends on whether the current waypoint is the final target
+	real_t current_threshold_dist_squared = 1.0;
+
 	real_t radius = 0.0;
 	real_t neighbor_dist = 0.0;
 	int max_neighbors = 0;
@@ -59,16 +63,22 @@ class NavigationAgent2D : public Node {
 	real_t max_speed = 0.0;
 
 	real_t path_max_distance = 3.0;
+	real_t path_max_distance_squared = 1.0;
+
+	Vector2 agent_pos_curr;
+	Vector2 agent_pos_prev;
 
 	Vector2 target_location;
 	Vector<Vector2> navigation_path;
 	int nav_path_index = 0;
 	bool velocity_submitted = false;
 	Vector2 prev_safe_velocity;
-	/// The submitted target velocity
+
+	// The submitted target velocity
 	Vector2 target_velocity;
 	bool target_reached = false;
 	bool navigation_finished = true;
+
 	// No initialized on purpose
 	uint32_t update_frame_id = 0;
 
@@ -168,7 +178,7 @@ public:
 private:
 	void update_navigation();
 	void _request_repath();
-	void _check_distance_to_target();
+	bool _has_reached_waypoint(const Vector2 &p_agent_pos, const Vector2 &p_waypoint_pos);
 };
 
 #endif
