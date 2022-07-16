@@ -267,11 +267,15 @@ void MessageQueue::flush() {
 	while (read_pos < buffer_end) {
 		//lock on each iteration, so a call can re-add itself to the message queue
 
-		Message *message = (Message *)&buffer[read_pos];
+		//Message *message = (Message *)&buffer[read_pos];
+		Message message = *(Message *)&buffer[read_pos];
+
+		// delete original message
+		((Message *)&buffer[read_pos])->~Message();
 
 		uint32_t advance = sizeof(Message);
-		if ((message->type & FLAG_MASK) != TYPE_NOTIFICATION) {
-			advance += sizeof(Variant) * message->args;
+		if ((message.type & FLAG_MASK) != TYPE_NOTIFICATION) {
+			advance += sizeof(Variant) * message.args;
 		}
 
 		//pre-advance so this function is reentrant
@@ -279,40 +283,40 @@ void MessageQueue::flush() {
 
 		_THREAD_SAFE_UNLOCK_
 
-		Object *target = message->callable.get_object();
+		Object *target = message.callable.get_object();
 
 		if (target != nullptr) {
-			switch (message->type & FLAG_MASK) {
+			switch (message.type & FLAG_MASK) {
 				case TYPE_CALL: {
-					Variant *args = (Variant *)(message + 1);
+					Variant *args = (Variant *)(&message + 1);
 
 					// messages don't expect a return value
 
-					_call_function(message->callable, args, message->args, message->type & FLAG_SHOW_ERROR);
+					_call_function(message.callable, args, message.args, message.type & FLAG_SHOW_ERROR);
 
 				} break;
 				case TYPE_NOTIFICATION: {
 					// messages don't expect a return value
-					target->notification(message->notification);
+					target->notification(message.notification);
 
 				} break;
 				case TYPE_SET: {
-					Variant *arg = (Variant *)(message + 1);
+					Variant *arg = (Variant *)(&message + 1);
 					// messages don't expect a return value
-					target->set(message->callable.get_method(), *arg);
+					target->set(message.callable.get_method(), *arg);
 
 				} break;
 			}
 		}
 
-		if ((message->type & FLAG_MASK) != TYPE_NOTIFICATION) {
-			Variant *args = (Variant *)(message + 1);
-			for (int i = 0; i < message->args; i++) {
+		if ((message.type & FLAG_MASK) != TYPE_NOTIFICATION) {
+			Variant *args = (Variant *)(&message + 1);
+			for (int i = 0; i < message.args; i++) {
 				args[i].~Variant();
 			}
 		}
 
-		message->~Message();
+		//message->~Message();
 
 		_THREAD_SAFE_LOCK_
 	}
