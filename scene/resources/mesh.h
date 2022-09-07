@@ -148,6 +148,10 @@ public:
 	Size2 get_lightmap_size_hint() const;
 	void clear_cache() const;
 
+#ifdef TOOLS_ENABLED
+	virtual bool editor_intersect_ray(const Vector3 &p_begin, const Vector3 &p_dir, Vector3 &r_point, Vector3 &r_normal) const;
+#endif
+
 	typedef Vector<PoolVector<Vector3>> (*ConvexDecompositionFunc)(const real_t *p_vertices, int p_vertex_count, const uint32_t *p_triangles, int p_triangle_count, int p_max_convex_hulls, Vector<PoolVector<uint32_t>> *r_convex_indices);
 
 	static ConvexDecompositionFunc convex_decomposition_function;

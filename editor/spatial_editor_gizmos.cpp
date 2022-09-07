@@ -468,7 +468,7 @@ void EditorSpatialGizmo::add_solid_box(Ref<Material> &p_material, Vector3 p_size
 	add_mesh(m);
 }
 
-bool EditorSpatialGizmo::intersect_frustum(const Camera *p_camera, const Vector<Plane> &p_frustum) {
+bool EditorSpatialGizmo::intersect_frustum(const Camera *p_camera, const Vector<Plane> &p_frustum, const Vector<Vector3> &p_frustum_convex_points) {
 	ERR_FAIL_COND_V(!spatial_node, false);
 	ERR_FAIL_COND_V(!valid, false);
 
@@ -540,6 +540,8 @@ bool EditorSpatialGizmo::intersect_frustum(const Camera *p_camera, const Vector<
 		if (collision_mesh->inside_convex_shape(transformed_frustum.ptr(), transformed_frustum.size(), convex_points.ptr(), convex_points.size(), mesh_scale)) {
 			return true;
 		}
+	} else {
+		return spatial_node->editor_intersect_frustum(p_frustum, p_frustum_convex_points);
 	}
 
 	return false;
@@ -698,7 +700,7 @@ bool EditorSpatialGizmo::intersect_ray(Camera *p_camera, const Point2 &p_point, 
 		}
 	}
 
-	if (collision_mesh.is_valid()) {
+	if (collision_mesh.is_valid() || spatial_node->editor_handles_picking()) {
 		Transform gt = spatial_node->get_global_transform();
 
 		if (billboard_handle) {
@@ -710,7 +712,14 @@ bool EditorSpatialGizmo::intersect_ray(Camera *p_camera, const Point2 &p_point, 
 		Vector3 ray_dir = ai.basis.xform(p_camera->project_ray_normal(p_point)).normalized();
 		Vector3 rpos, rnorm;
 
-		if (collision_mesh->intersect_ray(ray_from, ray_dir, rpos, rnorm)) {
+		bool result = false;
+		if (collision_mesh.is_valid()) {
+			result = collision_mesh->intersect_ray(ray_from, ray_dir, rpos, rnorm);
+		} else {
+			result = spatial_node->editor_intersect_ray(ray_from, ray_dir, rpos, rnorm);
+		}
+
+		if (result) {
 			r_pos = gt.xform(rpos);
 			r_normal = gt.basis.xform(rnorm).normalized();
 			return true;
@@ -1516,20 +1525,7 @@ bool MeshInstanceSpatialGizmoPlugin::can_be_hidden() const {
 }
 
 void MeshInstanceSpatialGizmoPlugin::redraw(EditorSpatialGizmo *p_gizmo) {
-	MeshInstance *mesh = Object::cast_to<MeshInstance>(p_gizmo->get_spatial_node());
-
 	p_gizmo->clear();
-
-	Ref<Mesh> m = mesh->get_mesh();
-
-	if (!m.is_valid()) {
-		return; //none
-	}
-
-	Ref<TriangleMesh> tm = m->generate_triangle_mesh();
-	if (tm.is_valid()) {
-		p_gizmo->add_collision_triangles(tm);
-	}
 }
 
 /////

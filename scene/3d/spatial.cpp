@@ -441,6 +441,18 @@ AABB Spatial::get_fallback_gizmo_aabb() const {
 	return AABB(Vector3(-0.2, -0.2, -0.2), Vector3(0.4, 0.4, 0.4));
 }
 
+bool Spatial::editor_handles_picking() const {
+	return false;
+}
+
+bool Spatial::editor_intersect_ray(const Vector3 &p_begin, const Vector3 &p_dir, Vector3 &r_point, Vector3 &r_normal) const {
+	return false;
+}
+
+bool Spatial::editor_intersect_frustum(const Vector<Plane> &p_frustum, const Vector<Vector3> &p_frustum_convex_points) const {
+	return false;
+}
+
 #endif
 
 Spatial *Spatial::get_parent_spatial() const {

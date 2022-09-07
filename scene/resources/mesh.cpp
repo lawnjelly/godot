@@ -194,6 +194,38 @@ bool Mesh::surface_is_softbody_friendly(int p_idx) const {
 	return (surface_format & Mesh::ARRAY_FLAG_USE_DYNAMIC_UPDATE && (!(surface_format & Mesh::ARRAY_COMPRESS_VERTEX)) && (!(surface_format & Mesh::ARRAY_COMPRESS_NORMAL)));
 }
 
+#ifdef TOOLS_ENABLED
+bool Mesh::editor_intersect_ray(const Vector3 &p_begin, const Vector3 &p_dir, Vector3 &r_point, Vector3 &r_normal) const {
+	// Not very optimized but easy to start with.
+	PoolVector<Face3> faces = get_faces();
+
+	real_t closest_hit_dist = FLT_MAX;
+	Vector3 pt_hit;
+
+	for (int n = 0; n < faces.size(); n++) {
+		const Face3 &face = faces[n];
+		if (face.intersects_ray(p_begin, p_dir, &pt_hit)) {
+			// best hit so far?
+			real_t dist = (pt_hit - p_begin).length_squared();
+			if (dist < closest_hit_dist) {
+				closest_hit_dist = dist;
+				r_point = pt_hit;
+				r_normal = face.get_plane().normal;
+			}
+		}
+	}
+
+	// don't want to waste memory
+	triangle_mesh.unref();
+
+	if (closest_hit_dist < FLT_MAX) {
+		return true;
+	}
+
+	return false;
+}
+#endif
+
 PoolVector<Face3> Mesh::get_faces() const {
 	Ref<TriangleMesh> tm = generate_triangle_mesh();
 	if (tm.is_valid()) {

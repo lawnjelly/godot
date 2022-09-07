@@ -152,6 +152,12 @@ public:
 	virtual AABB get_aabb() const;
 	virtual PoolVector<Face3> get_faces(uint32_t p_usage_flags) const;
 
+#ifdef TOOLS_ENABLED
+	virtual bool editor_handles_picking() const;
+	virtual bool editor_intersect_ray(const Vector3 &p_begin, const Vector3 &p_dir, Vector3 &r_point, Vector3 &r_normal) const;
+	virtual bool editor_intersect_frustum(const Vector<Plane> &p_frustum, const Vector<Vector3> &p_frustum_convex_points) const;
+#endif
+
 	MeshInstance();
 	~MeshInstance();
 };

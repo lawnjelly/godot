@@ -176,6 +176,9 @@ public:
 	virtual Transform get_global_gizmo_transform() const;
 	virtual Transform get_local_gizmo_transform() const;
 	virtual AABB get_fallback_gizmo_aabb() const;
+	virtual bool editor_handles_picking() const;
+	virtual bool editor_intersect_ray(const Vector3 &p_begin, const Vector3 &p_dir, Vector3 &r_point, Vector3 &r_normal) const;
+	virtual bool editor_intersect_frustum(const Vector<Plane> &p_frustum, const Vector<Vector3> &p_frustum_convex_points) const;
 #endif
 
 	void set_as_toplevel(bool p_enabled);

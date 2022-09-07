@@ -552,6 +552,27 @@ AABB MeshInstance::get_aabb() const {
 	return AABB();
 }
 
+#ifdef TOOLS_ENABLED
+
+bool MeshInstance::editor_handles_picking() const {
+	return true;
+}
+
+bool MeshInstance::editor_intersect_ray(const Vector3 &p_begin, const Vector3 &p_dir, Vector3 &r_point, Vector3 &r_normal) const {
+	if (mesh.is_valid()) {
+		return mesh->editor_intersect_ray(p_begin, p_dir, r_point, r_normal);
+	}
+
+	return false;
+}
+bool MeshInstance::editor_intersect_frustum(const Vector<Plane> &p_frustum, const Vector<Vector3> &p_frustum_convex_points) const {
+	AABB world_aabb = get_global_transform().xform(get_aabb());
+	//return world_aabb.intersects_convex_shape(p_frustum.ptr(), p_frustum.size(), p_frustum_convex_points.ptr(), p_frustum_convex_points.size());
+	return world_aabb.inside_convex_shape(p_frustum.ptr(), p_frustum.size());
+}
+
+#endif
+
 PoolVector<Face3> MeshInstance::get_faces(uint32_t p_usage_flags) const {
 	if (!(p_usage_flags & (FACES_SOLID | FACES_ENCLOSING))) {
 		return PoolVector<Face3>();

@@ -673,6 +673,8 @@ void SpatialEditorViewport::_select_region() {
 
 	Node *edited_scene = get_tree()->get_edited_scene_root();
 
+	Vector<Vector3> frustum_convex_points = Geometry::compute_convex_mesh_points(frustum.ptr(), frustum.size());
+
 	for (int i = 0; i < instances.size(); i++) {
 		Spatial *sp = Object::cast_to<Spatial>(ObjectDB::get_instance(instances[i]));
 		if (!sp || _is_node_locked(sp)) {
@@ -711,7 +713,7 @@ void SpatialEditorViewport::_select_region() {
 			continue;
 		}
 
-		if (seg->intersect_frustum(camera, frustum)) {
+		if (seg->intersect_frustum(camera, frustum, frustum_convex_points)) {
 			selected.push_back(item);
 		}
 	}
