@@ -112,6 +112,7 @@ public:
 	virtual Array map_get_agents(RID p_map) const;
 
 	virtual void map_force_update(RID p_map);
+	virtual np_handle map_get_navphysics_map(RID p_map) const;
 
 	virtual RID region_create() const;
 
@@ -126,7 +127,8 @@ public:
 	virtual RID region_get_map(RID p_region) const;
 	COMMAND_2(region_set_navigation_layers, RID, p_region, uint32_t, p_navigation_layers);
 	virtual uint32_t region_get_navigation_layers(RID p_region) const;
-	COMMAND_2(region_set_transform, RID, p_region, Transform, p_transform);
+	virtual void region_set_transform(RID p_region, Transform p_transform) const;
+	COMMAND_2(_region_set_transform, RID, p_region, Transform, p_transform);
 	COMMAND_2(region_set_navmesh, RID, p_region, Ref<NavigationMesh>, p_nav_mesh);
 	virtual void region_bake_navmesh(Ref<NavigationMesh> r_mesh, Node *p_node) const;
 
@@ -148,6 +150,7 @@ public:
 	COMMAND_2(agent_set_ignore_y, RID, p_agent, bool, p_ignore);
 	virtual bool agent_is_map_changed(RID p_agent) const;
 	COMMAND_4_DEF(agent_set_callback, RID, p_agent, Object *, p_receiver, StringName, p_method, Variant, p_udata, Variant());
+	virtual Vector3 agent_force_process_avoidance(RID p_agent, real_t p_delta) const;
 
 	COMMAND_1(free, RID, p_object);
 

@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="NavPhysicsAgent" inherits="Spatial" version="3.6" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../class.xsd">
+	<brief_description>
+	</brief_description>
+	<description>
+	</description>
+	<tutorials>
+	</tutorials>
+	<methods>
+		<method name="agent_add_force">
+			<return type="void" />
+			<argument index="0" name="force" type="Vector3" />
+			<description>
+			</description>
+		</method>
+		<method name="agent_is_jumping" qualifiers="const">
+			<return type="bool" />
+			<description>
+			</description>
+		</method>
+		<method name="agent_jump">
+			<return type="bool" />
+			<argument index="0" name="impulse" type="float" />
+			<argument index="1" name="allow_air_jump" type="bool" default="false" />
+			<description>
+			</description>
+		</method>
+		<method name="agent_move_to">
+			<return type="void" />
+			<argument index="0" name="destination" type="Vector3" />
+			<description>
+			</description>
+		</method>
+		<method name="agent_teleport">
+			<return type="void" />
+			<argument index="0" name="position" type="Vector3" />
+			<description>
+			</description>
+		</method>
+		<method name="get_navigation_map" qualifiers="const">
+			<return type="RID" />
+			<description>
+			</description>
+		</method>
+		<method name="set_navigation_map">
+			<return type="void" />
+			<argument index="0" name="navigation_map" type="RID" />
+			<description>
+			</description>
+		</method>
+	</methods>
+	<members>
+		<member name="friction" type="float" setter="set_friction" getter="get_friction" default="0.5">
+		</member>
+		<member name="gravity" type="float" setter="set_gravity" getter="get_gravity" default="4.0">
+		</member>
+	</members>
+	<constants>
+	</constants>
+</class>

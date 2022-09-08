@@ -65,6 +65,7 @@
 #include "servers/arvr_server.h"
 #include "servers/audio_server.h"
 #include "servers/camera_server.h"
+#include "servers/nav_physics/nav_physics_server.h"
 #include "servers/navigation_2d_server.h"
 #include "servers/navigation_server.h"
 #include "servers/physics_2d_server.h"
@@ -112,6 +113,7 @@ static ARVRServer *arvr_server = nullptr;
 static PhysicsServer *physics_server = nullptr;
 static Physics2DServer *physics_2d_server = nullptr;
 static VisualServerCallbacks *visual_server_callbacks = nullptr;
+static NavPhysicsServer *nav_physics_server = nullptr;
 static NavigationServer *navigation_server = nullptr;
 static Navigation2DServer *navigation_2d_server = nullptr;
 
@@ -231,6 +233,7 @@ void initialize_navigation_server() {
 	ERR_FAIL_COND(navigation_server != nullptr);
 	navigation_server = NavigationServerManager::new_default_server();
 	navigation_2d_server = memnew(Navigation2DServer);
+	nav_physics_server = memnew(NavPhysicsServer);
 }
 
 void finalize_navigation_server() {
@@ -238,6 +241,11 @@ void finalize_navigation_server() {
 	navigation_server = nullptr;
 	memdelete(navigation_2d_server);
 	navigation_2d_server = nullptr;
+
+	if (nav_physics_server) {
+		memdelete(nav_physics_server);
+		nav_physics_server = nullptr;
+	}
 }
 
 //#define DEBUG_INIT
@@ -2310,6 +2318,8 @@ bool Main::iteration() {
 		}
 
 		NavigationServer::get_singleton_mut()->process(frame_slice * time_scale);
+		NavPhysicsServer::get_singleton()->tick_update(frame_slice * time_scale);
+
 		message_queue->flush();
 
 		PhysicsServer::get_singleton()->step(frame_slice * time_scale);

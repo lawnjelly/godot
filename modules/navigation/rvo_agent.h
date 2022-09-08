@@ -39,16 +39,15 @@
 class NavMap;
 
 class RvoAgent : public NavRid {
-	struct AvoidanceComputedCallback {
+	struct CallbackData {
 		ObjectID id;
 		StringName method;
 		Variant udata;
 		Variant new_velocity;
-	};
+	} callback;
 
 	NavMap *map = nullptr;
 	RVO::Agent agent;
-	AvoidanceComputedCallback callback;
 	uint32_t map_update_id = 0;
 
 public:
@@ -68,7 +67,7 @@ public:
 	void set_callback(ObjectID p_id, const StringName p_method, const Variant p_udata = Variant());
 	bool has_callback() const;
 
-	void dispatch_callback();
+	void dispatch_callback(bool p_include_navphysics);
 };
 
 #endif // RVO_AGENT_H

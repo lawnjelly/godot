@@ -196,6 +196,7 @@
 #include "scene/3d/listener.h"
 #include "scene/3d/mesh_instance.h"
 #include "scene/3d/multimesh_instance.h"
+#include "scene/3d/nav_physics_agent.h"
 #include "scene/3d/navigation.h"
 #include "scene/3d/navigation_agent.h"
 #include "scene/3d/navigation_mesh_instance.h"
@@ -514,6 +515,7 @@ void register_scene_types() {
 	ClassDB::register_class<NavigationMeshInstance>();
 	ClassDB::register_class<NavigationAgent>();
 	ClassDB::register_class<NavigationObstacle>();
+	ClassDB::register_class<NavPhysicsAgent>();
 
 	OS::get_singleton()->yield(); //may take time to init
 

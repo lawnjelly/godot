@@ -34,6 +34,7 @@
 #include "core/object.h"
 #include "core/rid.h"
 #include "scene/3d/navigation_mesh_instance.h"
+#include "servers/nav_physics/np_defines.h"
 
 /// This server uses the concept of internal mutability.
 /// All the constant functions can be called in multithread because internally
@@ -103,6 +104,7 @@ public:
 	virtual Array map_get_agents(RID p_map) const = 0;
 
 	virtual void map_force_update(RID p_map) = 0;
+	virtual np_handle map_get_navphysics_map(RID p_map) const = 0;
 
 	/// Creates a new region.
 	virtual RID region_create() const = 0;
@@ -198,6 +200,10 @@ public:
 
 	/// Callback called at the end of the RVO process
 	virtual void agent_set_callback(RID p_agent, Object *p_receiver, StringName p_method, Variant p_udata = Variant()) const = 0;
+
+	/// Force collision avoidance now.
+	/// When possible it's better to avoid this function.
+	virtual Vector3 agent_force_process_avoidance(RID p_agent, real_t p_delta) const = 0;
 
 	/// Destroy the `RID`
 	virtual void free(RID p_object) const = 0;

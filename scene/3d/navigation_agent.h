@@ -181,6 +181,7 @@ private:
 	void update_navigation();
 	void _request_repath();
 	void _check_distance_to_target();
+	void _refresh_callback();
 };
 
 #endif // NAVIGATION_AGENT_H

@@ -332,7 +332,22 @@ COMMAND_2(region_set_map, RID, p_region, RID, p_map) {
 	}
 }
 
-COMMAND_2(region_set_transform, RID, p_region, Transform, p_transform) {
+void GodotNavigationServer::region_set_transform(RID p_region, Transform p_transform) const {
+	// The navigation function may have a queue delay,
+	// but the navphysics needs to know the transform immediately,
+	// hence a wrapper is used.
+	NavRegion *region = region_owner.getornull(p_region);
+	if (region) {
+		np_handle handle = region->get_navphysics_region();
+		if (handle) {
+			//NavPhysicsServer::get_singleton()->region_set_transform(handle, p_transform);
+		}
+	}
+
+	_region_set_transform(p_region, p_transform);
+}
+
+COMMAND_2(_region_set_transform, RID, p_region, Transform, p_transform) {
 	NavRegion *region = region_owner.getornull(p_region);
 	ERR_FAIL_COND(region == nullptr);
 
@@ -552,6 +567,21 @@ COMMAND_4(agent_set_callback, RID, p_agent, Object *, p_receiver, StringName, p_
 	}
 }
 
+Vector3 GodotNavigationServer::agent_force_process_avoidance(RID p_agent, real_t p_delta) const {
+	RvoAgent *agent = agent_owner.getornull(p_agent);
+	ERR_FAIL_COND_V(agent == nullptr, Vector3());
+	ERR_FAIL_COND_V(agent->get_map() == nullptr, Vector3());
+
+	GodotNavigationServer *mut_this = const_cast<GodotNavigationServer *>(this);
+	MutexLock lock(mut_this->operations_mutex);
+	agent->get_map()->step_agent(agent, p_delta);
+
+	return Vector3(
+			agent->get_agent()->newVelocity_.x(),
+			agent->get_agent()->newVelocity_.y(),
+			agent->get_agent()->newVelocity_.z());
+}
+
 COMMAND_1(free, RID, p_object) {
 	if (!p_object.is_valid()) {
 		ERR_FAIL_MSG("NavigationServer attempted to free a NULL RID.");
@@ -625,6 +655,13 @@ void GodotNavigationServer::flush_queries() {
 		memdelete(commands[i]);
 	}
 	commands.clear();
+}
+
+np_handle GodotNavigationServer::map_get_navphysics_map(RID p_map) const {
+	NavMap *map = map_owner.getornull(p_map);
+	ERR_FAIL_NULL_V(map, 0);
+
+	return map->get_navphysics_map();
 }
 
 void GodotNavigationServer::map_force_update(RID p_map) {
