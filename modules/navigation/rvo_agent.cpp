@@ -37,6 +37,10 @@ RvoAgent::RvoAgent() {
 }
 
 void RvoAgent::set_map(NavMap *p_map) {
+	if (p_map == map) {
+		return;
+	}
+
 	map = p_map;
 }
 
@@ -60,7 +64,7 @@ bool RvoAgent::has_callback() const {
 	return callback.id != 0;
 }
 
-void RvoAgent::dispatch_callback() {
+void RvoAgent::dispatch_callback(bool p_include_navphysics) {
 	if (callback.id == 0) {
 		return;
 	}
@@ -72,9 +76,8 @@ void RvoAgent::dispatch_callback() {
 
 	Variant::CallError responseCallError;
 
-	callback.new_velocity = Vector3(agent.newVelocity_.x(), agent.newVelocity_.y(), agent.newVelocity_.z());
-
-	const Variant *vp[2] = { &callback.new_velocity, &callback.udata };
 	int argc = (callback.udata.get_type() == Variant::NIL) ? 1 : 2;
+	callback.new_velocity = Vector3(agent.newVelocity_.x(), agent.newVelocity_.y(), agent.newVelocity_.z());
+	const Variant *vp[2] = { &callback.new_velocity, &callback.udata };
 	obj->call(callback.method, vp, argc, responseCallError);
 }

@@ -80,6 +80,8 @@ public:
 	void bake_navigation_mesh(bool p_on_thread);
 	void _bake_finished(Ref<NavigationMesh> p_nav_mesh);
 
+	PoolVector<Face3> get_navphysics_faces() const;
+
 	String get_configuration_warning() const;
 
 	NavigationMeshInstance();

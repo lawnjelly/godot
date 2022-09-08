@@ -37,6 +37,7 @@
 #include "core/math/math_defs.h"
 #include "core/os/thread_work_pool.h"
 #include "nav_utils.h"
+#include "servers/nav_physics/np_defines.h"
 
 #include <KdTree.h>
 
@@ -44,7 +45,13 @@ class NavRegion;
 class RvoAgent;
 class NavRegion;
 
+namespace NavPhysics {
+class Loader;
+}
+
 class NavMap : public NavRid {
+	friend class NavPhysics::Loader;
+
 	/// Map Up
 	Vector3 up = Vector3(0, 1, 0);
 
@@ -81,6 +88,10 @@ class NavMap : public NavRid {
 
 	/// Change the id each time the map is updated.
 	uint32_t map_update_id = 0;
+
+	// Optional, will use minimal data if not in use.
+	bool navphysics_enabled = true;
+	np_handle navphysics_map = 0;
 
 	/// Pooled threads for computing steps
 	ThreadWorkPool step_work_pool;
@@ -123,6 +134,7 @@ public:
 	const LocalVector<NavRegion *> &get_regions() const {
 		return regions;
 	}
+	//void load_navphysics_mesh(NavRegion *p_region);
 
 	bool has_agent(RvoAgent *agent) const;
 	void add_agent(RvoAgent *agent);
@@ -138,9 +150,13 @@ public:
 		return map_update_id;
 	}
 
+	void step_agent(RvoAgent *agent, real_t p_deltatime);
 	void sync();
 	void step(real_t p_deltatime);
 	void dispatch_callbacks();
+
+	void set_navphysics_enabled(bool p_enabled);
+	np_handle get_navphysics_map() const { return navphysics_map; }
 
 private:
 	void compute_single_step(uint32_t index, RvoAgent **agent);

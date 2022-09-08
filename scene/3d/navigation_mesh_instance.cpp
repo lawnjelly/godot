@@ -34,6 +34,7 @@
 #include "core/os/thread.h"
 #include "mesh_instance.h"
 #include "navigation.h"
+#include "servers/nav_physics/nav_physics_server.h"
 #include "servers/navigation_server.h"
 
 void NavigationMeshInstance::set_enabled(bool p_enabled) {
@@ -159,6 +160,15 @@ void NavigationMeshInstance::_notification(int p_what) {
 	}
 }
 
+PoolVector<Face3> NavigationMeshInstance::get_navphysics_faces() const {
+	np_handle nphandle = NavigationServer::get_singleton()->region_get_navphysics_region(region);
+	if (nphandle) {
+		return NavPhysicsServer::get_singleton()->region_get_faces(nphandle);
+	}
+
+	return PoolVector<Face3>();
+}
+
 void NavigationMeshInstance::set_navigation_mesh(const Ref<NavigationMesh> &p_navmesh) {
 	if (p_navmesh == navmesh)
 		return;
@@ -175,6 +185,7 @@ void NavigationMeshInstance::set_navigation_mesh(const Ref<NavigationMesh> &p_na
 
 	NavigationServer::get_singleton()->region_set_navmesh(region, p_navmesh);
 
+	/*
 	if (debug_view == nullptr && is_inside_tree() && navmesh.is_valid() && get_tree()->is_debugging_navigation_hint()) {
 		MeshInstance *dm = memnew(MeshInstance);
 		dm->set_mesh(navmesh->get_debug_mesh());
@@ -189,6 +200,7 @@ void NavigationMeshInstance::set_navigation_mesh(const Ref<NavigationMesh> &p_na
 	if (debug_view && navmesh.is_valid()) {
 		Object::cast_to<MeshInstance>(debug_view)->set_mesh(navmesh->get_debug_mesh());
 	}
+	*/
 
 	emit_signal("navigation_mesh_changed");
 

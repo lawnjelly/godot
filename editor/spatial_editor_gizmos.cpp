@@ -3795,6 +3795,8 @@ void NavigationMeshSpatialGizmoPlugin::redraw(EditorSpatialGizmo *p_gizmo) {
 		return;
 	}
 
+	/*
+
 	PoolVector<Vector3> vertices = navmeshie->get_vertices();
 	PoolVector<Vector3>::Read vr = vertices.read();
 	List<Face3> faces;
@@ -3870,6 +3872,34 @@ void NavigationMeshSpatialGizmoPlugin::redraw(EditorSpatialGizmo *p_gizmo) {
 	m->surface_set_material(0, navmesh->is_enabled() ? solid_material : solid_material_disabled);
 	p_gizmo->add_mesh(m);
 	p_gizmo->add_collision_segments(lines);
+	*/
+
+	// Navphysics
+	PoolVector<Face3> npfaces = navmesh->get_navphysics_faces();
+	PoolVector<Vector3> nppoints;
+	nppoints.resize(npfaces.size() * 3);
+
+	{
+		{
+			PoolVector<Vector3>::Write w = nppoints.write();
+			int count = 0;
+			for (int n = 0; n < npfaces.size(); n++) {
+				w[count++] = npfaces[n].vertex[0];
+				w[count++] = npfaces[n].vertex[1];
+				w[count++] = npfaces[n].vertex[2];
+
+				print_line("vert pos: " + String(Variant(npfaces[n].vertex[0])));
+			}
+		}
+
+		Ref<ArrayMesh> m = memnew(ArrayMesh);
+		Array a;
+		a.resize(Mesh::ARRAY_MAX);
+		a[0] = nppoints;
+		m->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, a);
+		m->surface_set_material(0, navmesh->is_enabled() ? solid_material : solid_material_disabled);
+		p_gizmo->add_mesh(m);
+	}
 }
 
 //////

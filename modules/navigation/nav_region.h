@@ -32,6 +32,7 @@
 #define NAV_REGION_H
 
 #include "scene/3d/navigation.h"
+#include "servers/nav_physics/nav_physics_server.h"
 
 #include "nav_rid.h"
 #include "nav_utils.h"
@@ -41,7 +42,13 @@
 class NavMap;
 class NavRegion;
 
+namespace NavPhysics {
+class Loader;
+}
+
 class NavRegion : public NavRid {
+	friend class NavPhysics::Loader;
+
 	NavMap *map = nullptr;
 	Transform transform;
 	Ref<NavigationMesh> mesh;
@@ -51,6 +58,8 @@ class NavRegion : public NavRid {
 	Vector<gd::Edge::Connection> connections;
 
 	bool polygons_dirty = true;
+	np_handle navphysics_mesh = 0;
+	np_handle navphysics_region = 0;
 
 	/// Cache
 	LocalVector<gd::Polygon> polygons;
@@ -74,7 +83,10 @@ public:
 	void set_navigation_layers(uint32_t p_navigation_layers);
 	uint32_t get_navigation_layers() const;
 
-	void set_transform(Transform transform);
+	np_handle get_navphysics_mesh() const { return navphysics_mesh; }
+	np_handle get_navphysics_region() const { return navphysics_region; }
+
+	void set_transform(const Transform &p_transform);
 	const Transform &get_transform() const {
 		return transform;
 	}
@@ -102,6 +114,7 @@ public:
 
 private:
 	void update_polygons();
+	void _navphysics_update();
 };
 
 #endif // NAV_REGION_H

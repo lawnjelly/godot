@@ -209,13 +209,20 @@ NavigationAgent::~NavigationAgent() {
 	agent = RID(); // Pointless
 }
 
-void NavigationAgent::set_avoidance_enabled(bool p_enabled) {
-	avoidance_enabled = p_enabled;
+void NavigationAgent::_refresh_callback() {
 	if (avoidance_enabled) {
 		NavigationServer::get_singleton()->agent_set_callback(agent, this, "_avoidance_done");
 	} else {
 		NavigationServer::get_singleton()->agent_set_callback(agent, nullptr, "_avoidance_done");
 	}
+}
+
+void NavigationAgent::set_avoidance_enabled(bool p_enabled) {
+	if (p_enabled == avoidance_enabled) {
+		return;
+	}
+	avoidance_enabled = p_enabled;
+	_refresh_callback();
 }
 
 bool NavigationAgent::get_avoidance_enabled() const {
@@ -255,8 +262,8 @@ void NavigationAgent::set_agent_parent(Node *p_agent_parent) {
 			// no navigation node found in parent nodes, use default navigation map from world resource
 			NavigationServer::get_singleton()->agent_set_map(get_rid(), agent_parent->get_world()->get_navigation_map());
 		}
-		// create new avoidance callback if enabled
-		set_avoidance_enabled(avoidance_enabled);
+		// create new callback if enabled
+		_refresh_callback();
 	} else {
 		agent_parent = nullptr;
 		NavigationServer::get_singleton()->agent_set_map(get_rid(), RID());

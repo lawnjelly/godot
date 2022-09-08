@@ -38,6 +38,7 @@ void NavRegion::set_map(NavMap *p_map) {
 	if (!map) {
 		connections.clear();
 	}
+	_navphysics_update();
 }
 
 void NavRegion::set_navigation_layers(uint32_t p_navigation_layers) {
@@ -48,14 +49,18 @@ uint32_t NavRegion::get_navigation_layers() const {
 	return navigation_layers;
 }
 
-void NavRegion::set_transform(Transform p_transform) {
+void NavRegion::set_transform(const Transform &p_transform) {
 	transform = p_transform;
-	polygons_dirty = true;
+	//polygons_dirty = true;
+	if (get_navphysics_region()) {
+		NavPhysicsServer::get_singleton()->region_set_transform(get_navphysics_region(), p_transform);
+	}
 }
 
 void NavRegion::set_mesh(Ref<NavigationMesh> p_mesh) {
 	mesh = p_mesh;
 	polygons_dirty = true;
+	_navphysics_update();
 }
 
 int NavRegion::get_connections_count() const {
@@ -154,8 +159,22 @@ void NavRegion::update_polygons() {
 			p.center = center / float(mesh_poly.size());
 		}
 	}
+
+	_navphysics_update();
 }
 
-NavRegion::NavRegion() {}
+void NavRegion::_navphysics_update() {
+	NavPhysicsServer::get_singleton()->mesh_set_map(get_navphysics_mesh(), map ? map->get_navphysics_map() : 0);
+	NavPhysicsServer::get_singleton()->mesh_load(get_navphysics_mesh(), mesh);
+}
 
-NavRegion::~NavRegion() {}
+NavRegion::NavRegion() {
+	navphysics_region = NavPhysicsServer::get_singleton()->region_create();
+	navphysics_mesh = NavPhysicsServer::get_singleton()->mesh_create();
+	NavPhysicsServer::get_singleton()->mesh_set_region(navphysics_mesh, navphysics_region);
+}
+
+NavRegion::~NavRegion() {
+	NavPhysicsServer::get_singleton()->mesh_free(get_navphysics_mesh());
+	NavPhysicsServer::get_singleton()->region_free(get_navphysics_region());
+}

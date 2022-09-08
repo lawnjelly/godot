@@ -469,9 +469,27 @@ gd::ClosestPointQueryResult NavMap::get_closest_point_info(const Vector3 &p_poin
 	return result;
 }
 
+//void NavMap::load_navphysics_mesh(NavRegion *p_region) {
+//	if (navphysics_enabled) {
+//		NavPhysics::Loader loader;
+//		uint32_t id = loader.load_region(*this, *p_region, navphysics_map);
+//		p_region->set_navphysics_id(id);
+
+//		// Make sure the transform is up to date on the new region.
+//		if (id != UINT32_MAX) {
+//			get_navphysics_map().set_region_transform(id, p_region->get_transform());
+//		}
+//	}
+//}
+
 void NavMap::add_region(NavRegion *p_region) {
 	regions.push_back(p_region);
 	regenerate_links = true;
+
+	//	if (navphysics_enabled) {
+	//		p_region->set_navphysics_mesh(NavPhysicsServer::get_singleton()->region_create(get_navphysics_map()));
+	//		NavPhysicsServer::get_singleton()->region_load(get_navphysics_map(), p_region->get_navphysics_mesh(), *p_region);
+	//	}
 }
 
 void NavMap::remove_region(NavRegion *p_region) {
@@ -480,6 +498,9 @@ void NavMap::remove_region(NavRegion *p_region) {
 		regions.remove_unordered(region_index);
 		regenerate_links = true;
 	}
+
+	// Always attempt to unload even if navphysics disabled
+	//NavPhysicsServer::get_singleton()->region_unload(get_navphysics_map(), p_region->get_navphysics_mesh());
 }
 
 bool NavMap::has_agent(RvoAgent *agent) const {
@@ -683,12 +704,46 @@ void NavMap::sync() {
 }
 
 void NavMap::compute_single_step(uint32_t index, RvoAgent **agent) {
-	(*(agent + index))->get_agent()->computeNeighbors(&rvo);
-	(*(agent + index))->get_agent()->computeNewVelocity(deltatime);
+	RvoAgent &gd_agent = *(*(agent + index));
+	RVO::Agent *rvo_agent = gd_agent.get_agent();
+	ERR_FAIL_NULL(rvo_agent);
+
+	rvo_agent->computeNeighbors(&rvo);
+	rvo_agent->computeNewVelocity(deltatime);
+
+	// Compute navphysics AFTER avoidance, it is greater priority than avoidance.
+	// You can hit an obstacle slightly, but must not move off the navmesh.
+	/*
+	if (navphysics_enabled) {
+		uint32_t id = gd_agent.get_navphysics_id();
+
+		// fill the agent
+		NavPhysics::Agent &np_agent = navphysics_map.get_agent(id);
+
+		// just some local aliases to avoid typing too much
+		//const RVO::Vector3 &pos = rvo_agent->position_;
+		//const RVO::Vector3 &vel = rvo_agent->newVelocity_;
+
+		//np_agent.fpos3 = Vector3(pos.x(), pos.y(), pos.z());
+		//np_agent.fvel3 = Vector3(vel.x(), vel.y(), vel.z());
+
+		navphysics_map.iterate_agent(id);
+
+		// save the new position after navphysics applied
+		gd_agent.set_navphysics_callback_data(np_agent.fpos3, np_agent.fvel3);
+	}
+	*/
+}
+
+void NavMap::step_agent(RvoAgent *agent, real_t p_delta) {
+	agent->get_agent()->computeNeighbors(&rvo);
+	agent->get_agent()->computeNewVelocity(p_delta);
 }
 
 void NavMap::step(real_t p_deltatime) {
 	deltatime = p_deltatime;
+
+#if 1
 	if (controlled_agents.size() > 0) {
 		if (step_work_pool.get_thread_count() == 0) {
 			step_work_pool.init();
@@ -699,11 +754,20 @@ void NavMap::step(real_t p_deltatime) {
 				&NavMap::compute_single_step,
 				controlled_agents.ptr());
 	}
+#else
+	for (int i(0); i < static_cast<int>(controlled_agents.size()); i++) {
+		compute_single_step(i, controlled_agents.ptr());
+	}
+#endif
+}
+
+void NavMap::set_navphysics_enabled(bool p_enabled) {
+	navphysics_enabled = p_enabled;
 }
 
 void NavMap::dispatch_callbacks() {
 	for (int i(0); i < static_cast<int>(controlled_agents.size()); i++) {
-		controlled_agents[i]->dispatch_callback();
+		controlled_agents[i]->dispatch_callback(navphysics_enabled);
 	}
 }
 
@@ -740,8 +804,10 @@ void NavMap::clip_path(const LocalVector<gd::NavigationPoly> &p_navigation_polys
 }
 
 NavMap::NavMap() {
+	navphysics_map = NavPhysicsServer::get_singleton()->map_create();
 }
 
 NavMap::~NavMap() {
 	step_work_pool.finish();
+	NavPhysicsServer::get_singleton()->map_free(navphysics_map);
 }
