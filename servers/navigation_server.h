@@ -108,6 +108,7 @@ public:
 
 	/// Creates a new region.
 	virtual RID region_create() const = 0;
+	virtual np_handle region_get_navphysics_region(RID p_region) const = 0;
 
 	/// Set the enter_cost of a region
 	virtual void region_set_enter_cost(RID p_region, real_t p_enter_cost) const = 0;

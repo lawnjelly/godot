@@ -115,6 +115,7 @@ public:
 	virtual np_handle map_get_navphysics_map(RID p_map) const;
 
 	virtual RID region_create() const;
+	virtual np_handle region_get_navphysics_region(RID p_region) const;
 
 	COMMAND_2(region_set_enter_cost, RID, p_region, real_t, p_enter_cost);
 	virtual real_t region_get_enter_cost(RID p_region) const;

@@ -21,20 +21,21 @@ real_t Mesh::find_agent_fit(Agent &r_agent) const {
 	return 1.0;
 }
 
-void Mesh::teleport_agent(Agent &r_agent) const {
+void Mesh::teleport_agent(Agent &r_agent) {
 	r_agent.pos = float_to_vec2(r_agent.fpos);
-
 	//r_agent.pos.set(7906, 41409);
 
-	r_agent.poly_id = find_poly_within(r_agent.pos);
+	uint32_t new_poly_id = find_poly_within(r_agent.pos);
+	_agent_enter_poly(r_agent, new_poly_id, true);
+
 	if (r_agent.poly_id == UINT32_MAX) {
 		WARN_PRINT("not within poly");
 
 		// just guess a poly
 		if (get_num_polys()) {
-			r_agent.poly_id = 0;
-			const Poly &poly = get_poly(r_agent.poly_id);
+			const Poly &poly = get_poly(0);
 			r_agent.pos = poly.center;
+			_agent_enter_poly(r_agent, 0, true);
 		}
 
 		return;
@@ -43,7 +44,48 @@ void Mesh::teleport_agent(Agent &r_agent) const {
 	}
 }
 
-void Mesh::iterate_agent(Agent &r_agent) const {
+PoolVector<Face3> Mesh::mesh_get_faces() const {
+	PoolVector<Face3> faces;
+
+	for (uint32_t n = 0; n < get_num_polys(); n++) {
+		const Poly &poly = get_poly(n);
+		if ((poly.narrowing_id != UINT32_MAX) && (poly.num_inds >= 3)) {
+			// add the poly to the debug faces
+			Face3 face;
+			for (uint32_t c = 0; c < 3; c++) {
+				uint32_t ind = get_ind(poly.first_ind + c);
+				face.vertex[c] = _fverts3[ind];
+			}
+			faces.push_back(face);
+		}
+	}
+
+	return faces;
+	// return PoolVector<Face3>();
+}
+
+void Mesh::agent_get_info(const Agent &p_agent, BodyInfo &r_body_info) const {
+	r_body_info.p_poly_id = p_agent.poly_id;
+	r_body_info.p_blocking_narrowing_id = p_agent.blocking_narrowing_id;
+
+	if (p_agent.poly_id != UINT32_MAX) {
+		r_body_info.p_narrowing_id = get_poly(p_agent.poly_id).narrowing_id;
+
+		if (r_body_info.p_narrowing_id != UINT32_MAX) {
+			const NavPhysics::Narrowing &nar = get_narrowing(r_body_info.p_narrowing_id);
+			r_body_info.p_narrowing_available = nar.available;
+			r_body_info.p_narrowing_used = nar.used;
+		}
+	}
+
+	if (r_body_info.p_blocking_narrowing_id != UINT32_MAX) {
+		const NavPhysics::Narrowing &nar = get_narrowing(r_body_info.p_blocking_narrowing_id);
+		r_body_info.p_blocking_narrowing_available = nar.available;
+		r_body_info.p_blocking_narrowing_used = nar.used;
+	}
+}
+
+void Mesh::iterate_agent(Agent &r_agent) {
 	//print_line("c++ agent at pos " + String(Variant(r_agent.fpos)));
 
 	// has the float position moved significantly? if not, retain
@@ -75,16 +117,155 @@ void Mesh::iterate_agent(Agent &r_agent) const {
 	r_agent.fvel = fp_vel_to_vel(r_agent.vel);
 }
 
-void Mesh::_iterate_agent(Agent &r_agent) const {
+bool Mesh::_agent_enter_poly(Agent &r_agent, uint32_t p_new_poly_id, bool p_force_allow) {
+	if (r_agent.ignore_narrowings) {
+		r_agent.poly_id = p_new_poly_id;
+		return true;
+	}
+
+	uint32_t old_poly_id = r_agent.poly_id;
+
+	if (old_poly_id == p_new_poly_id) {
+		return true;
+	}
+
+	// get old narrowing
+	Poly *old_poly = nullptr;
+	Narrowing *old_narrowing = nullptr;
+	uint32_t old_available = 0;
+
+	if (old_poly_id != UINT32_MAX) {
+		old_poly = &get_poly(old_poly_id);
+
+		if (old_poly->narrowing_id != UINT32_MAX) {
+			old_narrowing = &_narrowings[old_poly->narrowing_id];
+			old_available = old_narrowing->available;
+		}
+	}
+
+	// get new narrowing
+	Poly *new_poly = nullptr;
+	Narrowing *new_narrowing = nullptr;
+
+	if (p_new_poly_id != UINT32_MAX) {
+		new_poly = &get_poly(p_new_poly_id);
+
+		if (new_poly->narrowing_id != UINT32_MAX) {
+			new_narrowing = &_narrowings[new_poly->narrowing_id];
+		}
+	}
+	////////////////////////////////////////////////////////////
+
+	// try to enter the new poly BEFORE leaving the old
+	if (new_poly) {
+		// special case, both polys are in the same narrowing
+		if (old_poly && (old_poly->narrowing_id == new_poly->narrowing_id)) {
+			r_agent.poly_id = p_new_poly_id;
+			return true;
+		}
+
+		if (new_narrowing) {
+			uint32_t available = new_narrowing->available;
+
+			// Special modification... when moving from a larger narrowing to a tighter,
+			// allow 1 less agent to enter. This makes it more likely agents can exit from tight
+			// narrowings.
+			if (old_available > available) {
+				available--;
+				// always allow at least one
+				if (!available) {
+					available = 1;
+				}
+			}
+
+			if ((new_narrowing->used >= available) && !p_force_allow) {
+				return false;
+			}
+
+			new_narrowing->used += 1;
+#ifdef DEV_ENABLED
+
+			int64_t found = new_narrowing->used_agent_ids.find(r_agent.agent_id);
+			if (found != -1) {
+				WARN_PRINT("New narrowing already contains agent id.");
+			}
+			new_narrowing->used_agent_ids.push_back(r_agent.agent_id);
+#endif
+		}
+	}
+
+	// save the new poly id
+	r_agent.poly_id = p_new_poly_id;
+
+	if (old_narrowing) {
+		if (old_narrowing->used) {
+			old_narrowing->used -= 1;
+		} else {
+			WARN_PRINT("Old narrowing has no agents.");
+		}
+
+#ifdef DEV_ENABLED
+		int64_t found = old_narrowing->used_agent_ids.find(r_agent.agent_id);
+		if (found != -1) {
+			old_narrowing->used_agent_ids.remove_unordered(found);
+		} else {
+			WARN_PRINT("Old narrowing does not contain agent id.");
+		}
+#endif
+	}
+
+	return true;
+}
+
+/*
+// return whether allowed
+bool Mesh::_agent_enter_poly(uint32_t p_old_poly_id, uint32_t p_new_poly_id, bool p_force_allow) {
+	if (p_old_poly_id == p_new_poly_id) {
+		return true;
+	}
+
+	// try to enter the new poly BEFORE leaving the old
+	if (p_new_poly_id != UINT32_MAX) {
+		Poly &new_poly = get_poly(p_new_poly_id);
+
+		if (new_poly.narrowing_id != UINT32_MAX) {
+			Narrowing &narrowing = _narrowings[new_poly.narrowing_id];
+			if ((narrowing.used >= narrowing.available) && !p_force_allow) {
+				return false;
+			}
+
+			narrowing.used += 1;
+		}
+	}
+
+	if (p_old_poly_id != UINT32_MAX) {
+		Poly &old_poly = get_poly(p_old_poly_id);
+		if (old_poly.narrowing_id != UINT32_MAX) {
+			Narrowing &narrowing = _narrowings[old_poly.narrowing_id];
+			if (narrowing.used) {
+				narrowing.used -= 1;
+			} else {
+				WARN_PRINT("Old narrowing has no agents.");
+			}
+		}
+	}
+
+	return true;
+}
+*/
+
+void Mesh::_iterate_agent(Agent &r_agent) {
 	Agent &ag = r_agent;
 
 	if (ag.poly_id == UINT32_MAX) {
-		ag.poly_id = find_poly_within(ag.pos);
-		if (ag.poly_id == UINT32_MAX) {
+		uint32_t new_poly_id = find_poly_within(ag.pos);
+		//ag.poly_id = find_poly_within(ag.pos);
+		if (new_poly_id == UINT32_MAX) {
 			WARN_PRINT("not within poly");
 			return;
 		} else {
 			print_line("c++ agent within poly " + itos(ag.poly_id));
+			_agent_enter_poly(r_agent, new_poly_id, true);
 		}
 	}
 
@@ -113,11 +294,23 @@ void Mesh::_iterate_agent(Agent &r_agent) const {
 	//real_t dist_moved = (minfo.pos_reached - ag.pos).length();
 	//_log("\t\tdistance moved overall : " + String(Variant(dist_moved)));
 
-	ag.poly_id = minfo.poly_id;
-	ag.pos = minfo.pos_reached;
-	ag.wall_id = minfo.wall_id;
+	// if the move allowed by poly agent limits
+	if (_agent_enter_poly(r_agent, minfo.poly_id)) {
+		ag.pos = minfo.pos_reached;
+		ag.wall_id = minfo.wall_id;
 
-	ag.vel = ag.pos - old_pos;
+		ag.vel = ag.pos - old_pos;
+		ag.blocking_narrowing_id = UINT32_MAX;
+	} else {
+		// debugging, record the blocking narrowing
+		if (minfo.poly_id != UINT32_MAX) {
+			ag.blocking_narrowing_id = get_poly(minfo.poly_id).narrowing_id;
+		}
+		ag.vel.zero();
+		ag.state = AGENT_STATE_BLOCKED_BY_NARROWING;
+
+		// print_line("narrowing blocked agent at poly " + itos(minfo.poly_id));
+	}
 
 	_log("\tagent FINAL pos " + ag.pos.sz() + ", vel " + ag.vel.sz() + ", poly " + itos(ag.poly_id));
 
@@ -264,6 +457,36 @@ Mesh::MoveResult Mesh::recursive_move(int32_t p_depth, vec2 p_from, vec2 p_vel, 
 	p_hug_wall_id = wall_id;
 	// const Wall &wall = get_wall(p_hug_wall_id);
 	return recursive_move(p_depth + 1, pt_intersect, p_vel, p_poly_id, p_poly_from_id, p_hug_wall_id, r_info);
+}
+
+void Mesh::body_trace(const Agent &p_agent, NavPhysics::TraceResult &r_result) const {
+	TraceInfo trace_info;
+
+	// transform destination to mesh space
+	Vector3 dest = r_result.mesh.hit_point;
+	dest = get_transform_inverse().xform(dest);
+
+	vec2 to = float_to_vec2(Vector2(dest.x, dest.z));
+
+	TraceResult res = recursive_trace(0, p_agent.pos, to, p_agent.poly_id, trace_info);
+	r_result.mesh.hit = (res == TR_SLIDE);
+
+	if (r_result.mesh.hit) {
+		Vector2 hp = vec2_to_float(trace_info.hit_point);
+		real_t height = find_height_on_poly(trace_info.poly_id, trace_info.hit_point);
+		r_result.mesh.hit_point = Vector3(hp.x, height, hp.y);
+
+		// back transform
+		r_result.mesh.hit_point = get_transform().xform(r_result.mesh.hit_point);
+
+		// normal
+		ERR_FAIL_COND(trace_info.slide_wall == UINT32_MAX);
+		const vec2 &norm = get_wall(trace_info.slide_wall).normal;
+		Vector2 norm2 = vec2_to_float(norm);
+
+		r_result.mesh.hit_normal = Vector3(norm2.x, 0, norm2.y);
+		r_result.mesh.hit_normal = get_transform().basis.xform_normal(r_result.mesh.hit_normal);
+	}
 }
 
 Mesh::TraceResult Mesh::recursive_trace(int32_t p_depth, vec2 p_from, vec2 p_to, uint32_t p_poly_id, TraceInfo &r_info) const {

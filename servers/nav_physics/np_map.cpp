@@ -67,6 +67,9 @@ void NavPhysics::Map::tick_update(real_t p_delta) {
 
 		agent_a.fvel3 -= offset;
 		agent_b.fvel3 += offset;
+
+		agent_a.state = AGENT_STATE_PENDING_COLLIDING;
+		agent_b.state = AGENT_STATE_PENDING_COLLIDING;
 	}
 }
 
@@ -133,6 +136,10 @@ bool NavPhysics::Map::update_agent_mesh(Agent &r_agent, uint32_t p_agent_id) {
 
 void NavPhysics::Map::iterate_agent(uint32_t p_agent_id) {
 	Agent &agent = g_world.get_body(p_agent_id);
+
+	// Initialize the agent state each tick. This may already have been set to colliding by the agent - agent collision detection,
+	// which happens before iterate_agent().
+	agent.state = (agent.state != AGENT_STATE_PENDING_COLLIDING) ? AGENT_STATE_CLEAR : AGENT_STATE_COLLIDING;
 
 	if (!update_agent_mesh(agent, p_agent_id)) {
 		return;
@@ -320,6 +327,11 @@ np_handle World::safe_body_create() {
 	NavPhysics::Agent *agent = _agents.request(id);
 	if (agent) {
 		agent->blank();
+
+#ifdef DEV_ENABLED
+		agent->agent_id = id;
+#endif
+
 		if (!agent->revision) {
 			// special case, zero is reserved
 			agent->revision = 1;
@@ -437,6 +449,7 @@ void World::tick_update(real_t p_delta) {
 
 	Variant::CallError responseCallError;
 	Variant returned_position;
+	Variant returned_state;
 
 	StringName callback_func_name = "_navphysics_done";
 
@@ -455,9 +468,10 @@ void World::tick_update(real_t p_delta) {
 
 		// result is stored in agent.fpos3
 		if (agent.callback.receiver) {
-			int argc = 1;
+			int argc = 2;
 			returned_position = agent.fpos3;
-			const Variant *vp[1] = { &returned_position };
+			returned_state = agent.state;
+			const Variant *vp[2] = { &returned_position, &returned_state };
 
 			// This will crash if the client does not keep the callback object up to date.
 			// This is a sacrifice for call speed versus using e.g. ObjectID lookups.

@@ -82,6 +82,7 @@ bool Loader::load_mesh(Ref<NavigationMesh> p_navmesh, NavPhysics::Mesh &r_mesh) 
 	load_fixed_point_verts(r_mesh);
 	find_links(r_mesh);
 	find_walls(r_mesh);
+	find_bottlenecks(r_mesh);
 
 	print_line("NavPhysics loaded mesh:");
 	print_line("\tpolys: " + itos(r_mesh.get_num_polys()));
@@ -171,9 +172,9 @@ void Loader::find_walls(NavPhysics::Mesh &r_dest) {
 
 	r_dest._walls.resize(num_walls);
 	for (uint32_t w = 0; w < num_walls; w++) {
-		if (!r_dest.is_hard_wall(w)) {
-			continue;
-		}
+		// if (!r_dest.is_hard_wall(w)) {
+		// continue;
+		// }
 
 		uint32_t ind_a = r_dest.get_ind(w);
 		uint32_t ind_b = r_dest.get_ind_next(w);
@@ -423,6 +424,191 @@ void Loader::plane_from_poly_newell(NavPhysics::Mesh &r_dest, NavPhysics::Poly &
 
 	// point and normal
 	r_poly.plane = Plane(center, normal);
+}
+
+bool Loader::flood_fill_narrowing(NavPhysics::Mesh &r_dest, uint32_t p_poly_id, uint32_t p_narrowing_id, uint32_t p_narrowing_width) {
+	Poly &poly = r_dest.get_poly(p_poly_id);
+	if (poly.narrowing_width != p_narrowing_width) {
+		return false;
+	}
+
+	// prevent being hit again
+	poly.narrowing_width = 0;
+	poly.narrowing_id = p_narrowing_id;
+
+	// recurse
+	for (uint32_t i = 0; i < poly.num_inds; i++) {
+		uint32_t ind = poly.first_ind + i;
+
+		uint32_t link_poly_id = r_dest.get_link(ind);
+		if (link_poly_id != UINT32_MAX) {
+			flood_fill_narrowing(r_dest, link_poly_id, p_narrowing_id, p_narrowing_width);
+		}
+	}
+
+	return true;
+}
+
+void Loader::find_bottlenecks(NavPhysics::Mesh &r_dest) {
+	//return;
+	uint32_t flood_fill_counter = 0;
+
+	// go through and find each hard wall, and see if this wall creates a bottleneck
+	for (uint32_t w = 0; w < r_dest.get_num_links(); w++) {
+		if (r_dest.is_hard_wall(w)) {
+			const Wall &wall = r_dest.get_wall(w);
+			uint32_t poly_id = wall.poly_id;
+
+			if (poly_id != UINT32_MAX) {
+				flood_fill_counter++;
+				flood_fill_bottleneck(r_dest, poly_id, w, flood_fill_counter);
+			}
+		}
+	}
+
+	for (uint32_t n = 0; n < r_dest.get_num_polys(); n++) {
+		Poly &poly = r_dest.get_poly(n);
+		poly.flood_fill_counter = 0;
+		// print_line("c++ poly " + itos(n) + " dist " + itos(poly.narrowing_width));
+
+		// translate narrowing width to num agents
+		poly.narrowing_width = MAX(poly.narrowing_width / 2500, 1);
+	}
+
+	for (uint32_t n = 0; n < r_dest.get_num_polys(); n++) {
+		const Poly &poly = r_dest.get_poly(n);
+		if (poly.narrowing_width) {
+			// create a narrowing
+			uint32_t narrowing_id = r_dest._narrowings.size();
+			print_line("Creating narrowing " + itos(narrowing_id));
+			r_dest._narrowings.resize(narrowing_id + 1);
+
+			// record the width for the narrowing
+			r_dest._narrowings[narrowing_id].available = poly.narrowing_width;
+			flood_fill_narrowing(r_dest, n, narrowing_id, poly.narrowing_width);
+		}
+	}
+}
+
+uint32_t Loader::flood_fill_bottleneck(NavPhysics::Mesh &r_dest, uint32_t p_poly_id, uint32_t p_start_wall_id, uint32_t p_flood_fill_counter) {
+	Poly &poly = r_dest.get_poly(p_poly_id);
+	if (poly.flood_fill_counter == (uint16_t)p_flood_fill_counter) {
+		// already flood filled
+		return 0;
+	}
+
+	// mark poly as done
+	poly.flood_fill_counter = p_flood_fill_counter;
+
+	//bool was_bottleneck = false;
+	uint32_t narrowest_dist = 0;
+	//uint32_t furthest_wall = UINT32_MAX;
+
+	const Wall &start_wall = r_dest.get_wall(p_start_wall_id);
+
+	const real_t threshold = vec2::FP_RANGE / 4.0f;
+
+	uint32_t ind_a = start_wall.vert_a;
+	uint32_t ind_b = start_wall.vert_b;
+
+	const vec2 &wa = r_dest.get_vert(ind_a);
+	const vec2 &wb = r_dest.get_vert(ind_b);
+
+	// try every edge
+	for (uint32_t i = 0; i < poly.num_inds; i++) {
+		uint32_t wall_id = poly.first_ind + i;
+
+		if (wall_id == p_start_wall_id) {
+			continue;
+		}
+
+		const Wall &wall = r_dest.get_wall(wall_id);
+
+		// ignore if not opposite to startwall
+		real_t dot = wall.normal.dot(start_wall.normal);
+		if (dot > 0)
+			continue;
+
+		uint32_t ind_c = r_dest.get_ind(wall_id);
+		uint32_t ind_d = r_dest.get_ind_next(wall_id);
+
+		const vec2 &wc = r_dest.get_vert(ind_c);
+		const vec2 &wd = r_dest.get_vert(ind_d);
+
+		// get the wall
+		uint32_t linked_poly_id = r_dest.get_link(wall_id);
+
+		//		if (linked_poly_id != UINT32_MAX) {
+		//			const Poly &next_poly = r_dest.get_poly(linked_poly_id);
+		//			if (next_poly.curr_agents == p_flood_fill_counter) {
+		//				// done already
+		//				continue;
+		//			}
+		//		}
+
+		Vector2 pa = wa.to_Vector2();
+		Vector2 pb = wb.to_Vector2();
+		Vector2 pc = wc.to_Vector2();
+		Vector2 pd = wd.to_Vector2();
+
+		Vector2 c1, c2;
+		uint32_t dist = Geometry::get_closest_points_between_segments(pa, pb, pc, pd, c1, c2);
+
+		if (dist > threshold) {
+			continue;
+		}
+
+		// ignore adjoining walls
+		//		if (dist < 1.0f) {
+		//			continue;
+		//		}
+
+		if (r_dest.is_hard_wall(wall_id)) {
+			//			if (ind_c == ind_b)
+			//				continue;
+
+			//			if (ind_d == ind_a)
+			//				continue;
+
+			//const Wall &wall = r_dest.get_wall(ind);
+
+			// ignore if not opposite to startwall
+			if (dot > -0.5f)
+				continue;
+
+			// special case, sharp angle within same triangle
+			if (p_poly_id == start_wall.poly_id) {
+				dist = (pd - pa).length();
+				if (dist == 0) {
+					dist = (pc - pb).length();
+				}
+			}
+
+			replace_poly_narrow_dist(poly, dist, p_start_wall_id, wall_id);
+			// print_line("poly " + itos(p_poly_id) + " wall was bottleneck.");
+			return dist;
+		} else {
+			// recurse
+			uint32_t ret = flood_fill_bottleneck(r_dest, linked_poly_id, p_start_wall_id, p_flood_fill_counter);
+
+			if (ret) {
+				if (!narrowest_dist || (ret < narrowest_dist)) {
+					narrowest_dist = ret;
+				}
+				replace_poly_narrow_dist(poly, ret, p_start_wall_id, wall_id);
+				// print_line("poly " + itos(p_poly_id) + " was bottleneck.");
+			}
+		}
+	}
+
+	return narrowest_dist;
+}
+
+void Loader::replace_poly_narrow_dist(NavPhysics::Poly &r_poly, uint32_t p_dist, uint32_t p_start_wall_id, uint32_t p_wall_id) {
+	if (r_poly.narrowing_width && (r_poly.narrowing_width < p_dist))
+		return;
+
+	r_poly.narrowing_width = p_dist;
 }
 
 bool Loader::load_polys(Ref<NavigationMesh> p_navmesh, NavPhysics::Mesh &r_dest) {

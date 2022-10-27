@@ -3,9 +3,18 @@
 #include "scene/3d/spatial.h"
 #include "servers/nav_physics/np_defines.h"
 
+class Label3D;
+
 class NavPhysicsAgent : public Spatial {
 	GDCLASS(NavPhysicsAgent, Spatial);
 
+public:
+	enum PathResult : unsigned int {
+		PATH_RESULT_SUCCESS,
+		PATH_RESULT_STUCK,
+	};
+
+private:
 	struct Data {
 		RID agent;
 		RID map;
@@ -20,6 +29,7 @@ class NavPhysicsAgent : public Spatial {
 		bool avoidance : 1;
 		bool avoidance_ignore_y : 1;
 		bool path_auto_follow : 1;
+		NavPhysics::AgentState state : 4;
 
 		real_t jump_height = 0.0f;
 		real_t jump_vel = 0.0f;
@@ -33,6 +43,7 @@ class NavPhysicsAgent : public Spatial {
 			avoidance = false;
 			avoidance_ignore_y = true;
 			path_auto_follow = true;
+			state = NavPhysics::AGENT_STATE_CLEAR;
 		}
 		static int ticks_per_second;
 		static real_t tick_duration;
@@ -44,6 +55,7 @@ class NavPhysicsAgent : public Spatial {
 		real_t time_horizon = 5.0f;
 		real_t radius = 1.0f;
 		real_t max_speed = 10.0f;
+		bool ignore_narrowings = false;
 	} avoidance;
 
 	struct Path {
@@ -63,7 +75,32 @@ class NavPhysicsAgent : public Spatial {
 		real_t speed = 6.0f;
 		real_t waypoint_threshold = 0.2f;
 		real_t waypoint_threshold_squared = 1.0f;
+
+		// periodic trace to the next waypoint, to check for being stuck
+		// and needing a repath if blocked...
+		//uint32_t trace_timeout = 0;
+
+		// when blocked by a narrowing, stop pathfollowing for a set interval, to
+		// allow being pushed aside more easily
+		uint32_t blocked_timeout = 0;
+
+		Vector3 stuck_record;
+		uint32_t stuck_timeout = 0;
+
+		PathResult result : 2;
+		bool repathing : 1;
+		Path() {
+			result = PATH_RESULT_SUCCESS;
+			repathing = false;
+		}
+
 	} path;
+
+	struct Debug {
+		bool enabled = true;
+		uint32_t checksum = 0;
+		Label3D *label = nullptr;
+	} debug;
 
 protected:
 	static void _bind_methods();
@@ -88,6 +125,7 @@ public:
 	real_t get_path_waypoint_threshold() const { return path.waypoint_threshold; }
 	void set_path_auto_follow(bool p_enabled) { data.path_auto_follow = p_enabled; }
 	bool get_path_auto_follow() const { return data.path_auto_follow; }
+	PathResult get_path_result() const { return path.result; }
 
 	// Avoidance
 	void set_avoidance_enabled(bool p_enabled);
@@ -104,6 +142,8 @@ public:
 	real_t get_avoidance_max_speed() const { return avoidance.max_speed; }
 	void set_avoidance_ignore_y(bool p_ignore_y);
 	bool get_avoidance_ignore_y() const { return data.avoidance_ignore_y; }
+	void set_avoidance_ignore_narrowings(bool p_enabled);
+	bool get_avoidance_ignore_narrowings() const { return avoidance.ignore_narrowings; }
 
 	// FUNCS
 
@@ -122,7 +162,7 @@ public:
 	real_t path_get_distance_to_next_waypoint() const;
 	const Vector3 &path_get_next_waypoint() const;
 
-	void _navphysics_done(const Vector3 &p_floor_pos);
+	void _navphysics_done(const Vector3 &p_floor_pos, NavPhysics::AgentState p_state);
 
 	NavPhysicsAgent();
 	virtual ~NavPhysicsAgent();
@@ -133,3 +173,6 @@ private:
 	void _update_path();
 	void _iterate_nav_physics();
 };
+
+VARIANT_ENUM_CAST(NavPhysics::AgentState);
+VARIANT_ENUM_CAST(NavPhysicsAgent::PathResult);

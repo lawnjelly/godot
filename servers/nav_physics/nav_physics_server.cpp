@@ -56,6 +56,13 @@ void NavPhysicsServer::region_set_transform(np_handle p_region, const Transform 
 	region->set_transform(p_xform);
 }
 
+PoolVector<Face3> NavPhysicsServer::region_get_faces(np_handle p_region) const {
+	NavPhysics::Region *region = NavPhysics::g_world.safe_get_region(p_region);
+	ERR_FAIL_NULL_V(region, PoolVector<Face3>());
+
+	return region->region_get_faces();
+}
+
 np_handle NavPhysicsServer::mesh_create() {
 	return NavPhysics::g_world.safe_mesh_create();
 }
@@ -185,6 +192,38 @@ void NavPhysicsServer::body_set_map(np_handle p_body, np_handle p_map) {
 void NavPhysicsServer::body_set_enabled(np_handle p_body, bool p_enabled) {
 }
 
+const NavPhysics::TraceResult &NavPhysicsServer::body_trace(np_handle p_body, const Vector3 &p_destination, bool p_trace_navmesh, bool p_trace_obstacles) {
+	static NavPhysics::TraceResult res;
+	res.blank();
+	res.mesh.hit_point = p_destination;
+
+	const NavPhysics::Agent *agent = NavPhysics::g_world.safe_get_body(p_body);
+	ERR_FAIL_NULL_V(agent, res);
+
+	if (p_trace_navmesh) {
+		const NavPhysics::Mesh &mesh = NavPhysics::g_world.get_mesh(agent->get_mesh_id());
+		mesh.body_trace(*agent, res);
+	}
+
+	if (p_trace_obstacles) {
+		// NYI
+	}
+
+	return res;
+}
+
+bool NavPhysicsServer::body_get_info(np_handle p_body, NavPhysics::BodyInfo &r_body_info) {
+	r_body_info.blank();
+
+	NavPhysics::Agent *agent = NavPhysics::g_world.safe_get_body(p_body);
+	ERR_FAIL_NULL_V(agent, false);
+
+	const NavPhysics::Mesh &mesh = NavPhysics::g_world.get_mesh(agent->get_mesh_id());
+	mesh.agent_get_info(*agent, r_body_info);
+
+	return true;
+}
+
 void NavPhysicsServer::body_teleport(np_handle p_body, const Vector3 &p_position) {
 	NavPhysics::Agent *agent = NavPhysics::g_world.safe_get_body(p_body);
 	ERR_FAIL_NULL(agent);
@@ -198,10 +237,11 @@ void NavPhysicsServer::body_add_impulse(np_handle p_body, const Vector3 &p_impul
 	agent->fvel3 += p_impulse;
 }
 
-void NavPhysicsServer::body_set_params(np_handle p_body, real_t p_friction) {
+void NavPhysicsServer::body_set_params(np_handle p_body, real_t p_friction, bool p_ignore_narrowings) {
 	NavPhysics::Agent *agent = NavPhysics::g_world.safe_get_body(p_body);
 	ERR_FAIL_NULL(agent);
 	agent->friction = CLAMP(p_friction, 0.0f, 1.0f);
+	agent->ignore_narrowings = p_ignore_narrowings;
 }
 
 void NavPhysicsServer::body_set_callback(np_handle p_body, Object *p_receiver) {

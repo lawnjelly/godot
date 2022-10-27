@@ -160,6 +160,9 @@ public:
 
 	np_handle map = 0;
 	uint32_t revision = 0;
+#ifdef DEV_ENABLED
+	uint32_t agent_id = 0;
+#endif
 
 	vec2 pos = { 0, 0 };
 	vec2 vel = { 0, 0 };
@@ -168,6 +171,10 @@ public:
 	real_t height = 0;
 	uint32_t poly_id = 0;
 	uint32_t wall_id = 0;
+
+	AgentState state : 4;
+	bool ignore_narrowings : 1;
+	uint32_t blocking_narrowing_id = UINT32_MAX;
 
 	real_t friction = 0;
 	real_t radius = 1.0;
@@ -183,6 +190,9 @@ public:
 	void blank() {
 		// DO NOT CHANGE REVISION,
 		// this should be preserved for error checking handles.
+#ifdef DEV_ENABLED
+		agent_id = 0;
+#endif
 		map = 0;
 		mesh_id = UINT32_MAX;
 		pos.zero();
@@ -190,6 +200,9 @@ public:
 		height = 0.0;
 		poly_id = UINT32_MAX;
 		wall_id = UINT32_MAX;
+		state = AGENT_STATE_CLEAR;
+		ignore_narrowings = false;
+		blocking_narrowing_id = UINT32_MAX;
 		friction = 0.6;
 		radius = 1.0;
 		fpos3 = Vector3();
@@ -205,6 +218,12 @@ struct Poly {
 	Plane plane;
 	vec2 center = { 0, 0 };
 	Vector3 center3;
+
+	// bottlenecks
+	uint32_t narrowing_id = UINT32_MAX;
+
+	uint16_t narrowing_width = 0;
+	uint16_t flood_fill_counter = 0; // doubles as a flood fill counter for finding bottleneck areas
 };
 
 struct Wall {
@@ -218,6 +237,15 @@ struct Wall {
 	bool has_vert(uint32_t p_vert_id) const {
 		return (vert_a == p_vert_id) || (vert_b == p_vert_id);
 	}
+};
+
+struct Narrowing {
+	uint32_t available = 0;
+	uint32_t used = 0;
+
+#ifdef DEV_ENABLED
+	LocalVector<uint32_t> used_agent_ids;
+#endif
 };
 
 }; //namespace NavPhysics

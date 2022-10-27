@@ -310,6 +310,13 @@ RID GodotNavigationServer::region_create() const {
 	return rid;
 }
 
+np_handle GodotNavigationServer::region_get_navphysics_region(RID p_region) const {
+	NavRegion *region = region_owner.getornull(p_region);
+	ERR_FAIL_NULL_V(region, 0);
+
+	return region->get_navphysics_region();
+}
+
 COMMAND_2(region_set_map, RID, p_region, RID, p_map) {
 	NavRegion *region = region_owner.getornull(p_region);
 	ERR_FAIL_COND(region == nullptr);

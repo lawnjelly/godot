@@ -40,4 +40,15 @@ void Region::unregister_mesh(uint32_t p_mesh_id, uint32_t p_mesh_slot_id) {
 	_meshes.free(p_mesh_slot_id);
 }
 
+PoolVector<Face3> Region::region_get_faces() const {
+	for (uint32_t n = 0; n < _meshes.active_size(); n++) {
+		uint32_t mesh_id = _meshes.get_active(n);
+
+		const Mesh &mesh = g_world.get_mesh(mesh_id);
+		return mesh.mesh_get_faces();
+	}
+
+	return PoolVector<Face3>();
+}
+
 } //namespace NavPhysics

@@ -19,6 +19,7 @@ class Mesh {
 	LocalVector<uint32_t> _links;
 	LocalVector<Wall> _walls;
 	LocalVector<Poly> _polys;
+	LocalVector<Narrowing> _narrowings;
 
 	Vector2 _float_to_fp_scale;
 	Vector2 _float_to_fp_offset;
@@ -48,12 +49,15 @@ class Mesh {
 		_links.clear();
 		_walls.clear();
 		_polys.clear();
+		_narrowings.clear();
 	}
 
 	// Pointer from the main navigation, used for unloading.
 	//const NavMesh *_source_nav_mesh = nullptr;
 
-	void _iterate_agent(Agent &r_agent) const;
+	void _iterate_agent(Agent &r_agent);
+	//bool _agent_enter_poly(uint32_t p_old_poly_id, uint32_t p_new_poly_id, bool p_force_allow = false);
+	bool _agent_enter_poly(Agent &r_agent, uint32_t p_new_poly_id, bool p_force_allow = false);
 
 public:
 	// less is better fit
@@ -79,12 +83,17 @@ public:
 		return _region_id;
 	}
 
-	void iterate_agent(Agent &r_agent) const;
-	void teleport_agent(Agent &r_agent) const;
+	void iterate_agent(Agent &r_agent);
+	void teleport_agent(Agent &r_agent);
 	void set_transform(const Transform &p_xform, const Transform &p_xform_inv, bool p_is_identity);
 	const Transform &get_transform() const { return _transform; }
 	const Transform &get_transform_inverse() const { return _transform_inverse; }
 	bool is_transform_identity() const { return _transform_identity; }
+
+	void agent_get_info(const Agent &p_agent, BodyInfo &r_body_info) const;
+	void body_trace(const Agent &p_agent, NavPhysics::TraceResult &r_result) const;
+
+	PoolVector<Face3> mesh_get_faces() const;
 
 protected:
 	// accessors
@@ -105,9 +114,12 @@ protected:
 	uint32_t get_num_walls() const { return _walls.size(); }
 
 	const Poly &get_poly(uint32_t p_idx) const { return _polys[p_idx]; }
+	Poly &get_poly(uint32_t p_idx) { return _polys[p_idx]; }
 	uint32_t get_num_polys() const { return _polys.size(); }
 
 	void debug_poly(uint32_t p_poly_id) const;
+
+	const Narrowing &get_narrowing(uint32_t p_idx) const { return _narrowings[p_idx]; }
 
 	vec2 vel_to_fp_vel(const Vector2 &p_vel) const {
 		return vec2::make(p_vel * _float_to_fp_scale);

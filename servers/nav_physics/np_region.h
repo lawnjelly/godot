@@ -30,6 +30,8 @@ public:
 
 	uint32_t register_mesh(uint32_t p_mesh_id);
 	void unregister_mesh(uint32_t p_mesh_id, uint32_t p_mesh_slot_id);
+
+	PoolVector<Face3> region_get_faces() const;
 };
 
 } //namespace NavPhysics

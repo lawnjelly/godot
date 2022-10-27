@@ -40,6 +40,11 @@ private:
 	void wall_add_neighbour_wall(NavPhysics::Mesh &r_dest, uint32_t p_a, uint32_t p_b);
 	uint32_t find_or_create_vert(NavPhysics::Mesh &r_dest, const Vector3 &p_pt);
 	void plane_from_poly_newell(NavPhysics::Mesh &r_dest, NavPhysics::Poly &r_poly) const;
+
+	void find_bottlenecks(NavPhysics::Mesh &r_dest);
+	uint32_t flood_fill_bottleneck(NavPhysics::Mesh &r_dest, uint32_t p_poly_id, uint32_t p_start_wall_id, uint32_t p_flood_fill_counter);
+	bool flood_fill_narrowing(NavPhysics::Mesh &r_dest, uint32_t p_poly_id, uint32_t p_narrowing_id, uint32_t p_narrowing_width);
+	void replace_poly_narrow_dist(NavPhysics::Poly &r_poly, uint32_t p_dist, uint32_t p_start_wall_id, uint32_t p_wall_id);
 };
 
 } //namespace NavPhysics
