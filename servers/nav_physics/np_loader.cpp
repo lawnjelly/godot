@@ -472,7 +472,8 @@ void Loader::find_bottlenecks(NavPhysics::Mesh &r_dest) {
 		// print_line("c++ poly " + itos(n) + " dist " + itos(poly.narrowing_width));
 
 		// translate narrowing width to num agents
-		poly.narrowing_width = MAX(poly.narrowing_width / 2500, 1);
+		//poly.narrowing_width = MAX(poly.narrowing_width / 2500, 1);
+		poly.narrowing_width = MAX(poly.narrowing_width / 1200, 1);
 	}
 
 	for (uint32_t n = 0; n < r_dest.get_num_polys(); n++) {
@@ -624,6 +625,7 @@ bool Loader::load_polys(Ref<NavigationMesh> p_navmesh, NavPhysics::Mesh &r_dest)
 	}
 
 	r_dest._polys.resize(p_navmesh->get_polygon_count());
+	r_dest._polys_extra.resize(r_dest._polys.size());
 
 	for (uint32_t n = 0; n < r_dest._polys.size(); n++) {
 		Vector<int> source_poly = p_navmesh->get_polygon(n);
@@ -632,11 +634,17 @@ bool Loader::load_polys(Ref<NavigationMesh> p_navmesh, NavPhysics::Mesh &r_dest)
 		dpoly.first_ind = r_dest._inds.size();
 		dpoly.center3 = Vector3();
 
+		Face3 face3;
+
 		uint32_t num_poly_verts = source_poly.size();
 		for (uint32_t v = 0; v < num_poly_verts; v++) {
 			const Vector3 &pt = vertices[source_poly[v]];
 			r_dest._inds.push_back(find_or_create_vert(r_dest, pt));
 			dpoly.center3 += pt;
+
+			if (v < 3) {
+				face3.vertex[v] = pt;
+			}
 		}
 		dpoly.num_inds = source_poly.size();
 
@@ -646,6 +654,8 @@ bool Loader::load_polys(Ref<NavigationMesh> p_navmesh, NavPhysics::Mesh &r_dest)
 
 		// clockwise flag not yet dealt with...
 		plane_from_poly_newell(r_dest, dpoly);
+
+		r_dest._polys_extra[n].area = face3.get_area();
 	}
 
 	return true;

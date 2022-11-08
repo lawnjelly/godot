@@ -11,6 +11,7 @@ class NavPhysicsServer : public Object {
 	GDCLASS(NavPhysicsServer, Object);
 
 	static NavPhysicsServer *singleton;
+	static NavPhysics::TraceResult _trace_result;
 
 protected:
 	static void _bind_methods();
@@ -48,6 +49,12 @@ public:
 	void body_set_callback(np_handle p_body, Object *p_receiver);
 	bool body_get_info(np_handle p_body, NavPhysics::BodyInfo &r_body_info);
 	const NavPhysics::TraceResult &body_trace(np_handle p_body, const Vector3 &p_destination, bool p_trace_navmesh = true, bool p_trace_obstacles = false);
+	Vector3 body_choose_random_location(np_handle p_body) const;
+
+	// Trace geometry only in 2 segments. Out from body to intermediate, then to the final destination.
+	// Reports a hit point only if the first trace is clear. The hit point is either a hit or the final destination.
+	const NavPhysics::TraceResult &body_dual_trace(np_handle p_body, const Vector3 &p_intermediate_destination, const Vector3 &p_final_destination);
+
 	//const Vector3 &body_iterate(np_handle p_body);
 
 	void tick_update(real_t p_delta);

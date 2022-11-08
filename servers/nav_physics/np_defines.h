@@ -19,6 +19,12 @@ struct TraceResult {
 		bool hit = false;
 		Vector3 hit_point;
 		Vector3 hit_normal;
+
+		uint32_t hit_poly_id = UINT32_MAX;
+
+		// Set if something blocked the first intermediate trace in a dual trace.
+		// Unused in normal body trace.
+		bool first_trace_hit = false;
 	} mesh;
 
 	struct ObstacleTraceResult {

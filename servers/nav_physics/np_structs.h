@@ -176,6 +176,12 @@ public:
 	bool ignore_narrowings : 1;
 	uint32_t blocking_narrowing_id = UINT32_MAX;
 
+	uint16_t priority = 0;
+
+	// each obstacle has an effect here, this is reported back to the client
+	// for avoidance
+	Vector3 avoidance_fvel3;
+
 	real_t friction = 0;
 	real_t radius = 1.0;
 
@@ -209,6 +215,8 @@ public:
 		fvel3 = Vector3();
 		fpos3_teleport = Vector3();
 		callback.receiver = nullptr;
+		priority = 0;
+		avoidance_fvel3 = Vector3();
 	}
 };
 
@@ -224,6 +232,11 @@ struct Poly {
 
 	uint16_t narrowing_width = 0;
 	uint16_t flood_fill_counter = 0; // doubles as a flood fill counter for finding bottleneck areas
+};
+
+struct PolyExtra {
+	// extra data not needed for fast lookup
+	float area = 0.0f;
 };
 
 struct Wall {

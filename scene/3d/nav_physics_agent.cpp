@@ -1,5 +1,6 @@
 #include "nav_physics_agent.h"
 #include "core/engine.h"
+#include "scene/3d/immediate_geometry.h"
 #include "scene/3d/label_3d.h"
 #include "servers/nav_physics/nav_physics_server.h"
 #include "servers/navigation_server.h"
@@ -23,6 +24,8 @@ void NavPhysicsAgent::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("agent_add_force", "force"), &NavPhysicsAgent::agent_add_force);
 	ClassDB::bind_method(D_METHOD("agent_jump", "impulse", "allow_air_jump"), &NavPhysicsAgent::agent_jump, DEFVAL(false));
 	ClassDB::bind_method(D_METHOD("agent_is_jumping"), &NavPhysicsAgent::agent_is_jumping);
+	ClassDB::bind_method(D_METHOD("agent_get_push"), &NavPhysicsAgent::agent_get_push);
+	ClassDB::bind_method(D_METHOD("agent_choose_random_location"), &NavPhysicsAgent::agent_choose_random_location);
 
 	ClassDB::bind_method(D_METHOD("path_move_to", "destination"), &NavPhysicsAgent::path_move_to);
 	ClassDB::bind_method(D_METHOD("path_finished"), &NavPhysicsAgent::path_finished);
@@ -68,7 +71,9 @@ void NavPhysicsAgent::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_avoidance_ignore_narrowings", "enabled"), &NavPhysicsAgent::set_avoidance_ignore_narrowings);
 	ClassDB::bind_method(D_METHOD("get_avoidance_ignore_narrowings"), &NavPhysicsAgent::get_avoidance_ignore_narrowings);
 
-	ClassDB::bind_method(D_METHOD("_navphysics_done", "new_floor_position", "state"), &NavPhysicsAgent::_navphysics_done);
+	ClassDB::bind_method(D_METHOD("_navphysics_done", "new_floor_position", "avoidance", "state"), &NavPhysicsAgent::_navphysics_done);
+
+	ClassDB::bind_method(D_METHOD("set_debug_direction_node", "node"), &NavPhysicsAgent::set_debug_direction_node);
 
 	ADD_GROUP("Physics", "physics");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "physics_friction", PROPERTY_HINT_RANGE, "0.0,1.0"), "set_physics_friction", "get_physics_friction");
@@ -107,6 +112,13 @@ void NavPhysicsAgent::_notification(int p_what) {
 				debug.label->set_owner(get_owner());
 			}
 #endif
+
+			if (debug.imm) {
+				// Set as top level for some reason resets the transform to the parent when
+				// entering the tree. We need to counteract this as we want the immediate geometry
+				// in world space.
+				debug.imm->set_transform(Transform());
+			}
 		} break;
 		case NOTIFICATION_EXIT_TREE: {
 			path.clear();
@@ -144,12 +156,25 @@ NavPhysicsAgent::NavPhysicsAgent() {
 	}
 
 	if (debug.enabled) {
-		debug.label = memnew(Label3D);
-		add_child(debug.label);
-		debug.label->set_text("Testing 123");
-		debug.label->translate(Vector3(0, 3, 0));
-		debug.label->set_scale(Vector3(4, 4, 4));
-		debug.label->set_billboard_mode(SpatialMaterial::BillboardMode::BILLBOARD_FIXED_Y);
+		//		debug.label = memnew(Label3D);
+		//		add_child(debug.label);
+		//		debug.label->set_text("Testing 123");
+		//		debug.label->translate(Vector3(0, 3, 0));
+		//		debug.label->set_scale(Vector3(3, 3, 3));
+		//		debug.label->set_billboard_mode(SpatialMaterial::BillboardMode::BILLBOARD_FIXED_Y);
+
+		debug.imm = memnew(ImmediateGeometry);
+		add_child(debug.imm);
+		debug.imm->set_as_toplevel(true);
+	}
+}
+
+void NavPhysicsAgent::set_debug_direction_node(Node *p_node) {
+	debug.direction_node = Object::cast_to<Spatial>(p_node);
+
+	if (debug.direction_node && (debug.direction_node->get_parent() != this)) {
+		debug.direction_node = nullptr;
+		ERR_FAIL_MSG("Direction node must be a child of NavPhysicsAgent.");
 	}
 }
 
@@ -260,6 +285,15 @@ RID NavPhysicsAgent::get_navigation_map() const {
 	return data.map;
 }
 
+Vector3 NavPhysicsAgent::agent_choose_random_location() const {
+	ERR_FAIL_COND_V(!data.body, Vector3());
+	return NavPhysicsServer::get_singleton()->body_choose_random_location(data.body);
+}
+
+const Vector3 &NavPhysicsAgent::agent_get_push() const {
+	return data.avoidance_vec;
+}
+
 const Vector3 &NavPhysicsAgent::agent_get_position() const {
 	return data.floor_pos;
 }
@@ -271,6 +305,9 @@ void NavPhysicsAgent::path_stop() {
 bool NavPhysicsAgent::path_move_to(const Vector3 &p_destination) {
 	ERR_FAIL_COND_V(!data.map.is_valid(), false);
 	path.pts = NavigationServer::get_singleton()->map_get_path(data.map, data.floor_pos, p_destination, true);
+	path.path_pts.clear();
+	path.path_pts.resize(path.pts.size());
+
 	path.curr = 0;
 
 	// For detecting paths that have got stuck
@@ -278,7 +315,7 @@ bool NavPhysicsAgent::path_move_to(const Vector3 &p_destination) {
 	path.stuck_record = data.floor_pos;
 	path.stuck_timeout = Engine::get_singleton()->get_physics_frames() + (Engine::get_singleton()->get_iterations_per_second() * 5);
 	path.repathing = false;
-	//path.trace_timeout = Engine::get_singleton()->get_physics_frames() + (Engine::get_singleton()->get_iterations_per_second() * 4);
+	path.trace_timeout = Engine::get_singleton()->get_physics_frames() + (Engine::get_singleton()->get_iterations_per_second() * 4);
 	return true;
 }
 
@@ -295,12 +332,40 @@ const Vector3 &NavPhysicsAgent::path_get_next_waypoint() const {
 	return path.get_current_waypoint();
 }
 
-void NavPhysicsAgent::_update_path() {
+void NavPhysicsAgent::_debug_update_next_waypoint_display() {
+	if (debug.imm && !path_finished()) {
+		ImmediateGeometry &g = *debug.imm;
+
+		g.clear();
+		g.begin(Mesh::PRIMITIVE_LINES);
+		g.set_normal(Vector3(0, 1, 0));
+		g.set_uv(Vector2(0, 0));
+
+		g.add_vertex(data.floor_pos);
+		g.add_vertex(path_get_next_waypoint());
+
+		g.end();
+	}
+}
+
+void NavPhysicsAgent::_update_path(int p_depth) {
+	if (p_depth >= 15) {
+		// debugging
+		//		for (uint32_t n = 0; n < path.pts.size(); n++) {
+		//			print_line(itos(n) + " : " + String(Variant(path.pts[n])) + " " + String(Variant(path.path_pts[n].shifted)));
+		//		}
+		print_line("depth exceeded");
+	}
+
 	if (path.is_finished()) {
 		return;
 	}
 
 	if (Engine::get_singleton()->get_physics_frames() < path.blocked_timeout) {
+		if (debug.direction_node && !debug.direction_node->is_visible()) {
+			debug.direction_node->set_visible(false);
+		}
+
 		return;
 	}
 
@@ -337,30 +402,56 @@ void NavPhysicsAgent::_update_path() {
 		path.repathing = false;
 	}
 
+	_debug_update_next_waypoint_display();
+
 	// Periodically trace to the next waypoint .. in case we have been nudged off course by an obstacle.
 	// We may be trapped against geometry.
-	//	if (tick >= path.trace_timeout) {
-	//		NavPhysics::TraceResult res = NavPhysicsServer::get_singleton()->body_trace(data.body, next);
-	//		if (res.mesh.hit) {
-	//			// repath!
-	//			print_line("repath");
-	//			path_move_to(path.pts[path.pts.size() - 1]);
-	//			return;
-	//		}
+	if (tick >= path.trace_timeout) {
+		NavPhysics::TraceResult res = NavPhysicsServer::get_singleton()->body_trace(data.body, next);
+		if (res.mesh.hit) {
+			bool backtrack = false;
 
-	//		path.trace_timeout = tick + (Engine::get_singleton()->get_iterations_per_second() * 4);
-	//	}
+			// before repathing, see if we can simply backtrack to the old path as we have been nudged off
+			if (path.curr) {
+				Vector3 backtrack_pt = Geometry::get_closest_point_to_segment(data.floor_pos, &path.pts[path.curr - 1]);
+
+				res = NavPhysicsServer::get_singleton()->body_trace(data.body, backtrack_pt);
+				if (!res.mesh.hit) {
+					//DEV_ASSERT(backtrack_pt.x > -18.0f);
+					path.pts[path.curr - 1] = backtrack_pt;
+					path.curr -= 1;
+					backtrack = true;
+					print_line("backtrack");
+				}
+			}
+
+			if (!backtrack) {
+				// repath!
+				print_line("repath");
+				path_move_to(path.pts[path.pts.size() - 1]);
+				return;
+			}
+		}
+
+		path.trace_timeout = tick + (Engine::get_singleton()->get_iterations_per_second() * 2);
+	}
 
 	Vector3 offset = next - data.floor_pos;
 
 	// reached?
-	real_t dist = offset.length_squared();
+	Vector2 segment[2];
+	segment[1] = Vector2(data.floor_pos.x, data.floor_pos.z);
+	segment[0] = segment[1] - Vector2(data.prev_move.x, data.prev_move.z);
+	Vector2 closest_point = Geometry::get_closest_point_to_segment_2d(Vector2(next.x, next.z), segment);
+	Vector2 closest_offset = closest_point - Vector2(next.x, next.z);
+
+	real_t dist = closest_offset.length_squared();
 	if (dist <= path.waypoint_threshold_squared) {
 		path.curr += 1;
 		if (path.curr >= path.pts.size()) {
 			path.clear();
 		}
-		_update_path();
+		_update_path(p_depth + 1);
 		return;
 	}
 
@@ -372,14 +463,53 @@ void NavPhysicsAgent::_update_path() {
 			Vector2 off2 = Vector2(offset.x, offset.z);
 			float length = off2.length();
 
+			// if this is the first collision, shift the waypoint to the left
+			if (!path.path_pts[path.curr].shifted) {
+				path.path_pts[path.curr].shifted = true;
+
+				if (path.curr) {
+					Vector3 curr_heading = next - path.pts[path.curr - 1];
+
+					if (curr_heading.length_squared() > 0.01f) {
+						// to the left
+						Vector3 side_vec = Vector3(-curr_heading.z, 0, curr_heading.x);
+
+						// normalize and scale
+						side_vec *= 2.0f / length;
+
+						// BUG : TRACE IS GOING FROM YOUR BODY, NOT THE WAYPOINT
+						NavPhysics::TraceResult res = NavPhysicsServer::get_singleton()->body_dual_trace(data.body, next, next + side_vec);
+
+						if (!res.mesh.first_trace_hit) {
+							//						if (res.mesh.hit_point.x < -18.0f)
+							//						{
+							//							res = NavPhysicsServer::get_singleton()->body_trace(data.body, next + side_vec);
+							//						}
+
+							// change the current next waypoint
+							path.pts[path.curr] = res.mesh.hit_point;
+
+							// rerun this routine
+							_update_path(p_depth + 1);
+							return;
+						}
+					}
+				}
+			}
+
 			// only apply if not near a waypoint
-			if (length > (path.waypoint_threshold * 4)) {
-				float angle = off2.angle();
-				angle -= Math::deg2rad(45.0f);
-				off2.set_rotation(angle);
-				off2 *= length;
-				offset.x = off2.x;
-				offset.z = off2.y;
+			if (length > (path.waypoint_threshold * 4)) { // 4
+
+				Vector2 avoid2 = Vector2(data.avoidance_vec.x, data.avoidance_vec.z);
+				float angle_to_avoid = off2.angle_to(avoid2);
+				if (Math::abs(angle_to_avoid) < Math::deg2rad(45.0f)) {
+					float angle = off2.angle();
+					angle -= Math::deg2rad(60.0f); // 45
+					off2.set_rotation(angle);
+					off2 *= length;
+					offset.x = off2.x;
+					offset.z = off2.y;
+				}
 			}
 		}
 
@@ -407,6 +537,28 @@ void NavPhysicsAgent::agent_add_force(const Vector3 &p_force) {
 	Vector3 impulse = p_force / Data::ticks_per_second;
 
 	NavPhysicsServer::get_singleton()->body_add_impulse(data.body, impulse);
+
+#ifdef TOOLS_ENABLED
+	if (debug.direction_node) {
+		real_t l = p_force.length();
+
+		if (l > 0.01f) {
+			// assuming y axis aligned for now
+			real_t angle = Vector2(p_force.x, p_force.z).angle();
+			Transform tr;
+			//tr.translate(Vector3(l, 0, 0));
+			tr.rotate(Vector3(0, 1, 0), -angle);
+
+			if (!debug.direction_node->is_visible()) {
+				debug.direction_node->set_visible(true);
+			}
+
+			debug.direction_node->set_transform(tr);
+			//debug.direction_node->set_rotation(Vector3(0, -angle, 0));
+			//debug.direction_node->set_translation(Vector3(0, 0, l));
+		}
+	}
+#endif
 }
 
 // Using an impulse rather than force because in most cases a jump will be instantaneous,
@@ -491,12 +643,13 @@ void NavPhysicsAgent::_iterate_nav_physics() {
 	*/
 }
 
-void NavPhysicsAgent::_navphysics_done(const Vector3 &p_floor_pos, NavPhysics::AgentState p_state) {
+void NavPhysicsAgent::_navphysics_done(const Vector3 &p_floor_pos, const Vector3 &p_avoidance, NavPhysics::AgentState p_state) {
 	// keep a record of the move since the last position
 	data.prev_move = data.floor_pos;
 	data.floor_pos = p_floor_pos;
 	data.prev_move = data.floor_pos - data.prev_move;
 	data.state = p_state;
+	data.avoidance_vec = p_avoidance;
 
 	if (p_state == NavPhysics::AGENT_STATE_BLOCKED_BY_NARROWING) {
 		uint32_t tick = Engine::get_singleton()->get_physics_frames();
@@ -523,7 +676,7 @@ void NavPhysicsAgent::_navphysics_done(const Vector3 &p_floor_pos, NavPhysics::A
 		set_global_translation(pos);
 	}
 
-	if (debug.enabled) {
+	if (debug.enabled && debug.label) {
 		NavPhysics::BodyInfo info;
 		if (NavPhysicsServer::get_singleton()->body_get_info(data.body, info)) {
 			// Only change the text of the label when there has been a change.

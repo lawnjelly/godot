@@ -65,8 +65,15 @@ void NavPhysics::Map::tick_update(real_t p_delta) {
 			offset = Vector3(overlap_fraction, 0, 0);
 		}
 
-		agent_a.fvel3 -= offset;
-		agent_b.fvel3 += offset;
+		if (agent_a.priority > agent_b.priority) {
+			agent_a.avoidance_fvel3 -= offset * 2;
+			agent_b.avoidance_fvel3 += offset;
+			// agent_a.fvel3 -= offset * 2;
+			// agent_b.fvel3 += offset;
+		} else {
+			agent_a.avoidance_fvel3 -= offset;
+			agent_b.avoidance_fvel3 += offset * 2;
+		}
 
 		agent_a.state = AGENT_STATE_PENDING_COLLIDING;
 		agent_b.state = AGENT_STATE_PENDING_COLLIDING;
@@ -163,6 +170,9 @@ void NavPhysics::Map::iterate_agent(uint32_t p_agent_id) {
 		//	Vector3 pos_before = agent.fpos3;
 
 		//agent.fpos3 = mesh->get_transform().xform(agent.fpos3);
+
+		// apply avoidance
+		agent.fvel3 += agent.avoidance_fvel3;
 		agent.fvel3 = mesh.get_transform_inverse().xform(agent.fvel3);
 		//agent.fvel3 = mesh->get_transform().xform(agent.fvel3);
 		//agent.fpos = Vector2(agent.fpos3.x, agent.fpos3.z);
@@ -331,6 +341,8 @@ np_handle World::safe_body_create() {
 #ifdef DEV_ENABLED
 		agent->agent_id = id;
 #endif
+		// kind of semi random
+		agent->priority = id;
 
 		if (!agent->revision) {
 			// special case, zero is reserved
@@ -450,6 +462,7 @@ void World::tick_update(real_t p_delta) {
 	Variant::CallError responseCallError;
 	Variant returned_position;
 	Variant returned_state;
+	Variant returned_avoidance;
 
 	StringName callback_func_name = "_navphysics_done";
 
@@ -468,14 +481,19 @@ void World::tick_update(real_t p_delta) {
 
 		// result is stored in agent.fpos3
 		if (agent.callback.receiver) {
-			int argc = 2;
+			int argc = 3;
 			returned_position = agent.fpos3;
+			returned_avoidance = agent.avoidance_fvel3;
 			returned_state = agent.state;
-			const Variant *vp[2] = { &returned_position, &returned_state };
+
+			const Variant *vp[3] = { &returned_position, &returned_avoidance, &returned_state };
 
 			// This will crash if the client does not keep the callback object up to date.
 			// This is a sacrifice for call speed versus using e.g. ObjectID lookups.
 			agent.callback.receiver->call(callback_func_name, vp, argc, responseCallError);
+
+			// blank for next time
+			agent.avoidance_fvel3 = Vector3();
 		}
 	}
 }

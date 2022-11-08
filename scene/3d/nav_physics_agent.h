@@ -4,6 +4,7 @@
 #include "servers/nav_physics/np_defines.h"
 
 class Label3D;
+class ImmediateGeometry;
 
 class NavPhysicsAgent : public Spatial {
 	GDCLASS(NavPhysicsAgent, Spatial);
@@ -21,6 +22,7 @@ private:
 		np_handle body = 0;
 
 		Vector3 floor_pos;
+		Vector3 avoidance_vec;
 		//Vector3 impulse; // current impulse total this tick
 		Vector3 prev_move;
 		bool jumping : 1;
@@ -59,10 +61,15 @@ private:
 	} avoidance;
 
 	struct Path {
+		struct PathPoint {
+			bool shifted = false;
+		};
 		LocalVector<Vector3> pts;
+		LocalVector<PathPoint> path_pts;
 		uint32_t curr = 0;
 		void clear() {
 			pts.clear();
+			path_pts.clear();
 			curr = 0;
 		}
 		bool is_finished() const { return curr >= pts.size(); }
@@ -78,7 +85,7 @@ private:
 
 		// periodic trace to the next waypoint, to check for being stuck
 		// and needing a repath if blocked...
-		//uint32_t trace_timeout = 0;
+		uint32_t trace_timeout = 0;
 
 		// when blocked by a narrowing, stop pathfollowing for a set interval, to
 		// allow being pushed aside more easily
@@ -97,9 +104,11 @@ private:
 	} path;
 
 	struct Debug {
-		bool enabled = true;
+		bool enabled = false;
 		uint32_t checksum = 0;
 		Label3D *label = nullptr;
+		Spatial *direction_node = nullptr;
+		ImmediateGeometry *imm = nullptr;
 	} debug;
 
 protected:
@@ -145,6 +154,8 @@ public:
 	void set_avoidance_ignore_narrowings(bool p_enabled);
 	bool get_avoidance_ignore_narrowings() const { return avoidance.ignore_narrowings; }
 
+	void set_debug_direction_node(Node *p_node);
+
 	// FUNCS
 
 	// Physics
@@ -153,6 +164,8 @@ public:
 	void agent_add_force(const Vector3 &p_force);
 	bool agent_jump(real_t p_impulse, bool p_allow_air_jump = false);
 	bool agent_is_jumping() const { return data.jumping; }
+	const Vector3 &agent_get_push() const;
+	Vector3 agent_choose_random_location() const;
 
 	// Pathfinding
 	bool path_move_to(const Vector3 &p_destination);
@@ -162,7 +175,7 @@ public:
 	real_t path_get_distance_to_next_waypoint() const;
 	const Vector3 &path_get_next_waypoint() const;
 
-	void _navphysics_done(const Vector3 &p_floor_pos, NavPhysics::AgentState p_state);
+	void _navphysics_done(const Vector3 &p_floor_pos, const Vector3 &p_avoidance, NavPhysics::AgentState p_state);
 
 	NavPhysicsAgent();
 	virtual ~NavPhysicsAgent();
@@ -170,7 +183,8 @@ public:
 private:
 	void _refresh_map();
 	void _refresh_parameters();
-	void _update_path();
+	void _update_path(int p_depth = 0);
+	void _debug_update_next_waypoint_display();
 	void _iterate_nav_physics();
 };
 

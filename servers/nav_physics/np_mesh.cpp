@@ -459,6 +459,72 @@ Mesh::MoveResult Mesh::recursive_move(int32_t p_depth, vec2 p_from, vec2 p_vel, 
 	return recursive_move(p_depth + 1, pt_intersect, p_vel, p_poly_id, p_poly_from_id, p_hug_wall_id, r_info);
 }
 
+Vector3 Mesh::choose_random_location() const {
+	ERR_FAIL_COND_V(!get_num_polys(), Vector3());
+
+	float total = 0;
+	for (uint32_t n = 0; n < get_num_polys(); n++) {
+		total += get_poly_extra(n).area;
+	}
+
+	float val = Math::randf() * total;
+
+	total = 0;
+	uint32_t poly_id = 0;
+
+	for (uint32_t n = 0; n < get_num_polys(); n++) {
+		total += get_poly_extra(n).area;
+		if (total >= val) {
+			poly_id = n;
+			break;
+		}
+	}
+
+	//uint32_t poly_id = Math::rand() % get_num_polys();
+	return get_transform().xform(get_poly(poly_id).center3);
+}
+
+void Mesh::body_dual_trace(const Agent &p_agent, Vector3 p_intermediate_destination, NavPhysics::TraceResult &r_result) const {
+	TraceInfo trace_info;
+
+	Vector3 final_dest = r_result.mesh.hit_point;
+
+	// transform destination to mesh space
+	p_intermediate_destination = get_transform_inverse().xform(p_intermediate_destination);
+	vec2 intermediate_to = float_to_vec2(Vector2(p_intermediate_destination.x, p_intermediate_destination.z));
+
+	TraceResult res = recursive_trace(0, p_agent.pos, intermediate_to, p_agent.poly_id, trace_info);
+	r_result.mesh.first_trace_hit = (res != TR_CLEAR);
+
+	if (r_result.mesh.first_trace_hit) {
+		return;
+	}
+
+	// transform destination to mesh space
+	final_dest = get_transform_inverse().xform(final_dest);
+	vec2 final_to = float_to_vec2(Vector2(final_dest.x, final_dest.z));
+
+	res = recursive_trace(0, intermediate_to, final_to, trace_info.poly_id, trace_info);
+	r_result.mesh.hit = (res != TR_CLEAR);
+
+	if (r_result.mesh.hit) {
+		Vector2 hp = vec2_to_float(trace_info.hit_point);
+		real_t height = find_height_on_poly(trace_info.poly_id, trace_info.hit_point);
+		r_result.mesh.hit_point = Vector3(hp.x, height, hp.y);
+
+		// back transform
+		r_result.mesh.hit_point = get_transform().xform(r_result.mesh.hit_point);
+
+		// normal
+		ERR_FAIL_COND(trace_info.slide_wall == UINT32_MAX);
+		const vec2 &norm = get_wall(trace_info.slide_wall).normal;
+		Vector2 norm2 = vec2_to_float(norm);
+
+		r_result.mesh.hit_normal = Vector3(norm2.x, 0, norm2.y);
+		r_result.mesh.hit_normal = get_transform().basis.xform_normal(r_result.mesh.hit_normal);
+	}
+}
+
 void Mesh::body_trace(const Agent &p_agent, NavPhysics::TraceResult &r_result) const {
 	TraceInfo trace_info;
 
@@ -469,7 +535,7 @@ void Mesh::body_trace(const Agent &p_agent, NavPhysics::TraceResult &r_result) c
 	vec2 to = float_to_vec2(Vector2(dest.x, dest.z));
 
 	TraceResult res = recursive_trace(0, p_agent.pos, to, p_agent.poly_id, trace_info);
-	r_result.mesh.hit = (res == TR_SLIDE);
+	r_result.mesh.hit = (res != TR_CLEAR);
 
 	if (r_result.mesh.hit) {
 		Vector2 hp = vec2_to_float(trace_info.hit_point);

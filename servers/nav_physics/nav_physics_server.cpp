@@ -7,6 +7,7 @@
 #include "np_structs.h"
 
 NavPhysicsServer *NavPhysicsServer::singleton = nullptr;
+NavPhysics::TraceResult NavPhysicsServer::_trace_result;
 
 NavPhysicsServer *NavPhysicsServer::get_singleton() {
 	return singleton;
@@ -192,24 +193,46 @@ void NavPhysicsServer::body_set_map(np_handle p_body, np_handle p_map) {
 void NavPhysicsServer::body_set_enabled(np_handle p_body, bool p_enabled) {
 }
 
+const NavPhysics::TraceResult &NavPhysicsServer::body_dual_trace(np_handle p_body, const Vector3 &p_intermediate_destination, const Vector3 &p_final_destination) {
+	_trace_result.blank();
+	_trace_result.mesh.first_trace_hit = false;
+	_trace_result.mesh.hit_point = p_final_destination;
+
+	NavPhysics::Agent *agent = NavPhysics::g_world.safe_get_body(p_body);
+	ERR_FAIL_NULL_V(agent, _trace_result);
+
+	const NavPhysics::Mesh &mesh = NavPhysics::g_world.get_mesh(agent->get_mesh_id());
+	mesh.body_dual_trace(*agent, p_intermediate_destination, _trace_result);
+
+	return _trace_result;
+}
+
+Vector3 NavPhysicsServer::body_choose_random_location(np_handle p_body) const {
+	const NavPhysics::Agent *agent = NavPhysics::g_world.safe_get_body(p_body);
+	ERR_FAIL_NULL_V(agent, Vector3());
+	ERR_FAIL_COND_V(agent->get_mesh_id() == UINT32_MAX, Vector3());
+
+	const NavPhysics::Mesh &mesh = NavPhysics::g_world.get_mesh(agent->get_mesh_id());
+	return mesh.choose_random_location();
+}
+
 const NavPhysics::TraceResult &NavPhysicsServer::body_trace(np_handle p_body, const Vector3 &p_destination, bool p_trace_navmesh, bool p_trace_obstacles) {
-	static NavPhysics::TraceResult res;
-	res.blank();
-	res.mesh.hit_point = p_destination;
+	_trace_result.blank();
+	_trace_result.mesh.hit_point = p_destination;
 
 	const NavPhysics::Agent *agent = NavPhysics::g_world.safe_get_body(p_body);
-	ERR_FAIL_NULL_V(agent, res);
+	ERR_FAIL_NULL_V(agent, _trace_result);
 
 	if (p_trace_navmesh) {
 		const NavPhysics::Mesh &mesh = NavPhysics::g_world.get_mesh(agent->get_mesh_id());
-		mesh.body_trace(*agent, res);
+		mesh.body_trace(*agent, _trace_result);
 	}
 
 	if (p_trace_obstacles) {
 		// NYI
 	}
 
-	return res;
+	return _trace_result;
 }
 
 bool NavPhysicsServer::body_get_info(np_handle p_body, NavPhysics::BodyInfo &r_body_info) {

@@ -19,6 +19,7 @@ class Mesh {
 	LocalVector<uint32_t> _links;
 	LocalVector<Wall> _walls;
 	LocalVector<Poly> _polys;
+	LocalVector<PolyExtra> _polys_extra;
 	LocalVector<Narrowing> _narrowings;
 
 	Vector2 _float_to_fp_scale;
@@ -49,6 +50,7 @@ class Mesh {
 		_links.clear();
 		_walls.clear();
 		_polys.clear();
+		_polys_extra.clear();
 		_narrowings.clear();
 	}
 
@@ -91,7 +93,11 @@ public:
 	bool is_transform_identity() const { return _transform_identity; }
 
 	void agent_get_info(const Agent &p_agent, BodyInfo &r_body_info) const;
+
 	void body_trace(const Agent &p_agent, NavPhysics::TraceResult &r_result) const;
+	void body_dual_trace(const Agent &p_agent, Vector3 p_intermediate_destination, NavPhysics::TraceResult &r_result) const;
+
+	Vector3 choose_random_location() const;
 
 	PoolVector<Face3> mesh_get_faces() const;
 
@@ -115,6 +121,7 @@ protected:
 
 	const Poly &get_poly(uint32_t p_idx) const { return _polys[p_idx]; }
 	Poly &get_poly(uint32_t p_idx) { return _polys[p_idx]; }
+	const PolyExtra &get_poly_extra(uint32_t p_idx) const { return _polys_extra[p_idx]; }
 	uint32_t get_num_polys() const { return _polys.size(); }
 
 	void debug_poly(uint32_t p_poly_id) const;
