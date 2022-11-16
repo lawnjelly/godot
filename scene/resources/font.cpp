@@ -33,6 +33,7 @@
 #include "core/io/resource_loader.h"
 #include "core/method_bind_ext.gen.inc"
 #include "core/os/file_access.h"
+#include "servers/visual/visual_server_canvas_helper.h"
 
 void Font::draw_halign(RID p_canvas_item, const Point2 &p_pos, HAlign p_align, float p_width, const String &p_text, const Color &p_modulate, const Color &p_outline_modulate) const {
 	float length = get_string_size(p_text).width;
@@ -64,6 +65,9 @@ void Font::draw(RID p_canvas_item, const Point2 &p_pos, const String &p_text, co
 
 	int chars_drawn = 0;
 	bool with_outline = has_outline();
+
+	uint32_t multirect_id = VisualServerCanvasHelper::multirect_begin();
+
 	for (int i = 0; i < p_text.length(); i++) {
 		int width = get_char_size(p_text[i]).width;
 
@@ -71,16 +75,18 @@ void Font::draw(RID p_canvas_item, const Point2 &p_pos, const String &p_text, co
 			break; //clip
 		}
 
-		ofs.x += draw_char(p_canvas_item, p_pos + ofs, p_text[i], p_text[i + 1], with_outline ? p_outline_modulate : p_modulate, with_outline);
+		ofs.x += draw_char(p_canvas_item, p_pos + ofs, p_text[i], p_text[i + 1], with_outline ? p_outline_modulate : p_modulate, with_outline, multirect_id);
 		++chars_drawn;
 	}
 
 	if (has_outline()) {
 		ofs = Vector2(0, 0);
 		for (int i = 0; i < chars_drawn; i++) {
-			ofs.x += draw_char(p_canvas_item, p_pos + ofs, p_text[i], p_text[i + 1], p_modulate, false);
+			ofs.x += draw_char(p_canvas_item, p_pos + ofs, p_text[i], p_text[i + 1], p_modulate, false, multirect_id);
 		}
 	}
+
+	VisualServerCanvasHelper::multirect_end(multirect_id);
 }
 
 void Font::update_changes() {
@@ -535,6 +541,21 @@ Size2 Font::total_size_of_lines(Vector<String> p_lines) {
 	return size;
 }
 
+FontDrawer::FontDrawer(const Ref<Font> &p_font, const Color &p_outline_color) :
+		font(p_font),
+		outline_color(p_outline_color) {
+	has_outline = p_font->has_outline();
+	_multirect_id = VisualServerCanvasHelper::multirect_begin();
+}
+
+FontDrawer::~FontDrawer() {
+	for (int i = 0; i < pending_draws.size(); ++i) {
+		const PendingDraw &draw = pending_draws[i];
+		font->draw_char(draw.canvas_item, draw.pos, draw.chr, draw.next, draw.modulate, false);
+	}
+	VisualServerCanvasHelper::multirect_end(_multirect_id);
+}
+
 void BitmapFont::set_fallback(const Ref<BitmapFont> &p_fallback) {
 	for (Ref<BitmapFont> fallback_child = p_fallback; fallback_child != nullptr; fallback_child = fallback_child->get_fallback()) {
 		ERR_FAIL_COND_MSG(fallback_child == this, "Can't set as fallback one of its parents to prevent crashes due to recursive loop.");
@@ -681,7 +702,7 @@ Rect2 BitmapFont::get_char_tx_uv_rect(CharType p_char, CharType p_next, bool p_o
 	}
 }
 
-float BitmapFont::draw_char(RID p_canvas_item, const Point2 &p_pos, CharType p_char, CharType p_next, const Color &p_modulate, bool p_outline) const {
+float BitmapFont::draw_char(RID p_canvas_item, const Point2 &p_pos, CharType p_char, CharType p_next, const Color &p_modulate, bool p_outline, uint32_t p_multirect_id) const {
 	int32_t ch = p_char;
 	if (((p_char & 0xfffffc00) == 0xd800) && (p_next & 0xfffffc00) == 0xdc00) { // decode surrogate pair.
 		ch = (p_char << 10UL) + p_next - ((0xd800 << 10UL) + 0xdc00 - 0x10000);
@@ -705,7 +726,12 @@ float BitmapFont::draw_char(RID p_canvas_item, const Point2 &p_pos, CharType p_c
 		cpos.x += c->h_align;
 		cpos.y -= ascent;
 		cpos.y += c->v_align;
-		VisualServer::get_singleton()->canvas_item_add_texture_rect_region(p_canvas_item, Rect2(cpos, c->rect.size), textures[c->texture_idx]->get_rid(), c->rect, p_modulate, false, RID(), false);
+
+		if (p_multirect_id) {
+			VisualServerCanvasHelper::multirect_add_rect(p_multirect_id, p_canvas_item, Rect2(cpos, c->rect.size), textures[c->texture_idx]->get_rid(), c->rect, p_modulate, false, RID(), false);
+		} else {
+			VisualServer::get_singleton()->canvas_item_add_texture_rect_region(p_canvas_item, Rect2(cpos, c->rect.size), textures[c->texture_idx]->get_rid(), c->rect, p_modulate, false, RID(), false);
+		}
 	}
 
 	return get_char_size(p_char, p_next).width;
