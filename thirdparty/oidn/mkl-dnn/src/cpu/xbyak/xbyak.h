@@ -326,7 +326,7 @@ inline void AlignedFree(void *p)
 #elif defined(_MSC_VER)
 	_aligned_free(p);
 #else
-	free(p);
+	::free(p);
 #endif
 }
 
