@@ -41,7 +41,7 @@
 #define glClearDepth glClearDepthf
 #endif
 
-static const GLenum _cube_side_enum[6] = {
+static const GLenum _scene_cube_side_enum[6] = {
 
 	GL_TEXTURE_CUBE_MAP_NEGATIVE_X,
 	GL_TEXTURE_CUBE_MAP_POSITIVE_X,
@@ -52,7 +52,7 @@ static const GLenum _cube_side_enum[6] = {
 
 };
 
-static _FORCE_INLINE_ void store_transform(const Transform &p_mtx, float *p_array) {
+static _FORCE_INLINE_ void scene_store_transform(const Transform &p_mtx, float *p_array) {
 	p_array[0] = p_mtx.basis.elements[0][0];
 	p_array[1] = p_mtx.basis.elements[1][0];
 	p_array[2] = p_mtx.basis.elements[2][0];
@@ -71,7 +71,7 @@ static _FORCE_INLINE_ void store_transform(const Transform &p_mtx, float *p_arra
 	p_array[15] = 1;
 }
 
-static _FORCE_INLINE_ void store_camera(const CameraMatrix &p_mtx, float *p_array) {
+static _FORCE_INLINE_ void scene_store_camera(const CameraMatrix &p_mtx, float *p_array) {
 	for (int i = 0; i < 4; i++) {
 		for (int j = 0; j < 4; j++) {
 			p_array[i * 4 + j] = p_mtx.matrix[i][j];
@@ -1482,7 +1482,7 @@ void RasterizerSceneGLES3::_setup_geometry(RenderList::Element *e, const Transfo
 	}
 }
 
-static const GLenum gl_primitive[] = {
+static const GLenum scene_gl_primitive[] = {
 	GL_POINTS,
 	GL_LINES,
 	GL_LINE_STRIP,
@@ -1506,12 +1506,12 @@ void RasterizerSceneGLES3::_render_geometry(RenderList::Element *e) {
 #endif
 					if (s->index_array_len > 0) {
 
-				glDrawElements(gl_primitive[s->primitive], s->index_array_len, (s->array_len >= (1 << 16)) ? GL_UNSIGNED_INT : GL_UNSIGNED_SHORT, nullptr);
+				glDrawElements(scene_gl_primitive[s->primitive], s->index_array_len, (s->array_len >= (1 << 16)) ? GL_UNSIGNED_INT : GL_UNSIGNED_SHORT, nullptr);
 
 				storage->info.render.vertices_count += s->index_array_len;
 
 			} else {
-				glDrawArrays(gl_primitive[s->primitive], 0, s->array_len);
+				glDrawArrays(scene_gl_primitive[s->primitive], 0, s->array_len);
 
 				storage->info.render.vertices_count += s->array_len;
 			}
@@ -1539,12 +1539,12 @@ void RasterizerSceneGLES3::_render_geometry(RenderList::Element *e) {
 #endif
 					if (s->index_array_len > 0) {
 
-				glDrawElementsInstanced(gl_primitive[s->primitive], s->index_array_len, (s->array_len >= (1 << 16)) ? GL_UNSIGNED_INT : GL_UNSIGNED_SHORT, nullptr, amount);
+				glDrawElementsInstanced(scene_gl_primitive[s->primitive], s->index_array_len, (s->array_len >= (1 << 16)) ? GL_UNSIGNED_INT : GL_UNSIGNED_SHORT, nullptr, amount);
 
 				storage->info.render.vertices_count += s->index_array_len * amount;
 
 			} else {
-				glDrawArraysInstanced(gl_primitive[s->primitive], 0, s->array_len, amount);
+				glDrawArraysInstanced(scene_gl_primitive[s->primitive], 0, s->array_len, amount);
 
 				storage->info.render.vertices_count += s->array_len * amount;
 			}
@@ -1654,7 +1654,7 @@ void RasterizerSceneGLES3::_render_geometry(RenderList::Element *e) {
 				glEnableVertexAttribArray(VS::ARRAY_VERTEX);
 				glBufferSubData(GL_ARRAY_BUFFER, buf_ofs, sizeof(Vector3) * vertices, c.vertices.ptr());
 				glVertexAttribPointer(VS::ARRAY_VERTEX, 3, GL_FLOAT, false, sizeof(Vector3), CAST_INT_TO_UCHAR_PTR(buf_ofs));
-				glDrawArrays(gl_primitive[c.primitive], 0, c.vertices.size());
+				glDrawArrays(scene_gl_primitive[c.primitive], 0, c.vertices.size());
 			}
 
 			if (restore_tex) {
@@ -1704,12 +1704,12 @@ void RasterizerSceneGLES3::_render_geometry(RenderList::Element *e) {
 #endif
 							if (s->index_array_len > 0) {
 
-						glDrawElementsInstanced(gl_primitive[s->primitive], s->index_array_len, (s->array_len >= (1 << 16)) ? GL_UNSIGNED_INT : GL_UNSIGNED_SHORT, nullptr, amount - split);
+						glDrawElementsInstanced(scene_gl_primitive[s->primitive], s->index_array_len, (s->array_len >= (1 << 16)) ? GL_UNSIGNED_INT : GL_UNSIGNED_SHORT, nullptr, amount - split);
 
 						storage->info.render.vertices_count += s->index_array_len * (amount - split);
 
 					} else {
-						glDrawArraysInstanced(gl_primitive[s->primitive], 0, s->array_len, amount - split);
+						glDrawArraysInstanced(scene_gl_primitive[s->primitive], 0, s->array_len, amount - split);
 
 						storage->info.render.vertices_count += s->array_len * (amount - split);
 					}
@@ -1740,12 +1740,12 @@ void RasterizerSceneGLES3::_render_geometry(RenderList::Element *e) {
 #endif
 							if (s->index_array_len > 0) {
 
-						glDrawElementsInstanced(gl_primitive[s->primitive], s->index_array_len, (s->array_len >= (1 << 16)) ? GL_UNSIGNED_INT : GL_UNSIGNED_SHORT, nullptr, split);
+						glDrawElementsInstanced(scene_gl_primitive[s->primitive], s->index_array_len, (s->array_len >= (1 << 16)) ? GL_UNSIGNED_INT : GL_UNSIGNED_SHORT, nullptr, split);
 
 						storage->info.render.vertices_count += s->index_array_len * split;
 
 					} else {
-						glDrawArraysInstanced(gl_primitive[s->primitive], 0, s->array_len, split);
+						glDrawArraysInstanced(scene_gl_primitive[s->primitive], 0, s->array_len, split);
 
 						storage->info.render.vertices_count += s->array_len * split;
 					}
@@ -1762,12 +1762,12 @@ void RasterizerSceneGLES3::_render_geometry(RenderList::Element *e) {
 
 						if (s->index_array_len > 0) {
 
-					glDrawElementsInstanced(gl_primitive[s->primitive], s->index_array_len, (s->array_len >= (1 << 16)) ? GL_UNSIGNED_INT : GL_UNSIGNED_SHORT, nullptr, amount);
+					glDrawElementsInstanced(scene_gl_primitive[s->primitive], s->index_array_len, (s->array_len >= (1 << 16)) ? GL_UNSIGNED_INT : GL_UNSIGNED_SHORT, nullptr, amount);
 
 					storage->info.render.vertices_count += s->index_array_len * amount;
 
 				} else {
-					glDrawArraysInstanced(gl_primitive[s->primitive], 0, s->array_len, amount);
+					glDrawArraysInstanced(scene_gl_primitive[s->primitive], 0, s->array_len, amount);
 
 					storage->info.render.vertices_count += s->array_len * amount;
 				}
@@ -2558,10 +2558,10 @@ void RasterizerSceneGLES3::_setup_environment(Environment *env, const CameraMatr
 	Transform sky_orientation;
 
 	//store camera into ubo
-	store_camera(p_cam_projection, state.ubo_data.projection_matrix);
-	store_camera(p_cam_projection.inverse(), state.ubo_data.inv_projection_matrix);
-	store_transform(p_cam_transform, state.ubo_data.camera_matrix);
-	store_transform(p_cam_transform.affine_inverse(), state.ubo_data.camera_inverse_matrix);
+	scene_store_camera(p_cam_projection, state.ubo_data.projection_matrix);
+	scene_store_camera(p_cam_projection.inverse(), state.ubo_data.inv_projection_matrix);
+	scene_store_transform(p_cam_transform, state.ubo_data.camera_matrix);
+	scene_store_transform(p_cam_transform.affine_inverse(), state.ubo_data.camera_inverse_matrix);
 
 	//time global variables
 	state.ubo_data.time = storage->frame.time[0];
@@ -2670,7 +2670,7 @@ void RasterizerSceneGLES3::_setup_environment(Environment *env, const CameraMatr
 
 	//fill up environment
 
-	store_transform(sky_orientation * p_cam_transform, state.env_radiance_data.transform);
+	scene_store_transform(sky_orientation * p_cam_transform, state.env_radiance_data.transform);
 
 	glBindBuffer(GL_UNIFORM_BUFFER, state.env_radiance_ubo);
 	glBufferData(GL_UNIFORM_BUFFER, sizeof(State::EnvironmentRadianceUBO), &state.env_radiance_data, GL_DYNAMIC_DRAW);
@@ -2768,7 +2768,7 @@ void RasterizerSceneGLES3::_setup_directional_light(int p_index, const Transform
 
 			CameraMatrix shadow_mtx = rectm * bias * li->shadow_transform[j].camera * modelview;
 
-			store_camera(shadow_mtx, &ubo_data.shadow.matrix[16 * j]);
+			scene_store_camera(shadow_mtx, &ubo_data.shadow.matrix[16 * j]);
 
 			ubo_data.light_clamp[0] = atlas_rect.position.x;
 			ubo_data.light_clamp[1] = atlas_rect.position.y;
@@ -2878,7 +2878,7 @@ void RasterizerSceneGLES3::_setup_lights(RID *p_light_cull_result, int p_light_c
 
 					Transform proj = (p_camera_inverse_transform * li->transform).inverse();
 
-					store_transform(proj, ubo_data.shadow.matrix1);
+					scene_store_transform(proj, ubo_data.shadow.matrix1);
 
 					ubo_data.light_params[3] = 1.0; //means it has shadow
 					ubo_data.light_clamp[0] = float(x) / atlas_size;
@@ -2966,7 +2966,7 @@ void RasterizerSceneGLES3::_setup_lights(RID *p_light_cull_result, int p_light_c
 
 					CameraMatrix shadow_mtx = rectm * bias * li->shadow_transform[0].camera * modelview;
 
-					store_camera(shadow_mtx, ubo_data.shadow.matrix1);
+					scene_store_camera(shadow_mtx, ubo_data.shadow.matrix1);
 				}
 
 				li->light_index = state.spot_light_count;
@@ -3065,7 +3065,7 @@ void RasterizerSceneGLES3::_setup_reflections(RID *p_reflection_probe_cull_resul
 		reflection_ubo.atlas_clamp[3] = float(height) / reflection_atlas->size;
 
 		Transform proj = (p_camera_inverse_transform * rpi->transform).inverse();
-		store_transform(proj, reflection_ubo.local_matrix);
+		scene_store_transform(proj, reflection_ubo.local_matrix);
 
 		rpi->reflection_index = state.reflection_probe_count;
 		memcpy(&state.reflection_array_tmp[rpi->reflection_index * sizeof(ReflectionProbeDataUBO)], &reflection_ubo, sizeof(ReflectionProbeDataUBO));
@@ -5112,7 +5112,7 @@ void RasterizerSceneGLES3::initialize() {
 		glBindTexture(GL_TEXTURE_CUBE_MAP, cube.cubemap);
 		//gen cubemap first
 		for (int i = 0; i < 6; i++) {
-			glTexImage2D(_cube_side_enum[i], 0, GL_DEPTH_COMPONENT24, cube.size, cube.size, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, nullptr);
+			glTexImage2D(_scene_cube_side_enum[i], 0, GL_DEPTH_COMPONENT24, cube.size, cube.size, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_INT, nullptr);
 		}
 
 		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -5126,7 +5126,7 @@ void RasterizerSceneGLES3::initialize() {
 		for (int i = 0; i < 6; i++) {
 			glGenFramebuffers(1, &cube.fbo_id[i]);
 			glBindFramebuffer(GL_FRAMEBUFFER, cube.fbo_id[i]);
-			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, _cube_side_enum[i], cube.cubemap, 0);
+			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, _scene_cube_side_enum[i], cube.cubemap, 0);
 
 			GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
 			ERR_CONTINUE(status != GL_FRAMEBUFFER_COMPLETE);
@@ -5217,7 +5217,7 @@ void RasterizerSceneGLES3::initialize() {
 			glBindTexture(GL_TEXTURE_CUBE_MAP, cube.cubemap);
 			//gen cubemap first
 			for (int i = 0; i < 6; i++) {
-				glTexImage2D(_cube_side_enum[i], 0, internal_format, cube.size, cube.size, 0, format, type, nullptr);
+				glTexImage2D(_scene_cube_side_enum[i], 0, internal_format, cube.size, cube.size, 0, format, type, nullptr);
 			}
 
 			glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -5231,7 +5231,7 @@ void RasterizerSceneGLES3::initialize() {
 			for (int i = 0; i < 6; i++) {
 				glGenFramebuffers(1, &cube.fbo_id[i]);
 				glBindFramebuffer(GL_FRAMEBUFFER, cube.fbo_id[i]);
-				glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, _cube_side_enum[i], cube.cubemap, 0);
+				glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, _scene_cube_side_enum[i], cube.cubemap, 0);
 				glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, cube.depth, 0);
 
 				GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);

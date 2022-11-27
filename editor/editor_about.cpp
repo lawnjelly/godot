@@ -37,7 +37,7 @@
 #include "editor_node.h"
 
 // The metadata key used to store and retrieve the version text to copy to the clipboard.
-static const String META_TEXT_TO_COPY = "text_to_copy";
+static const String EDITOR_ABOUT_META_TEXT_TO_COPY = "text_to_copy";
 
 void EditorAbout::_notification(int p_what) {
 	switch (p_what) {
@@ -60,7 +60,7 @@ void EditorAbout::_license_tree_selected() {
 }
 
 void EditorAbout::_version_button_pressed() {
-	OS::get_singleton()->set_clipboard(version_btn->get_meta(META_TEXT_TO_COPY));
+	OS::get_singleton()->set_clipboard(version_btn->get_meta(EDITOR_ABOUT_META_TEXT_TO_COPY));
 }
 
 void EditorAbout::_bind_methods() {
@@ -139,7 +139,7 @@ EditorAbout::EditorAbout() {
 	}
 	version_btn->set_text(VERSION_FULL_NAME + hash);
 	// Set the text to copy in metadata as it slightly differs from the button's text.
-	version_btn->set_meta(META_TEXT_TO_COPY, "v" VERSION_FULL_BUILD + hash);
+	version_btn->set_meta(EDITOR_ABOUT_META_TEXT_TO_COPY, "v" VERSION_FULL_BUILD + hash);
 	version_btn->set_underline_mode(LinkButton::UNDERLINE_MODE_ON_HOVER);
 	version_btn->set_tooltip(TTR("Click to copy."));
 	version_btn->connect("pressed", this, "_version_button_pressed");

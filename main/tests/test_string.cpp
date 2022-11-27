@@ -1330,3 +1330,4 @@ MainLoop *test() {
 	return nullptr;
 }
 } // namespace TestString
+#undef CHECK

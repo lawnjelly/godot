@@ -53,7 +53,7 @@
 #endif
 #endif
 
-static const GLenum _cube_side_enum[6] = {
+static const GLenum _scene_cube_side_enum[6] = {
 
 	GL_TEXTURE_CUBE_MAP_NEGATIVE_X,
 	GL_TEXTURE_CUBE_MAP_POSITIVE_X,
@@ -680,7 +680,7 @@ bool RasterizerSceneGLES2::reflection_probe_instance_postprocess_step(RID p_inst
 	for (int i = 0; i < 6; i++) {
 		glBindFramebuffer(GL_FRAMEBUFFER, rpi->fbo[i]);
 		glViewport(0, 0, size, size);
-		glCopyTexSubImage2D(_cube_side_enum[i], 0, 0, 0, 0, 0, size, size);
+		glCopyTexSubImage2D(_scene_cube_side_enum[i], 0, 0, 0, 0, 0, size, size);
 	}
 	//do filtering
 	//vdc cache
@@ -715,7 +715,7 @@ bool RasterizerSceneGLES2::reflection_probe_instance_postprocess_step(RID p_inst
 			storage->shaders.cubemap_filter.set_uniform(CubemapFilterShaderGLES2::Z_FLIP, false);
 
 			glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-			glCopyTexSubImage2D(_cube_side_enum[i], lod, 0, 0, 0, 0, size, size);
+			glCopyTexSubImage2D(_scene_cube_side_enum[i], lod, 0, 0, 0, 0, size, size);
 		}
 
 		size >>= 1;
@@ -1332,7 +1332,7 @@ void RasterizerSceneGLES2::_fill_render_list(InstanceBase **p_cull_result, int p
 	}
 }
 
-static const GLenum gl_primitive[] = {
+static const GLenum scene_gl_primitive[] = {
 	GL_POINTS,
 	GL_LINES,
 	GL_LINE_STRIP,
@@ -1706,10 +1706,10 @@ void RasterizerSceneGLES2::_render_geometry(RenderList::Element *p_element) {
 			// drawing
 
 			if (s->index_array_len > 0) {
-				glDrawElements(gl_primitive[s->primitive], s->index_array_len, (s->array_len >= (1 << 16)) ? GL_UNSIGNED_INT : GL_UNSIGNED_SHORT, nullptr);
+				glDrawElements(scene_gl_primitive[s->primitive], s->index_array_len, (s->array_len >= (1 << 16)) ? GL_UNSIGNED_INT : GL_UNSIGNED_SHORT, nullptr);
 				storage->info.render.vertices_count += s->index_array_len;
 			} else {
-				glDrawArrays(gl_primitive[s->primitive], 0, s->array_len);
+				glDrawArrays(scene_gl_primitive[s->primitive], 0, s->array_len);
 				storage->info.render.vertices_count += s->array_len;
 			}
 			/*
@@ -1781,10 +1781,10 @@ void RasterizerSceneGLES2::_render_geometry(RenderList::Element *p_element) {
 				}
 
 				if (s->index_array_len > 0) {
-					glDrawElements(gl_primitive[s->primitive], s->index_array_len, (s->array_len >= (1 << 16)) ? GL_UNSIGNED_INT : GL_UNSIGNED_SHORT, nullptr);
+					glDrawElements(scene_gl_primitive[s->primitive], s->index_array_len, (s->array_len >= (1 << 16)) ? GL_UNSIGNED_INT : GL_UNSIGNED_SHORT, nullptr);
 					storage->info.render.vertices_count += s->index_array_len;
 				} else {
-					glDrawArrays(gl_primitive[s->primitive], 0, s->array_len);
+					glDrawArrays(scene_gl_primitive[s->primitive], 0, s->array_len);
 					storage->info.render.vertices_count += s->array_len;
 				}
 			}
@@ -1890,7 +1890,7 @@ void RasterizerSceneGLES2::_render_geometry(RenderList::Element *p_element) {
 				glBufferSubData(GL_ARRAY_BUFFER, buf_ofs, sizeof(Vector3) * vertices, c.vertices.ptr());
 				glVertexAttribPointer(VS::ARRAY_VERTEX, 3, GL_FLOAT, GL_FALSE, sizeof(Vector3), CAST_INT_TO_UCHAR_PTR(buf_ofs));
 
-				glDrawArrays(gl_primitive[c.primitive], 0, c.vertices.size());
+				glDrawArrays(scene_gl_primitive[c.primitive], 0, c.vertices.size());
 			}
 
 			if (restore_tex) {
@@ -4075,7 +4075,7 @@ void RasterizerSceneGLES2::initialize() {
 			glBindTexture(GL_TEXTURE_CUBE_MAP, cube.cubemap);
 
 			for (int i = 0; i < 6; i++) {
-				glTexImage2D(_cube_side_enum[i], 0, storage->config.depth_internalformat, cube_size, cube_size, 0, GL_DEPTH_COMPONENT, storage->config.depth_type, nullptr);
+				glTexImage2D(_scene_cube_side_enum[i], 0, storage->config.depth_internalformat, cube_size, cube_size, 0, GL_DEPTH_COMPONENT, storage->config.depth_type, nullptr);
 			}
 
 			glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -4087,7 +4087,7 @@ void RasterizerSceneGLES2::initialize() {
 			glGenFramebuffers(6, cube.fbo);
 			for (int i = 0; i < 6; i++) {
 				glBindFramebuffer(GL_FRAMEBUFFER, cube.fbo[i]);
-				glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, _cube_side_enum[i], cube.cubemap, 0);
+				glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, _scene_cube_side_enum[i], cube.cubemap, 0);
 			}
 
 			shadow_cubemaps.push_back(cube);

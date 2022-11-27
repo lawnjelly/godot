@@ -32,7 +32,7 @@
 #include "label.h"
 #include "margin_container.h"
 
-struct _MinSizeCache {
+struct _BoxContainerMinSizeCache {
 	int min_size;
 	bool will_stretch;
 	int final_size;
@@ -50,7 +50,7 @@ void BoxContainer::_resort() {
 	int stretch_min = 0;
 	int stretch_avail = 0;
 	float stretch_ratio_total = 0;
-	Map<Control *, _MinSizeCache> min_size_cache;
+	Map<Control *, _BoxContainerMinSizeCache> min_size_cache;
 
 	for (int i = 0; i < get_child_count(); i++) {
 		Control *c = Object::cast_to<Control>(get_child(i));
@@ -62,7 +62,7 @@ void BoxContainer::_resort() {
 		}
 
 		Size2i size = c->get_combined_minimum_size();
-		_MinSizeCache msc;
+		_BoxContainerMinSizeCache msc;
 
 		if (vertical) { /* VERTICAL */
 			stretch_min += size.height;
@@ -116,7 +116,7 @@ void BoxContainer::_resort() {
 			}
 
 			ERR_FAIL_COND(!min_size_cache.has(c));
-			_MinSizeCache &msc = min_size_cache[c];
+			_BoxContainerMinSizeCache &msc = min_size_cache[c];
 
 			if (msc.will_stretch) { //wants to stretch
 				//let's see if it can really stretch
@@ -176,7 +176,7 @@ void BoxContainer::_resort() {
 			continue;
 		}
 
-		_MinSizeCache &msc = min_size_cache[c];
+		_BoxContainerMinSizeCache &msc = min_size_cache[c];
 
 		if (first) {
 			first = false;

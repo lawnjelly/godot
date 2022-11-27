@@ -44,7 +44,7 @@
 #include "editor/editor_settings.h"
 #endif
 
-static bool _is_text_char(CharType c) {
+static bool _line_edit_is_text_char(CharType c) {
 	return !is_symbol(c);
 }
 
@@ -395,7 +395,7 @@ void LineEdit::_gui_input(Ref<InputEvent> p_event) {
 						bool prev_char = false;
 
 						while (cc > 0) {
-							bool ischar = _is_text_char(text[cc - 1]);
+							bool ischar = _line_edit_is_text_char(text[cc - 1]);
 
 							if (prev_char && !ischar) {
 								break;
@@ -448,7 +448,7 @@ void LineEdit::_gui_input(Ref<InputEvent> p_event) {
 						int cc = cursor_pos;
 
 						while (cc > 0) {
-							bool ischar = _is_text_char(text[cc - 1]);
+							bool ischar = _line_edit_is_text_char(text[cc - 1]);
 
 							if (prev_char && !ischar) {
 								break;
@@ -500,7 +500,7 @@ void LineEdit::_gui_input(Ref<InputEvent> p_event) {
 						int cc = cursor_pos;
 
 						while (cc < text.length()) {
-							bool ischar = _is_text_char(text[cc]);
+							bool ischar = _line_edit_is_text_char(text[cc]);
 
 							if (prev_char && !ischar) {
 								break;
@@ -569,7 +569,7 @@ void LineEdit::_gui_input(Ref<InputEvent> p_event) {
 						bool prev_char = false;
 
 						while (cc < text.length()) {
-							bool ischar = _is_text_char(text[cc]);
+							bool ischar = _line_edit_is_text_char(text[cc]);
 
 							if (prev_char && !ischar) {
 								break;

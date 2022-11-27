@@ -43,7 +43,7 @@
 #include "scene/property_utils.h"
 #include "scene/resources/packed_scene.h"
 
-static bool _property_path_matches(const String &p_property_path, const String &p_filter, EditorPropertyNameProcessor::Style p_style) {
+static bool _editor_inspector_property_path_matches(const String &p_property_path, const String &p_filter, EditorPropertyNameProcessor::Style p_style) {
 	if (p_property_path.findn(p_filter) != -1) {
 		return true;
 	}
@@ -1567,7 +1567,7 @@ void EditorInspector::update_tree() {
 
 		if (use_filter && !filter.empty()) {
 			const String property_path = property_prefix + (path.empty() ? "" : path + "/") + name_override;
-			if (!_property_path_matches(property_path, filter, property_name_style)) {
+			if (!_editor_inspector_property_path_matches(property_path, filter, property_name_style)) {
 				continue;
 			}
 		}

@@ -87,7 +87,7 @@ static String _opstr(SL::Operator p_op) {
 	return SL::get_operator_text(p_op);
 }
 
-static String _mkid(const String &p_id) {
+static String _compiler_mkid(const String &p_id) {
 	String id = "m_" + p_id.replace("__", "_dus_");
 	return id.replace("__", "_dus_"); //doubleunderscore is reserved in glsl
 }
@@ -251,9 +251,9 @@ void ShaderCompilerGLES2::_dump_function_deps(const SL::ShaderNode *p_node, cons
 
 		StringBuffer<128> header;
 		if (fnode->return_type == SL::TYPE_STRUCT) {
-			header += _mkid(fnode->return_struct_name) + " " + _mkid(fnode->name) + "(";
+			header += _compiler_mkid(fnode->return_struct_name) + " " + _compiler_mkid(fnode->name) + "(";
 		} else {
-			header += _typestr(fnode->return_type) + " " + _mkid(fnode->name) + "(";
+			header += _typestr(fnode->return_type) + " " + _compiler_mkid(fnode->name) + "(";
 		}
 
 		for (int i = 0; i < fnode->arguments.size(); i++) {
@@ -264,9 +264,9 @@ void ShaderCompilerGLES2::_dump_function_deps(const SL::ShaderNode *p_node, cons
 			header += _constr(fnode->arguments[i].is_const);
 
 			if (fnode->arguments[i].type == SL::TYPE_STRUCT) {
-				header += _qualstr(fnode->arguments[i].qualifier) + _mkid(fnode->arguments[i].type_str) + " " + _mkid(fnode->arguments[i].name);
+				header += _qualstr(fnode->arguments[i].qualifier) + _compiler_mkid(fnode->arguments[i].type_str) + " " + _compiler_mkid(fnode->arguments[i].name);
 			} else {
-				header += _qualstr(fnode->arguments[i].qualifier) + _prestr(fnode->arguments[i].precision) + _typestr(fnode->arguments[i].type) + " " + _mkid(fnode->arguments[i].name);
+				header += _qualstr(fnode->arguments[i].qualifier) + _prestr(fnode->arguments[i].precision) + _typestr(fnode->arguments[i].type) + " " + _compiler_mkid(fnode->arguments[i].name);
 			}
 		}
 
@@ -327,13 +327,13 @@ String ShaderCompilerGLES2::_dump_node_code(const SL::Node *p_node, int p_level,
 				String struct_code;
 
 				struct_code += "struct ";
-				struct_code += _mkid(snode->vstructs[i].name);
+				struct_code += _compiler_mkid(snode->vstructs[i].name);
 				struct_code += " ";
 				struct_code += "{\n";
 				for (int j = 0; j < st->members.size(); j++) {
 					SL::MemberNode *m = st->members[j];
 					if (m->datatype == SL::TYPE_STRUCT) {
-						struct_code += _mkid(m->struct_name);
+						struct_code += _compiler_mkid(m->struct_name);
 					} else {
 						struct_code += _prestr(m->precision);
 						struct_code += _typestr(m->datatype);
@@ -369,7 +369,7 @@ String ShaderCompilerGLES2::_dump_node_code(const SL::Node *p_node, int p_level,
 				uniform_code += _prestr(precision);
 				uniform_code += _typestr(E.get().type);
 				uniform_code += " ";
-				uniform_code += _mkid(E.key());
+				uniform_code += _compiler_mkid(E.key());
 				uniform_code += ";\n";
 
 				if (SL::is_sampler_type(E.get().type)) {
@@ -401,7 +401,7 @@ String ShaderCompilerGLES2::_dump_node_code(const SL::Node *p_node, int p_level,
 				varying_code += _prestr(E.get().precision);
 				varying_code += _typestr(E.get().type);
 				varying_code += " ";
-				varying_code += _mkid(E.key());
+				varying_code += _compiler_mkid(E.key());
 				if (E.get().array_size > 0) {
 					varying_code += "[";
 					varying_code += itos(E.get().array_size);
@@ -418,7 +418,7 @@ String ShaderCompilerGLES2::_dump_node_code(const SL::Node *p_node, int p_level,
 			if (var_frag_to_light.size() > 0) {
 				String gcode = "\n\nstruct {\n";
 				for (List<Pair<StringName, SL::ShaderNode::Varying>>::Element *E = var_frag_to_light.front(); E; E = E->next()) {
-					gcode += "\t" + _prestr(E->get().second.precision) + _typestr(E->get().second.type) + " " + _mkid(E->get().first);
+					gcode += "\t" + _prestr(E->get().second.precision) + _typestr(E->get().second.type) + " " + _compiler_mkid(E->get().first);
 					if (E->get().second.array_size > 0) {
 						gcode += "[";
 						gcode += itos(E->get().second.array_size);
@@ -436,12 +436,12 @@ String ShaderCompilerGLES2::_dump_node_code(const SL::Node *p_node, int p_level,
 				String gcode;
 				gcode += _constr(true);
 				if (snode->vconstants[i].type == SL::TYPE_STRUCT) {
-					gcode += _mkid(snode->vconstants[i].type_str);
+					gcode += _compiler_mkid(snode->vconstants[i].type_str);
 				} else {
 					gcode += _prestr(snode->vconstants[i].precision);
 					gcode += _typestr(snode->vconstants[i].type);
 				}
-				gcode += " " + _mkid(String(snode->vconstants[i].name));
+				gcode += " " + _compiler_mkid(String(snode->vconstants[i].name));
 				gcode += "=";
 				gcode += _dump_node_code(snode->vconstants[i].initializer, p_level, r_gen_code, p_actions, p_default_actions, p_assigning);
 				gcode += ";\n";
@@ -528,7 +528,7 @@ String ShaderCompilerGLES2::_dump_node_code(const SL::Node *p_node, int p_level,
 			StringBuffer<> declaration;
 			declaration += _constr(var_dec_node->is_const);
 			if (var_dec_node->datatype == SL::TYPE_STRUCT) {
-				declaration += _mkid(var_dec_node->struct_name);
+				declaration += _compiler_mkid(var_dec_node->struct_name);
 			} else {
 				declaration += _prestr(var_dec_node->precision);
 				declaration += _typestr(var_dec_node->datatype);
@@ -541,7 +541,7 @@ String ShaderCompilerGLES2::_dump_node_code(const SL::Node *p_node, int p_level,
 
 				declaration += " ";
 
-				declaration += _mkid(var_dec_node->declarations[i].name);
+				declaration += _compiler_mkid(var_dec_node->declarations[i].name);
 
 				if (var_dec_node->declarations[i].initializer) {
 					declaration += " = ";
@@ -594,9 +594,9 @@ String ShaderCompilerGLES2::_dump_node_code(const SL::Node *p_node, int p_level,
 			if (p_default_actions.renames.has(var_node->name)) {
 				code += p_default_actions.renames[var_node->name];
 			} else if (use_fragment_varying) {
-				code += "frag_to_light." + _mkid(var_node->name);
+				code += "frag_to_light." + _compiler_mkid(var_node->name);
 			} else {
-				code += _mkid(var_node->name);
+				code += _compiler_mkid(var_node->name);
 			}
 
 			if (var_node->name == time_name) {
@@ -612,7 +612,7 @@ String ShaderCompilerGLES2::_dump_node_code(const SL::Node *p_node, int p_level,
 			SL::ArrayConstructNode *arr_con_node = (SL::ArrayConstructNode *)p_node;
 			int sz = arr_con_node->initializer.size();
 			if (arr_con_node->datatype == SL::TYPE_STRUCT) {
-				code += _mkid(arr_con_node->struct_name);
+				code += _compiler_mkid(arr_con_node->struct_name);
 			} else {
 				code += _typestr(arr_con_node->datatype);
 			}
@@ -633,7 +633,7 @@ String ShaderCompilerGLES2::_dump_node_code(const SL::Node *p_node, int p_level,
 
 			StringBuffer<> declaration;
 			if (arr_dec_node->datatype == SL::TYPE_STRUCT) {
-				declaration += _mkid(arr_dec_node->struct_name);
+				declaration += _compiler_mkid(arr_dec_node->struct_name);
 			} else {
 				declaration += _prestr(arr_dec_node->precision);
 				declaration += _typestr(arr_dec_node->datatype);
@@ -645,7 +645,7 @@ String ShaderCompilerGLES2::_dump_node_code(const SL::Node *p_node, int p_level,
 
 				declaration += " ";
 
-				declaration += _mkid(arr_dec_node->declarations[i].name);
+				declaration += _compiler_mkid(arr_dec_node->declarations[i].name);
 				declaration += "[";
 				declaration += itos(arr_dec_node->declarations[i].size);
 				declaration += "]";
@@ -699,9 +699,9 @@ String ShaderCompilerGLES2::_dump_node_code(const SL::Node *p_node, int p_level,
 			if (p_default_actions.renames.has(arr_node->name)) {
 				code += p_default_actions.renames[arr_node->name];
 			} else if (use_fragment_varying) {
-				code += "frag_to_light." + _mkid(arr_node->name);
+				code += "frag_to_light." + _compiler_mkid(arr_node->name);
 			} else {
-				code += _mkid(arr_node->name);
+				code += _compiler_mkid(arr_node->name);
 			}
 
 			if (arr_node->call_expression != nullptr) {
@@ -781,7 +781,7 @@ String ShaderCompilerGLES2::_dump_node_code(const SL::Node *p_node, int p_level,
 
 					SL::VariableNode *var_node = (SL::VariableNode *)op_node->arguments[0];
 					if (op_node->op == SL::OP_STRUCT) {
-						code += _mkid(var_node->name);
+						code += _compiler_mkid(var_node->name);
 					} else if (op_node->op == SL::OP_CONSTRUCT) {
 						code += var_node->name;
 					} else {
@@ -837,7 +837,7 @@ String ShaderCompilerGLES2::_dump_node_code(const SL::Node *p_node, int p_level,
 						} else if (internal_functions.has(var_node->name)) {
 							code += var_node->name;
 						} else {
-							code += _mkid(var_node->name);
+							code += _compiler_mkid(var_node->name);
 						}
 					}
 

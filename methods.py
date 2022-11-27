@@ -14,7 +14,7 @@ from SCons.Script import Glob
 from SCons.Variables.BoolVariable import _text2bool
 
 
-def add_source_files(self, sources, files):
+def add_source_files(self, sources, files, allow_gen=False):
     # Convert string to list of absolute paths (including expanding wildcard)
     if isbasestring(files):
         # Keep SCons project-absolute path as they are (no wildcard support)
@@ -30,7 +30,10 @@ def add_source_files(self, sources, files):
             dir_path = self.Dir(".").abspath
             files = sorted(glob.glob(dir_path + "/" + files))
             if skip_gen_cpp:
-                files = [f for f in files if not f.endswith(".gen.cpp")]
+                if allow_gen:
+                    files = [f for f in files]
+                else:
+                    files = [f for f in files if not f.endswith(".gen.cpp")]
 
     # Add each path as compiled Object following environment (self) configuration
     for path in files:
@@ -39,6 +42,19 @@ def add_source_files(self, sources, files):
             print('WARNING: Object "{}" already included in environment sources.'.format(obj))
             continue
         sources.append(obj)
+
+
+def add_source_files_scu(self, sources, files, section_name):
+    if self["use_scu"]:
+        print("SCU building " + section_name)
+        subdir = os.path.dirname(files)
+        if subdir != "":
+            subdir += "/"
+        self.add_source_files(sources, subdir + "scu/scu_*.gen.cpp", True)
+        return True
+    else:
+        self.add_source_files(sources, files)
+        return False
 
 
 def disable_warnings(self):

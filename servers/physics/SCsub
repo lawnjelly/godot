@@ -2,6 +2,9 @@
 
 Import("env")
 
-env.add_source_files(env.servers_sources, "*.cpp")
-
-SConscript("joints/SCsub")
+if env["use_scu"]:
+    print("SCU building servers physics")
+    env.add_source_files(env.servers_sources, "scu/scu_servers_physics.gen.cpp")
+else:
+    env.add_source_files(env.servers_sources, "*.cpp")
+    SConscript("joints/SCsub")

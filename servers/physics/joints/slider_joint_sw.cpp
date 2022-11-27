@@ -57,7 +57,7 @@ April 04, 2008
 
 //-----------------------------------------------------------------------------
 
-static _FORCE_INLINE_ real_t atan2fast(real_t y, real_t x) {
+static _FORCE_INLINE_ real_t slider_joint_atan2fast(real_t y, real_t x) {
 	real_t coeff_1 = Math_PI / 4.0f;
 	real_t coeff_2 = 3.0f * coeff_1;
 	real_t abs_y = Math::abs(y);
@@ -354,7 +354,7 @@ void SliderJointSW::testAngLimits() {
 		const Vector3 axisA0 = m_calculatedTransformA.basis.get_axis(1);
 		const Vector3 axisA1 = m_calculatedTransformA.basis.get_axis(2);
 		const Vector3 axisB0 = m_calculatedTransformB.basis.get_axis(1);
-		real_t rot = atan2fast(axisB0.dot(axisA1), axisB0.dot(axisA0));
+		real_t rot = slider_joint_atan2fast(axisB0.dot(axisA1), axisB0.dot(axisA0));
 		if (rot < m_lowerAngLimit) {
 			m_angDepth = rot - m_lowerAngLimit;
 			m_solveAngLim = true;

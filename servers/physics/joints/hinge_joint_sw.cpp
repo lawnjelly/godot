@@ -49,7 +49,7 @@ subject to the following restrictions:
 
 #include "hinge_joint_sw.h"
 
-static void plane_space(const Vector3 &n, Vector3 &p, Vector3 &q) {
+static void hinge_joint_plane_space(const Vector3 &n, Vector3 &p, Vector3 &q) {
 	if (Math::abs(n.z) > Math_SQRT12) {
 		// choose p in y-z plane
 		real_t a = n[1] * n[1] + n[2] * n[2];
@@ -173,7 +173,7 @@ bool HingeJointSW::setup(real_t p_step) {
 			normal[0] = relPos.normalized();
 		}
 
-		plane_space(normal[0], normal[1], normal[2]);
+		hinge_joint_plane_space(normal[0], normal[1], normal[2]);
 
 		for (int i = 0; i < 3; i++) {
 			memnew_placement(
@@ -198,7 +198,7 @@ bool HingeJointSW::setup(real_t p_step) {
 	Vector3 jointAxis0local;
 	Vector3 jointAxis1local;
 
-	plane_space(m_rbAFrame.basis.get_axis(2), jointAxis0local, jointAxis1local);
+	hinge_joint_plane_space(m_rbAFrame.basis.get_axis(2), jointAxis0local, jointAxis1local);
 
 	Vector3 jointAxis0 = A->get_transform().basis.xform(jointAxis0local);
 	Vector3 jointAxis1 = A->get_transform().basis.xform(jointAxis1local);
@@ -382,7 +382,7 @@ void	HingeJointSW::updateRHS(real_t	timeStep)
 }
 */
 
-static _FORCE_INLINE_ real_t atan2fast(real_t y, real_t x) {
+static _FORCE_INLINE_ real_t hinge_joint_atan2fast(real_t y, real_t x) {
 	real_t coeff_1 = Math_PI / 4.0f;
 	real_t coeff_2 = 3.0f * coeff_1;
 	real_t abs_y = Math::abs(y);
@@ -402,7 +402,7 @@ real_t HingeJointSW::get_hinge_angle() {
 	const Vector3 refAxis1 = A->get_transform().basis.xform(m_rbAFrame.basis.get_axis(1));
 	const Vector3 swingAxis = B->get_transform().basis.xform(m_rbBFrame.basis.get_axis(1));
 
-	return atan2fast(swingAxis.dot(refAxis0), swingAxis.dot(refAxis1));
+	return hinge_joint_atan2fast(swingAxis.dot(refAxis0), swingAxis.dot(refAxis1));
 }
 
 void HingeJointSW::set_param(PhysicsServer::HingeJointParam p_param, real_t p_value) {
