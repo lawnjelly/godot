@@ -63,6 +63,10 @@ public:
 	};
 
 	struct StreamFile : public Stream {
+#ifdef DEV_ENABLED
+		uint64_t _expected_file_pos = 0;
+#endif
+
 	protected:
 		virtual uint32_t _read_buffer(CharType *p_buffer, uint32_t p_num_chars);
 		virtual bool _is_eof() const;

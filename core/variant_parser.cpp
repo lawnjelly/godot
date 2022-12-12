@@ -65,9 +65,21 @@ uint32_t VariantParser::StreamFile::_read_buffer(CharType *p_buffer, uint32_t p_
 	// The buffer is assumed to include at least one character (for null terminator)
 	ERR_FAIL_COND_V(!p_num_chars, 0);
 
+#ifdef DEV_ENABLED
+	if (readahead_enabled && (f->get_position() != _expected_file_pos)) {
+		WARN_PRINT_ONCE("Stream file out of sync.");
+	}
+#endif
+
 	uint8_t *temp = (uint8_t *)alloca(p_num_chars);
 	uint64_t num_read = f->get_buffer(temp, p_num_chars);
 	ERR_FAIL_COND_V(num_read == UINT64_MAX, 0);
+
+#ifdef DEV_ENABLED
+	if (readahead_enabled) {
+		_expected_file_pos = f->get_position();
+	}
+#endif
 
 	// translate to wchar
 	for (uint32_t n = 0; n < num_read; n++) {
