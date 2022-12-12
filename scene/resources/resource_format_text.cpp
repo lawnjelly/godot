@@ -837,7 +837,7 @@ void ResourceLoaderText::set_translation_remapped(bool p_remapped) {
 }
 
 ResourceLoaderText::ResourceLoaderText() :
-		stream(false) {}
+		stream(true) {}
 
 void ResourceLoaderText::get_dependencies(Ref<FileAccess> p_f, List<String> *p_dependencies, bool p_add_types) {
 	open(p_f);
@@ -1019,7 +1019,8 @@ void ResourceLoaderText::open(Ref<FileAccess> p_f, bool p_skip_first_tag) {
 	lines = 1;
 	f = p_f;
 
-	stream.f = f;
+	stream.set_file(f);
+
 	is_scene = false;
 	ignore_resource_parsing = false;
 	resource_current = 0;
@@ -1506,7 +1507,7 @@ String ResourceLoaderText::recognize(Ref<FileAccess> p_f) {
 	lines = 1;
 	f = p_f;
 
-	stream.f = f;
+	stream.set_file(f);
 
 	ignore_resource_parsing = true;
 
@@ -1550,7 +1551,7 @@ ResourceUID::ID ResourceLoaderText::get_uid(Ref<FileAccess> p_f) {
 	lines = 1;
 	f = p_f;
 
-	stream.f = f;
+	stream.set_file(f);
 
 	ignore_resource_parsing = true;
 

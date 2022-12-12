@@ -61,6 +61,55 @@ bool VariantParser::Stream::is_eof() const {
 	return _is_eof();
 }
 
+uint32_t VariantParser::Stream::_get_read_offset() const {
+	if (eof) {
+		return 0;
+	}
+
+	return readahead_filled - readahead_pointer;
+}
+
+void VariantParser::Stream::_invalidate_cache(bool p_eof) {
+	readahead_filled = 0;
+	readahead_pointer = p_eof ? 1 : 0;
+	eof = p_eof;
+}
+
+void VariantParser::StreamFile::set_file(Ref<FileAccess> p_file) {
+	f = p_file;
+	sync_stream();
+}
+
+void VariantParser::StreamFile::sync_source() {
+	if (!readahead_enabled) {
+		return;
+	}
+
+	if (eof) {
+		f->seek_end(0);
+		_invalidate_cache(true);
+		return;
+	}
+
+	uint32_t offset = _get_read_offset();
+	if (!offset) {
+		return;
+	}
+	uint64_t pos = f->get_position();
+	f->seek(pos - offset);
+
+	_invalidate_cache(f->eof_reached());
+}
+
+void VariantParser::StreamFile::sync_stream() {
+	if (!readahead_enabled) {
+		return;
+	}
+
+	_invalidate_cache(f->eof_reached());
+	_readahead_start_source_pos = f->get_position();
+}
+
 bool VariantParser::StreamFile::is_utf8() const {
 	return true;
 }
@@ -69,13 +118,36 @@ bool VariantParser::StreamFile::_is_eof() const {
 	return f->eof_reached();
 }
 
+uint64_t VariantParser::StreamFile::get_position() const {
+	if (!readahead_enabled) {
+		return f->get_position();
+	}
+	return _readahead_start_source_pos + readahead_pointer;
+}
+
 uint32_t VariantParser::StreamFile::_read_buffer(char32_t *p_buffer, uint32_t p_num_chars) {
 	// The buffer is assumed to include at least one character (for null terminator)
 	ERR_FAIL_COND_V(!p_num_chars, 0);
 
+	if (readahead_enabled) {
+		_readahead_start_source_pos = f->get_position();
+
+#ifdef DEV_ENABLED
+		if (_readahead_start_source_pos != _readahead_end_source_pos) {
+			WARN_PRINT_ONCE("Stream file out of sync.");
+		}
+#endif
+	}
+
 	uint8_t *temp = (uint8_t *)alloca(p_num_chars);
 	uint64_t num_read = f->get_buffer(temp, p_num_chars);
 	ERR_FAIL_COND_V(num_read == UINT64_MAX, 0);
+
+#ifdef DEV_ENABLED
+	if (readahead_enabled) {
+		_readahead_end_source_pos = f->get_position();
+	}
+#endif
 
 	// translate to wchar
 	for (uint32_t n = 0; n < num_read; n++) {
@@ -92,6 +164,10 @@ bool VariantParser::StreamString::is_utf8() const {
 
 bool VariantParser::StreamString::_is_eof() const {
 	return pos > s.length();
+}
+
+uint64_t VariantParser::StreamString::get_position() const {
+	return pos;
 }
 
 uint32_t VariantParser::StreamString::_read_buffer(char32_t *p_buffer, uint32_t p_num_chars) {

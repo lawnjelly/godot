@@ -41,20 +41,25 @@ public:
 	private:
 		enum { READAHEAD_SIZE = 2048 };
 		char32_t readahead_buffer[READAHEAD_SIZE];
-		uint32_t readahead_pointer = 0;
-		uint32_t readahead_filled = 0;
-		bool eof = false;
 
 	protected:
+		bool eof = false;
 		bool readahead_enabled = true;
+		uint32_t readahead_pointer = 0;
+		uint32_t readahead_filled = 0;
+		uint64_t _readahead_start_source_pos = 0;
+
 		virtual uint32_t _read_buffer(char32_t *p_buffer, uint32_t p_num_chars) = 0;
 		virtual bool _is_eof() const = 0;
+		uint32_t _get_read_offset() const;
+		void _invalidate_cache(bool p_eof);
 
 	public:
 		char32_t saved = 0;
 
 		char32_t get_char();
 		virtual bool is_utf8() const = 0;
+		virtual uint64_t get_position() const = 0;
 		bool is_eof() const;
 
 		Stream() {}
@@ -62,14 +67,26 @@ public:
 	};
 
 	struct StreamFile : public Stream {
+	private:
+#ifdef DEV_ENABLED
+		uint64_t _readahead_end_source_pos = 0;
+#endif
+		Ref<FileAccess> f;
+
 	protected:
 		virtual uint32_t _read_buffer(char32_t *p_buffer, uint32_t p_num_chars) override;
 		virtual bool _is_eof() const override;
 
 	public:
-		Ref<FileAccess> f;
+		void set_file(Ref<FileAccess> p_file);
 
 		virtual bool is_utf8() const override;
+		virtual uint64_t get_position() const override;
+
+		// Synchronize the source pointer (e.g. file) to where we have read up to
+		// or the stream to the source pointer, and invalidate the readahead cache.
+		void sync_source();
+		void sync_stream();
 
 		StreamFile(bool p_readahead_enabled = true) { readahead_enabled = p_readahead_enabled; }
 	};
@@ -83,6 +100,7 @@ public:
 	protected:
 		virtual uint32_t _read_buffer(char32_t *p_buffer, uint32_t p_num_chars) override;
 		virtual bool _is_eof() const override;
+		virtual uint64_t get_position() const override;
 
 	public:
 		virtual bool is_utf8() const override;
