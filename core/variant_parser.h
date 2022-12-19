@@ -145,8 +145,32 @@ public:
 private:
 	static const char *tk_name[TK_MAX];
 
-	template <class T>
-	static Error _parse_construct(Stream *p_stream, Vector<T> &r_construct, int &line, String &r_err_str);
+	// Instead of using Vector or LocalVector for _parse_construct
+	// to return arguments, we will use a simple fixed size vector which
+	// can be stored on the stack and avoid dynamic allocations.
+	template <class T, uint32_t MAX_SIZE>
+	class StackVector {
+		T _list[MAX_SIZE];
+		uint32_t _size = 0;
+
+	public:
+		// Allow size to increase ABOVE the max size,
+		// but not store the value. This signifies an error in parsing.
+		void push_back(const T &p_val) {
+			if (_size < MAX_SIZE) {
+				_list[_size] = p_val;
+			}
+			_size++;
+		}
+		const T &operator[](uint32_t p_index) const {
+			DEV_ASSERT(p_index < MAX_SIZE);
+			return _list[p_index];
+		}
+		uint32_t size() const { return _size; }
+	};
+
+	template <class T, class RETURN_VECTOR>
+	static Error _parse_construct(Stream *p_stream, RETURN_VECTOR &r_construct, int &line, String &r_err_str);
 	static Error _parse_enginecfg(Stream *p_stream, Vector<String> &strings, int &line, String &r_err_str);
 	static Error _parse_dictionary(Dictionary &object, Stream *p_stream, int &line, String &r_err_str, ResourceParser *p_res_parser = nullptr);
 	static Error _parse_array(Array &array, Stream *p_stream, int &line, String &r_err_str, ResourceParser *p_res_parser = nullptr);
