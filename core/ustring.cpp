@@ -2179,7 +2179,8 @@ double String::to_double(const CharType *p_str, const CharType **r_end) {
 	return built_in_strtod<CharType>(p_str, (CharType **)r_end);
 }
 
-int64_t String::to_int(const CharType *p_str, int p_len) {
+/*
+int64_t g_to_int_old(const CharType *p_str, int p_len) {
 	if (p_len == 0 || !p_str[0]) {
 		return 0;
 	}
@@ -2232,6 +2233,75 @@ int64_t String::to_int(const CharType *p_str, int p_len) {
 	}
 
 	return sign * integer;
+}
+*/
+
+int64_t String::to_int(const CharType *p_str, int p_len) {
+	// The old code did not check for null ptr so we will only assert this.
+	DEV_ASSERT(p_str);
+	ERR_FAIL_NULL_V(p_str, 0);
+
+	// We need one character to read the sign
+	if (!p_len) {
+		return 0;
+	}
+
+	// Feeding in a minus length is suspect (aside from -1, which means unlimited), report it in DEV builds.
+	DEV_CHECK_ONCE(p_len >= -1);
+
+	///@todo make more exact so saving and loading does not lose precision
+
+	const CharType *str = p_str;
+	bool sign = true;
+
+	// Note this may be -1 hence UINT32_MAX (for unlimited)
+	uint32_t len = p_len;
+
+	// sign?
+	CharType sign_char = *str;
+	switch (sign_char) {
+		case '+': {
+			str++;
+			len--;
+		} break;
+		case '-': {
+			sign = false;
+			str++;
+			len--;
+		} break;
+		case 0: {
+			return 0;
+		} break;
+		default: {
+			// not recognised .. go on to parsing numbers
+		} break;
+	}
+
+	int64_t integer = 0;
+
+	// len may be UINT32_MAX (or 1 less if signed),
+	// to give unlimited length.
+	for (uint32_t n = 0; n < len; n++) {
+		CharType c = *(str++);
+		if (c >= '0' && c <= '9') {
+			if (integer > INT64_MAX / 10) {
+				String number("");
+				str = p_str;
+				const CharType *limit = &p_str[p_len];
+				while (*str && str != limit) {
+					number += *(str++);
+				}
+				ERR_FAIL_V_MSG(sign == true ? INT64_MAX : INT64_MIN, "Cannot represent " + number + " as a 64-bit signed integer, since the value is " + (sign == true ? "too large." : "too small."));
+			}
+			integer *= 10;
+			integer += c - '0';
+		} else {
+			// this should also catch null terminator
+			break;
+		}
+	}
+
+	return sign ? integer : -integer;
 }
 
 double String::to_double() const {

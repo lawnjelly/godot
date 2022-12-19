@@ -43,6 +43,8 @@ class StringBuffer {
 		return static_cast<String &>(buffer).empty() ? short_buffer : buffer.ptrw();
 	}
 
+	void fast_append(CharType p_char);
+
 public:
 	StringBuffer &append(CharType p_char);
 	StringBuffer &append(const String &p_string);
@@ -50,7 +52,7 @@ public:
 	StringBuffer &append(const CharType *p_str, int p_clip_to_len = -1);
 
 	_FORCE_INLINE_ void operator+=(CharType p_char) {
-		append(p_char);
+		fast_append(p_char);
 	}
 
 	_FORCE_INLINE_ void operator+=(const String &p_string) {
@@ -82,6 +84,15 @@ public:
 		string_length = 0;
 	}
 };
+
+// This is the hottest function seen in VariantParser, so is highly optimized.
+template <int SHORT_BUFFER_SIZE>
+void StringBuffer<SHORT_BUFFER_SIZE>::fast_append(CharType p_char) {
+	if (string_length > (SHORT_BUFFER_SIZE - 2)) {
+		reserve(string_length + 2);
+	}
+	current_buffer_ptr()[string_length++] = p_char;
+}
 
 template <int SHORT_BUFFER_SIZE>
 StringBuffer<SHORT_BUFFER_SIZE> &StringBuffer<SHORT_BUFFER_SIZE>::append(CharType p_char) {
