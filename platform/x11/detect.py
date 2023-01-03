@@ -114,7 +114,7 @@ def configure(env):
 
     ## Architecture
 
-    is64 = sys.maxsize > 2**32
+    is64 = sys.maxsize > 2 ** 32
     if env["bits"] == "default":
         env["bits"] = "64" if is64 else "32"
 
@@ -391,7 +391,16 @@ def configure(env):
         env.ParseConfig("pkg-config zlib --cflags --libs")
 
     env.Prepend(CPPPATH=["#platform/x11"])
-    env.Append(CPPDEFINES=["X11_ENABLED", "UNIX_ENABLED", "OPENGL_ENABLED", "GLES_ENABLED", ("_FILE_OFFSET_BITS", 64)])
+    env.Append(
+        CPPDEFINES=[
+            "X11_ENABLED",
+            "UNIX_ENABLED",
+            "OPENGL_ENABLED",
+            "GLES_ENABLED",
+            "BGFX_ENABLED",
+            ("_FILE_OFFSET_BITS", 64),
+        ]
+    )
 
     env.ParseConfig("pkg-config gl --cflags --libs")
 

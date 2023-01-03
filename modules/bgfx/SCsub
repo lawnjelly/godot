@@ -1,0 +1,43 @@
+#!/usr/bin/env python
+
+Import("env")
+Import("env_modules")
+
+env_bgfx = env_modules.Clone()
+
+print("Compiling BGFX")
+
+env_bgfx.add_source_files(env.modules_sources, "*.cpp")
+
+# Thirdparty source files
+
+thirdparty_obj = []
+
+if True:
+
+    thirdparty_dir = "#thirdparty/bgfx/"
+
+    bgfx_src = [
+        "src/amalgamated.cpp",
+    ]
+
+    thirdparty_sources = [thirdparty_dir + file for file in bgfx_src]
+
+    env_bgfx.Prepend(CPPPATH=[thirdparty_dir])
+
+    # env_bgfx.Append(CPPDEFINES=["BT_USE_OLD_DAMPING_METHOD", "BT_THREADSAFE"])
+
+    env_thirdparty = env_bgfx.Clone()
+    env_thirdparty.disable_warnings()
+    env_thirdparty.add_source_files(thirdparty_obj, thirdparty_sources)
+    env.modules_sources += thirdparty_obj
+
+
+# Godot source files
+module_obj = []
+
+env_bgfx.add_source_files(module_obj, "*.cpp")
+env.modules_sources += module_obj
+
+# Needed to force rebuilding the module files when the thirdparty library is updated.
+env.Depends(module_obj, thirdparty_obj)
