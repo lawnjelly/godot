@@ -30,9 +30,12 @@
 
 #include "os_x11.h"
 
+#include "context_bgfx_x11.h"
+#include "context_gl_x11.h"
 #include "core/os/dir_access.h"
 #include "core/print_string.h"
 #include "detect_prime.h"
+#include "drivers/bgfx/rasterizer_bgfx.h"
 #include "drivers/gles2/rasterizer_gles2.h"
 #include "drivers/gles3/rasterizer_gles3.h"
 #include "key_mapping_x11.h"
@@ -282,108 +285,104 @@ Error OS_X11::initialize(const VideoMode &p_desired, int p_video_driver, int p_a
 		XFree(imvalret);
 	}
 
-/*
-	char* windowid = getenv("GODOT_WINDOWID");
-	if (windowid) {
+	/*
+		char* windowid = getenv("GODOT_WINDOWID");
+		if (windowid) {
 
-		//freopen("/home/punto/stdout", "w", stdout);
-		//reopen("/home/punto/stderr", "w", stderr);
-		x11_window = atol(windowid);
+			//freopen("/home/punto/stdout", "w", stdout);
+			//reopen("/home/punto/stderr", "w", stderr);
+			x11_window = atol(windowid);
 
-		XWindowAttributes xwa;
-		XGetWindowAttributes(x11_display,x11_window,&xwa);
+			XWindowAttributes xwa;
+			XGetWindowAttributes(x11_display,x11_window,&xwa);
 
-		current_videomode.width = xwa.width;
-		current_videomode.height = xwa.height;
-	};
-	*/
+			current_videomode.width = xwa.width;
+			current_videomode.height = xwa.height;
+		};
+		*/
+
+	_context = nullptr;
+
+	// NEW .. try BGFX first
+	if (true) {
+		_context = memnew(ContextBGFX_X11(x11_display, x11_window, current_videomode, Context::OLDSTYLE));
+
+		if (_context->initialize() != OK) {
+			memdelete(_context);
+			_context = nullptr;
+		} else {
+			RasterizerBGFX::make_current();
+		}
+	}
 
 // maybe contextgl wants to be in charge of creating the window
 #if defined(OPENGL_ENABLED)
-	if (getenv("DRI_PRIME") == nullptr) {
-		int use_prime = -1;
+	if (!_context) {
+		if (getenv("DRI_PRIME") == nullptr) {
+			int use_prime = -1;
 
-		if (getenv("PRIMUS_DISPLAY") ||
-				getenv("PRIMUS_libGLd") ||
-				getenv("PRIMUS_libGLa") ||
-				getenv("PRIMUS_libGL") ||
-				getenv("PRIMUS_LOAD_GLOBAL") ||
-				getenv("BUMBLEBEE_SOCKET")) {
-			print_verbose("Optirun/primusrun detected. Skipping GPU detection");
-			use_prime = 0;
-		}
+			if (getenv("PRIMUS_DISPLAY") ||
+					getenv("PRIMUS_libGLd") ||
+					getenv("PRIMUS_libGLa") ||
+					getenv("PRIMUS_libGL") ||
+					getenv("PRIMUS_LOAD_GLOBAL") ||
+					getenv("BUMBLEBEE_SOCKET")) {
+				print_verbose("Optirun/primusrun detected. Skipping GPU detection");
+				use_prime = 0;
+			}
 
-		// Some tools use fake libGL libraries and have them override the real one using
-		// LD_LIBRARY_PATH, so we skip them. *But* Steam also sets LD_LIBRARY_PATH for its
-		// runtime and includes system `/lib` and `/lib64`... so ignore Steam.
-		if (use_prime == -1 && getenv("LD_LIBRARY_PATH") && !getenv("STEAM_RUNTIME_LIBRARY_PATH")) {
-			String ld_library_path(getenv("LD_LIBRARY_PATH"));
-			Vector<String> libraries = ld_library_path.split(":");
+			// Some tools use fake libGL libraries and have them override the real one using
+			// LD_LIBRARY_PATH, so we skip them. *But* Steam also sets LD_LIBRARY_PATH for its
+			// runtime and includes system `/lib` and `/lib64`... so ignore Steam.
+			if (use_prime == -1 && getenv("LD_LIBRARY_PATH") && !getenv("STEAM_RUNTIME_LIBRARY_PATH")) {
+				String ld_library_path(getenv("LD_LIBRARY_PATH"));
+				Vector<String> libraries = ld_library_path.split(":");
 
-			for (int i = 0; i < libraries.size(); ++i) {
-				if (FileAccess::exists(libraries[i] + "/libGL.so.1") ||
-						FileAccess::exists(libraries[i] + "/libGL.so")) {
-					print_verbose("Custom libGL override detected. Skipping GPU detection");
-					use_prime = 0;
+				for (int i = 0; i < libraries.size(); ++i) {
+					if (FileAccess::exists(libraries[i] + "/libGL.so.1") ||
+							FileAccess::exists(libraries[i] + "/libGL.so")) {
+						print_verbose("Custom libGL override detected. Skipping GPU detection");
+						use_prime = 0;
+					}
 				}
+			}
+
+			if (use_prime == -1) {
+				print_verbose("Detecting GPUs, set DRI_PRIME in the environment to override GPU detection logic.");
+				use_prime = detect_prime();
+			}
+
+			if (use_prime) {
+				print_line("Found discrete GPU, setting DRI_PRIME=1 to use it.");
+				print_line("Note: Set DRI_PRIME=0 in the environment to disable Godot from using the discrete GPU.");
+				setenv("DRI_PRIME", "1", 1);
 			}
 		}
 
-		if (use_prime == -1) {
-			print_verbose("Detecting GPUs, set DRI_PRIME in the environment to override GPU detection logic.");
-			use_prime = detect_prime();
+		ContextGL_X11::ContextType opengl_api_type = ContextGL_X11::GLES_3_0_COMPATIBLE;
+
+		if (p_video_driver == VIDEO_DRIVER_GLES2) {
+			opengl_api_type = ContextGL_X11::GLES_2_0_COMPATIBLE;
 		}
 
-		if (use_prime) {
-			print_line("Found discrete GPU, setting DRI_PRIME=1 to use it.");
-			print_line("Note: Set DRI_PRIME=0 in the environment to disable Godot from using the discrete GPU.");
-			setenv("DRI_PRIME", "1", 1);
-		}
-	}
+		bool editor = Engine::get_singleton()->is_editor_hint();
+		bool gl_initialization_error = false;
 
-	ContextGL_X11::ContextType opengl_api_type = ContextGL_X11::GLES_3_0_COMPATIBLE;
+		while (!_context) {
+			_context = memnew(ContextGL_X11(x11_display, x11_window, current_videomode, opengl_api_type));
 
-	if (p_video_driver == VIDEO_DRIVER_GLES2) {
-		opengl_api_type = ContextGL_X11::GLES_2_0_COMPATIBLE;
-	}
+			if (_context->initialize() != OK) {
+				memdelete(_context);
+				_context = nullptr;
 
-	bool editor = Engine::get_singleton()->is_editor_hint();
-	bool gl_initialization_error = false;
-
-	context_gl = nullptr;
-	while (!context_gl) {
-		context_gl = memnew(ContextGL_X11(x11_display, x11_window, current_videomode, opengl_api_type));
-
-		if (context_gl->initialize() != OK) {
-			memdelete(context_gl);
-			context_gl = nullptr;
-
-			if (GLOBAL_GET("rendering/quality/driver/fallback_to_gles2") || editor) {
-				if (p_video_driver == VIDEO_DRIVER_GLES2) {
-					gl_initialization_error = true;
-					break;
-				}
-
-				p_video_driver = VIDEO_DRIVER_GLES2;
-				opengl_api_type = ContextGL_X11::GLES_2_0_COMPATIBLE;
-			} else {
-				gl_initialization_error = true;
-				break;
-			}
-		}
-	}
-
-	while (true) {
-		if (opengl_api_type == ContextGL_X11::GLES_3_0_COMPATIBLE) {
-			if (RasterizerGLES3::is_viable() == OK) {
-				RasterizerGLES3::register_config();
-				RasterizerGLES3::make_current();
-				break;
-			} else {
 				if (GLOBAL_GET("rendering/quality/driver/fallback_to_gles2") || editor) {
+					if (p_video_driver == VIDEO_DRIVER_GLES2) {
+						gl_initialization_error = true;
+						break;
+					}
+
 					p_video_driver = VIDEO_DRIVER_GLES2;
 					opengl_api_type = ContextGL_X11::GLES_2_0_COMPATIBLE;
-					continue;
 				} else {
 					gl_initialization_error = true;
 					break;
@@ -391,31 +390,51 @@ Error OS_X11::initialize(const VideoMode &p_desired, int p_video_driver, int p_a
 			}
 		}
 
-		if (opengl_api_type == ContextGL_X11::GLES_2_0_COMPATIBLE) {
-			if (RasterizerGLES2::is_viable() == OK) {
-				RasterizerGLES2::register_config();
-				RasterizerGLES2::make_current();
-				break;
-			} else {
-				gl_initialization_error = true;
-				break;
+		while (true) {
+			if (opengl_api_type == ContextGL_X11::GLES_3_0_COMPATIBLE) {
+				if (RasterizerGLES3::is_viable() == OK) {
+					RasterizerGLES3::register_config();
+					RasterizerGLES3::make_current();
+					break;
+				} else {
+					if (GLOBAL_GET("rendering/quality/driver/fallback_to_gles2") || editor) {
+						p_video_driver = VIDEO_DRIVER_GLES2;
+						opengl_api_type = ContextGL_X11::GLES_2_0_COMPATIBLE;
+						continue;
+					} else {
+						gl_initialization_error = true;
+						break;
+					}
+				}
+			}
+
+			if (opengl_api_type == ContextGL_X11::GLES_2_0_COMPATIBLE) {
+				if (RasterizerGLES2::is_viable() == OK) {
+					RasterizerGLES2::register_config();
+					RasterizerGLES2::make_current();
+					break;
+				} else {
+					gl_initialization_error = true;
+					break;
+				}
 			}
 		}
-	}
 
-	if (gl_initialization_error) {
-		OS::get_singleton()->alert("Your video card driver does not support any of the supported OpenGL versions.\n"
-								   "Please update your drivers or if you have a very old or integrated GPU, upgrade it.\n"
-								   "If you have updated your graphics drivers recently, try rebooting.\n"
-								   "Alternatively, you can force software rendering by running Godot with the `LIBGL_ALWAYS_SOFTWARE=1`\n"
-								   "environment variable set, but this will be very slow.",
-				"Unable to initialize Video driver");
-		return ERR_UNAVAILABLE;
-	}
+		if (gl_initialization_error) {
+			OS::get_singleton()->alert("Your video card driver does not support any of the supported OpenGL versions.\n"
+									   "Please update your drivers or if you have a very old or integrated GPU, upgrade it.\n"
+									   "If you have updated your graphics drivers recently, try rebooting.\n"
+									   "Alternatively, you can force software rendering by running Godot with the `LIBGL_ALWAYS_SOFTWARE=1`\n"
+									   "environment variable set, but this will be very slow.",
+					"Unable to initialize Video driver");
+			return ERR_UNAVAILABLE;
+		}
 
-	video_driver_index = p_video_driver;
+		video_driver_index = p_video_driver;
 
-	context_gl->set_use_vsync(current_videomode.use_vsync);
+	} // if the _context wasn't already created by BGFX
+
+	_context->set_use_vsync(current_videomode.use_vsync);
 
 #endif
 
@@ -922,9 +941,10 @@ void OS_X11::finalize() {
 	}
 	XDestroyWindow(x11_display, x11_window);
 
-#if defined(OPENGL_ENABLED)
-	memdelete(context_gl);
-#endif
+	if (_context) {
+		memdelete(_context);
+		_context = nullptr;
+	}
 	for (int i = 0; i < CURSOR_MAX; i++) {
 		if (cursors[i] != None) {
 			XFreeCursor(x11_display, cursors[i]);
@@ -950,21 +970,20 @@ void OS_X11::finalize() {
 }
 
 bool OS_X11::is_offscreen_gl_available() const {
-#if defined(OPENGL_ENABLED)
-	return context_gl->is_offscreen_available();
-#else
+	if (_context) {
+		return _context->is_offscreen_available();
+	}
 	return false;
-#endif
 }
 
 void OS_X11::set_offscreen_gl_current(bool p_current) {
-#if defined(OPENGL_ENABLED)
-	if (p_current) {
-		return context_gl->make_offscreen_current();
-	} else {
-		return context_gl->release_offscreen_current();
+	if (_context) {
+		if (p_current) {
+			_context->make_offscreen_current();
+		} else {
+			_context->release_offscreen_current();
+		}
 	}
-#endif
 }
 
 void OS_X11::set_mouse_mode(MouseMode p_mode) {
@@ -2013,8 +2032,13 @@ void *OS_X11::get_native_handle(int p_handle_type) {
 			return (void *)x11_window;
 		case WINDOW_VIEW:
 			return nullptr; // Do we have a value to return here?
-		case OPENGL_CONTEXT:
-			return context_gl->get_glx_context();
+		case OPENGL_CONTEXT: {
+			if (_context) {
+				return _context->get_glx_context();
+			} else {
+				return nullptr;
+			}
+		}
 		default:
 			return nullptr;
 	}
@@ -3839,21 +3863,21 @@ void OS_X11::set_custom_mouse_cursor(const RES &p_cursor, CursorShape p_shape, c
 }
 
 void OS_X11::release_rendering_thread() {
-#if defined(OPENGL_ENABLED)
-	context_gl->release_current();
-#endif
+	if (_context) {
+		_context->release_current();
+	}
 }
 
 void OS_X11::make_rendering_thread() {
-#if defined(OPENGL_ENABLED)
-	context_gl->make_current();
-#endif
+	if (_context) {
+		_context->make_current();
+	}
 }
 
 void OS_X11::swap_buffers() {
-#if defined(OPENGL_ENABLED)
-	context_gl->swap_buffers();
-#endif
+	if (_context) {
+		_context->swap_buffers();
+	}
 }
 
 void OS_X11::alert(const String &p_alert, const String &p_title) {
@@ -4049,11 +4073,9 @@ String OS_X11::get_joy_guid(int p_device) const {
 }
 
 void OS_X11::_set_use_vsync(bool p_enable) {
-#if defined(OPENGL_ENABLED)
-	if (context_gl) {
-		context_gl->set_use_vsync(p_enable);
+	if (_context) {
+		_context->set_use_vsync(p_enable);
 	}
-#endif
 }
 /*
 bool OS_X11::is_vsync_enabled() const {

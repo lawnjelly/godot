@@ -66,7 +66,7 @@ void VisualServerRaster::_draw_margins() {
 
 void VisualServerRaster::free(RID p_rid) {
 	if (!p_rid.is_valid()) {
-		ERR_FAIL_MSG("VisualServer attempted to free a NULL RID.");
+		//ERR_FAIL_MSG("VisualServer attempted to free a NULL RID.");
 		return;
 	}
 

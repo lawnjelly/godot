@@ -31,7 +31,8 @@
 #ifndef OS_X11_H
 #define OS_X11_H
 
-#include "context_gl_x11.h"
+//#include "context_gl_x11.h"
+#include "context.h"
 #include "core/local_vector.h"
 #include "core/os/input.h"
 #include "crash_handler_x11.h"
@@ -94,20 +95,20 @@ class OS_X11 : public OS_Unix {
 
 	int xdnd_version;
 
-#if defined(OPENGL_ENABLED)
-	ContextGL_X11 *context_gl;
-#endif
-	//Rasterizer *rasterizer;
-	VisualServer *visual_server;
+	Context *_context = nullptr;
+	//#if defined(OPENGL_ENABLED)
+	//	ContextGL_X11 *context_gl;
+	//#endif
+	VisualServer *visual_server = nullptr;
 	VideoMode current_videomode;
 	List<String> args;
-	Window x11_window;
-	Window xdnd_source_window;
-	MainLoop *main_loop;
-	::Display *x11_display;
-	char *xmbstring;
-	int xmblen;
-	unsigned long last_timestamp;
+	Window x11_window = 0;
+	Window xdnd_source_window = 0;
+	MainLoop *main_loop = nullptr;
+	::Display *x11_display = nullptr;
+	char *xmbstring = nullptr;
+	int xmblen = 0;
+	unsigned long last_timestamp = 0;
 	::Time last_keyrelease_time;
 	::XIC xic;
 	::XIM xim;
@@ -116,7 +117,7 @@ class OS_X11 : public OS_Unix {
 			::XPointer call_data);
 
 	// IME
-	bool im_active;
+	bool im_active = false;
 	Vector2 im_position;
 	Vector2 last_position_before_fs;
 
@@ -124,11 +125,11 @@ class OS_X11 : public OS_Unix {
 	Size2 max_size;
 
 	Point2 last_mouse_pos;
-	bool last_mouse_pos_valid;
+	bool last_mouse_pos_valid = false;
 	Point2i last_click_pos;
-	uint64_t last_click_ms;
-	int last_click_button_index;
-	uint32_t last_button_state;
+	uint64_t last_click_ms = 0;
+	int last_click_button_index = 0;
+	uint32_t last_button_state = 0;
 
 	struct {
 		int opcode;
@@ -141,9 +142,9 @@ class OS_X11 : public OS_Unix {
 		XIEventMask all_event_mask;
 		XIEventMask all_master_event_mask;
 		Map<int, Vector2> state;
-		double pressure;
-		bool pressure_supported;
-		bool pen_inverted;
+		double pressure = 0;
+		bool pressure_supported = false;
+		bool pen_inverted = false;
 		Vector2 tilt;
 		Vector2 mouse_pos_to_filter;
 		Vector2 relative_motion;
@@ -187,20 +188,20 @@ class OS_X11 : public OS_Unix {
 	void process_xevents();
 	virtual void delete_main_loop();
 
-	bool force_quit;
-	bool minimized;
-	bool window_has_focus;
-	bool do_mouse_warp;
+	bool force_quit = false;
+	bool minimized = false;
+	bool window_has_focus = false;
+	bool do_mouse_warp = false;
 
-	const char *cursor_theme;
-	int cursor_size;
+	const char *cursor_theme = nullptr;
+	int cursor_size = 0;
 	XcursorImage *img[CURSOR_MAX];
 	Cursor cursors[CURSOR_MAX];
 	Cursor null_cursor;
 	CursorShape current_cursor;
 	Map<CursorShape, Vector<Variant>> cursors_cache;
 
-	InputDefault *input;
+	InputDefault *input = nullptr;
 
 #ifdef JOYDEV_ENABLED
 	JoypadLinux *joypad;
@@ -222,15 +223,15 @@ class OS_X11 : public OS_Unix {
 	TTS_Linux *tts = nullptr;
 #endif
 
-	PowerX11 *power_manager;
+	PowerX11 *power_manager = nullptr;
 
-	bool layered_window;
+	bool layered_window = false;
 
 	CrashHandler crash_handler;
 
-	int video_driver_index;
-	bool maximized;
-	bool window_focused;
+	int video_driver_index = 0;
+	bool maximized = false;
+	bool window_focused = false;
 	//void set_wm_border(bool p_enabled);
 	void set_wm_fullscreen(bool p_enabled);
 	void set_wm_above(bool p_enabled);
@@ -239,8 +240,8 @@ class OS_X11 : public OS_Unix {
 	typedef void (*xrr_free_monitors_t)(xrr_monitor_info *monitors);
 	xrr_get_monitors_t xrr_get_monitors;
 	xrr_free_monitors_t xrr_free_monitors;
-	void *xrandr_handle;
-	Bool xrandr_ext_ok;
+	void *xrandr_handle = nullptr;
+	Bool xrandr_ext_ok = false;
 
 protected:
 	virtual int get_current_video_driver() const;

@@ -14,20 +14,50 @@ thirdparty_obj = []
 if True:
 
     thirdparty_dir = "#thirdparty/bgfx/"
+    thirdparty_dir_bgfx = "#thirdparty/bgfx/bgfx/include/"
+    thirdparty_dir_bx = "#thirdparty/bgfx/bx/include/"
+    thirdparty_dir_bimg = "#thirdparty/bgfx/bimg/include/"
+    thirdparty_dir_3rdparty = "#thirdparty/bgfx/bgfx/3rdparty/"
 
     bgfx_src = [
-        "src/amalgamated.cpp",
+        "bgfx/src/amalgamated.cpp",
+        "bx/src/amalgamated.cpp",
+        "bimg/src/image.cpp",
+        "bimg/src/image_cubemap_filter.cpp",
+        "bimg/src/image_decode.cpp",
+        "bimg/src/image_encode.cpp",
+        "bimg/src/image_gnf.cpp",
+        "bimg/3rdparty/tinyexr/deps/miniz/miniz.c",
     ]
 
     thirdparty_sources = [thirdparty_dir + file for file in bgfx_src]
 
+    # bgfx
     env_bgfx.Prepend(CPPPATH=[thirdparty_dir])
+    env_bgfx.Prepend(CPPPATH=[thirdparty_dir_bgfx])
+    env_bgfx.Prepend(CPPPATH=[thirdparty_dir_bx])
+    env_bgfx.Prepend(CPPPATH=[thirdparty_dir_bimg])
+    env_bgfx.Prepend(CPPPATH=[thirdparty_dir_3rdparty])
+    env_bgfx.Prepend(CPPPATH=["#thirdparty/bgfx/bx/include/compat/linux/"])
+    env_bgfx.Prepend(CPPPATH=["#thirdparty/bgfx/bgfx/3rdparty/directx-headers/include/wsl/stubs/"])
+    env_bgfx.Prepend(CPPPATH=["#thirdparty/bgfx/bgfx/3rdparty/directx-headers/include/directx/"])
+    env_bgfx.Prepend(CPPPATH=["#thirdparty/bgfx/bgfx/3rdparty/khronos/"])
 
-    # env_bgfx.Append(CPPDEFINES=["BT_USE_OLD_DAMPING_METHOD", "BT_THREADSAFE"])
+    # bx
+    env_bgfx.Prepend(CPPPATH=["#thirdparty/bgfx/bx/3rdparty/"])
+    env_bgfx.Prepend(CPPPATH=["#thirdparty/bgfx/bimg/3rdparty/"])
+    env_bgfx.Prepend(CPPPATH=["#thirdparty/bgfx/bimg/3rdparty/astc-encoder/include/"])
+    env_bgfx.Prepend(CPPPATH=["#thirdparty/bgfx/bimg/3rdparty/tinyexr/deps/miniz/"])
+    env_bgfx.Prepend(CPPPATH=["#thirdparty/bgfx/bimg/3rdparty/iqa/include/"])
+
+
+
+    env_bgfx.Append(CPPDEFINES=["BX_CONFIG_DEBUG", "NOT_USED_YET"])
 
     env_thirdparty = env_bgfx.Clone()
     env_thirdparty.disable_warnings()
     env_thirdparty.add_source_files(thirdparty_obj, thirdparty_sources)
+    env_thirdparty.add_source_files(thirdparty_obj, "#thirdparty/bgfx/bimg/3rdparty/astc-encoder/source/*.cpp")
     env.modules_sources += thirdparty_obj
 
 

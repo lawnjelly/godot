@@ -1,5 +1,5 @@
 /*************************************************************************/
-/*  context_gl_x11.h                                                     */
+/*  register_types.cpp                                                   */
 /*************************************************************************/
 /*                       This file is part of:                           */
 /*                           GODOT ENGINE                                */
@@ -28,48 +28,10 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
 
-#ifndef CONTEXT_GL_X11_H
-#define CONTEXT_GL_X11_H
+#include "register_types.h"
 
-#ifdef X11_ENABLED
+void register_bgfx_types() {
+}
 
-#include "context.h"
-
-#if defined(OPENGL_ENABLED)
-
-#include "core/os/os.h"
-#include <X11/Xlib.h>
-#include <X11/extensions/Xrender.h>
-
-struct ContextGL_X11_Private;
-
-class ContextGL_X11 : public Context {
-private:
-	ContextGL_X11_Private *p;
-	int glx_minor, glx_major;
-
-public:
-	void release_current();
-	void make_current();
-	void swap_buffers();
-	void *get_glx_context();
-
-	bool is_offscreen_available() const;
-	void make_offscreen_current();
-	void release_offscreen_current();
-
-	Error initialize();
-
-	void set_use_vsync(bool p_use);
-
-protected:
-public:
-	ContextGL_X11(::Display *p_x11_display, ::Window &p_x11_window, const OS::VideoMode &p_default_video_mode, ContextType p_context_type);
-	~ContextGL_X11();
-};
-
-#endif
-
-#endif
-
-#endif // CONTEXT_GL_X11_H
+void unregister_bgfx_types() {
+}
