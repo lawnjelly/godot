@@ -12,13 +12,15 @@
 class ContextBGFX_X11 : public Context {
 private:
 	struct Data {
-		bgfx::VertexBufferHandle vbh;
-		bgfx::IndexBufferHandle ibh;
+		bgfx::VertexBufferHandle vbh = BGFX_INVALID_HANDLE;
+		bgfx::IndexBufferHandle ibh = BGFX_INVALID_HANDLE;
 
-		bgfx::ShaderHandle vsh;
-		bgfx::ShaderHandle fsh;
-		bgfx::ProgramHandle program;
+		bgfx::ShaderHandle vsh = BGFX_INVALID_HANDLE;
+		bgfx::ShaderHandle fsh = BGFX_INVALID_HANDLE;
+		bgfx::ProgramHandle program = BGFX_INVALID_HANDLE;
 	} data;
+
+	//	float _angle = 0.0;
 
 public:
 	void release_current();

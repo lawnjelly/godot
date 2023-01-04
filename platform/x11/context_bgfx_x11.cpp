@@ -8,33 +8,54 @@
 //#include <stdlib.h>
 //#include <unistd.h>
 
+void _transpose_mat16(float *m) {
+	float t[16];
+	t[0] = m[0];
+	t[1] = m[4];
+	t[2] = m[8];
+	t[3] = m[12];
+	t[4] = m[1];
+	t[5] = m[5];
+	t[6] = m[9];
+	t[7] = m[13];
+	t[8] = m[2];
+	t[9] = m[6];
+	t[10] = m[10];
+	t[11] = m[14];
+	t[12] = m[3];
+	t[13] = m[7];
+	t[14] = m[11];
+	t[15] = m[15];
+	memcpy(m, t, sizeof(float) * 16);
+}
+
 void _camera_matrix_to_mat16(CameraMatrix &cm, float *mat) {
-	for (int n = 0; n < 4; n++) {
-		for (int m = 0; m < 4; m++) {
-			mat[(n * 4) + m] = cm.matrix[n][m];
+	for (int i = 0; i < 4; i++) {
+		for (int j = 0; j < 4; j++) {
+			mat[i * 4 + j] = cm.matrix[i][j];
 		}
 	}
 }
 
-void _transform_to_mat16(Transform &tr, float *mat) {
-	mat[0] = tr.basis.elements[0].x;
-	mat[1] = tr.basis.elements[0].y;
-	mat[2] = tr.basis.elements[0].z;
-	mat[3] = tr.origin.x;
+void _transform_to_mat16(Transform tr, float *mat) {
+	mat[0] = tr.basis.elements[0][0];
+	mat[1] = tr.basis.elements[1][0];
+	mat[2] = tr.basis.elements[2][0];
+	mat[3] = 0;
 
-	mat[4] = tr.basis.elements[1].x;
-	mat[5] = tr.basis.elements[1].y;
-	mat[6] = tr.basis.elements[1].z;
-	mat[7] = tr.origin.y;
+	mat[4] = tr.basis.elements[0][1];
+	mat[5] = tr.basis.elements[1][1];
+	mat[6] = tr.basis.elements[2][1];
+	mat[7] = 0;
 
-	mat[8] = tr.basis.elements[2].x;
-	mat[9] = tr.basis.elements[2].y;
-	mat[10] = tr.basis.elements[2].z;
-	mat[11] = tr.origin.z;
+	mat[8] = tr.basis.elements[0][2];
+	mat[9] = tr.basis.elements[1][2];
+	mat[10] = tr.basis.elements[2][2];
+	mat[11] = 0;
 
-	mat[12] = 0;
-	mat[13] = 0;
-	mat[14] = 0;
+	mat[12] = tr.origin.x;
+	mat[13] = tr.origin.y;
+	mat[14] = tr.origin.z;
 	mat[15] = 1;
 }
 
@@ -46,7 +67,7 @@ struct PosColorVertex {
 };
 
 static PosColorVertex cubeVertices[] = {
-	{ -1.0f, 1.0f, 1.0f, 0xff000000 },
+	{ -1.0f, 5.0f, 1.0f, 0xff000000 },
 	{ 1.0f, 1.0f, 1.0f, 0xff0000ff },
 	{ -1.0f, -1.0f, 1.0f, 0xff00ff00 },
 	{ 1.0f, -1.0f, 1.0f, 0xff00ffff },
@@ -375,7 +396,8 @@ Error ContextBGFX_X11::initialize() {
 	bgfx::renderFrame();
 
 	bgfx::Init bgfxInit;
-	//bgfxInit.type = bgfx::RendererType::Count; // Automatically choose a renderer.
+	//	bgfxInit.type = bgfx::RendererType::Count; // Automatically choose a renderer.
+	//	bgfxInit.type = bgfx::RendererType::Vulkan; // Automatically choose a renderer.
 	bgfxInit.type = bgfx::RendererType::OpenGL; // Automatically choose a renderer.
 	bgfxInit.resolution.width = width;
 	bgfxInit.resolution.height = height;
@@ -385,6 +407,8 @@ Error ContextBGFX_X11::initialize() {
 	//	bgfxInit.platformData.nwh = (void *)x11_window;
 
 	bgfx::init(bgfxInit);
+
+	bgfx::setDebug(0);
 
 	// Reset window
 	//bgfx::reset(width, height, BGFX_RESET_VSYNC);
@@ -425,23 +449,34 @@ void ContextBGFX_X11::swap_buffers() {
 	/*
   Put this inside the event loop of SDL, to render bgfx output
   */
+#if 0
 	// Set view rectangle for 0th view
 	bgfx::setViewRect(0, 0, 0, uint16_t(_width), uint16_t(_height));
+	
 
 	// Clear the view rect
 	bgfx::setViewClear(0,
 			BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH,
-			0x443355FF, 1.0f, 0);
+			0xa00000FF, 1.0f, 0);
 
 	// Set empty primitive on screen
 	bgfx::touch(0);
 
+	_angle += 0.01;
+
 	Transform look_at;
-	look_at.origin = Vector3(0, 0, -5);
+
+	//	look_at.origin = Vector3(0, 0, 10);
+	look_at.origin = Vector3(sin(_angle) * 5, 5, cos(_angle) * 5);
 	look_at = look_at.looking_at(Vector3(0, 0, 0), Vector3(0, 1, 0));
 
+	// The view matrix for the camera should be the INVERSE of the camera transform
+	// (i.e. gets a point into camera space, rather than transforms the origin to the camera position)
+	look_at.invert();
+
 	CameraMatrix cm;
-	cm.set_orthogonal(5, 1.0, 0, 100);
+	cm.set_orthogonal(-10, 10.0, -10, 10, -100, 100);
+	//	cm.set_perspective(10.0, 1.0, 0.01, 1000.0, true);
 
 	float view[16];
 	float proj[16];
@@ -449,56 +484,36 @@ void ContextBGFX_X11::swap_buffers() {
 	_camera_matrix_to_mat16(cm, proj);
 
 	bgfx::setViewTransform(0, view, proj);
-	/*
-		const bx::Vec3 at = { 0.0f, 0.0f, 0.0f };
-		const bx::Vec3 eye = { 0.0f, 0.0f, -5.0f };
-		float view[16];
-		bx::mtxLookAt(view, eye, at);
-		float proj[16];
-		bx::mtxProj(proj, 60.0f, float(WNDW_WIDTH) / float(WNDW_HEIGHT), 0.1f, 100.0f, bgfx::getCaps()->homogeneousDepth);
-		bgfx::setViewTransform(0, view, proj);
-		*/
+	//		const bx::Vec3 at = { 0.0f, 0.0f, 0.0f };
+	//		const bx::Vec3 eye = { 0.0f, 0.0f, -5.0f };
+	//		float view[16];
+	//		bx::mtxLookAt(view, eye, at);
+	//		float proj[16];
+	//		bx::mtxProj(proj, 60.0f, float(WNDW_WIDTH) / float(WNDW_HEIGHT), 0.1f, 100.0f, bgfx::getCaps()->homogeneousDepth);
+	//		bgfx::setViewTransform(0, view, proj);
 
 	bgfx::setVertexBuffer(0, data.vbh);
 	bgfx::setIndexBuffer(data.ibh);
 
 	bgfx::submit(0, data.program);
 
+	// Use debug font to print information about this example.
+	bgfx::dbgTextClear();
+	//	bgfx::dbgTextImage(
+	//		bx::max<uint16_t>(uint16_t(_width /2/8 ), 20)-20
+	//		, bx::max<uint16_t>(uint16_t(_height/2/16),  6)-6
+	//		, 40
+	//		, 12
+	//		, s_logo
+	//		, 160
+	//		);
+	bgfx::dbgTextPrintf(0, 1, 0x0f, "Color can be changed with ANSI code too.");
+#endif
+
 	bgfx::frame();
 }
 
 void ContextBGFX_X11::set_use_vsync(bool p_use) {
-	/*
-	static bool setup = false;
-	static PFNGLXSWAPINTERVALEXTPROC glXSwapIntervalEXT = nullptr;
-	static PFNGLXSWAPINTERVALSGIPROC glXSwapIntervalMESA = nullptr;
-	static PFNGLXSWAPINTERVALSGIPROC glXSwapIntervalSGI = nullptr;
-
-	if (!setup) {
-		setup = true;
-		String extensions = glXQueryExtensionsString(x11_display, DefaultScreen(x11_display));
-		if (extensions.find("GLX_EXT_swap_control") != -1) {
-			glXSwapIntervalEXT = (PFNGLXSWAPINTERVALEXTPROC)glXGetProcAddressARB((const GLubyte *)"glXSwapIntervalEXT");
-		}
-		if (extensions.find("GLX_MESA_swap_control") != -1) {
-			glXSwapIntervalMESA = (PFNGLXSWAPINTERVALSGIPROC)glXGetProcAddressARB((const GLubyte *)"glXSwapIntervalMESA");
-		}
-		if (extensions.find("GLX_SGI_swap_control") != -1) {
-			glXSwapIntervalSGI = (PFNGLXSWAPINTERVALSGIPROC)glXGetProcAddressARB((const GLubyte *)"glXSwapIntervalSGI");
-		}
-	}
-	int val = p_use ? 1 : 0;
-	if (glXSwapIntervalMESA) {
-		glXSwapIntervalMESA(val);
-	} else if (glXSwapIntervalSGI) {
-		glXSwapIntervalSGI(val);
-	} else if (glXSwapIntervalEXT) {
-		GLXDrawable drawable = glXGetCurrentDrawable();
-		glXSwapIntervalEXT(x11_display, drawable, val);
-	} else {
-		return;
-	}
-	*/
 	Context::set_use_vsync(p_use);
 }
 

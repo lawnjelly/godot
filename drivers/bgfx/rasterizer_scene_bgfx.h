@@ -1,9 +1,32 @@
 #pragma once
 
+#include "rasterizer_storage_bgfx.h"
+#include "scene_shader_bgfx.h"
 #include "servers/visual/rasterizer.h"
 
 class RasterizerSceneBGFX : public RasterizerScene {
 public:
+	RasterizerStorageBGFX *storage = nullptr;
+
+	struct State {
+		//bool texscreen_copied;
+		int current_blend_mode = 0;
+		bool current_depth_test = false;
+		//GLuint current_main_tex;
+
+		Color default_ambient;
+		Color default_bg;
+
+		bool cull_front = false;
+		bool cull_disabled = false;
+
+		bool used_screen_texture = false;
+
+		Vector2 viewport_size;
+		Vector2 screen_pixel_size;
+
+		SceneShaderBGFX scene_shader;
+	} state;
 	/* SHADOW ATLAS API */
 
 	RID shadow_atlas_create() { return RID(); }
@@ -71,13 +94,16 @@ public:
 	void gi_probe_instance_set_transform_to_data(RID p_probe, const Transform &p_xform) {}
 	void gi_probe_instance_set_bounds(RID p_probe, const Vector3 &p_bounds) {}
 
-	void render_scene(const Transform &p_cam_transform, const CameraMatrix &p_cam_projection, const int p_eye, bool p_cam_ortogonal, InstanceBase **p_cull_result, int p_cull_count, RID *p_light_cull_result, int p_light_cull_count, RID *p_reflection_probe_cull_result, int p_reflection_probe_cull_count, RID p_environment, RID p_shadow_atlas, RID p_reflection_atlas, RID p_reflection_probe, int p_reflection_probe_pass) {}
+	void render_scene(const Transform &p_cam_transform, const CameraMatrix &p_cam_projection, const int p_eye, bool p_cam_ortogonal, InstanceBase **p_cull_result, int p_cull_count, RID *p_light_cull_result, int p_light_cull_count, RID *p_reflection_probe_cull_result, int p_reflection_probe_cull_count, RID p_environment, RID p_shadow_atlas, RID p_reflection_atlas, RID p_reflection_probe, int p_reflection_probe_pass);
 	void render_shadow(RID p_light, RID p_shadow_atlas, int p_pass, InstanceBase **p_cull_result, int p_cull_count) {}
 
 	void set_scene_pass(uint64_t p_pass) {}
 	void set_debug_draw_mode(VS::ViewportDebugDraw p_debug_draw) {}
 
-	bool free(RID p_rid) { return true; }
+	void _setup_material(RasterizerStorageBGFX::Material *p_material);
+	RasterizerStorageBGFX::Material *_choose_material(InstanceBase *p_instance, int p_material);
+
+	bool free(RID p_rid);
 
 	RasterizerSceneBGFX() {}
 	~RasterizerSceneBGFX() {}

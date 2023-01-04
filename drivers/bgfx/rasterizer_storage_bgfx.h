@@ -1,68 +1,112 @@
 #pragma once
 
+#include "bgfx_funcs.h"
+#include "bgfx_shader.h"
+#include "core/pool_vector.h"
+#include "core/self_list.h"
+#include "drivers/gles_common/rasterizer_asserts.h"
 #include "servers/visual/rasterizer.h"
+#include "shader_bgfx.h"
+
+#include "servers/visual/shader_language.h"
+#include "thirdparty/bgfx/bgfx/include/bgfx/bgfx.h"
+
+class RasterizerSceneBGFX;
 
 class RasterizerStorageBGFX : public RasterizerStorage {
 public:
+	RasterizerSceneBGFX *scene = nullptr;
+
+	/////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////DATA///////////////////////////////////////////////////
+	/////////////////////////////////////////////////////////////////////////////////////////
+
+	struct Instantiable : public RID_Data {
+		SelfList<RasterizerScene::InstanceBase>::List instance_list;
+
+		_FORCE_INLINE_ void instance_change_notify(bool p_aabb = true, bool p_materials = true) {
+			SelfList<RasterizerScene::InstanceBase> *instances = instance_list.first();
+			while (instances) {
+				instances->self()->base_changed(p_aabb, p_materials);
+				instances = instances->next();
+			}
+		}
+
+		_FORCE_INLINE_ void instance_remove_deps() {
+			SelfList<RasterizerScene::InstanceBase> *instances = instance_list.first();
+
+			while (instances) {
+				instances->self()->base_removed();
+				instances = instances->next();
+			}
+		}
+
+		Instantiable() {}
+
+		virtual ~Instantiable() {}
+	};
+
+	struct GeometryOwner : public Instantiable {
+	};
+
+	struct Geometry : public Instantiable {
+		enum Type {
+			GEOMETRY_INVALID,
+			GEOMETRY_SURFACE,
+			GEOMETRY_IMMEDIATE,
+			GEOMETRY_MULTISURFACE
+		};
+
+		Type type;
+		RID material;
+		uint64_t last_pass;
+		uint32_t index;
+
+		virtual void material_changed_notify() {}
+
+		Geometry() {
+			last_pass = 0;
+			index = 0;
+		}
+	};
+
 	/* TEXTURE API */
-	struct BGFXTexture : public RID_Data {
-		int width;
-		int height;
-		uint32_t flags;
+	struct RenderTarget;
+
+	struct Texture : public RID_Data {
+		int width = 0;
+		int height = 0;
+		uint32_t flags = 0;
 		Image::Format format;
 		Ref<Image> image;
 		String path;
+		bgfx::TextureHandle bg_handle = BGFX_INVALID_HANDLE;
+		bool redraw_if_visible = false;
+
+		RenderTarget *render_target = nullptr;
+
+		VisualServer::TextureDetectCallback detect_3d = nullptr;
+		void *detect_3d_ud = nullptr;
+
+		VisualServer::TextureDetectCallback detect_srgb = nullptr;
+		void *detect_srgb_ud = nullptr;
+
+		VisualServer::TextureDetectCallback detect_normal = nullptr;
+		void *detect_normal_ud = nullptr;
+
+		Texture *get_ptr() { // no proxy support yet
+			return this;
+		}
 	};
 
-	struct BGFXSurface {
-		uint32_t format;
-		VS::PrimitiveType primitive;
-		PoolVector<uint8_t> array;
-		int vertex_count;
-		PoolVector<uint8_t> index_array;
-		int index_count;
-		AABB aabb;
-		Vector<PoolVector<uint8_t>> blend_shapes;
-		Vector<AABB> bone_aabbs;
-	};
+	mutable RID_Owner<Texture> texture_owner;
 
-	struct BGFXMesh : public RID_Data {
-		Vector<BGFXSurface> surfaces;
-		int blend_shape_count;
-		VS::BlendShapeMode blend_shape_mode;
-		PoolRealArray blend_shape_values;
-	};
-
-	mutable RID_Owner<BGFXTexture> texture_owner;
-	mutable RID_Owner<BGFXMesh> mesh_owner;
-
-	RID texture_create() {
-		BGFXTexture *texture = memnew(BGFXTexture);
-		ERR_FAIL_COND_V(!texture, RID());
-		return texture_owner.make_rid(texture);
-	}
-
-	void texture_allocate(RID p_texture, int p_width, int p_height, int p_depth_3d, Image::Format p_format, VisualServer::TextureType p_type = VS::TEXTURE_TYPE_2D, uint32_t p_flags = VS::TEXTURE_FLAGS_DEFAULT) {
-		BGFXTexture *t = texture_owner.getornull(p_texture);
-		ERR_FAIL_COND(!t);
-		t->width = p_width;
-		t->height = p_height;
-		t->flags = p_flags;
-		t->format = p_format;
-		t->image = Ref<Image>(memnew(Image));
-		t->image->create(p_width, p_height, false, p_format);
-	}
-	void texture_set_data(RID p_texture, const Ref<Image> &p_image, int p_level) {
-		BGFXTexture *t = texture_owner.getornull(p_texture);
-		ERR_FAIL_COND(!t);
-		t->width = p_image->get_width();
-		t->height = p_image->get_height();
-		t->format = p_image->get_format();
-		t->image->create(t->width, t->height, false, t->format, p_image->get_data());
-	}
+	RID texture_create();
+	void texture_allocate(RID p_texture, int p_width, int p_height, int p_depth_3d, Image::Format p_format, VisualServer::TextureType p_type = VS::TEXTURE_TYPE_2D, uint32_t p_flags = VS::TEXTURE_FLAGS_DEFAULT);
+	void texture_set_data(RID p_texture, const Ref<Image> &p_image, int p_level);
 
 	void texture_set_data_partial(RID p_texture, const Ref<Image> &p_image, int src_x, int src_y, int src_w, int src_h, int dst_x, int dst_y, int p_dst_mip, int p_level) {
-		BGFXTexture *t = texture_owner.get(p_texture);
+		Texture *t = texture_owner.get(p_texture);
 
 		ERR_FAIL_COND(!t);
 		ERR_FAIL_COND_MSG(p_image.is_null(), "It's not a reference to a valid Image object.");
@@ -75,22 +119,22 @@ public:
 	}
 
 	Ref<Image> texture_get_data(RID p_texture, int p_level) const {
-		BGFXTexture *t = texture_owner.getornull(p_texture);
+		Texture *t = texture_owner.getornull(p_texture);
 		ERR_FAIL_COND_V(!t, Ref<Image>());
 		return t->image;
 	}
 	void texture_set_flags(RID p_texture, uint32_t p_flags) {
-		BGFXTexture *t = texture_owner.getornull(p_texture);
+		Texture *t = texture_owner.getornull(p_texture);
 		ERR_FAIL_COND(!t);
 		t->flags = p_flags;
 	}
 	uint32_t texture_get_flags(RID p_texture) const {
-		BGFXTexture *t = texture_owner.getornull(p_texture);
+		Texture *t = texture_owner.getornull(p_texture);
 		ERR_FAIL_COND_V(!t, 0);
 		return t->flags;
 	}
 	Image::Format texture_get_format(RID p_texture) const {
-		BGFXTexture *t = texture_owner.getornull(p_texture);
+		Texture *t = texture_owner.getornull(p_texture);
 		ERR_FAIL_COND_V(!t, Image::FORMAT_RGB8);
 		return t->format;
 	}
@@ -104,12 +148,12 @@ public:
 	void texture_bind(RID p_texture, uint32_t p_texture_no) {}
 
 	void texture_set_path(RID p_texture, const String &p_path) {
-		BGFXTexture *t = texture_owner.getornull(p_texture);
+		Texture *t = texture_owner.getornull(p_texture);
 		ERR_FAIL_COND(!t);
 		t->path = p_path;
 	}
 	String texture_get_path(RID p_texture) const {
-		BGFXTexture *t = texture_owner.getornull(p_texture);
+		Texture *t = texture_owner.getornull(p_texture);
 		ERR_FAIL_COND_V(!t, String());
 		return t->path;
 	}
@@ -137,14 +181,150 @@ public:
 
 	/* SHADER API */
 
-	RID shader_create() { return RID(); }
+	struct Material;
+
+	struct Shader : public RID_Data {
+		RID self;
+
+		VS::ShaderMode mode;
+		ShaderBGFX *shader;
+		String code;
+		SelfList<Material>::List materials;
+
+		Map<StringName, ShaderLanguage::ShaderNode::Uniform> uniforms;
+
+		uint32_t texture_count;
+
+		uint32_t custom_code_id;
+		uint32_t version;
+
+		SelfList<Shader> dirty_list;
+
+		Map<StringName, RID> default_textures;
+
+		Vector<ShaderLanguage::ShaderNode::Uniform::Hint> texture_hints;
+
+		bool valid;
+
+		String path;
+
+		uint32_t index;
+		uint64_t last_pass;
+
+		struct CanvasItem {
+			enum BlendMode {
+				BLEND_MODE_MIX,
+				BLEND_MODE_ADD,
+				BLEND_MODE_SUB,
+				BLEND_MODE_MUL,
+				BLEND_MODE_PMALPHA,
+			};
+
+			int blend_mode;
+
+			enum LightMode {
+				LIGHT_MODE_NORMAL,
+				LIGHT_MODE_UNSHADED,
+				LIGHT_MODE_LIGHT_ONLY
+			};
+
+			int light_mode;
+
+			// these flags are specifically for batching
+			// some of the logic is thus in rasterizer_storage.cpp
+			// we could alternatively set bitflags for each 'uses' and test on the fly
+			// defined in RasterizerStorageCommon::BatchFlags
+			unsigned int batch_flags;
+
+			bool uses_screen_texture;
+			bool uses_screen_uv;
+			bool uses_time;
+			bool uses_modulate;
+			bool uses_color;
+			bool uses_vertex;
+
+			// all these should disable item joining if used in a custom shader
+			bool uses_world_matrix;
+			bool uses_extra_matrix;
+			bool uses_projection_matrix;
+			bool uses_instance_custom;
+
+		} canvas_item;
+
+		struct Spatial {
+			enum BlendMode {
+				BLEND_MODE_MIX,
+				BLEND_MODE_ADD,
+				BLEND_MODE_SUB,
+				BLEND_MODE_MUL,
+			};
+
+			int blend_mode;
+
+			enum DepthDrawMode {
+				DEPTH_DRAW_OPAQUE,
+				DEPTH_DRAW_ALWAYS,
+				DEPTH_DRAW_NEVER,
+				DEPTH_DRAW_ALPHA_PREPASS,
+			};
+
+			int depth_draw_mode;
+
+			enum CullMode {
+				CULL_MODE_FRONT,
+				CULL_MODE_BACK,
+				CULL_MODE_DISABLED,
+			};
+
+			int cull_mode;
+
+			bool uses_alpha;
+			bool uses_alpha_scissor;
+			bool unshaded;
+			bool no_depth_test;
+			bool uses_vertex;
+			bool uses_discard;
+			bool uses_sss;
+			bool uses_screen_texture;
+			bool uses_depth_texture;
+			bool uses_time;
+			bool uses_tangent;
+			bool uses_ensure_correct_normals;
+			bool writes_modelview_or_projection;
+			bool uses_vertex_lighting;
+			bool uses_world_coordinates;
+
+		} spatial;
+
+		struct Particles {
+		} particles;
+
+		bool uses_vertex_time;
+		bool uses_fragment_time;
+
+		Shader() :
+				dirty_list(this) {
+			shader = nullptr;
+			valid = false;
+			custom_code_id = 0;
+			version = 1;
+			last_pass = 0;
+		}
+	};
+
+	mutable RID_Owner<Shader> shader_owner;
+	mutable SelfList<Shader>::List _shader_dirty_list;
+
+	void _shader_make_dirty(Shader *p_shader);
+
+	RID shader_create();
 
 	void shader_set_code(RID p_shader, const String &p_code) {}
 	String shader_get_code(RID p_shader) const { return ""; }
 	void shader_get_param_list(RID p_shader, List<PropertyInfo> *p_param_list) const {}
 
-	void shader_set_default_texture_param(RID p_shader, const StringName &p_name, RID p_texture) {}
-	RID shader_get_default_texture_param(RID p_shader, const StringName &p_name) const { return RID(); }
+	void shader_set_default_texture_param(RID p_shader, const StringName &p_name, RID p_texture);
+	RID shader_get_default_texture_param(RID p_shader, const StringName &p_name) const;
 
 	void shader_add_custom_define(RID p_shader, const String &p_define) {}
 	void shader_get_custom_defines(RID p_shader, Vector<String> *p_defines) const {}
@@ -153,17 +333,54 @@ public:
 	void set_shader_async_hidden_forbidden(bool p_forbidden) {}
 	bool is_shader_async_hidden_forbidden() { return false; }
 
+	void _update_shader(Shader *p_shader) const;
+	void update_dirty_shaders();
+
 	/* COMMON MATERIAL API */
 
-	RID material_create() { return RID(); }
+	struct Material : public RID_Data {
+		Shader *shader;
+		Map<StringName, Variant> params;
+		SelfList<Material> list;
+		SelfList<Material> dirty_list;
+		Vector<Pair<StringName, RID>> textures;
+		float line_width;
+		int render_priority;
+
+		RID next_pass;
+
+		uint32_t index;
+		uint64_t last_pass;
+
+		Map<Geometry *, int> geometry_owners;
+		Map<RasterizerScene::InstanceBase *, int> instance_owners;
+
+		bool can_cast_shadow_cache;
+		bool is_animated_cache;
+
+		Material() :
+				list(this),
+				dirty_list(this) {
+			can_cast_shadow_cache = false;
+			is_animated_cache = false;
+			shader = nullptr;
+			line_width = 1.0;
+			last_pass = 0;
+			render_priority = 0;
+		}
+	};
+
+	mutable RID_Owner<Material> material_owner;
+
+	RID material_create();
 
 	void material_set_render_priority(RID p_material, int priority) {}
-	void material_set_shader(RID p_shader_material, RID p_shader) {}
-	RID material_get_shader(RID p_shader_material) const { return RID(); }
+	void material_set_shader(RID p_shader_material, RID p_shader);
+	RID material_get_shader(RID p_shader_material) const;
 
-	void material_set_param(RID p_material, const StringName &p_param, const Variant &p_value) {}
-	Variant material_get_param(RID p_material, const StringName &p_param) const { return Variant(); }
-	Variant material_get_param_default(RID p_material, const StringName &p_param) const { return Variant(); }
+	void material_set_param(RID p_material, const StringName &p_param, const Variant &p_value);
+	Variant material_get_param(RID p_material, const StringName &p_param) const;
+	Variant material_get_param_default(RID p_material, const StringName &p_param) const;
 
 	void material_set_line_width(RID p_material, float p_width) {}
 
@@ -172,10 +389,77 @@ public:
 	bool material_is_animated(RID p_material) { return false; }
 	bool material_casts_shadows(RID p_material) { return false; }
 
-	void material_add_instance_owner(RID p_material, RasterizerScene::InstanceBase *p_instance) {}
-	void material_remove_instance_owner(RID p_material, RasterizerScene::InstanceBase *p_instance) {}
+	void material_add_instance_owner(RID p_material, RasterizerScene::InstanceBase *p_instance);
+	void material_remove_instance_owner(RID p_material, RasterizerScene::InstanceBase *p_instance);
+
+	void update_dirty_materials();
+	void _material_make_dirty(Material *p_material) const;
+	void _update_material(Material *p_material);
+	mutable SelfList<Material>::List _material_dirty_list;
 
 	/* MESH API */
+
+	struct BGFXSurface {
+		uint32_t format = 0;
+		VS::PrimitiveType primitive = VS::PRIMITIVE_POINTS;
+		PoolVector<uint8_t> array;
+		int vertex_count = 0;
+		PoolVector<uint8_t> index_array;
+		int index_count = 0;
+		AABB aabb;
+		Vector<PoolVector<uint8_t>> blend_shapes;
+		Vector<AABB> bone_aabbs;
+
+		enum AttribType {
+			AT_UBYTE,
+			AT_BYTE,
+			AT_FLOAT,
+			AT_USHORT,
+			AT_SHORT,
+			AT_HALF_FLOAT,
+			AT_UINT,
+
+		};
+
+		struct Attrib {
+			bool enabled;
+			bool integer;
+			uint32_t index;
+			int size;
+			AttribType type;
+			bool normalized;
+			int stride;
+			uint32_t offset;
+		};
+
+		Attrib attribs[VS::ARRAY_MAX];
+
+		LocalVector<BGFX::PosColorVertex> bg_verts;
+		LocalVector<uint16_t> bg_inds;
+		bgfx::VertexBufferHandle bg_vertex_buffer = BGFX_INVALID_HANDLE;
+		bgfx::IndexBufferHandle bg_index_buffer = BGFX_INVALID_HANDLE;
+		~BGFXSurface() {
+			BGFX_DESTROY(bg_vertex_buffer);
+			BGFX_DESTROY(bg_index_buffer);
+		}
+	};
+
+	struct BGFXMesh : public RID_Data {
+		Vector<BGFXSurface *> surfaces;
+		int blend_shape_count = 0;
+		VS::BlendShapeMode blend_shape_mode;
+		PoolRealArray blend_shape_values;
+		~BGFXMesh() {
+			for (int n = 0; n < surfaces.size(); n++) {
+				if (surfaces[n]) {
+					memdelete(surfaces[n]);
+					surfaces.set(n, nullptr);
+				}
+			}
+		}
+	};
+
+	mutable RID_Owner<BGFXMesh> mesh_owner;
 
 	RID mesh_create() {
 		BGFXMesh *mesh = memnew(BGFXMesh);
@@ -185,22 +469,7 @@ public:
 		return mesh_owner.make_rid(mesh);
 	}
 
-	void mesh_add_surface(RID p_mesh, uint32_t p_format, VS::PrimitiveType p_primitive, const PoolVector<uint8_t> &p_array, int p_vertex_count, const PoolVector<uint8_t> &p_index_array, int p_index_count, const AABB &p_aabb, const Vector<PoolVector<uint8_t>> &p_blend_shapes = Vector<PoolVector<uint8_t>>(), const Vector<AABB> &p_bone_aabbs = Vector<AABB>()) {
-		BGFXMesh *m = mesh_owner.getornull(p_mesh);
-		ERR_FAIL_COND(!m);
-
-		m->surfaces.push_back(BGFXSurface());
-		BGFXSurface *s = &m->surfaces.write[m->surfaces.size() - 1];
-		s->format = p_format;
-		s->primitive = p_primitive;
-		s->array = p_array;
-		s->vertex_count = p_vertex_count;
-		s->index_array = p_index_array;
-		s->index_count = p_index_count;
-		s->aabb = p_aabb;
-		s->blend_shapes = p_blend_shapes;
-		s->bone_aabbs = p_bone_aabbs;
-	}
+	void mesh_add_surface(RID p_mesh, uint32_t p_format, VS::PrimitiveType p_primitive, const PoolVector<uint8_t> &p_array, int p_vertex_count, const PoolVector<uint8_t> &p_index_array, int p_index_count, const AABB &p_aabb, const Vector<PoolVector<uint8_t>> &p_blend_shapes = Vector<PoolVector<uint8_t>>(), const Vector<AABB> &p_bone_aabbs = Vector<AABB>());
 
 	void mesh_set_blend_shape_count(RID p_mesh, int p_amount) {
 		BGFXMesh *m = mesh_owner.getornull(p_mesh);
@@ -237,65 +506,65 @@ public:
 
 	void mesh_surface_update_region(RID p_mesh, int p_surface, int p_offset, const PoolVector<uint8_t> &p_data) {}
 
-	void mesh_surface_set_material(RID p_mesh, int p_surface, RID p_material) {}
-	RID mesh_surface_get_material(RID p_mesh, int p_surface) const { return RID(); }
+	void mesh_surface_set_material(RID p_mesh, int p_surface, RID p_material);
+	RID mesh_surface_get_material(RID p_mesh, int p_surface) const;
 
 	int mesh_surface_get_array_len(RID p_mesh, int p_surface) const {
 		BGFXMesh *m = mesh_owner.getornull(p_mesh);
 		ERR_FAIL_COND_V(!m, 0);
 
-		return m->surfaces[p_surface].vertex_count;
+		return m->surfaces[p_surface]->vertex_count;
 	}
 	int mesh_surface_get_array_index_len(RID p_mesh, int p_surface) const {
 		BGFXMesh *m = mesh_owner.getornull(p_mesh);
 		ERR_FAIL_COND_V(!m, 0);
 
-		return m->surfaces[p_surface].index_count;
+		return m->surfaces[p_surface]->index_count;
 	}
 
 	PoolVector<uint8_t> mesh_surface_get_array(RID p_mesh, int p_surface) const {
 		BGFXMesh *m = mesh_owner.getornull(p_mesh);
 		ERR_FAIL_COND_V(!m, PoolVector<uint8_t>());
 
-		return m->surfaces[p_surface].array;
+		return m->surfaces[p_surface]->array;
 	}
 	PoolVector<uint8_t> mesh_surface_get_index_array(RID p_mesh, int p_surface) const {
 		BGFXMesh *m = mesh_owner.getornull(p_mesh);
 		ERR_FAIL_COND_V(!m, PoolVector<uint8_t>());
 
-		return m->surfaces[p_surface].index_array;
+		return m->surfaces[p_surface]->index_array;
 	}
 
 	uint32_t mesh_surface_get_format(RID p_mesh, int p_surface) const {
 		BGFXMesh *m = mesh_owner.getornull(p_mesh);
 		ERR_FAIL_COND_V(!m, 0);
 
-		return m->surfaces[p_surface].format;
+		return m->surfaces[p_surface]->format;
 	}
 	VS::PrimitiveType mesh_surface_get_primitive_type(RID p_mesh, int p_surface) const {
 		BGFXMesh *m = mesh_owner.getornull(p_mesh);
 		ERR_FAIL_COND_V(!m, VS::PRIMITIVE_POINTS);
 
-		return m->surfaces[p_surface].primitive;
+		return m->surfaces[p_surface]->primitive;
 	}
 
 	AABB mesh_surface_get_aabb(RID p_mesh, int p_surface) const {
 		BGFXMesh *m = mesh_owner.getornull(p_mesh);
 		ERR_FAIL_COND_V(!m, AABB());
 
-		return m->surfaces[p_surface].aabb;
+		return m->surfaces[p_surface]->aabb;
 	}
 	Vector<PoolVector<uint8_t>> mesh_surface_get_blend_shapes(RID p_mesh, int p_surface) const {
 		BGFXMesh *m = mesh_owner.getornull(p_mesh);
 		ERR_FAIL_COND_V(!m, Vector<PoolVector<uint8_t>>());
 
-		return m->surfaces[p_surface].blend_shapes;
+		return m->surfaces[p_surface]->blend_shapes;
 	}
 	Vector<AABB> mesh_surface_get_skeleton_aabb(RID p_mesh, int p_surface) const {
 		BGFXMesh *m = mesh_owner.getornull(p_mesh);
 		ERR_FAIL_COND_V(!m, Vector<AABB>());
 
-		return m->surfaces[p_surface].bone_aabbs;
+		return m->surfaces[p_surface]->bone_aabbs;
 	}
 
 	void mesh_remove_surface(RID p_mesh, int p_index) {
@@ -314,7 +583,7 @@ public:
 	void mesh_set_custom_aabb(RID p_mesh, const AABB &p_aabb) {}
 	AABB mesh_get_custom_aabb(RID p_mesh) const { return AABB(); }
 
-	AABB mesh_get_aabb(RID p_mesh, RID p_skeleton) const { return AABB(); }
+	AABB mesh_get_aabb(RID p_mesh, RID p_skeleton) const;
 	void mesh_clear(RID p_mesh) {}
 
 	/* MULTIMESH API */
@@ -488,30 +757,30 @@ public:
 	void gi_probe_dynamic_data_update(RID p_gi_probe_data, int p_depth_slice, int p_slice_count, int p_mipmap, const void *p_data) {}
 
 	/* LIGHTMAP CAPTURE */
-	struct Instantiable : public RID_Data {
-		SelfList<RasterizerScene::InstanceBase>::List instance_list;
+	//	struct Instantiable : public RID_Data {
+	//		SelfList<RasterizerScene::InstanceBase>::List instance_list;
 
-		_FORCE_INLINE_ void instance_change_notify(bool p_aabb = true, bool p_materials = true) {
-			SelfList<RasterizerScene::InstanceBase> *instances = instance_list.first();
-			while (instances) {
-				instances->self()->base_changed(p_aabb, p_materials);
-				instances = instances->next();
-			}
-		}
+	//		_FORCE_INLINE_ void instance_change_notify(bool p_aabb = true, bool p_materials = true) {
+	//			SelfList<RasterizerScene::InstanceBase> *instances = instance_list.first();
+	//			while (instances) {
+	//				instances->self()->base_changed(p_aabb, p_materials);
+	//				instances = instances->next();
+	//			}
+	//		}
 
-		_FORCE_INLINE_ void instance_remove_deps() {
-			SelfList<RasterizerScene::InstanceBase> *instances = instance_list.first();
-			while (instances) {
-				SelfList<RasterizerScene::InstanceBase> *next = instances->next();
-				instances->self()->base_removed();
-				instances = next;
-			}
-		}
+	//		_FORCE_INLINE_ void instance_remove_deps() {
+	//			SelfList<RasterizerScene::InstanceBase> *instances = instance_list.first();
+	//			while (instances) {
+	//				SelfList<RasterizerScene::InstanceBase> *next = instances->next();
+	//				instances->self()->base_removed();
+	//				instances = next;
+	//			}
+	//		}
 
-		Instantiable() {}
-		virtual ~Instantiable() {
-		}
-	};
+	//		Instantiable() {}
+	//		virtual ~Instantiable() {
+	//		}
+	//	};
 
 	struct LightmapCapture : public Instantiable {
 		PoolVector<LightmapCaptureOctree> octree;
@@ -589,16 +858,82 @@ public:
 	virtual bool particles_is_inactive(RID p_particles) const { return false; }
 
 	/* RENDER TARGET */
+	struct RenderTarget : public RID_Data {
+		bgfx::FrameBufferHandle hFrameBuffer = BGFX_INVALID_HANDLE;
+		bgfx::ViewId id_view = UINT16_MAX;
+		//		GLuint fbo = 0;
+		//		GLuint color = 0;
+		//		GLuint depth = 0;
 
-	RID render_target_create() { return RID(); }
-	void render_target_set_position(RID p_render_target, int p_x, int p_y) {}
-	void render_target_set_size(RID p_render_target, int p_width, int p_height) {}
-	RID render_target_get_texture(RID p_render_target) const { return RID(); }
-	uint32_t render_target_get_depth_texture_id(RID p_render_target) const { return 0; }
+		//		GLuint multisample_fbo = 0;
+		//		GLuint multisample_color = 0;
+		//		GLuint multisample_depth = 0;
+		bool multisample_active = false;
+
+		struct Effect {
+			//GLuint fbo = 0 ;
+			int width = 0;
+			int height = 0;
+			//GLuint color = 0;
+		};
+
+		Effect copy_screen_effect;
+
+		struct MipMaps {
+			struct Size {
+				//GLuint fbo;
+				//GLuint color;
+				int width = 0;
+				int height = 0;
+			};
+
+			Vector<Size> sizes;
+			//GLuint color = 0;
+			int levels = 0;
+		};
+
+		MipMaps mip_maps[2];
+
+		int x = 0;
+		int y = 0;
+		int width = 0;
+		int height = 0;
+
+		bool flags[RENDER_TARGET_FLAG_MAX];
+
+		bool used_in_frame = false;
+		VS::ViewportMSAA msaa = VS::VIEWPORT_MSAA_DISABLED;
+
+		RID texture;
+		bool mip_maps_allocated = false;
+
+		RenderTarget() {
+			for (int i = 0; i < RENDER_TARGET_FLAG_MAX; ++i) {
+				flags[i] = false;
+			}
+		}
+	};
+
+	mutable RID_Owner<RenderTarget> render_target_owner;
+	PooledList<uint32_t> _bgfx_view_pool;
+	uint32_t _request_bgfx_view();
+	void _free_bgfx_view(uint32_t p_id);
+
+	void _render_target_clear(RenderTarget *rt);
+	void _render_target_allocate(RenderTarget *rt);
+	void _render_target_set_viewport(RenderTarget *rt, uint16_t p_x, uint16_t p_y, uint16_t p_width, uint16_t p_height);
+	void _render_target_set_scissor(RenderTarget *rt, uint16_t p_x, uint16_t p_y, uint16_t p_width, uint16_t p_height);
+	void _render_target_set_view_clear(RenderTarget *rt, const Color &p_color = Color(0, 0, 0, 1));
+
+	RID render_target_create();
+	void render_target_set_position(RID p_render_target, int p_x, int p_y);
+	void render_target_set_size(RID p_render_target, int p_width, int p_height);
+	RID render_target_get_texture(RID p_render_target) const;
+	uint32_t render_target_get_depth_texture_id(RID p_render_target) const;
 	void render_target_set_external_texture(RID p_render_target, unsigned int p_texture_id, unsigned int p_depth_id) {}
-	void render_target_set_flag(RID p_render_target, RenderTargetFlags p_flag, bool p_value) {}
-	bool render_target_was_used(RID p_render_target) { return false; }
-	void render_target_clear_used(RID p_render_target) {}
+	void render_target_set_flag(RID p_render_target, RenderTargetFlags p_flag, bool p_value);
+	bool render_target_was_used(RID p_render_target);
+	void render_target_clear_used(RID p_render_target);
 	void render_target_set_msaa(RID p_render_target, VS::ViewportMSAA p_msaa) {}
 	void render_target_set_use_fxaa(RID p_render_target, bool p_fxaa) {}
 	void render_target_set_use_debanding(RID p_render_target, bool p_debanding) {}
@@ -623,32 +958,22 @@ public:
 		return VS::INSTANCE_NONE;
 	}
 
-	bool free(RID p_rid) {
-		if (texture_owner.owns(p_rid)) {
-			// delete the texture
-			BGFXTexture *texture = texture_owner.get(p_rid);
-			texture_owner.free(p_rid);
-			memdelete(texture);
-		} else if (mesh_owner.owns(p_rid)) {
-			// delete the mesh
-			BGFXMesh *mesh = mesh_owner.getornull(p_rid);
-			mesh_owner.free(p_rid);
-			memdelete(mesh);
-		} else if (lightmap_capture_data_owner.owns(p_rid)) {
-			// delete the lightmap
-			LightmapCapture *lightmap_capture = lightmap_capture_data_owner.getornull(p_rid);
-			lightmap_capture_data_owner.free(p_rid);
-			memdelete(lightmap_capture);
-		} else {
-			return false;
-		}
+	bool free(RID p_rid);
 
-		return true;
-	}
+	struct Frame {
+		RenderTarget *current_rt;
 
-	bool has_os_feature(const String &p_feature) const { return false; }
+		bool clear_request;
+		Color clear_request_color;
+		float time[4];
+		float delta;
+		uint64_t count;
 
-	void update_dirty_resources() {}
+	} frame;
+
+	bool has_os_feature(const String &p_feature) const;
+
+	void update_dirty_resources();
 
 	void set_debug_generate_wireframes(bool p_generate) {}
 
@@ -662,6 +987,6 @@ public:
 
 	static RasterizerStorage *base_singleton;
 
-	RasterizerStorageBGFX(){};
-	~RasterizerStorageBGFX() {}
+	RasterizerStorageBGFX();
+	~RasterizerStorageBGFX();
 };

@@ -13,9 +13,12 @@
 
 class RasterizerBGFX : public Rasterizer {
 protected:
+	RasterizerSceneBGFX scene;
 	RasterizerCanvasBGFX canvas;
 	RasterizerStorageBGFX storage;
-	RasterizerSceneBGFX scene;
+
+	double time_total = 0.0;
+	float time_scale = 0.0;
 
 public:
 	RasterizerStorage *get_storage() { return &storage; }
@@ -26,10 +29,10 @@ public:
 	void set_shader_time_scale(float p_scale) {}
 
 	void initialize();
-	void begin_frame(double frame_step) {}
-	void set_current_render_target(RID p_render_target) {}
-	void restore_render_target(bool p_3d_was_drawn) {}
-	void clear_render_target(const Color &p_color) {}
+	void begin_frame(double frame_step);
+	void set_current_render_target(RID p_render_target);
+	void restore_render_target(bool p_3d_was_drawn);
+	void clear_render_target(const Color &p_color);
 	void blit_render_target_to_screen(RID p_render_target, const Rect2 &p_screen_rect, int p_screen = 0) {}
 	void output_lens_distorted_to_screen(RID p_render_target, const Rect2 &p_screen_rect, float p_k1, float p_k2, const Vector2 &p_eye_center, float p_oversample) {}
 	void end_frame(bool p_swap_buffers);
@@ -49,6 +52,6 @@ public:
 
 	virtual bool is_low_end() const { return true; }
 
-	RasterizerBGFX() {}
-	~RasterizerBGFX() {}
+	RasterizerBGFX();
+	~RasterizerBGFX();
 };
