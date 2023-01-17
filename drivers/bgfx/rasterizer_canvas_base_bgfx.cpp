@@ -3,8 +3,13 @@
 #include "core/os/os.h"
 #include "servers/visual/visual_server_raster.h"
 
-void RasterizerCanvasBaseBGFX::_set_uniforms() {
-	CanvasShaderBGFX::_set_view_transform_2D(0, state.uniforms.modelview_matrix, state.uniforms.projection_matrix, state.uniforms.extra_matrix);
+void RasterizerCanvasBaseBGFX::_set_uniforms(bool set_projection) {
+	if (set_projection)
+		state.canvas_shader.set_view_transform(state.uniforms.projection_matrix);
+
+	state.canvas_shader.set_model_transform(state.uniforms.modelview_matrix, state.uniforms.extra_matrix);
+	//	CanvasShaderBGFX::_set_view_transform_2D(0, state.uniforms.modelview_matrix, state.uniforms.projection_matrix, state.uniforms.extra_matrix);
+	state.canvas_shader.set_modulate(state.uniforms.final_modulate);
 }
 
 void RasterizerCanvasBaseBGFX::canvas_begin() {
@@ -27,8 +32,17 @@ void RasterizerCanvasBaseBGFX::canvas_begin() {
 	reset_canvas();
 
 	Transform canvas_transform;
+	int fwidth = 0;
+	int fheight = 0;
+
+	bgfx::ViewId view_id = 0;
 
 	if (storage->frame.current_rt) {
+		fwidth = storage->frame.current_rt->width;
+		fheight = storage->frame.current_rt->height;
+
+		view_id = storage->frame.current_rt->id_view;
+
 		float csy = 1.0;
 		if (storage->frame.current_rt && storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_VFLIP]) {
 			csy = -1.0;
@@ -39,6 +53,8 @@ void RasterizerCanvasBaseBGFX::canvas_begin() {
 		Vector2 ssize = OS::get_singleton()->get_window_size();
 		canvas_transform.translate(-(ssize.width / 2.0f), -(ssize.height / 2.0f), 0.0f);
 		canvas_transform.scale(Vector3(2.0f / ssize.width, -2.0f / ssize.height, 1.0f));
+		fwidth = ssize.x;
+		fheight = ssize.y;
 	}
 
 	state.uniforms.projection_matrix = canvas_transform;
@@ -48,8 +64,9 @@ void RasterizerCanvasBaseBGFX::canvas_begin() {
 	state.uniforms.modelview_matrix = Transform2D();
 	state.uniforms.extra_matrix = Transform2D();
 	state.draw_rect.prepare();
+	state.canvas_shader.prepare(view_id, fwidth, fheight);
 
-	_set_uniforms();
+	_set_uniforms(true);
 }
 void RasterizerCanvasBaseBGFX::canvas_end() {
 	if (storage->frame.current_rt && storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_DIRECT_TO_SCREEN]) {
@@ -154,8 +171,104 @@ void RasterizerCanvasBaseBGFX::_set_texture_rect_mode(bool p_texture_rect, bool 
 
 void RasterizerCanvasBaseBGFX::_draw_gui_primitive(int p_points, const Vector2 *p_vertices, const Color *p_colors, const Vector2 *p_uvs, const float *p_light_angles) {
 	if (p_points == 4) {
-		state.draw_rect.draw_rect(&state.canvas_shader, p_vertices, p_uvs, state.current_tex_ptr);
+		//state.draw_rect.draw_rect(&state.canvas_shader, p_vertices, p_uvs, state.current_tex_ptr);
+		state.canvas_shader.draw_rect(p_vertices, p_uvs, state.current_tex_ptr, p_colors);
 	}
+}
+
+void RasterizerCanvasBaseBGFX::_draw_polygon(const int *p_indices, int p_index_count, int p_vertex_count, const Vector2 *p_vertices, const Vector2 *p_uvs, const Color *p_colors, bool p_singlecolor, const float *p_weights, const int *p_bones) {
+	ERR_FAIL_COND(!p_index_count);
+	ERR_FAIL_COND(!p_vertex_count);
+
+	// convert inds to 16 bit
+	int16_t *inds = (int16_t *)alloca(p_index_count * 2);
+
+	for (int n = 0; n < p_index_count; n++) {
+		DEV_CHECK_ONCE((p_indices[n] >= 0) && (p_indices[n] < 65536));
+		inds[n] = p_indices[n];
+	}
+
+	state.canvas_shader.draw_polygon(inds, p_index_count, p_vertices, p_vertex_count, p_colors, p_singlecolor ? p_colors : nullptr);
+
+#if 0
+	glBindBuffer(GL_ARRAY_BUFFER, data.polygon_buffer);
+
+	uint32_t buffer_ofs = 0;
+	uint32_t buffer_ofs_after = buffer_ofs + (sizeof(Vector2) * p_vertex_count);
+#ifdef DEBUG_ENABLED
+	ERR_FAIL_COND(buffer_ofs_after > data.polygon_buffer_size);
+#endif
+
+	storage->buffer_orphan_and_upload(data.polygon_buffer_size, 0, sizeof(Vector2) * p_vertex_count, p_vertices, GL_ARRAY_BUFFER, _buffer_upload_usage_flag, true);
+
+	glEnableVertexAttribArray(VS::ARRAY_VERTEX);
+	glVertexAttribPointer(VS::ARRAY_VERTEX, 2, GL_FLOAT, GL_FALSE, sizeof(Vector2), nullptr);
+	buffer_ofs = buffer_ofs_after;
+
+	if (p_singlecolor) {
+		glDisableVertexAttribArray(VS::ARRAY_COLOR);
+		Color m = *p_colors;
+		glVertexAttrib4f(VS::ARRAY_COLOR, m.r, m.g, m.b, m.a);
+	} else if (!p_colors) {
+		glDisableVertexAttribArray(VS::ARRAY_COLOR);
+		glVertexAttrib4f(VS::ARRAY_COLOR, 1, 1, 1, 1);
+	} else {
+		RAST_FAIL_COND(!storage->safe_buffer_sub_data(data.polygon_buffer_size, GL_ARRAY_BUFFER, buffer_ofs, sizeof(Color) * p_vertex_count, p_colors, buffer_ofs_after));
+		glEnableVertexAttribArray(VS::ARRAY_COLOR);
+		glVertexAttribPointer(VS::ARRAY_COLOR, 4, GL_FLOAT, GL_FALSE, sizeof(Color), CAST_INT_TO_UCHAR_PTR(buffer_ofs));
+		buffer_ofs = buffer_ofs_after;
+	}
+
+	if (p_uvs) {
+		RAST_FAIL_COND(!storage->safe_buffer_sub_data(data.polygon_buffer_size, GL_ARRAY_BUFFER, buffer_ofs, sizeof(Vector2) * p_vertex_count, p_uvs, buffer_ofs_after));
+		glEnableVertexAttribArray(VS::ARRAY_TEX_UV);
+		glVertexAttribPointer(VS::ARRAY_TEX_UV, 2, GL_FLOAT, GL_FALSE, sizeof(Vector2), CAST_INT_TO_UCHAR_PTR(buffer_ofs));
+		buffer_ofs = buffer_ofs_after;
+	} else {
+		glDisableVertexAttribArray(VS::ARRAY_TEX_UV);
+	}
+
+	if (p_weights && p_bones) {
+		RAST_FAIL_COND(!storage->safe_buffer_sub_data(data.polygon_buffer_size, GL_ARRAY_BUFFER, buffer_ofs, sizeof(float) * 4 * p_vertex_count, p_weights, buffer_ofs_after));
+		glEnableVertexAttribArray(VS::ARRAY_WEIGHTS);
+		glVertexAttribPointer(VS::ARRAY_WEIGHTS, 4, GL_FLOAT, GL_FALSE, sizeof(float) * 4, CAST_INT_TO_UCHAR_PTR(buffer_ofs));
+		buffer_ofs = buffer_ofs_after;
+
+		RAST_FAIL_COND(!storage->safe_buffer_sub_data(data.polygon_buffer_size, GL_ARRAY_BUFFER, buffer_ofs, sizeof(int) * 4 * p_vertex_count, p_bones, buffer_ofs_after));
+		glEnableVertexAttribArray(VS::ARRAY_BONES);
+		glVertexAttribPointer(VS::ARRAY_BONES, 4, GL_UNSIGNED_INT, GL_FALSE, sizeof(int) * 4, CAST_INT_TO_UCHAR_PTR(buffer_ofs));
+		buffer_ofs = buffer_ofs_after;
+
+	} else {
+		glDisableVertexAttribArray(VS::ARRAY_WEIGHTS);
+		glDisableVertexAttribArray(VS::ARRAY_BONES);
+	}
+
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, data.polygon_index_buffer);
+
+	if (storage->config.support_32_bits_indices) { //should check for
+#ifdef DEBUG_ENABLED
+		ERR_FAIL_COND((sizeof(int) * p_index_count) > data.polygon_index_buffer_size);
+#endif
+		storage->buffer_orphan_and_upload(data.polygon_index_buffer_size, 0, sizeof(int) * p_index_count, p_indices, GL_ELEMENT_ARRAY_BUFFER, _buffer_upload_usage_flag, true);
+		glDrawElements(GL_TRIANGLES, p_index_count, GL_UNSIGNED_INT, nullptr);
+		storage->info.render._2d_draw_call_count++;
+	} else {
+#ifdef DEBUG_ENABLED
+		ERR_FAIL_COND((sizeof(uint16_t) * p_index_count) > data.polygon_index_buffer_size);
+#endif
+		uint16_t *index16 = (uint16_t *)alloca(sizeof(uint16_t) * p_index_count);
+		for (int i = 0; i < p_index_count; i++) {
+			index16[i] = uint16_t(p_indices[i]);
+		}
+		storage->buffer_orphan_and_upload(data.polygon_index_buffer_size, 0, sizeof(uint16_t) * p_index_count, index16, GL_ELEMENT_ARRAY_BUFFER, _buffer_upload_usage_flag, true);
+		glDrawElements(GL_TRIANGLES, p_index_count, GL_UNSIGNED_SHORT, nullptr);
+		storage->info.render._2d_draw_call_count++;
+	}
+
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+#endif
 }
 
 RasterizerCanvasBaseBGFX::RasterizerCanvasBaseBGFX() {

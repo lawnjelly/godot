@@ -36,6 +36,7 @@ static const uint16_t cubeTriList[] = {
 };
 
 void BGFXDrawRect::create() {
+	return;
 	bgfx::VertexLayout layout;
 	layout.begin()
 			.add(bgfx::Attrib::Position, 3, bgfx::AttribType::Float)
@@ -53,6 +54,7 @@ void BGFXDrawRect::destroy() {
 
 void BGFXDrawRect::prepare() {
 	return;
+	/*
 	Transform look_at;
 	look_at.origin = Vector3(0, 0, -5);
 	look_at = look_at.looking_at(Vector3(0, 0, 0), Vector3(0, 1, 0));
@@ -66,13 +68,13 @@ void BGFXDrawRect::prepare() {
 	CanvasShaderBGFX::_camera_matrix_to_mat16(cm, proj);
 
 	bgfx::setViewTransform(0, view, proj);
+	*/
 }
 
 void BGFXDrawRect::draw_rect(CanvasShaderBGFX *p_shader, const Vector2 *p_points, const Vector2 *p_uvs, RasterizerStorageBGFX::Texture *p_texture) {
 	return;
 	//	static PosColorVertex cubeVertices[] = {
 	//		{ -1.0f, 1.0f, 0.0f, 0xff000000 },
-
 	for (int n = 0; n < 4; n++) {
 		cubeVertices[n].x = p_points[n].x;
 		cubeVertices[n].y = p_points[n].y;

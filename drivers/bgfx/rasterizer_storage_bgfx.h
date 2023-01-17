@@ -80,10 +80,20 @@ public:
 		Image::Format format;
 		Ref<Image> image;
 		String path;
+
 		bgfx::TextureHandle bg_handle = BGFX_INVALID_HANDLE;
+
+		// Depending on how often this texture is updated, it can either be static
+		// (default) or dynamic if the update count is high.
+		uint32_t bg_update_count = 0;
+		bool bg_is_mutable = false;
+
 		bool redraw_if_visible = false;
 
 		RenderTarget *render_target = nullptr;
+
+		Set<Texture *> proxy_owners;
+		Texture *proxy = nullptr;
 
 		VisualServer::TextureDetectCallback detect_3d = nullptr;
 		void *detect_3d_ud = nullptr;
@@ -94,8 +104,27 @@ public:
 		VisualServer::TextureDetectCallback detect_normal = nullptr;
 		void *detect_normal_ud = nullptr;
 
-		Texture *get_ptr() { // no proxy support yet
-			return this;
+		Texture *get_ptr() {
+			if (proxy) {
+				return proxy; //->get_ptr(); only one level of indirection, else not inlining possible.
+			} else {
+				return this;
+			}
+		}
+
+		~Texture() {
+			//			if (tex_id != 0) {
+			//				glDeleteTextures(1, &tex_id);
+			//			}
+			BGFX_DESTROY(bg_handle);
+
+			for (Set<Texture *>::Element *E = proxy_owners.front(); E; E = E->next()) {
+				E->get()->proxy = nullptr;
+			}
+
+			if (proxy) {
+				proxy->proxy_owners.erase(this);
+			}
 		}
 	};
 
@@ -141,10 +170,10 @@ public:
 
 	VisualServer::TextureType texture_get_type(RID p_texture) const { return VS::TEXTURE_TYPE_2D; }
 	uint32_t texture_get_texid(RID p_texture) const { return 0; }
-	uint32_t texture_get_width(RID p_texture) const { return 0; }
-	uint32_t texture_get_height(RID p_texture) const { return 0; }
+	uint32_t texture_get_width(RID p_texture) const;
+	uint32_t texture_get_height(RID p_texture) const;
 	uint32_t texture_get_depth(RID p_texture) const { return 0; }
-	void texture_set_size_override(RID p_texture, int p_width, int p_height, int p_depth_3d) {}
+	void texture_set_size_override(RID p_texture, int p_width, int p_height, int p_depth_3d);
 	void texture_bind(RID p_texture, uint32_t p_texture_no) {}
 
 	void texture_set_path(RID p_texture, const String &p_path) {
@@ -170,9 +199,9 @@ public:
 
 	void textures_keep_original(bool p_enable) {}
 
-	void texture_set_proxy(RID p_proxy, RID p_base) {}
-	virtual Size2 texture_size_with_proxy(RID p_texture) const { return Size2(); }
-	void texture_set_force_redraw_if_visible(RID p_texture, bool p_enable) {}
+	void texture_set_proxy(RID p_texture, RID p_proxy);
+	virtual Size2 texture_size_with_proxy(RID p_texture) const;
+	void texture_set_force_redraw_if_visible(RID p_texture, bool p_enable);
 
 	/* SKY API */
 
@@ -186,17 +215,17 @@ public:
 	struct Shader : public RID_Data {
 		RID self;
 
-		VS::ShaderMode mode;
-		ShaderBGFX *shader;
+		VS::ShaderMode mode = VS::SHADER_MAX;
+		ShaderBGFX *shader = nullptr;
 		String code;
 		SelfList<Material>::List materials;
 
 		Map<StringName, ShaderLanguage::ShaderNode::Uniform> uniforms;
 
-		uint32_t texture_count;
+		uint32_t texture_count = 0;
 
-		uint32_t custom_code_id;
-		uint32_t version;
+		uint32_t custom_code_id = 0;
+		uint32_t version = 0;
 
 		SelfList<Shader> dirty_list;
 
@@ -204,12 +233,12 @@ public:
 
 		Vector<ShaderLanguage::ShaderNode::Uniform::Hint> texture_hints;
 
-		bool valid;
+		bool valid = false;
 
 		String path;
 
-		uint32_t index;
-		uint64_t last_pass;
+		uint32_t index = 0;
+		uint64_t last_pass = 0;
 
 		struct CanvasItem {
 			enum BlendMode {
@@ -220,7 +249,7 @@ public:
 				BLEND_MODE_PMALPHA,
 			};
 
-			int blend_mode;
+			int blend_mode = 0;
 
 			enum LightMode {
 				LIGHT_MODE_NORMAL,
@@ -228,26 +257,26 @@ public:
 				LIGHT_MODE_LIGHT_ONLY
 			};
 
-			int light_mode;
+			int light_mode = 0;
 
 			// these flags are specifically for batching
 			// some of the logic is thus in rasterizer_storage.cpp
 			// we could alternatively set bitflags for each 'uses' and test on the fly
 			// defined in RasterizerStorageCommon::BatchFlags
-			unsigned int batch_flags;
+			unsigned int batch_flags = 0;
 
-			bool uses_screen_texture;
-			bool uses_screen_uv;
-			bool uses_time;
-			bool uses_modulate;
-			bool uses_color;
-			bool uses_vertex;
+			bool uses_screen_texture = false;
+			bool uses_screen_uv = false;
+			bool uses_time = false;
+			bool uses_modulate = false;
+			bool uses_color = false;
+			bool uses_vertex = false;
 
 			// all these should disable item joining if used in a custom shader
-			bool uses_world_matrix;
-			bool uses_extra_matrix;
-			bool uses_projection_matrix;
-			bool uses_instance_custom;
+			bool uses_world_matrix = false;
+			bool uses_extra_matrix = false;
+			bool uses_projection_matrix = false;
+			bool uses_instance_custom = false;
 
 		} canvas_item;
 
@@ -259,7 +288,7 @@ public:
 				BLEND_MODE_MUL,
 			};
 
-			int blend_mode;
+			int blend_mode = 0;
 
 			enum DepthDrawMode {
 				DEPTH_DRAW_OPAQUE,
@@ -268,7 +297,7 @@ public:
 				DEPTH_DRAW_ALPHA_PREPASS,
 			};
 
-			int depth_draw_mode;
+			int depth_draw_mode = 0;
 
 			enum CullMode {
 				CULL_MODE_FRONT,
@@ -276,31 +305,31 @@ public:
 				CULL_MODE_DISABLED,
 			};
 
-			int cull_mode;
+			int cull_mode = 0;
 
-			bool uses_alpha;
-			bool uses_alpha_scissor;
-			bool unshaded;
-			bool no_depth_test;
-			bool uses_vertex;
-			bool uses_discard;
-			bool uses_sss;
-			bool uses_screen_texture;
-			bool uses_depth_texture;
-			bool uses_time;
-			bool uses_tangent;
-			bool uses_ensure_correct_normals;
-			bool writes_modelview_or_projection;
-			bool uses_vertex_lighting;
-			bool uses_world_coordinates;
+			bool uses_alpha = false;
+			bool uses_alpha_scissor = false;
+			bool unshaded = false;
+			bool no_depth_test = false;
+			bool uses_vertex = false;
+			bool uses_discard = false;
+			bool uses_sss = false;
+			bool uses_screen_texture = false;
+			bool uses_depth_texture = false;
+			bool uses_time = false;
+			bool uses_tangent = false;
+			bool uses_ensure_correct_normals = false;
+			bool writes_modelview_or_projection = false;
+			bool uses_vertex_lighting = false;
+			bool uses_world_coordinates = false;
 
 		} spatial;
 
 		struct Particles {
 		} particles;
 
-		bool uses_vertex_time;
-		bool uses_fragment_time;
+		bool uses_vertex_time = false;
+		bool uses_fragment_time = false;
 
 		Shader() :
 				dirty_list(this) {

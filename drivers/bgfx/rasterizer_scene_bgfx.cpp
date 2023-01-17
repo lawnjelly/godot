@@ -3,6 +3,8 @@
 #include "rasterizer_storage_bgfx.h"
 
 void RasterizerSceneBGFX::render_scene(const Transform &p_cam_transform, const CameraMatrix &p_cam_projection, const int p_eye, bool p_cam_ortogonal, InstanceBase **p_cull_result, int p_cull_count, RID *p_light_cull_result, int p_light_cull_count, RID *p_reflection_probe_cull_result, int p_reflection_probe_cull_count, RID p_environment, RID p_shadow_atlas, RID p_reflection_atlas, RID p_reflection_probe, int p_reflection_probe_pass) {
+	return;
+
 	Transform cam_transform = p_cam_transform;
 	bool reverse_cull = false;
 
@@ -122,9 +124,20 @@ void RasterizerSceneBGFX::_setup_material(RasterizerStorageBGFX::Material *p_mat
 
 			if (t) {
 				BGFX::scene.set_texture(t->bg_handle);
+				return;
 			}
 		}
 	}
+
+	//	if (p_material->shader)
+	//	{
+	//		ShaderBGFX * s = p_material->shader->shader;
+	//		if (s)
+	//		{
+	//			s->
+
+	//		}
+	//	}
 }
 
 //RasterizerStorageBGFX::Material * RasterizerSceneBGFX::_choose_material(RasterizerStorageBGFX::Geometry *p_geometry, InstanceBase *p_instance, RasterizerStorageBGFX::GeometryOwner *p_owner, int p_material, bool p_depth_pass, bool p_shadow_pass) {

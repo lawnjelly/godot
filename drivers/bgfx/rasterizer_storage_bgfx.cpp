@@ -494,7 +494,8 @@ void RasterizerStorageBGFX::texture_set_data(RID p_texture, const Ref<Image> &p_
 	t->format = p_image->get_format();
 	t->image->create(t->width, t->height, p_image->has_mipmaps(), p_image->get_format(), p_image->get_data());
 
-	if (!bgfx::isValid(t->bg_handle)) {
+	if (true) {
+		//	if (!bgfx::isValid(t->bg_handle)) {
 		bgfx::TextureFormat::Enum format = bgfx::TextureFormat::RGBA8;
 
 		bool pow2 = false;
@@ -520,7 +521,10 @@ void RasterizerStorageBGFX::texture_set_data(RID p_texture, const Ref<Image> &p_
 				format = bgfx::TextureFormat::R8;
 			} break;
 			case Image::FORMAT_LA8: {
-				format = bgfx::TextureFormat::RG8;
+				//format = bgfx::TextureFormat::RG8;
+				t->image->convert(Image::FORMAT_RGBA8);
+				t->format = p_image->get_format();
+				format = bgfx::TextureFormat::RGBA8;
 			} break;
 			case Image::FORMAT_DXT1: {
 				format = bgfx::TextureFormat::BC1;
@@ -538,7 +542,7 @@ void RasterizerStorageBGFX::texture_set_data(RID p_texture, const Ref<Image> &p_
 		}
 		//		return;
 
-		PoolVector<uint8_t> data = p_image->get_data();
+		PoolVector<uint8_t> data = t->image->get_data();
 		const PoolVector<uint8_t>::Read r = data.read();
 
 		if (pow2) {
@@ -547,7 +551,7 @@ void RasterizerStorageBGFX::texture_set_data(RID p_texture, const Ref<Image> &p_
 			if ((w != next_power_of_2(w)) || (h != next_power_of_2(h))) {
 				// bodge, convert to RGBA
 				Image temp;
-				temp.create(w, h, p_image->has_mipmaps(), p_image->get_format(), data);
+				temp.create(w, h, t->image->has_mipmaps(), t->image->get_format(), data);
 				//temp.convert(Image::FORMAT_RGBA8);
 				temp.decompress();
 				PoolVector<uint8_t> data_rgba = temp.get_data();
@@ -565,88 +569,174 @@ void RasterizerStorageBGFX::texture_set_data(RID p_texture, const Ref<Image> &p_
 
 		const bgfx::Memory *mem = bgfx::alloc(data.size());
 		memcpy(mem->data, r.ptr(), data.size());
-		t->bg_handle = bgfx::createTexture2D(t->width, t->height, p_image->has_mipmaps(), 1, format, 0, mem);
+
+		// delete any previous texture
+
+		if (!t->bg_is_mutable) {
+			BGFX_DESTROY(t->bg_handle);
+
+			if (t->bg_update_count < 4) {
+				// static
+				t->bg_handle = bgfx::createTexture2D(t->width, t->height, t->image->has_mipmaps(), 1, format, 0, mem);
+			} else {
+				// convert to dynamic (mutable)
+				t->bg_handle = bgfx::createTexture2D(t->width, t->height, t->image->has_mipmaps(), 1, format, 0, nullptr);
+				t->bg_is_mutable = true;
+				bgfx::updateTexture2D(t->bg_handle, 0, 0, 0, 0, t->width, t->height, mem);
+			}
+		} else {
+			// mutable update
+			bgfx::updateTexture2D(t->bg_handle, 0, 0, 0, 0, t->width, t->height, mem);
+		}
+
+		t->bg_update_count++;
 	} else {
 		ERR_FAIL_MSG("Immutable texture can only be set once.");
 	}
 }
 
-void RasterizerStorageBGFX::_render_target_clear(RenderTarget *rt) {
-	return;
+uint32_t RasterizerStorageBGFX::texture_get_width(RID p_texture) const {
+	Texture *t = texture_owner.getornull(p_texture);
+	ERR_FAIL_COND_V(!t, 0);
+	return t->width;
+}
 
-	if (bgfx::isValid(rt->hFrameBuffer)) {
-		bgfx::destroy(rt->hFrameBuffer);
+uint32_t RasterizerStorageBGFX::texture_get_height(RID p_texture) const {
+	Texture *t = texture_owner.getornull(p_texture);
+	ERR_FAIL_COND_V(!t, 0);
+	return t->height;
+}
+
+void RasterizerStorageBGFX::texture_set_size_override(RID p_texture, int p_width, int p_height, int p_depth_3d) {
+	Texture *t = texture_owner.getornull(p_texture);
+	ERR_FAIL_NULL(t);
+}
+
+void RasterizerStorageBGFX::texture_set_force_redraw_if_visible(RID p_texture, bool p_enable) {
+	Texture *texture = texture_owner.getornull(p_texture);
+	ERR_FAIL_COND(!texture);
+
+	texture->redraw_if_visible = p_enable;
+}
+
+void RasterizerStorageBGFX::texture_set_proxy(RID p_texture, RID p_proxy) {
+	Texture *texture = texture_owner.getornull(p_texture);
+	ERR_FAIL_COND(!texture);
+
+	if (texture->proxy) {
+		texture->proxy->proxy_owners.erase(texture);
+		texture->proxy = nullptr;
 	}
 
+	if (p_proxy.is_valid()) {
+		Texture *proxy = texture_owner.get(p_proxy);
+		ERR_FAIL_COND(!proxy);
+		ERR_FAIL_COND(proxy == texture);
+		proxy->proxy_owners.insert(texture);
+		texture->proxy = proxy;
+	}
+}
+
+Size2 RasterizerStorageBGFX::texture_size_with_proxy(RID p_texture) const {
+	const Texture *texture = texture_owner.getornull(p_texture);
+	ERR_FAIL_COND_V(!texture, Size2());
+	if (texture->proxy) {
+		return Size2(texture->proxy->width, texture->proxy->height);
+	} else {
+		return Size2(texture->width, texture->height);
+	}
+}
+
+void RasterizerStorageBGFX::_render_target_clear(RenderTarget *rt) {
+	//return;
+
 	if (rt->id_view != UINT16_MAX) {
-		_free_bgfx_view(rt->id_view);
-		rt->id_view = UINT16_MAX;
+		//		if (rt->id_view != 0)
+		//			bgfx::setViewFrameBuffer(rt->id_view, BGFX_INVALID_HANDLE);
+	}
+
+	if (bgfx::isValid(rt->hFrameBuffer)) {
+		BGFX_DESTROY(rt->hFrameBuffer);
 	}
 }
 
 void RasterizerStorageBGFX::_render_target_allocate(RenderTarget *rt) {
-	return;
+	//	return;
+	//DEV_ASSERT(rt->id_view == UINT16_MAX);
 
 	// do not allocate a render target with no size
 	if (rt->width <= 0 || rt->height <= 0) {
 		return;
 	}
 
-	rt->hFrameBuffer = bgfx::createFrameBuffer(rt->width, rt->height, bgfx::TextureFormat::RGBA8);
+	if (!rt->flags[RENDER_TARGET_DIRECT_TO_SCREEN] && (rt->id_view != 0)) {
+		DEV_ASSERT(!bgfx::isValid(rt->hFrameBuffer));
+		rt->hFrameBuffer = bgfx::createFrameBuffer(rt->width, rt->height, bgfx::TextureFormat::RGBA8);
 
-	rt->id_view = _request_bgfx_view();
-	ERR_FAIL_COND(rt->id_view == UINT16_MAX);
+		// associate framebuffer with view
+		bgfx::setViewFrameBuffer(rt->id_view, rt->hFrameBuffer);
+
+		Texture *t = texture_owner.getornull(rt->texture);
+		if (t) {
+			BGFX_DESTROY(t->bg_handle);
+			t->bg_handle = bgfx::getTexture(rt->hFrameBuffer);
+			t->width = rt->width;
+			t->height = rt->height;
+		}
+	}
 
 	_render_target_set_viewport(rt, 0, 0, rt->width, rt->height);
 	bgfx::setViewMode(rt->id_view, bgfx::ViewMode::Sequential);
+	//	bgfx::setViewMode(rt->id_view, bgfx::ViewMode::DepthAscending);
 }
 
 void RasterizerStorageBGFX::_render_target_set_viewport(RenderTarget *rt, uint16_t p_x, uint16_t p_y, uint16_t p_width, uint16_t p_height) {
-	return;
+	//	return;
 	ERR_FAIL_COND(rt->id_view == UINT16_MAX);
 	bgfx::setViewRect(rt->id_view, p_x, p_y, p_width, p_height);
 }
 
 void RasterizerStorageBGFX::_render_target_set_scissor(RenderTarget *rt, uint16_t p_x, uint16_t p_y, uint16_t p_width, uint16_t p_height) {
-	return;
+	//	return;
 	ERR_FAIL_COND(rt->id_view == UINT16_MAX);
-	bgfx::setViewScissor(rt->id_view, p_x, p_y, p_width, p_height);
+	//bgfx::setViewScissor(rt->id_view, p_x, p_y, p_width, p_height);
 }
 
 void RasterizerStorageBGFX::_render_target_set_view_clear(RenderTarget *rt, const Color &p_color) {
-	return;
+	//	bgfx::setViewClear(0, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH | BGFX_CLEAR_STENCIL, p_color.to_rgba32());
+	//	return;
 	ERR_FAIL_COND(rt->id_view == UINT16_MAX);
 	bgfx::setViewClear(rt->id_view, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH | BGFX_CLEAR_STENCIL, p_color.to_rgba32());
 }
 
 RID RasterizerStorageBGFX::render_target_create() {
+	uint32_t view_id = _request_bgfx_view();
+	ERR_FAIL_COND_V(view_id == UINT16_MAX, RID());
+
 	RenderTarget *rt = memnew(RenderTarget);
 
-	/*
 	Texture *t = memnew(Texture);
 
-	t->type = VS::TEXTURE_TYPE_2D;
-	t->flags = 0;
-	t->width = 0;
-	t->height = 0;
-	t->alloc_height = 0;
-	t->alloc_width = 0;
-	t->format = Image::FORMAT_R8;
-	t->target = GL_TEXTURE_2D;
-	t->gl_format_cache = 0;
-	t->gl_internal_format_cache = 0;
-	t->gl_type_cache = 0;
-	t->data_size = 0;
-	t->total_data_size = 0;
-	t->ignore_mipmaps = false;
-	t->compressed = false;
-	t->mipmaps = 1;
-	t->active = true;
-	t->tex_id = 0;
+	//t->type = VS::TEXTURE_TYPE_2D;
+	//t->alloc_height = 0;
+	//t->alloc_width = 0;
+	t->format = Image::FORMAT_RGBA8;
+	//t->target = GL_TEXTURE_2D;
+	//t->gl_format_cache = 0;
+	//t->gl_internal_format_cache = 0;
+	//t->gl_type_cache = 0;
+	//t->data_size = 0;
+	//	t->total_data_size = 0;
+	//	t->ignore_mipmaps = false;
+	//	t->compressed = false;
+	//	t->mipmaps = 1;
+	//	t->active = true;
+	//	t->tex_id = 0;
 	t->render_target = rt;
 
 	rt->texture = texture_owner.make_rid(t);
-	*/
+
+	rt->id_view = view_id;
 
 	return render_target_owner.make_rid(rt);
 }
@@ -676,7 +766,9 @@ void RasterizerStorageBGFX::render_target_set_size(RID p_render_target, int p_wi
 }
 
 RID RasterizerStorageBGFX::render_target_get_texture(RID p_render_target) const {
-	return RID();
+	RenderTarget *rt = render_target_owner.getornull(p_render_target);
+	ERR_FAIL_COND_V(!rt, RID());
+	return rt->texture;
 }
 
 uint32_t RasterizerStorageBGFX::render_target_get_depth_texture_id(RID p_render_target) const {
@@ -684,6 +776,33 @@ uint32_t RasterizerStorageBGFX::render_target_get_depth_texture_id(RID p_render_
 }
 
 void RasterizerStorageBGFX::render_target_set_flag(RID p_render_target, RenderTargetFlags p_flag, bool p_value) {
+	RenderTarget *rt = render_target_owner.getornull(p_render_target);
+	ERR_FAIL_COND(!rt);
+
+	// When setting DIRECT_TO_SCREEN, you need to clear before the value is set, but allocate after as
+	// those functions change how they operate depending on the value of DIRECT_TO_SCREEN
+	if (p_flag == RENDER_TARGET_DIRECT_TO_SCREEN && p_value != rt->flags[RENDER_TARGET_DIRECT_TO_SCREEN]) {
+		_render_target_clear(rt);
+		rt->flags[p_flag] = p_value;
+		_render_target_allocate(rt);
+	}
+
+	rt->flags[p_flag] = p_value;
+
+	switch (p_flag) {
+		case RENDER_TARGET_TRANSPARENT:
+		case RENDER_TARGET_HDR:
+		case RENDER_TARGET_NO_3D:
+		case RENDER_TARGET_NO_SAMPLING:
+		case RENDER_TARGET_NO_3D_EFFECTS: {
+			//must reset for these formats
+			_render_target_clear(rt);
+			_render_target_allocate(rt);
+
+		} break;
+		default: {
+		}
+	}
 }
 
 bool RasterizerStorageBGFX::render_target_was_used(RID p_render_target) {
@@ -704,6 +823,11 @@ bool RasterizerStorageBGFX::free(RID p_rid) {
 	if (render_target_owner.owns(p_rid)) {
 		RenderTarget *rt = render_target_owner.getornull(p_rid);
 		_render_target_clear(rt);
+
+		if (rt->id_view != UINT16_MAX) {
+			_free_bgfx_view(rt->id_view);
+			rt->id_view = UINT16_MAX;
+		}
 
 		free(rt->texture);
 		//		Texture *t = texture_owner.get(rt->texture);
@@ -1613,12 +1737,14 @@ uint32_t RasterizerStorageBGFX::_request_bgfx_view() {
 	ERR_FAIL_COND_V(_bgfx_view_pool.used_size() >= 256, UINT16_MAX);
 	uint32_t id;
 	_bgfx_view_pool.request(id);
+	//	print_line("requesting bgfx view " + itos(id));
 	return id;
 }
 
 void RasterizerStorageBGFX::_free_bgfx_view(uint32_t p_id) {
 	ERR_FAIL_COND(p_id > 255);
 	_bgfx_view_pool.free(p_id);
+	//	print_line("freeing bgfx view " + itos(p_id));
 }
 
 RasterizerStorageBGFX::RasterizerStorageBGFX() {

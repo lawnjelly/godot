@@ -49,7 +49,7 @@ public:
 
 	RasterizerStorageBGFX *storage = nullptr;
 
-	void _set_uniforms();
+	void _set_uniforms(bool set_projection = false);
 
 	virtual RID light_internal_create() { return RID(); }
 	virtual void light_internal_update(RID p_rid, Light *p_light) {}
@@ -69,6 +69,7 @@ public:
 
 	virtual void draw_window_margins(int *p_margins, RID *p_margin_textures) {}
 	void _draw_gui_primitive(int p_points, const Vector2 *p_vertices, const Color *p_colors, const Vector2 *p_uvs, const float *p_light_angles = nullptr);
+	void _draw_polygon(const int *p_indices, int p_index_count, int p_vertex_count, const Vector2 *p_vertices, const Vector2 *p_uvs, const Color *p_colors, bool p_singlecolor, const float *p_weights = nullptr, const int *p_bones = nullptr);
 
 	RasterizerStorageBGFX::Texture *_bind_canvas_texture(const RID &p_texture, const RID &p_normal_map);
 	void _set_texture_rect_mode(bool p_texture_rect, bool p_light_angle = false, bool p_modulate = false, bool p_large_vertex = false);

@@ -53,11 +53,14 @@ void RasterizerCanvasBGFX::_legacy_canvas_render_item(Item *p_ci, RenderItemStat
 		if (r_ris.current_clip) {
 			//glEnable(GL_SCISSOR_TEST);
 			int y = storage->frame.current_rt->height - (r_ris.current_clip->final_clip_rect.position.y + r_ris.current_clip->final_clip_rect.size.y);
+
 			if (storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_VFLIP]) {
 				y = r_ris.current_clip->final_clip_rect.position.y;
 			}
+			state.canvas_shader.set_scissor(r_ris.current_clip->final_clip_rect.position.x, y, r_ris.current_clip->final_clip_rect.size.width, r_ris.current_clip->final_clip_rect.size.height);
 			//glScissor(r_ris.current_clip->final_clip_rect.position.x, y, r_ris.current_clip->final_clip_rect.size.width, r_ris.current_clip->final_clip_rect.size.height);
 		} else {
+			state.canvas_shader.set_scissor_disable();
 			//glDisable(GL_SCISSOR_TEST);
 		}
 	}
@@ -218,6 +221,7 @@ void RasterizerCanvasBGFX::_legacy_canvas_render_item(Item *p_ci, RenderItemStat
 		switch (blend_mode) {
 			case RasterizerStorageBGFX::Shader::CanvasItem::BLEND_MODE_MIX: {
 				//glBlendEquation(GL_FUNC_ADD);
+				state.canvas_shader.set_blend_state(BGFX_STATE_BLEND_ALPHA);
 				if (storage->frame.current_rt && storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_TRANSPARENT]) {
 					//glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 				} else {
@@ -375,6 +379,7 @@ void RasterizerCanvasBGFX::_legacy_canvas_render_item(Item *p_ci, RenderItemStat
 		if (storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_VFLIP]) {
 			y = r_ris.current_clip->final_clip_rect.position.y;
 		}
+		state.canvas_shader.set_scissor(r_ris.current_clip->final_clip_rect.position.x, y, r_ris.current_clip->final_clip_rect.size.width, r_ris.current_clip->final_clip_rect.size.height);
 		//glScissor(r_ris.current_clip->final_clip_rect.position.x, y, r_ris.current_clip->final_clip_rect.size.width, r_ris.current_clip->final_clip_rect.size.height);
 	}
 }
@@ -417,12 +422,57 @@ void RasterizerCanvasBGFX::render_batches(Item *p_current_clip, bool &r_reclip, 
 					switch (command->type) {
 						case Item::Command::TYPE_LINE: {
 						} break;
+						case Item::Command::TYPE_PRIMITIVE: {
+						} break;
+
+						case Item::Command::TYPE_POLYGON: {
+							Item::CommandPolygon *polygon = static_cast<Item::CommandPolygon *>(command);
+
+							_set_texture_rect_mode(false);
+
+							if (state.canvas_shader.bind()) {
+								_set_uniforms();
+								state.canvas_shader.use_material((void *)p_material);
+							}
+
+							RasterizerStorageBGFX::Texture *texture = _bind_canvas_texture(polygon->texture, polygon->normal_map);
+
+							//							if (texture) {
+							//								Size2 texpixel_size(1.0 / texture->width, 1.0 / texture->height);
+							//								state.canvas_shader.set_uniform(CanvasShaderBGFX::COLOR_TEXPIXEL_SIZE, texpixel_size);
+							//							}
+
+							_draw_polygon(polygon->indices.ptr(), polygon->count, polygon->points.size(), polygon->points.ptr(), polygon->uvs.ptr(), polygon->colors.ptr(), polygon->colors.size() == 1, polygon->weights.ptr(), polygon->bones.ptr());
+						} break;
+
+						case Item::Command::TYPE_POLYLINE: {
+							Item::CommandPolyLine *pline = static_cast<Item::CommandPolyLine *>(command);
+
+							_set_texture_rect_mode(false);
+
+							if (state.canvas_shader.bind()) {
+								_set_uniforms();
+								state.canvas_shader.use_material((void *)p_material);
+							}
+
+							_bind_canvas_texture(RID(), RID());
+
+							if (pline->triangles.size()) {
+								if (pline->multiline) {
+								} else {
+								}
+							}
+						} break;
 
 						case Item::Command::TYPE_RECT: {
 							Item::CommandRect *r = static_cast<Item::CommandRect *>(command);
 
 							//							glDisableVertexAttribArray(VS::ARRAY_COLOR);
 							//							glVertexAttrib4fv(VS::ARRAY_COLOR, r->modulate.components);
+							Color *cols = (Color *)alloca(4 * sizeof(Color));
+							for (int n = 0; n < 4; n++) {
+								cols[n] = r->modulate;
+							}
 
 							bool can_tile = true;
 							//							if (r->texture.is_valid() && r->flags & CANVAS_RECT_TILE && !storage->config.support_npot_repeat_mipmap) {
@@ -445,7 +495,8 @@ void RasterizerCanvasBGFX::render_batches(Item *p_current_clip, bool &r_reclip, 
 							// See GH-9913.
 							// To work it around, we use a simpler draw method which does not flicker, but gives
 							// a non negligible performance hit, so it's opt-in (GH-24466).
-							if (use_nvidia_rect_workaround) {
+							//							if (use_nvidia_rect_workaround) {
+							if (true) {
 								// are we using normal maps, if so we want to use light angle
 								bool send_light_angles = false;
 
@@ -481,6 +532,8 @@ void RasterizerCanvasBGFX::render_batches(Item *p_current_clip, bool &r_reclip, 
 								RasterizerStorageBGFX::Texture *texture = _bind_canvas_texture(r->texture, r->normal_map);
 
 								if (texture) {
+									DEV_ASSERT(texture->width);
+									DEV_ASSERT(texture->height);
 									Size2 texpixel_size(1.0 / texture->width, 1.0 / texture->height);
 
 									Rect2 src_rect = (r->flags & CANVAS_RECT_REGION) ? Rect2(r->source.position * texpixel_size, r->source.size * texpixel_size) : Rect2(0, 0, 1, 1);
@@ -547,9 +600,9 @@ void RasterizerCanvasBGFX::render_batches(Item *p_current_clip, bool &r_reclip, 
 										// this has the benefit of enabling batching with light angles.
 										float light_angles[4] = { angle, angle, angle, angle };
 
-										_draw_gui_primitive(4, points, nullptr, uvs, light_angles);
+										_draw_gui_primitive(4, points, cols, uvs, light_angles);
 									} else {
-										_draw_gui_primitive(4, points, nullptr, uvs);
+										_draw_gui_primitive(4, points, cols, uvs);
 									}
 
 									if (untile) {
@@ -565,7 +618,7 @@ void RasterizerCanvasBGFX::render_batches(Item *p_current_clip, bool &r_reclip, 
 									};
 
 									//state.canvas_shader.set_uniform(CanvasShaderGLES2::COLOR_TEXPIXEL_SIZE, Vector2());
-									_draw_gui_primitive(4, points, nullptr, uvs);
+									_draw_gui_primitive(4, points, cols, uvs);
 								}
 
 							} else {
@@ -582,15 +635,17 @@ void RasterizerCanvasBGFX::render_batches(Item *p_current_clip, bool &r_reclip, 
 						} break;
 
 						case Item::Command::TYPE_CLIP_IGNORE: {
-#if 0			
 							Item::CommandClipIgnore *ci = static_cast<Item::CommandClipIgnore *>(command);
 							if (p_current_clip) {
+								bgfx::ViewId view_id = storage->frame.current_rt->id_view;
+
 								if (ci->ignore != r_reclip) {
 									if (ci->ignore) {
-										glDisable(GL_SCISSOR_TEST);
+										//glDisable(GL_SCISSOR_TEST);
+										state.canvas_shader.set_scissor_disable();
 										r_reclip = true;
 									} else {
-										glEnable(GL_SCISSOR_TEST);
+										//glEnable(GL_SCISSOR_TEST);
 
 										int x = p_current_clip->final_clip_rect.position.x;
 										int y = storage->frame.current_rt->height - (p_current_clip->final_clip_rect.position.y + p_current_clip->final_clip_rect.size.y);
@@ -601,13 +656,13 @@ void RasterizerCanvasBGFX::render_batches(Item *p_current_clip, bool &r_reclip, 
 											y = p_current_clip->final_clip_rect.position.y;
 										}
 
-										glScissor(x, y, w, h);
+										//glScissor(x, y, w, h);
+										state.canvas_shader.set_scissor(x, y, w, h);
 
 										r_reclip = false;
 									}
 								}
 							}
-#endif
 						} break;
 
 						default: {

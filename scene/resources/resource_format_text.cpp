@@ -151,6 +151,7 @@ Error ResourceInteractiveLoaderText::_parse_ext_resource(VariantParser::Stream *
 			path = ProjectSettings::get_singleton()->localize_path(res_path.get_base_dir().plus_file(path));
 		}
 
+		print_line("attempting to load external resource : " + path + ", type " + type);
 		r_res = ResourceLoader::load(path, type, false);
 
 		if (r_res.is_null()) {

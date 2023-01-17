@@ -67,7 +67,7 @@ public:
 extern Scene scene;
 
 void transpose_mat16(float *m);
-void camera_matrix_to_mat16(CameraMatrix &cm, float *mat);
-void transform_to_mat16(Transform tr, float *mat);
+void camera_matrix_to_mat16(const CameraMatrix &cm, float *mat);
+void transform_to_mat16(const Transform tr, float *mat);
 
 } //namespace BGFX

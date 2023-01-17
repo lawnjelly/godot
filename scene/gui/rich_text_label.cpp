@@ -166,7 +166,9 @@ int RichTextLabel::_process_line(ItemFrame *p_frame, const Vector2 &p_ofs, int &
 	int height = get_size().y;
 
 	if (p_mode != PROCESS_CACHE) {
-		ERR_FAIL_INDEX_V(line, l.offset_caches.size(), 0);
+		if (line >= l.offset_caches.size()) {
+			ERR_FAIL_INDEX_V(line, l.offset_caches.size(), 0);
+		}
 		line_ofs = l.offset_caches[line];
 	}
 

@@ -7,7 +7,7 @@
 //#include <stdio.h>
 //#include <stdlib.h>
 //#include <unistd.h>
-
+#if 0
 void _transpose_mat16(float *m) {
 	float t[16];
 	t[0] = m[0];
@@ -115,6 +115,8 @@ static const uint16_t cubeTriList[] = {
 	3,
 	7,
 };
+
+#endif
 
 bgfx::ShaderHandle loadShader(const char *FILENAME) {
 	//const char *shaderPath = "???";
@@ -372,6 +374,13 @@ Error ContextBGFX_X11::initialize() {
 		XMapWindow(x11_display, *x11_window);
 	}
 	*/
+
+	//	_width = get_window_width();
+	//	_height = get_window_height();
+
+	_width = OS::get_singleton()->get_video_mode().width;
+	_height = OS::get_singleton()->get_video_mode().height;
+
 	int width = _width;
 	int height = _height;
 
@@ -416,6 +425,7 @@ Error ContextBGFX_X11::initialize() {
 	// Enable debug text.
 	//bgfx::setDebug(BGFX_DEBUG_TEXT /*| BGFX_DEBUG_STATS*/);
 
+	/*
 	// Set view rectangle for 0th view
 	bgfx::setViewRect(0, 0, 0, uint16_t(width), uint16_t(height));
 
@@ -440,11 +450,22 @@ Error ContextBGFX_X11::initialize() {
 	data.vsh = loadShader("vs_cubes.bin");
 	data.fsh = loadShader("fs_cubes.bin");
 	data.program = bgfx::createProgram(data.vsh, data.fsh, true);
+	*/
 
 	return OK;
 }
 
 void ContextBGFX_X11::swap_buffers() {
+	// check for resize window
+	int width = get_window_width();
+	int height = get_window_height();
+
+	if ((width != _width) || (height != _height)) {
+		_width = width;
+		_height = height;
+		bgfx::reset(width, height);
+	}
+
 	//	glXSwapBuffers(x11_display, *x11_window);
 	/*
   Put this inside the event loop of SDL, to render bgfx output
