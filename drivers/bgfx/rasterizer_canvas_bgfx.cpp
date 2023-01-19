@@ -2,6 +2,7 @@
 #include "servers/visual/visual_server_raster.h"
 
 void RasterizerCanvasBGFX::canvas_render_items(Item *p_item_list, int p_z, const Color &p_modulate, Light *p_light, const Transform2D &p_transform) {
+	//	return;
 	batch_canvas_render_items(p_item_list, p_z, p_modulate, p_light, p_transform);
 }
 

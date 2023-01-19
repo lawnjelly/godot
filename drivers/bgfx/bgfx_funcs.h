@@ -44,6 +44,12 @@ public:
 	bgfx::TextureHandle scene_current_texture = BGFX_INVALID_HANDLE;
 	bgfx::ViewId scene_view_id = UINT16_MAX;
 
+	CameraMatrix _projection;
+	Transform _cam_view;
+	//	float _projection16[16] = {};
+	//	float _cam_view16[16] = {};
+	float _VP_matrix[16];
+
 	void create() {
 		PosColorVertex::init();
 		//		bgfx::ShaderHandle scene_vertex_shader = loadShaderOld("vs_cubes.bin");
@@ -58,6 +64,7 @@ public:
 	void set_texture(bgfx::TextureHandle p_tex_handle);
 	void set_view_transform(const CameraMatrix &p_projection, const Transform &p_camera_view);
 	void prepare(bgfx::ViewId p_view_id);
+	void prepare_scene(int p_viewport_width, int p_viewport_height);
 
 	void destroy() {
 		//		BGFX_DESTROY(scene_vertex_shader);

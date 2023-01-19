@@ -3,7 +3,7 @@
 #include "rasterizer_storage_bgfx.h"
 
 void RasterizerSceneBGFX::render_scene(const Transform &p_cam_transform, const CameraMatrix &p_cam_projection, const int p_eye, bool p_cam_ortogonal, InstanceBase **p_cull_result, int p_cull_count, RID *p_light_cull_result, int p_light_cull_count, RID *p_reflection_probe_cull_result, int p_reflection_probe_cull_count, RID p_environment, RID p_shadow_atlas, RID p_reflection_atlas, RID p_reflection_probe, int p_reflection_probe_pass) {
-	//	return;
+	return;
 
 	Transform cam_transform = p_cam_transform;
 	bool reverse_cull = false;
@@ -64,13 +64,7 @@ void RasterizerSceneBGFX::render_scene(const Transform &p_cam_transform, const C
 
 	Transform cam_transform_inv = cam_transform.affine_inverse();
 
-	// Set view rectangle for 0th view
-	bgfx::setViewRect(0, 0, 0, uint16_t(viewport_width), uint16_t(viewport_height));
-
-	// Clear the view rect
-	bgfx::setViewClear(0,
-			BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH,
-			0xa00000FF, 1.0f, 0);
+	BGFX::scene.prepare_scene(viewport_width, viewport_height);
 
 	BGFX::scene.set_view_transform(p_cam_projection, cam_transform_inv);
 

@@ -661,7 +661,7 @@ void RasterizerStorageBGFX::_render_target_clear(RenderTarget *rt) {
 	//return;
 
 	if (rt->id_view != UINT16_MAX) {
-		bgfx::resetView(rt->id_view);
+		//bgfx::resetView(rt->id_view);
 		//		if (rt->id_view != 0)
 		//			bgfx::setViewFrameBuffer(rt->id_view, BGFX_INVALID_HANDLE);
 	}
@@ -683,7 +683,37 @@ void RasterizerStorageBGFX::_render_target_allocate(RenderTarget *rt) {
 	//if (!rt->flags[RENDER_TARGET_DIRECT_TO_SCREEN] && (rt->id_view != 0)) {
 	if (!rt->flags[RENDER_TARGET_DIRECT_TO_SCREEN]) {
 		DEV_ASSERT(!bgfx::isValid(rt->hFrameBuffer));
-		rt->hFrameBuffer = bgfx::createFrameBuffer(rt->width, rt->height, bgfx::TextureFormat::RGBA8);
+
+		bgfx::TextureHandle fbtextures[2];
+		uint16_t rtw = rt->width;
+		uint16_t rth = rt->height;
+
+		int msaa = 0;
+
+		fbtextures[0] = bgfx::createTexture2D(
+				rtw, rth, false, 1
+				//			, bgfx::TextureFormat::RGBA8
+				,
+				bgfx::TextureFormat::BGRA8, (uint64_t(msaa + 1) << BGFX_TEXTURE_RT_MSAA_SHIFT) | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP
+				//		, BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP
+		);
+
+		const uint64_t textureFlags = BGFX_TEXTURE_RT_WRITE_ONLY | (uint64_t(msaa + 1) << BGFX_TEXTURE_RT_MSAA_SHIFT);
+		//		const uint64_t textureFlags = BGFX_TEXTURE_RT_WRITE_ONLY;
+		//		const uint64_t textureFlags = 0;
+
+		bgfx::TextureFormat::Enum depthFormat =
+				bgfx::isTextureValid(0, false, 1, bgfx::TextureFormat::D16, textureFlags)	  ? bgfx::TextureFormat::D16
+				: bgfx::isTextureValid(0, false, 1, bgfx::TextureFormat::D24S8, textureFlags) ? bgfx::TextureFormat::D24S8
+																							  : bgfx::TextureFormat::D32;
+
+		fbtextures[1] = bgfx::createTexture2D(
+				rtw, rth, false, 1, depthFormat, textureFlags);
+
+		//		m_fbh = bgfx::createFrameBuffer(BX_COUNTOF(m_fbtextures), m_fbtextures, true);
+		rt->hFrameBuffer = bgfx::createFrameBuffer(2, fbtextures);
+
+		//		rt->hFrameBuffer = bgfx::createFrameBuffer(rt->width, rt->height, bgfx::TextureFormat::RGBA8, bgfx::TextureFormat::D16);
 		DEV_ASSERT(bgfx::isValid(rt->hFrameBuffer));
 
 		bgfx::resetView(rt->id_view);
