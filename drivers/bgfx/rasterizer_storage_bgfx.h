@@ -152,11 +152,7 @@ public:
 		ERR_FAIL_COND_V(!t, Ref<Image>());
 		return t->image;
 	}
-	void texture_set_flags(RID p_texture, uint32_t p_flags) {
-		Texture *t = texture_owner.getornull(p_texture);
-		ERR_FAIL_COND(!t);
-		t->flags = p_flags;
-	}
+	void texture_set_flags(RID p_texture, uint32_t p_flags);
 	uint32_t texture_get_flags(RID p_texture) const {
 		Texture *t = texture_owner.getornull(p_texture);
 		ERR_FAIL_COND_V(!t, 0);
@@ -947,6 +943,8 @@ public:
 	PooledList<uint32_t> _bgfx_view_pool;
 	uint32_t _request_bgfx_view();
 	void _free_bgfx_view(uint32_t p_id);
+
+	LocalVector<uint16_t> _bgfx_view_order;
 
 	void _render_target_clear(RenderTarget *rt);
 	void _render_target_allocate(RenderTarget *rt);

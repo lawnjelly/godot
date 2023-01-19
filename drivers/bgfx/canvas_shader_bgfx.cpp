@@ -19,7 +19,7 @@ static const uint16_t canvasTriList[] = {
 	3,
 };
 
-void CanvasShaderBGFX::_update_modulate() {
+void CanvasShaderBGFX::_refresh_modulate() {
 	if (data.modulate_dirty) {
 		data.modulate_dirty = false;
 		bgfx::setUniform(data.uniform_modulate, &data.modulate);
@@ -64,16 +64,45 @@ void CanvasShaderBGFX::prepare(bgfx::ViewId p_view_id, int p_viewport_width, int
 	//	bgfx::setState(0 | BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A | BGFX_STATE_WRITE_Z | BGFX_STATE_DEPTH_TEST_LESS);
 	data.state = BGFX_STATE_WRITE_RGB;
 	bgfx::setState(data.state);
+
+	data.scissor_active = false;
+	data.scissor_dirty = true;
 }
 
 void CanvasShaderBGFX::set_scissor(int p_x, int p_y, int p_width, int p_height) {
 	// bgfx seems v flipped for scissor
-	//p_y = data.viewport_height - (p_y + p_height);
-	//bgfx::setViewScissor(get_view_id(), p_x, p_y, p_width, p_height);
+	p_y = data.viewport_height - (p_y + p_height);
+
+	data.scissor_dirty = true;
+	data.scissor_active = true;
+	data.scissor_x = p_x;
+	data.scissor_y = p_y;
+	data.scissor_width = p_width;
+	data.scissor_height = p_height;
+
+	//	bgfx::setScissor(p_x, p_y, p_width, p_height);
+	//	bgfx::setViewRect(get_view_id(), p_x, p_y, p_width, p_height);
+	//bgfx::setScissor(0, 0, uint16_t(data.viewport_width/2), uint16_t(data.viewport_height/2));
 }
 
 void CanvasShaderBGFX::set_scissor_disable() {
-	bgfx::setViewScissor(get_view_id(), 0, 0, 0, 0);
+	data.scissor_dirty = true;
+	data.scissor_active = false;
+	//	bgfx::setScissor(0, 0, 0, 0);
+	//	bgfx::setViewRect(get_view_id(), 0, 0, uint16_t(data.viewport_width), uint16_t(data.viewport_height));
+	//	bgfx::setViewScissor(get_view_id(), 0, 0, uint16_t(data.viewport_width/2), uint16_t(data.viewport_height/2));
+}
+
+void CanvasShaderBGFX::_refresh_scissor() {
+	//	if (data.scissor_dirty) {
+	data.scissor_dirty = false;
+
+	if (data.scissor_active) {
+		bgfx::setScissor(data.scissor_x, data.scissor_y, data.scissor_width, data.scissor_height);
+	} else {
+		//			bgfx::setScissor(0, 0, data.viewport_width, data.viewport_height);
+	}
+	//	}
 }
 
 void CanvasShaderBGFX::_refresh_state() {
@@ -176,8 +205,9 @@ void CanvasShaderBGFX::draw_polygon(const int16_t *p_indices, uint32_t p_index_c
 	bgfx::setVertexBuffer(0, &tvb);
 	bgfx::setIndexBuffer(&tib, 0, p_index_count);
 
-	_update_modulate();
+	_refresh_modulate();
 	_refresh_state();
+	_refresh_scissor();
 
 	//	if (true) {
 	if (!data.white_texture_bound) {
@@ -267,8 +297,9 @@ void CanvasShaderBGFX::draw_rect(const Vector2 *p_points, const Vector2 *p_uvs, 
 		}
 	}
 
-	_update_modulate();
+	_refresh_modulate();
 	_refresh_state();
+	_refresh_scissor();
 
 	bgfx::submit(get_view_id(), data.program);
 	//bgfx::submit(0, data.program, BGFX_DISCARD_NONE);

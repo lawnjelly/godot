@@ -595,6 +595,16 @@ void RasterizerStorageBGFX::texture_set_data(RID p_texture, const Ref<Image> &p_
 	}
 }
 
+void RasterizerStorageBGFX::texture_set_flags(RID p_texture, uint32_t p_flags) {
+	Texture *t = texture_owner.getornull(p_texture);
+	ERR_FAIL_COND(!t);
+	t->flags = p_flags;
+
+	//	if (p_flags & VisualServer::TEXTURE_FLAG_REPEAT)
+	//	{
+	//	}
+}
+
 uint32_t RasterizerStorageBGFX::texture_get_width(RID p_texture) const {
 	Texture *t = texture_owner.getornull(p_texture);
 	ERR_FAIL_COND_V(!t, 0);
@@ -651,6 +661,7 @@ void RasterizerStorageBGFX::_render_target_clear(RenderTarget *rt) {
 	//return;
 
 	if (rt->id_view != UINT16_MAX) {
+		bgfx::resetView(rt->id_view);
 		//		if (rt->id_view != 0)
 		//			bgfx::setViewFrameBuffer(rt->id_view, BGFX_INVALID_HANDLE);
 	}
@@ -669,9 +680,13 @@ void RasterizerStorageBGFX::_render_target_allocate(RenderTarget *rt) {
 		return;
 	}
 
-	if (!rt->flags[RENDER_TARGET_DIRECT_TO_SCREEN] && (rt->id_view != 0)) {
+	//if (!rt->flags[RENDER_TARGET_DIRECT_TO_SCREEN] && (rt->id_view != 0)) {
+	if (!rt->flags[RENDER_TARGET_DIRECT_TO_SCREEN]) {
 		DEV_ASSERT(!bgfx::isValid(rt->hFrameBuffer));
 		rt->hFrameBuffer = bgfx::createFrameBuffer(rt->width, rt->height, bgfx::TextureFormat::RGBA8);
+		DEV_ASSERT(bgfx::isValid(rt->hFrameBuffer));
+
+		bgfx::resetView(rt->id_view);
 
 		// associate framebuffer with view
 		bgfx::setViewFrameBuffer(rt->id_view, rt->hFrameBuffer);
@@ -699,7 +714,7 @@ void RasterizerStorageBGFX::_render_target_set_viewport(RenderTarget *rt, uint16
 void RasterizerStorageBGFX::_render_target_set_scissor(RenderTarget *rt, uint16_t p_x, uint16_t p_y, uint16_t p_width, uint16_t p_height) {
 	//	return;
 	ERR_FAIL_COND(rt->id_view == UINT16_MAX);
-	//bgfx::setViewScissor(rt->id_view, p_x, p_y, p_width, p_height);
+	bgfx::setViewScissor(rt->id_view, p_x, p_y, p_width, p_height);
 }
 
 void RasterizerStorageBGFX::_render_target_set_view_clear(RenderTarget *rt, const Color &p_color) {
@@ -712,6 +727,9 @@ void RasterizerStorageBGFX::_render_target_set_view_clear(RenderTarget *rt, cons
 RID RasterizerStorageBGFX::render_target_create() {
 	uint32_t view_id = _request_bgfx_view();
 	ERR_FAIL_COND_V(view_id == UINT16_MAX, RID());
+
+	print_line("total render targets : " + itos(_bgfx_view_pool.used_size()));
+	ERR_FAIL_COND_V_MSG(_bgfx_view_pool.used_size() >= 256, RID(), "Too many RenderTargets, BGFX supports max 256 views.");
 
 	RenderTarget *rt = memnew(RenderTarget);
 
@@ -1748,6 +1766,11 @@ void RasterizerStorageBGFX::_free_bgfx_view(uint32_t p_id) {
 }
 
 RasterizerStorageBGFX::RasterizerStorageBGFX() {
+	// view_id 0 is reserved for the system screen,
+	// we will not use this for render targets.
+	uint32_t system_view_id = _request_bgfx_view();
+	DEV_ASSERT(system_view_id == 0);
+
 	BGFX::scene.create();
 }
 

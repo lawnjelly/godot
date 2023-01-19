@@ -65,6 +65,7 @@ void RasterizerCanvasBaseBGFX::canvas_begin() {
 	state.uniforms.extra_matrix = Transform2D();
 	state.draw_rect.prepare();
 	state.canvas_shader.prepare(view_id, fwidth, fheight);
+	storage->_bgfx_view_order.push_back(view_id);
 
 	_set_uniforms(true);
 }
@@ -87,6 +88,33 @@ void RasterizerCanvasBaseBGFX::_copy_texscreen(const Rect2 &p_rect) {
 }
 
 void RasterizerCanvasBaseBGFX::_copy_screen(const Rect2 &p_rect) {
+}
+
+void RasterizerCanvasBaseBGFX::draw_generic_textured_rect(RasterizerStorageBGFX::Texture *p_texture, const Rect2 &p_rect, const Rect2 &p_src) {
+	Rect2 r = p_rect;
+
+	r.position.x *= 2.0 / state.canvas_shader.data.viewport_width;
+	r.position.y *= 2.0 / state.canvas_shader.data.viewport_height;
+	r.size.x *= 2.0 / state.canvas_shader.data.viewport_width;
+	r.size.y *= 2.0 / state.canvas_shader.data.viewport_height;
+
+	r.position -= Vector2(1, 1);
+
+	Vector2 pts[4];
+	pts[0] = r.position;
+	pts[1] = r.position + Vector2(0, r.size.y);
+	pts[2] = r.position + r.size;
+	pts[3] = r.position + Vector2(r.size.x, 0);
+
+	Rect2 src = p_src;
+	src.size.y = -src.size.y;
+	Vector2 uvs[4];
+	uvs[0] = src.position;
+	uvs[1] = src.position + Vector2(0, src.size.y);
+	uvs[2] = src.position + src.size;
+	uvs[3] = src.position + Vector2(src.size.x, 0);
+
+	state.canvas_shader.draw_rect(pts, uvs, p_texture, nullptr);
 }
 
 RasterizerStorageBGFX::Texture *RasterizerCanvasBaseBGFX::_bind_canvas_texture(const RID &p_texture, const RID &p_normal_map) {

@@ -201,7 +201,11 @@ void Scene::set_view_transform(const CameraMatrix &p_projection, const Transform
 	transform_to_mat16(p_camera_view, view);
 	camera_matrix_to_mat16(p_projection, proj);
 
-	bgfx::setViewTransform(0, view, proj);
+	bgfx::setViewTransform(scene_view_id, view, proj);
+}
+
+void Scene::prepare(bgfx::ViewId p_view_id) {
+	scene_view_id = p_view_id;
 }
 
 void Scene::draw(const Transform &p_model_xform, bgfx::VertexBufferHandle p_vb, bgfx::IndexBufferHandle p_ib, int p_primitive_type) {
@@ -226,7 +230,7 @@ void Scene::draw(const Transform &p_model_xform, bgfx::VertexBufferHandle p_vb, 
 	bgfx::setState(0 | BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A | BGFX_STATE_WRITE_Z | BGFX_STATE_DEPTH_TEST_LESS | BGFX_STATE_MSAA | BGFX_STATE_CULL_CCW);
 
 	//	bgfx::submit(0, scene_program);
-	bgfx::submit(0, scene_program, BGFX_DISCARD_NONE);
+	bgfx::submit(scene_view_id, scene_program, BGFX_DISCARD_NONE);
 }
 
 } //namespace BGFX

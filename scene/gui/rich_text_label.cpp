@@ -167,6 +167,7 @@ int RichTextLabel::_process_line(ItemFrame *p_frame, const Vector2 &p_ofs, int &
 
 	if (p_mode != PROCESS_CACHE) {
 		if (line >= l.offset_caches.size()) {
+			return 0;
 			ERR_FAIL_INDEX_V(line, l.offset_caches.size(), 0);
 		}
 		line_ofs = l.offset_caches[line];
@@ -928,6 +929,10 @@ int RichTextLabel::_process_line(ItemFrame *p_frame, const Vector2 &p_ofs, int &
 #undef ENSURE_WIDTH
 #undef ADVANCE
 #undef CHECK_HEIGHT
+
+	if (p_mode == PROCESS_CACHE) {
+		DEV_ASSERT(l.offset_caches.size());
+	}
 }
 
 void RichTextLabel::_scroll_changed(double) {

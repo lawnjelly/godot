@@ -54,6 +54,7 @@ void RasterizerCanvasBGFX::_legacy_canvas_render_item(Item *p_ci, RenderItemStat
 			//glEnable(GL_SCISSOR_TEST);
 			int y = storage->frame.current_rt->height - (r_ris.current_clip->final_clip_rect.position.y + r_ris.current_clip->final_clip_rect.size.y);
 
+			//			if (true) {
 			if (storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_VFLIP]) {
 				y = r_ris.current_clip->final_clip_rect.position.y;
 			}
@@ -376,6 +377,7 @@ void RasterizerCanvasBGFX::_legacy_canvas_render_item(Item *p_ci, RenderItemStat
 	if (reclip) {
 		//glEnable(GL_SCISSOR_TEST);
 		int y = storage->frame.current_rt->height - (r_ris.current_clip->final_clip_rect.position.y + r_ris.current_clip->final_clip_rect.size.y);
+		//		if (true) {
 		if (storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_VFLIP]) {
 			y = r_ris.current_clip->final_clip_rect.position.y;
 		}
@@ -435,7 +437,8 @@ void RasterizerCanvasBGFX::render_batches(Item *p_current_clip, bool &r_reclip, 
 								state.canvas_shader.use_material((void *)p_material);
 							}
 
-							RasterizerStorageBGFX::Texture *texture = _bind_canvas_texture(polygon->texture, polygon->normal_map);
+							_bind_canvas_texture(polygon->texture, polygon->normal_map);
+							//							RasterizerStorageBGFX::Texture *texture = _bind_canvas_texture(polygon->texture, polygon->normal_map);
 
 							//							if (texture) {
 							//								Size2 texpixel_size(1.0 / texture->width, 1.0 / texture->height);
@@ -637,7 +640,7 @@ void RasterizerCanvasBGFX::render_batches(Item *p_current_clip, bool &r_reclip, 
 						case Item::Command::TYPE_CLIP_IGNORE: {
 							Item::CommandClipIgnore *ci = static_cast<Item::CommandClipIgnore *>(command);
 							if (p_current_clip) {
-								bgfx::ViewId view_id = storage->frame.current_rt->id_view;
+								//bgfx::ViewId view_id = storage->frame.current_rt->id_view;
 
 								if (ci->ignore != r_reclip) {
 									if (ci->ignore) {

@@ -7,8 +7,9 @@ class CanvasShaderBGFX {
 	friend class BGFXDrawRect;
 
 	bgfx::ViewId get_view_id() const { return data.current_view_id; }
-	void _update_modulate();
+	void _refresh_modulate();
 	void _refresh_state();
+	void _refresh_scissor();
 
 public:
 #pragma pack(push, 1)
@@ -82,6 +83,12 @@ public:
 		int viewport_width = 0;
 		int viewport_height = 0;
 
+		bool scissor_active = false;
+		bool scissor_dirty = true;
+		int scissor_x = 0;
+		int scissor_y = 0;
+		int scissor_width = 0;
+		int scissor_height = 0;
 	} data;
 
 	bool bind() { return true; }

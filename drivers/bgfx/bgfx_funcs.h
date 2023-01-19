@@ -42,6 +42,7 @@ public:
 	bgfx::ProgramHandle scene_program = BGFX_INVALID_HANDLE;
 	bgfx::UniformHandle scene_uniform_sampler_tex = BGFX_INVALID_HANDLE;
 	bgfx::TextureHandle scene_current_texture = BGFX_INVALID_HANDLE;
+	bgfx::ViewId scene_view_id = UINT16_MAX;
 
 	void create() {
 		PosColorVertex::init();
@@ -56,6 +57,7 @@ public:
 	void draw(const Transform &p_model_xform, bgfx::VertexBufferHandle p_vb, bgfx::IndexBufferHandle p_ib, int p_primitive_type);
 	void set_texture(bgfx::TextureHandle p_tex_handle);
 	void set_view_transform(const CameraMatrix &p_projection, const Transform &p_camera_view);
+	void prepare(bgfx::ViewId p_view_id);
 
 	void destroy() {
 		//		BGFX_DESTROY(scene_vertex_shader);
