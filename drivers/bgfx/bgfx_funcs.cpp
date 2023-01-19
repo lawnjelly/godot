@@ -7,6 +7,7 @@ namespace BGFX {
 
 bgfx::VertexLayout PosColorVertex::layout;
 Scene scene;
+bool reassociate_framebuffers = false;
 
 void transpose_mat16(float *m) {
 	float t[16];
@@ -196,28 +197,17 @@ void Scene::set_texture(bgfx::TextureHandle p_tex_handle) {
 }
 
 void Scene::set_view_transform(const CameraMatrix &p_projection, const Transform &p_camera_view) {
-	_projection = p_projection;
-	_cam_view = p_camera_view;
-	CameraMatrix m = p_projection * CameraMatrix(p_camera_view);
-
-	camera_matrix_to_mat16(m, _VP_matrix);
-
-	//	float view[16];
-	//	float proj[16];
-
-	//	transform_to_mat16(_cam_view, _cam_view16);
-	//	camera_matrix_to_mat16(_projection, _projection16);
-
-	//	DEV_ASSERT(scene_view_id !=UINT16_MAX);
-	//	bgfx::setViewTransform(scene_view_id, view, proj);
+	_mvp.projection = p_projection;
+	_mvp.view = p_camera_view;
+	_mvp.calc_view_proj();
 }
 
 void Scene::prepare(bgfx::ViewId p_view_id) {
-	if ((Engine::get_singleton()->get_frames_drawn() % 2) == 1)
-		p_view_id = 0;
+	//	if ((Engine::get_singleton()->get_frames_drawn() % 2) == 1)
+	//		p_view_id = 0;
 
 	scene_view_id = p_view_id;
-	bgfx::resetView(p_view_id);
+	//	bgfx::resetView(p_view_id);
 }
 
 void Scene::prepare_scene(int p_viewport_width, int p_viewport_height) {
@@ -226,19 +216,20 @@ void Scene::prepare_scene(int p_viewport_width, int p_viewport_height) {
 	bgfx::setViewRect(scene_view_id, 0, 0, uint16_t(p_viewport_width), uint16_t(p_viewport_height));
 
 	// Clear the view rect
-	bgfx::setViewClear(scene_view_id,
-			BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH,
-			0x00a000FF, 1.0f, 0);
+	//	bgfx::setViewClear(scene_view_id,
+	//			BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH,
+	//			0x00a000FF, 1.0f, 0);
 }
 
 void Scene::draw(const Transform &p_model_xform, bgfx::VertexBufferHandle p_vb, bgfx::IndexBufferHandle p_ib, int p_primitive_type) {
 	DEV_ASSERT(scene_view_id != UINT16_MAX);
 	//int frame = Engine::get_singleton()->get_frames_drawn();
 	//print_line(itos(frame) + " tr " + p_view);
-	float xform[16];
-	transform_to_mat16(p_model_xform, xform);
+	_mvp.model = p_model_xform;
+	_mvp.calc_model_view_proj();
 
-	bgfx::setTransform(xform);
+	bgfx::setTransform(_mvp.model_view_proj16);
+
 	bgfx::setVertexBuffer(0, p_vb);
 	bgfx::setIndexBuffer(p_ib);
 

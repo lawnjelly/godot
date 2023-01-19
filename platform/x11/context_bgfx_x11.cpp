@@ -1,5 +1,6 @@
 #include "context_bgfx_x11.h"
 #include "core/math/camera_matrix.h"
+#include "drivers/bgfx/bgfx_funcs.h"
 
 //#define BX_CONFIG_DEBUG
 //#include "thirdparty/bgfx/bx/include/bx/math.h"
@@ -389,8 +390,6 @@ Error ContextBGFX_X11::initialize() {
 	XSync(x11_display, False);
 	XSetErrorHandler(oldHandler);
 
-	//glXMakeCurrent(x11_display, *x11_window, p->glx_context);
-
 	if (vi)
 		XFree(vi);
 
@@ -413,7 +412,6 @@ Error ContextBGFX_X11::initialize() {
 	bgfxInit.resolution.reset = BGFX_RESET_VSYNC;
 	bgfxInit.platformData.ndt = x11_display;
 	bgfxInit.platformData.nwh = (void *)*x11_window;
-	//	bgfxInit.platformData.nwh = (void *)x11_window;
 
 	bgfx::init(bgfxInit);
 
@@ -425,33 +423,6 @@ Error ContextBGFX_X11::initialize() {
 	// Enable debug text.
 	//bgfx::setDebug(BGFX_DEBUG_TEXT /*| BGFX_DEBUG_STATS*/);
 
-	/*
-	// Set view rectangle for 0th view
-	bgfx::setViewRect(0, 0, 0, uint16_t(width), uint16_t(height));
-
-	// Clear the view rect
-	bgfx::setViewClear(0,
-			BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH,
-			0x443355FF, 1.0f, 0);
-
-	bgfx::touch(0);
-	bgfx::frame();
-
-	bgfx::VertexLayout pcvDecl;
-	pcvDecl.begin()
-			.add(bgfx::Attrib::Position, 3, bgfx::AttribType::Float)
-			.add(bgfx::Attrib::Color0, 4, bgfx::AttribType::Uint8, true)
-			.end();
-	data.vbh = bgfx::createVertexBuffer(bgfx::makeRef(cubeVertices, sizeof(cubeVertices)), pcvDecl);
-	data.ibh = bgfx::createIndexBuffer(bgfx::makeRef(cubeTriList, sizeof(cubeTriList)));
-
-	//unsigned int counter = 0;
-
-	data.vsh = loadShader("vs_cubes.bin");
-	data.fsh = loadShader("fs_cubes.bin");
-	data.program = bgfx::createProgram(data.vsh, data.fsh, true);
-	*/
-
 	return OK;
 }
 
@@ -459,77 +430,14 @@ void ContextBGFX_X11::swap_buffers() {
 	// check for resize window
 	int width = get_window_width();
 	int height = get_window_height();
+	BGFX::reassociate_framebuffers = false;
 
 	if ((width != _width) || (height != _height)) {
 		_width = width;
 		_height = height;
 		bgfx::reset(width, height);
+		BGFX::reassociate_framebuffers = true;
 	}
-
-	//	glXSwapBuffers(x11_display, *x11_window);
-	/*
-  Put this inside the event loop of SDL, to render bgfx output
-  */
-#if 0
-	// Set view rectangle for 0th view
-	bgfx::setViewRect(0, 0, 0, uint16_t(_width), uint16_t(_height));
-	
-
-	// Clear the view rect
-	bgfx::setViewClear(0,
-			BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH,
-			0xa00000FF, 1.0f, 0);
-
-	// Set empty primitive on screen
-	bgfx::touch(0);
-
-	_angle += 0.01;
-
-	Transform look_at;
-
-	//	look_at.origin = Vector3(0, 0, 10);
-	look_at.origin = Vector3(sin(_angle) * 5, 5, cos(_angle) * 5);
-	look_at = look_at.looking_at(Vector3(0, 0, 0), Vector3(0, 1, 0));
-
-	// The view matrix for the camera should be the INVERSE of the camera transform
-	// (i.e. gets a point into camera space, rather than transforms the origin to the camera position)
-	look_at.invert();
-
-	CameraMatrix cm;
-	cm.set_orthogonal(-10, 10.0, -10, 10, -100, 100);
-	//	cm.set_perspective(10.0, 1.0, 0.01, 1000.0, true);
-
-	float view[16];
-	float proj[16];
-	_transform_to_mat16(look_at, view);
-	_camera_matrix_to_mat16(cm, proj);
-
-	bgfx::setViewTransform(0, view, proj);
-	//		const bx::Vec3 at = { 0.0f, 0.0f, 0.0f };
-	//		const bx::Vec3 eye = { 0.0f, 0.0f, -5.0f };
-	//		float view[16];
-	//		bx::mtxLookAt(view, eye, at);
-	//		float proj[16];
-	//		bx::mtxProj(proj, 60.0f, float(WNDW_WIDTH) / float(WNDW_HEIGHT), 0.1f, 100.0f, bgfx::getCaps()->homogeneousDepth);
-	//		bgfx::setViewTransform(0, view, proj);
-
-	bgfx::setVertexBuffer(0, data.vbh);
-	bgfx::setIndexBuffer(data.ibh);
-
-	bgfx::submit(0, data.program);
-
-	// Use debug font to print information about this example.
-	bgfx::dbgTextClear();
-	//	bgfx::dbgTextImage(
-	//		bx::max<uint16_t>(uint16_t(_width /2/8 ), 20)-20
-	//		, bx::max<uint16_t>(uint16_t(_height/2/16),  6)-6
-	//		, 40
-	//		, 12
-	//		, s_logo
-	//		, 160
-	//		);
-	bgfx::dbgTextPrintf(0, 1, 0x0f, "Color can be changed with ANSI code too.");
-#endif
 
 	bgfx::frame();
 }
@@ -544,8 +452,5 @@ ContextBGFX_X11::ContextBGFX_X11(::Display *p_x11_display, ::Window &p_x11_windo
 
 ContextBGFX_X11::~ContextBGFX_X11() {
 	destroy();
-	/*
-  And put this just before SDL_Quit()
-  */
 	bgfx::shutdown();
 }

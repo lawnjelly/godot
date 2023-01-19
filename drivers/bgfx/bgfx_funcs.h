@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/math/camera_matrix.h"
+#include "mvp.h"
 #include "thirdparty/bgfx/bgfx/include/bgfx/bgfx.h"
 #include "thirdparty/bgfx/bgfx/include/bgfx/platform.h"
 
@@ -44,11 +45,7 @@ public:
 	bgfx::TextureHandle scene_current_texture = BGFX_INVALID_HANDLE;
 	bgfx::ViewId scene_view_id = UINT16_MAX;
 
-	CameraMatrix _projection;
-	Transform _cam_view;
-	//	float _projection16[16] = {};
-	//	float _cam_view16[16] = {};
-	float _VP_matrix[16];
+	MVP _mvp;
 
 	void create() {
 		PosColorVertex::init();
@@ -74,6 +71,7 @@ public:
 };
 
 extern Scene scene;
+extern bool reassociate_framebuffers;
 
 void transpose_mat16(float *m);
 void camera_matrix_to_mat16(const CameraMatrix &cm, float *mat);

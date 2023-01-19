@@ -1,5 +1,6 @@
 #pragma once
 
+#include "mvp.h"
 #include "rasterizer_storage_bgfx.h"
 
 //class CanvasShaderBGFX : public RasterizerStorageBGFX::Shader {
@@ -82,6 +83,8 @@ public:
 
 		int viewport_width = 0;
 		int viewport_height = 0;
+
+		BGFX::MVP mvp;
 
 		bool scissor_active = false;
 		bool scissor_dirty = true;

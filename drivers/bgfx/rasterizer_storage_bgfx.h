@@ -886,6 +886,7 @@ public:
 	struct RenderTarget : public RID_Data {
 		bgfx::FrameBufferHandle hFrameBuffer = BGFX_INVALID_HANDLE;
 		bgfx::ViewId id_view = UINT16_MAX;
+		void associate_frame_buffer();
 		//		GLuint fbo = 0;
 		//		GLuint color = 0;
 		//		GLuint depth = 0;

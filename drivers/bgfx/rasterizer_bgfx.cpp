@@ -60,8 +60,13 @@ void RasterizerBGFX::set_current_render_target(RID p_render_target) {
 		ERR_FAIL_COND(!rt);
 		storage.frame.clear_request = false;
 
-		// keep drawrect up to date with view id
-		canvas.state.draw_rect.set_current_view_id(rt->id_view);
+		// At the moment, always re-associate each frame the view_id with the frame buffer with BGFX.
+		// This is because calling BGFX::reset() when the screen size changes can lose the association.
+		// This may be able to be done more efficiently.
+		// TODO.
+		if (BGFX::reassociate_framebuffers) {
+			rt->associate_frame_buffer();
+		}
 
 		BGFX::scene.prepare(rt->id_view);
 
@@ -147,7 +152,7 @@ void RasterizerBGFX::blit_render_target_to_screen(RID p_render_target, const Rec
 	// send view order to BGFX (this might be done at a better place if blits will be called multiple times per frame)
 	if (storage._bgfx_view_order.size()) {
 		//		storage._bgfx_view_order.invert();
-		//		bgfx::setViewOrder(0, storage._bgfx_view_order.size(), storage._bgfx_view_order.ptr());
+		bgfx::setViewOrder(0, storage._bgfx_view_order.size(), storage._bgfx_view_order.ptr());
 	}
 
 	storage._bgfx_view_order.clear();

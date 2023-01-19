@@ -1,6 +1,5 @@
 #pragma once
 
-#include "bgfx_draw_rect.h"
 #include "canvas_shader_bgfx.h"
 #include "drivers/gles_common/rasterizer_array.h"
 #include "drivers/gles_common/rasterizer_storage_common.h"
@@ -21,7 +20,6 @@ public:
 		Uniforms uniforms;
 		bool canvas_texscreen_used = false;
 		CanvasShaderBGFX canvas_shader;
-		BGFXDrawRect draw_rect;
 
 		bool using_texture_rect = false;
 

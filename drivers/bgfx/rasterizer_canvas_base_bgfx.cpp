@@ -63,7 +63,7 @@ void RasterizerCanvasBaseBGFX::canvas_begin() {
 
 	state.uniforms.modelview_matrix = Transform2D();
 	state.uniforms.extra_matrix = Transform2D();
-	state.draw_rect.prepare();
+	//	state.draw_rect.prepare();
 	state.canvas_shader.prepare(view_id, fwidth, fheight);
 	storage->_bgfx_view_order.push_back(view_id);
 
@@ -300,9 +300,9 @@ void RasterizerCanvasBaseBGFX::_draw_polygon(const int *p_indices, int p_index_c
 }
 
 RasterizerCanvasBaseBGFX::RasterizerCanvasBaseBGFX() {
-	state.draw_rect.create();
+	//state.draw_rect.create();
 }
 
 RasterizerCanvasBaseBGFX::~RasterizerCanvasBaseBGFX() {
-	state.draw_rect.destroy();
+	//state.draw_rect.destroy();
 }

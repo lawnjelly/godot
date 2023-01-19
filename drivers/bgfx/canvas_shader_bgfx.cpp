@@ -116,43 +116,31 @@ void CanvasShaderBGFX::set_blend_state(uint64_t p_state) {
 }
 
 void CanvasShaderBGFX::set_view_transform(const CameraMatrix &p_projection_matrix) {
+	data.mvp.projection = p_projection_matrix;
+	data.mvp.calc_view_proj();
+
 	float view[16];
 	float proj[16];
 	BGFX::transform_to_mat16(Transform(), view);
 	BGFX::camera_matrix_to_mat16(p_projection_matrix, proj);
-
-	bgfx::setViewTransform(get_view_id(), view, proj);
 }
 
 void CanvasShaderBGFX::set_model_transform(const Transform2D &p_view_matrix, const Transform2D &p_extra_matrix) {
-	//	Transform2D m = p_view_matrix * p_extra_matrix;
 	Transform2D m = p_extra_matrix * p_view_matrix;
-	//	Transform2D m = p_view_matrix;
 
 	Transform tr;
 	tr.origin.x = m.get_origin().x;
 	tr.origin.y = m.get_origin().y;
 
-	//	tr = p_view_matrix;
 	tr.basis.elements[0].x = m.elements[0].x;
 	tr.basis.elements[1].x = m.elements[0].y;
 	tr.basis.elements[0].y = m.elements[1].x;
 	tr.basis.elements[1].y = m.elements[1].y;
 
-	float view[16];
-	BGFX::transform_to_mat16(tr, view);
-
-	bgfx::setTransform(view);
+	data.mvp.model = tr;
+	data.mvp.calc_model_view_proj();
+	bgfx::setTransform(data.mvp.model_view_proj16);
 }
-
-//void CanvasShaderBGFX::_set_view_transform_2D(bgfx::ViewId p_view_id, const Transform2D &p_view_matrix, const CameraMatrix &p_projection_matrix, const Transform2D &p_extra_matrix) {
-//	float view[16];
-//	float proj[16];
-//	_transform2D_to_mat16(p_view_matrix, view);
-//	_camera_matrix_to_mat16(p_projection_matrix, proj);
-
-//	//	bgfx::setViewTransform(p_view_id, view, proj);
-//}
 
 void CanvasShaderBGFX::draw_polygon(const int16_t *p_indices, uint32_t p_index_count, const Vector2 *p_vertices, uint32_t p_vertex_count, const Color *p_colors, const Color *p_single_color) {
 	if (!bgfx::getAvailTransientVertexBuffer(p_vertex_count, CanvasVertex::layout)) {

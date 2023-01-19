@@ -716,10 +716,7 @@ void RasterizerStorageBGFX::_render_target_allocate(RenderTarget *rt) {
 		//		rt->hFrameBuffer = bgfx::createFrameBuffer(rt->width, rt->height, bgfx::TextureFormat::RGBA8, bgfx::TextureFormat::D16);
 		DEV_ASSERT(bgfx::isValid(rt->hFrameBuffer));
 
-		bgfx::resetView(rt->id_view);
-
-		// associate framebuffer with view
-		bgfx::setViewFrameBuffer(rt->id_view, rt->hFrameBuffer);
+		//bgfx::resetView(rt->id_view);
 
 		Texture *t = texture_owner.getornull(rt->texture);
 		if (t) {
@@ -728,11 +725,20 @@ void RasterizerStorageBGFX::_render_target_allocate(RenderTarget *rt) {
 			t->width = rt->width;
 			t->height = rt->height;
 		}
+
+		// associate framebuffer with view
+		rt->associate_frame_buffer();
 	}
 
 	_render_target_set_viewport(rt, 0, 0, rt->width, rt->height);
 	bgfx::setViewMode(rt->id_view, bgfx::ViewMode::Sequential);
 	//	bgfx::setViewMode(rt->id_view, bgfx::ViewMode::DepthAscending);
+}
+
+void RasterizerStorageBGFX::RenderTarget::associate_frame_buffer() {
+	if (bgfx::isValid(hFrameBuffer) && (id_view != UINT16_MAX)) {
+		bgfx::setViewFrameBuffer(id_view, hFrameBuffer);
+	}
 }
 
 void RasterizerStorageBGFX::_render_target_set_viewport(RenderTarget *rt, uint16_t p_x, uint16_t p_y, uint16_t p_width, uint16_t p_height) {
