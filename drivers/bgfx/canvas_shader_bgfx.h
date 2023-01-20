@@ -110,7 +110,8 @@ public:
 	void set_view_transform(const CameraMatrix &p_projection_matrix);
 	void set_model_transform(const Transform2D &p_view_matrix, const Transform2D &p_extra_matrix);
 	void set_modulate(const Color &p_color);
-	void set_blend_state(uint64_t p_state);
+	void set_blend_state(uint64_t p_state = 0);
+	uint64_t get_blend_state() const;
 	void set_scissor(int p_x, int p_y, int p_width, int p_height);
 	void set_scissor_disable();
 

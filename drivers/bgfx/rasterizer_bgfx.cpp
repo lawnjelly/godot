@@ -140,6 +140,8 @@ void RasterizerBGFX::blit_render_target_to_screen(RID p_render_target, const Rec
 	// TODO normals
 */
 
+	// Turn off blending
+	canvas.state.canvas_shader.set_blend_state();
 	canvas.draw_generic_textured_rect(texture, p_screen_rect, Rect2(0, 0, 1, -1));
 
 	/*
@@ -161,6 +163,7 @@ void RasterizerBGFX::blit_render_target_to_screen(RID p_render_target, const Rec
 RasterizerBGFX::RasterizerBGFX() {
 	canvas.storage = &storage;
 	scene.storage = &storage;
+	scene.canvas = &canvas;
 
 	storage.scene = &scene;
 }

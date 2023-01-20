@@ -1,5 +1,6 @@
 #include "rasterizer_scene_bgfx.h"
 #include "core/os/os.h"
+#include "rasterizer_canvas_bgfx.h"
 #include "rasterizer_storage_bgfx.h"
 
 void RasterizerSceneBGFX::render_scene(const Transform &p_cam_transform, const CameraMatrix &p_cam_projection, const int p_eye, bool p_cam_ortogonal, InstanceBase **p_cull_result, int p_cull_count, RID *p_light_cull_result, int p_light_cull_count, RID *p_reflection_probe_cull_result, int p_reflection_probe_cull_count, RID p_environment, RID p_shadow_atlas, RID p_reflection_atlas, RID p_reflection_probe, int p_reflection_probe_pass) {
@@ -106,32 +107,34 @@ void RasterizerSceneBGFX::render_scene(const Transform &p_cam_transform, const C
 }
 
 void RasterizerSceneBGFX::_setup_material(RasterizerStorageBGFX::Material *p_material) {
-	if (!p_material)
-		return;
+	if (p_material) {
+		const StringName alb = "texture_albedo";
 
-	const StringName alb = "texture_albedo";
+		if (p_material->params.has(alb)) {
+			Variant v = p_material->params[alb];
+			if (v.get_type() == Variant::Type::_RID) {
+				RasterizerStorageBGFX::Texture *t = storage->texture_owner.getornull(v);
 
-	if (p_material->params.has(alb)) {
-		Variant v = p_material->params[alb];
-		if (v.get_type() == Variant::Type::_RID) {
-			RasterizerStorageBGFX::Texture *t = storage->texture_owner.getornull(v);
-
-			if (t) {
-				BGFX::scene.set_texture(t->bg_handle);
-				return;
+				if (t) {
+					BGFX::scene.set_texture(t->bg_handle);
+					return;
+				}
 			}
 		}
+
+		//	if (p_material->shader)
+		//	{
+		//		ShaderBGFX * s = p_material->shader->shader;
+		//		if (s)
+		//		{
+		//			s->
+
+		//		}
+		//	}
 	}
 
-	//	if (p_material->shader)
-	//	{
-	//		ShaderBGFX * s = p_material->shader->shader;
-	//		if (s)
-	//		{
-	//			s->
-
-	//		}
-	//	}
+	// if the material was not found, bind white texture
+	BGFX::scene.set_texture(canvas->state.canvas_shader.data.white_texture);
 }
 
 //RasterizerStorageBGFX::Material * RasterizerSceneBGFX::_choose_material(RasterizerStorageBGFX::Geometry *p_geometry, InstanceBase *p_instance, RasterizerStorageBGFX::GeometryOwner *p_owner, int p_material, bool p_depth_pass, bool p_shadow_pass) {

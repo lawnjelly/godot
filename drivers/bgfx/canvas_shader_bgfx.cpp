@@ -109,6 +109,10 @@ void CanvasShaderBGFX::_refresh_state() {
 	bgfx::setState(data.state);
 }
 
+uint64_t CanvasShaderBGFX::get_blend_state() const {
+	return data.state & (BGFX_STATE_BLEND_MASK | BGFX_STATE_BLEND_EQUATION_MASK);
+}
+
 void CanvasShaderBGFX::set_blend_state(uint64_t p_state) {
 	data.state &= ~BGFX_STATE_BLEND_MASK;
 	data.state &= ~BGFX_STATE_BLEND_EQUATION_MASK;

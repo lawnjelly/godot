@@ -223,6 +223,11 @@ void Scene::prepare_scene(int p_viewport_width, int p_viewport_height) {
 
 void Scene::draw(const Transform &p_model_xform, bgfx::VertexBufferHandle p_vb, bgfx::IndexBufferHandle p_ib, int p_primitive_type) {
 	DEV_ASSERT(scene_view_id != UINT16_MAX);
+
+	if (!bgfx::isValid(p_vb) || !bgfx::isValid(p_ib)) {
+		return;
+	}
+
 	//int frame = Engine::get_singleton()->get_frames_drawn();
 	//print_line(itos(frame) + " tr " + p_view);
 	_mvp.model = p_model_xform;
@@ -240,8 +245,9 @@ void Scene::draw(const Transform &p_model_xform, bgfx::VertexBufferHandle p_vb, 
 		} break;
 	}
 
-	bgfx::setTexture(0, scene_uniform_sampler_tex, scene_current_texture);
-
+	if (bgfx::isValid(scene_current_texture)) {
+		bgfx::setTexture(0, scene_uniform_sampler_tex, scene_current_texture);
+	}
 	bgfx::setState(0 | BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A | BGFX_STATE_WRITE_Z | BGFX_STATE_DEPTH_TEST_LESS | BGFX_STATE_CULL_CCW);
 	//	bgfx::setState(0 | BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A);
 

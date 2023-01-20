@@ -216,7 +216,27 @@ void RasterizerCanvasBaseBGFX::_draw_polygon(const int *p_indices, int p_index_c
 		inds[n] = p_indices[n];
 	}
 
+	bool opaque = false;
+	if (true) {
+		if (!p_colors) {
+			opaque = true;
+		} else {
+			if (p_singlecolor && p_colors->a >= 0.999f) {
+				opaque = true;
+			}
+		}
+	}
+
+	uint64_t bs = 0;
+	if (opaque) {
+		bs = state.canvas_shader.get_blend_state();
+		state.canvas_shader.set_blend_state();
+	}
 	state.canvas_shader.draw_polygon(inds, p_index_count, p_vertices, p_vertex_count, p_colors, p_singlecolor ? p_colors : nullptr);
+
+	if (opaque) {
+		state.canvas_shader.set_blend_state(bs);
+	}
 
 #if 0
 	glBindBuffer(GL_ARRAY_BUFFER, data.polygon_buffer);

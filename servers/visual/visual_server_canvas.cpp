@@ -780,6 +780,8 @@ void VisualServerCanvas::canvas_item_add_polygon(RID p_item, const Vector<Point2
 	polygon->antialiasing_use_indices = false;
 	canvas_item->rect_dirty = true;
 
+	_collapse_single_colors(polygon->colors);
+
 	canvas_item->commands.push_back(polygon);
 }
 
@@ -825,7 +827,27 @@ void VisualServerCanvas::canvas_item_add_triangle_array(RID p_item, const Vector
 	polygon->antialiasing_use_indices = p_antialiasing_use_indices;
 	canvas_item->rect_dirty = true;
 
+	_collapse_single_colors(polygon->colors);
+
 	canvas_item->commands.push_back(polygon);
+}
+
+bool VisualServerCanvas::_collapse_single_colors(Vector<Color> &r_colors) const {
+	if (r_colors.size() <= 1) {
+		return false;
+	}
+
+	Color col = r_colors[0];
+	for (int n = 0; n < r_colors.size(); n++) {
+		if (r_colors[n] != col) {
+			return false;
+		}
+	}
+
+	Vector<Color> single_col;
+	single_col.push_back(r_colors[0]);
+	r_colors = single_col;
+	return true;
 }
 
 void VisualServerCanvas::canvas_item_add_set_transform(RID p_item, const Transform2D &p_transform) {

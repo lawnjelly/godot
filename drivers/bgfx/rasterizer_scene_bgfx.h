@@ -4,9 +4,12 @@
 #include "scene_shader_bgfx.h"
 #include "servers/visual/rasterizer.h"
 
+class RasterizerCanvasBGFX;
+
 class RasterizerSceneBGFX : public RasterizerScene {
 public:
 	RasterizerStorageBGFX *storage = nullptr;
+	RasterizerCanvasBGFX *canvas = nullptr;
 
 	struct State {
 		//bool texscreen_copied;

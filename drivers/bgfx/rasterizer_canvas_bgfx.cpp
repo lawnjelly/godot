@@ -233,6 +233,7 @@ void RasterizerCanvasBGFX::_legacy_canvas_render_item(Item *p_ci, RenderItemStat
 			} break;
 			case RasterizerStorageBGFX::Shader::CanvasItem::BLEND_MODE_ADD: {
 				//glBlendEquation(GL_FUNC_ADD);
+				state.canvas_shader.set_blend_state(BGFX_STATE_BLEND_ADD);
 				if (storage->frame.current_rt && storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_TRANSPARENT]) {
 					//glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_SRC_ALPHA, GL_ONE);
 				} else {
@@ -241,6 +242,7 @@ void RasterizerCanvasBGFX::_legacy_canvas_render_item(Item *p_ci, RenderItemStat
 
 			} break;
 			case RasterizerStorageBGFX::Shader::CanvasItem::BLEND_MODE_SUB: {
+				state.canvas_shader.set_blend_state(BGFX_STATE_BLEND_DARKEN);
 				//glBlendEquation(GL_FUNC_REVERSE_SUBTRACT);
 				if (storage->frame.current_rt && storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_TRANSPARENT]) {
 					//glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_SRC_ALPHA, GL_ONE);
@@ -250,6 +252,7 @@ void RasterizerCanvasBGFX::_legacy_canvas_render_item(Item *p_ci, RenderItemStat
 			} break;
 			case RasterizerStorageBGFX::Shader::CanvasItem::BLEND_MODE_MUL: {
 				//glBlendEquation(GL_FUNC_ADD);
+				state.canvas_shader.set_blend_state(BGFX_STATE_BLEND_MULTIPLY);
 				if (storage->frame.current_rt && storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_TRANSPARENT]) {
 					//glBlendFuncSeparate(GL_DST_COLOR, GL_ZERO, GL_DST_ALPHA, GL_ZERO);
 				} else {
@@ -257,6 +260,8 @@ void RasterizerCanvasBGFX::_legacy_canvas_render_item(Item *p_ci, RenderItemStat
 				}
 			} break;
 			case RasterizerStorageBGFX::Shader::CanvasItem::BLEND_MODE_PMALPHA: {
+				// NYI
+				state.canvas_shader.set_blend_state(BGFX_STATE_BLEND_ALPHA);
 				//glBlendEquation(GL_FUNC_ADD);
 				if (storage->frame.current_rt && storage->frame.current_rt->flags[RasterizerStorage::RENDER_TARGET_TRANSPARENT]) {
 					//glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
