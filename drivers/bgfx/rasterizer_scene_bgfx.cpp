@@ -83,12 +83,10 @@ void RasterizerSceneBGFX::render_scene(const Transform &p_cam_transform, const C
 				int num_surfaces = mesh->surfaces.size();
 
 				for (int j = 0; j < num_surfaces; j++) {
-					int material_index = instance->materials[j].is_valid() ? j : -1;
-
-					RasterizerStorageBGFX::Material *mat = _choose_material(instance, material_index);
+					RasterizerStorageBGFX::BGFXSurface *surface = mesh->surfaces[j];
+					RasterizerStorageBGFX::Material *mat = _choose_material(instance, surface, j);
 					_setup_material(mat);
 
-					RasterizerStorageBGFX::BGFXSurface *surface = mesh->surfaces[j];
 					//BGFX::scene.draw(p_cam_projection, cam_transform_inv, surface->bg_vertex_buffer, surface->bg_index_buffer, surface->primitive);
 					BGFX::scene.draw(instance->transform, surface->bg_vertex_buffer, surface->bg_index_buffer, surface->primitive);
 					//return;
@@ -108,10 +106,18 @@ void RasterizerSceneBGFX::render_scene(const Transform &p_cam_transform, const C
 
 void RasterizerSceneBGFX::_setup_material(RasterizerStorageBGFX::Material *p_material) {
 	if (p_material) {
-		const StringName alb = "texture_albedo";
-
+		const StringName alb = "albedo";
 		if (p_material->params.has(alb)) {
 			Variant v = p_material->params[alb];
+			if (v.get_type() == Variant::Type::COLOR) {
+				BGFX::scene.set_modulate(v);
+			}
+		}
+
+		const StringName talb = "texture_albedo";
+
+		if (p_material->params.has(talb)) {
+			Variant v = p_material->params[talb];
 			if (v.get_type() == Variant::Type::_RID) {
 				RasterizerStorageBGFX::Texture *t = storage->texture_owner.getornull(v);
 
@@ -138,16 +144,18 @@ void RasterizerSceneBGFX::_setup_material(RasterizerStorageBGFX::Material *p_mat
 }
 
 //RasterizerStorageBGFX::Material * RasterizerSceneBGFX::_choose_material(RasterizerStorageBGFX::Geometry *p_geometry, InstanceBase *p_instance, RasterizerStorageBGFX::GeometryOwner *p_owner, int p_material, bool p_depth_pass, bool p_shadow_pass) {
-RasterizerStorageBGFX::Material *RasterizerSceneBGFX::_choose_material(InstanceBase *p_instance, int p_material) {
+RasterizerStorageBGFX::Material *RasterizerSceneBGFX::_choose_material(InstanceBase *p_instance, RasterizerStorageBGFX::BGFXSurface *p_surface, int p_surface_id) {
+	int material_index = p_instance->materials[p_surface_id].is_valid() ? p_surface_id : -1;
+
 	RasterizerStorageBGFX::Material *material = nullptr;
 	RID material_src;
 
 	if (p_instance->material_override.is_valid()) {
 		material_src = p_instance->material_override;
-	} else if (p_material >= 0) {
-		material_src = p_instance->materials[p_material];
+	} else if (material_index >= 0) {
+		material_src = p_instance->materials[material_index];
 	} else {
-		//material_src = p_geometry->material;
+		material_src = p_surface->material;
 	}
 
 	if (material_src.is_valid()) {

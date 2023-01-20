@@ -1,6 +1,7 @@
 #include "bgfx_funcs.h"
 #include "core/engine.h"
 #include "core/os/file_access.h"
+#include "ibl_shader_bgfx.h"
 #include "servers/visual_server.h"
 
 namespace BGFX {
@@ -190,6 +191,20 @@ bgfx::ShaderHandle loadShaderOld(const char *FILENAME) {
 	return bgfx::createShader(mem);
 }
 
+void Scene::set_modulate(const Color &p_color) {
+	if (_modulate != p_color) {
+		_modulate = p_color;
+		_modulate_dirty = true;
+	}
+}
+
+void Scene::_refresh_modulate() {
+	if (_modulate_dirty) {
+		_modulate_dirty = false;
+		bgfx::setUniform(scene_uniform_modulate, &_modulate);
+	}
+}
+
 void Scene::set_texture(bgfx::TextureHandle p_tex_handle) {
 	if (bgfx::isValid(p_tex_handle)) {
 		scene_current_texture = p_tex_handle;
@@ -208,6 +223,9 @@ void Scene::prepare(bgfx::ViewId p_view_id) {
 
 	scene_view_id = p_view_id;
 	//	bgfx::resetView(p_view_id);
+
+	_modulate_dirty = true;
+	_modulate = Color(1, 1, 1, 1);
 }
 
 void Scene::prepare_scene(int p_viewport_width, int p_viewport_height) {
@@ -248,11 +266,34 @@ void Scene::draw(const Transform &p_model_xform, bgfx::VertexBufferHandle p_vb, 
 	if (bgfx::isValid(scene_current_texture)) {
 		bgfx::setTexture(0, scene_uniform_sampler_tex, scene_current_texture);
 	}
+	_refresh_modulate();
+
 	bgfx::setState(0 | BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A | BGFX_STATE_WRITE_Z | BGFX_STATE_DEPTH_TEST_LESS | BGFX_STATE_CULL_CCW);
 	//	bgfx::setState(0 | BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A);
 
 	bgfx::submit(scene_view_id, scene_program);
 	//bgfx::submit(scene_view_id, scene_program, BGFX_DISCARD_NONE);
+}
+
+void Scene::create() {
+	PosColorVertex::init();
+	//		bgfx::ShaderHandle scene_vertex_shader = loadShaderOld("vs_cubes.bin");
+	//		bgfx::ShaderHandle scene_fragment_shader = loadShaderOld("fs_cubes.bin");
+	bgfx::ShaderHandle scene_vertex_shader = loadShader("v_scene.bin");
+	bgfx::ShaderHandle scene_fragment_shader = loadShader("f_scene.bin");
+	scene_program = bgfx::createProgram(scene_vertex_shader, scene_fragment_shader, true);
+	scene_uniform_sampler_tex = bgfx::createUniform("s_texColor", bgfx::UniformType::Sampler);
+	scene_uniform_modulate = bgfx::createUniform("u_modulate", bgfx::UniformType::Vec4);
+
+	ibl.create();
+}
+
+void Scene::destroy() {
+	//		BGFX_DESTROY(scene_vertex_shader);
+	//		BGFX_DESTROY(scene_fragment_shader);
+	BGFX_DESTROY(scene_program);
+
+	ibl.destroy();
 }
 
 } //namespace BGFX

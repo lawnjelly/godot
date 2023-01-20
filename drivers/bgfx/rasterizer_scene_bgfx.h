@@ -104,7 +104,7 @@ public:
 	void set_debug_draw_mode(VS::ViewportDebugDraw p_debug_draw) {}
 
 	void _setup_material(RasterizerStorageBGFX::Material *p_material);
-	RasterizerStorageBGFX::Material *_choose_material(InstanceBase *p_instance, int p_material);
+	RasterizerStorageBGFX::Material *_choose_material(InstanceBase *p_instance, RasterizerStorageBGFX::BGFXSurface *p_surface, int p_surface_id);
 
 	bool free(RID p_rid);
 

@@ -24,6 +24,13 @@ void CanvasShaderBGFX::_refresh_modulate() {
 		data.modulate_dirty = false;
 		bgfx::setUniform(data.uniform_modulate, &data.modulate);
 	}
+
+	if (true) {
+		//	if (data.general_dirty) {
+		data.general_dirty = false;
+		data.general.r = data.texture_is_LA8 ? 1.0 : -1.0;
+		bgfx::setUniform(data.uniform_general, &data.general);
+	}
 }
 
 void CanvasShaderBGFX::set_modulate(const Color &p_color) {
@@ -58,6 +65,9 @@ void CanvasShaderBGFX::prepare(bgfx::ViewId p_view_id, int p_viewport_width, int
 	data.white_texture_bound = false;
 	data.modulate_dirty = true;
 	data.modulate = Color(1, 1, 1, 1);
+
+	data.general = Color(1, 1, 1, 1);
+	set_LA8(true, true);
 
 	//	bgfx::setTexture(0, data.uniform_sampler_tex, data.white_texture);
 
@@ -111,6 +121,16 @@ void CanvasShaderBGFX::_refresh_state() {
 
 uint64_t CanvasShaderBGFX::get_blend_state() const {
 	return data.state & (BGFX_STATE_BLEND_MASK | BGFX_STATE_BLEND_EQUATION_MASK);
+}
+
+void CanvasShaderBGFX::set_LA8(bool p_enabled, bool p_force) {
+	// noop
+	if (!p_force && (p_enabled == data.texture_is_LA8)) {
+		return;
+	}
+
+	data.texture_is_LA8 = p_enabled;
+	data.general_dirty = true;
 }
 
 void CanvasShaderBGFX::set_blend_state(uint64_t p_state) {
@@ -197,17 +217,17 @@ void CanvasShaderBGFX::draw_polygon(const int16_t *p_indices, uint32_t p_index_c
 	bgfx::setVertexBuffer(0, &tvb);
 	bgfx::setIndexBuffer(&tib, 0, p_index_count);
 
-	_refresh_modulate();
-	_refresh_state();
-	_refresh_scissor();
-
 	//	if (true) {
 	if (!data.white_texture_bound) {
 		data.white_texture_bound = true;
 		data.current_storage_texture = nullptr;
 		data.current_texture = data.white_texture;
+		set_LA8(true);
 		bgfx::setTexture(0, data.uniform_sampler_tex, data.current_texture);
 	}
+	_refresh_modulate();
+	_refresh_state();
+	_refresh_scissor();
 
 	bgfx::submit(get_view_id(), data.program);
 }
@@ -281,11 +301,13 @@ void CanvasShaderBGFX::draw_rect(const Vector2 *p_points, const Vector2 *p_uvs, 
 			data.current_texture = p_texture->bg_handle;
 			data.white_texture_bound = false;
 			bgfx::setTexture(0, data.uniform_sampler_tex, data.current_texture);
+			set_LA8(p_texture->format == Image::FORMAT_LA8);
 		} else {
 			data.white_texture_bound = true;
 			data.current_storage_texture = nullptr;
 			data.current_texture = data.white_texture;
 			bgfx::setTexture(0, data.uniform_sampler_tex, data.current_texture);
+			set_LA8(true);
 		}
 	}
 
@@ -303,6 +325,7 @@ void CanvasShaderBGFX::create() {
 	data.program = bgfx::createProgram(vsh, fsh, true);
 	data.uniform_sampler_tex = bgfx::createUniform("s_texColor", bgfx::UniformType::Sampler);
 	data.uniform_modulate = bgfx::createUniform("u_modulate", bgfx::UniformType::Vec4);
+	data.uniform_general = bgfx::createUniform("u_general", bgfx::UniformType::Vec4);
 
 	CanvasVertex::init();
 
@@ -311,10 +334,10 @@ void CanvasShaderBGFX::create() {
 
 	// create a default white texture
 
-	const bgfx::Memory *mem = bgfx::alloc(4);
+	const bgfx::Memory *mem = bgfx::alloc(2);
 	uint32_t white = UINT32_MAX;
-	memcpy(mem->data, &white, 4);
-	data.white_texture = bgfx::createTexture2D(1, 1, false, 1, bgfx::TextureFormat::RGBA8, 0, mem);
+	memcpy(mem->data, &white, 2);
+	data.white_texture = bgfx::createTexture2D(1, 1, false, 1, bgfx::TextureFormat::RG8, 0, mem);
 }
 
 void CanvasShaderBGFX::destroy() {

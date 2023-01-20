@@ -71,8 +71,16 @@ public:
 
 		bgfx::UniformHandle uniform_sampler_tex = BGFX_INVALID_HANDLE;
 		bgfx::UniformHandle uniform_modulate = BGFX_INVALID_HANDLE;
+		bgfx::UniformHandle uniform_general = BGFX_INVALID_HANDLE;
+
 		bgfx::TextureHandle current_texture = BGFX_INVALID_HANDLE;
 		bgfx::TextureHandle white_texture = BGFX_INVALID_HANDLE;
+
+		bool texture_is_LA8 = false;
+
+		Color general;
+		bool general_dirty = true;
+
 		bool white_texture_bound = false;
 		RasterizerStorageBGFX::Texture *current_storage_texture = nullptr;
 		bgfx::ViewId current_view_id = UINT16_MAX;
@@ -114,6 +122,7 @@ public:
 	uint64_t get_blend_state() const;
 	void set_scissor(int p_x, int p_y, int p_width, int p_height);
 	void set_scissor_disable();
+	void set_LA8(bool p_enabled, bool p_force = false);
 
 	void prepare(bgfx::ViewId p_view_id, int p_viewport_width, int p_viewport_height);
 

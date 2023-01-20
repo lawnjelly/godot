@@ -417,6 +417,9 @@ public:
 	void material_add_instance_owner(RID p_material, RasterizerScene::InstanceBase *p_instance);
 	void material_remove_instance_owner(RID p_material, RasterizerScene::InstanceBase *p_instance);
 
+	void _material_add_geometry(RID p_material, Geometry *p_geometry);
+	void _material_remove_geometry(RID p_material, Geometry *p_geometry);
+
 	void update_dirty_materials();
 	void _material_make_dirty(Material *p_material) const;
 	void _update_material(Material *p_material);
@@ -424,7 +427,7 @@ public:
 
 	/* MESH API */
 
-	struct BGFXSurface {
+	struct BGFXSurface : public Geometry {
 		uint32_t format = 0;
 		VS::PrimitiveType primitive = VS::PRIMITIVE_POINTS;
 		PoolVector<uint8_t> array;
@@ -469,7 +472,7 @@ public:
 		}
 	};
 
-	struct BGFXMesh : public RID_Data {
+	struct BGFXMesh : public GeometryOwner {
 		Vector<BGFXSurface *> surfaces;
 		int blend_shape_count = 0;
 		VS::BlendShapeMode blend_shape_mode;

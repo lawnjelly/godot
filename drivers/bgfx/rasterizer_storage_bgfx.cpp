@@ -265,6 +265,33 @@ void RasterizerStorageBGFX::update_dirty_shaders() {
 	}
 }
 
+void RasterizerStorageBGFX::_material_add_geometry(RID p_material, Geometry *p_geometry) {
+	Material *material = material_owner.getornull(p_material);
+	ERR_FAIL_COND(!material);
+
+	Map<Geometry *, int>::Element *I = material->geometry_owners.find(p_geometry);
+
+	if (I) {
+		I->get()++;
+	} else {
+		material->geometry_owners[p_geometry] = 1;
+	}
+}
+
+void RasterizerStorageBGFX::_material_remove_geometry(RID p_material, Geometry *p_geometry) {
+	Material *material = material_owner.getornull(p_material);
+	ERR_FAIL_COND(!material);
+
+	Map<Geometry *, int>::Element *I = material->geometry_owners.find(p_geometry);
+	ERR_FAIL_COND(!I);
+
+	I->get()--;
+
+	if (I->get() == 0) {
+		material->geometry_owners.erase(I);
+	}
+}
+
 void RasterizerStorageBGFX::update_dirty_materials() {
 	while (_material_dirty_list.first()) {
 		Material *material = _material_dirty_list.first()->self();
@@ -521,10 +548,13 @@ void RasterizerStorageBGFX::texture_set_data(RID p_texture, const Ref<Image> &p_
 				format = bgfx::TextureFormat::R8;
 			} break;
 			case Image::FORMAT_LA8: {
-				//format = bgfx::TextureFormat::RG8;
+#if 1
+				format = bgfx::TextureFormat::RG8;
+#else
 				t->image->convert(Image::FORMAT_RGBA8);
 				t->format = p_image->get_format();
 				format = bgfx::TextureFormat::RGBA8;
+#endif
 			} break;
 			case Image::FORMAT_DXT1: {
 				format = bgfx::TextureFormat::BC1;
@@ -1795,10 +1825,33 @@ AABB RasterizerStorageBGFX::mesh_get_aabb(RID p_mesh, RID p_skeleton) const {
 }
 
 void RasterizerStorageBGFX::mesh_surface_set_material(RID p_mesh, int p_surface, RID p_material) {
+	BGFXMesh *mesh = mesh_owner.getornull(p_mesh);
+	ERR_FAIL_COND(!mesh);
+	ERR_FAIL_INDEX(p_surface, mesh->surfaces.size());
+
+	if (mesh->surfaces[p_surface]->material == p_material) {
+		return;
+	}
+
+	if (mesh->surfaces[p_surface]->material.is_valid()) {
+		_material_remove_geometry(mesh->surfaces[p_surface]->material, mesh->surfaces[p_surface]);
+	}
+
+	mesh->surfaces[p_surface]->material = p_material;
+
+	if (mesh->surfaces[p_surface]->material.is_valid()) {
+		_material_add_geometry(mesh->surfaces[p_surface]->material, mesh->surfaces[p_surface]);
+	}
+
+	mesh->instance_change_notify(false, true);
 }
 
 RID RasterizerStorageBGFX::mesh_surface_get_material(RID p_mesh, int p_surface) const {
-	return RID();
+	const BGFXMesh *mesh = mesh_owner.getornull(p_mesh);
+	ERR_FAIL_COND_V(!mesh, RID());
+	ERR_FAIL_INDEX_V(p_surface, mesh->surfaces.size(), RID());
+
+	return mesh->surfaces[p_surface]->material;
 }
 
 uint32_t RasterizerStorageBGFX::_request_bgfx_view() {
