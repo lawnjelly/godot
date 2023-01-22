@@ -259,6 +259,7 @@ public:
 	 */
 	void create(int p_width, int p_height, bool p_use_mipmaps, Format p_format);
 	void create(int p_width, int p_height, bool p_use_mipmaps, Format p_format, const PoolVector<uint8_t> &p_data);
+	void create_with_incomplete_mipmaps(int p_width, int p_height, int p_num_mipmaps, Format p_format, const PoolVector<uint8_t> &p_data); // this will work if we don't have the full mipmap chain
 
 	void create(const char **p_xpm);
 	/**

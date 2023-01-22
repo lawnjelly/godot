@@ -41,15 +41,27 @@
 
 // Reference: https://docs.microsoft.com/en-us/windows/win32/direct3ddds/dds-header
 
-enum {
-	DDS_MAGIC = 0x20534444,
-	DDSD_PITCH = 0x00000008,
-	DDSD_LINEARSIZE = 0x00080000,
-	DDSD_MIPMAPCOUNT = 0x00020000,
-	DDPF_FOURCC = 0x00000004,
-	DDPF_ALPHAPIXELS = 0x00000001,
-	DDPF_INDEXED = 0x00000020,
-	DDPF_RGB = 0x00000040,
+enum DDSHeaderFlags {
+	DDSD_CAPS = 0x1,
+	DDSD_HEIGHT = 0x2,
+	DDSD_WIDTH = 0x4,
+	DDSD_PITCH = 0x8,
+	DDSD_PIXELFORMAT = 0x1000,
+	DDSD_MIPMAPCOUNT = 0x20000,
+	DDSD_LINEARSIZE = 0x80000,
+	DDSD_DEPTH = 0x800000,
+};
+
+enum DDSPixelFormat {
+	DDPF_ALPHAPIXELS = 0x1,
+	DDPF_ALPHA = 0x2,
+	DDPF_FOURCC = 0x4,
+	DDPF_INDEXED = 0x20,
+	DDPF_RGB = 0x40,
+	DDPF_YUV = 0x200,
+	DDPF_LUMINANCE = 0x20000,
+
+	DDS_MAGIC = PF_FOURCC("DDS "),
 };
 
 enum DDSFormat {
@@ -70,6 +82,23 @@ enum DDSFormat {
 	DDS_LUMINANCE,
 	DDS_LUMINANCE_ALPHA,
 	DDS_MAX
+};
+
+enum DDSCaps1 {
+	DDS_CAPS1_NO_MIPMAPS = 0x1000,
+	DDS_CAPS1_MIPMAPS = 0x401008,
+	DDS_CAPS1_CUBEMAP = 0x1008,
+};
+
+enum DDSCaps2 {
+	DDS_CAPS2_CUBEMAP = 0x200,
+	DDS_CAPS2_CUBEMAP_POSITIVEX = 0x400, // required when surfaces are stored in a cubemap
+	DDS_CAPS2_CUBEMAP_NEGATIVEX = 0x800,
+	DDS_CAPS2_CUBEMAP_POSITIVEY = 0x1000,
+	DDS_CAPS2_CUBEMAP_NEGATIVEY = 0x2000,
+	DDS_CAPS2_CUBEMAP_POSITIVEZ = 0x4000,
+	DDS_CAPS2_CUBEMAP_NEGATIVEZ = 0x8000,
+	DDS_CAPS2_VOLUME = 0x200000, // volume texture
 };
 
 struct DDSFormatInfo {
@@ -117,8 +146,8 @@ Error ImageLoaderDDS::load_image(Ref<Image> p_image, FileAccess *f, bool p_force
 	uint32_t flags = f->get_32();
 	uint32_t height = f->get_32();
 	uint32_t width = f->get_32();
-	uint32_t pitch = f->get_32();
-	/* uint32_t depth = */ f->get_32();
+	uint32_t pitch = f->get_32(); // or linear size
+	uint32_t depth = f->get_32();
 	uint32_t mipmaps = f->get_32();
 
 	//skip 11
@@ -134,8 +163,9 @@ Error ImageLoaderDDS::load_image(Ref<Image> p_image, FileAccess *f, bool p_force
 		ERR_FAIL_V_MSG(ERR_FILE_CORRUPT, "Invalid or unsupported DDS texture file '" + f->get_path() + "'.");
 	}
 
-	/* uint32_t format_size = */ f->get_32();
-	uint32_t format_flags = f->get_32();
+	uint32_t format_size = f->get_32(); // size of the following 32 bytes (PIXELFORMAT)
+	DEV_CHECK_ONCE(format_size == 32);
+	uint32_t format_flags = f->get_32(); // DDSPixelFormat
 	uint32_t format_fourcc = f->get_32();
 	uint32_t format_rgb_bits = f->get_32();
 	uint32_t format_red_mask = f->get_32();
@@ -143,12 +173,12 @@ Error ImageLoaderDDS::load_image(Ref<Image> p_image, FileAccess *f, bool p_force
 	uint32_t format_blue_mask = f->get_32();
 	uint32_t format_alpha_mask = f->get_32();
 
-	/* uint32_t caps_1 = */ f->get_32();
-	/* uint32_t caps_2 = */ f->get_32();
-	/* uint32_t caps_ddsx = */ f->get_32();
+	uint32_t caps_1 = f->get_32(); // DDSCaps1
+	uint32_t caps_2 = f->get_32(); // DDSCaps2
+	uint32_t caps_3 = f->get_32();
+	uint32_t caps_4 = f->get_32();
 
 	//reserved skip
-	f->get_32();
 	f->get_32();
 
 	/*
@@ -167,6 +197,7 @@ Error ImageLoaderDDS::load_image(Ref<Image> p_image, FileAccess *f, bool p_force
 
 	DDSFormat dds_format;
 
+#if 0
 	if (format_flags & DDPF_FOURCC && format_fourcc == PF_FOURCC("DXT1")) {
 		dds_format = DDS_DXT1;
 	} else if (format_flags & DDPF_FOURCC && format_fourcc == PF_FOURCC("DXT3")) {
@@ -180,31 +211,67 @@ Error ImageLoaderDDS::load_image(Ref<Image> p_image, FileAccess *f, bool p_force
 		dds_format = DDS_ATI2;
 	} else if (format_flags & DDPF_FOURCC && format_fourcc == PF_FOURCC("A2XY")) {
 		dds_format = DDS_A2XY;
+#endif
 
-	} else if (format_flags & DDPF_RGB && format_flags & DDPF_ALPHAPIXELS && format_rgb_bits == 32 && format_red_mask == 0xff0000 && format_green_mask == 0xff00 && format_blue_mask == 0xff && format_alpha_mask == 0xff000000) {
-		dds_format = DDS_BGRA8;
-	} else if (format_flags & DDPF_RGB && !(format_flags & DDPF_ALPHAPIXELS) && format_rgb_bits == 24 && format_red_mask == 0xff0000 && format_green_mask == 0xff00 && format_blue_mask == 0xff) {
-		dds_format = DDS_BGR8;
-	} else if (format_flags & DDPF_RGB && format_flags & DDPF_ALPHAPIXELS && format_rgb_bits == 32 && format_red_mask == 0xff && format_green_mask == 0xff00 && format_blue_mask == 0xff0000 && format_alpha_mask == 0xff000000) {
-		dds_format = DDS_RGBA8;
-	} else if (format_flags & DDPF_RGB && !(format_flags & DDPF_ALPHAPIXELS) && format_rgb_bits == 24 && format_red_mask == 0xff && format_green_mask == 0xff00 && format_blue_mask == 0xff0000) {
-		dds_format = DDS_RGB8;
+	bool found = false;
+	if (format_flags & DDPF_FOURCC) {
+		found = true;
+		switch (format_fourcc) {
+			case PF_FOURCC("DXT1"): {
+				dds_format = DDS_DXT1;
+			} break;
+			case PF_FOURCC("DXT3"): {
+				dds_format = DDS_DXT3;
+			} break;
+			case PF_FOURCC("DXT5"): {
+				dds_format = DDS_DXT5;
+			} break;
+			case PF_FOURCC("ATI1"): {
+				dds_format = DDS_ATI1;
+			} break;
+			case PF_FOURCC("ATI2"): {
+				dds_format = DDS_ATI2;
+			} break;
+			case PF_FOURCC("A2XY"): {
+				dds_format = DDS_A2XY;
+			} break;
 
-	} else if (format_flags & DDPF_RGB && format_flags & DDPF_ALPHAPIXELS && format_rgb_bits == 16 && format_red_mask == 0x00007c00 && format_green_mask == 0x000003e0 && format_blue_mask == 0x0000001f && format_alpha_mask == 0x00008000) {
-		dds_format = DDS_BGR5A1;
-	} else if (format_flags & DDPF_RGB && format_flags & DDPF_ALPHAPIXELS && format_rgb_bits == 32 && format_red_mask == 0x3ff00000 && format_green_mask == 0xffc00 && format_blue_mask == 0x3ff && format_alpha_mask == 0xc0000000) {
-		dds_format = DDS_BGR10A2;
-	} else if (format_flags & DDPF_RGB && !(format_flags & DDPF_ALPHAPIXELS) && format_rgb_bits == 16 && format_red_mask == 0x0000f800 && format_green_mask == 0x000007e0 && format_blue_mask == 0x0000001f) {
-		dds_format = DDS_BGR565;
-	} else if (!(format_flags & DDPF_ALPHAPIXELS) && format_rgb_bits == 8 && format_red_mask == 0xff && format_green_mask == 0xff && format_blue_mask == 0xff) {
-		dds_format = DDS_LUMINANCE;
-	} else if ((format_flags & DDPF_ALPHAPIXELS) && format_rgb_bits == 16 && format_red_mask == 0xff && format_green_mask == 0xff && format_blue_mask == 0xff && format_alpha_mask == 0xff00) {
-		dds_format = DDS_LUMINANCE_ALPHA;
-	} else if (format_flags & DDPF_INDEXED && format_rgb_bits == 8) {
-		dds_format = DDS_BGR565;
-	} else {
-		printf("unrecognized fourcc %x format_flags: %x - rgbbits %i - red_mask %x green mask %x blue mask %x alpha mask %x\n", format_fourcc, format_flags, format_rgb_bits, format_red_mask, format_green_mask, format_blue_mask, format_alpha_mask);
-		ERR_FAIL_V_MSG(ERR_FILE_CORRUPT, "Unrecognized or unsupported color layout in DDS '" + f->get_path() + "'.");
+			default: {
+				found = false;
+			} break;
+		}
+	}
+
+	if (!found) {
+		if (format_flags & DDPF_RGB && format_flags & DDPF_ALPHAPIXELS && format_rgb_bits == 32 && format_red_mask == 0xff0000 && format_green_mask == 0xff00 && format_blue_mask == 0xff && format_alpha_mask == 0xff000000) {
+			dds_format = DDS_BGRA8;
+		} else if (format_flags & DDPF_RGB && !(format_flags & DDPF_ALPHAPIXELS) && format_rgb_bits == 24 && format_red_mask == 0xff0000 && format_green_mask == 0xff00 && format_blue_mask == 0xff) {
+			dds_format = DDS_BGR8;
+		} else if (format_flags & DDPF_RGB && format_flags & DDPF_ALPHAPIXELS && format_rgb_bits == 32 && format_red_mask == 0xff && format_green_mask == 0xff00 && format_blue_mask == 0xff0000 && format_alpha_mask == 0xff000000) {
+			dds_format = DDS_RGBA8;
+		} else if (format_flags & DDPF_RGB && !(format_flags & DDPF_ALPHAPIXELS) && format_rgb_bits == 24 && format_red_mask == 0xff && format_green_mask == 0xff00 && format_blue_mask == 0xff0000) {
+			dds_format = DDS_RGB8;
+
+		} else if (format_flags & DDPF_RGB && format_flags & DDPF_ALPHAPIXELS && format_rgb_bits == 16 && format_red_mask == 0x00007c00 && format_green_mask == 0x000003e0 && format_blue_mask == 0x0000001f && format_alpha_mask == 0x00008000) {
+			dds_format = DDS_BGR5A1;
+		} else if (format_flags & DDPF_RGB && format_flags & DDPF_ALPHAPIXELS && format_rgb_bits == 32 && format_red_mask == 0x3ff00000 && format_green_mask == 0xffc00 && format_blue_mask == 0x3ff && format_alpha_mask == 0xc0000000) {
+			dds_format = DDS_BGR10A2;
+		} else if (format_flags & DDPF_RGB && !(format_flags & DDPF_ALPHAPIXELS) && format_rgb_bits == 16 && format_red_mask == 0x0000f800 && format_green_mask == 0x000007e0 && format_blue_mask == 0x0000001f) {
+			dds_format = DDS_BGR565;
+		} else if (!(format_flags & DDPF_ALPHAPIXELS) && format_rgb_bits == 8 && format_red_mask == 0xff && format_green_mask == 0xff && format_blue_mask == 0xff) {
+			dds_format = DDS_LUMINANCE;
+		} else if ((format_flags & DDPF_ALPHAPIXELS) && format_rgb_bits == 16 && format_red_mask == 0xff && format_green_mask == 0xff && format_blue_mask == 0xff && format_alpha_mask == 0xff00) {
+			dds_format = DDS_LUMINANCE_ALPHA;
+		} else if (format_flags & DDPF_INDEXED && format_rgb_bits == 8) {
+			dds_format = DDS_BGR565;
+		} else {
+			char buffer[1024];
+			char four_cc_buffer[5] = {};
+			memcpy(four_cc_buffer, &format_fourcc, 4);
+			snprintf(buffer, 1024, "fourcc %x format_flags: %x - rgbbits %i - red_mask %x green mask %x blue mask %x alpha mask %x\n", format_fourcc, format_flags, format_rgb_bits, format_red_mask, format_green_mask, format_blue_mask, format_alpha_mask);
+			print_line(String("DDS Unrecognised format FOURCC ") + four_cc_buffer + ", " + buffer);
+			ERR_FAIL_V_MSG(ERR_FILE_CORRUPT, "Unrecognized or unsupported color layout in DDS '" + f->get_path() + "'.");
+		}
 	}
 
 	if (!(flags & DDSD_MIPMAPCOUNT)) {
@@ -410,7 +477,10 @@ Error ImageLoaderDDS::load_image(Ref<Image> p_image, FileAccess *f, bool p_force
 		}
 	}
 
-	p_image->create(width, height, mipmaps - 1, info.format, src_data);
+	// Some DDS files the number of mipmaps do not represent the full chain.
+	// This will cause Image::create to fail because the src_data size is incorrect.
+	p_image->create_with_incomplete_mipmaps(width, height, mipmaps, info.format, src_data);
+
 	return OK;
 }
 

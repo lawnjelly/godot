@@ -1756,6 +1756,34 @@ void Image::create(int p_width, int p_height, bool p_use_mipmaps, Format p_forma
 	format = p_format;
 }
 
+void Image::create_with_incomplete_mipmaps(int p_width, int p_height, int p_num_mipmaps, Format p_format, const PoolVector<uint8_t> &p_data) // this will work if we don't have the full mipmap chain
+{
+	int mipmaps_required = Image::get_image_required_mipmaps(p_width, p_height, p_format);
+	if (mipmaps_required == p_num_mipmaps) {
+		// Normal path
+		create(p_width, p_height, p_num_mipmaps - 1, p_format, p_data);
+		return;
+	}
+
+	// Panic stations, we don't have a full mipmap chain.
+	// Attempt to work around this by only creating the base layer,
+	// then generating the mipmaps. This will be slow and less
+	// good than just using the mipmaps in the file.
+	// TODO - maybe just generate the last missing mipmaps?
+	int mm;
+	int required_size_without_mipmaps = _get_dst_image_size(p_width, p_height, p_format, mm, 0);
+
+	ERR_FAIL_COND_MSG(p_data.size() < required_size_without_mipmaps, "Data size is unsufficient for an Image of these dimensions and format.");
+	PoolVector<uint8_t> small_data = p_data;
+	small_data.resize(required_size_without_mipmaps);
+
+	// First create without mipmaps
+	create(p_width, p_height, false, p_format, small_data);
+
+	Error err = generate_mipmaps();
+	ERR_FAIL_COND_MSG(err != OK, "Could not generate mipmaps.");
+}
+
 void Image::create(int p_width, int p_height, bool p_use_mipmaps, Format p_format, const PoolVector<uint8_t> &p_data) {
 	ERR_FAIL_COND_MSG(p_width <= 0, "The Image width specified (" + itos(p_width) + " pixels) must be greater than 0 pixels.");
 	ERR_FAIL_COND_MSG(p_height <= 0, "The Image height specified (" + itos(p_height) + " pixels) must be greater than 0 pixels.");

@@ -92,7 +92,8 @@ void IBL::ensure_loaded() {
 		Ref<Image> im = memnew(Image);
 		//		im->load("res://Panoramas/bolonga_lod.dds");
 		//		Error err = im->load("res://icon.png");
-		Error err = im->load("res://Panoramas/bolonga_lod.dds");
+		//		Error err = im->load("res://Panoramas/bolonga_lod.dds");
+		Error err = im->load("res://Panoramas/rad_cubemap_bgr8.dds");
 
 		if (err != OK) {
 			print_line("failed loading");
