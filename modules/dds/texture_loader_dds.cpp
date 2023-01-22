@@ -28,6 +28,8 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                */
 /*************************************************************************/
 
+#pragma message("COMPILING DDS LOADER")
+
 #include "texture_loader_dds.h"
 
 #include "core/os/file_access.h"

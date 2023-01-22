@@ -35,9 +35,31 @@ struct PosColorVertex {
 				.end();
 	}
 };
+
+struct PosUVNormVertex {
+	float x = 0;
+	float y = 0;
+	float z = 0;
+	float u = 0;
+	float v = 0;
+	uint8_t nx = 0;
+	uint8_t ny = 0;
+	uint8_t nz = 0;
+	uint8_t na = 0;
+	static bgfx::VertexLayout layout;
+	static void init() {
+		layout.begin()
+				.add(bgfx::Attrib::Position, 3, bgfx::AttribType::Float)
+				.add(bgfx::Attrib::TexCoord0, 2, bgfx::AttribType::Float)
+				.add(bgfx::Attrib::Normal, 4, bgfx::AttribType::Uint8, true)
+				.end();
+	}
+};
+
 #pragma pack(pop)
 
 class Scene {
+	friend class IBL;
 	//	bgfx::ShaderHandle scene_vertex_shader = BGFX_INVALID_HANDLE;
 	//	bgfx::ShaderHandle scene_fragment_shader = BGFX_INVALID_HANDLE;
 	bgfx::ProgramHandle scene_program = BGFX_INVALID_HANDLE;

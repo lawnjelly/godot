@@ -34,6 +34,36 @@ void RasterizerStorageBGFX::update_dirty_resources() {
 	//	update_dirty_captures();
 }
 
+RID RasterizerStorageBGFX::sky_create() {
+	Sky *sky = memnew(Sky);
+	return sky_owner.make_rid(sky);
+}
+
+// panorama is cube map or whatever texture we generate
+void RasterizerStorageBGFX::sky_set_texture(RID p_sky, RID p_panorama, int p_radiance_size) {
+	Sky *sky = sky_owner.getornull(p_sky);
+	ERR_FAIL_COND(!sky);
+
+	if (sky->panorama.is_valid()) {
+		sky->panorama = RID();
+		BGFX_DESTROY(sky->bg_tex_radiance);
+		BGFX_DESTROY(sky->bg_tex_irradiance);
+	}
+
+	sky->panorama = p_panorama;
+	if (!sky->panorama.is_valid()) {
+		return; //cleared
+	}
+
+	Texture *texture = texture_owner.getornull(sky->panorama);
+	if (!texture) {
+		sky->panorama = RID();
+		ERR_FAIL_COND(!texture);
+	}
+
+	texture = texture->get_ptr(); //resolve for proxies
+}
+
 void RasterizerStorageBGFX::_shader_make_dirty(Shader *p_shader) {
 	if (p_shader->dirty_list.in_list()) {
 		return;
@@ -952,6 +982,13 @@ bool RasterizerStorageBGFX::free(RID p_rid) {
 		BGFXMesh *mesh = mesh_owner.getornull(p_rid);
 		mesh_owner.free(p_rid);
 		memdelete(mesh);
+	} else if (sky_owner.owns(p_rid)) {
+		Sky *sky = sky_owner.get(p_rid);
+		sky_set_texture(p_rid, RID(), 256);
+		sky_owner.free(p_rid);
+		memdelete(sky);
+
+		return true;
 	} else if (lightmap_capture_data_owner.owns(p_rid)) {
 		// delete the lightmap
 		LightmapCapture *lightmap_capture = lightmap_capture_data_owner.getornull(p_rid);
@@ -1671,20 +1708,59 @@ void RasterizerStorageBGFX::mesh_add_surface(RID p_mesh, uint32_t p_format, VS::
 	s->bg_inds.resize(p_index_count);
 
 	const uint8_t *data = array.read().ptr();
+
+	bool write_uvs = attribs[VS::ARRAY_TEX_UV].enabled && attribs[VS::ARRAY_TEX_UV].type == BGFXSurface::AT_FLOAT;
+	//	bool write_norms = attribs[VS::ARRAY_NORMAL].enabled && attribs[VS::ARRAY_NORMAL].type == BGFXSurface::AT_FLOAT;
+	bool write_norms = attribs[VS::ARRAY_NORMAL].enabled;
+
 	for (int n = 0; n < p_vertex_count; n++) {
 		const Vector3 *pos = (const Vector3 *)&data[(n * stride) + attribs[VS::ARRAY_VERTEX].offset];
-		BGFX::PosColorVertex &dest = s->bg_verts[n];
+		BGFX::PosUVNormVertex &dest = s->bg_verts[n];
 		dest.x = pos->x;
 		dest.y = pos->y;
 		dest.z = pos->z;
 
-		if (attribs[VS::ARRAY_TEX_UV].enabled) {
-			if (attribs[VS::ARRAY_TEX_UV].type == BGFXSurface::AT_FLOAT) {
-				const Vector2 *uv = (const Vector2 *)&data[(n * stride) + attribs[VS::ARRAY_TEX_UV].offset];
-				dest.u = uv->x;
-				dest.v = uv->y;
+		if (write_uvs) {
+			const Vector2 *uv = (const Vector2 *)&data[(n * stride) + attribs[VS::ARRAY_TEX_UV].offset];
+			dest.u = uv->x;
+			dest.v = uv->y;
+		} else {
+			dest.u = 0;
+			dest.v = 0;
+		}
+
+		if (write_norms) {
+			switch (attribs[VS::ARRAY_NORMAL].type) {
+				case BGFXSurface::AT_FLOAT: {
+					const Vector3 *norm = (const Vector3 *)&data[(n * stride) + attribs[VS::ARRAY_NORMAL].offset];
+					WARN_PRINT_ONCE("BGFX: Untested float normals path.");
+					dest.nx = CLAMP((norm->x + 1) * 127, 0, 255);
+					dest.ny = CLAMP((norm->y + 1) * 127, 0, 255);
+					dest.nz = CLAMP((norm->z + 1) * 127, 0, 255);
+					dest.na = 0;
+				} break;
+				case BGFXSurface::AT_BYTE: {
+					const int8_t *norm = (const int8_t *)&data[(n * stride) + attribs[VS::ARRAY_NORMAL].offset];
+					//Vector3 n = Vector3(norm[0], norm[1], norm[2]);
+					//n -= Vector3(127, 127, 127);
+					//n.normalize();
+					dest.nx = int(norm[0]) + 128;
+					dest.ny = int(norm[1]) + 128;
+					dest.nz = int(norm[2]) + 128;
+					dest.na = 0;
+				} break;
+				default: {
+					dest.nx = 0;
+					dest.ny = 0;
+					dest.nz = 0;
+					dest.na = 0;
+				} break;
 			}
-			dest.abgr = UINT32_MAX;
+		} else {
+			dest.nx = 0;
+			dest.ny = 0;
+			dest.nz = 0;
+			dest.na = 0;
 		}
 	}
 
@@ -1705,7 +1781,7 @@ void RasterizerStorageBGFX::mesh_add_surface(RID p_mesh, uint32_t p_format, VS::
 		}
 	}
 
-	s->bg_vertex_buffer = bgfx::createVertexBuffer(bgfx::makeRef(s->bg_verts.ptr(), sizeof(BGFX::PosColorVertex) * s->bg_verts.size()), BGFX::PosColorVertex::layout);
+	s->bg_vertex_buffer = bgfx::createVertexBuffer(bgfx::makeRef(s->bg_verts.ptr(), sizeof(BGFX::PosUVNormVertex) * s->bg_verts.size()), BGFX::PosUVNormVertex::layout);
 	s->bg_index_buffer = bgfx::createIndexBuffer(bgfx::makeRef(s->bg_inds.ptr(), sizeof(uint16_t) * s->bg_inds.size()));
 }
 

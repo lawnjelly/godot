@@ -1,12 +1,68 @@
 #include "ibl_shader_bgfx.h"
 #include "bgfx_funcs.h"
+#include "core/image.h"
+#include "core/io/resource_loader.h"
 
 namespace BGFX {
 
 float IBL::s_texelHalf = 0.0f;
 IBL ibl;
 
-void IBL::prepare() {
+void IBL::draw(const Transform &p_model_xform, bgfx::VertexBufferHandle p_vb, bgfx::IndexBufferHandle p_ib, int p_primitive_type) {
+	if (!bgfx::isValid(p_vb) || !bgfx::isValid(p_ib)) {
+		return;
+	}
+
+	ensure_loaded();
+
+	//int frame = Engine::get_singleton()->get_frames_drawn();
+	//print_line(itos(frame) + " tr " + p_view);
+	scene._mvp.model = p_model_xform;
+	scene._mvp.calc_model_view_proj();
+
+	bgfx::setTransform(scene._mvp.model_view_proj16);
+
+	bgfx::setVertexBuffer(0, p_vb);
+	bgfx::setIndexBuffer(p_ib);
+
+	if (bgfx::isValid(scene.scene_current_texture)) {
+		//		bgfx::setTexture(0, scene_uniform_sampler_tex, scene.scene_current_texture);
+	}
+
+	bgfx::setState(0 | BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A | BGFX_STATE_WRITE_Z | BGFX_STATE_DEPTH_TEST_LESS | BGFX_STATE_CULL_CCW);
+
+	_uniforms.m_glossiness = _settings.m_glossiness;
+	_uniforms.m_reflectivity = _settings.m_reflectivity;
+	_uniforms.m_exposure = _settings.m_exposure;
+	_uniforms.m_bgType = _settings.m_bgType;
+	_uniforms.m_metalOrSpec = float(_settings.m_metalOrSpec);
+	_uniforms.m_doDiffuse = float(_settings.m_doDiffuse);
+	_uniforms.m_doSpecular = float(_settings.m_doSpecular);
+	_uniforms.m_doDiffuseIbl = float(_settings.m_doDiffuseIbl);
+	_uniforms.m_doSpecularIbl = float(_settings.m_doSpecularIbl);
+	memcpy(_uniforms.m_rgbDiff, _settings.m_rgbDiff, 3 * sizeof(float));
+	memcpy(_uniforms.m_rgbSpec, _settings.m_rgbSpec, 3 * sizeof(float));
+	memcpy(_uniforms.m_lightDir, _settings.m_lightDir, 3 * sizeof(float));
+	memcpy(_uniforms.m_lightCol, _settings.m_lightCol, 3 * sizeof(float));
+
+	const Transform &cam = scene._mvp.camera;
+
+	static_assert(sizeof(real_t) == 4, "Change this if real_t is 64 bit.");
+	memcpy(_uniforms.m_cameraPos, &cam.origin, 3 * sizeof(float));
+
+	memcpy(_uniforms.m_mtx, scene._mvp.model_view_proj16, 16 * sizeof(float)); // Used for IBL.
+
+	// All uniforms as one
+	bgfx::setUniform(data.uniform_params, _uniforms.m_params, NUM_VEC_4);
+
+	// Cubemaps
+
+	if (bgfx::isValid(scene.scene_current_texture)) {
+		bgfx::setTexture(0, data.uniform_sampler_texCube, scene.scene_current_texture);
+		bgfx::setTexture(1, data.uniform_sampler_texCubeIrr, scene.scene_current_texture);
+	}
+
+	bgfx::submit(scene.scene_view_id, data.program);
 }
 
 void IBL::create() {
@@ -25,6 +81,23 @@ void IBL::create() {
 	data.uniform_camPos = bgfx::createUniform("u_camPos", bgfx::UniformType::Vec4);
 	data.uniform_sampler_texCube = bgfx::createUniform("s_texCube", bgfx::UniformType::Sampler);
 	data.uniform_sampler_texCubeIrr = bgfx::createUniform("s_texCubeIrr", bgfx::UniformType::Sampler);
+
+	//Ref<Image> texture = ResourceLoader::load("res://Panoramas/bolonga_lod.dds");
+	//Ref<Image> texture = ResourceLoader::load("res://Panoramas/bolonga_lod.dds");
+}
+
+void IBL::ensure_loaded() {
+	if (!data.loaded) {
+		data.loaded = true;
+		Ref<Image> im = memnew(Image);
+		//		im->load("res://Panoramas/bolonga_lod.dds");
+		//		Error err = im->load("res://icon.png");
+		Error err = im->load("res://Panoramas/bolonga_lod.dds");
+
+		if (err != OK) {
+			print_line("failed loading");
+		}
+	}
 }
 
 void IBL::destroy() {

@@ -1,5 +1,6 @@
 #include "rasterizer_scene_bgfx.h"
 #include "core/os/os.h"
+#include "ibl_shader_bgfx.h"
 #include "rasterizer_canvas_bgfx.h"
 #include "rasterizer_storage_bgfx.h"
 
@@ -63,11 +64,8 @@ void RasterizerSceneBGFX::render_scene(const Transform &p_cam_transform, const C
 	state.screen_pixel_size.x = 1.0 / viewport_width;
 	state.screen_pixel_size.y = 1.0 / viewport_height;
 
-	Transform cam_transform_inv = cam_transform.affine_inverse();
-
 	BGFX::scene.prepare_scene(viewport_width, viewport_height);
-
-	BGFX::scene.set_view_transform(p_cam_projection, cam_transform_inv);
+	BGFX::scene.set_view_transform(p_cam_projection, cam_transform);
 
 	for (int i = 0; i < p_cull_count; i++) {
 		InstanceBase *instance = p_cull_result[i];
@@ -87,11 +85,8 @@ void RasterizerSceneBGFX::render_scene(const Transform &p_cam_transform, const C
 					RasterizerStorageBGFX::Material *mat = _choose_material(instance, surface, j);
 					_setup_material(mat);
 
-					//BGFX::scene.draw(p_cam_projection, cam_transform_inv, surface->bg_vertex_buffer, surface->bg_index_buffer, surface->primitive);
-					BGFX::scene.draw(instance->transform, surface->bg_vertex_buffer, surface->bg_index_buffer, surface->primitive);
-					//return;
-
-					//					_add_geometry(surface, instance, nullptr, material_index, p_depth_pass, p_shadow_pass);
+					//BGFX::scene.draw(instance->transform, surface->bg_vertex_buffer, surface->bg_index_buffer, surface->primitive);
+					BGFX::ibl.draw(instance->transform, surface->bg_vertex_buffer, surface->bg_index_buffer, surface->primitive);
 				}
 
 			} break;

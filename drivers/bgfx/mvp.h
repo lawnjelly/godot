@@ -11,6 +11,9 @@ namespace BGFX {
 // handle one transform per view, and we need at least two
 // (for canvas and scene).
 struct MVP {
+	// view before inverse
+	Transform camera;
+
 	CameraMatrix projection;
 	Transform view;
 	Transform model;

@@ -7,6 +7,7 @@
 namespace BGFX {
 
 bgfx::VertexLayout PosColorVertex::layout;
+bgfx::VertexLayout PosUVNormVertex::layout;
 Scene scene;
 bool reassociate_framebuffers = false;
 
@@ -212,8 +213,9 @@ void Scene::set_texture(bgfx::TextureHandle p_tex_handle) {
 }
 
 void Scene::set_view_transform(const CameraMatrix &p_projection, const Transform &p_camera_view) {
+	_mvp.camera = p_camera_view;
 	_mvp.projection = p_projection;
-	_mvp.view = p_camera_view;
+	_mvp.view = p_camera_view.affine_inverse();
 	_mvp.calc_view_proj();
 }
 
@@ -277,6 +279,7 @@ void Scene::draw(const Transform &p_model_xform, bgfx::VertexBufferHandle p_vb, 
 
 void Scene::create() {
 	PosColorVertex::init();
+	PosUVNormVertex::init();
 	//		bgfx::ShaderHandle scene_vertex_shader = loadShaderOld("vs_cubes.bin");
 	//		bgfx::ShaderHandle scene_fragment_shader = loadShaderOld("fs_cubes.bin");
 	bgfx::ShaderHandle scene_vertex_shader = loadShader("v_scene.bin");

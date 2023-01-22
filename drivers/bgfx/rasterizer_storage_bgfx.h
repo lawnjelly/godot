@@ -201,8 +201,24 @@ public:
 
 	/* SKY API */
 
-	RID sky_create() { return RID(); }
-	void sky_set_texture(RID p_sky, RID p_cube_map, int p_radiance_size) {}
+	struct Sky : public RID_Data {
+		RID panorama;
+		//uint32_t radiance = 0;
+		int radiance_size = 0;
+
+		bgfx::TextureHandle bg_tex_radiance = BGFX_INVALID_HANDLE;
+		bgfx::TextureHandle bg_tex_irradiance = BGFX_INVALID_HANDLE;
+
+		~Sky() {
+			BGFX_DESTROY(bg_tex_radiance);
+			BGFX_DESTROY(bg_tex_irradiance);
+		}
+	};
+
+	mutable RID_Owner<Sky> sky_owner;
+
+	RID sky_create();
+	void sky_set_texture(RID p_sky, RID p_panorama, int p_radiance_size);
 
 	/* SHADER API */
 
@@ -462,7 +478,7 @@ public:
 
 		Attrib attribs[VS::ARRAY_MAX];
 
-		LocalVector<BGFX::PosColorVertex> bg_verts;
+		LocalVector<BGFX::PosUVNormVertex> bg_verts;
 		LocalVector<uint16_t> bg_inds;
 		bgfx::VertexBufferHandle bg_vertex_buffer = BGFX_INVALID_HANDLE;
 		bgfx::IndexBufferHandle bg_index_buffer = BGFX_INVALID_HANDLE;

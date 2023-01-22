@@ -1,5 +1,8 @@
 #pragma once
 
+#include "core/color.h"
+#include "core/math/camera_matrix.h"
+#include "mvp.h"
 #include "thirdparty/bgfx/bgfx/include/bgfx/bgfx.h"
 
 namespace BGFX {
@@ -23,12 +26,12 @@ class IBL {
 
 		bgfx::TextureHandle current_texture = BGFX_INVALID_HANDLE;
 
-		bgfx::ViewId view_id = UINT16_MAX;
+		bool loaded = false;
+
 	} data;
 
 	static float s_texelHalf;
 
-public:
 	struct Uniforms {
 		union {
 			struct
@@ -52,7 +55,7 @@ public:
 
 			float m_params[NUM_VEC_4 * 4];
 		};
-	};
+	} _uniforms;
 
 	struct Settings {
 		Settings() {
@@ -110,7 +113,11 @@ public:
 		int32_t m_meshSelection;
 	} _settings;
 
-	void prepare();
+	void ensure_loaded();
+
+public:
+	void draw(const Transform &p_model_xform, bgfx::VertexBufferHandle p_vb, bgfx::IndexBufferHandle p_ib, int p_primitive_type);
+
 	void create();
 	void destroy();
 }; //IBL
