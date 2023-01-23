@@ -129,6 +129,27 @@ bgfx::ShaderHandle loadShader(const char *FILENAME) {
 	return bgfx::createShader(mem);
 }
 
+const bgfx::Memory *loadFile(String p_filename) {
+	FileAccess *file = FileAccess::open(p_filename, FileAccess::READ);
+	if (!file) {
+		ERR_PRINT("Could not open " + p_filename);
+		return nullptr;
+	}
+	uint64_t len = file->get_len();
+
+	const bgfx::Memory *mem = bgfx::alloc(len + 1);
+	((uint8_t *)mem->data)[len] = 0;
+
+	if (file->get_buffer((uint8_t *)mem->data, len) != len) {
+		ERR_PRINT("File is corrupt " + p_filename);
+		memdelete(file);
+		return nullptr;
+	}
+
+	memdelete(file);
+	return mem;
+}
+
 bgfx::ShaderHandle loadShaderOld(const char *FILENAME) {
 	//const char *shaderPath = "???";
 

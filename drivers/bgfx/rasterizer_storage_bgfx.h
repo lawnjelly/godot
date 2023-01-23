@@ -462,7 +462,13 @@ public:
 			AT_SHORT,
 			AT_HALF_FLOAT,
 			AT_UINT,
+		};
 
+		enum AttribCompression {
+			ATC_NONE,
+			ATC_REGULAR,
+			ATC_OCT16,
+			ATC_OCT32,
 		};
 
 		struct Attrib {
@@ -471,6 +477,7 @@ public:
 			uint32_t index;
 			int size;
 			AttribType type;
+			AttribCompression compression = ATC_NONE;
 			bool normalized;
 			int stride;
 			uint32_t offset;

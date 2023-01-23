@@ -1348,7 +1348,7 @@ void RasterizerStorageBGFX::mesh_add_surface(RID p_mesh, uint32_t p_format, VS::
 	int positions_stride = 0;
 	bool uses_half_float = false;
 
-//#define GODOT_LOG_VERTEX_FORMAT
+#define GODOT_LOG_VERTEX_FORMAT
 #ifdef GODOT_LOG_VERTEX_FORMAT
 	String sz;
 	if (use_split_stream) {
@@ -1382,6 +1382,7 @@ void RasterizerStorageBGFX::mesh_add_surface(RID p_mesh, uint32_t p_format, VS::
 
 				if (p_format & VS::ARRAY_COMPRESS_VERTEX) {
 					attribs[i].type = BGFXSurface::AT_HALF_FLOAT;
+					attribs[i].compression = BGFXSurface::ATC_REGULAR;
 					positions_stride += attribs[i].size * 2;
 					uses_half_float = true;
 #ifdef GODOT_LOG_VERTEX_FORMAT
@@ -1414,6 +1415,7 @@ void RasterizerStorageBGFX::mesh_add_surface(RID p_mesh, uint32_t p_format, VS::
 					attribs[i].normalized = true;
 					attribs[i].size = 2;
 					attribs[i].type = BGFXSurface::AT_SHORT;
+					attribs[i].compression = BGFXSurface::ATC_OCT32;
 					attributes_stride += 4;
 #ifdef GODOT_LOG_VERTEX_FORMAT
 					sz += "N oct, ";
@@ -1423,6 +1425,7 @@ void RasterizerStorageBGFX::mesh_add_surface(RID p_mesh, uint32_t p_format, VS::
 
 					if (p_format & VS::ARRAY_COMPRESS_NORMAL) {
 						attribs[i].type = BGFXSurface::AT_BYTE;
+						attribs[i].compression = BGFXSurface::ATC_REGULAR;
 						attributes_stride += 4; //pad extra byte
 						attribs[i].normalized = true;
 #ifdef GODOT_LOG_VERTEX_FORMAT
@@ -1448,12 +1451,15 @@ void RasterizerStorageBGFX::mesh_add_surface(RID p_mesh, uint32_t p_format, VS::
 						// pack into single vec4<GL_BYTE> for memory bandwidth
 						// savings while keeping 4 byte alignment
 						attribs[VS::ARRAY_NORMAL].type = BGFXSurface::AT_BYTE;
+						attribs[VS::ARRAY_NORMAL].compression = BGFXSurface::ATC_OCT16;
+						attribs[i].compression = BGFXSurface::ATC_OCT16;
 #ifdef GODOT_LOG_VERTEX_FORMAT
 						sz += "NT oct, ";
 #endif
 					} else {
 						// normal and tangent will each be oct32 (4 bytes each)
 						attributes_stride += 4;
+						attribs[i].compression = BGFXSurface::ATC_OCT32;
 #ifdef GODOT_LOG_VERTEX_FORMAT
 						sz += "T oct, ";
 #endif
@@ -1463,6 +1469,7 @@ void RasterizerStorageBGFX::mesh_add_surface(RID p_mesh, uint32_t p_format, VS::
 
 					if (p_format & VS::ARRAY_COMPRESS_TANGENT) {
 						attribs[i].type = BGFXSurface::AT_BYTE;
+						attribs[i].compression = BGFXSurface::ATC_REGULAR;
 						attributes_stride += 4;
 						attribs[i].normalized = true;
 #ifdef GODOT_LOG_VERTEX_FORMAT
@@ -1484,6 +1491,7 @@ void RasterizerStorageBGFX::mesh_add_surface(RID p_mesh, uint32_t p_format, VS::
 
 				if (p_format & VS::ARRAY_COMPRESS_COLOR) {
 					attribs[i].type = BGFXSurface::AT_UBYTE;
+					attribs[i].compression = BGFXSurface::ATC_REGULAR;
 					attributes_stride += 4;
 					attribs[i].normalized = true;
 #ifdef GODOT_LOG_VERTEX_FORMAT
@@ -1504,6 +1512,7 @@ void RasterizerStorageBGFX::mesh_add_surface(RID p_mesh, uint32_t p_format, VS::
 
 				if (p_format & VS::ARRAY_COMPRESS_TEX_UV) {
 					attribs[i].type = BGFXSurface::AT_HALF_FLOAT;
+					attribs[i].compression = BGFXSurface::ATC_REGULAR;
 					attributes_stride += 4;
 					uses_half_float = true;
 #ifdef GODOT_LOG_VERTEX_FORMAT
@@ -1525,6 +1534,7 @@ void RasterizerStorageBGFX::mesh_add_surface(RID p_mesh, uint32_t p_format, VS::
 
 				if (p_format & VS::ARRAY_COMPRESS_TEX_UV2) {
 					attribs[i].type = BGFXSurface::AT_HALF_FLOAT;
+					attribs[i].compression = BGFXSurface::ATC_REGULAR;
 					attributes_stride += 4;
 					uses_half_float = true;
 #ifdef GODOT_LOG_VERTEX_FORMAT
@@ -1551,6 +1561,7 @@ void RasterizerStorageBGFX::mesh_add_surface(RID p_mesh, uint32_t p_format, VS::
 #endif
 				} else {
 					attribs[i].type = BGFXSurface::AT_UBYTE;
+					attribs[i].compression = BGFXSurface::ATC_REGULAR;
 					attributes_stride += 4;
 #ifdef GODOT_LOG_VERTEX_FORMAT
 					sz += "Bones ub, ";
@@ -1566,6 +1577,7 @@ void RasterizerStorageBGFX::mesh_add_surface(RID p_mesh, uint32_t p_format, VS::
 
 				if (p_format & VS::ARRAY_COMPRESS_WEIGHTS) {
 					attribs[i].type = BGFXSurface::AT_USHORT;
+					attribs[i].compression = BGFXSurface::ATC_REGULAR;
 					attributes_stride += 8;
 					attribs[i].normalized = true;
 #ifdef GODOT_LOG_VERTEX_FORMAT
@@ -1592,6 +1604,7 @@ void RasterizerStorageBGFX::mesh_add_surface(RID p_mesh, uint32_t p_format, VS::
 #endif
 				} else {
 					attribs[i].type = BGFXSurface::AT_USHORT;
+					attribs[i].compression = BGFXSurface::ATC_REGULAR;
 					attribs[i].stride = 2;
 #ifdef GODOT_LOG_VERTEX_FORMAT
 					sz += "Ind us, ";
@@ -1740,14 +1753,36 @@ void RasterizerStorageBGFX::mesh_add_surface(RID p_mesh, uint32_t p_format, VS::
 					dest.na = 0;
 				} break;
 				case BGFXSurface::AT_BYTE: {
-					const int8_t *norm = (const int8_t *)&data[(n * stride) + attribs[VS::ARRAY_NORMAL].offset];
-					//Vector3 n = Vector3(norm[0], norm[1], norm[2]);
-					//n -= Vector3(127, 127, 127);
-					//n.normalize();
-					dest.nx = int(norm[0]) + 128;
-					dest.ny = int(norm[1]) + 128;
-					dest.nz = int(norm[2]) + 128;
+					switch (attribs[VS::ARRAY_NORMAL].compression) {
+						case BGFXSurface::ATC_REGULAR: {
+							const int8_t *norm = (const int8_t *)&data[(n * stride) + attribs[VS::ARRAY_NORMAL].offset];
+							dest.nx = CLAMP(int(norm[0]) + 128, 0, 255);
+							dest.ny = CLAMP(int(norm[1]) + 128, 0, 255);
+							dest.nz = CLAMP(int(norm[2]) + 128, 0, 255);
+						} break;
+						case BGFXSurface::ATC_OCT16: {
+							const int8_t *oct_src = (const int8_t *)&data[(n * stride) + attribs[VS::ARRAY_NORMAL].offset];
+							Vector2 oct(oct_src[0] / 127.0, oct_src[1] / 127.0);
+							Vector3 norm = VS::oct_to_norm(oct);
+							dest.nx = CLAMP((norm.x + 1) * 127, 0, 255);
+							dest.ny = CLAMP((norm.y + 1) * 127, 0, 255);
+							dest.nz = CLAMP((norm.z + 1) * 127, 0, 255);
+						} break;
+						case BGFXSurface::ATC_OCT32: {
+							const int16_t *oct_src = (const int16_t *)&data[(n * stride) + attribs[VS::ARRAY_NORMAL].offset];
+							Vector2 oct(oct_src[0] / 32767.0, oct_src[1] / 32767.0);
+							Vector3 norm = VS::oct_to_norm(oct);
+							dest.nx = CLAMP((norm.x + 1) * 127, 0, 255);
+							dest.ny = CLAMP((norm.y + 1) * 127, 0, 255);
+							dest.nz = CLAMP((norm.z + 1) * 127, 0, 255);
+						} break;
+
+						default: {
+							ERR_PRINT("Not supported.");
+						} break;
+					}
 					dest.na = 0;
+					//print_line("normal (" + itos(dest.nx) + ", " + itos(dest.ny) + ", " + itos(dest.nz) + ")");
 				} break;
 				default: {
 					dest.nx = 0;

@@ -20,7 +20,22 @@ void IBL::draw(const Transform &p_model_xform, bgfx::VertexBufferHandle p_vb, bg
 	scene._mvp.model = p_model_xform;
 	scene._mvp.calc_model_view_proj();
 
+	// try setting view and model separately?
+#if 1
+	float proj16[16];
+	float view16[16];
+	float model16[16];
+	//	scene._mvp.view_proj
+	BGFX::camera_matrix_to_mat16(scene._mvp.projection, proj16);
+	BGFX::transform_to_mat16(scene._mvp.view, view16);
+	BGFX::transform_to_mat16(scene._mvp.model, model16);
+	bgfx::setViewTransform(scene.scene_view_id, view16, proj16);
+
+	bgfx::setTransform(model16);
+
+#else
 	bgfx::setTransform(scene._mvp.model_view_proj16);
+#endif
 
 	bgfx::setVertexBuffer(0, p_vb);
 	bgfx::setIndexBuffer(p_ib);
@@ -31,8 +46,15 @@ void IBL::draw(const Transform &p_model_xform, bgfx::VertexBufferHandle p_vb, bg
 
 	bgfx::setState(0 | BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A | BGFX_STATE_WRITE_Z | BGFX_STATE_DEPTH_TEST_LESS | BGFX_STATE_CULL_CCW);
 
+	moving_value += 0.01;
+	if (moving_value > 1.0) {
+		moving_value = 0.0;
+	}
+
 	_uniforms.m_glossiness = _settings.m_glossiness;
+	_uniforms.m_glossiness = moving_value; //_settings.m_glossiness;
 	_uniforms.m_reflectivity = _settings.m_reflectivity;
+	//_uniforms.m_reflectivity = moving_value;// _settings.m_reflectivity;
 	_uniforms.m_exposure = _settings.m_exposure;
 	_uniforms.m_bgType = _settings.m_bgType;
 	_uniforms.m_metalOrSpec = float(_settings.m_metalOrSpec);
@@ -50,17 +72,23 @@ void IBL::draw(const Transform &p_model_xform, bgfx::VertexBufferHandle p_vb, bg
 	static_assert(sizeof(real_t) == 4, "Change this if real_t is 64 bit.");
 	memcpy(_uniforms.m_cameraPos, &cam.origin, 3 * sizeof(float));
 
-	memcpy(_uniforms.m_mtx, scene._mvp.model_view_proj16, 16 * sizeof(float)); // Used for IBL.
+	// environmental rotation
+	float env_rot16[16];
+	Transform env_rot;
+	env_rot.rotate(Vector3(0, 1, 0), env_angle);
+	env_angle += 0.01f;
+	BGFX::transform_to_mat16(env_rot, env_rot16);
+	memcpy(_uniforms.m_mtx, env_rot16, 16 * sizeof(float)); // Used for IBL.
 
 	// All uniforms as one
 	bgfx::setUniform(data.uniform_params, _uniforms.m_params, NUM_VEC_4);
 
 	// Cubemaps
 
-	if (bgfx::isValid(scene.scene_current_texture)) {
-		bgfx::setTexture(0, data.uniform_sampler_texCube, scene.scene_current_texture);
-		bgfx::setTexture(1, data.uniform_sampler_texCubeIrr, scene.scene_current_texture);
-	}
+	//	if (bgfx::isValid(scene.scene_current_texture)) {
+	bgfx::setTexture(0, data.uniform_sampler_texCube, data.texture_radiance);
+	bgfx::setTexture(1, data.uniform_sampler_texCubeIrr, data.texture_irradiance);
+	//	}
 
 	bgfx::submit(scene.scene_view_id, data.program);
 }
@@ -89,15 +117,26 @@ void IBL::create() {
 void IBL::ensure_loaded() {
 	if (!data.loaded) {
 		data.loaded = true;
-		Ref<Image> im = memnew(Image);
-		//		im->load("res://Panoramas/bolonga_lod.dds");
-		//		Error err = im->load("res://icon.png");
-		//		Error err = im->load("res://Panoramas/bolonga_lod.dds");
-		Error err = im->load("res://Panoramas/rad_cubemap_bgr8.dds");
 
-		if (err != OK) {
-			print_line("failed loading");
+		const bgfx::Memory *rad_data = BGFX::loadFile("res://Panoramas/bolonga_lod.dds");
+		if (rad_data) {
+			data.texture_radiance = bgfx::createTexture(rad_data);
+		} else {
+			ERR_PRINT("Failed loading IBL radiance.");
 		}
+		const bgfx::Memory *irr_data = BGFX::loadFile("res://Panoramas/bolonga_irr.dds");
+		if (irr_data) {
+			data.texture_irradiance = bgfx::createTexture(irr_data);
+		} else {
+			ERR_PRINT("Failed loading IBL irradiance.");
+		}
+
+		//		Ref<Image> im = memnew(Image);
+		//		Error err = im->load("res://Panoramas/rad_cubemap_bgr8.dds");
+
+		//		if (err != OK) {
+		//			print_line("failed loading");
+		//		}
 	}
 }
 

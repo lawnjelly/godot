@@ -17,6 +17,8 @@ namespace BGFX {
 bgfx::ShaderHandle loadShader(const char *FILENAME);
 bgfx::ShaderHandle loadShaderOld(const char *FILENAME);
 
+const bgfx::Memory *loadFile(String p_filename);
+
 #pragma pack(push, 1)
 struct PosColorVertex {
 	float x = 0;

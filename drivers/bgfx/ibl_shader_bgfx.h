@@ -9,6 +9,8 @@ namespace BGFX {
 
 class IBL {
 	enum { NUM_VEC_4 = 12 };
+	float env_angle = 0.0;
+	float moving_value = 0.0;
 
 	struct Data {
 		bgfx::ProgramHandle program = BGFX_INVALID_HANDLE;
@@ -25,6 +27,9 @@ class IBL {
 		bgfx::UniformHandle uniform_sampler_texCubeIrr = BGFX_INVALID_HANDLE;
 
 		bgfx::TextureHandle current_texture = BGFX_INVALID_HANDLE;
+
+		bgfx::TextureHandle texture_radiance = BGFX_INVALID_HANDLE;
+		bgfx::TextureHandle texture_irradiance = BGFX_INVALID_HANDLE;
 
 		bool loaded = false;
 
@@ -67,8 +72,8 @@ class IBL {
 			m_lightCol[0] = 1.0f;
 			m_lightCol[1] = 1.0f;
 			m_lightCol[2] = 1.0f;
-			m_glossiness = 0.7f;
-			m_exposure = 0.0f;
+			m_glossiness = 0.7f; // 0.7
+			m_exposure = 0.0f; // 0
 			m_bgType = 3.0f;
 			m_radianceSlider = 2.0f;
 			m_reflectivity = 0.85f;
@@ -81,12 +86,12 @@ class IBL {
 			m_lod = 0.0f;
 			m_doDiffuse = false;
 			m_doSpecular = false;
-			m_doDiffuseIbl = true;
+			m_doDiffuseIbl = false; // true
 			m_doSpecularIbl = true;
 			m_showLightColorWheel = true;
 			m_showDiffColorWheel = true;
 			m_showSpecColorWheel = true;
-			m_metalOrSpec = 0;
+			m_metalOrSpec = 0; // 0
 			m_meshSelection = 0;
 		}
 
