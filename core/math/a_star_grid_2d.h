@@ -34,6 +34,7 @@
 #include "core/object/gdvirtual.gen.inc"
 #include "core/object/ref_counted.h"
 #include "core/object/script_language.h"
+#include "core/templates/bitfield_dynamic.h"
 #include "core/templates/list.h"
 #include "core/templates/local_vector.h"
 
@@ -68,71 +69,138 @@ private:
 	Heuristic default_compute_heuristic = HEURISTIC_EUCLIDEAN;
 	Heuristic default_estimate_heuristic = HEURISTIC_EUCLIDEAN;
 
-	struct Point {
-		Vector2i id;
+	// Temporary data used for pathfinding.
+	struct Pass {
+		Vector2i point;
+		uint32_t prev_pass_id = UINT32_MAX;
 
-		bool solid = false;
-		Vector2 pos;
-		real_t weight_scale = 1.0;
-
-		// Used for pathfinding.
-		Point *prev_point = nullptr;
 		real_t g_score = 0;
 		real_t f_score = 0;
-		uint64_t open_pass = 0;
-		uint64_t closed_pass = 0;
 
-		Point() {}
+		Pass() {}
 
-		Point(const Vector2i &p_id, const Vector2 &p_pos) :
-				id(p_id), pos(p_pos) {}
-	};
-
-	struct SortPoints {
-		_FORCE_INLINE_ bool operator()(const Point *A, const Point *B) const { // Returns true when the Point A is worse than Point B.
-			if (A->f_score > B->f_score) {
-				return true;
-			} else if (A->f_score < B->f_score) {
-				return false;
-			} else {
-				return A->g_score < B->g_score; // If the f_costs are the same then prioritize the points that are further away from the start.
-			}
+		Pass(const Vector2i &p_point, real_t p_g_score = 0, real_t p_f_score = 0) :
+				point(p_point), g_score(p_g_score), f_score(p_f_score) {
 		}
 	};
 
-	LocalVector<LocalVector<Point>> points;
-	Point *end = nullptr;
+	// Compact storage for data required for the whole map.
+	struct MapPoint {
+		float weight_scale = 1.0;
+	};
 
-	uint64_t pass = 1;
+	class Map {
+		BitFieldDynamic2D _bf_solid;
+		LocalVector<MapPoint> _points;
+
+	public:
+		void create(uint32_t p_width, uint32_t p_height) {
+			_bf_solid.create(p_width, p_height);
+			_points.resize(get_map_size());
+		}
+
+		void clear() {
+			_bf_solid.destroy();
+			_points.clear();
+		}
+		void destroy() {
+			clear();
+		}
+		uint32_t get_index(uint32_t p_x, uint32_t p_y) const { return _bf_solid.get_index(p_x, p_y); }
+		uint32_t get_map_width() const { return _bf_solid.get_width(); }
+		uint32_t get_map_height() const { return _bf_solid.get_height(); }
+		uint32_t get_map_size() const { return _bf_solid.get_num_bits(); }
+		bool is_on_map(uint32_t p_x, uint32_t p_y) const { return _bf_solid.is_within(p_x, p_y); }
+		bool is_solid(uint32_t p_x, uint32_t p_y) const { return _bf_solid.get_bit(p_x, p_y); }
+		void set_solid(uint32_t p_x, uint32_t p_y, uint32_t p_solid) { _bf_solid.set_bit(p_x, p_y, p_solid); }
+		MapPoint &get_point(uint32_t p_x, uint32_t p_y) {
+			uint32_t id = get_index(p_x, p_y);
+			return _points[id];
+		}
+		const MapPoint &get_point(uint32_t p_x, uint32_t p_y) const {
+			uint32_t id = get_index(p_x, p_y);
+			return _points[id];
+		}
+	} map;
+
+public:
+	class OpenList {
+		LocalVector<Pass> passes;
+		LocalVector<uint32_t> pass_map;
+		uint32_t _width = 0;
+		uint32_t _height = 0;
+
+	public:
+		LocalVector<uint32_t> sorted_pass_ids;
+		BitFieldDynamic2D bf_closed;
+		BitFieldDynamic2D bf_visited;
+
+		void create(uint32_t p_width, uint32_t p_height) {
+			_width = p_width;
+			_height = p_height;
+			pass_map.resize(p_width * p_height);
+			// no need to blank, as we use a bitfield to record whether visited already
+			bf_closed.create(_width, _height);
+			bf_visited.create(_width, _height);
+		}
+		void debug();
+
+		Pass *request_pass(uint32_t &r_pass_id) {
+			r_pass_id = passes.size();
+			passes.resize(passes.size() + 1);
+			return &passes[r_pass_id];
+		}
+		void sorted_add_pass(uint32_t p_pass_id) {
+			// record in the pass map
+			const Pass &pass = passes[p_pass_id];
+			pass_map[(pass.point.y * _width) + pass.point.x] = p_pass_id;
+
+			// add to the sorted list
+			sorted_pass_ids.push_back(p_pass_id);
+		}
+		Pass &get_pass_at(uint32_t p_x, uint32_t p_y, uint32_t &r_id) {
+			r_id = pass_map[(p_y * _width) + p_x];
+			return passes[r_id];
+		}
+		Pass &get_pass(uint32_t p_id) {
+			return passes[p_id];
+		}
+
+		Pass *pop_pass(uint32_t &r_pass_id) {
+			DEV_ASSERT(sorted_pass_ids.size());
+			uint32_t id = sorted_pass_ids[sorted_pass_ids.size() - 1];
+			sorted_pass_ids.resize(sorted_pass_ids.size() - 1);
+			DEV_ASSERT(id < passes.size());
+			r_pass_id = id;
+			return &passes[id];
+		}
+		bool is_empty() const {
+			return sorted_pass_ids.is_empty();
+		}
+	};
 
 private: // Internal routines.
 	_FORCE_INLINE_ bool _is_walkable(int64_t p_x, int64_t p_y) const {
-		if (p_x >= 0 && p_y >= 0 && p_x < size.width && p_y < size.height) {
-			return !points[p_y][p_x].solid;
+		if (map.is_on_map(p_x, p_y)) {
+			return !map.is_solid(p_x, p_y);
 		}
+
 		return false;
 	}
-
-	_FORCE_INLINE_ Point *_get_point(int64_t p_x, int64_t p_y) {
-		if (p_x >= 0 && p_y >= 0 && p_x < size.width && p_y < size.height) {
-			return &points[p_y][p_x];
-		}
-		return nullptr;
+	Vector2 _map_position(const Vector2i &p_pos) const {
+		return Vector2(offset + (Vector2(p_pos.x, p_pos.y) * cell_size));
 	}
 
-	_FORCE_INLINE_ Point *_get_point_unchecked(int64_t p_x, int64_t p_y) {
-		return &points[p_y][p_x];
-	}
-
-	void _get_nbors(Point *p_point, List<Point *> &r_nbors);
-	Point *_jump(Point *p_from, Point *p_to);
-	bool _solve(Point *p_begin_point, Point *p_end_point);
+	void _get_nbors(const Vector2i &p_center, LocalVector<Vector2i> &r_nbors) const;
+	bool _append_if_non_solid(int p_x, int p_y, LocalVector<Vector2i> &r_nbors) const;
+	bool _solve(const Vector2i &p_begin, const Vector2i &p_end, List<Vector2i> &r_path) const;
+	void _debug_open_list(const OpenList &p_open_list);
 
 protected:
 	static void _bind_methods();
 
-	virtual real_t _estimate_cost(const Vector2i &p_from_id, const Vector2i &p_to_id);
-	virtual real_t _compute_cost(const Vector2i &p_from_id, const Vector2i &p_to_id);
+	virtual real_t _estimate_cost(const Vector2i &p_from_id, const Vector2i &p_to_id) const;
+	virtual real_t _compute_cost(const Vector2i &p_from_id, const Vector2i &p_to_id) const;
 
 	GDVIRTUAL2RC(real_t, _estimate_cost, Vector2i, Vector2i)
 	GDVIRTUAL2RC(real_t, _compute_cost, Vector2i, Vector2i)
@@ -152,8 +220,13 @@ public:
 	int get_width() const;
 	int get_height() const;
 
-	bool is_in_bounds(int p_x, int p_y) const;
-	bool is_in_boundsv(const Vector2i &p_id) const;
+	_FORCE_INLINE_ bool is_in_bounds(int p_x, int p_y) const {
+		return p_x >= 0 && p_x < size.width && p_y >= 0 && p_y < size.height;
+	}
+	_FORCE_INLINE_ bool is_in_boundsv(const Vector2i &p_id) const {
+		return p_id.x >= 0 && p_id.x < size.width && p_id.y >= 0 && p_id.y < size.height;
+	}
+
 	bool is_dirty() const;
 
 	void set_jumping_enabled(bool p_enabled);
@@ -177,8 +250,8 @@ public:
 	void clear();
 
 	Vector2 get_point_position(const Vector2i &p_id) const;
-	Vector<Vector2> get_point_path(const Vector2i &p_from, const Vector2i &p_to);
-	TypedArray<Vector2i> get_id_path(const Vector2i &p_from, const Vector2i &p_to);
+	Vector<Vector2> get_point_path(const Vector2i &p_from, const Vector2i &p_to) const;
+	TypedArray<Vector2i> get_id_path(const Vector2i &p_from, const Vector2i &p_to) const;
 };
 
 VARIANT_ENUM_CAST(AStarGrid2D::DiagonalMode);
