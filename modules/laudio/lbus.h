@@ -26,7 +26,7 @@ public:
 };
 
 class LBuses {
-	TrackedPooledList_Handled<LBus *> _buses;
+	HandledPool<LBus *> _buses;
 
 public:
 	LBus *get_bus(uint32_t p_bus_handle);

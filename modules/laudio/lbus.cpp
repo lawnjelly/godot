@@ -37,8 +37,8 @@ LBus *LBuses::get_bus(uint32_t p_bus_handle) {
 }
 
 uint32_t LBuses::alloc_bus(LBus *p_bus) {
-	BusHandle handle = _buses.request();
-	LBus **pp = _buses.get(handle);
+	BusHandle handle;
+	LBus **pp = _buses.request(handle);
 	DEV_ASSERT(pp);
 	*pp = p_bus;
 	return handle.get_value();

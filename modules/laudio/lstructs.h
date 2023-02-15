@@ -1,6 +1,8 @@
 #pragma once
 
-#include <stdint.h>
+#include "lhandle.h"
+
+typedef Handle_24_8 LHandle;
 
 struct LTiming {
 	// ticks per quarter note (we use tick terminology rather than pulses)
