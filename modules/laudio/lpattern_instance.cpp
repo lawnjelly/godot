@@ -3,6 +3,8 @@
 #include "lsong.h"
 #include "scene/main/viewport.h"
 
+Pattern::DragData Pattern::drag_data;
+
 String LPatternInstance::get_name() const {
 	LPattern *p = get_pattern();
 	if (p) {
@@ -45,9 +47,52 @@ void Pattern::_gui_input(const Ref<InputEvent> &p_event) {
 		//was_mouse_pressed = false;
 
 		if (mouse_button->is_pressed()) {
-			_pattern_pressed();
+			if (!drag_data.dragging) {
+				_pattern_pressed();
+				LPatternInstance *pi = get_pattern_instance();
+				drag_data.dragging = true;
+				print_line("setting drag origin");
+				drag_data.drag_origin = mouse_button->get_position();
+				drag_data.relative_drag = 0;
+				if (pi) {
+					drag_data.orig_tick_start = pi->data.tick_start;
+				}
+			}
+			//			else
+			//			{
+			//				Vector2 offset = mouse_button->get_position() - drag_data.drag_origin;
+			//				if (pi)
+			//				{
+			//					pi->data.tick_start = drag_data.orig_tick_start + (int32_t) offset.x;
+			//					print_line("new tick start " + itos(pi->data.tick_start));
+			//				}
+			//			}
 			//print_line("button pressed");
 			return;
+		} else {
+			drag_data.dragging = false;
+		}
+	}
+
+	Ref<InputEventMouseMotion> motion = p_event;
+	if (motion.is_valid() && drag_data.dragging) {
+		LPatternInstance *pi = get_pattern_instance();
+		if (pi) {
+			drag_data.relative_drag += motion->get_relative().x;
+
+			//Vector2 offset = motion->get_position() - drag_data.drag_origin;
+			//print_line("offset : " + String(Variant(offset)));
+			//print_line(motion->as_text());
+
+			//offset.x = drag_data.relative_drag;
+
+			//Song::get_current_song()->patterni_set_tick_start(drag_data.orig_tick_start + (int32_t)offset.x);
+			Song::get_current_song()->patterni_set_tick_start(drag_data.orig_tick_start + drag_data.relative_drag);
+			Song::get_current_song()->update_inspector();
+
+			//pi->data.tick_start = drag_data.orig_tick_start + (int32_t)offset.x;
+			//print_line("new tick start " + itos(pi->data.tick_start));
+			//refresh_position();
 		}
 	}
 }
@@ -63,13 +108,22 @@ void Pattern::_pattern_pressed() {
 }
 
 void Pattern::set_text(String p_text) {
-	data.text = p_text;
-	update();
+	if (p_text != data.text) {
+		data.text = p_text;
+		update();
+	}
 }
 
 void Pattern::set_selected(bool p_selected) {
 	data.selected = p_selected;
-	//	update();
+	update();
+}
+
+void Pattern::refresh_text() {
+	LPatternInstance *pi = get_pattern_instance();
+	if (pi) {
+		set_text(pi->get_name());
+	}
 }
 
 void Pattern::refresh_position() {
@@ -77,7 +131,6 @@ void Pattern::refresh_position() {
 	if (pi) {
 		set_position(Point2(pi->data.tick_start, 0));
 		set_size(Size2(pi->get_tick_length(), 24));
-		set_text(pi->get_name());
 	}
 }
 
@@ -88,6 +141,7 @@ void Pattern::_notification(int p_what) {
 		} break;
 		case NOTIFICATION_ENTER_TREE: {
 			refresh_position();
+			refresh_text();
 		} break;
 		case NOTIFICATION_EXIT_TREE: {
 		} break;

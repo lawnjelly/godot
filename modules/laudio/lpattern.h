@@ -5,9 +5,9 @@
 #include <stdint.h>
 
 class LPattern {
-	LocalVector<LNote> _notes;
-
 public:
+	LocalVector<LNote> notes;
+
 	struct Data {
 		int32_t refcount = 0;
 
@@ -28,6 +28,28 @@ public:
 
 	void calculate_length();
 	String get_name() const { return data.name; }
+	LNote *get_note(uint32_t p_id) {
+		if (p_id < notes.size()) {
+			return &notes[p_id];
+		}
+		return nullptr;
+	}
+
+	uint32_t create_note(uint32_t p_after_note) {
+		if (p_after_note < notes.size()) {
+			LNote old = notes[p_after_note];
+			notes.insert(p_after_note, old);
+			return p_after_note + 1;
+		}
+
+		LNote newnote;
+		notes.insert(0, newnote);
+		return 0;
+	}
+
+	void sort_notes() {
+		notes.sort();
+	}
 
 	bool release() {
 		data.refcount--;

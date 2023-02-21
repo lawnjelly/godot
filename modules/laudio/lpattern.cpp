@@ -1,7 +1,7 @@
 #include "lpattern.h"
 
 void LPattern::calculate_length() {
-	if (!_notes.size()) {
+	if (!notes.size()) {
 		data.reset();
 		return;
 	}
@@ -10,8 +10,8 @@ void LPattern::calculate_length() {
 	int32_t tick_end = INT32_MIN;
 	data.tick_length = 0;
 
-	for (uint32_t n = 0; n < _notes.size(); n++) {
-		const LNote &note = _notes[n];
+	for (uint32_t n = 0; n < notes.size(); n++) {
+		const LNote &note = notes[n];
 		int32_t start = note.tick_start;
 		int32_t end = start + note.tick_length;
 		data.tick_start = MIN(data.tick_start, start);

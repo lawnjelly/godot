@@ -8,12 +8,14 @@
 #include "linstrument.h"
 #include "lpattern_instance.h"
 #include "lsong.h"
+#include "pattern_view.h"
 
 void register_laudio_types() {
 	ClassDB::register_class<LBus>();
 	ClassDB::register_class<LInstrument>();
 	ClassDB::register_class<LAudioPlayer>();
 	ClassDB::register_class<Pattern>();
+	ClassDB::register_class<PatternView>();
 	ClassDB::register_class<Song>();
 
 #ifdef TOOLS_ENABLED

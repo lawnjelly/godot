@@ -43,6 +43,28 @@
 		return FAIL_VALUE;                                  \
 	}
 
+#define NOTE_GET_SET(VAR_NAME, TYPE, FAIL_VALUE)                             \
+	void LA_LITCAT(note_set_, VAR_NAME)(uint32_t p_note_id, TYPE VAR_NAME) { \
+		LPattern *pi = get_pattern();                                        \
+		if (pi) {                                                            \
+			LNote *_note = pi->get_note(p_note_id);                          \
+			if (_note) {                                                     \
+				_note->VAR_NAME = VAR_NAME;                                  \
+			}                                                                \
+			_notes_dirty = true;                                             \
+		}                                                                    \
+	}                                                                        \
+	TYPE LA_LITCAT(note_get_, VAR_NAME)(uint32_t p_note_id) const {          \
+		LPattern *pi = get_pattern();                                        \
+		if (pi) {                                                            \
+			LNote *_note = pi->get_note(p_note_id);                          \
+			if (_note) {                                                     \
+				return _note->VAR_NAME;                                      \
+			}                                                                \
+		}                                                                    \
+		return FAIL_VALUE;                                                   \
+	}
+
 class LApp {
 public:
 	HandledPool<LPattern> patterns;
@@ -50,6 +72,8 @@ public:
 };
 
 extern LApp g_lapp;
+
+class PatternView;
 
 class LSong {
 public:
@@ -61,11 +85,14 @@ public:
 	~LSong();
 };
 
-class Song : public Control {
-	GDCLASS(Song, Control);
+class Song : public Node {
+	GDCLASS(Song, Node);
 	LSong _song;
 
 	Pattern *_selected_pattern = nullptr;
+	PatternView *_pattern_view = nullptr;
+	uint32_t _current_note_id = 0;
+
 	void _log(String p_sz);
 
 	static Song *_current_song;
@@ -73,6 +100,7 @@ class Song : public Control {
 	LPattern *get_pattern() const;
 	LPatternInstance *get_patterni() const;
 	bool _pattern_dirty = false;
+	bool _notes_dirty = false;
 
 protected:
 	void _notification(int p_what);
@@ -84,18 +112,31 @@ public:
 	static Song *get_current_song() { return _current_song; }
 	LSong &get_lsong() { return _song; }
 
-	void create_pattern_view();
+	void set_pattern_view(Node *p_pattern_view);
 
 	void pattern_create();
 	void pattern_duplicate();
 	void pattern_delete();
 	void pattern_select(Node *p_node);
 
+	void update_inspector();
+	void update_byteview();
+
 	PATTERNI_GET_SET(tick_start, int32_t, 0)
 
 	PATTERN_GET_SET(name, String, "")
 	PATTERN_GET_SET(tick_start, int32_t, 0)
 	PATTERN_GET_SET(tick_length, int32_t, 0)
+
+	NOTE_GET_SET(tick_start, int32_t, 0)
+	NOTE_GET_SET(tick_length, int32_t, 0)
+	NOTE_GET_SET(note, int32_t, 60)
+	NOTE_GET_SET(velocity, int32_t, 100)
+
+	uint32_t note_create();
+	void note_delete();
+	void note_select(uint32_t p_note_id);
+	uint32_t note_size();
 
 	Song();
 	virtual ~Song();

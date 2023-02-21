@@ -18,8 +18,11 @@ struct LTiming {
 };
 
 struct LNote {
-	int32_t tick_start;
-	uint32_t tick_length;
-	uint16_t note;
-	uint16_t velocity;
+	int32_t tick_start = 0;
+	int32_t tick_length = 32;
+	int32_t note = 60;
+	int32_t velocity = 100;
+	bool operator<(const LNote &p_other) const {
+		return tick_start < p_other.tick_start;
+	}
 };

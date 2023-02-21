@@ -35,6 +35,14 @@ class Pattern : public Control {
 		LHandle handle_pattern_instance;
 	} data;
 
+	struct DragData {
+		bool dragging = false;
+		Vector2 drag_origin;
+		int32_t orig_tick_start = 0;
+		int32_t relative_drag = 0;
+	};
+	static DragData drag_data;
+
 	void _pattern_pressed();
 
 protected:
@@ -51,6 +59,7 @@ public:
 	LPatternInstance *get_pattern_instance() const;
 	void pattern_delete();
 	void refresh_position();
+	void refresh_text();
 	void set_selected(bool p_selected);
 
 	Pattern();
