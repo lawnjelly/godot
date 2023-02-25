@@ -9,6 +9,7 @@
 #include "lpattern_instance.h"
 #include "lsong.h"
 #include "pattern_view.h"
+#include "virtual_box_container.h"
 
 void register_laudio_types() {
 	ClassDB::register_class<LBus>();
@@ -18,6 +19,8 @@ void register_laudio_types() {
 	ClassDB::register_class<PatternView>();
 	ClassDB::register_class<Song>();
 
+	ClassDB::register_class<VirtualBoxContainer>();
+	ClassDB::register_class<VirtualVBoxContainer>();
 #ifdef TOOLS_ENABLED
 	//   EditorPlugins::add_by_type<LLightmapEditorPlugin>();
 #endif

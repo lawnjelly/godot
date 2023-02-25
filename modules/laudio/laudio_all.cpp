@@ -10,6 +10,7 @@
 #include "lsong.cpp"
 
 #include "pattern_view.cpp"
+#include "virtual_box_container.cpp"
 
 #include "lwav_importer.cpp"
 #include "register_types.cpp"
