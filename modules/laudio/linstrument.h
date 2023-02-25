@@ -18,4 +18,5 @@ public:
 	bool load(String p_filename);
 	void play(uint32_t p_dest_start_sample = 0);
 	void set_output_bus(uint32_t p_bus_handle);
+	const char *get_name() const { return "Sampler"; }
 };

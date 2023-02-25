@@ -22,3 +22,37 @@ void LPattern::calculate_length() {
 		data.tick_length = tick_end - data.tick_start;
 	}
 }
+
+uint32_t LPattern::sort_notes(uint32_t p_old_selected_note) {
+	// keep the current note ID up to date
+	uint32_t note_id = p_old_selected_note;
+
+	bool moved = true;
+	while (moved) {
+		moved = false;
+
+		const LNote &curr = notes[note_id];
+		if (note_id > 0) {
+			// try moving back
+			const LNote &prev = notes[note_id - 1];
+			if (prev.tick_start > curr.tick_start) {
+				SWAP(notes[note_id], notes[note_id - 1]);
+				note_id--;
+				moved = true;
+				continue;
+			}
+		}
+		if (note_id < notes.size() - 1) {
+			// try moving forward
+			const LNote &next = notes[note_id + 1];
+			if (next.tick_start < curr.tick_start) {
+				SWAP(notes[note_id], notes[note_id + 1]);
+				note_id++;
+				moved = true;
+				continue;
+			}
+		}
+	}
+	//notes.sort();
+	return note_id;
+}

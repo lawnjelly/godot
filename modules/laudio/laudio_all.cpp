@@ -3,8 +3,10 @@
 #include "linstrument.cpp"
 #include "lsample.cpp"
 
+#include "lmidi_file.cpp"
 #include "lpattern.cpp"
 #include "lpattern_instance.cpp"
+#include "lplayer.cpp"
 #include "lsong.cpp"
 
 #include "pattern_view.cpp"

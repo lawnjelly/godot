@@ -53,9 +53,11 @@ void Pattern::_gui_input(const Ref<InputEvent> &p_event) {
 				drag_data.dragging = true;
 				print_line("setting drag origin");
 				drag_data.drag_origin = mouse_button->get_position();
-				drag_data.relative_drag = 0;
+				drag_data.relative_drag_x = 0;
+				drag_data.relative_drag_y = 0;
 				if (pi) {
 					drag_data.orig_tick_start = pi->data.tick_start;
+					drag_data.orig_track = pi->data.track;
 				}
 			}
 			//			else
@@ -78,7 +80,8 @@ void Pattern::_gui_input(const Ref<InputEvent> &p_event) {
 	if (motion.is_valid() && drag_data.dragging) {
 		LPatternInstance *pi = get_pattern_instance();
 		if (pi) {
-			drag_data.relative_drag += motion->get_relative().x;
+			drag_data.relative_drag_x += motion->get_relative().x;
+			drag_data.relative_drag_y += motion->get_relative().y;
 
 			//Vector2 offset = motion->get_position() - drag_data.drag_origin;
 			//print_line("offset : " + String(Variant(offset)));
@@ -87,7 +90,12 @@ void Pattern::_gui_input(const Ref<InputEvent> &p_event) {
 			//offset.x = drag_data.relative_drag;
 
 			//Song::get_current_song()->patterni_set_tick_start(drag_data.orig_tick_start + (int32_t)offset.x);
-			Song::get_current_song()->patterni_set_tick_start(drag_data.orig_tick_start + drag_data.relative_drag);
+			Song::get_current_song()->patterni_set_tick_start(drag_data.orig_tick_start + drag_data.relative_drag_x);
+
+			int32_t track = drag_data.orig_track + (drag_data.relative_drag_y / 24);
+			track = CLAMP(track, 0, 15);
+			Song::get_current_song()->patterni_set_track(track);
+
 			Song::get_current_song()->update_inspector();
 
 			//pi->data.tick_start = drag_data.orig_tick_start + (int32_t)offset.x;
@@ -129,7 +137,7 @@ void Pattern::refresh_text() {
 void Pattern::refresh_position() {
 	LPatternInstance *pi = get_pattern_instance();
 	if (pi) {
-		set_position(Point2(pi->data.tick_start, 0));
+		set_position(Point2(pi->data.tick_start, pi->data.track * 28));
 		set_size(Size2(pi->get_tick_length(), 24));
 	}
 }
@@ -174,7 +182,7 @@ void Pattern::_draw() {
 
 	RID ci = get_canvas_item();
 
-	Color col = data.selected ? Color(0.5, 0.2, 0.2, 1) : Color(0.2, 0.2, 0.2, 1);
+	Color col = data.selected ? Color(0.2, 0.2, 0.5, 1) : Color(0.2, 0.2, 0.2, 1);
 
 	draw_rect(Rect2(Point2(), size), col);
 

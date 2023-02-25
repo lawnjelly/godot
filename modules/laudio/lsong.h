@@ -3,6 +3,7 @@
 #include "lhandle.h"
 #include "lpattern.h"
 #include "lpattern_instance.h"
+#include "lplayer.h"
 #include "lstructs.h"
 
 #define LA_STRINGIFY(A) #A
@@ -74,12 +75,15 @@ public:
 extern LApp g_lapp;
 
 class PatternView;
+class LInstrument;
 
 class LSong {
 public:
 	//	HandledPool<LPattern> _patterns;
 	//	HandledPool<LPatternInstance> _pattern_instances;
 	LTiming _timing;
+	LPlayers _players;
+	LTracks _tracks;
 
 	LSong();
 	~LSong();
@@ -111,6 +115,7 @@ protected:
 public:
 	static Song *get_current_song() { return _current_song; }
 	LSong &get_lsong() { return _song; }
+	const LSong &get_lsong() const { return _song; }
 
 	void set_pattern_view(Node *p_pattern_view);
 
@@ -121,22 +126,49 @@ public:
 
 	void update_inspector();
 	void update_byteview();
+	void update_all();
 
 	PATTERNI_GET_SET(tick_start, int32_t, 0)
+	PATTERNI_GET_SET(track, int32_t, 0)
+	PATTERNI_GET_SET(transpose, int32_t, 0)
 
 	PATTERN_GET_SET(name, String, "")
 	PATTERN_GET_SET(tick_start, int32_t, 0)
 	PATTERN_GET_SET(tick_length, int32_t, 0)
 
+	PATTERN_GET_SET(player_a, int32_t, 0)
+	PATTERN_GET_SET(player_b, int32_t, 0)
+	PATTERN_GET_SET(player_c, int32_t, 0)
+	PATTERN_GET_SET(player_d, int32_t, 0)
+
+	PATTERN_GET_SET(transpose, int32_t, 0)
+
+	PATTERN_GET_SET(quantize_a, int32_t, 0)
+	PATTERN_GET_SET(quantize_b, int32_t, 0)
+
 	NOTE_GET_SET(tick_start, int32_t, 0)
 	NOTE_GET_SET(tick_length, int32_t, 0)
 	NOTE_GET_SET(note, int32_t, 60)
 	NOTE_GET_SET(velocity, int32_t, 100)
+	NOTE_GET_SET(player, int32_t, 0)
 
 	uint32_t note_create();
 	void note_delete();
 	void note_select(uint32_t p_note_id);
 	uint32_t note_size();
+	uint32_t note_get_selected() const;
+
+	void player_set_instrument(uint32_t p_player_id, Ref<LInstrument> p_instrument);
+	Ref<LInstrument> player_get_instrument(uint32_t p_player_id);
+	void player_clear(uint32_t p_player_id);
+	String player_get_name(uint32_t p_player_id);
+
+	void track_set_name(uint32_t p_track, String p_name);
+	String track_get_name(uint32_t p_track) const;
+	void track_set_active(uint32_t p_track, bool p_active);
+	bool track_get_active(uint32_t p_track) const;
+
+	bool song_import_midi(String p_filename);
 
 	Song();
 	virtual ~Song();

@@ -14,15 +14,25 @@ public:
 		// the first note can be BEFORE the pattern start,
 		// or after. It doesn't have to occur exactly at pattern start.
 		int32_t tick_start = 0;
-		int32_t tick_length = 256;
+		int32_t tick_length = 192;
 		int32_t tick_end() const { return tick_start + tick_length; }
+
+		int32_t player_a = 0;
+		int32_t player_b = 0;
+		int32_t player_c = 0;
+		int32_t player_d = 0;
+
+		int32_t transpose = 0;
+
+		int32_t quantize_a = 24;
+		int32_t quantize_b = 16;
 
 		String name = "unnamed";
 		LHandle handle;
 
 		void reset() {
 			tick_start = 0;
-			tick_length = 0;
+			tick_length = 192;
 		}
 	} data;
 
@@ -47,9 +57,7 @@ public:
 		return 0;
 	}
 
-	void sort_notes() {
-		notes.sort();
-	}
+	uint32_t sort_notes(uint32_t p_old_selected_note);
 
 	bool release() {
 		data.refcount--;

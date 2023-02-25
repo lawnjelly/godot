@@ -12,6 +12,8 @@ class LPatternInstance {
 public:
 	struct Data {
 		int32_t tick_start = 0;
+		int32_t track = 0;
+		int32_t transpose = 0;
 	} data;
 
 	String get_name() const;
@@ -39,7 +41,9 @@ class Pattern : public Control {
 		bool dragging = false;
 		Vector2 drag_origin;
 		int32_t orig_tick_start = 0;
-		int32_t relative_drag = 0;
+		int32_t orig_track = 0;
+		int32_t relative_drag_x = 0;
+		int32_t relative_drag_y = 0;
 	};
 	static DragData drag_data;
 

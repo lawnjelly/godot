@@ -4,6 +4,22 @@
 
 typedef Handle_24_8 LHandle;
 
+struct LTrack {
+	String name;
+	bool active = true;
+};
+
+struct LTracks {
+	enum { MAX_TRACKS = 32 };
+	LTrack tracks[MAX_TRACKS];
+
+	LTracks() {
+		for (uint32_t n = 0; n < MAX_TRACKS; n++) {
+			tracks[n].name = "Track " + itos(n);
+		}
+	}
+};
+
 struct LTiming {
 	// ticks per quarter note (we use tick terminology rather than pulses)
 	uint32_t tpqn = 192;
@@ -22,6 +38,7 @@ struct LNote {
 	int32_t tick_length = 32;
 	int32_t note = 60;
 	int32_t velocity = 100;
+	int32_t player = 0;
 	bool operator<(const LNote &p_other) const {
 		return tick_start < p_other.tick_start;
 	}
