@@ -1,8 +1,7 @@
 #pragma once
 
 #include "core/reference.h"
-
-class LInstrument;
+#include "linstrument.h"
 
 class LPlayer {
 public:

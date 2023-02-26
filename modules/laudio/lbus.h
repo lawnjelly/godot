@@ -2,7 +2,7 @@
 
 #include "core/reference.h"
 #include "lhandle.h"
-#include "lsample.h"
+#include "sample/lsample.h"
 
 typedef Handle_24_8 BusHandle;
 

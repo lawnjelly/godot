@@ -24,6 +24,10 @@ void LPattern::calculate_length() {
 }
 
 uint32_t LPattern::sort_notes(uint32_t p_old_selected_note) {
+	if (p_old_selected_note >= notes.size()) {
+		return 0;
+	}
+
 	// keep the current note ID up to date
 	uint32_t note_id = p_old_selected_note;
 

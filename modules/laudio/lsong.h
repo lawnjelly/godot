@@ -3,8 +3,8 @@
 #include "lhandle.h"
 #include "lpattern.h"
 #include "lpattern_instance.h"
-#include "lplayer.h"
 #include "lstructs.h"
+#include "player/lplayer.h"
 
 #define LA_STRINGIFY(A) #A
 #define LA_TOSTRING(A) LA_STRINGIFY(A)
@@ -28,20 +28,23 @@
 		return FAIL_VALUE;                                   \
 	}
 
-#define PATTERN_GET_SET(VAR_NAME, TYPE, FAIL_VALUE)         \
-	void LA_LITCAT(pattern_set_, VAR_NAME)(TYPE VAR_NAME) { \
-		LPattern *pi = get_pattern();                       \
-		if (pi) {                                           \
-			pi->data.VAR_NAME = VAR_NAME;                   \
-			_pattern_dirty = true;                          \
-		}                                                   \
-	}                                                       \
-	TYPE LA_LITCAT(pattern_get_, VAR_NAME)() const {        \
-		LPattern *pi = get_pattern();                       \
-		if (pi) {                                           \
-			return pi->data.VAR_NAME;                       \
-		}                                                   \
-		return FAIL_VALUE;                                  \
+#define PATTERN_GET_SET(VAR_NAME, TYPE, FAIL_VALUE, DIRTY_NOTES) \
+	void LA_LITCAT(pattern_set_, VAR_NAME)(TYPE VAR_NAME) {      \
+		LPattern *pi = get_pattern();                            \
+		if (pi) {                                                \
+			pi->data.VAR_NAME = VAR_NAME;                        \
+			_pattern_dirty = true;                               \
+			if (DIRTY_NOTES) {                                   \
+				_notes_dirty = true;                             \
+			}                                                    \
+		}                                                        \
+	}                                                            \
+	TYPE LA_LITCAT(pattern_get_, VAR_NAME)() const {             \
+		LPattern *pi = get_pattern();                            \
+		if (pi) {                                                \
+			return pi->data.VAR_NAME;                            \
+		}                                                        \
+		return FAIL_VALUE;                                       \
 	}
 
 #define NOTE_GET_SET(VAR_NAME, TYPE, FAIL_VALUE)                             \
@@ -126,25 +129,29 @@ public:
 
 	void update_inspector();
 	void update_byteview();
+	void update_patternview();
+	void update_trackview();
+	void update_playerview();
 	void update_all();
 
 	PATTERNI_GET_SET(tick_start, int32_t, 0)
 	PATTERNI_GET_SET(track, int32_t, 0)
 	PATTERNI_GET_SET(transpose, int32_t, 0)
 
-	PATTERN_GET_SET(name, String, "")
-	PATTERN_GET_SET(tick_start, int32_t, 0)
-	PATTERN_GET_SET(tick_length, int32_t, 0)
+	PATTERN_GET_SET(name, String, "", false)
+	PATTERN_GET_SET(tick_start, int32_t, 0, false)
+	PATTERN_GET_SET(tick_length, int32_t, 0, false)
 
-	PATTERN_GET_SET(player_a, int32_t, 0)
-	PATTERN_GET_SET(player_b, int32_t, 0)
-	PATTERN_GET_SET(player_c, int32_t, 0)
-	PATTERN_GET_SET(player_d, int32_t, 0)
+	PATTERN_GET_SET(player_a, int32_t, 0, false)
+	PATTERN_GET_SET(player_b, int32_t, 0, false)
+	PATTERN_GET_SET(player_c, int32_t, 0, false)
+	PATTERN_GET_SET(player_d, int32_t, 0, false)
 
-	PATTERN_GET_SET(transpose, int32_t, 0)
+	PATTERN_GET_SET(transpose, int32_t, 0, false)
 
-	PATTERN_GET_SET(quantize_a, int32_t, 0)
-	PATTERN_GET_SET(quantize_b, int32_t, 0)
+	PATTERN_GET_SET(time_sig_micro, int32_t, 0, true)
+	PATTERN_GET_SET(time_sig_minor, int32_t, 0, true)
+	PATTERN_GET_SET(time_sig_major, int32_t, 0, true)
 
 	NOTE_GET_SET(tick_start, int32_t, 0)
 	NOTE_GET_SET(tick_length, int32_t, 0)

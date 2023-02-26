@@ -1,16 +1,20 @@
 #include "laudio_player.cpp"
 #include "lbus.cpp"
-#include "linstrument.cpp"
-#include "lsample.cpp"
 
-#include "lmidi_file.cpp"
 #include "lpattern.cpp"
 #include "lpattern_instance.cpp"
-#include "lplayer.cpp"
 #include "lsong.cpp"
 
-#include "pattern_view.cpp"
-#include "virtual_box_container.cpp"
+#include "player/linstrument.cpp"
+#include "player/lplayer.cpp"
 
-#include "lwav_importer.cpp"
+#include "gui/lspin_box.cpp"
+#include "gui/pattern_view.cpp"
+#include "gui/virtual_box_container.cpp"
+
+#include "sample/lsample.cpp"
+#include "sample/lwav_importer.cpp"
+
+#include "midi/lmidi_file.cpp"
+
 #include "register_types.cpp"

@@ -1,6 +1,6 @@
 #include "lsong.h"
-#include "lmidi_file.h"
-#include "pattern_view.h"
+#include "gui/pattern_view.h"
+#include "midi/lmidi_file.h"
 
 Song *Song::_current_song = nullptr;
 
@@ -78,8 +78,10 @@ void Song::_bind_methods() {
 	PATTERN_BIND(player_c);
 	PATTERN_BIND(player_d);
 	PATTERN_BIND(transpose);
-	PATTERN_BIND(quantize_a);
-	PATTERN_BIND(quantize_b);
+
+	PATTERN_BIND(time_sig_micro);
+	PATTERN_BIND(time_sig_minor);
+	PATTERN_BIND(time_sig_major);
 
 	NOTE_BIND(tick_start);
 	NOTE_BIND(tick_length);
@@ -107,6 +109,9 @@ void Song::_bind_methods() {
 
 	ADD_SIGNAL(MethodInfo("update_inspector"));
 	ADD_SIGNAL(MethodInfo("update_byteview"));
+	ADD_SIGNAL(MethodInfo("update_patternview"));
+	ADD_SIGNAL(MethodInfo("update_trackview"));
+	ADD_SIGNAL(MethodInfo("update_playerview"));
 	ADD_SIGNAL(MethodInfo("update_all"));
 }
 
@@ -179,6 +184,8 @@ void Song::_select_pattern(Pattern *p_pattern) {
 		_selected_pattern->set_selected(true);
 	}
 
+	_current_note_id = 0;
+
 	update_inspector();
 	update_byteview();
 }
@@ -191,8 +198,20 @@ void Song::update_byteview() {
 	emit_signal("update_byteview");
 }
 
+void Song::update_patternview() {
+	emit_signal("update_patternview");
+}
+
+void Song::update_trackview() {
+	emit_signal("update_trackview");
+}
+
+void Song::update_playerview() {
+	emit_signal("update_playerview");
+}
+
 void Song::update_all() {
-	emit_signal("update_byteview");
+	emit_signal("update_all");
 }
 
 void Song::pattern_duplicate() {
@@ -308,8 +327,16 @@ bool Song::song_import_midi(String p_filename) {
 			const Sound::LMIDIFile::LTrack &track = midi.GetTrack(t);
 			pattern_create();
 			patterni_set_track(t);
-			pattern_set_name(track._name);
-			track_set_name(t, track._name);
+			if (track._name.length()) {
+				pattern_set_name(track._name);
+				track_set_name(t, track._name);
+			}
+			int32_t track_start, track_end;
+			track_start = track.find_track_start_and_end(track_end);
+			patterni_set_tick_start(track_start);
+			int32_t track_length = track_end - track_start;
+
+			pattern_set_tick_length(MIN(track_length, 24));
 
 			for (uint32_t n = 0; n < track.GetNumNotes(); n++) {
 				//				if (n == 64)
@@ -318,7 +345,7 @@ bool Song::song_import_midi(String p_filename) {
 				const Sound::LMIDIFile::LNote *note = track.GetNote(n);
 				if (note->m_uiLength != UINT32_MAX) {
 					uint32_t note_id = note_create();
-					note_set_tick_start(note_id, note->m_uiTime);
+					note_set_tick_start(note_id, note->m_uiTime - track_start);
 					note_set_tick_length(note_id, note->m_uiLength);
 					note_set_note(note_id, note->m_Key);
 					note_set_velocity(note_id, note->m_Velocity);

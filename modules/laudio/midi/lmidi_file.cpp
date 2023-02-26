@@ -60,6 +60,31 @@ bool LMIDIFile::LTrack::RegisterNoteOff(unsigned int uiTime, unsigned int uiKey)
 	return false; // no note on found for this note off, probably an error in the file
 }
 
+int32_t LMIDIFile::LTrack::find_track_start_and_end(int32_t &r_end) const {
+	r_end = 0;
+	int32_t start = INT32_MAX;
+
+	for (uint32_t n = 0; n < m_Notes.size(); n++) {
+		const LNote &note = m_Notes[n];
+		if (note.m_uiLength == UINT32_MAX) {
+			continue;
+		}
+		if ((int32_t)note.m_uiTime < start) {
+			start = note.m_uiTime;
+		}
+		int32_t end = note.m_uiTime + note.m_uiLength;
+		if (end > r_end) {
+			r_end = end;
+		}
+	}
+
+	if (start == INT32_MAX) {
+		return 0;
+	}
+
+	return start;
+}
+
 LMIDIFile::LMIDIFile() {
 }
 

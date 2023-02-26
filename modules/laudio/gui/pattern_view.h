@@ -1,6 +1,6 @@
 #pragma once
 
-#include "lstructs.h"
+#include "../lstructs.h"
 #include "scene/gui/button.h"
 
 class Pattern;

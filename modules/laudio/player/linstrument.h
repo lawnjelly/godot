@@ -1,7 +1,7 @@
 #pragma once
 
+#include "../sample/lsample.h"
 #include "core/reference.h"
-#include "lsample.h"
 
 class LInstrument : public Reference {
 	GDCLASS(LInstrument, Reference);

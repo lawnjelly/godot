@@ -1,5 +1,5 @@
 #include "pattern_view.h"
-#include "lpattern.h"
+#include "../lpattern.h"
 
 void PatternView::_notification(int p_what) {
 	/*

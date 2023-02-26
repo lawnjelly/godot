@@ -24,8 +24,9 @@ public:
 
 		int32_t transpose = 0;
 
-		int32_t quantize_a = 24;
-		int32_t quantize_b = 16;
+		int32_t time_sig_micro = 6;
+		int32_t time_sig_minor = 8;
+		int32_t time_sig_major = 16;
 
 		String name = "unnamed";
 		LHandle handle;

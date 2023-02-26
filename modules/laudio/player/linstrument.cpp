@@ -1,5 +1,5 @@
 #include "linstrument.h"
-#include "lbus.h"
+#include "../lbus.h"
 
 void LInstrument::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("load", "filename"), &LInstrument::load);

@@ -175,6 +175,8 @@ void Pattern::_notification(int p_what) {
 }
 
 void Pattern::_draw() {
+	refresh_position();
+	refresh_text();
 	//	Ref<Texture> checkerboard = get_icon("Checkerboard", "EditorIcons");
 	Size2 size = get_size();
 

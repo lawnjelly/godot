@@ -86,6 +86,8 @@ public:
 		unsigned int GetNumNotes() const { return m_Notes.size(); }
 		const LNote *GetNote(unsigned int ui) const { return &m_Notes[ui]; }
 
+		int32_t find_track_start_and_end(int32_t &r_end) const;
+
 		String _name;
 
 	private:

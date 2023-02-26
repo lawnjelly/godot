@@ -3,13 +3,14 @@
 #include "register_types.h"
 
 #include "core/class_db.h"
+#include "gui/lspin_box.h"
+#include "gui/pattern_view.h"
+#include "gui/virtual_box_container.h"
 #include "laudio_player.h"
 #include "lbus.h"
-#include "linstrument.h"
 #include "lpattern_instance.h"
 #include "lsong.h"
-#include "pattern_view.h"
-#include "virtual_box_container.h"
+#include "player/linstrument.h"
 
 void register_laudio_types() {
 	ClassDB::register_class<LBus>();
@@ -21,6 +22,7 @@ void register_laudio_types() {
 
 	ClassDB::register_class<VirtualBoxContainer>();
 	ClassDB::register_class<VirtualVBoxContainer>();
+	ClassDB::register_class<LSpinBox>();
 #ifdef TOOLS_ENABLED
 	//   EditorPlugins::add_by_type<LLightmapEditorPlugin>();
 #endif
