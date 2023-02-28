@@ -41,6 +41,50 @@ void LMIDIFile::MessBox(const char *p_mess_a, const char *p_mess_b) {
 	print_line(p_mess_b);
 }
 
+uint32_t LMIDIFile::LNote::lowest_multiple(uint32_t p_value, uint32_t p_division) const {
+	uint32_t m = p_division;
+	while ((p_value % m) != 0) {
+		if ((m % 2) == 0) {
+			m /= 2;
+		} else if ((m % 3) == 0) {
+			m /= 3;
+		} else {
+			m = 1;
+		}
+	}
+
+	// disallow 1
+	if (m == 1) {
+		return p_division;
+	}
+	return m;
+}
+
+uint32_t LMIDIFile::LNote::calculate_lowest_tick_multiple(uint32_t p_division) const {
+	// non valid note
+	if (m_uiLength == UINT32_MAX) {
+		// no alteration
+		return p_division;
+	}
+	//	if (!m_uiLength)
+	//	{
+	//		// no alteration
+	//		return p_division;
+	//	}
+
+	uint32_t m = lowest_multiple(m_uiTime, p_division);
+	if (m < p_division) {
+		print_line("reducing multiple for start time : " + itos(m_uiTime) + ", multiple is now " + itos(m));
+	}
+	//	p_division = m;
+	//	m = lowest_multiple(m_uiLength, m);
+	//	if (m < p_division)
+	//	{
+	//		print_line("reducing multiple for length : " + itos(m_uiLength));
+	//	}
+	return m;
+}
+
 bool LMIDIFile::LTrack::RegisterNoteOff(unsigned int uiTime, unsigned int uiKey) {
 	for (uint32_t n = 0; n < m_Notes.size(); n++) {
 		if (m_Notes[n].m_Key == uiKey) {

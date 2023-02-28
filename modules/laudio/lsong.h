@@ -153,6 +153,8 @@ public:
 	PATTERN_GET_SET(time_sig_minor, int32_t, 0, true)
 	PATTERN_GET_SET(time_sig_major, int32_t, 0, true)
 
+	void pattern_calculate_length();
+
 	NOTE_GET_SET(tick_start, int32_t, 0)
 	NOTE_GET_SET(tick_length, int32_t, 0)
 	NOTE_GET_SET(note, int32_t, 60)
@@ -176,6 +178,7 @@ public:
 	bool track_get_active(uint32_t p_track) const;
 
 	bool song_import_midi(String p_filename);
+	bool song_export_wav(String p_filename);
 
 	Song();
 	virtual ~Song();

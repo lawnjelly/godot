@@ -67,11 +67,14 @@ public:
 	};
 
 	class LNote {
+		uint32_t lowest_multiple(uint32_t p_value, uint32_t p_division) const;
+
 	public:
 		uint32_t m_uiTime;
 		uint32_t m_uiLength;
 		uint16_t m_Key;
 		uint16_t m_Velocity;
+		uint32_t calculate_lowest_tick_multiple(uint32_t p_division) const;
 	};
 
 	class LTrack {

@@ -1,4 +1,5 @@
 #include "lpattern.h"
+#include "lsong.h"
 
 void LPattern::calculate_length() {
 	if (!notes.size()) {
@@ -21,6 +22,25 @@ void LPattern::calculate_length() {
 	if (tick_end > data.tick_start) {
 		data.tick_length = tick_end - data.tick_start;
 	}
+}
+
+bool LPattern::play(LSong &p_song, uint32_t p_output_bus_handle, uint32_t p_start_sample, uint32_t p_num_samples, uint32_t p_samples_per_tick, uint32_t p_pattern_start_tick) const {
+	int32_t player_id = data.player_a;
+
+	LInstrument *inst = p_song._players.get_player_instrument(player_id);
+	// no instrument assigned
+	if (!inst)
+		return false;
+
+	for (uint32_t n = 0; n < notes.size(); n++) {
+		const LNote &note = notes[n];
+		int32_t start = note.tick_start + p_pattern_start_tick;
+		//int32_t end = start + note.tick_length;
+
+		inst->play(note.note, p_start_sample, p_num_samples, start * p_samples_per_tick, note.tick_length * p_samples_per_tick);
+	}
+
+	return true;
 }
 
 uint32_t LPattern::sort_notes(uint32_t p_old_selected_note) {

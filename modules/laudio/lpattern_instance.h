@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 class LPattern;
+class LSong;
 
 class LPatternInstance {
 	LHandle _handle_pattern;
@@ -24,6 +25,7 @@ public:
 		return p ? p->data.tick_length : 128;
 	}
 	int32_t get_tick_end() const { return data.tick_start + get_tick_length(); }
+	bool play(LSong &p_song, uint32_t p_output_bus_handle, uint32_t p_start_sample, uint32_t p_num_samples, uint32_t p_samples_per_tick) const;
 
 	~LPatternInstance();
 };

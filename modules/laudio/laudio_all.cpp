@@ -13,8 +13,11 @@
 #include "gui/virtual_box_container.cpp"
 
 #include "sample/lsample.cpp"
+#include "sample/lsample_player.cpp"
+#include "sample/lsampler.cpp"
 #include "sample/lwav_importer.cpp"
 
+#include "lson/lson.cpp"
 #include "midi/lmidi_file.cpp"
 
 #include "register_types.cpp"

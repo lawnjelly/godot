@@ -22,6 +22,14 @@ LPattern *LPatternInstance::get_pattern() const {
 	return g_lapp.patterns.get(_handle_pattern);
 }
 
+bool LPatternInstance::play(LSong &p_song, uint32_t p_output_bus_handle, uint32_t p_start_sample, uint32_t p_num_samples, uint32_t p_samples_per_tick) const {
+	LPattern *pattern = get_pattern();
+	if (!pattern)
+		return false;
+
+	return pattern->play(p_song, p_output_bus_handle, p_start_sample, p_num_samples, p_samples_per_tick, data.tick_start);
+}
+
 /////////////////////////////
 
 LPatternInstance *Pattern::get_pattern_instance() const {

@@ -4,6 +4,8 @@
 #include "lstructs.h"
 #include <stdint.h>
 
+class LSong;
+
 class LPattern {
 public:
 	LocalVector<LNote> notes;
@@ -59,6 +61,8 @@ public:
 	}
 
 	uint32_t sort_notes(uint32_t p_old_selected_note);
+
+	bool play(LSong &p_song, uint32_t p_output_bus_handle, uint32_t p_start_sample, uint32_t p_num_samples, uint32_t p_samples_per_tick, uint32_t p_pattern_start_tick) const;
 
 	bool release() {
 		data.refcount--;

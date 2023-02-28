@@ -1,5 +1,6 @@
 #include "lsong.h"
 #include "gui/pattern_view.h"
+#include "lbus.h"
 #include "midi/lmidi_file.h"
 
 Song *Song::_current_song = nullptr;
@@ -83,6 +84,8 @@ void Song::_bind_methods() {
 	PATTERN_BIND(time_sig_minor);
 	PATTERN_BIND(time_sig_major);
 
+	ClassDB::bind_method(D_METHOD("pattern_calculate_length"), &Song::pattern_calculate_length);
+
 	NOTE_BIND(tick_start);
 	NOTE_BIND(tick_length);
 	NOTE_BIND(note);
@@ -106,6 +109,7 @@ void Song::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("track_get_active", "track_id"), &Song::track_get_active);
 
 	ClassDB::bind_method(D_METHOD("song_import_midi", "filename"), &Song::song_import_midi);
+	ClassDB::bind_method(D_METHOD("song_export_wav", "filename"), &Song::song_export_wav);
 
 	ADD_SIGNAL(MethodInfo("update_inspector"));
 	ADD_SIGNAL(MethodInfo("update_byteview"));
@@ -190,6 +194,14 @@ void Song::_select_pattern(Pattern *p_pattern) {
 	update_byteview();
 }
 
+void Song::pattern_calculate_length() {
+	LPattern *pi = get_pattern();
+	if (pi) {
+		pi->calculate_length();
+		_pattern_dirty = true;
+	}
+}
+
 void Song::update_inspector() {
 	emit_signal("update_inspector");
 }
@@ -267,26 +279,26 @@ uint32_t Song::note_size() {
 
 void Song::player_set_instrument(uint32_t p_player_id, Ref<LInstrument> p_instrument) {
 	ERR_FAIL_COND(p_player_id >= LPlayers::MAX_PLAYERS);
-	LPlayer &p = get_lsong()._players.get_player(p_player_id);
-	p.set_instrument(p_instrument);
+	//LPlayer &p = get_lsong()._players.get_player(p_player_id);
+	//p.set_instrument(p_instrument);
+	get_lsong()._players.set_player_instrument(p_player_id, p_instrument);
 }
 
 Ref<LInstrument> Song::player_get_instrument(uint32_t p_player_id) {
 	ERR_FAIL_COND_V(p_player_id >= LPlayers::MAX_PLAYERS, Ref<LInstrument>());
-	LPlayer &p = get_lsong()._players.get_player(p_player_id);
-	return p.get_instrument_ref();
+	return get_lsong()._players.get_player_instrument_ref(p_player_id);
+	//	LPlayer &p = get_lsong()._players.get_player(p_player_id);
+	//	return p.get_instrument_ref();
 }
 
 void Song::player_clear(uint32_t p_player_id) {
 	ERR_FAIL_COND(p_player_id >= LPlayers::MAX_PLAYERS);
-	LPlayer &p = get_lsong()._players.get_player(p_player_id);
-	p.clear();
+	get_lsong()._players.clear_player_instrument(p_player_id);
 }
 
 String Song::player_get_name(uint32_t p_player_id) {
 	ERR_FAIL_COND_V(p_player_id >= LPlayers::MAX_PLAYERS, String());
-	LPlayer &p = get_lsong()._players.get_player(p_player_id);
-	return p.get_name();
+	return get_lsong()._players.get_player_name(p_player_id);
 }
 
 void Song::set_pattern_view(Node *p_pattern_view) {
@@ -323,6 +335,21 @@ bool Song::song_import_midi(String p_filename) {
 	memdelete(file);
 
 	if (result) {
+		uint32_t division = midi.GetDivision();
+
+		print_line("MIDI file division " + itos(division));
+
+		// first calculate the lowest common multiple, to simplify the timings
+		for (uint32_t t = 0; t < midi.GetNumTracks(); t++) {
+			const Sound::LMIDIFile::LTrack &track = midi.GetTrack(t);
+			for (uint32_t n = 0; n < track.GetNumNotes(); n++) {
+				const Sound::LMIDIFile::LNote *note = track.GetNote(n);
+				division = note->calculate_lowest_tick_multiple(division);
+			}
+		}
+
+		print_line("Lowest common multiple division " + itos(division));
+
 		for (uint32_t t = 0; t < midi.GetNumTracks(); t++) {
 			const Sound::LMIDIFile::LTrack &track = midi.GetTrack(t);
 			pattern_create();
@@ -333,10 +360,10 @@ bool Song::song_import_midi(String p_filename) {
 			}
 			int32_t track_start, track_end;
 			track_start = track.find_track_start_and_end(track_end);
-			patterni_set_tick_start(track_start);
+			patterni_set_tick_start(track_start / division);
 			int32_t track_length = track_end - track_start;
 
-			pattern_set_tick_length(MIN(track_length, 24));
+			pattern_set_tick_length(MIN(track_length / division, 24));
 
 			for (uint32_t n = 0; n < track.GetNumNotes(); n++) {
 				//				if (n == 64)
@@ -345,17 +372,60 @@ bool Song::song_import_midi(String p_filename) {
 				const Sound::LMIDIFile::LNote *note = track.GetNote(n);
 				if (note->m_uiLength != UINT32_MAX) {
 					uint32_t note_id = note_create();
-					note_set_tick_start(note_id, note->m_uiTime - track_start);
-					note_set_tick_length(note_id, note->m_uiLength);
+
+					int32_t start = note->m_uiTime - track_start;
+					start /= division;
+					note_set_tick_start(note_id, start);
+
+					int32_t length = note->m_uiLength;
+					length /= division;
+
+					note_set_tick_length(note_id, length);
 					note_set_note(note_id, note->m_Key);
 					note_set_velocity(note_id, note->m_Velocity);
 				}
 			}
+			pattern_calculate_length();
 		}
 	}
 
 	update_all();
 	return result;
+}
+
+bool Song::song_export_wav(String p_filename) {
+	// calculate song length
+	//	for (uint32_t n=0; n<LTracks::MAX_TRACKS; n++)
+	//	{
+
+	//	}
+	//	get_lsong()._tracks.
+
+	//	LPatternInstance *pi = g_lapp.pattern_instances.request(hpi);
+	int32_t song_end = 0;
+	for (uint32_t n = 0; n < g_lapp.pattern_instances.size(); n++) {
+		const LPatternInstance &pi = g_lapp.pattern_instances.get_active(n);
+		int32_t pattern_end = pi.get_tick_end();
+		song_end = MAX(song_end, pattern_end);
+	}
+
+	// for testing limit song length
+	song_end = MIN(song_end, 400);
+
+	// calculate in samples
+	uint32_t samples_per_tick = get_lsong()._timing.samples_pt;
+	uint32_t total_samples = samples_per_tick * song_end;
+	print_line("total song ticks: " + itos(song_end) + ", total song samples:" + itos(total_samples));
+
+	LBus output_bus;
+	output_bus.resize(total_samples);
+
+	for (uint32_t n = 0; n < g_lapp.pattern_instances.size(); n++) {
+		const LPatternInstance &pi = g_lapp.pattern_instances.get_active(n);
+		pi.play(get_lsong(), output_bus.get_handle(), 0, total_samples, samples_per_tick);
+	}
+
+	return output_bus.save(p_filename + ".wav");
 }
 
 Song::Song() {
