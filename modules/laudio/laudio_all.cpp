@@ -4,6 +4,7 @@
 #include "lpattern.cpp"
 #include "lpattern_instance.cpp"
 #include "lsong.cpp"
+#include "lstructs.cpp"
 
 #include "player/linstrument.cpp"
 #include "player/lplayer.cpp"

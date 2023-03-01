@@ -2,6 +2,10 @@
 
 #include "lhandle.h"
 
+namespace LSon {
+struct Node;
+};
+
 typedef Handle_24_8 LHandle;
 
 struct LTrack {
@@ -37,11 +41,14 @@ struct LTiming {
 		return p_tick * samples_pt;
 	}
 
+	bool load(LSon::Node *p_data);
+	bool save(LSon::Node *p_root);
+
 	void reset() {
-		tpqn = 192;
+		tpqn = 24;
 		bpm = 120;
 		sample_rate = 44100;
-		samples_pqn = (sample_rate * bpm) / 60;
+		samples_pqn = (sample_rate * bpm) / (60 * 8);
 		samples_pt = samples_pqn / tpqn;
 	}
 	LTiming() {

@@ -36,6 +36,10 @@ bool LSampler::load(LSon::Node *p_data, const LocalVector<String> &p_include_pat
 
 			if (!player->load(child, p_include_paths, extra_path))
 				return false;
+
+			for (uint32_t k = player->key_range_lo; k <= player->key_range_hi; k++) {
+				_key_player_map[k] = sample_player_id + 1;
+			}
 		}
 	}
 	return true;

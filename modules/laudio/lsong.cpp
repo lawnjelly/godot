@@ -391,6 +391,12 @@ bool Song::song_load(String p_filename) {
 	if (!node_root.load(p_filename))
 		return false;
 
+	LSon::Node *node_timing = node_root.find_node("timing");
+	if (node_timing) {
+		if (!_song._timing.load(node_timing))
+			return false;
+	}
+
 	LSon::Node *node_patterns = node_root.find_node("patterns");
 	ERR_FAIL_NULL_V(node_patterns, false);
 
@@ -440,7 +446,8 @@ bool Song::song_save(String p_filename) {
 	LSon::Node node_root;
 	node_root.set_name("song");
 
-	// save timing NYI
+	// save timing
+	_song._timing.save(&node_root);
 
 	// FIRST WE NEED A MAPPING OF PATTERN INSTANCES TO PATTERNS
 	LocalVector<LHandle> pattern_handles;
@@ -660,6 +667,8 @@ bool Song::song_export_wav(String p_filename) {
 
 	LBus output_bus;
 	output_bus.resize(total_samples);
+	LBus *test = g_Buses.get_bus(output_bus.get_handle());
+	DEV_ASSERT(test == &output_bus);
 
 	for (uint32_t n = 0; n < g_lapp.pattern_instances.size(); n++) {
 		const LPatternInstance &pi = g_lapp.pattern_instances.get_active(n);

@@ -105,6 +105,8 @@ bool LPattern::play(LSong &p_song, uint32_t p_output_bus_handle, uint32_t p_star
 	if (!inst)
 		return false;
 
+	inst->set_output_bus(p_output_bus_handle);
+
 	for (uint32_t n = 0; n < notes.size(); n++) {
 		const LNote &note = notes[n];
 		int32_t start = note.tick_start + p_pattern_start_tick;
