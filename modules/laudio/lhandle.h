@@ -8,6 +8,7 @@ class Handle_24_8 {
 	uint32_t val;
 
 public:
+	bool operator==(const Handle_24_8 &p_o) const { return p_o.val == val; }
 	uint32_t get_value() const { return val; }
 	//void set_value(uint32_t p_value) { val = p_value; }
 

@@ -24,6 +24,79 @@ void LPattern::calculate_length() {
 	}
 }
 
+bool LPattern::load_notes(LSon::Node *p_data) {
+	for (uint32_t c = 0; c < p_data->children.size(); c++) {
+		LSon::Node *child_note = p_data->get_child(c);
+		if (child_note->name != "note")
+			return false;
+
+		notes.resize(notes.size() + 1);
+		LNote *note = get_note(notes.size() - 1);
+
+		if (!child_note->get_s64(note->note))
+			return false;
+
+		for (uint32_t n = 0; n < child_note->children.size(); n++) {
+			LSon::Node *child = child_note->get_child(n);
+			if (child->name == "start") {
+				if (!child->get_s64(note->tick_start))
+					return false;
+			}
+			if (child->name == "length") {
+				if (!child->get_s64(note->tick_length))
+					return false;
+			}
+			if (child->name == "vel") {
+				if (!child->get_s64(note->velocity))
+					return false;
+			}
+			if (child->name == "player") {
+				if (!child->get_s64(note->player))
+					return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+bool LPattern::load(LSon::Node *p_data) {
+	for (uint32_t c = 0; c < p_data->children.size(); c++) {
+		LSon::Node *child = p_data->get_child(c);
+
+		if (child->name == "name") {
+			if (!child->get_string(data.name))
+				return false;
+		}
+		if (child->name == "tick_start") {
+			if (!child->get_s64(data.tick_start))
+				return false;
+		}
+		if (child->name == "tick_length") {
+			if (!child->get_s64(data.tick_length))
+				return false;
+		}
+		if (child->name == "time_sig_micro") {
+			if (!child->get_s64(data.time_sig_micro))
+				return false;
+		}
+		if (child->name == "time_sig_minor") {
+			if (!child->get_s64(data.time_sig_minor))
+				return false;
+		}
+		if (child->name == "time_sig_major") {
+			if (!child->get_s64(data.time_sig_major))
+				return false;
+		}
+		if (child->name == "notes") {
+			if (!load_notes(child))
+				return false;
+		}
+	}
+
+	return true;
+}
+
 bool LPattern::play(LSong &p_song, uint32_t p_output_bus_handle, uint32_t p_start_sample, uint32_t p_num_samples, uint32_t p_samples_per_tick, uint32_t p_pattern_start_tick) const {
 	int32_t player_id = data.player_a;
 

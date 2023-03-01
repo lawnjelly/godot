@@ -6,6 +6,10 @@
 #include "lstructs.h"
 #include "player/lplayer.h"
 
+namespace LSon {
+struct Node;
+};
+
 #define LA_STRINGIFY(A) #A
 #define LA_TOSTRING(A) LA_STRINGIFY(A)
 
@@ -87,6 +91,7 @@ public:
 	LTiming _timing;
 	LPlayers _players;
 	LTracks _tracks;
+	LocalVector<LHandle> _pattern_instances;
 
 	LSong();
 	~LSong();
@@ -109,11 +114,17 @@ class Song : public Node {
 	bool _pattern_dirty = false;
 	bool _notes_dirty = false;
 
+	bool _save_pattern(LSon::Node *p_node_patterns, uint32_t p_pattern_id, LHandle p_handle);
+	bool _save_pattern_instance(LSon::Node *p_node_pattern_instances, uint32_t p_pattern_instance_id, LHandle p_handle);
+	LPattern *_create_lpattern(LHandle &r_handle);
+	LPatternInstance *_create_lpattern_instance_and_pattern(const LHandle &p_pattern_handle, bool p_select_pattern);
+
 protected:
 	void _notification(int p_what);
 	static void _bind_methods();
 
 	void _select_pattern(Pattern *p_pattern);
+	void _pattern_delete_internal(Pattern *p_pattern);
 
 public:
 	static Song *get_current_song() { return _current_song; }
@@ -177,8 +188,15 @@ public:
 	void track_set_active(uint32_t p_track, bool p_active);
 	bool track_get_active(uint32_t p_track) const;
 
+	bool song_load(String p_filename);
+	bool song_save(String p_filename);
+	void song_clear();
+
 	bool song_import_midi(String p_filename);
 	bool song_export_wav(String p_filename);
+
+	bool instruments_load(String p_filename);
+	bool instruments_save(String p_filename);
 
 	Song();
 	virtual ~Song();

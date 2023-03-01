@@ -1,6 +1,7 @@
 #include "lsong.h"
 #include "gui/pattern_view.h"
 #include "lbus.h"
+#include "lson/lson.h"
 #include "midi/lmidi_file.h"
 
 Song *Song::_current_song = nullptr;
@@ -111,6 +112,13 @@ void Song::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("song_import_midi", "filename"), &Song::song_import_midi);
 	ClassDB::bind_method(D_METHOD("song_export_wav", "filename"), &Song::song_export_wav);
 
+	ClassDB::bind_method(D_METHOD("instruments_load", "filename"), &Song::instruments_load);
+	ClassDB::bind_method(D_METHOD("instruments_save", "filename"), &Song::instruments_save);
+
+	ClassDB::bind_method(D_METHOD("song_load", "filename"), &Song::song_load);
+	ClassDB::bind_method(D_METHOD("song_save", "filename"), &Song::song_save);
+	ClassDB::bind_method(D_METHOD("song_clear"), &Song::song_clear);
+
 	ADD_SIGNAL(MethodInfo("update_inspector"));
 	ADD_SIGNAL(MethodInfo("update_byteview"));
 	ADD_SIGNAL(MethodInfo("update_patternview"));
@@ -138,24 +146,38 @@ LPatternInstance *Song::get_patterni() const {
 	return _selected_pattern->get_pattern_instance();
 }
 
-void Song::pattern_create() {
-	_log("pattern_create");
+void Song::song_clear() {
+	_select_pattern(nullptr);
 
+	// delete gui patterns ..
+	// this will automatically clear LPatternInstances and LPatterns
+	int32_t num_children = _pattern_view->get_child_count();
+	for (int32_t n = num_children - 1; n >= 0; n--) {
+		Pattern *pat = Object::cast_to<Pattern>(_pattern_view->get_child(n));
+		_pattern_delete_internal(pat);
+	}
+
+	_song._players.clear_players();
+	_song._timing.reset();
+	_song._tracks.reset();
+}
+
+LPattern *Song::_create_lpattern(LHandle &r_handle) {
+	LPattern *lpat = g_lapp.patterns.request(r_handle);
+	lpat->reference();
+
+	lpat->data.handle = r_handle;
+	return lpat;
+}
+
+LPatternInstance *Song::_create_lpattern_instance_and_pattern(const LHandle &p_pattern_handle, bool p_select_pattern) {
 	LHandle hpi;
 	LPatternInstance *pi = g_lapp.pattern_instances.request(hpi);
 
-	// create a pattern as well as this is an original
-	LHandle hp;
-	LPattern *lpat = g_lapp.patterns.request(hp);
-	lpat->reference();
+	// add to the song patterns
+	_song._pattern_instances.push_back(hpi);
 
-	lpat->data.handle = hp;
-
-	pi->set_pattern(hp);
-
-	// storing the handle on the instance itself is useful for self deletion etc
-	//pi->set_handle(hpi);
-
+	pi->set_pattern(p_pattern_handle);
 	pi->data.tick_start = 64;
 
 	Pattern *pat = memnew(Pattern);
@@ -164,7 +186,20 @@ void Song::pattern_create() {
 	_pattern_view->add_child(pat);
 	pat->set_owner(_pattern_view->get_owner());
 
-	_select_pattern(pat);
+	if (p_select_pattern)
+		_select_pattern(pat);
+
+	return pi;
+}
+
+void Song::pattern_create() {
+	_log("pattern_create");
+
+	// create a pattern as well as this is an original
+	LHandle hp;
+	_create_lpattern(hp);
+
+	_create_lpattern_instance_and_pattern(hp, true);
 }
 
 void Song::pattern_select(Node *p_node) {
@@ -230,10 +265,26 @@ void Song::pattern_duplicate() {
 	_log("pattern_duplicate");
 }
 
+void Song::_pattern_delete_internal(Pattern *p_pattern) {
+	// remove from song pattern instances
+	LHandle handle = p_pattern->get_pattern_instance_handle();
+	if (handle.is_valid()) {
+		int64_t found = _song._pattern_instances.find(handle);
+		DEV_ASSERT(found != -1);
+		if (found == -1) {
+			ERR_PRINT("Pattern instance not found in song.");
+		} else {
+			_song._pattern_instances.remove_unordered(found);
+		}
+	}
+
+	p_pattern->pattern_delete();
+}
+
 void Song::pattern_delete() {
 	_log("pattern_delete");
 	if (_selected_pattern) {
-		_selected_pattern->pattern_delete();
+		_pattern_delete_internal(_selected_pattern);
 		_select_pattern(nullptr);
 	}
 }
@@ -273,7 +324,8 @@ void Song::note_select(uint32_t p_note_id) {
 
 uint32_t Song::note_size() {
 	LPattern *p = get_pattern();
-	ERR_FAIL_NULL_V(p, 0);
+	if (!p)
+		return 0;
 	return p->notes.size();
 }
 
@@ -322,12 +374,201 @@ bool Song::track_get_active(uint32_t p_track) const {
 	return get_lsong()._tracks.tracks[p_track].active;
 }
 
+bool Song::instruments_load(String p_filename) {
+	bool res = get_lsong()._players.load(p_filename);
+	update_all();
+	return res;
+}
+
+bool Song::instruments_save(String p_filename) {
+	return get_lsong()._players.save(p_filename);
+}
+
+bool Song::song_load(String p_filename) {
+	song_clear();
+
+	LSon::Node node_root;
+	if (!node_root.load(p_filename))
+		return false;
+
+	LSon::Node *node_patterns = node_root.find_node("patterns");
+	ERR_FAIL_NULL_V(node_patterns, false);
+
+	LocalVector<LHandle> pattern_handles;
+
+	for (uint32_t n = 0; n < node_patterns->children.size(); n++) {
+		LSon::Node *node_pattern = node_patterns->get_child(n);
+		ERR_FAIL_COND_V(node_pattern->name != "pattern", false);
+
+		LHandle hpat;
+		LPattern *pat = _create_lpattern(hpat);
+
+		if (!pat->load(node_pattern))
+			return false;
+
+		pattern_handles.push_back(hpat);
+	}
+
+	LSon::Node *node_pattern_instances = node_root.find_node("pattern_instances");
+	ERR_FAIL_NULL_V(node_pattern_instances, false);
+
+	for (uint32_t n = 0; n < node_pattern_instances->children.size(); n++) {
+		LSon::Node *node_pattern_instance = node_pattern_instances->get_child(n);
+		ERR_FAIL_COND_V(node_pattern_instance->name != "pattern_instance", false);
+
+		LSon::Node *child = node_pattern_instance->get_child(0);
+		ERR_FAIL_COND_V(child->name != "pattern_id", false);
+
+		uint32_t pattern_id;
+		if (!child->get_s64(pattern_id))
+			return false;
+
+		ERR_FAIL_COND_V(pattern_id >= pattern_handles.size(), false);
+		LPatternInstance *pi = _create_lpattern_instance_and_pattern(pattern_handles[pattern_id], false);
+
+		if (!pi->load(node_pattern_instance))
+			return false;
+	}
+
+	update_all();
+	return true;
+}
+
+bool Song::song_save(String p_filename) {
+	bool result = true;
+
+	LSon::Node node_root;
+	node_root.set_name("song");
+
+	// save timing NYI
+
+	// FIRST WE NEED A MAPPING OF PATTERN INSTANCES TO PATTERNS
+	LocalVector<LHandle> pattern_handles;
+
+	for (uint32_t n = 0; n < _song._pattern_instances.size(); n++) {
+		LHandle hpi = _song._pattern_instances[n];
+		LPatternInstance *pi = g_lapp.pattern_instances.get(hpi);
+
+		LHandle hpat = pi->get_pattern_handle();
+		LPattern *lpat = g_lapp.patterns.get(hpat);
+
+		DEV_ASSERT(pi);
+		DEV_ASSERT(lpat);
+
+		// pattern already used?
+		int64_t found = -1;
+		if (lpat->get_refcount() > 1) {
+			found = pattern_handles.find(hpat);
+		}
+		if (found != -1) {
+			lpat->data.save_id = found;
+		} else {
+			// first occurrence of pattern
+			lpat->data.save_id = pattern_handles.size();
+			pattern_handles.push_back(hpat);
+		}
+	}
+
+	// save each pattern
+	LSon::Node *node_patterns = node_root.request_child();
+	node_patterns->set_name("patterns");
+	node_patterns->set_array();
+	for (uint32_t n = 0; n < pattern_handles.size(); n++) {
+		if (!_save_pattern(node_patterns, n, pattern_handles[n]))
+			result = false;
+	}
+
+	// save each pattern instance
+	LSon::Node *node_pattern_instances = node_root.request_child();
+	node_pattern_instances->set_name("pattern_instances");
+	node_pattern_instances->set_array();
+
+	for (uint32_t n = 0; n < _song._pattern_instances.size(); n++) {
+		LHandle hpi = _song._pattern_instances[n];
+		//LPatternInstance *pi = g_lapp.pattern_instances.get(hpi);
+		if (!_save_pattern_instance(node_pattern_instances, n, hpi))
+			result = false;
+	}
+
+	if (!node_root.save(p_filename))
+		result = false;
+
+	return result;
+}
+
+bool Song::_save_pattern(LSon::Node *p_node_patterns, uint32_t p_pattern_id, LHandle p_handle) {
+	LSon::Node *node = p_node_patterns->request_child_s64("pattern", p_pattern_id);
+
+	LPattern *lpat = g_lapp.patterns.get(p_handle);
+	if (!lpat)
+		return false;
+
+	node->request_child_string("name", lpat->data.name);
+	node->request_child_s64("tick_start", lpat->data.tick_start);
+	node->request_child_s64("tick_length", lpat->data.tick_length);
+
+	node->request_child_s64("time_sig_micro", lpat->data.time_sig_micro);
+	node->request_child_s64("time_sig_minor", lpat->data.time_sig_minor);
+	node->request_child_s64("time_sig_major", lpat->data.time_sig_major);
+
+	if (lpat->data.transpose != 0)
+		node->request_child_s64("transpose", lpat->data.transpose);
+
+	if (lpat->data.player_a != 0)
+		node->request_child_s64("player_a", lpat->data.player_a);
+	if (lpat->data.player_b != 0)
+		node->request_child_s64("player_b", lpat->data.player_b);
+	if (lpat->data.player_c != 0)
+		node->request_child_s64("player_c", lpat->data.player_c);
+	if (lpat->data.player_d != 0)
+		node->request_child_s64("player_d", lpat->data.player_d);
+
+	LSon::Node *node_notes = node->request_child_s64("notes", lpat->notes.size());
+	node_notes->set_array();
+
+	for (uint32_t n = 0; n < lpat->notes.size(); n++) {
+		LNote *note = lpat->get_note(n);
+
+		LSon::Node *node_note = node_notes->request_child_s64("note", note->note);
+		node_note->request_child_s64("start", note->tick_start);
+		node_note->request_child_s64("length", note->tick_length);
+		node_note->request_child_s64("vel", note->velocity);
+		if (note->player != 0)
+			node_note->request_child_s64("player", note->player);
+	}
+
+	return true;
+}
+
+bool Song::_save_pattern_instance(LSon::Node *p_node_pattern_instances, uint32_t p_pattern_instance_id, LHandle p_handle) {
+	LSon::Node *node = p_node_pattern_instances->request_child_s64("pattern_instance", p_pattern_instance_id);
+
+	LPatternInstance *pi = g_lapp.pattern_instances.get(p_handle);
+	if (!pi)
+		return false;
+
+	LPattern *pat = pi->get_pattern();
+	if (!pat)
+		return false;
+
+	node->request_child_s64("pattern_id", pat->data.save_id);
+	node->request_child_s64("tick_start", pi->data.tick_start);
+	node->request_child_s64("track", pi->data.track);
+
+	if (pi->data.transpose != 0)
+		node->request_child_s64("transpose", pi->data.transpose);
+
+	return true;
+}
+
 bool Song::song_import_midi(String p_filename) {
 	Error err;
 	FileAccess *file = FileAccess::open(p_filename, FileAccess::READ, &err);
 	if (!file) {
 		return false;
 	}
+
+	song_clear();
 
 	Sound::LMIDIFile midi;
 	bool result = midi.Load(file);

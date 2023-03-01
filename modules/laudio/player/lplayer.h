@@ -80,6 +80,7 @@ public:
 	}
 
 	bool clear_player_instrument(uint32_t p_player_id);
+	void clear_players();
 
 	bool load(String p_filename);
 	bool save(String p_filename);
@@ -91,7 +92,7 @@ public:
 	String get_player_name(uint32_t p_player_id);
 
 	LPlayers() {
-		load("players.txt");
+		//load("players.txt");
 		//save("players_test.txt");
 	}
 };

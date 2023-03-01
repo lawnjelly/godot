@@ -19,6 +19,7 @@ public:
 
 	String get_name() const;
 	LPattern *get_pattern() const;
+	LHandle get_pattern_handle() const { return _handle_pattern; }
 	void set_pattern(LHandle p_handle) { _handle_pattern = p_handle; }
 	int32_t get_tick_length() const {
 		LPattern *p = get_pattern();
@@ -26,6 +27,8 @@ public:
 	}
 	int32_t get_tick_end() const { return data.tick_start + get_tick_length(); }
 	bool play(LSong &p_song, uint32_t p_output_bus_handle, uint32_t p_start_sample, uint32_t p_num_samples, uint32_t p_samples_per_tick) const;
+
+	bool load(LSon::Node *p_data);
 
 	~LPatternInstance();
 };
@@ -63,6 +66,7 @@ protected:
 public:
 	void set_pattern_instance(LHandle p_handle);
 	LPatternInstance *get_pattern_instance() const;
+	LHandle get_pattern_instance_handle() const { return data.handle_pattern_instance; }
 	void pattern_delete();
 	void refresh_position();
 	void refresh_text();

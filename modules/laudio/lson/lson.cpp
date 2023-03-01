@@ -1,5 +1,7 @@
 #include "lson.h"
 
+//#define LSON_VERBOSE
+
 namespace LSon {
 
 Node::~Node() {
@@ -38,6 +40,10 @@ bool Node::load(FileAccess *p_file, int32_t p_depth) {
 		case TT_OPEN_CHILDREN: {
 			return _load_children(p_file, p_depth + 1);
 		} break;
+		case TT_COMMA: {
+			// loaded ok, name but nothing else
+			return true;
+		} break;
 		default: {
 		} break;
 	}
@@ -52,7 +58,9 @@ bool Node::load(FileAccess *p_file, int32_t p_depth) {
 	if ((t.type == TT_STRING) && (t2.type == TT_COLON)) {
 		// the first string is the name
 		set_name(t.string);
+#ifdef LSON_VERBOSE
 		print_line(_tabs(p_depth) + "loading node name: " + name);
+#endif
 
 		// recursive call this routine
 		return load(p_file, p_depth);
@@ -62,17 +70,23 @@ bool Node::load(FileAccess *p_file, int32_t p_depth) {
 	switch (t.type) {
 		case TT_STRING: {
 			set_string(t.string);
+#ifdef LSON_VERBOSE
 			print_line(_tabs(p_depth) + "string is " + string);
+#endif
 		} break;
 		case TT_U64: {
 			Variant v = t.string;
 			set_u64(v);
+#ifdef LSON_VERBOSE
 			print_line(_tabs(p_depth) + "u64 is " + itos(val.u64));
+#endif
 		} break;
 		case TT_S64: {
 			Variant v = t.string;
 			set_s64(v);
+#ifdef LSON_VERBOSE
 			print_line(_tabs(p_depth) + "s64 is " + itos(val.s64));
+#endif
 		} break;
 			//		case TT_OPEN_ARRAY:
 			//		case TT_OPEN_CHILDREN: {
@@ -120,13 +134,17 @@ bool Node::load(FileAccess *p_file, int32_t p_depth) {
 }
 
 bool Node::_load_children(FileAccess *p_file, int32_t p_depth) {
+#ifdef LSON_VERBOSE
 	print_line(_tabs(p_depth) + "start children");
+#endif
 	while (true) {
 		Token t3 = _load_token(p_file, true);
 		switch (t3.type) {
 			case TT_CLOSE_CHILDREN:
 			case TT_CLOSE_ARRAY: {
+#ifdef LSON_VERBOSE
 				print_line(_tabs(p_depth) + "end children");
+#endif
 				return true;
 			} break;
 			case TT_EOF: {

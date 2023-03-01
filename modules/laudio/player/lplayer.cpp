@@ -62,6 +62,12 @@ String LPlayers::get_player_name(uint32_t p_player_id) {
 	return "-";
 }
 
+void LPlayers::clear_players() {
+	for (uint32_t n = 0; n < MAX_PLAYERS; n++) {
+		clear_player_instrument(n);
+	}
+}
+
 bool LPlayers::clear_player_instrument(uint32_t p_player_id) {
 	ERR_FAIL_COND_V(p_player_id >= MAX_PLAYERS, false);
 	uint32_t &id = _players[p_player_id].instrument_palette_id;
@@ -90,6 +96,8 @@ bool LPlayers::load(String p_filename) {
 		ERR_PRINT("FAILED loading " + p_filename);
 		return false;
 	}
+
+	clear_players();
 
 	//	root.save(p_filename + ".resave");
 
@@ -191,7 +199,7 @@ bool LPlayers::save(String p_filename) {
 	root.set_name("players");
 
 	for (uint32_t n = 0; n < MAX_PLAYERS; n++) {
-		//		_players[n].save(n, root);
+		//_players[n].save(n, root);
 	}
 
 	//	LSon::Node *child0 = root.request_child();

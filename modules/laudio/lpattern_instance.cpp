@@ -30,6 +30,27 @@ bool LPatternInstance::play(LSong &p_song, uint32_t p_output_bus_handle, uint32_
 	return pattern->play(p_song, p_output_bus_handle, p_start_sample, p_num_samples, p_samples_per_tick, data.tick_start);
 }
 
+bool LPatternInstance::load(LSon::Node *p_data) {
+	for (uint32_t c = 0; c < p_data->children.size(); c++) {
+		LSon::Node *child = p_data->get_child(c);
+
+		if (child->name == "tick_start") {
+			if (!child->get_s64(data.tick_start))
+				return false;
+		}
+		if (child->name == "track") {
+			if (!child->get_s64(data.track))
+				return false;
+		}
+		if (child->name == "transpose") {
+			if (!child->get_s64(data.transpose))
+				return false;
+		}
+	}
+
+	return true;
+}
+
 /////////////////////////////
 
 LPatternInstance *Pattern::get_pattern_instance() const {

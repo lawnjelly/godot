@@ -14,22 +14,38 @@ struct LTracks {
 	LTrack tracks[MAX_TRACKS];
 
 	LTracks() {
+		reset();
+	}
+
+	void reset() {
 		for (uint32_t n = 0; n < MAX_TRACKS; n++) {
 			tracks[n].name = "Track " + itos(n);
+			tracks[n].active = true;
 		}
 	}
 };
 
 struct LTiming {
 	// ticks per quarter note (we use tick terminology rather than pulses)
-	uint32_t tpqn = 192;
-	uint32_t bpm = 120;
-	uint32_t sample_rate = 44100;
-	uint32_t samples_pqn = (sample_rate * bpm) / 60;
-	uint32_t samples_pt = samples_pqn / tpqn;
+	uint32_t tpqn;
+	uint32_t bpm;
+	uint32_t sample_rate;
+	uint32_t samples_pqn;
+	uint32_t samples_pt;
 
 	uint32_t tick_to_sample(uint32_t p_tick) const {
 		return p_tick * samples_pt;
+	}
+
+	void reset() {
+		tpqn = 192;
+		bpm = 120;
+		sample_rate = 44100;
+		samples_pqn = (sample_rate * bpm) / 60;
+		samples_pt = samples_pqn / tpqn;
+	}
+	LTiming() {
+		reset();
 	}
 };
 

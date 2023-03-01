@@ -4,6 +4,10 @@
 #include "lstructs.h"
 #include <stdint.h>
 
+namespace LSon {
+struct Node;
+};
+
 class LSong;
 
 class LPattern {
@@ -32,6 +36,9 @@ public:
 
 		String name = "unnamed";
 		LHandle handle;
+
+		// Used purely for serialization
+		uint32_t save_id = 0;
 
 		void reset() {
 			tick_start = 0;
@@ -64,6 +71,10 @@ public:
 
 	bool play(LSong &p_song, uint32_t p_output_bus_handle, uint32_t p_start_sample, uint32_t p_num_samples, uint32_t p_samples_per_tick, uint32_t p_pattern_start_tick) const;
 
+	bool load(LSon::Node *p_data);
+	bool load_notes(LSon::Node *p_data);
+
+	int32_t get_refcount() const { return data.refcount; }
 	bool release() {
 		data.refcount--;
 		DEV_ASSERT(data.refcount >= 0);

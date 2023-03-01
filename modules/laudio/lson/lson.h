@@ -60,11 +60,66 @@ struct Node {
 		name = p_name;
 	}
 
+	bool get_string(String &r_string) const {
+		if (type != NT_STRING)
+			return false;
+		r_string = string;
+		return true;
+	}
+
+#define LSON_GET_S64(TYPE)            \
+	bool get_s64(TYPE &r_val) const { \
+		if (type == NT_S64) {         \
+			r_val = val.s64;          \
+			return true;              \
+		}                             \
+		return false;                 \
+	}
+
+#define LSON_GET_U64(TYPE)            \
+	bool get_u64(TYPE &r_val) const { \
+		if (type == NT_U64) {         \
+			r_val = val.u64;          \
+			return true;              \
+		}                             \
+		return false;                 \
+	}
+
+	LSON_GET_S64(int32_t)
+	LSON_GET_S64(uint32_t)
+	LSON_GET_S64(int64_t)
+	LSON_GET_S64(uint64_t)
+	LSON_GET_U64(int32_t)
+	LSON_GET_U64(uint32_t)
+	LSON_GET_U64(int64_t)
+	LSON_GET_U64(uint64_t)
+#undef LSON_GET_U64
+#undef LSON_GET_S64
+
 	Node *request_child() {
 		uint32_t id = children.size();
 		children.resize(id + 1);
 		children[id] = memnew(Node);
 		return children[id];
+	}
+
+	Node *request_child_u64(String p_name, uint64_t p_val) {
+		Node *node = request_child();
+		node->set_name(p_name);
+		node->set_u64(p_val);
+		return node;
+	}
+	Node *request_child_s64(String p_name, int64_t p_val) {
+		Node *node = request_child();
+		node->set_name(p_name);
+		node->set_s64(p_val);
+		return node;
+	}
+	Node *request_child_string(String p_name, String p_string) {
+		Node *node = request_child();
+		node->set_name(p_name);
+		node->set_string(p_string);
+		return node;
 	}
 
 	bool load(FileAccess *p_file, int32_t p_depth = 0);
