@@ -641,6 +641,19 @@ bool Song::song_import_midi(String p_filename) {
 	return result;
 }
 
+bool Song::song_play(LBus &r_output_bus, int32_t p_song_sample_from, int32_t p_num_samples) {
+	uint32_t samples_per_tick = get_lsong()._timing.samples_pt;
+
+	for (uint32_t n = 0; n < g_lapp.pattern_instances.size(); n++) {
+		const LPatternInstance &pi = g_lapp.pattern_instances.get_active(n);
+
+		if (get_lsong()._tracks.tracks[pi.data.track].active)
+			pi.play(get_lsong(), r_output_bus.get_handle(), p_song_sample_from, p_num_samples, samples_per_tick);
+	}
+
+	return true;
+}
+
 bool Song::song_export_wav(String p_filename) {
 	// calculate song length
 	//	for (uint32_t n=0; n<LTracks::MAX_TRACKS; n++)

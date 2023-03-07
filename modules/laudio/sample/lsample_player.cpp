@@ -1,6 +1,7 @@
 #include "lsample_player.h"
 #include "../lbus.h"
 #include "../lson/lson.h"
+#include "core/error_macros.h"
 
 bool LSamplePlayer::load(LSon::Node *p_node, const LocalVector<String> &p_include_paths, String p_extra_path) {
 	for (uint32_t c = 0; c < p_node->children.size(); c++) {
@@ -39,10 +40,17 @@ bool LSamplePlayer::load_wav(String p_filename) {
 	return _sample.load_wav(p_filename);
 }
 
-void LSamplePlayer::play(int32_t p_dest_start_sample, uint32_t p_output_bus_handle) {
+void LSamplePlayer::play(int32_t p_song_sample_from, int32_t p_dest_num_samples, int32_t p_note_start_sample, int32_t p_note_num_samples, uint32_t p_output_bus_handle) {
+	//void LSamplePlayer::play(int32_t p_offset_start_of_write, uint32_t p_output_bus_handle) {
 	LBus *bus = g_Buses.get_bus(p_output_bus_handle);
 	if (!bus) {
 		return;
 	}
-	_sample.mix_to(bus->get_sample(), _sample.get_format().num_samples, p_dest_start_sample);
+
+	int32_t instrument_start_sample_offset = 0;
+	int32_t dest_start_sample = 0;
+	if (!bus->calculate_overlap(p_song_sample_from, p_dest_num_samples, p_note_start_sample, p_note_num_samples, dest_start_sample, instrument_start_sample_offset, false))
+		return;
+
+	_sample.mix_to(bus->get_sample(), p_dest_num_samples, dest_start_sample, instrument_start_sample_offset);
 }

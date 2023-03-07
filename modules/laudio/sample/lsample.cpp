@@ -92,8 +92,9 @@ bool LSample::_calculate_overlap(const LSample &p_dest, int32_t &r_num_samples, 
 	if (r_source_start_sample < 0) {
 		int32_t chop = -r_source_start_sample;
 		r_num_samples -= chop;
-		r_source_start_sample = 0;
-		r_dest_start_sample += chop;
+		//		r_source_start_sample = 0;
+		r_source_start_sample = chop;
+		//r_dest_start_sample += chop;
 	}
 	if (r_num_samples <= 0)
 		return false;
@@ -138,6 +139,14 @@ void LSample::_mix_channel_to(LSample &r_dest, uint32_t p_channel_from, uint32_t
 			DEV_ASSERT(0);
 		} break;
 	}
+}
+
+void LSample::copy_to(LSample &r_dest, int32_t p_num_samples, int32_t p_dest_start_sample, int32_t p_source_start_sample) {
+	// reduce num samples and start sample etc to get overlap
+	if (!_calculate_overlap(r_dest, p_num_samples, p_dest_start_sample, p_source_start_sample))
+		return;
+
+	memcpy(r_dest.get_data(p_dest_start_sample), get_data(p_source_start_sample), p_num_samples * _format.bytes_per_channel * _format.num_channels);
 }
 
 void LSample::mix_to(LSample &r_dest, int32_t p_num_samples, int32_t p_dest_start_sample, int32_t p_source_start_sample, float p_volume, float p_pan) {
@@ -185,6 +194,17 @@ void LSample::mix_to(LSample &r_dest, int32_t p_num_samples, int32_t p_dest_star
 			ERR_FAIL_MSG("num channels must be 1 or 2.");
 		} break;
 	}
+}
+
+double LSample::note_to_frequency(int32_t p_note) {
+	//	const uint32_t midi_note_at_zero_volts = 12;
+	const int32_t a4_midi_note = 69;
+	const double a4_frequency = 440.0;
+	const double semitones_per_octave = 12.0;
+	//	const float volts_per_semitone = 1.0f / semitones_per_octave;
+
+	double semitones_away_from_a4 = p_note - a4_midi_note;
+	return Math::pow(2.0, semitones_away_from_a4 / semitones_per_octave) * a4_frequency;
 }
 
 LSample::LSample() {

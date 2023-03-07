@@ -6,6 +6,8 @@
 #include "lstructs.h"
 #include "player/lplayer.h"
 
+class LBus;
+
 namespace LSon {
 struct Node;
 };
@@ -100,19 +102,18 @@ public:
 class Song : public Node {
 	GDCLASS(Song, Node);
 	LSong _song;
+	static Song *_current_song;
 
 	Pattern *_selected_pattern = nullptr;
 	PatternView *_pattern_view = nullptr;
 	uint32_t _current_note_id = 0;
+	bool _pattern_dirty = false;
+	bool _notes_dirty = false;
 
 	void _log(String p_sz);
 
-	static Song *_current_song;
-
 	LPattern *get_pattern() const;
 	LPatternInstance *get_patterni() const;
-	bool _pattern_dirty = false;
-	bool _notes_dirty = false;
 
 	bool _save_pattern(LSon::Node *p_node_patterns, uint32_t p_pattern_id, LHandle p_handle);
 	bool _save_pattern_instance(LSon::Node *p_node_pattern_instances, uint32_t p_pattern_instance_id, LHandle p_handle);
@@ -194,6 +195,8 @@ public:
 
 	bool song_import_midi(String p_filename);
 	bool song_export_wav(String p_filename);
+
+	bool song_play(LBus &r_output_bus, int32_t p_song_sample_from, int32_t p_num_samples);
 
 	bool instruments_load(String p_filename);
 	bool instruments_save(String p_filename);

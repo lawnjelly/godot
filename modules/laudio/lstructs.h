@@ -37,6 +37,10 @@ struct LTiming {
 	uint32_t samples_pqn;
 	uint32_t samples_pt;
 
+	// loops within the pattern view
+	uint32_t transport_tick_left;
+	uint32_t transport_tick_right;
+
 	uint32_t tick_to_sample(uint32_t p_tick) const {
 		return p_tick * samples_pt;
 	}
@@ -44,12 +48,17 @@ struct LTiming {
 	bool load(LSon::Node *p_data);
 	bool save(LSon::Node *p_root);
 
+	uint32_t get_transport_left_sample() const { return tick_to_sample(transport_tick_left); }
+	uint32_t get_transport_right_sample() const { return tick_to_sample(transport_tick_right); }
+
 	void reset() {
 		tpqn = 24;
 		bpm = 120;
 		sample_rate = 44100;
 		samples_pqn = (sample_rate * bpm) / (60 * 8);
 		samples_pt = samples_pqn / tpqn;
+		transport_tick_left = 0;
+		transport_tick_right = 192;
 	}
 	LTiming() {
 		reset();

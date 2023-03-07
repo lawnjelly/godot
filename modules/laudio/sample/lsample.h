@@ -29,7 +29,9 @@ public:
 	void blank();
 	const LAudioFormat &get_format() const { return _format; }
 
+	// All these values are RELATIVE to the SAMPLES
 	void mix_to(LSample &r_dest, int32_t p_num_samples, int32_t p_dest_start_sample = 0, int32_t p_source_start_sample = 0, float p_volume = 1.0f, float p_pan = 0.0f);
+	void copy_to(LSample &r_dest, int32_t p_num_samples, int32_t p_dest_start_sample = 0, int32_t p_source_start_sample = 0);
 
 	void set_f(uint32_t p_sample, uint32_t p_channel, float p_value) {
 		DEV_ASSERT(p_sample < _format.num_samples);
@@ -53,6 +55,36 @@ public:
 
 		int16_t &sample = p[(p_sample * _format.num_channels) + p_channel];
 		sample = CLAMP((int32_t)val + sample, -INT16_MAX, INT16_MAX);
+	}
+
+	uint8_t *get_data(uint32_t p_sample, uint32_t p_channel = 0) {
+		DEV_ASSERT(p_sample < _format.num_samples);
+		DEV_ASSERT(_data);
+
+		switch (_format.bytes_per_channel) {
+			case 1: {
+				int8_t *p = (int8_t *)_data;
+				return (uint8_t *)&p[(p_sample * _format.num_channels) + p_channel];
+			} break;
+			case 2: {
+				int16_t *p = (int16_t *)_data;
+				return (uint8_t *)&p[(p_sample * _format.num_channels) + p_channel];
+			} break;
+			case 3: {
+				uint8_t *p = (uint8_t *)_data;
+				p += ((p_sample * _format.num_channels) + p_channel) * 3;
+				return (uint8_t *)p;
+			} break;
+			case 4: {
+				float *p = (float *)_data;
+				return (uint8_t *)&p[(p_sample * _format.num_channels) + p_channel];
+			} break;
+			default: {
+				// not supported
+				ERR_FAIL_V(nullptr);
+			} break;
+		}
+		return nullptr;
 	}
 
 	float get_f(uint32_t p_sample, uint32_t p_channel = 0) const {
@@ -105,6 +137,8 @@ public:
 		}
 		return 0.0f;
 	}
+
+	static double note_to_frequency(int32_t p_note);
 
 	LSample();
 	~LSample();

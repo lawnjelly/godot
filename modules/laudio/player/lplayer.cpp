@@ -1,5 +1,6 @@
 #include "lplayer.h"
 #include "../sample/lsampler.h"
+#include "../synth/lsynth.h"
 #include "core/os/memory.h"
 
 ////////////////////////////////
@@ -133,6 +134,12 @@ bool LPlayers::load(String p_filename) {
 			if (child->name == "type") {
 				if (child->string == "sampler") {
 					new_inst = Ref<LInstrument>(memnew(LSampler));
+				}
+				if (child->string == "synth") {
+					new_inst = Ref<LInstrument>(memnew(LSynth));
+				}
+
+				if (new_inst.is_valid()) {
 					_palette[palette_id].instrument = new_inst;
 					_palette[palette_id].ref_count = 0;
 				}

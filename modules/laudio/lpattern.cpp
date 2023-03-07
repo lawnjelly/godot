@@ -88,6 +88,22 @@ bool LPattern::load(LSon::Node *p_data) {
 			if (!child->get_s64(data.time_sig_major))
 				return false;
 		}
+		if (child->name == "player_a") {
+			if (!child->get_s64(data.player_a))
+				return false;
+		}
+		if (child->name == "player_b") {
+			if (!child->get_s64(data.player_b))
+				return false;
+		}
+		if (child->name == "player_c") {
+			if (!child->get_s64(data.player_c))
+				return false;
+		}
+		if (child->name == "player_d") {
+			if (!child->get_s64(data.player_d))
+				return false;
+		}
 		if (child->name == "notes") {
 			if (!load_notes(child))
 				return false;
@@ -97,7 +113,7 @@ bool LPattern::load(LSon::Node *p_data) {
 	return true;
 }
 
-bool LPattern::play(LSong &p_song, uint32_t p_output_bus_handle, uint32_t p_start_sample, uint32_t p_num_samples, uint32_t p_samples_per_tick, uint32_t p_pattern_start_tick) const {
+bool LPattern::play(LSong &p_song, uint32_t p_output_bus_handle, uint32_t p_song_sample_from, uint32_t p_num_samples, uint32_t p_samples_per_tick, uint32_t p_pattern_start_tick) const {
 	int32_t player_id = data.player_a;
 
 	LInstrument *inst = p_song._players.get_player_instrument(player_id);
@@ -109,10 +125,12 @@ bool LPattern::play(LSong &p_song, uint32_t p_output_bus_handle, uint32_t p_star
 
 	for (uint32_t n = 0; n < notes.size(); n++) {
 		const LNote &note = notes[n];
-		int32_t start = note.tick_start + p_pattern_start_tick;
+		int32_t note_start = note.tick_start + p_pattern_start_tick;
 		//int32_t end = start + note.tick_length;
 
-		inst->play(note.note, p_start_sample, p_num_samples, start * p_samples_per_tick, note.tick_length * p_samples_per_tick);
+		note_start *= p_samples_per_tick;
+
+		inst->play(note.note, p_song_sample_from, p_num_samples, note_start, note.tick_length * p_samples_per_tick);
 	}
 
 	return true;

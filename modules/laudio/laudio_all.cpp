@@ -17,6 +17,7 @@
 #include "sample/lsample_player.cpp"
 #include "sample/lsampler.cpp"
 #include "sample/lwav_importer.cpp"
+#include "synth/lsynth.cpp"
 
 #include "lson/lson.cpp"
 #include "midi/lmidi_file.cpp"
