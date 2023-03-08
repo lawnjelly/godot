@@ -1,7 +1,8 @@
 #pragma once
 
 #include "../lstructs.h"
-#include "scene/gui/button.h"
+//#include "scene/gui/button.h"
+#include "scene/gui/texture_rect.h"
 
 class Pattern;
 

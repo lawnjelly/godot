@@ -94,8 +94,8 @@ void LAudioPlayer::_mix_audio() {
 
 		for (int32_t i = 0; i < data.num_samples; i++) {
 			AudioFrame *af = &targets[c][i];
-			af->l += sample.get_f(i, 0);
-			af->r += sample.get_f(i, 1);
+			af->l += sample.get_f(i, 0) * data.volume;
+			af->r += sample.get_f(i, 1) * data.volume;
 		}
 	}
 }
@@ -156,7 +156,24 @@ void LAudioPlayer::_notification(int p_what) {
 
 void LAudioPlayer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_song", "song"), &LAudioPlayer::set_song);
+	ClassDB::bind_method(D_METHOD("set_volume", "volume"), &LAudioPlayer::set_volume);
+	ClassDB::bind_method(D_METHOD("set_playing", "playing"), &LAudioPlayer::set_playing);
 	ClassDB::bind_method(D_METHOD("test"), &LAudioPlayer::test);
+
+	ClassDB::bind_method(D_METHOD("set_transport_cursor", "sample"), &LAudioPlayer::set_transport_cursor);
+	ClassDB::bind_method(D_METHOD("get_transport_cursor"), &LAudioPlayer::get_transport_cursor);
+}
+
+uint32_t LAudioPlayer::get_transport_cursor() const {
+	return data.cursor_sample;
+}
+
+void LAudioPlayer::set_transport_cursor(uint32_t p_sample) {
+	data.cursor_sample = p_sample;
+}
+
+void LAudioPlayer::set_playing(bool p_playing) {
+	data.playing = p_playing;
 }
 
 void LAudioPlayer::set_song(Node *p_song) {

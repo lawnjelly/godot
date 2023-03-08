@@ -116,12 +116,14 @@ bool LPattern::load(LSon::Node *p_data) {
 bool LPattern::play(LSong &p_song, uint32_t p_output_bus_handle, uint32_t p_song_sample_from, uint32_t p_num_samples, uint32_t p_samples_per_tick, uint32_t p_pattern_start_tick) const {
 	int32_t player_id = data.player_a;
 
+	float volume = p_song._players.get_player(player_id).volume;
 	LInstrument *inst = p_song._players.get_player_instrument(player_id);
 	// no instrument assigned
 	if (!inst)
 		return false;
 
 	inst->set_output_bus(p_output_bus_handle);
+	inst->set_volume(volume);
 
 	for (uint32_t n = 0; n < notes.size(); n++) {
 		const LNote &note = notes[n];
@@ -130,7 +132,7 @@ bool LPattern::play(LSong &p_song, uint32_t p_output_bus_handle, uint32_t p_song
 
 		note_start *= p_samples_per_tick;
 
-		inst->play(note.note, p_song_sample_from, p_num_samples, note_start, note.tick_length * p_samples_per_tick);
+		inst->play(note.note, p_song_sample_from, p_num_samples, note_start, (note.tick_length * p_samples_per_tick));
 	}
 
 	return true;

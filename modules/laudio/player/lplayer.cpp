@@ -194,6 +194,14 @@ bool LPlayers::load(String p_filename) {
 		// both ways reference and inc count
 		_players[player_id].instrument_palette_id = inst_palette_id;
 		_palette[inst_palette_id].ref_count += 1;
+
+		for (uint32_t c = 1; c < node_player->children.size(); c++) {
+			LSon::Node *child = node_player->get_child(c);
+			if (child->name == "volume") {
+				if (!child->get_f32(_players[player_id].volume))
+					return false;
+			}
+		}
 	}
 
 	return true;

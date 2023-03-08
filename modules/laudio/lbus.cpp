@@ -21,7 +21,42 @@ bool LBus::save(String p_filename) {
 	return _sample.save_wav(p_filename);
 }
 
-bool LBus::calculate_overlap(int32_t p_song_sample_from, int32_t &r_dest_num_samples, int32_t p_note_start_sample, int32_t &r_note_num_samples, int32_t &r_dest_start_sample, int32_t &r_instrument_start_sample_offset, bool p_clamp_to_note_length) const {
+bool LBus::calculate_overlap(const int32_t p_song_sample_from, const int32_t p_dest_num_samples, const int32_t p_note_start_sample, int32_t p_note_num_samples, int32_t &r_dest_start_sample, int32_t &r_instrument_start_sample_offset, int32_t &r_num_samples_to_write, bool p_clamp_to_note_length) const {
+	//bool LBus::calculate_overlap(int32_t p_song_sample_from, int32_t &r_dest_num_samples, int32_t p_note_start_sample, int32_t &r_note_num_samples, int32_t &r_dest_start_sample, int32_t &r_instrument_start_sample_offset, bool p_clamp_to_note_length) const {
+	// check the offset
+	DEV_ASSERT((p_song_sample_from - get_song_time_start()) == get_offset());
+
+	// Default to write all the samples
+	r_num_samples_to_write = p_dest_num_samples;
+
+	// adjust the start sample
+	r_instrument_start_sample_offset = p_note_start_sample - p_song_sample_from;
+	r_dest_start_sample = get_offset();
+
+	if (r_instrument_start_sample_offset > 0) {
+		r_dest_start_sample += r_instrument_start_sample_offset;
+		r_num_samples_to_write -= r_instrument_start_sample_offset;
+		r_instrument_start_sample_offset = 0;
+
+		if (r_num_samples_to_write <= 0)
+			return false;
+	} else if (r_instrument_start_sample_offset < 0) {
+		r_instrument_start_sample_offset = -r_instrument_start_sample_offset;
+		p_note_num_samples -= r_instrument_start_sample_offset;
+		if (p_note_num_samples <= 0)
+			return false;
+	}
+
+	// key off .. not yet supported as we need a release
+	if (p_clamp_to_note_length && (p_note_num_samples < r_num_samples_to_write)) {
+		r_num_samples_to_write = p_note_num_samples;
+	}
+
+	return true;
+}
+
+/*
+bool LBus::calculate_overlapOLD(int32_t p_song_sample_from, int32_t &r_dest_num_samples, int32_t p_note_start_sample, int32_t &r_note_num_samples, int32_t &r_dest_start_sample, int32_t &r_instrument_start_sample_offset, bool p_clamp_to_note_length) const {
 	// check the offset
 	DEV_ASSERT((p_song_sample_from - get_song_time_start()) == get_offset());
 
@@ -50,6 +85,7 @@ bool LBus::calculate_overlap(int32_t p_song_sample_from, int32_t &r_dest_num_sam
 
 	return true;
 }
+*/
 
 LBus::~LBus() {
 	g_Buses.free_bus(_handle, this);

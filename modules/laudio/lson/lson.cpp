@@ -74,6 +74,19 @@ bool Node::load(FileAccess *p_file, int32_t p_depth) {
 			print_line(_tabs(p_depth) + "string is " + string);
 #endif
 		} break;
+		case TT_F32: {
+			Variant v = t.string;
+			set_f32(v);
+#ifdef LSON_VERBOSE
+			print_line(_tabs(p_depth) + "f32 is " + String(Variant(val.f32)));
+#endif
+		} break;
+		case TT_BOOL: {
+			set_bool(t.string == "true");
+#ifdef LSON_VERBOSE
+			print_line(_tabs(p_depth) + "bool is " + String(Variant(val.b)));
+#endif
+		} break;
 		case TT_U64: {
 			Variant v = t.string;
 			set_u64(v);
@@ -214,6 +227,22 @@ Node::Token Node::_load_token(FileAccess *p_file, bool rewind_if_not_close_brack
 		case ']': {
 			return Token(TT_CLOSE_ARRAY);
 		} break;
+		case 'f': {
+			Token temp = _load_token(p_file);
+			temp.type = (temp.type == TT_STRING) ? TT_F32 : TT_UNKNOWN;
+			if (rewind_if_not_close_bracket) {
+				p_file->seek(old_pos);
+			}
+			return temp;
+		} break;
+		case 'b': {
+			Token temp = _load_token(p_file);
+			temp.type = (temp.type == TT_STRING) ? TT_BOOL : TT_UNKNOWN;
+			if (rewind_if_not_close_bracket) {
+				p_file->seek(old_pos);
+			}
+			return temp;
+		} break;
 		case 'u': {
 			Token temp = _load_token(p_file);
 			temp.type = (temp.type == TT_STRING) ? TT_U64 : TT_UNKNOWN;
@@ -308,6 +337,15 @@ bool Node::save(FileAccess *p_file, int32_t p_depth) {
 		} break;
 		case NT_S64: {
 			line += "#\"" + itos(val.s64) + "\"";
+			needs_spacer = true;
+		} break;
+		case NT_F32: {
+			line += "f\"" + String(Variant(val.f32)) + "\"";
+			needs_spacer = true;
+		} break;
+		case NT_BOOL: {
+			String sz = val.b ? "true" : "false";
+			line += "b\"" + sz + "\"";
 			needs_spacer = true;
 		} break;
 		case NT_STRING: {

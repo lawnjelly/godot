@@ -15,9 +15,10 @@ class LAudioPlayer : public Node {
 	struct Data {
 		Song *song = nullptr;
 		LBus output_bus;
-		bool playing = true;
+		bool playing = false;
 		int32_t num_samples = 0;
 		uint32_t cursor_sample = 0;
+		float volume = 0.2;
 	} data;
 
 	void test();
@@ -28,5 +29,10 @@ protected:
 
 public:
 	void set_song(Node *p_song);
+	void set_playing(bool p_playing);
+	void set_volume(float p_volume) { data.volume = p_volume; }
+
+	uint32_t get_transport_cursor() const;
+	void set_transport_cursor(uint32_t p_sample);
 	LAudioPlayer();
 };

@@ -213,13 +213,14 @@ void Pattern::_draw() {
 
 	RID ci = get_canvas_item();
 
-	Color col = data.selected ? Color(0.2, 0.2, 0.5, 1) : Color(0.2, 0.2, 0.2, 1);
+	//	Color col = data.selected ? Color(0.2, 0.2, 0.5, 1) : Color(0.2, 0.2, 0.2, 1);
+	Color col = data.selected ? Color(0.5, 1.0, 0.5, 1) : Color(0.8, 0.8, 0.8, 1);
 
 	draw_rect(Rect2(Point2(), size), col);
 
 	Ref<Font> font = get_font("font");
 	float line_height = font->get_height();
-	font->draw(ci, Point2(0, line_height), data.text);
+	font->draw(ci, Point2(0, line_height), data.text, Color(0, 0, 0, 1));
 
 	//	Ref<StyleBox> style = get_stylebox("normal");
 	//	style->draw(ci, Rect2(Point2(0, 0), size));

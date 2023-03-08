@@ -17,8 +17,17 @@ bool LTiming::load(LSon::Node *p_data) {
 			if (!child->get_s64(sample_rate))
 				return false;
 		}
+		if (child->name == "transport_tick_left") {
+			if (!child->get_s64(transport_tick_left))
+				return false;
+		}
+		if (child->name == "transport_tick_right") {
+			if (!child->get_s64(transport_tick_right))
+				return false;
+		}
 	}
 
+	recalculate();
 	return true;
 }
 
@@ -29,6 +38,9 @@ bool LTiming::save(LSon::Node *p_root) {
 	node->request_child_s64("tpqn", tpqn);
 	node->request_child_s64("bpm", bpm);
 	node->request_child_s64("sample_rate", sample_rate);
+
+	node->request_child_s64("transport_tick_left", transport_tick_left);
+	node->request_child_s64("transport_tick_right", transport_tick_right);
 
 	return true;
 }

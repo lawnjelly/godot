@@ -1,4 +1,5 @@
 #include "lsample.h"
+#include "core/math/math_funcs.h"
 #include "core/os/memory.h"
 #include "lwav_importer.h"
 
@@ -25,6 +26,32 @@ void LSample::create(uint32_t p_bytes_per_channel, uint32_t p_num_channels, uint
 
 	_data = (uint8_t *)memalloc(_format.total_bytes);
 	blank();
+}
+
+void LSample::normalize() {
+	// only supported for float for now
+	ERR_FAIL_COND(get_format().bytes_per_channel != 4);
+
+	float peak = 0;
+	for (uint32_t n = 0; n < get_format().num_samples; n++) {
+		for (uint32_t c = 0; c < get_format().num_channels; c++) {
+			float f = Math::absf(get_f(n, c));
+			peak = MAX(peak, f);
+		}
+	}
+
+	// too small to normalize
+	if (peak < 0.0001f)
+		return;
+
+	float mult = 1.0f / peak;
+
+	for (uint32_t n = 0; n < get_format().num_samples; n++) {
+		for (uint32_t c = 0; c < get_format().num_channels; c++) {
+			float f = get_f(n, c);
+			set_f(n, c, f * mult);
+		}
+	}
 }
 
 void LSample::blank() {
@@ -118,7 +145,7 @@ void LSample::_mix_channel_to(LSample &r_dest, uint32_t p_channel_from, uint32_t
 			for (int32_t n = 0; n < p_num_samples; n++) {
 				float f = get_f(p_source_start_sample + n, p_channel_from);
 				f *= p_volume;
-				r_dest.set_f(p_dest_start_sample + n, p_channel_to, f);
+				r_dest.mix_f(p_dest_start_sample + n, p_channel_to, f);
 				//print_line("\twriting " + String(Variant(f)));
 #ifdef DEV_ENABLED
 //			float comp = 	r_dest.get_f(p_dest_start_sample + n, p_channel_to);
@@ -130,7 +157,7 @@ void LSample::_mix_channel_to(LSample &r_dest, uint32_t p_channel_from, uint32_t
 			for (int32_t n = 0; n < p_num_samples; n++) {
 				float f = get_f(p_source_start_sample + n, p_channel_from);
 				f *= p_volume;
-				r_dest.set_16(p_dest_start_sample + n, p_channel_to, f);
+				r_dest.mix_16(p_dest_start_sample + n, p_channel_to, f);
 				//print_line("\twriting " + String(Variant(f)));
 			}
 		} break;

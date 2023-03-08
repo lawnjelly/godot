@@ -7,40 +7,7 @@
 class LPlayer {
 public:
 	uint32_t instrument_palette_id = UINT32_MAX;
-	//	LInstrument_Holder holder;
-	//	bool is_active() const { return holder.is_valid(); }
-	//	LInstrument *get_instrument() {
-	//		if (holder.is_valid()) {
-	//			return holder.get_instrument().ptr();
-	//		}
-	//		return nullptr;
-	//	}
-	//	const LInstrument *get_instrument() const {
-	//		if (holder.is_valid()) {
-	//			return holder.get_instrument().ptr();
-	//		}
-	//		return nullptr;
-	//	}
-	//	Ref<LInstrument> get_instrument_ref() { return holder.get_instrument(); }
-	//	void set_instrument(Ref<LInstrument> p_instrument) {
-	//		holder._instrument = p_instrument;
-	//	}
-	//	bool load(String p_filename) {
-	//		return holder.load(p_filename);
-	//	}
-
-	//	bool save(uint32_t p_player_id, LSon::Node &p_root);
-
-	//	void clear() {
-	//		holder._instrument.unref();
-	//	}
-	//	const char *get_name() const {
-	//		const LInstrument *i = get_instrument();
-	//		if (i) {
-	//			return i->get_name();
-	//		}
-	//		return "-";
-	//	}
+	float volume = 1.0;
 };
 
 class LPlayers {

@@ -15,8 +15,9 @@ struct Node {
 		NT_UNKNOWN,
 		NT_U64,
 		NT_S64,
-		//		NT_F32,
-		//		NT_F64,
+		NT_F32,
+		//NT_F64,
+		NT_BOOL,
 		NT_STRING,
 		NT_ARRAY,
 	};
@@ -24,7 +25,8 @@ struct Node {
 	union {
 		uint64_t u64 = 0;
 		int64_t s64;
-		//		float f32;
+		float f32;
+		bool b;
 		//		double f64;
 	} val;
 	String string;
@@ -40,6 +42,14 @@ struct Node {
 	//		return val.u64;
 	//	}
 
+	void set_bool(bool p_val) {
+		val.b = p_val;
+		type = NT_BOOL;
+	}
+	void set_f32(float p_val) {
+		val.f32 = p_val;
+		type = NT_F32;
+	}
 	void set_u64(uint64_t p_val) {
 		val.u64 = p_val;
 		type = NT_U64;
@@ -65,6 +75,22 @@ struct Node {
 			return false;
 		r_string = string;
 		return true;
+	}
+
+	bool get_f32(float &r_val) const {
+		if (type == NT_F32) {
+			r_val = val.f32;
+			return true;
+		}
+		return false;
+	}
+
+	bool get_bool(bool &r_val) const {
+		if (type == NT_BOOL) {
+			r_val = val.b;
+			return true;
+		}
+		return false;
 	}
 
 #define LSON_GET_S64(TYPE)            \
@@ -93,6 +119,7 @@ struct Node {
 	LSON_GET_U64(uint32_t)
 	LSON_GET_U64(int64_t)
 	LSON_GET_U64(uint64_t)
+
 #undef LSON_GET_U64
 #undef LSON_GET_S64
 
@@ -113,6 +140,12 @@ struct Node {
 		Node *node = request_child();
 		node->set_name(p_name);
 		node->set_s64(p_val);
+		return node;
+	}
+	Node *request_child_bool(String p_name, bool p_val) {
+		Node *node = request_child();
+		node->set_name(p_name);
+		node->set_bool(p_val);
 		return node;
 	}
 	Node *request_child_string(String p_name, String p_string) {
@@ -136,6 +169,8 @@ private:
 		TT_UNKNOWN,
 		TT_U64,
 		TT_S64,
+		TT_F32,
+		TT_BOOL,
 		TT_STRING,
 		TT_OPEN_CHILDREN,
 		TT_CLOSE_CHILDREN,

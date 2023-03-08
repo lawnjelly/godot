@@ -18,7 +18,8 @@ protected:
 	static void _bind_methods();
 
 public:
-	bool calculate_overlap(int32_t p_song_sample_from, int32_t &r_dest_num_samples, int32_t p_note_start_sample, int32_t &r_note_num_samples, int32_t &r_dest_start_sample, int32_t &r_instrument_start_sample_offset, bool p_clamp_to_note_length = true) const;
+	bool calculate_overlap(const int32_t p_song_sample_from, const int32_t p_dest_num_samples, const int32_t p_note_start_sample, int32_t p_note_num_samples, int32_t &r_dest_start_sample, int32_t &r_instrument_start_sample_offset, int32_t &r_num_samples_to_write, bool p_clamp_to_note_length) const;
+	//bool calculate_overlap(int32_t p_song_sample_from, int32_t &r_dest_num_samples, int32_t p_note_start_sample, int32_t &r_note_num_samples, int32_t &r_dest_start_sample, int32_t &r_instrument_start_sample_offset, bool p_clamp_to_note_length) const;
 
 	uint32_t get_handle() const { return _handle; }
 	bool save(String p_filename);

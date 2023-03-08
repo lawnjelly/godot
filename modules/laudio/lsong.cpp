@@ -8,6 +8,20 @@ Song *Song::_current_song = nullptr;
 
 LApp g_lapp;
 
+void LSong::calculate_song_length() {
+	int32_t song_end = 0;
+	for (uint32_t n = 0; n < g_lapp.pattern_instances.size(); n++) {
+		const LPatternInstance &pi = g_lapp.pattern_instances.get_active(n);
+		//if (_tracks.tracks[pi.data.track].active) {
+		int32_t pattern_end = pi.get_tick_end();
+		song_end = MAX(song_end, pattern_end);
+		//}
+	}
+
+	print_line("Song is " + itos(song_end) + " ticks.");
+	_timing.song_length_ticks = song_end;
+}
+
 LSong::LSong() {
 }
 
@@ -115,9 +129,16 @@ void Song::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("instruments_load", "filename"), &Song::instruments_load);
 	ClassDB::bind_method(D_METHOD("instruments_save", "filename"), &Song::instruments_save);
 
+	ClassDB::bind_method(D_METHOD("transport_set_left_tick", "tick"), &Song::transport_set_left_tick);
+	ClassDB::bind_method(D_METHOD("transport_set_right_tick", "tick"), &Song::transport_set_right_tick);
+	ClassDB::bind_method(D_METHOD("transport_get_left_tick"), &Song::transport_get_left_tick);
+	ClassDB::bind_method(D_METHOD("transport_get_right_tick"), &Song::transport_get_right_tick);
+
 	ClassDB::bind_method(D_METHOD("song_load", "filename"), &Song::song_load);
 	ClassDB::bind_method(D_METHOD("song_save", "filename"), &Song::song_save);
 	ClassDB::bind_method(D_METHOD("song_clear"), &Song::song_clear);
+	ClassDB::bind_method(D_METHOD("song_get_length"), &Song::song_get_length);
+	ClassDB::bind_method(D_METHOD("song_get_samples_per_tick"), &Song::song_get_samples_per_tick);
 
 	ADD_SIGNAL(MethodInfo("update_inspector"));
 	ADD_SIGNAL(MethodInfo("update_byteview"));
@@ -157,7 +178,7 @@ void Song::song_clear() {
 		_pattern_delete_internal(pat);
 	}
 
-	_song._players.clear_players();
+	//_song._players.clear_players();
 	_song._timing.reset();
 	_song._tracks.reset();
 }
@@ -374,6 +395,31 @@ bool Song::track_get_active(uint32_t p_track) const {
 	return get_lsong()._tracks.tracks[p_track].active;
 }
 
+//uint32_t Song::transport_get_cursor() const
+//{
+//	return 0;
+//}
+
+//void Song::transport_set_cursor(uint32_t p_pos)
+//{
+//}
+
+void Song::transport_set_left_tick(uint32_t p_tick) {
+	get_lsong()._timing.transport_tick_left = p_tick;
+}
+
+void Song::transport_set_right_tick(uint32_t p_tick) {
+	get_lsong()._timing.transport_tick_right = p_tick;
+}
+
+uint32_t Song::transport_get_left_tick() const {
+	return get_lsong()._timing.transport_tick_left;
+}
+
+uint32_t Song::transport_get_right_tick() const {
+	return get_lsong()._timing.transport_tick_right;
+}
+
 bool Song::instruments_load(String p_filename) {
 	bool res = get_lsong()._players.load(p_filename);
 	update_all();
@@ -436,6 +482,26 @@ bool Song::song_load(String p_filename) {
 			return false;
 	}
 
+	LSon::Node *node_tracks = node_root.find_node("tracks");
+	ERR_FAIL_NULL_V(node_tracks, false);
+
+	for (uint32_t n = 0; n < node_tracks->children.size(); n++) {
+		LSon::Node *node_track = node_tracks->get_child(n);
+		ERR_FAIL_COND_V(node_track->name != "track", false);
+
+		LSon::Node *child = node_track->get_child(0);
+		ERR_FAIL_COND_V(child->name != "active", false);
+
+		ERR_FAIL_COND_V(n > LTracks::MAX_TRACKS, false);
+		LTrack &track = get_lsong()._tracks.tracks[n];
+		if (!child->get_bool(track.active))
+			return false;
+	}
+
+	get_lsong().calculate_song_length();
+	transport_set_left_tick(0);
+	transport_set_right_tick(get_lsong()._timing.song_length_ticks);
+
 	update_all();
 	return true;
 }
@@ -497,6 +563,15 @@ bool Song::song_save(String p_filename) {
 			result = false;
 	}
 
+	// tracks
+	LSon::Node *node_tracks = node_root.request_child();
+	node_tracks->set_name("tracks");
+	node_tracks->set_array();
+	for (uint32_t n = 0; n < LTracks::MAX_TRACKS; n++) {
+		if (!_save_track(node_tracks, n))
+			result = false;
+	}
+
 	if (!node_root.save(p_filename))
 		result = false;
 
@@ -547,6 +622,15 @@ bool Song::_save_pattern(LSon::Node *p_node_patterns, uint32_t p_pattern_id, LHa
 	return true;
 }
 
+bool Song::_save_track(LSon::Node *p_node_tracks, uint32_t p_track_id) {
+	LSon::Node *node = p_node_tracks->request_child_s64("track", p_track_id);
+	const LTrack &track = get_lsong()._tracks.tracks[p_track_id];
+
+	node->request_child_bool("active", track.active);
+
+	return true;
+}
+
 bool Song::_save_pattern_instance(LSon::Node *p_node_pattern_instances, uint32_t p_pattern_instance_id, LHandle p_handle) {
 	LSon::Node *node = p_node_pattern_instances->request_child_s64("pattern_instance", p_pattern_instance_id);
 
@@ -566,6 +650,10 @@ bool Song::_save_pattern_instance(LSon::Node *p_node_pattern_instances, uint32_t
 		node->request_child_s64("transpose", pi->data.transpose);
 
 	return true;
+}
+
+uint32_t Song::song_get_samples_per_tick() const {
+	return get_lsong()._timing.samples_pt;
 }
 
 bool Song::song_import_midi(String p_filename) {
@@ -637,8 +725,16 @@ bool Song::song_import_midi(String p_filename) {
 		}
 	}
 
+	get_lsong().calculate_song_length();
+	transport_set_left_tick(0);
+	transport_set_right_tick(get_lsong()._timing.song_length_ticks);
+
 	update_all();
 	return result;
+}
+
+uint32_t Song::song_get_length() const {
+	return get_lsong()._timing.song_length_ticks;
 }
 
 bool Song::song_play(LBus &r_output_bus, int32_t p_song_sample_from, int32_t p_num_samples) {
@@ -666,12 +762,14 @@ bool Song::song_export_wav(String p_filename) {
 	int32_t song_end = 0;
 	for (uint32_t n = 0; n < g_lapp.pattern_instances.size(); n++) {
 		const LPatternInstance &pi = g_lapp.pattern_instances.get_active(n);
-		int32_t pattern_end = pi.get_tick_end();
-		song_end = MAX(song_end, pattern_end);
+		if (get_lsong()._tracks.tracks[pi.data.track].active) {
+			int32_t pattern_end = pi.get_tick_end();
+			song_end = MAX(song_end, pattern_end);
+		}
 	}
 
 	// for testing limit song length
-	song_end = MIN(song_end, 400);
+	//	song_end = MIN(song_end, 192);
 
 	// calculate in samples
 	uint32_t samples_per_tick = get_lsong()._timing.samples_pt;
@@ -685,9 +783,25 @@ bool Song::song_export_wav(String p_filename) {
 
 	for (uint32_t n = 0; n < g_lapp.pattern_instances.size(); n++) {
 		const LPatternInstance &pi = g_lapp.pattern_instances.get_active(n);
-		pi.play(get_lsong(), output_bus.get_handle(), 0, total_samples, samples_per_tick);
+		if (get_lsong()._tracks.tracks[pi.data.track].active) {
+			pi.play(get_lsong(), output_bus.get_handle(), 0, total_samples, samples_per_tick);
+		}
 	}
 
+	/*
+		// test
+		LInstrument * inst = get_lsong()._players.get_player_instrument(2);
+		inst->set_output_bus(output_bus.get_handle());
+		for (int i=0; i<10; i++)
+		{
+			int32_t slice = 4410;
+			output_bus.set_offset(i*slice);
+
+			inst->play(60, i * slice, slice, 0, 44100);
+		}
+		*/
+
+	output_bus.get_sample().normalize();
 	return output_bus.save(p_filename + ".wav");
 }
 

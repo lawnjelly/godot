@@ -11,11 +11,12 @@ class LSample;
 class LInstrument : public Reference {
 	GDCLASS(LInstrument, Reference);
 
+protected:
 	struct InstrumentData {
 		CharString name = "Undefined";
+		float volume = 1.0;
 	} idata;
 
-protected:
 	uint32_t _output_bus_handle = 0;
 	static void _bind_methods();
 
@@ -29,8 +30,10 @@ public:
 			return get_type_name();
 	}
 	void set_name(String p_name) { idata.name = CharString(p_name.utf8()); }
+	void set_volume(float p_volume) { idata.volume = p_volume; }
 	virtual const char *get_type_name() const { return "Undefined Type"; }
 	virtual bool load(LSon::Node *p_data, const LocalVector<String> &p_include_paths) { return true; }
+	virtual int32_t get_max_release_time() const { return 0; } // in samples
 };
 
 //class LInstrument_Holder {

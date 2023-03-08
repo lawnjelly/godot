@@ -29,11 +29,13 @@ public:
 	void blank();
 	const LAudioFormat &get_format() const { return _format; }
 
+	void normalize();
+
 	// All these values are RELATIVE to the SAMPLES
 	void mix_to(LSample &r_dest, int32_t p_num_samples, int32_t p_dest_start_sample = 0, int32_t p_source_start_sample = 0, float p_volume = 1.0f, float p_pan = 0.0f);
 	void copy_to(LSample &r_dest, int32_t p_num_samples, int32_t p_dest_start_sample = 0, int32_t p_source_start_sample = 0);
 
-	void set_f(uint32_t p_sample, uint32_t p_channel, float p_value) {
+	void mix_f(uint32_t p_sample, uint32_t p_channel, float p_value) {
 		DEV_ASSERT(p_sample < _format.num_samples);
 		DEV_ASSERT(_data);
 		DEV_ASSERT(p_channel < _format.num_channels);
@@ -43,7 +45,17 @@ public:
 		p[(p_sample * _format.num_channels) + p_channel] += p_value;
 	}
 
-	void set_16(uint32_t p_sample, uint32_t p_channel, float p_value) {
+	void set_f(uint32_t p_sample, uint32_t p_channel, float p_value) {
+		DEV_ASSERT(p_sample < _format.num_samples);
+		DEV_ASSERT(_data);
+		DEV_ASSERT(p_channel < _format.num_channels);
+		DEV_ASSERT(_format.bytes_per_channel == 4);
+
+		float *p = (float *)_data;
+		p[(p_sample * _format.num_channels) + p_channel] = p_value;
+	}
+
+	void mix_16(uint32_t p_sample, uint32_t p_channel, float p_value) {
 		DEV_ASSERT(p_sample < _format.num_samples);
 		DEV_ASSERT(_data);
 		DEV_ASSERT(p_channel < _format.num_channels);

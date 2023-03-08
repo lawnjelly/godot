@@ -95,6 +95,8 @@ public:
 	LTracks _tracks;
 	LocalVector<LHandle> _pattern_instances;
 
+	void calculate_song_length();
+
 	LSong();
 	~LSong();
 };
@@ -117,6 +119,7 @@ class Song : public Node {
 
 	bool _save_pattern(LSon::Node *p_node_patterns, uint32_t p_pattern_id, LHandle p_handle);
 	bool _save_pattern_instance(LSon::Node *p_node_pattern_instances, uint32_t p_pattern_instance_id, LHandle p_handle);
+	bool _save_track(LSon::Node *p_node_tracks, uint32_t p_track_id);
 	LPattern *_create_lpattern(LHandle &r_handle);
 	LPatternInstance *_create_lpattern_instance_and_pattern(const LHandle &p_pattern_handle, bool p_select_pattern);
 
@@ -198,8 +201,19 @@ public:
 
 	bool song_play(LBus &r_output_bus, int32_t p_song_sample_from, int32_t p_num_samples);
 
+	uint32_t song_get_length() const;
+
 	bool instruments_load(String p_filename);
 	bool instruments_save(String p_filename);
+
+	void transport_set_left_tick(uint32_t p_tick);
+	void transport_set_right_tick(uint32_t p_tick);
+	uint32_t transport_get_left_tick() const;
+	uint32_t transport_get_right_tick() const;
+
+	uint32_t song_get_samples_per_tick() const;
+	//	uint32_t transport_get_cursor() const;
+	//	void transport_set_cursor(uint32_t p_pos);
 
 	Song();
 	virtual ~Song();
