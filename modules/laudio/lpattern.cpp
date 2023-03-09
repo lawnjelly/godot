@@ -132,7 +132,7 @@ bool LPattern::play(LSong &p_song, uint32_t p_output_bus_handle, uint32_t p_song
 
 		note_start *= p_samples_per_tick;
 
-		inst->play(note.note, p_song_sample_from, p_num_samples, note_start, (note.tick_length * p_samples_per_tick));
+		inst->play(note.note, note.velocity, p_song_sample_from, p_num_samples, note_start, (note.tick_length * p_samples_per_tick));
 	}
 
 	return true;

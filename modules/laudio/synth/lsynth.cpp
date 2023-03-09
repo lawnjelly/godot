@@ -22,41 +22,19 @@ void LSynth::play_ADSR(LBus *p_bus, uint32_t p_key, int32_t p_song_sample_from, 
 	}
 	//////////////////////////////////////////////////////////////////
 
-	double mult = 1.0 / p_bus->get_sample().get_format().sample_rate;
-	double freq = LSample::note_to_frequency(p_key);
-	mult *= freq;
-	if (data.wave == WAVE_SINE) {
-		mult *= Math_TAU;
-	}
+	Oscillator osc;
+	osc.set_freq(LSample::note_to_frequency(p_key), p_bus->get_sample().get_format().sample_rate);
+	osc.set_wave(data.wave);
 
 	LSample &dest = p_bus->get_sample();
 
 	// phase offset
-	//	int32_t phase = dest_start_sample + p_song_sample_from;
-	int32_t phase = dest_start_sample + p_bus->get_song_time_start();
-	//print_line("phase " + itos(phase));
+	osc.set_phase(dest_start_sample + p_bus->get_song_time_start());
 
 	for (int32_t n = 0; n < num_samples_to_write; n++) {
 		int32_t dest_sample_id = dest_start_sample + n;
 
-		double secs = (n + phase) * mult;
-
-		float f;
-
-		switch (data.wave) {
-			case WAVE_SAWTOOTH: {
-				f = Math::fmod(secs, 1.0);
-				f *= 2.0;
-				f -= 1.0;
-			} break;
-			case WAVE_SQUARE: {
-				int32_t i = secs;
-				f = ((i % 2) == 0) ? 1.0 : -1.0;
-			} break;
-			default: {
-				f = sin(secs);
-			} break;
-		}
+		float f = osc.get_sample();
 
 		// adjust volume between vol a and vol b
 		f *= Math::lerp(p_vol_a, p_vol_b, n / (float)num_samples_to_write);
@@ -66,7 +44,7 @@ void LSynth::play_ADSR(LBus *p_bus, uint32_t p_key, int32_t p_song_sample_from, 
 	}
 }
 
-void LSynth::play(uint32_t p_key, int32_t p_song_sample_from, int32_t p_dest_num_samples, int32_t p_note_start_sample, int32_t p_note_num_samples) {
+void LSynth::play(uint32_t p_key, uint32_t p_velocity, int32_t p_song_sample_from, int32_t p_dest_num_samples, int32_t p_note_start_sample, int32_t p_note_num_samples) {
 	LBus *bus = g_Buses.get_bus(_output_bus_handle);
 	if (!bus) {
 		return;
@@ -77,6 +55,7 @@ void LSynth::play(uint32_t p_key, int32_t p_song_sample_from, int32_t p_dest_num
 
 	uint32_t sample_rate = bus->get_sample().get_format().sample_rate;
 	float volume = idata.volume;
+	volume *= (p_velocity / 127.0f);
 
 	//	play_ADSR(bus, p_key, p_song_sample_from, p_dest_num_samples, p_note_start_sample, p_note_num_samples, volume, 0);
 	//	return;

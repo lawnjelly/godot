@@ -1,6 +1,6 @@
 #include "lsampler.h"
 
-void LSampler::play(uint32_t p_key, int32_t p_song_sample_from, int32_t p_dest_num_samples, int32_t p_note_start_sample, int32_t p_note_num_samples) {
+void LSampler::play(uint32_t p_key, uint32_t p_velocity, int32_t p_song_sample_from, int32_t p_dest_num_samples, int32_t p_note_start_sample, int32_t p_note_num_samples) {
 	// try and get sampler associated with this key
 	p_key = MIN(p_key, 127);
 	uint32_t pool_id = _key_player_map[p_key];

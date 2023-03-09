@@ -21,7 +21,7 @@ protected:
 	static void _bind_methods();
 
 public:
-	virtual void play(uint32_t p_key, int32_t p_song_sample_from, int32_t p_dest_num_samples, int32_t p_note_start_sample, int32_t p_note_num_samples) {}
+	virtual void play(uint32_t p_key, uint32_t p_velocity, int32_t p_song_sample_from, int32_t p_dest_num_samples, int32_t p_note_start_sample, int32_t p_note_num_samples) {}
 	virtual void set_output_bus(uint32_t p_bus_handle);
 	const char *get_name() const {
 		if (idata.name.size())
