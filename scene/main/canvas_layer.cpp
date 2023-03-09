@@ -379,6 +379,7 @@ CanvasLayer::CanvasLayer() {
 	visible = true;
 	follow_viewport = false;
 	follow_viewport_scale = 1.0;
+	_set_observe_notification_moved_in_parent(true);
 }
 
 CanvasLayer::~CanvasLayer() {
