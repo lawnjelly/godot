@@ -1,9 +1,11 @@
 #include "lsampler.h"
 
-void LSampler::play(uint32_t p_key, uint32_t p_velocity, int32_t p_song_sample_from, int32_t p_dest_num_samples, int32_t p_note_start_sample, int32_t p_note_num_samples) {
+void LSampler::play(const PlayParams &p_play_params) {
+	const PlayParams &p = p_play_params;
+
 	// try and get sampler associated with this key
-	p_key = MIN(p_key, 127);
-	uint32_t pool_id = _key_player_map[p_key];
+	uint32_t key = MIN(p.key, 127);
+	uint32_t pool_id = _key_player_map[key];
 
 	// no player for this key
 	if (!pool_id) {
@@ -16,7 +18,7 @@ void LSampler::play(uint32_t p_key, uint32_t p_velocity, int32_t p_song_sample_f
 
 	//	int32_t offset_start_of_write = (int32_t)p_note_start_sample - (int32_t)p_song_sample_from;
 	//	sp.play(offset_start_of_write, _output_bus_handle);
-	sp.play(p_song_sample_from, p_dest_num_samples, p_note_start_sample, p_note_num_samples, _output_bus_handle);
+	sp.play(p.song_sample_from, p.dest_num_samples, p.note_start_sample, p.note_num_samples, _output_bus_handle);
 }
 
 bool LSampler::load(LSon::Node *p_data, const LocalVector<String> &p_include_paths) {

@@ -1,35 +1,39 @@
 #include "lsynth.h"
 #include "../lbus.h"
 
-void LSynth::play_ADSR(LBus *p_bus, uint32_t p_key, int32_t p_song_sample_from, int32_t p_dest_num_samples, int32_t p_note_start_sample, int32_t p_note_num_samples, float p_vol_a, float p_vol_b) {
+void LSynth::play_ADSR(const PlayParams &p_play_params) {
+	const PlayParams &p = p_play_params;
+	float vol_a = p.vol_a;
+	float vol_b = p.vol_b;
+
 	int32_t instrument_start_sample_offset = 0;
 	int32_t dest_start_sample = 0;
 	int32_t num_samples_to_write = 0;
-	if (!p_bus->calculate_overlap(p_song_sample_from, p_dest_num_samples, p_note_start_sample, p_note_num_samples, dest_start_sample, instrument_start_sample_offset, num_samples_to_write, true))
+	if (!p.bus->calculate_overlap(p.song_sample_from, p.dest_num_samples, p.note_start_sample, p.note_num_samples, dest_start_sample, instrument_start_sample_offset, num_samples_to_write, true))
 		return;
 
 	// adjust volume a and b according to how much of the original note was clipped
-	float orig_vol_a = p_vol_a;
+	float orig_vol_a = vol_a;
 	if (instrument_start_sample_offset > 0) {
 		// cut off samples from beginning
-		float cutoff = instrument_start_sample_offset / (float)p_note_num_samples;
-		p_vol_a = Math::lerp(p_vol_a, p_vol_b, cutoff);
+		float cutoff = instrument_start_sample_offset / (float)p.note_num_samples;
+		vol_a = Math::lerp(vol_a, vol_b, cutoff);
 	}
-	int32_t cutoff_end = (p_note_num_samples - instrument_start_sample_offset) - num_samples_to_write;
+	int32_t cutoff_end = (p.note_num_samples - instrument_start_sample_offset) - num_samples_to_write;
 	if (cutoff_end > 0) {
-		float fract = cutoff_end / (float)p_note_num_samples;
-		p_vol_b = Math::lerp(p_vol_b, orig_vol_a, fract);
+		float fract = cutoff_end / (float)p.note_num_samples;
+		vol_b = Math::lerp(vol_b, orig_vol_a, fract);
 	}
 	//////////////////////////////////////////////////////////////////
 
 	Oscillator osc;
-	osc.set_freq(LSample::note_to_frequency(p_key), p_bus->get_sample().get_format().sample_rate);
+	osc.set_freq(LSample::note_to_frequency(p.key), p.bus->get_sample().get_format().sample_rate);
 	osc.set_wave(data.wave);
 
-	LSample &dest = p_bus->get_sample();
+	LSample &dest = p.bus->get_sample();
 
 	// phase offset
-	osc.set_phase(dest_start_sample + p_bus->get_song_time_start());
+	osc.set_phase(dest_start_sample + p.bus->get_song_time_start());
 
 	for (int32_t n = 0; n < num_samples_to_write; n++) {
 		int32_t dest_sample_id = dest_start_sample + n;
@@ -37,83 +41,23 @@ void LSynth::play_ADSR(LBus *p_bus, uint32_t p_key, int32_t p_song_sample_from, 
 		float f = osc.get_sample();
 
 		// adjust volume between vol a and vol b
-		f *= Math::lerp(p_vol_a, p_vol_b, n / (float)num_samples_to_write);
+		f *= Math::lerp(vol_a, vol_b, n / (float)num_samples_to_write);
 
 		dest.mix_f(dest_sample_id, 0, f);
 		dest.mix_f(dest_sample_id, 1, f);
 	}
 }
 
-void LSynth::play(uint32_t p_key, uint32_t p_velocity, int32_t p_song_sample_from, int32_t p_dest_num_samples, int32_t p_note_start_sample, int32_t p_note_num_samples) {
+void LSynth::play(const PlayParams &p_play_params) {
 	LBus *bus = g_Buses.get_bus(_output_bus_handle);
 	if (!bus) {
 		return;
 	}
 
-	play_note_ADSR(bus, p_key, p_velocity, p_song_sample_from, p_dest_num_samples, p_note_start_sample, p_note_num_samples);
-	/*
-	return;
+	PlayParams pp = p_play_params;
+	pp.bus = bus;
 
-	if (!p_note_num_samples)
-		return;
-
-	uint32_t sample_rate = bus->get_sample().get_format().sample_rate;
-	float volume = idata.volume;
-	volume *= (p_velocity / 127.0f);
-
-	//	play_ADSR(bus, p_key, p_song_sample_from, p_dest_num_samples, p_note_start_sample, p_note_num_samples, volume, 0);
-	//	return;
-
-	// ATTACK
-	//	int32_t note_start = p_note_start_sample - p_song_sample_from;
-	//	int32_t note_start = p_note_start_sample - bus->get_song_time_start();
-	int32_t note_start = p_note_start_sample;
-	int32_t note_length = p_note_num_samples;
-
-	int32_t attack_length = data.attack * sample_rate;
-
-	int32_t decay_start = attack_length;
-	int32_t decay_length = data.decay * sample_rate;
-	int32_t sustain_start = decay_start + decay_length;
-
-	// note this can be negative if we never got to sustain
-	int32_t sustain_length = note_length - sustain_start;
-	float sustain_volume = data.sustain * idata.volume;
-
-	// Most common case, the attack is fully used
-	if (note_length >= attack_length) {
-		play_ADSR(bus, p_key, p_song_sample_from, p_dest_num_samples, note_start, attack_length, 0, volume);
-	} else {
-		// fraction of full volume?
-		volume *= (p_note_num_samples / (float)attack_length);
-		play_ADSR(bus, p_key, p_song_sample_from, p_dest_num_samples, note_start, note_length, 0, volume);
-		goto RELEASE;
-	}
-
-	// DECAY
-
-	// Whole decay
-	if (sustain_length >= 0) {
-		play_ADSR(bus, p_key, p_song_sample_from, p_dest_num_samples, note_start + decay_start, decay_length, volume, sustain_volume);
-		volume = sustain_volume;
-	} else {
-		// fraction through to sustain volume
-		float fract = (note_length - decay_start) / (float)decay_length;
-		sustain_volume = Math::lerp(volume, sustain_volume, fract);
-		play_ADSR(bus, p_key, p_song_sample_from, p_dest_num_samples, note_start + decay_start, note_length - decay_start, volume, sustain_volume);
-		volume = sustain_volume;
-		goto RELEASE;
-	}
-
-	// SUSTAIN
-	play_ADSR(bus, p_key, p_song_sample_from, p_dest_num_samples, note_start + sustain_start, note_length - sustain_start, volume, volume);
-
-RELEASE:
-	// RELEASE
-	int32_t release_start = note_length;
-	int32_t release_length = data.release * sample_rate;
-	play_ADSR(bus, p_key, p_song_sample_from, p_dest_num_samples, note_start + release_start, release_length, volume, 0);
-	*/
+	play_note_ADSR(pp);
 }
 
 bool LSynth::load(LSon::Node *p_data, const LocalVector<String> &p_include_paths) {

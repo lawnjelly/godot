@@ -125,14 +125,24 @@ bool LPattern::play(LSong &p_song, uint32_t p_output_bus_handle, uint32_t p_song
 	inst->set_output_bus(p_output_bus_handle);
 	inst->set_volume(volume);
 
+	LInstrument::PlayParams pp;
+	pp.song_sample_from = p_song_sample_from;
+	pp.dest_num_samples = p_num_samples;
+
 	for (uint32_t n = 0; n < notes.size(); n++) {
 		const LNote &note = notes[n];
 		int32_t note_start = note.tick_start + p_pattern_start_tick;
 		//int32_t end = start + note.tick_length;
 
-		note_start *= p_samples_per_tick;
+		//note_start *= p_samples_per_tick;
 
-		inst->play(note.note, note.velocity, p_song_sample_from, p_num_samples, note_start, (note.tick_length * p_samples_per_tick));
+		pp.key = note.note;
+		pp.velocity = note.velocity;
+		pp.note_start_sample = note_start * p_samples_per_tick;
+		pp.note_num_samples = note.tick_length * p_samples_per_tick;
+
+		//inst->play(note.note, note.velocity, p_song_sample_from, p_num_samples, note_start, (note.tick_length * p_samples_per_tick));
+		inst->play(pp);
 	}
 
 	return true;

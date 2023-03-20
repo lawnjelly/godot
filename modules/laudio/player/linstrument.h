@@ -12,6 +12,19 @@ class LBus;
 class LInstrument : public Reference {
 	GDCLASS(LInstrument, Reference);
 
+public:
+	struct PlayParams {
+		LBus *bus = nullptr;
+		uint32_t key = 0;
+		uint32_t velocity = 127;
+		int32_t song_sample_from = 0;
+		int32_t dest_num_samples = 0;
+		int32_t note_start_sample = 0;
+		int32_t note_num_samples = 0;
+		float vol_a = 1;
+		float vol_b = 1;
+	};
+
 protected:
 	struct InstrumentData {
 		CharString name = "Undefined";
@@ -21,7 +34,6 @@ protected:
 		float release = 0.2;
 		float decay = 0.5;
 		float sustain = 1.0;
-
 	} idata;
 
 	uint32_t _output_bus_handle = 0;
@@ -29,12 +41,12 @@ protected:
 
 	virtual bool load_idata(LSon::Node *p_node, const LocalVector<String> &p_include_paths);
 
-	void play_note_ADSR(LBus *p_bus, uint32_t p_key, uint32_t p_velocity, int32_t p_song_sample_from, int32_t p_dest_num_samples, int32_t p_note_start_sample, int32_t p_note_num_samples);
+	void play_note_ADSR(const PlayParams &p_play_params);
 
-	virtual void play_ADSR(LBus *p_bus, uint32_t p_key, int32_t p_song_sample_from, int32_t p_dest_num_samples, int32_t p_note_start_sample, int32_t p_note_num_samples, float p_vol_a, float p_vol_b) {}
+	virtual void play_ADSR(const PlayParams &p_play_params) {}
 
 public:
-	virtual void play(uint32_t p_key, uint32_t p_velocity, int32_t p_song_sample_from, int32_t p_dest_num_samples, int32_t p_note_start_sample, int32_t p_note_num_samples) {}
+	virtual void play(const PlayParams &p_play_params) {}
 	virtual void set_output_bus(uint32_t p_bus_handle);
 	const char *get_name() const {
 		if (idata.name.size())
