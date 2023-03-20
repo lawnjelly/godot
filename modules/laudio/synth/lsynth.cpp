@@ -50,6 +50,10 @@ void LSynth::play(uint32_t p_key, uint32_t p_velocity, int32_t p_song_sample_fro
 		return;
 	}
 
+	play_note_ADSR(bus, p_key, p_velocity, p_song_sample_from, p_dest_num_samples, p_note_start_sample, p_note_num_samples);
+	/*
+	return;
+
 	if (!p_note_num_samples)
 		return;
 
@@ -109,6 +113,7 @@ RELEASE:
 	int32_t release_start = note_length;
 	int32_t release_length = data.release * sample_rate;
 	play_ADSR(bus, p_key, p_song_sample_from, p_dest_num_samples, note_start + release_start, release_length, volume, 0);
+	*/
 }
 
 bool LSynth::load(LSon::Node *p_data, const LocalVector<String> &p_include_paths) {
@@ -132,22 +137,8 @@ bool LSynth::load(LSon::Node *p_data, const LocalVector<String> &p_include_paths
 			}
 		}
 
-		if (child->name == "attack") {
-			if (!child->get_f32(data.attack))
-				return false;
-		}
-		if (child->name == "release") {
-			if (!child->get_f32(data.release))
-				return false;
-		}
-		if (child->name == "decay") {
-			if (!child->get_f32(data.decay))
-				return false;
-		}
-		if (child->name == "sustain") {
-			if (!child->get_f32(data.sustain))
-				return false;
-		}
+		if (!load_idata(child, p_include_paths))
+			return false;
 	}
 	return true;
 }

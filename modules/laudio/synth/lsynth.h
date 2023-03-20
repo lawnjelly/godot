@@ -52,13 +52,9 @@ class LSynth : public LInstrument {
 
 	struct Data {
 		Wave wave = WAVE_SINE;
-		float attack = 0.1;
-		float release = 0.2;
-		float decay = 0.5;
-		float sustain = 1.0;
 	} data;
 
-	void play_ADSR(LBus *p_bus, uint32_t p_key, int32_t p_song_sample_from, int32_t p_dest_num_samples, int32_t p_note_start_sample, int32_t p_note_num_samples, float p_vol_a, float p_vol_b);
+	virtual void play_ADSR(LBus *p_bus, uint32_t p_key, int32_t p_song_sample_from, int32_t p_dest_num_samples, int32_t p_note_start_sample, int32_t p_note_num_samples, float p_vol_a, float p_vol_b);
 
 public:
 	virtual const char *get_type_name() const { return "Synth"; }

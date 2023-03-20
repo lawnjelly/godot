@@ -7,6 +7,7 @@ struct Node;
 };
 
 class LSample;
+class LBus;
 
 class LInstrument : public Reference {
 	GDCLASS(LInstrument, Reference);
@@ -15,10 +16,22 @@ protected:
 	struct InstrumentData {
 		CharString name = "Undefined";
 		float volume = 1.0;
+
+		float attack = 0.1;
+		float release = 0.2;
+		float decay = 0.5;
+		float sustain = 1.0;
+
 	} idata;
 
 	uint32_t _output_bus_handle = 0;
 	static void _bind_methods();
+
+	virtual bool load_idata(LSon::Node *p_node, const LocalVector<String> &p_include_paths);
+
+	void play_note_ADSR(LBus *p_bus, uint32_t p_key, uint32_t p_velocity, int32_t p_song_sample_from, int32_t p_dest_num_samples, int32_t p_note_start_sample, int32_t p_note_num_samples);
+
+	virtual void play_ADSR(LBus *p_bus, uint32_t p_key, int32_t p_song_sample_from, int32_t p_dest_num_samples, int32_t p_note_start_sample, int32_t p_note_num_samples, float p_vol_a, float p_vol_b) {}
 
 public:
 	virtual void play(uint32_t p_key, uint32_t p_velocity, int32_t p_song_sample_from, int32_t p_dest_num_samples, int32_t p_note_start_sample, int32_t p_note_num_samples) {}
