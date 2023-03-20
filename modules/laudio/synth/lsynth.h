@@ -54,7 +54,7 @@ class LSynth : public LInstrument {
 		Wave wave = WAVE_SINE;
 	} data;
 
-	virtual void play_ADSR(const PlayParams &p_play_params);
+	virtual void play_ADSR(const SegmentParams &p_seg_params);
 
 public:
 	virtual const char *get_type_name() const { return "Synth"; }

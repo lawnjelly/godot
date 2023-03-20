@@ -1,27 +1,27 @@
 #include "lsynth.h"
 #include "../lbus.h"
 
-void LSynth::play_ADSR(const PlayParams &p_play_params) {
-	const PlayParams &p = p_play_params;
+void LSynth::play_ADSR(const SegmentParams &p_seg_params) {
+	const SegmentParams &p = p_seg_params;
 	float vol_a = p.vol_a;
 	float vol_b = p.vol_b;
 
 	int32_t instrument_start_sample_offset = 0;
 	int32_t dest_start_sample = 0;
 	int32_t num_samples_to_write = 0;
-	if (!p.bus->calculate_overlap(p.song_sample_from, p.dest_num_samples, p.note_start_sample, p.note_num_samples, dest_start_sample, instrument_start_sample_offset, num_samples_to_write, true))
+	if (!p.bus->calculate_overlap(p.song_sample_from, p.dest_num_samples, p.seg_start_sample, p.seg_num_samples, dest_start_sample, instrument_start_sample_offset, num_samples_to_write, true))
 		return;
 
 	// adjust volume a and b according to how much of the original note was clipped
 	float orig_vol_a = vol_a;
 	if (instrument_start_sample_offset > 0) {
 		// cut off samples from beginning
-		float cutoff = instrument_start_sample_offset / (float)p.note_num_samples;
+		float cutoff = instrument_start_sample_offset / (float)p.seg_num_samples;
 		vol_a = Math::lerp(vol_a, vol_b, cutoff);
 	}
-	int32_t cutoff_end = (p.note_num_samples - instrument_start_sample_offset) - num_samples_to_write;
+	int32_t cutoff_end = (p.seg_num_samples - instrument_start_sample_offset) - num_samples_to_write;
 	if (cutoff_end > 0) {
-		float fract = cutoff_end / (float)p.note_num_samples;
+		float fract = cutoff_end / (float)p.seg_num_samples;
 		vol_b = Math::lerp(vol_b, orig_vol_a, fract);
 	}
 	//////////////////////////////////////////////////////////////////
@@ -54,10 +54,7 @@ void LSynth::play(const PlayParams &p_play_params) {
 		return;
 	}
 
-	PlayParams pp = p_play_params;
-	pp.bus = bus;
-
-	play_note_ADSR(pp);
+	play_note_ADSR(bus, p_play_params);
 }
 
 bool LSynth::load(LSon::Node *p_data, const LocalVector<String> &p_include_paths) {

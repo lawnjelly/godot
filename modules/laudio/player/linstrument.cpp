@@ -23,8 +23,15 @@ bool LInstrument::load_idata(LSon::Node *p_node, const LocalVector<String> &p_in
 	return true;
 }
 
-void LInstrument::play_note_ADSR(const PlayParams &p_play_params) {
-	const PlayParams &p = p_play_params;
+void LInstrument::play_note_ADSR(LBus *p_bus, const PlayParams &p_play_params) {
+	SegmentParams p;
+	p.PlayParams::operator=(p_play_params);
+	p.bus = p_bus;
+
+	p.seg_start_sample = p.note_start_sample;
+	p.seg_num_samples = p.note_num_samples;
+
+	//	const PlayParams &p = p_play_params;
 
 	if (!p.bus || !p.note_num_samples)
 		return;
@@ -33,7 +40,7 @@ void LInstrument::play_note_ADSR(const PlayParams &p_play_params) {
 	float volume = idata.volume;
 	volume *= (p.velocity / 127.0f);
 
-	PlayParams pp = p;
+	//	PlayParams pp = p;
 
 	// ATTACK
 	int32_t note_start = p.note_start_sample;
@@ -51,16 +58,16 @@ void LInstrument::play_note_ADSR(const PlayParams &p_play_params) {
 
 	// Most common case, the attack is fully used
 	if (note_length >= attack_length) {
-		pp.vol_a = 0;
-		pp.vol_b = volume;
-		pp.note_num_samples = attack_length;
-		play_ADSR(pp);
+		p.vol_a = 0;
+		p.vol_b = volume;
+		p.seg_num_samples = attack_length;
+		play_ADSR(p);
 	} else {
 		// fraction of full volume?
 		volume *= (p.note_num_samples / (float)attack_length);
-		pp.vol_a = 0;
-		pp.vol_b = volume;
-		play_ADSR(pp);
+		p.vol_a = 0;
+		p.vol_b = volume;
+		play_ADSR(p);
 		goto RELEASE;
 	}
 
@@ -68,44 +75,44 @@ void LInstrument::play_note_ADSR(const PlayParams &p_play_params) {
 
 	// Whole decay
 	if (sustain_length >= 0) {
-		pp.vol_a = volume;
-		pp.vol_b = sustain_volume;
-		pp.note_start_sample = note_start + decay_start;
-		pp.note_num_samples = decay_length;
-		play_ADSR(pp);
+		p.vol_a = volume;
+		p.vol_b = sustain_volume;
+		p.seg_start_sample = note_start + decay_start;
+		p.seg_num_samples = decay_length;
+		play_ADSR(p);
 		volume = sustain_volume;
 	} else {
 		// fraction through to sustain volume
 		float fract = (note_length - decay_start) / (float)decay_length;
 		sustain_volume = Math::lerp(volume, sustain_volume, fract);
 
-		pp.vol_a = volume;
-		pp.vol_b = sustain_volume;
-		pp.note_start_sample = note_start + decay_start;
-		pp.note_num_samples = note_length - decay_start;
-		play_ADSR(pp);
+		p.vol_a = volume;
+		p.vol_b = sustain_volume;
+		p.seg_start_sample = note_start + decay_start;
+		p.seg_num_samples = note_length - decay_start;
+		play_ADSR(p);
 		volume = sustain_volume;
 		goto RELEASE;
 	}
 
 	// SUSTAIN
-	pp.vol_a = volume;
-	pp.vol_b = volume;
-	pp.note_start_sample = note_start + sustain_start;
-	pp.note_num_samples = note_length - sustain_start;
-	play_ADSR(pp);
+	p.vol_a = volume;
+	p.vol_b = volume;
+	p.seg_start_sample = note_start + sustain_start;
+	p.seg_num_samples = note_length - sustain_start;
+	play_ADSR(p);
 
 RELEASE:
 	// RELEASE
 	int32_t release_start = note_length;
 	int32_t release_length = idata.release * sample_rate;
 
-	pp.vol_a = volume;
-	pp.vol_b = 0;
-	pp.note_start_sample = note_start + release_start;
-	pp.note_num_samples = release_length;
+	p.vol_a = volume;
+	p.vol_b = 0;
+	p.seg_start_sample = note_start + release_start;
+	p.seg_num_samples = release_length;
 
-	play_ADSR(pp);
+	play_ADSR(p);
 }
 
 void LInstrument::_bind_methods() {

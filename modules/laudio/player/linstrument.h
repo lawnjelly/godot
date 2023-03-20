@@ -14,13 +14,18 @@ class LInstrument : public Reference {
 
 public:
 	struct PlayParams {
-		LBus *bus = nullptr;
 		uint32_t key = 0;
 		uint32_t velocity = 127;
 		int32_t song_sample_from = 0;
 		int32_t dest_num_samples = 0;
 		int32_t note_start_sample = 0;
 		int32_t note_num_samples = 0;
+	};
+
+	struct SegmentParams : public PlayParams {
+		LBus *bus = nullptr;
+		int32_t seg_start_sample = 0;
+		int32_t seg_num_samples = 0;
 		float vol_a = 1;
 		float vol_b = 1;
 	};
@@ -41,9 +46,9 @@ protected:
 
 	virtual bool load_idata(LSon::Node *p_node, const LocalVector<String> &p_include_paths);
 
-	void play_note_ADSR(const PlayParams &p_play_params);
+	void play_note_ADSR(LBus *p_bus, const PlayParams &p_play_params);
 
-	virtual void play_ADSR(const PlayParams &p_play_params) {}
+	virtual void play_ADSR(const SegmentParams &p_play_params) {}
 
 public:
 	virtual void play(const PlayParams &p_play_params) {}
