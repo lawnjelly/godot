@@ -40,6 +40,7 @@ class Pattern : public Control {
 		bool selected = false;
 		String text;
 		LHandle handle_pattern_instance;
+		int32_t zoom = 0;
 	} data;
 
 	struct DragData {
@@ -53,6 +54,7 @@ class Pattern : public Control {
 	static DragData drag_data;
 
 	void _pattern_pressed();
+	int32_t _apply_zoom(int32_t p_value, int32_t p_zoom_multiply = 1) const;
 
 protected:
 	void _notification(int p_what);
@@ -71,6 +73,7 @@ public:
 	void refresh_position();
 	void refresh_text();
 	void set_selected(bool p_selected);
+	void set_zoom(int32_t p_zoom);
 
 	Pattern();
 };

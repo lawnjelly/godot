@@ -18,7 +18,7 @@ void LSampler::play(const PlayParams &p_play_params) {
 
 	//	int32_t offset_start_of_write = (int32_t)p_note_start_sample - (int32_t)p_song_sample_from;
 	//	sp.play(offset_start_of_write, _output_bus_handle);
-	sp.play(p.song_sample_from, p.dest_num_samples, p.note_start_sample, p.note_num_samples, _output_bus_handle);
+	sp.play(p.song_sample_from, p.dest_num_samples, p.note_start_sample, p.note_num_samples, _output_bus_handle, idata.volume);
 }
 
 bool LSampler::load(LSon::Node *p_data, const LocalVector<String> &p_include_paths) {

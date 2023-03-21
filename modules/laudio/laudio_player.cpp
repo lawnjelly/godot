@@ -15,7 +15,10 @@ void LAudioPlayer::_play_audio(uint32_t p_left, uint32_t p_right, uint32_t p_sam
 	LBus &bus = data.output_bus;
 
 	// wrap the cursor
-	curs = MAX(curs, p_left);
+	if (curs < p_left) {
+		curs = MAX(curs, p_left);
+		bus.set_song_time_start((int32_t)curs - bus.get_offset());
+	}
 	if (curs >= p_right) {
 		curs = p_left;
 		bus.set_song_time_start((int32_t)curs - bus.get_offset());

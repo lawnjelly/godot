@@ -203,6 +203,12 @@ public:
 
 	uint32_t song_get_length() const;
 
+	void song_set_bpm(uint32_t p_bpm);
+	uint32_t song_get_bpm() const;
+
+	void song_set_tpqn(uint32_t p_tpqn);
+	uint32_t song_get_tpqn() const;
+
 	bool instruments_load(String p_filename);
 	bool instruments_save(String p_filename);
 

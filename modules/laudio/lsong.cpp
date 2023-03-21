@@ -140,6 +140,12 @@ void Song::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("song_get_length"), &Song::song_get_length);
 	ClassDB::bind_method(D_METHOD("song_get_samples_per_tick"), &Song::song_get_samples_per_tick);
 
+	ClassDB::bind_method(D_METHOD("song_set_bpm", "bpm"), &Song::song_set_bpm);
+	ClassDB::bind_method(D_METHOD("song_get_bpm"), &Song::song_get_bpm);
+
+	ClassDB::bind_method(D_METHOD("song_set_tpqn", "tpqn"), &Song::song_set_tpqn);
+	ClassDB::bind_method(D_METHOD("song_get_tpqn"), &Song::song_get_tpqn);
+
 	ADD_SIGNAL(MethodInfo("update_inspector"));
 	ADD_SIGNAL(MethodInfo("update_byteview"));
 	ADD_SIGNAL(MethodInfo("update_patternview"));
@@ -175,7 +181,8 @@ void Song::song_clear() {
 	int32_t num_children = _pattern_view->get_child_count();
 	for (int32_t n = num_children - 1; n >= 0; n--) {
 		Pattern *pat = Object::cast_to<Pattern>(_pattern_view->get_child(n));
-		_pattern_delete_internal(pat);
+		if (pat)
+			_pattern_delete_internal(pat);
 	}
 
 	//_song._players.clear_players();
@@ -205,6 +212,7 @@ LPatternInstance *Song::_create_lpattern_instance_and_pattern(const LHandle &p_p
 	pat->set_pattern_instance(hpi);
 
 	_pattern_view->add_child(pat);
+	pat->set_zoom(_pattern_view->get_zoom());
 	pat->set_owner(_pattern_view->get_owner());
 
 	if (p_select_pattern)
@@ -443,6 +451,18 @@ bool Song::song_load(String p_filename) {
 			return false;
 	}
 
+	LSon::Node *node_general = node_root.find_node("general");
+	if (node_general) {
+		LSon::Node *node_zoom = node_general->find_node("zoom");
+		if (node_zoom) {
+			int32_t zoom;
+			if (!node_zoom->get_s64(zoom))
+				return false;
+			if (_pattern_view)
+				_pattern_view->set_zoom(zoom);
+		}
+	}
+
 	LSon::Node *node_patterns = node_root.find_node("patterns");
 	ERR_FAIL_NULL_V(node_patterns, false);
 
@@ -499,9 +519,12 @@ bool Song::song_load(String p_filename) {
 	}
 
 	get_lsong().calculate_song_length();
-	transport_set_left_tick(0);
-	transport_set_right_tick(get_lsong()._timing.song_length_ticks);
+	//transport_set_left_tick(0);
+	//transport_set_right_tick(get_lsong()._timing.song_length_ticks);
 
+	if (_pattern_view) {
+		_pattern_view->refresh_zoom();
+	}
 	update_all();
 	return true;
 }
@@ -514,6 +537,13 @@ bool Song::song_save(String p_filename) {
 
 	// save timing
 	_song._timing.save(&node_root);
+
+	// general
+	LSon::Node *general = node_root.request_child();
+	general->set_name("general");
+	if (_pattern_view) {
+		general->request_child_s64("zoom", _pattern_view->get_zoom());
+	}
 
 	// FIRST WE NEED A MAPPING OF PATTERN INSTANCES TO PATTERNS
 	LocalVector<LHandle> pattern_handles;
@@ -684,6 +714,8 @@ bool Song::song_import_midi(String p_filename) {
 			}
 		}
 
+		// turn off
+		division = 1;
 		print_line("Lowest common multiple division " + itos(division));
 
 		for (uint32_t t = 0; t < midi.GetNumTracks(); t++) {
@@ -733,6 +765,24 @@ bool Song::song_import_midi(String p_filename) {
 	return result;
 }
 
+void Song::song_set_bpm(uint32_t p_bpm) {
+	get_lsong()._timing.bpm = p_bpm;
+	get_lsong()._timing.recalculate();
+}
+
+uint32_t Song::song_get_bpm() const {
+	return get_lsong()._timing.bpm;
+}
+
+void Song::song_set_tpqn(uint32_t p_tpqn) {
+	get_lsong()._timing.tpqn = p_tpqn;
+	get_lsong()._timing.recalculate();
+}
+
+uint32_t Song::song_get_tpqn() const {
+	return get_lsong()._timing.tpqn;
+}
+
 uint32_t Song::song_get_length() const {
 	return get_lsong()._timing.song_length_ticks;
 }
@@ -773,7 +823,8 @@ bool Song::song_export_wav(String p_filename) {
 
 	// calculate in samples
 	uint32_t samples_per_tick = get_lsong()._timing.samples_pt;
-	uint32_t total_samples = samples_per_tick * song_end;
+	//	uint32_t total_samples = samples_per_tick * song_end;
+	uint32_t total_samples = get_lsong()._timing.get_tick_sample(song_end);
 	print_line("total song ticks: " + itos(song_end) + ", total song samples:" + itos(total_samples));
 
 	LBus output_bus;

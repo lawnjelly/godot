@@ -119,7 +119,7 @@ void Pattern::_gui_input(const Ref<InputEvent> &p_event) {
 			//offset.x = drag_data.relative_drag;
 
 			//Song::get_current_song()->patterni_set_tick_start(drag_data.orig_tick_start + (int32_t)offset.x);
-			Song::get_current_song()->patterni_set_tick_start(drag_data.orig_tick_start + drag_data.relative_drag_x);
+			Song::get_current_song()->patterni_set_tick_start(drag_data.orig_tick_start + _apply_zoom(drag_data.relative_drag_x, -1));
 
 			int32_t track = drag_data.orig_track + (drag_data.relative_drag_y / 24);
 			track = CLAMP(track, 0, 15);
@@ -151,6 +151,11 @@ void Pattern::set_text(String p_text) {
 	}
 }
 
+void Pattern::set_zoom(int32_t p_zoom) {
+	data.zoom = p_zoom;
+	update();
+}
+
 void Pattern::set_selected(bool p_selected) {
 	data.selected = p_selected;
 	update();
@@ -163,11 +168,35 @@ void Pattern::refresh_text() {
 	}
 }
 
+int32_t Pattern::_apply_zoom(int32_t p_value, int32_t p_zoom_multiply) const {
+	int32_t zoom = data.zoom * p_zoom_multiply;
+
+	if (zoom >= 0) {
+		zoom *= zoom;
+	} else {
+		zoom *= -zoom;
+	}
+
+	if (zoom < 0) {
+		p_value /= (-zoom) + 1;
+	}
+	if (zoom > 0) {
+		p_value *= zoom + 1;
+	}
+	return p_value;
+}
+
 void Pattern::refresh_position() {
 	LPatternInstance *pi = get_pattern_instance();
 	if (pi) {
-		set_position(Point2(pi->data.tick_start, pi->data.track * 28));
-		set_size(Size2(pi->get_tick_length(), 24));
+		int32_t x = pi->data.tick_start;
+		int32_t width = pi->get_tick_length();
+
+		x = _apply_zoom(x);
+		width = _apply_zoom(width);
+
+		set_position(Point2(x, pi->data.track * 28));
+		set_size(Size2(width, 24));
 	}
 }
 

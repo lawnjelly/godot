@@ -40,7 +40,7 @@ bool LSamplePlayer::load_wav(String p_filename) {
 	return _sample.load_wav(p_filename);
 }
 
-void LSamplePlayer::play(int32_t p_song_sample_from, int32_t p_dest_num_samples, int32_t p_note_start_sample, int32_t p_note_num_samples, uint32_t p_output_bus_handle) {
+void LSamplePlayer::play(int32_t p_song_sample_from, int32_t p_dest_num_samples, int32_t p_note_start_sample, int32_t p_note_num_samples, uint32_t p_output_bus_handle, float p_volume) {
 	//void LSamplePlayer::play(int32_t p_offset_start_of_write, uint32_t p_output_bus_handle) {
 	LBus *bus = g_Buses.get_bus(p_output_bus_handle);
 	if (!bus) {
@@ -50,8 +50,13 @@ void LSamplePlayer::play(int32_t p_song_sample_from, int32_t p_dest_num_samples,
 	int32_t instrument_start_sample_offset = 0;
 	int32_t dest_start_sample = 0;
 	int32_t num_samples_to_write = 0;
+
+	if (play_to_end) {
+		p_note_num_samples = INT32_MAX;
+	}
+
 	if (!bus->calculate_overlap(p_song_sample_from, p_dest_num_samples, p_note_start_sample, p_note_num_samples, dest_start_sample, instrument_start_sample_offset, num_samples_to_write, false))
 		return;
 
-	_sample.mix_to(bus->get_sample(), num_samples_to_write, dest_start_sample, instrument_start_sample_offset);
+	_sample.mix_to(bus->get_sample(), num_samples_to_write, dest_start_sample, instrument_start_sample_offset, p_volume);
 }
