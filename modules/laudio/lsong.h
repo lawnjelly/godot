@@ -53,6 +53,18 @@ struct Node;
 		return FAIL_VALUE;                                       \
 	}
 
+#define TIMING_GET_SET(VAR_NAME, TYPE, DIRTY_NOTES)        \
+	void LA_LITCAT(timing_set_, VAR_NAME)(TYPE VAR_NAME) { \
+		get_lsong()._timing.VAR_NAME = VAR_NAME;           \
+		if (DIRTY_NOTES) {                                 \
+			_notes_dirty = true;                           \
+		}                                                  \
+		get_lsong()._timing.recalculate();                 \
+	}                                                      \
+	TYPE LA_LITCAT(timing_get_, VAR_NAME)() const {        \
+		return get_lsong()._timing.VAR_NAME;               \
+	}
+
 #define NOTE_GET_SET(VAR_NAME, TYPE, FAIL_VALUE)                             \
 	void LA_LITCAT(note_set_, VAR_NAME)(uint32_t p_note_id, TYPE VAR_NAME) { \
 		LPattern *pi = get_pattern();                                        \
@@ -164,9 +176,9 @@ public:
 
 	PATTERN_GET_SET(transpose, int32_t, 0, false)
 
-	PATTERN_GET_SET(time_sig_micro, int32_t, 0, true)
-	PATTERN_GET_SET(time_sig_minor, int32_t, 0, true)
-	PATTERN_GET_SET(time_sig_major, int32_t, 0, true)
+	//	PATTERN_GET_SET(time_sig_micro, int32_t, 0, true)
+	//	PATTERN_GET_SET(time_sig_minor, int32_t, 0, true)
+	//	PATTERN_GET_SET(time_sig_major, int32_t, 0, true)
 
 	void pattern_calculate_length();
 
@@ -203,19 +215,22 @@ public:
 
 	uint32_t song_get_length() const;
 
-	void song_set_bpm(uint32_t p_bpm);
-	uint32_t song_get_bpm() const;
+	TIMING_GET_SET(bpm, int32_t, false)
+	TIMING_GET_SET(tpqn, int32_t, false)
+	TIMING_GET_SET(time_sig_micro, int32_t, true)
+	TIMING_GET_SET(time_sig_minor, int32_t, true)
+	TIMING_GET_SET(time_sig_major, int32_t, true)
 
-	void song_set_tpqn(uint32_t p_tpqn);
-	uint32_t song_get_tpqn() const;
+	TIMING_GET_SET(transport_tick_left, int32_t, false)
+	TIMING_GET_SET(transport_tick_right, int32_t, false)
 
 	bool instruments_load(String p_filename);
 	bool instruments_save(String p_filename);
 
-	void transport_set_left_tick(uint32_t p_tick);
-	void transport_set_right_tick(uint32_t p_tick);
-	uint32_t transport_get_left_tick() const;
-	uint32_t transport_get_right_tick() const;
+	//	void transport_set_left_tick(uint32_t p_tick);
+	//	void transport_set_right_tick(uint32_t p_tick);
+	//	uint32_t transport_get_left_tick() const;
+	//	uint32_t transport_get_right_tick() const;
 
 	uint32_t song_get_samples_per_tick() const;
 	//	uint32_t transport_get_cursor() const;

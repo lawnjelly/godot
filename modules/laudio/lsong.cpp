@@ -82,6 +82,10 @@ void Song::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("note_set_" LA_TOSTRING(VAR_NAME), LA_TOSTRING(VAR_NAME)), &Song::LA_LITCAT(note_set_, VAR_NAME)); \
 	ClassDB::bind_method(D_METHOD("note_get_" LA_TOSTRING(VAR_NAME)), &Song::LA_LITCAT(note_get_, VAR_NAME));
 
+#define TIMING_BIND(VAR_NAME)                                                                                                            \
+	ClassDB::bind_method(D_METHOD("timing_set_" LA_TOSTRING(VAR_NAME), LA_TOSTRING(VAR_NAME)), &Song::LA_LITCAT(timing_set_, VAR_NAME)); \
+	ClassDB::bind_method(D_METHOD("timing_get_" LA_TOSTRING(VAR_NAME)), &Song::LA_LITCAT(timing_get_, VAR_NAME));
+
 	PATTERNI_BIND(tick_start);
 	PATTERNI_BIND(track);
 	PATTERNI_BIND(transpose);
@@ -95,9 +99,9 @@ void Song::_bind_methods() {
 	PATTERN_BIND(player_d);
 	PATTERN_BIND(transpose);
 
-	PATTERN_BIND(time_sig_micro);
-	PATTERN_BIND(time_sig_minor);
-	PATTERN_BIND(time_sig_major);
+	//	PATTERN_BIND(time_sig_micro);
+	//	PATTERN_BIND(time_sig_minor);
+	//	PATTERN_BIND(time_sig_major);
 
 	ClassDB::bind_method(D_METHOD("pattern_calculate_length"), &Song::pattern_calculate_length);
 
@@ -129,10 +133,10 @@ void Song::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("instruments_load", "filename"), &Song::instruments_load);
 	ClassDB::bind_method(D_METHOD("instruments_save", "filename"), &Song::instruments_save);
 
-	ClassDB::bind_method(D_METHOD("transport_set_left_tick", "tick"), &Song::transport_set_left_tick);
-	ClassDB::bind_method(D_METHOD("transport_set_right_tick", "tick"), &Song::transport_set_right_tick);
-	ClassDB::bind_method(D_METHOD("transport_get_left_tick"), &Song::transport_get_left_tick);
-	ClassDB::bind_method(D_METHOD("transport_get_right_tick"), &Song::transport_get_right_tick);
+	//	ClassDB::bind_method(D_METHOD("transport_set_left_tick", "tick"), &Song::transport_set_left_tick);
+	//	ClassDB::bind_method(D_METHOD("transport_set_right_tick", "tick"), &Song::transport_set_right_tick);
+	//	ClassDB::bind_method(D_METHOD("transport_get_left_tick"), &Song::transport_get_left_tick);
+	//	ClassDB::bind_method(D_METHOD("transport_get_right_tick"), &Song::transport_get_right_tick);
 
 	ClassDB::bind_method(D_METHOD("song_load", "filename"), &Song::song_load);
 	ClassDB::bind_method(D_METHOD("song_save", "filename"), &Song::song_save);
@@ -140,11 +144,13 @@ void Song::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("song_get_length"), &Song::song_get_length);
 	ClassDB::bind_method(D_METHOD("song_get_samples_per_tick"), &Song::song_get_samples_per_tick);
 
-	ClassDB::bind_method(D_METHOD("song_set_bpm", "bpm"), &Song::song_set_bpm);
-	ClassDB::bind_method(D_METHOD("song_get_bpm"), &Song::song_get_bpm);
-
-	ClassDB::bind_method(D_METHOD("song_set_tpqn", "tpqn"), &Song::song_set_tpqn);
-	ClassDB::bind_method(D_METHOD("song_get_tpqn"), &Song::song_get_tpqn);
+	TIMING_BIND(bpm);
+	TIMING_BIND(tpqn);
+	TIMING_BIND(time_sig_micro);
+	TIMING_BIND(time_sig_minor);
+	TIMING_BIND(time_sig_major);
+	TIMING_BIND(transport_tick_left);
+	TIMING_BIND(transport_tick_right);
 
 	ADD_SIGNAL(MethodInfo("update_inspector"));
 	ADD_SIGNAL(MethodInfo("update_byteview"));
@@ -412,21 +418,21 @@ bool Song::track_get_active(uint32_t p_track) const {
 //{
 //}
 
-void Song::transport_set_left_tick(uint32_t p_tick) {
-	get_lsong()._timing.transport_tick_left = p_tick;
-}
+//void Song::transport_set_left_tick(uint32_t p_tick) {
+//	get_lsong()._timing.transport_tick_left = p_tick;
+//}
 
-void Song::transport_set_right_tick(uint32_t p_tick) {
-	get_lsong()._timing.transport_tick_right = p_tick;
-}
+//void Song::transport_set_right_tick(uint32_t p_tick) {
+//	get_lsong()._timing.transport_tick_right = p_tick;
+//}
 
-uint32_t Song::transport_get_left_tick() const {
-	return get_lsong()._timing.transport_tick_left;
-}
+//uint32_t Song::transport_get_left_tick() const {
+//	return get_lsong()._timing.transport_tick_left;
+//}
 
-uint32_t Song::transport_get_right_tick() const {
-	return get_lsong()._timing.transport_tick_right;
-}
+//uint32_t Song::transport_get_right_tick() const {
+//	return get_lsong()._timing.transport_tick_right;
+//}
 
 bool Song::instruments_load(String p_filename) {
 	bool res = get_lsong()._players.load(p_filename);
@@ -619,9 +625,9 @@ bool Song::_save_pattern(LSon::Node *p_node_patterns, uint32_t p_pattern_id, LHa
 	node->request_child_s64("tick_start", lpat->data.tick_start);
 	node->request_child_s64("tick_length", lpat->data.tick_length);
 
-	node->request_child_s64("time_sig_micro", lpat->data.time_sig_micro);
-	node->request_child_s64("time_sig_minor", lpat->data.time_sig_minor);
-	node->request_child_s64("time_sig_major", lpat->data.time_sig_major);
+	//	node->request_child_s64("time_sig_micro", lpat->data.time_sig_micro);
+	//	node->request_child_s64("time_sig_minor", lpat->data.time_sig_minor);
+	//	node->request_child_s64("time_sig_major", lpat->data.time_sig_major);
 
 	if (lpat->data.transpose != 0)
 		node->request_child_s64("transpose", lpat->data.transpose);
@@ -758,29 +764,11 @@ bool Song::song_import_midi(String p_filename) {
 	}
 
 	get_lsong().calculate_song_length();
-	transport_set_left_tick(0);
-	transport_set_right_tick(get_lsong()._timing.song_length_ticks);
+	timing_set_transport_tick_left(0);
+	timing_set_transport_tick_right(get_lsong()._timing.song_length_ticks);
 
 	update_all();
 	return result;
-}
-
-void Song::song_set_bpm(uint32_t p_bpm) {
-	get_lsong()._timing.bpm = p_bpm;
-	get_lsong()._timing.recalculate();
-}
-
-uint32_t Song::song_get_bpm() const {
-	return get_lsong()._timing.bpm;
-}
-
-void Song::song_set_tpqn(uint32_t p_tpqn) {
-	get_lsong()._timing.tpqn = p_tpqn;
-	get_lsong()._timing.recalculate();
-}
-
-uint32_t Song::song_get_tpqn() const {
-	return get_lsong()._timing.tpqn;
 }
 
 uint32_t Song::song_get_length() const {

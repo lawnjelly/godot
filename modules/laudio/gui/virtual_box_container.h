@@ -18,6 +18,7 @@ class VirtualBoxContainer : public Control {
 		void calc_total_height() {
 			total_height = line_size * num_lines;
 		}
+
 	} data;
 
 	void _on_resize();
@@ -40,6 +41,7 @@ public:
 	void refresh_all();
 
 	VirtualBoxContainer(bool p_vertical = false);
+	virtual ~VirtualBoxContainer();
 };
 
 class VirtualVBoxContainer : public VirtualBoxContainer {

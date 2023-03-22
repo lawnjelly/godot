@@ -5,6 +5,18 @@
 #include "core/ustring.h"
 #include <stdint.h>
 
+#define LSON_LOAD_S64(NODE, STRINGNAME, VAR) \
+	if (NODE->name == STRINGNAME) {          \
+		if (!NODE->get_s64(VAR))             \
+			return false;                    \
+	}
+
+#define LSON_LOAD_STRING(NODE, STRINGNAME, VAR) \
+	if (NODE->name == STRINGNAME) {             \
+		if (!NODE->get_string(VAR))             \
+			return false;                       \
+	}
+
 namespace LSon {
 
 struct Node {

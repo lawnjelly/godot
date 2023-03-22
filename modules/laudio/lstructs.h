@@ -41,6 +41,10 @@ struct LTiming {
 
 	uint64_t samples_at_limit_ticks;
 
+	int32_t time_sig_micro;
+	int32_t time_sig_minor;
+	int32_t time_sig_major;
+
 	// loops within the pattern view
 	uint32_t transport_tick_left;
 	uint32_t transport_tick_right;
@@ -59,6 +63,10 @@ struct LTiming {
 
 	void reset() {
 		ticks_per_minute = 0;
+
+		time_sig_micro = 6;
+		time_sig_minor = 8;
+		time_sig_major = 16;
 
 		tpqn = 24;
 		bpm = 120000;

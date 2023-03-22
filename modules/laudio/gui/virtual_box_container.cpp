@@ -169,3 +169,9 @@ void VirtualBoxContainer::_bind_methods() {
 
 VirtualBoxContainer::VirtualBoxContainer(bool p_vertical) {
 }
+
+VirtualBoxContainer::~VirtualBoxContainer() {
+	if (!data.line_scene.is_null()) {
+		data.line_scene->unregister_owner(this);
+	}
+}

@@ -64,46 +64,13 @@ bool LPattern::load(LSon::Node *p_data) {
 	for (uint32_t c = 0; c < p_data->children.size(); c++) {
 		LSon::Node *child = p_data->get_child(c);
 
-		if (child->name == "name") {
-			if (!child->get_string(data.name))
-				return false;
-		}
-		if (child->name == "tick_start") {
-			if (!child->get_s64(data.tick_start))
-				return false;
-		}
-		if (child->name == "tick_length") {
-			if (!child->get_s64(data.tick_length))
-				return false;
-		}
-		if (child->name == "time_sig_micro") {
-			if (!child->get_s64(data.time_sig_micro))
-				return false;
-		}
-		if (child->name == "time_sig_minor") {
-			if (!child->get_s64(data.time_sig_minor))
-				return false;
-		}
-		if (child->name == "time_sig_major") {
-			if (!child->get_s64(data.time_sig_major))
-				return false;
-		}
-		if (child->name == "player_a") {
-			if (!child->get_s64(data.player_a))
-				return false;
-		}
-		if (child->name == "player_b") {
-			if (!child->get_s64(data.player_b))
-				return false;
-		}
-		if (child->name == "player_c") {
-			if (!child->get_s64(data.player_c))
-				return false;
-		}
-		if (child->name == "player_d") {
-			if (!child->get_s64(data.player_d))
-				return false;
-		}
+		LSON_LOAD_STRING(child, "name", data.name)
+		LSON_LOAD_S64(child, "tick_start", data.tick_start)
+		LSON_LOAD_S64(child, "tick_length", data.tick_length)
+		LSON_LOAD_S64(child, "player_a", data.player_a)
+		LSON_LOAD_S64(child, "player_b", data.player_b)
+		LSON_LOAD_S64(child, "player_c", data.player_c)
+		LSON_LOAD_S64(child, "player_d", data.player_d)
 		if (child->name == "notes") {
 			if (!load_notes(child))
 				return false;
