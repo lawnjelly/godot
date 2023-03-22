@@ -1,11 +1,15 @@
 #include "lpattern.h"
 #include "lsong.h"
 
-void LPattern::calculate_length() {
+// return true if changed
+bool LPattern::calculate_length() {
 	if (!notes.size()) {
 		data.reset();
-		return;
+		return true;
 	}
+
+	int32_t old_tick_start = data.tick_start;
+	int32_t old_tick_length = data.tick_length;
 
 	data.tick_start = INT32_MAX;
 	int32_t tick_end = INT32_MIN;
@@ -22,6 +26,8 @@ void LPattern::calculate_length() {
 	if (tick_end > data.tick_start) {
 		data.tick_length = tick_end - data.tick_start;
 	}
+
+	return (data.tick_start != old_tick_start) || (data.tick_length != old_tick_length);
 }
 
 bool LPattern::load_notes(LSon::Node *p_data) {

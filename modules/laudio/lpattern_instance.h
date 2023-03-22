@@ -33,6 +33,8 @@ public:
 	~LPatternInstance();
 };
 
+class Song;
+
 class Pattern : public Control {
 	GDCLASS(Pattern, Control);
 
@@ -40,7 +42,8 @@ class Pattern : public Control {
 		bool selected = false;
 		String text;
 		LHandle handle_pattern_instance;
-		int32_t zoom = 0;
+		//int32_t zoom = 0;
+		Song *owner_song = nullptr;
 	} data;
 
 	struct DragData {
@@ -73,7 +76,8 @@ public:
 	void refresh_position();
 	void refresh_text();
 	void set_selected(bool p_selected);
-	void set_zoom(int32_t p_zoom);
+	void set_owner_song(Song *p_song) { data.owner_song = p_song; }
+	//	void set_zoom(int32_t p_zoom);
 
 	Pattern();
 };

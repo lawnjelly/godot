@@ -1,20 +1,20 @@
 #include "pattern_view.h"
 #include "../lpattern.h"
 
-void PatternView::set_zoom(int32_t p_zoom) {
-	if (p_zoom == _zoom)
-		return;
+//void PatternView::set_zoom(int32_t p_zoom) {
+//	if (p_zoom == _zoom)
+//		return;
 
-	_zoom = p_zoom;
+//	_zoom = p_zoom;
 
-	refresh_zoom();
-}
+//	refresh_zoom();
+//}
 
-void PatternView::refresh_zoom() {
+void PatternView::refresh_all_patterns() {
 	for (int n = 0; n < get_child_count(); n++) {
 		Pattern *pat = Object::cast_to<Pattern>(get_child(n));
 		if (pat)
-			pat->set_zoom(_zoom);
+			pat->update();
 	}
 }
 
@@ -44,6 +44,4 @@ void PatternView::_notification(int p_what) {
 }
 
 void PatternView::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("set_zoom", "zoom"), &PatternView::set_zoom);
-	ClassDB::bind_method(D_METHOD("get_zoom"), &PatternView::get_zoom);
 }

@@ -30,6 +30,18 @@ LSong::~LSong() {
 
 //////////////////////////////////
 
+void Song::song_set_zoom(int32_t p_zoom) {
+	if (p_zoom == _zoom)
+		return;
+
+	_zoom = p_zoom;
+
+	if (_pattern_view) {
+		_pattern_view->refresh_all_patterns();
+	}
+	//refresh_zoom();
+}
+
 void Song::_notification(int p_what) {
 	switch (p_what) {
 		case NOTIFICATION_ENTER_TREE: {
@@ -40,13 +52,6 @@ void Song::_notification(int p_what) {
 		} break;
 
 		case NOTIFICATION_INTERNAL_PHYSICS_PROCESS: {
-			if (_pattern_dirty) {
-				_pattern_dirty = false;
-				if (_selected_pattern) {
-					_selected_pattern->refresh_position();
-					_selected_pattern->refresh_text();
-				}
-			}
 			if (_notes_dirty) {
 				_notes_dirty = false;
 				LPattern *p = get_pattern();
@@ -55,6 +60,15 @@ void Song::_notification(int p_what) {
 
 					// refresh the GUI
 					update_byteview();
+
+					_pattern_dirty = p->calculate_length();
+				}
+			}
+			if (_pattern_dirty) {
+				_pattern_dirty = false;
+				if (_selected_pattern) {
+					_selected_pattern->refresh_position();
+					_selected_pattern->refresh_text();
 				}
 			}
 		} break;
@@ -144,6 +158,12 @@ void Song::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("song_get_length"), &Song::song_get_length);
 	ClassDB::bind_method(D_METHOD("song_get_samples_per_tick"), &Song::song_get_samples_per_tick);
 
+	ClassDB::bind_method(D_METHOD("song_set_zoom", "zoom"), &Song::song_set_zoom);
+	ClassDB::bind_method(D_METHOD("song_get_zoom"), &Song::song_get_zoom);
+
+	ClassDB::bind_method(D_METHOD("song_set_pattern_view_quantize", "quantize"), &Song::song_set_pattern_view_quantize);
+	ClassDB::bind_method(D_METHOD("song_get_pattern_view_quantize"), &Song::song_get_pattern_view_quantize);
+
 	TIMING_BIND(bpm);
 	TIMING_BIND(tpqn);
 	TIMING_BIND(time_sig_micro);
@@ -216,9 +236,10 @@ LPatternInstance *Song::_create_lpattern_instance_and_pattern(const LHandle &p_p
 
 	Pattern *pat = memnew(Pattern);
 	pat->set_pattern_instance(hpi);
+	pat->set_owner_song(this);
 
 	_pattern_view->add_child(pat);
-	pat->set_zoom(_pattern_view->get_zoom());
+	//	pat->set_zoom(_pattern_view->get_zoom());
 	pat->set_owner(_pattern_view->get_owner());
 
 	if (p_select_pattern)
@@ -464,8 +485,9 @@ bool Song::song_load(String p_filename) {
 			int32_t zoom;
 			if (!node_zoom->get_s64(zoom))
 				return false;
-			if (_pattern_view)
-				_pattern_view->set_zoom(zoom);
+			_zoom = zoom;
+			//			if (_pattern_view)
+			//				_pattern_view->set_zoom(zoom);
 		}
 	}
 
@@ -528,9 +550,9 @@ bool Song::song_load(String p_filename) {
 	//transport_set_left_tick(0);
 	//transport_set_right_tick(get_lsong()._timing.song_length_ticks);
 
-	if (_pattern_view) {
-		_pattern_view->refresh_zoom();
-	}
+	//	if (_pattern_view) {
+	//		_pattern_view->refresh_zoom();
+	//	}
 	update_all();
 	return true;
 }
@@ -548,7 +570,8 @@ bool Song::song_save(String p_filename) {
 	LSon::Node *general = node_root.request_child();
 	general->set_name("general");
 	if (_pattern_view) {
-		general->request_child_s64("zoom", _pattern_view->get_zoom());
+		//		general->request_child_s64("zoom", _pattern_view->get_zoom());
+		general->request_child_s64("zoom", song_get_zoom());
 	}
 
 	// FIRST WE NEED A MAPPING OF PATTERN INSTANCES TO PATTERNS

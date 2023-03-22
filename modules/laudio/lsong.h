@@ -123,6 +123,8 @@ class Song : public Node {
 	uint32_t _current_note_id = 0;
 	bool _pattern_dirty = false;
 	bool _notes_dirty = false;
+	int32_t _zoom = 0;
+	int32_t _pattern_view_quantize = 192;
 
 	void _log(String p_sz);
 
@@ -214,6 +216,12 @@ public:
 	bool song_play(LBus &r_output_bus, int32_t p_song_sample_from, int32_t p_num_samples);
 
 	uint32_t song_get_length() const;
+
+	void song_set_zoom(int32_t p_zoom);
+	int32_t song_get_zoom() const { return _zoom; }
+
+	void song_set_pattern_view_quantize(int32_t p_quantize) { _pattern_view_quantize = p_quantize; }
+	int32_t song_get_pattern_view_quantize() const { return _pattern_view_quantize; }
 
 	TIMING_GET_SET(bpm, int32_t, false)
 	TIMING_GET_SET(tpqn, int32_t, false)

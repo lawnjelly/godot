@@ -118,14 +118,29 @@ void Pattern::_gui_input(const Ref<InputEvent> &p_event) {
 
 			//offset.x = drag_data.relative_drag;
 
+			int32_t quantize = 1;
+			if (data.owner_song) {
+				quantize = data.owner_song->song_get_pattern_view_quantize();
+			}
+			int32_t change = drag_data.relative_drag_x;
+			//print_line("change : " + itos(change));
+			change = _apply_zoom(change, -1);
+			//print_line("change after zoom: " + itos(change));
+
+			int32_t new_start_tick = drag_data.orig_tick_start + change;
+			//print_line("new start tick: " + itos(new_start_tick));
+			new_start_tick = (new_start_tick / quantize) * quantize;
+			//print_line("new start tick quantized: " + itos(new_start_tick));
+
 			//Song::get_current_song()->patterni_set_tick_start(drag_data.orig_tick_start + (int32_t)offset.x);
-			Song::get_current_song()->patterni_set_tick_start(drag_data.orig_tick_start + _apply_zoom(drag_data.relative_drag_x, -1));
+			Song::get_current_song()->patterni_set_tick_start(new_start_tick);
 
 			int32_t track = drag_data.orig_track + (drag_data.relative_drag_y / 24);
 			track = CLAMP(track, 0, 15);
 			Song::get_current_song()->patterni_set_track(track);
 
 			Song::get_current_song()->update_inspector();
+			update();
 
 			//pi->data.tick_start = drag_data.orig_tick_start + (int32_t)offset.x;
 			//print_line("new tick start " + itos(pi->data.tick_start));
@@ -151,10 +166,10 @@ void Pattern::set_text(String p_text) {
 	}
 }
 
-void Pattern::set_zoom(int32_t p_zoom) {
-	data.zoom = p_zoom;
-	update();
-}
+//void Pattern::set_zoom(int32_t p_zoom) {
+//	data.zoom = p_zoom;
+//	update();
+//}
 
 void Pattern::set_selected(bool p_selected) {
 	data.selected = p_selected;
@@ -169,20 +184,18 @@ void Pattern::refresh_text() {
 }
 
 int32_t Pattern::_apply_zoom(int32_t p_value, int32_t p_zoom_multiply) const {
-	int32_t zoom = data.zoom * p_zoom_multiply;
+	DEV_ASSERT(data.owner_song);
+	int32_t zoom = data.owner_song->song_get_zoom() * p_zoom_multiply;
+	//int32_t zoom = data.zoom * p_zoom_multiply;
+
+	int32_t pzoom = Math::pow((float)2, (float)ABS(zoom));
 
 	if (zoom >= 0) {
-		zoom *= zoom;
+		p_value *= pzoom;
 	} else {
-		zoom *= -zoom;
+		p_value /= pzoom;
 	}
 
-	if (zoom < 0) {
-		p_value /= (-zoom) + 1;
-	}
-	if (zoom > 0) {
-		p_value *= zoom + 1;
-	}
 	return p_value;
 }
 
@@ -190,7 +203,7 @@ void Pattern::refresh_position() {
 	LPatternInstance *pi = get_pattern_instance();
 	if (pi) {
 		int32_t x = pi->data.tick_start;
-		int32_t width = pi->get_tick_length();
+		int32_t width = MAX(pi->get_tick_length(), 192);
 
 		x = _apply_zoom(x);
 		width = _apply_zoom(width);

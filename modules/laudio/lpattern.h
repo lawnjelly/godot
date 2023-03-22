@@ -46,7 +46,7 @@ public:
 		}
 	} data;
 
-	void calculate_length();
+	bool calculate_length();
 	String get_name() const { return data.name; }
 	LNote *get_note(uint32_t p_id) {
 		if (p_id < notes.size()) {
