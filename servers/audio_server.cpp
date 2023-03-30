@@ -309,7 +309,7 @@ void AudioDriverManager::initialize(int p_driver) {
 #endif
 		// Note that these can be set differently on different platforms if desired.
 		// e.g. Android may want to ensure mute when app paused etc.
-		_mute_state = mute_driver ? 0 : MuteFlags::MUTE_FLAG_DISABLED;
+		_mute_state = mute_driver ? MuteFlags::MUTE_FLAG_DISABLED : 0;
 
 		// Sensitive to all but focus and quiet mode
 		_mute_state_mask = MuteFlags::MUTE_FLAG_DISABLED;
