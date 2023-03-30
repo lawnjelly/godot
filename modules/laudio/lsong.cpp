@@ -10,16 +10,24 @@ LApp g_lapp;
 
 void LSong::calculate_song_length() {
 	int32_t song_end = 0;
+	int32_t snippets_end = 0;
 	for (uint32_t n = 0; n < g_lapp.pattern_instances.size(); n++) {
 		const LPatternInstance &pi = g_lapp.pattern_instances.get_active(n);
 		//if (_tracks.tracks[pi.data.track].active) {
 		int32_t pattern_end = pi.get_tick_end();
-		song_end = MAX(song_end, pattern_end);
+
+		if (pi.data.snippet) {
+			snippets_end = MAX(snippets_end, pattern_end);
+		} else {
+			song_end = MAX(song_end, pattern_end);
+		}
 		//}
 	}
 
 	print_line("Song is " + itos(song_end) + " ticks.");
+	print_line("Snippets are " + itos(song_end) + " ticks.");
 	_timing.song_length_ticks = song_end;
+	_timing.snippets_length_ticks = snippets_end;
 }
 
 LSong::LSong() {
@@ -83,6 +91,7 @@ void Song::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("pattern_delete"), &Song::pattern_delete);
 
 	ClassDB::bind_method(D_METHOD("set_pattern_view", "pattern_view"), &Song::set_pattern_view);
+	ClassDB::bind_method(D_METHOD("set_snippet_view", "snippet_view"), &Song::set_snippet_view);
 
 #define PATTERNI_BIND(VAR_NAME)                                                                                                              \
 	ClassDB::bind_method(D_METHOD("patterni_set_" LA_TOSTRING(VAR_NAME), LA_TOSTRING(VAR_NAME)), &Song::LA_LITCAT(patterni_set_, VAR_NAME)); \
@@ -103,6 +112,8 @@ void Song::_bind_methods() {
 	PATTERNI_BIND(tick_start);
 	PATTERNI_BIND(track);
 	PATTERNI_BIND(transpose);
+
+	ClassDB::bind_method(D_METHOD("patterni_flip_snippet"), &Song::patterni_flip_snippet);
 
 	PATTERN_BIND(name);
 	PATTERN_BIND(tick_start);
@@ -178,6 +189,7 @@ void Song::_bind_methods() {
 	ADD_SIGNAL(MethodInfo("update_trackview"));
 	ADD_SIGNAL(MethodInfo("update_playerview"));
 	ADD_SIGNAL(MethodInfo("update_all"));
+	ADD_SIGNAL(MethodInfo("pattern_right_click", PropertyInfo(Variant::VECTOR2, "pos")));
 }
 
 void Song::_log(String p_sz) {
@@ -236,7 +248,7 @@ LPatternInstance *Song::_create_lpattern_instance_and_pattern(const LHandle &p_p
 
 	Pattern *pat = memnew(Pattern);
 	pat->set_pattern_instance(hpi);
-	pat->set_owner_song(this);
+	//pat->set_owner_song(this);
 
 	_pattern_view->add_child(pat);
 	//	pat->set_zoom(_pattern_view->get_zoom());
@@ -263,6 +275,26 @@ void Song::pattern_select(Node *p_node) {
 	Pattern *pat = Object::cast_to<Pattern>(p_node);
 	ERR_FAIL_COND(!pat);
 	_select_pattern(pat);
+}
+
+void Song::patterni_flip_snippet() {
+	if (_selected_pattern) {
+		_selected_pattern->set_snippet(!_selected_pattern->get_snippet());
+
+		Node *parent = _selected_pattern->get_parent();
+		DEV_ASSERT(parent);
+		parent->remove_child(_selected_pattern);
+
+		if (_selected_pattern->get_snippet()) {
+			DEV_ASSERT(_snippet_view);
+			_snippet_view->add_child(_selected_pattern);
+		} else {
+			DEV_ASSERT(_pattern_view);
+			_pattern_view->add_child(_selected_pattern);
+		}
+
+		get_lsong().calculate_song_length();
+	}
 }
 
 void Song::_select_pattern(Pattern *p_pattern) {
@@ -412,6 +444,11 @@ String Song::player_get_name(uint32_t p_player_id) {
 void Song::set_pattern_view(Node *p_pattern_view) {
 	_pattern_view = Object::cast_to<PatternView>(p_pattern_view);
 	ERR_FAIL_NULL(_pattern_view);
+}
+
+void Song::set_snippet_view(Node *p_snippet_view) {
+	_snippet_view = Object::cast_to<PatternView>(p_snippet_view);
+	ERR_FAIL_NULL(_snippet_view);
 }
 
 void Song::track_set_name(uint32_t p_track, String p_name) {

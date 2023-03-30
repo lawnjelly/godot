@@ -50,6 +50,7 @@ struct LTiming {
 	uint32_t transport_tick_right;
 
 	uint32_t song_length_ticks;
+	uint32_t snippets_length_ticks;
 
 	uint32_t tick_to_sample(uint32_t p_tick) const {
 		return p_tick * samples_pt;
@@ -74,6 +75,7 @@ struct LTiming {
 		transport_tick_left = 0;
 		transport_tick_right = 192;
 		song_length_ticks = 192;
+		snippets_length_ticks = 192;
 		recalculate();
 	}
 

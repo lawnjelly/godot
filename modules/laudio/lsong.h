@@ -120,6 +120,7 @@ class Song : public Node {
 
 	Pattern *_selected_pattern = nullptr;
 	PatternView *_pattern_view = nullptr;
+	PatternView *_snippet_view = nullptr;
 	uint32_t _current_note_id = 0;
 	bool _pattern_dirty = false;
 	bool _notes_dirty = false;
@@ -150,6 +151,7 @@ public:
 	const LSong &get_lsong() const { return _song; }
 
 	void set_pattern_view(Node *p_pattern_view);
+	void set_snippet_view(Node *p_snippet_view);
 
 	void pattern_create();
 	void pattern_duplicate();
@@ -162,6 +164,8 @@ public:
 	void update_trackview();
 	void update_playerview();
 	void update_all();
+
+	void patterni_flip_snippet();
 
 	PATTERNI_GET_SET(tick_start, int32_t, 0)
 	PATTERNI_GET_SET(track, int32_t, 0)

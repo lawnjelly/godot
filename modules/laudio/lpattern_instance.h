@@ -15,6 +15,7 @@ public:
 		int32_t tick_start = 0;
 		int32_t track = 0;
 		int32_t transpose = 0;
+		bool snippet = false;
 	} data;
 
 	String get_name() const;
@@ -43,7 +44,8 @@ class Pattern : public Control {
 		String text;
 		LHandle handle_pattern_instance;
 		//int32_t zoom = 0;
-		Song *owner_song = nullptr;
+		//Song *owner_song = nullptr;
+		bool snippet = false;
 	} data;
 
 	struct DragData {
@@ -76,7 +78,9 @@ public:
 	void refresh_position();
 	void refresh_text();
 	void set_selected(bool p_selected);
-	void set_owner_song(Song *p_song) { data.owner_song = p_song; }
+	//void set_owner_song(Song *p_song) { data.owner_song = p_song; }
+	void set_snippet(bool p_snippet);
+	bool get_snippet() const { return data.snippet; }
 	//	void set_zoom(int32_t p_zoom);
 
 	Pattern();

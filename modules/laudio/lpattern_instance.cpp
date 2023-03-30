@@ -68,6 +68,10 @@ void Pattern::_gui_input(const Ref<InputEvent> &p_event) {
 	//bool ui_accept = p_event->is_action("ui_accept") && !p_event->is_echo();
 	bool ui_accept = false;
 
+	Song *song = Song::get_current_song();
+	if (!song)
+		return;
+
 	//	bool button_masked = mouse_button.is_valid() && ((1 << (mouse_button->get_button_index() - 1)) & button_mask) > 0;
 	bool button_masked = mouse_button.is_valid();
 	if (button_masked || ui_accept) {
@@ -77,33 +81,34 @@ void Pattern::_gui_input(const Ref<InputEvent> &p_event) {
 
 		if (mouse_button->is_pressed()) {
 			if (!drag_data.dragging) {
-				_pattern_pressed();
-				LPatternInstance *pi = get_pattern_instance();
 				drag_data.dragging = true;
-				print_line("setting drag origin");
-				drag_data.drag_origin = mouse_button->get_position();
-				drag_data.relative_drag_x = 0;
-				drag_data.relative_drag_y = 0;
-				if (pi) {
-					drag_data.orig_tick_start = pi->data.tick_start;
-					drag_data.orig_track = pi->data.track;
-				}
+				_pattern_pressed();
+
+				switch (mouse_button->get_button_index()) {
+					default: {
+					} break;
+
+					case BUTTON_RIGHT: {
+						song->emit_signal("pattern_right_click", mouse_button->get_global_position());
+					} break;
+					case BUTTON_LEFT: {
+						LPatternInstance *pi = get_pattern_instance();
+						print_line("setting drag origin");
+						drag_data.drag_origin = mouse_button->get_position();
+						drag_data.relative_drag_x = 0;
+						drag_data.relative_drag_y = 0;
+						if (pi) {
+							drag_data.orig_tick_start = pi->data.tick_start;
+							drag_data.orig_track = pi->data.track;
+						}
+						return;
+					} break;
+				} // switch
 			}
-			//			else
-			//			{
-			//				Vector2 offset = mouse_button->get_position() - drag_data.drag_origin;
-			//				if (pi)
-			//				{
-			//					pi->data.tick_start = drag_data.orig_tick_start + (int32_t) offset.x;
-			//					print_line("new tick start " + itos(pi->data.tick_start));
-			//				}
-			//			}
-			//print_line("button pressed");
-			return;
 		} else {
 			drag_data.dragging = false;
 		}
-	}
+	} // button masked
 
 	Ref<InputEventMouseMotion> motion = p_event;
 	if (motion.is_valid() && drag_data.dragging) {
@@ -118,10 +123,7 @@ void Pattern::_gui_input(const Ref<InputEvent> &p_event) {
 
 			//offset.x = drag_data.relative_drag;
 
-			int32_t quantize = 1;
-			if (data.owner_song) {
-				quantize = data.owner_song->song_get_pattern_view_quantize();
-			}
+			int32_t quantize = song->song_get_pattern_view_quantize();
 			int32_t change = drag_data.relative_drag_x;
 			//print_line("change : " + itos(change));
 			change = _apply_zoom(change, -1);
@@ -171,6 +173,14 @@ void Pattern::set_text(String p_text) {
 //	update();
 //}
 
+void Pattern::set_snippet(bool p_snippet) {
+	data.snippet = p_snippet;
+	LPatternInstance *pi = get_pattern_instance();
+	if (pi) {
+		pi->data.snippet = p_snippet;
+	}
+}
+
 void Pattern::set_selected(bool p_selected) {
 	data.selected = p_selected;
 	update();
@@ -184,8 +194,11 @@ void Pattern::refresh_text() {
 }
 
 int32_t Pattern::_apply_zoom(int32_t p_value, int32_t p_zoom_multiply) const {
-	DEV_ASSERT(data.owner_song);
-	int32_t zoom = data.owner_song->song_get_zoom() * p_zoom_multiply;
+	Song *song = Song::get_current_song();
+	if (!song)
+		return p_value;
+
+	int32_t zoom = song->song_get_zoom() * p_zoom_multiply;
 	//int32_t zoom = data.zoom * p_zoom_multiply;
 
 	int32_t pzoom = Math::pow((float)2, (float)ABS(zoom));
