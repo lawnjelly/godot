@@ -132,6 +132,8 @@ def find_section_name(sub_folder):
         folder = os.path.basename(folder)
         if folder == "godot":
             break
+        if folder == "godot-plus":
+            break
         folders += [folder]
         section_path += "../"
         section_path = os.path.abspath(section_path) + "/"
@@ -189,6 +191,11 @@ def process_folder(folders, sought_exceptions=[], num_output_files=1, extension=
 
     # calculate how many lines to write in each file
     total_lines = len(found_includes)
+
+    # error condition
+    if total_lines == 0:
+        return
+
     lines_per_file = math.floor(total_lines / num_output_files)
     lines_per_file = max(lines_per_file, 1)
 
@@ -238,8 +245,8 @@ def generate_scu_files(verbose):
     curr_folder = os.path.abspath("./")
     parent_path = basename(normpath(curr_folder))
 
-    if parent_path != "godot":
-        print("ERROR - scu_builders.py must be run from the godot folder.")
+    if (parent_path != "godot") and (parent_path != "godot-plus"):
+        print('ERROR - parent_path is not "godot", ensure scu_builders.py is run from the godot folder.')
         return
 
     process_folder(["core"])

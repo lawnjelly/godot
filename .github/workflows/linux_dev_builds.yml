@@ -5,7 +5,7 @@ on: [push, pull_request]
 env:
   # Only used for the cache key. Increment version to force clean build.
   GODOT_BASE_BRANCH: 3.x
-  SCONSFLAGS: verbose=yes warnings=all werror=yes
+  SCONSFLAGS: verbose=no warnings=all werror=yes
 
 concurrency:
   group: ci-${{github.actor}}-${{github.head_ref || github.run_number}}-${{github.ref}}-linux
@@ -26,7 +26,7 @@ jobs:
             sconsflags: use_scu=yes rids=tracked_handles
             bin: "./bin/godot.x11.tools.64"
             build-mono: false
-            artifact: true
+            artifact: false
 
     steps:
       - uses: actions/checkout@v3
@@ -56,11 +56,17 @@ jobs:
       - name: Setup GCC problem matcher
         uses: ammaraskar/gcc-problem-matcher@master
 
+      - name: Copy custom.py
+        shell: bash
+        run: |
+          # Use custom.py to only compile core.
+          cp -f misc/scripts/custom.py custom.py
+
       - name: Compilation
         uses: ./.github/actions/godot-build
         with:
           sconsflags: ${{ env.SCONSFLAGS }} ${{ matrix.sconsflags }}
-          platform: linuxbsd
+          platform: x11
           target: ${{ matrix.target }}
           tools: ${{ matrix.tools }}
 
