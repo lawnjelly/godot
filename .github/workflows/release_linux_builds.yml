@@ -1,5 +1,5 @@
 name: 🐧 Release Linux Builds
-on: []
+on: [workflow_dispatch]
 
 # Global Settings
 env:
