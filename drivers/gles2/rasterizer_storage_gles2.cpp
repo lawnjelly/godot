@@ -3765,6 +3765,12 @@ Transform2D RasterizerStorageGLES2::skeleton_bone_get_transform_2d(RID p_skeleto
 	return ret;
 }
 
+Transform2D RasterizerStorageGLES2::skeleton_get_base_transform_2d(RID p_skeleton) const {
+	Skeleton *skeleton = skeleton_owner.getornull(p_skeleton);
+	ERR_FAIL_COND_V(!skeleton, Transform2D());
+	return skeleton->base_transform_2d;
+}
+
 void RasterizerStorageGLES2::skeleton_set_base_transform_2d(RID p_skeleton, const Transform2D &p_base_transform) {
 	Skeleton *skeleton = skeleton_owner.getornull(p_skeleton);
 	ERR_FAIL_COND(!skeleton);

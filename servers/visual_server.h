@@ -421,6 +421,7 @@ public:
 	virtual void skeleton_bone_set_transform_2d(RID p_skeleton, int p_bone, const Transform2D &p_transform) = 0;
 	virtual Transform2D skeleton_bone_get_transform_2d(RID p_skeleton, int p_bone) const = 0;
 	virtual void skeleton_set_base_transform_2d(RID p_skeleton, const Transform2D &p_base_transform) = 0;
+	virtual Transform2D skeleton_get_base_transform_2d(RID p_skeleton) const = 0;
 
 	/* Light API */
 
@@ -1013,6 +1014,8 @@ public:
 	virtual void canvas_item_set_visible(RID p_item, bool p_visible) = 0;
 	virtual void canvas_item_set_light_mask(RID p_item, int p_mask) = 0;
 
+	virtual Rect2 canvas_item_get_bounding_rect(RID p_item) = 0;
+
 	virtual void canvas_item_set_update_when_visible(RID p_item, bool p_update) = 0;
 
 	virtual void canvas_item_set_transform(RID p_item, const Transform2D &p_transform) = 0;
@@ -1052,6 +1055,7 @@ public:
 	virtual void canvas_item_set_copy_to_backbuffer(RID p_item, bool p_enable, const Rect2 &p_rect) = 0;
 
 	virtual void canvas_item_attach_skeleton(RID p_item, RID p_skeleton) = 0;
+	virtual void canvas_item_set_skeleton_relative_xform(RID p_item, Transform2D p_xform_relative) = 0;
 
 	virtual void canvas_item_clear(RID p_item) = 0;
 	virtual void canvas_item_set_draw_index(RID p_item, int p_index) = 0;

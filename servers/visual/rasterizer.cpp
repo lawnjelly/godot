@@ -39,6 +39,146 @@
 
 Rasterizer *(*Rasterizer::_create_func)() = nullptr;
 
+const Rect2 &RasterizerCanvas::Item::get_rect() const {
+	if (custom_rect) {
+		return rect;
+	}
+	if (!rect_dirty && !update_when_visible) {
+		if (skeleton == RID()) {
+			return rect;
+		} else {
+			// special case for skeletons
+			uint32_t rev = RasterizerStorage::base_singleton->skeleton_get_revision(skeleton);
+			if (rev == skeleton_revision) {
+				// no change to the skeleton since we last calculated the bounding rect
+				return rect;
+			} else {
+				// We need to recalculate.
+				// Mark as done for next time.
+				skeleton_revision = rev;
+			}
+		}
+	}
+
+	//must update rect
+	int s = commands.size();
+	if (s == 0) {
+		rect = Rect2();
+		rect_dirty = false;
+		return rect;
+	}
+
+	Transform2D xf;
+	bool found_xform = false;
+	bool first = true;
+
+	const Item::Command *const *cmd = &commands[0];
+
+	for (int i = 0; i < s; i++) {
+		const Item::Command *c = cmd[i];
+		Rect2 r;
+
+		switch (c->type) {
+			case Item::Command::TYPE_LINE: {
+				const Item::CommandLine *line = static_cast<const Item::CommandLine *>(c);
+				r.position = line->from;
+				r.expand_to(line->to);
+			} break;
+			case Item::Command::TYPE_POLYLINE: {
+				const Item::CommandPolyLine *pline = static_cast<const Item::CommandPolyLine *>(c);
+				if (pline->triangles.size()) {
+					for (int j = 0; j < pline->triangles.size(); j++) {
+						if (j == 0) {
+							r.position = pline->triangles[j];
+						} else {
+							r.expand_to(pline->triangles[j]);
+						}
+					}
+				} else {
+					for (int j = 0; j < pline->lines.size(); j++) {
+						if (j == 0) {
+							r.position = pline->lines[j];
+						} else {
+							r.expand_to(pline->lines[j]);
+						}
+					}
+				}
+
+			} break;
+			case Item::Command::TYPE_RECT: {
+				const Item::CommandRect *crect = static_cast<const Item::CommandRect *>(c);
+				r = crect->rect;
+
+			} break;
+			case Item::Command::TYPE_NINEPATCH: {
+				const Item::CommandNinePatch *style = static_cast<const Item::CommandNinePatch *>(c);
+				r = style->rect;
+			} break;
+			case Item::Command::TYPE_PRIMITIVE: {
+				const Item::CommandPrimitive *primitive = static_cast<const Item::CommandPrimitive *>(c);
+				r.position = primitive->points[0];
+				for (int j = 1; j < primitive->points.size(); j++) {
+					r.expand_to(primitive->points[j]);
+				}
+			} break;
+			case Item::Command::TYPE_POLYGON: {
+				const Item::CommandPolygon *polygon = static_cast<const Item::CommandPolygon *>(c);
+				r = _calculate_poly_bound(polygon);
+			} break;
+			case Item::Command::TYPE_MESH: {
+				const Item::CommandMesh *mesh = static_cast<const Item::CommandMesh *>(c);
+				AABB aabb = RasterizerStorage::base_singleton->mesh_get_aabb(mesh->mesh, RID());
+
+				r = Rect2(aabb.position.x, aabb.position.y, aabb.size.x, aabb.size.y);
+
+			} break;
+			case Item::Command::TYPE_MULTIMESH: {
+				const Item::CommandMultiMesh *multimesh = static_cast<const Item::CommandMultiMesh *>(c);
+				AABB aabb = RasterizerStorage::base_singleton->multimesh_get_aabb(multimesh->multimesh);
+
+				r = Rect2(aabb.position.x, aabb.position.y, aabb.size.x, aabb.size.y);
+
+			} break;
+			case Item::Command::TYPE_PARTICLES: {
+				const Item::CommandParticles *particles_cmd = static_cast<const Item::CommandParticles *>(c);
+				if (particles_cmd->particles.is_valid()) {
+					AABB aabb = RasterizerStorage::base_singleton->particles_get_aabb(particles_cmd->particles);
+					r = Rect2(aabb.position.x, aabb.position.y, aabb.size.x, aabb.size.y);
+				}
+
+			} break;
+			case Item::Command::TYPE_CIRCLE: {
+				const Item::CommandCircle *circle = static_cast<const Item::CommandCircle *>(c);
+				r.position = Point2(-circle->radius, -circle->radius) + circle->pos;
+				r.size = Point2(circle->radius * 2.0, circle->radius * 2.0);
+			} break;
+			case Item::Command::TYPE_TRANSFORM: {
+				const Item::CommandTransform *transform = static_cast<const Item::CommandTransform *>(c);
+				xf = transform->xform;
+				found_xform = true;
+				continue;
+			} break;
+
+			case Item::Command::TYPE_CLIP_IGNORE: {
+			} break;
+		}
+
+		if (found_xform) {
+			r = xf.xform(r);
+		}
+
+		if (first) {
+			rect = r;
+			first = false;
+		} else {
+			rect = rect.merge(r);
+		}
+	}
+
+	rect_dirty = false;
+	return rect;
+}
+
 Rasterizer *Rasterizer::create() {
 	return _create_func();
 }
@@ -560,4 +700,179 @@ int RasterizerStorage::multimesh_get_visible_instances(RID p_multimesh) const {
 
 AABB RasterizerStorage::multimesh_get_aabb(RID p_multimesh) const {
 	return _multimesh_get_aabb(p_multimesh);
+}
+
+Rect2 RasterizerCanvas::Item::_calculate_poly_bound(const Item::CommandPolygon *p_polygon) const {
+	const Item::CommandPolygon *polygon = p_polygon;
+	Rect2 r;
+
+	int l = polygon->points.size();
+	const Point2 *pp = &polygon->points[0];
+	r.position = pp[0];
+	for (int j = 1; j < l; j++) {
+		r.expand_to(pp[j]);
+	}
+
+	if (skeleton != RID()) {
+		// calculate bone AABBs
+		int bone_count = RasterizerStorage::base_singleton->skeleton_get_bone_count(skeleton);
+
+		Rect2 *bptr = nullptr;
+		LocalVector<Rect2> bone_aabbs;
+		if (bone_count <= 1024) {
+			bptr = (Rect2 *)alloca(sizeof(Rect2) * bone_count);
+		} else {
+			bone_aabbs.resize(bone_count);
+			bptr = bone_aabbs.ptr();
+		}
+
+		for (int j = 0; j < bone_count; j++) {
+			bptr[j].size = Vector2(-1, -1); //negative means unused
+		}
+
+		bool bone_data_legit = l && polygon->bones.size() == l * 4 && polygon->weights.size() == polygon->bones.size();
+
+		/*
+		typename T_STORAGE::Skeleton *skeleton = nullptr;
+		skeleton = get_storage()->skeleton_owner.get(item->skeleton);
+
+		if (skeleton->use_2d) {
+			// with software skinning we still need to know the skeleton inverse transform, the other two aren't needed
+			// but are left in for simplicity here
+			Transform2D skeleton_transform = p_ris.item_group_base_transform * skeleton->base_transform_2d;
+			fill_state.skeleton_base_inverse_xform = skeleton_transform.affine_inverse();
+		}
+		*/
+
+		// only the inverse appears to be needed
+		//const Transform2D &skel_trans_inv = p_fill_state.skeleton_base_inverse_xform;
+
+		if (bone_data_legit) {
+			// only the inverse appears to be needed
+			Transform2D skel_trans_inv = Transform2D();
+			//			skel_trans_inv.translate(512, 300);
+
+			print_line("final transform " + String(Variant(final_transform)));
+			print_line("xform " + String(Variant(xform)));
+
+			Transform2D skel_base_xform = RasterizerStorage::base_singleton->skeleton_get_base_transform_2d(skeleton);
+			print_line("base_skel_trans " + String(Variant(skel_base_xform)));
+
+			//			skel_trans_inv = skel_trans_inv * skel_base_xform;
+			//			print_line("skel_trans_inv before " + String(Variant(skel_trans_inv)));
+			//			skel_trans_inv = skel_trans_inv.affine_inverse();
+			//			print_line("skel_trans_inv after " + String(Variant(skel_trans_inv)));
+
+			skel_trans_inv = skel_base_xform.affine_inverse();
+
+			// instead of using the p_item->xform we use the final transform,
+			// because we want the poly transform RELATIVE to the base skeleton.
+			//			Transform2D item_transform = xform; //skel_trans_inv * p_item->final_transform;
+			//			Transform2D item_transform = skel_trans_inv * xform; //skel_trans_inv * p_item->final_transform;
+
+			//Transform2D item_transform = skel_trans_inv * final_transform; //skel_trans_inv * p_item->final_transform;
+			//			Transform2D item_transform = skel_trans_inv * xform; //skel_trans_inv * p_item->final_transform;
+			//Transform2D item_transform = xform; //skel_trans_inv * p_item->final_transform;
+
+			//			item_transform.elements[2] = Vector2(-284, -416);
+			Transform2D item_transform;
+			if (skeleton_relative_xform) {
+				item_transform = *skeleton_relative_xform;
+			} else {
+				ERR_FAIL_V_MSG(Rect2(), "Skinned Polygon2D must have skeleton_relative_xform set for correct culling.");
+			}
+
+			Transform2D item_transform_inv = item_transform.affine_inverse();
+
+			print_line("item_transform " + String(Variant(item_transform)));
+
+			for (int j = 0; j < l; j++) {
+				Point2 p = pp[j];
+
+				// get the point into bone space
+				p = item_transform.xform(p);
+
+				print_line("pt " + itos(j) + ":\tbefore " + String(Variant(pp[j])) + ", after " + String(Variant(p)));
+
+				for (int k = 0; k < 4; k++) {
+					int idx = polygon->bones[j * 4 + k];
+					float w = polygon->weights[j * 4 + k];
+					if (w == 0) {
+						continue;
+					}
+
+					if (bptr[idx].size.x < 0) {
+						//first
+						bptr[idx] = Rect2(p, Vector2(0.00001, 0.00001));
+					} else {
+						bptr[idx].expand_to(p);
+					}
+				}
+			}
+
+			Rect2 aabb;
+			bool first_bone = true;
+			for (int j = 0; j < bone_count; j++) {
+				// Is this bone even used by this Polygon2D?
+				if (bptr[j].size.x < 0) {
+					continue;
+				}
+
+				Transform2D mtx = RasterizerStorage::base_singleton->skeleton_bone_get_transform_2d(skeleton, j);
+
+//#define BONE_ONLY_BOUND
+#ifdef BONE_ONLY_BOUND
+				//				Transform2D global_bone_mtx = mtx * skel_base_xform;
+				Transform2D global_bone_mtx = skel_base_xform * mtx;
+				//Vector2 global_bone_pos = global_bone_mtx.xform(Vector2());
+				Vector2 global_bone_pos = Vector2();
+				//				Vector2 local_bone_pos = final_transform.xform_inv(global_bone_pos);
+				Vector2 local_bone_pos = final_transform.xform(Vector2());
+
+				if (first_bone) {
+					aabb.position = local_bone_pos;
+					aabb.size = Vector2();
+					first_bone = false;
+				} else {
+					aabb.expand_to(local_bone_pos);
+				}
+#else
+
+				Rect2 baabb = bptr[j];
+				baabb = mtx.xform(baabb);
+
+				String sz;
+				sz = "bone " + itos(j);
+				sz += " bone_xform " + String(Variant(mtx));
+				sz += " local: " + String(Variant(bptr[j]));
+				sz += ", xformed: " + String(Variant(baabb));
+				print_line("\t" + sz);
+
+				if (first_bone) {
+					aabb = baabb;
+					first_bone = false;
+				} else {
+					aabb = aabb.merge(baabb);
+				}
+#endif
+			}
+
+#ifndef BONE_ONLY_BOUND
+			// transform aabb back into normal space
+			aabb = item_transform_inv.xform(aabb);
+#else
+			//aabb.grow_by(80);
+#endif
+
+			r = aabb;
+			//r = r.merge(aabb);
+
+			//						Rect2 debug_r = r;
+			//						debug_r = final_transform.xform(debug_r);
+			//print_line("final_transform " + String(Variant(final_transform)) + ", local AABB " + String(Variant(r)) + ", world AABB " + String(Variant(debug_r)));
+			print_line("local AABB " + String(Variant(r)));
+		} // if bones are suitable
+	}
+
+	return r;
 }

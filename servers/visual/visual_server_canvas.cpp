@@ -413,6 +413,12 @@ void VisualServerCanvas::canvas_item_set_distance_field_mode(RID p_item, bool p_
 
 	canvas_item->distance_field = p_enable;
 }
+Rect2 VisualServerCanvas::canvas_item_get_bounding_rect(RID p_item) {
+	Item *canvas_item = canvas_item_owner.getornull(p_item);
+	ERR_FAIL_COND_V(!canvas_item, Rect2());
+	return canvas_item->get_rect();
+}
+
 void VisualServerCanvas::canvas_item_set_custom_rect(RID p_item, bool p_custom_rect, const Rect2 &p_rect) {
 	Item *canvas_item = canvas_item_owner.getornull(p_item);
 	ERR_FAIL_COND(!canvas_item);
@@ -915,6 +921,16 @@ void VisualServerCanvas::canvas_item_set_z_as_relative_to_parent(RID p_item, boo
 	ERR_FAIL_COND(!canvas_item);
 
 	canvas_item->z_relative = p_enable;
+}
+
+void VisualServerCanvas::canvas_item_set_skeleton_relative_xform(RID p_item, Transform2D p_xform_relative) {
+	Item *canvas_item = canvas_item_owner.getornull(p_item);
+	ERR_FAIL_COND(!canvas_item);
+
+	if (!canvas_item->skeleton_relative_xform) {
+		canvas_item->skeleton_relative_xform = memnew(Transform2D);
+	}
+	*canvas_item->skeleton_relative_xform = p_xform_relative;
 }
 
 void VisualServerCanvas::canvas_item_attach_skeleton(RID p_item, RID p_skeleton) {

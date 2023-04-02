@@ -2168,6 +2168,8 @@ void VisualServer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("canvas_set_item_mirroring", "canvas", "item", "mirroring"), &VisualServer::canvas_set_item_mirroring);
 	ClassDB::bind_method(D_METHOD("canvas_set_modulate", "canvas", "color"), &VisualServer::canvas_set_modulate);
 
+	ClassDB::bind_method(D_METHOD("canvas_item_get_bounding_rect", "item"), &VisualServer::canvas_item_get_bounding_rect);
+
 	ClassDB::bind_method(D_METHOD("canvas_item_create"), &VisualServer::canvas_item_create);
 	ClassDB::bind_method(D_METHOD("canvas_item_set_parent", "item", "parent"), &VisualServer::canvas_item_set_parent);
 	ClassDB::bind_method(D_METHOD("canvas_item_set_visible", "item", "visible"), &VisualServer::canvas_item_set_visible);

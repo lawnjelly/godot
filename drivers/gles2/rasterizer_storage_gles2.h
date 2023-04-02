@@ -927,6 +927,7 @@ public:
 	virtual void skeleton_bone_set_transform_2d(RID p_skeleton, int p_bone, const Transform2D &p_transform);
 	virtual Transform2D skeleton_bone_get_transform_2d(RID p_skeleton, int p_bone) const;
 	virtual void skeleton_set_base_transform_2d(RID p_skeleton, const Transform2D &p_base_transform);
+	virtual Transform2D skeleton_get_base_transform_2d(RID p_skeleton) const;
 	virtual uint32_t skeleton_get_revision(RID p_skeleton) const;
 
 	void _update_skeleton_transform_buffer(const PoolVector<float> &p_data, size_t p_size);

@@ -240,6 +240,7 @@ public:
 	FUNC3(skeleton_bone_set_transform_2d, RID, int, const Transform2D &)
 	FUNC2RC(Transform2D, skeleton_bone_get_transform_2d, RID, int)
 	FUNC2(skeleton_set_base_transform_2d, RID, const Transform2D &)
+	FUNC1RC(Transform2D, skeleton_get_base_transform_2d, RID)
 
 	/* Light API */
 
@@ -587,6 +588,8 @@ public:
 	FUNC2(canvas_item_set_visible, RID, bool)
 	FUNC2(canvas_item_set_light_mask, RID, int)
 
+	FUNC1R(Rect2, canvas_item_get_bounding_rect, RID)
+
 	FUNC2(canvas_item_set_update_when_visible, RID, bool)
 
 	FUNC2(canvas_item_set_transform, RID, const Transform2D &)
@@ -619,6 +622,7 @@ public:
 	FUNC2(canvas_item_set_z_as_relative_to_parent, RID, bool)
 	FUNC3(canvas_item_set_copy_to_backbuffer, RID, bool, const Rect2 &)
 	FUNC2(canvas_item_attach_skeleton, RID, RID)
+	FUNC2(canvas_item_set_skeleton_relative_xform, RID, Transform2D)
 
 	FUNC1(canvas_item_clear, RID)
 	FUNC2(canvas_item_set_draw_index, RID, int)

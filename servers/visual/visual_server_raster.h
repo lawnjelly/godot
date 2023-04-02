@@ -317,6 +317,7 @@ public:
 	BIND3(skeleton_bone_set_transform_2d, RID, int, const Transform2D &)
 	BIND2RC(Transform2D, skeleton_bone_get_transform_2d, RID, int)
 	BIND2(skeleton_set_base_transform_2d, RID, const Transform2D &)
+	BIND1RC(Transform2D, skeleton_get_base_transform_2d, RID)
 
 	/* Light API */
 
@@ -686,6 +687,8 @@ public:
 	BIND2(canvas_item_set_visible, RID, bool)
 	BIND2(canvas_item_set_light_mask, RID, int)
 
+	BIND1R(Rect2, canvas_item_get_bounding_rect, RID)
+
 	BIND2(canvas_item_set_update_when_visible, RID, bool)
 
 	BIND2(canvas_item_set_transform, RID, const Transform2D &)
@@ -718,6 +721,7 @@ public:
 	BIND2(canvas_item_set_z_as_relative_to_parent, RID, bool)
 	BIND3(canvas_item_set_copy_to_backbuffer, RID, bool, const Rect2 &)
 	BIND2(canvas_item_attach_skeleton, RID, RID)
+	BIND2(canvas_item_set_skeleton_relative_xform, RID, Transform2D)
 
 	BIND1(canvas_item_clear, RID)
 	BIND2(canvas_item_set_draw_index, RID, int)

@@ -1821,18 +1821,23 @@ PREAMBLE(bool)::_software_skin_poly(RasterizerCanvas::Item::CommandPolygon *p_po
 	// const Transform2D &skel_trans = get_this()->state.skeleton_transform;
 	// const Transform2D &skel_trans_inv = get_this()->state.skeleton_transform_inverse;
 
+	print_verbose("soft_skin: skeleton_base_inverse_xform " + String(Variant(skel_trans_inv)));
+
 	// get the bone transforms.
 	// this is not ideal because we don't know in advance which bones are needed
 	// for any particular poly, but depends how cheap the skeleton_bone_get_transform_2d call is
 	Transform2D *bone_transforms = (Transform2D *)alloca(bone_count * sizeof(Transform2D));
 	for (int b = 0; b < bone_count; b++) {
 		bone_transforms[b] = RasterizerStorage::base_singleton->skeleton_bone_get_transform_2d(skeleton, b);
+		print_verbose("soft_skin: bone " + itos(b) + " xform " + String(Variant(bone_transforms[b])));
 	}
 
 	if (num_verts && (p_poly->bones.size() == num_verts * 4) && (p_poly->weights.size() == p_poly->bones.size())) {
 		// instead of using the p_item->xform we use the final transform,
 		// because we want the poly transform RELATIVE to the base skeleton.
 		Transform2D item_transform = skel_trans_inv * p_item->final_transform;
+		print_verbose("soft_skin: final_transform " + String(Variant(p_item->final_transform)));
+		print_verbose("soft_skin: item_transform " + String(Variant(item_transform)));
 
 		Transform2D item_transform_inv = item_transform.affine_inverse();
 
@@ -1843,6 +1848,8 @@ PREAMBLE(bool)::_software_skin_poly(RasterizerCanvas::Item::CommandPolygon *p_po
 			// there can be an offset on the polygon at rigging time, this has to be accounted for
 			// note it may be possible that this could be concatenated with the bone transforms to save extra transforms - not sure yet
 			Vector2 src_pos_back_transformed = item_transform.xform(src_pos);
+
+			print_verbose("soft_skin: vert " + itos(n) + " pos_back_transformed " + String(Variant(src_pos_back_transformed)));
 
 			float total_weight = 0.0f;
 
@@ -1872,6 +1879,8 @@ PREAMBLE(bool)::_software_skin_poly(RasterizerCanvas::Item::CommandPolygon *p_po
 
 				// retransform back from the poly offset space
 				dst_pos = item_transform_inv.xform(dst_pos);
+
+				print_verbose("soft_skin: vert " + itos(n) + " dst_pos " + String(Variant(dst_pos)));
 			}
 		}
 
@@ -1885,6 +1894,8 @@ PREAMBLE(bool)::_software_skin_poly(RasterizerCanvas::Item::CommandPolygon *p_po
 			dst_pos = src_pos;
 		}
 	}
+
+	print_verbose("soft_skin: END ********************* ");
 
 	// software transform with combined matrix?
 	if (p_fill_state.transform_mode != TM_NONE) {
@@ -2595,8 +2606,14 @@ PREAMBLE(void)::render_joined_item_commands(const BItemJoined &p_bij, Rasterizer
 			if (skeleton->use_2d) {
 				// with software skinning we still need to know the skeleton inverse transform, the other two aren't needed
 				// but are left in for simplicity here
+
 				Transform2D skeleton_transform = p_ris.item_group_base_transform * skeleton->base_transform_2d;
 				fill_state.skeleton_base_inverse_xform = skeleton_transform.affine_inverse();
+
+				print_verbose("\nsoft_skin: START ********************* ");
+				print_verbose("batching p_ris.item_group_base_transform " + String(Variant(p_ris.item_group_base_transform)));
+				print_verbose("batching skeleton->base_transform_2d " + String(Variant(skeleton->base_transform_2d)));
+				print_verbose("batching skeleton_base_inverse_xform " + String(Variant(fill_state.skeleton_base_inverse_xform)));
 			}
 		}
 
