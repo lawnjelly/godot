@@ -1005,6 +1005,10 @@ public:
 		// in local space.
 		Rect2 local_bound;
 
+	private:
+		Rect2 calculate_polygon_bounds(const Item::CommandPolygon &p_polygon) const;
+
+	public:
 		const Rect2 &get_rect() const {
 			if (custom_rect) {
 				return rect;
@@ -1099,61 +1103,8 @@ public:
 					} break;
 					case Item::Command::TYPE_POLYGON: {
 						const Item::CommandPolygon *polygon = static_cast<const Item::CommandPolygon *>(c);
-						int l = polygon->points.size();
-						const Point2 *pp = &polygon->points[0];
-						r.position = pp[0];
-						for (int j = 1; j < l; j++) {
-							r.expand_to(pp[j]);
-						}
-
-						if (skeleton != RID()) {
-							// calculate bone AABBs
-							int bone_count = RasterizerStorage::base_singleton->skeleton_get_bone_count(skeleton);
-
-							Vector<Rect2> bone_aabbs;
-							bone_aabbs.resize(bone_count);
-							Rect2 *bptr = bone_aabbs.ptrw();
-
-							for (int j = 0; j < bone_count; j++) {
-								bptr[j].size = Vector2(-1, -1); //negative means unused
-							}
-							if (l && polygon->bones.size() == l * 4 && polygon->weights.size() == polygon->bones.size()) {
-								for (int j = 0; j < l; j++) {
-									Point2 p = pp[j];
-									for (int k = 0; k < 4; k++) {
-										int idx = polygon->bones[j * 4 + k];
-										float w = polygon->weights[j * 4 + k];
-										if (w == 0) {
-											continue;
-										}
-
-										if (bptr[idx].size.x < 0) {
-											//first
-											bptr[idx] = Rect2(p, Vector2(0.00001, 0.00001));
-										} else {
-											bptr[idx].expand_to(p);
-										}
-									}
-								}
-
-								Rect2 aabb;
-								bool first_bone = true;
-								for (int j = 0; j < bone_count; j++) {
-									Transform2D mtx = RasterizerStorage::base_singleton->skeleton_bone_get_transform_2d(skeleton, j);
-									Rect2 baabb = mtx.xform(bone_aabbs[j]);
-
-									if (first_bone) {
-										aabb = baabb;
-										first_bone = false;
-									} else {
-										aabb = aabb.merge(baabb);
-									}
-								}
-
-								r = r.merge(aabb);
-							}
-						}
-
+						DEV_ASSERT(polygon);
+						r = calculate_polygon_bounds(*polygon);
 					} break;
 					case Item::Command::TYPE_MESH: {
 						const Item::CommandMesh *mesh = static_cast<const Item::CommandMesh *>(c);
