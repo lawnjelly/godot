@@ -561,3 +561,81 @@ int RasterizerStorage::multimesh_get_visible_instances(RID p_multimesh) const {
 AABB RasterizerStorage::multimesh_get_aabb(RID p_multimesh) const {
 	return _multimesh_get_aabb(p_multimesh);
 }
+
+Rect2 RasterizerCanvas::Item::calculate_polygon_bounds(const Item::CommandPolygon &p_polygon) const {
+	Rect2 r;
+	int l = p_polygon.points.size();
+	const Point2 *pp = &p_polygon.points[0];
+
+	// First add all untransformed points to the bound.
+	// This will be final version if no skeleton.
+	r.position = pp[0];
+	for (int j = 1; j < l; j++) {
+		r.expand_to(pp[j]);
+	}
+
+	// If there is a skeleton, some or all of the points may be transformed
+	// by bones (depending on the weights).
+	// If all points are fully weighted by bones, this means the original point is not needed for the bound,
+	// so this routine will OVER-ESTIMATE the bound with skeletons. Perhaps this can be improved.
+	if (skeleton != RID()) {
+		// calculate bone AABBs
+		int bone_count = RasterizerStorage::base_singleton->skeleton_get_bone_count(skeleton);
+
+		Vector<Rect2> bone_aabbs;
+		bone_aabbs.resize(bone_count);
+		Rect2 *bptr = bone_aabbs.ptrw();
+
+		for (int j = 0; j < bone_count; j++) {
+			bptr[j].size = Vector2(-1, -1); //negative means unused
+		}
+		if (l && p_polygon.bones.size() == l * 4 && p_polygon.weights.size() == p_polygon.bones.size()) {
+			for (int j = 0; j < l; j++) {
+				Point2 p = pp[j];
+				bool bone_space = false;
+
+				for (int k = 0; k < 4; k++) {
+					int idx = p_polygon.bones[j * 4 + k];
+					float w = p_polygon.weights[j * 4 + k];
+					if (w == 0) {
+						continue;
+					}
+
+					// Ensure the point is in "bone space", i.e. around the origin,
+					// before the bone transform is applied.
+					if (!bone_space) {
+						bone_space = true;
+						p = xform.xform(p);
+					}
+
+					if (bptr[idx].size.x < 0) {
+						//first
+						bptr[idx] = Rect2(p, Vector2(0.00001, 0.00001));
+					} else {
+						bptr[idx].expand_to(p);
+					}
+				}
+			}
+
+			Rect2 aabb;
+			bool first_bone = true;
+			for (int j = 0; j < bone_count; j++) {
+				Transform2D mtx = RasterizerStorage::base_singleton->skeleton_bone_get_transform_2d(skeleton, j);
+				Rect2 baabb = mtx.xform(bone_aabbs[j]);
+
+				if (first_bone) {
+					aabb = baabb;
+					first_bone = false;
+				} else {
+					aabb = aabb.merge(baabb);
+				}
+			}
+
+			// Transform the polygon AABB back into local space from bone space.
+			aabb = xform.affine_inverse().xform(aabb);
+
+			r = r.merge(aabb);
+		}
+	}
+	return r;
+}
