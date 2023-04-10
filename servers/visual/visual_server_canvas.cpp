@@ -1559,7 +1559,24 @@ void VisualServerCanvas::canvas_item_attach_skeleton(RID p_item, RID p_skeleton)
 	Item *canvas_item = canvas_item_owner.getornull(p_item);
 	ERR_FAIL_COND(!canvas_item);
 
+	// Detach from any previous skeleton.
+	if (canvas_item->skeleton.is_valid()) {
+		VSG::storage->skeleton_attach_canvas_item(canvas_item->skeleton, p_item, false);
+	}
+
 	canvas_item->skeleton = p_skeleton;
+
+	// Attach to new skeleton.
+	if (p_skeleton.is_valid()) {
+		VSG::storage->skeleton_attach_canvas_item(p_skeleton, p_item, true);
+	}
+
+	_make_bound_dirty(canvas_item);
+}
+
+void VisualServerCanvas::_canvas_item_skeleton_moved(RID p_item) {
+	Item *canvas_item = canvas_item_owner.getornull(p_item);
+	ERR_FAIL_COND(!canvas_item);
 	_make_bound_dirty(canvas_item);
 }
 
