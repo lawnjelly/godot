@@ -907,9 +907,23 @@ public:
 			bool antialiased;
 			bool antialiasing_use_indices;
 
+			struct SkinningData {
+				bool dirty = true;
+				LocalVector<Rect2> active_bounds;
+				LocalVector<uint16_t> active_bone_ids;
+				Rect2 untransformed_bound;
+			};
+			mutable SkinningData *skinning_data = nullptr;
+
 			CommandPolygon() {
 				type = TYPE_POLYGON;
 				count = 0;
+			}
+			virtual ~CommandPolygon() {
+				if (skinning_data) {
+					memdelete(skinning_data);
+					skinning_data = nullptr;
+				}
 			}
 		};
 
@@ -985,6 +999,12 @@ public:
 
 		Item *next;
 
+		struct SkinningData {
+			Transform2D skeleton_relative_xform;
+			Transform2D skeleton_relative_xform_inv;
+		};
+		SkinningData *skinning_data = nullptr;
+
 		struct CopyBackBuffer {
 			Rect2 rect;
 			Rect2 screen_rect;
@@ -1007,6 +1027,7 @@ public:
 
 	private:
 		Rect2 calculate_polygon_bounds(const Item::CommandPolygon &p_polygon) const;
+		void precalculate_polygon_bone_bounds(const Item::CommandPolygon &p_polygon) const;
 
 	public:
 		const Rect2 &get_rect() const {
@@ -1171,6 +1192,11 @@ public:
 			final_clip_owner = nullptr;
 			material_owner = nullptr;
 			light_masked = false;
+
+			if (skinning_data) {
+				memdelete(skinning_data);
+				skinning_data = nullptr;
+			}
 		}
 		Item() {
 			light_mask = 1;
