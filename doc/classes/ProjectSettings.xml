@@ -290,6 +290,19 @@
 		<member name="audio/mix_rate.web" type="int" setter="" getter="" default="0">
 			Safer override for [member audio/mix_rate] in the Web platform. Here [code]0[/code] means "let the browser choose" (since some browsers do not like forcing the mix rate).
 		</member>
+		<member name="audio/muting/mute_driver" type="bool" setter="" getter="" default="false">
+			If [code]true[/code], the current audio driver will be disabled, minimizing CPU usage. This will affect both audio output and input.
+			[b]Note:[/b] The driver can be enabled and disabled at runtime using the [method AudioServer.set_enabled] function.
+		</member>
+		<member name="audio/muting/mute_on_focus_loss" type="bool" setter="" getter="" default="false">
+			If [code]true[/code], the current audio driver will be automatically disabled when the application loses focus, and re-enabled when the application regains focus.
+		</member>
+		<member name="audio/muting/mute_on_pause" type="bool" setter="" getter="" default="true">
+			If [code]true[/code], the current audio driver will be automatically disabled when the application is paused by the OS, and re-enabled when the application is resumed.
+		</member>
+		<member name="audio/muting/mute_on_silence" type="bool" setter="" getter="" default="false">
+			If [code]true[/code], the current audio driver will be automatically disabled after a period of silence is detected, and re-enabled when audio attempts to play.
+		</member>
 		<member name="audio/output_latency" type="int" setter="" getter="" default="15">
 			Specifies the preferred output latency in milliseconds for audio. Lower values will result in lower audio latency at the cost of increased CPU usage. Low values may result in audible cracking on slower hardware.
 			Audio output latency may be constrained by the host operating system and audio hardware drivers. If the host can not provide the specified audio output latency then Godot will attempt to use the nearest latency allowed by the host. As such you should always use [method AudioServer.get_output_latency] to determine the actual audio output latency.
@@ -1190,7 +1203,7 @@
 		</member>
 		<member name="memory/limits/command_queue/multithreading_queue_size_kb" type="int" setter="" getter="" default="256">
 		</member>
-		<member name="memory/limits/message_queue/max_size_kb" type="int" setter="" getter="" default="4096">
+		<member name="memory/limits/message_queue/max_size_mb" type="int" setter="" getter="" default="32">
 			Godot uses a message queue to defer some function calls. If you run out of space on it (you will see an error), you can increase the size here.
 		</member>
 		<member name="memory/limits/multithreaded_server/rid_pool_prealloc" type="int" setter="" getter="" default="60">
@@ -1437,6 +1450,10 @@
 			[b]Experimental.[/b] If set to on, uses the [code]GL_STREAM_DRAW[/code] flag for legacy buffer uploads. If off, uses the [code]GL_DYNAMIC_DRAW[/code] flag.
 			[b]Note:[/b] Use with care. You are advised to leave this as default for exports. A non-default setting that works better on your machine may adversely affect performance for end users.
 		</member>
+		<member name="rendering/2d/options/culling_mode" type="int" setter="" getter="" default="1">
+			The culling mode determines the method used for rejecting canvas items that are outside a viewport. The visual result should be identical, but some modes may be faster for a particular project.
+			You can either cull items individually ([code]Item mode[/code]), or use hierarchical culling ([code]Node mode[/code]) which has a little more housekeeping but can increase performance by culling large numbers of items at once.
+		</member>
 		<member name="rendering/2d/options/ninepatch_mode" type="int" setter="" getter="" default="1">
 			Choose between fixed mode where corner scalings are preserved matching the artwork, and scaling mode.
 			Not available in GLES3 when [member rendering/batching/options/use_batching] is off.
@@ -1476,6 +1493,10 @@
 		</member>
 		<member name="rendering/batching/options/use_batching_in_editor" type="bool" setter="" getter="" default="true">
 			Switches on 2D batching within the editor.
+		</member>
+		<member name="rendering/batching/options/use_multirect" type="bool" setter="" getter="" default="true">
+			Allows use of the [code]MultiRect[/code] command in the Rasterizer.
+			This can provide some acceleration for large groups of rects, especially text and tilemaps.
 		</member>
 		<member name="rendering/batching/parameters/batch_buffer_size" type="int" setter="" getter="" default="16384">
 			Size of buffer reserved for batched vertices. Larger size enables larger batches, but there are diminishing returns for the memory used. This should only have a minor effect on performance.

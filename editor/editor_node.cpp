@@ -3737,7 +3737,20 @@ void EditorNode::open_request(const String &p_path) {
 		}
 	}
 
+#ifdef TOOLS_ENABLED
+#if 0
+#define GODOT_TIME_SCENE_LOADING
+#endif
+#endif
+
+#ifdef GODOT_TIME_SCENE_LOADING
+	uint32_t before = OS::get_singleton()->get_ticks_msec();
+	load_scene(p_path);
+	uint32_t after = OS::get_singleton()->get_ticks_msec();
+	print_verbose("EditorNode::load_scene() took " + itos(after - before) + " ms.");
+#else
 	load_scene(p_path); // as it will be opened in separate tab
+#endif
 }
 
 void EditorNode::request_instance_scene(const String &p_path) {
@@ -6053,6 +6066,12 @@ EditorNode::EditorNode() {
 	EDITOR_DEF("interface/editor/update_vital_only", false);
 #endif
 	EDITOR_DEF("interface/editor/localize_settings", true);
+
+	AudioServer::get_singleton()->set_enabled(!EDITOR_DEF_RST("interface/audio/muting/mute_driver", false));
+	AudioDriverManager::set_mute_sensitivity(AudioDriverManager::MUTE_FLAG_SILENCE, EDITOR_DEF_RST("interface/audio/muting/mute_on_silence", true));
+	AudioDriverManager::set_mute_sensitivity(AudioDriverManager::MUTE_FLAG_PAUSED, EDITOR_DEF_RST("interface/audio/muting/mute_on_pause", true));
+	AudioDriverManager::set_mute_sensitivity(AudioDriverManager::MUTE_FLAG_FOCUS_LOSS, EDITOR_DEF_RST("interface/audio/muting/mute_on_focus_loss", true));
+
 	EDITOR_DEF_RST("interface/scene_tabs/restore_scenes_on_load", false);
 	EDITOR_DEF_RST("interface/scene_tabs/show_thumbnail_on_hover", true);
 	EDITOR_DEF_RST("interface/inspector/default_property_name_style", EditorPropertyNameProcessor::STYLE_CAPITALIZED);

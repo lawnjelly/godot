@@ -808,6 +808,7 @@ public:
 				TYPE_CIRCLE,
 				TYPE_TRANSFORM,
 				TYPE_CLIP_IGNORE,
+				TYPE_MULTIRECT,
 			};
 
 			Type type;
@@ -846,6 +847,20 @@ public:
 			CommandRect() {
 				flags = 0;
 				type = TYPE_RECT;
+			}
+		};
+
+		struct CommandMultiRect : public Command {
+			RID texture;
+			RID normal_map;
+			Color modulate;
+			Vector<Rect2> rects;
+			Vector<Rect2> sources;
+			uint8_t flags;
+
+			CommandMultiRect() {
+				flags = 0;
+				type = TYPE_MULTIRECT;
 			}
 		};
 
@@ -970,6 +985,8 @@ public:
 		bool light_masked : 1;
 		mutable bool custom_rect : 1;
 		mutable bool rect_dirty : 1;
+		mutable bool xform_dirty : 1;
+		mutable bool bound_dirty : 1;
 
 		Vector<Command *> commands;
 		mutable Rect2 rect;
@@ -1003,6 +1020,10 @@ public:
 		ViewportRender *vp_render;
 
 		Rect2 global_rect_cache;
+
+		// the rect containing this item and all children,
+		// in local space.
+		Rect2 local_bound;
 
 	private:
 		Rect2 calculate_polygon_bounds(const Item::CommandPolygon &p_polygon) const;
@@ -1079,6 +1100,16 @@ public:
 						const Item::CommandRect *crect = static_cast<const Item::CommandRect *>(c);
 						r = crect->rect;
 
+					} break;
+					case Item::Command::TYPE_MULTIRECT: {
+						const Item::CommandMultiRect *mrect = static_cast<const Item::CommandMultiRect *>(c);
+						int num_rects = mrect->rects.size();
+						if (num_rects) {
+							r = mrect->rects[0];
+							for (int n = 1; n < num_rects; n++) {
+								r = mrect->rects[n].merge(r);
+							}
+						}
 					} break;
 					case Item::Command::TYPE_NINEPATCH: {
 						const Item::CommandNinePatch *style = static_cast<const Item::CommandNinePatch *>(c);
@@ -1157,6 +1188,7 @@ public:
 			commands.clear();
 			clip = false;
 			rect_dirty = true;
+			xform_dirty = true;
 			final_clip_owner = nullptr;
 			material_owner = nullptr;
 			light_masked = false;
@@ -1176,6 +1208,8 @@ public:
 			final_modulate = Color(1, 1, 1, 1);
 			visible = true;
 			rect_dirty = true;
+			xform_dirty = true;
+			bound_dirty = true;
 			custom_rect = false;
 			behind = false;
 			material_owner = nullptr;

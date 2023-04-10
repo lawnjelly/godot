@@ -426,8 +426,16 @@ void Node::move_child(Node *p_child, int p_pos) {
 	}
 	// notification second
 	move_child_notify(p_child);
-	for (int i = motion_from; i <= motion_to; i++) {
-		data.children[i]->notification(NOTIFICATION_MOVED_IN_PARENT);
+	if (is_inside_tree()) {
+		SceneTree *tree = get_tree();
+		tree->notify_children_moved(*this, motion_from, motion_to + 1);
+	} else {
+		for (int i = motion_from; i <= motion_to; i++) {
+			Node *child = data.children[i];
+			if (child->data.observe_notification_moved_in_parent) {
+				child->notification(NOTIFICATION_MOVED_IN_PARENT);
+			}
+		}
 	}
 	p_child->_propagate_groups_dirty();
 
@@ -1051,7 +1059,15 @@ StringName Node::get_name() const {
 
 void Node::_set_name_nocheck(const StringName &p_name) {
 	data.name = p_name;
+#ifdef DEV_ENABLED
+	_name_changed_notify();
+#endif
 }
+
+#ifdef DEV_ENABLED
+void Node::_name_changed_notify() {
+}
+#endif
 
 void Node::set_name(const String &p_name) {
 	String name = p_name.validate_node_name();
@@ -1078,6 +1094,10 @@ void Node::set_name(const String &p_name) {
 		get_tree()->node_renamed(this);
 		get_tree()->tree_changed();
 	}
+
+#ifdef DEV_ENABLED
+	_name_changed_notify();
+#endif
 }
 
 static bool node_hrcr = false;
@@ -1262,7 +1282,7 @@ void Node::_generate_serial_child_name(const Node *p_child, StringName &name) co
 void Node::_add_child_nocheck(Node *p_child, const StringName &p_name) {
 	//add a child node quickly, without name validation
 
-	p_child->data.name = p_name;
+	p_child->_set_name_nocheck(p_name);
 	p_child->data.pos = data.children.size();
 	data.children.push_back(p_child);
 	p_child->data.parent = this;
@@ -1352,9 +1372,21 @@ void Node::remove_child(Node *p_child) {
 	child_count = data.children.size();
 	children = data.children.ptrw();
 
-	for (int i = idx; i < child_count; i++) {
-		children[i]->data.pos = i;
-		children[i]->notification(NOTIFICATION_MOVED_IN_PARENT);
+	if (is_inside_tree()) {
+		SceneTree *tree = get_tree();
+		tree->notify_children_moved(*this, idx, child_count);
+		for (int i = idx; i < child_count; i++) {
+			children[i]->data.pos = i;
+		}
+		tree->notify_child_count_reduced(*this);
+	} else {
+		for (int i = idx; i < child_count; i++) {
+			Node *child = children[i];
+			child->data.pos = i;
+			if (child->data.observe_notification_moved_in_parent) {
+				child->notification(NOTIFICATION_MOVED_IN_PARENT);
+			}
+		}
 	}
 
 	p_child->data.parent = nullptr;
@@ -2183,6 +2215,14 @@ Node *Node::_duplicate(int p_flags, Map<const Node *, Node *> *r_duplimap) const
 
 	bool instanced = false;
 
+	// No need to load a packed scene more than once if features
+	// several times in the branch being duplicated.
+	struct LoadedPackedScene {
+		Ref<PackedScene> scene;
+		String filename;
+	};
+	LocalVector<LoadedPackedScene> loaded_scenes;
+
 	if (Object::cast_to<InstancePlaceholder>(this)) {
 		const InstancePlaceholder *ip = Object::cast_to<const InstancePlaceholder>(this);
 		InstancePlaceholder *nip = memnew(InstancePlaceholder);
@@ -2190,7 +2230,25 @@ Node *Node::_duplicate(int p_flags, Map<const Node *, Node *> *r_duplimap) const
 		node = nip;
 
 	} else if ((p_flags & DUPLICATE_USE_INSTANCING) && get_filename() != String()) {
-		Ref<PackedScene> res = ResourceLoader::load(get_filename());
+		// already loaded?
+		int found = -1;
+		for (unsigned int n = 0; n < loaded_scenes.size(); n++) {
+			if (loaded_scenes[n].filename == get_filename()) {
+				found = n;
+				break;
+			}
+		}
+		Ref<PackedScene> res = Ref<PackedScene>();
+		if (found != -1) {
+			res = loaded_scenes[found].scene;
+		} else {
+			LoadedPackedScene ps;
+			ps.filename = get_filename();
+			ps.scene = ResourceLoader::load(get_filename());
+			res = ps.scene;
+			loaded_scenes.push_back(ps);
+		}
+
 		ERR_FAIL_COND_V(res.is_null(), nullptr);
 		PackedScene::GenEditState ges = PackedScene::GEN_EDIT_STATE_DISABLED;
 #ifdef TOOLS_ENABLED
@@ -3251,6 +3309,7 @@ Node::Node() {
 	data.physics_interpolation_reset_requested = false;
 	data.physics_interpolated_client_side = false;
 	data.use_identity_transform = false;
+	data.observe_notification_moved_in_parent = false;
 
 	data.owner = nullptr;
 	data.OW = nullptr;
@@ -3269,6 +3328,9 @@ Node::Node() {
 	data.display_folded = false;
 	data.ready_first = true;
 	data.editable_instance = false;
+
+	data.first_child_moved = UINT32_MAX;
+	data.last_child_moved_plus_one = 0;
 
 	orphan_node_count++;
 }

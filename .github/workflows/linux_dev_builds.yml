@@ -1,0 +1,83 @@
+name: 🐧 Linux Dev Builds
+on: [push, pull_request, workflow_dispatch]
+
+# Global Settings
+env:
+  # Only used for the cache key. Increment version to force clean build.
+  GODOT_BASE_BRANCH: 3.x
+  SCONSFLAGS: verbose=no warnings=all werror=yes
+
+concurrency:
+  group: ci-${{github.actor}}-${{github.head_ref || github.run_number}}-${{github.ref}}-linux
+  cancel-in-progress: true
+
+jobs:
+  build-linux:
+    runs-on: "ubuntu-20.04"
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - name: Editor dev (target=debug, tools=yes)
+            cache-name: linux-editor-dev
+            target: debug
+            tools: true
+            sconsflags: use_scu=yes rids=tracked_handles
+            bin: "./bin/godot.x11.tools.64"
+            build-mono: false
+            artifact: false
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Linux dependencies
+        shell: bash
+        run: |
+          # Azure repositories are not reliable, we need to prevent azure giving us packages.
+          sudo rm -f /etc/apt/sources.list.d/*
+          sudo cp -f misc/ci/sources.list /etc/apt/sources.list
+          sudo apt-get update
+          # The actual dependencies
+          sudo apt-get install build-essential pkg-config libx11-dev libxcursor-dev \
+              libxinerama-dev libgl1-mesa-dev libglu-dev libasound2-dev libpulse-dev \
+              libdbus-1-dev libudev-dev libxi-dev libxrandr-dev yasm xvfb wget unzip \
+              libspeechd-dev speech-dispatcher
+
+      - name: Setup Godot build cache
+        uses: ./.github/actions/godot-cache
+        with:
+          cache-name: ${{ matrix.cache-name }}
+        continue-on-error: true
+
+      - name: Setup python and scons
+        uses: ./.github/actions/godot-deps
+
+      - name: Setup GCC problem matcher
+        uses: ammaraskar/gcc-problem-matcher@master
+
+      - name: Copy custom.py
+        shell: bash
+        run: |
+          # Use custom.py to only compile core.
+          cp -f misc/scripts/custom.py custom.py
+
+      - name: Compilation
+        uses: ./.github/actions/godot-build
+        with:
+          sconsflags: ${{ env.SCONSFLAGS }} ${{ matrix.sconsflags }}
+          platform: x11
+          target: ${{ matrix.target }}
+          tools: ${{ matrix.tools }}
+
+      - name: Prepare artifact
+        if: ${{ matrix.artifact }}
+        run: |
+          strip bin/godot.*
+          chmod +x bin/godot.*
+
+      - name: Upload artifact
+        uses: ./.github/actions/upload-artifact
+        if: ${{ matrix.artifact }}
+        with:
+          name: ${{ matrix.cache-name }}
