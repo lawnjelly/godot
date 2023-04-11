@@ -46,12 +46,12 @@
 // Uncomment this define to store canvas item names in VisualServerCanvas.
 // This is relatively expensive, but is invaluable for debugging the canvas scene tree
 // especially using _print_tree() in VisualServerCanvas.
-// #define VISUAL_SERVER_CANVAS_DEBUG_ITEM_NAMES
+#define VISUAL_SERVER_CANVAS_DEBUG_ITEM_NAMES
 
 // Uncomment this define to verify local bounds of canvas items,
 // to check that the hierarchical culling is working correctly.
 // This is expensive.
-// #define VISUAL_SERVER_CANVAS_CHECK_BOUNDS
+#define VISUAL_SERVER_CANVAS_CHECK_BOUNDS
 
 #endif // DEV_ENABLED
 

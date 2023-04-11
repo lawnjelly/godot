@@ -175,7 +175,7 @@ private:
 	void _render_canvas_item_cull_by_item(Item *p_canvas_item, const Transform2D &p_transform, const Rect2 &p_clip_rect, const Color &p_modulate, int p_z, RasterizerCanvas::Item **z_list, RasterizerCanvas::Item **z_last_list, Item *p_canvas_clip, Item *p_material_owner);
 
 	// Hierarchical culling by scene tree node ///////////////////////////////////
-	void _render_canvas_item_cull_by_node(Item *p_canvas_item, const Transform2D &p_transform, const Rect2 &p_clip_rect, const Color &p_modulate, int p_z, RasterizerCanvas::Item **z_list, RasterizerCanvas::Item **z_last_list, Item *p_canvas_clip, Item *p_material_owner, bool p_update_global_rects, Rect2 *r_branch_bound, bool p_enclosed);
+	void _render_canvas_item_cull_by_node(Item *p_canvas_item, const Transform2D &p_transform, const Rect2 &p_clip_rect, const Color &p_modulate, int p_z, RasterizerCanvas::Item **z_list, RasterizerCanvas::Item **z_last_list, Item *p_canvas_clip, Item *p_material_owner, bool p_enclosed);
 
 	void _prepare_tree_bounds(Item *p_root, const Transform2D &p_transform);
 	void _calculate_canvas_item_bound(Item *p_canvas_item, Rect2 *r_branch_bound);
@@ -187,11 +187,6 @@ private:
 	// tree could become corrupt. Multithread access may not be possible,
 	// but just in case we use a mutex until proven otherwise.
 	Mutex _bound_mutex;
-#ifdef DEV_ENABLED
-	// Just some stats, useful for debugging
-	uint64_t _global_rects_calced = 0;
-	uint64_t _global_rects_read = 0;
-#endif
 
 	void _make_bound_dirty_reparent(Item *p_item);
 	void _make_bound_dirty(Item *p_item, bool p_changing_visibility = false);
