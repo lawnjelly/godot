@@ -40,8 +40,8 @@ void VisualServerCanvas::_render_canvas_item_tree(Item *p_canvas_item, const Tra
 	memset(z_last_list, 0, z_range * sizeof(RasterizerCanvas::Item *));
 
 	if (_canvas_cull_mode == CANVAS_CULL_MODE_NODE) {
-		_prepare_tree_bounds(p_canvas_item, p_transform);
-		_render_canvas_item_cull_by_node(p_canvas_item, p_transform, p_clip_rect, Color(1, 1, 1, 1), 0, z_list, z_last_list, nullptr, nullptr, false, nullptr, false);
+		_prepare_tree_bounds(p_canvas_item);
+		_render_canvas_item_cull_by_node(p_canvas_item, p_transform, p_clip_rect, Color(1, 1, 1, 1), 0, z_list, z_last_list, nullptr, nullptr, false);
 	} else {
 		_render_canvas_item_cull_by_item(p_canvas_item, p_transform, p_clip_rect, Color(1, 1, 1, 1), 0, z_list, z_last_list, nullptr, nullptr);
 	}
@@ -189,27 +189,9 @@ void VisualServerCanvas::_make_bound_dirty_down(Item *p_item) {
 	}
 }
 
-void VisualServerCanvas::_prepare_tree_bounds(Item *p_root, const Transform2D &p_transform) {
-	// See if the camera transform has changed, because if it has,
-	// we need to recalculate all global rects.
-	// Just changing the root node to dirty will be enough to force recalculation
-	// of the tree.
-	if (p_root && !p_root->xform_dirty) {
-		Transform2D xform = p_root->xform;
-		xform = p_transform * xform;
-		if (xform != p_root->final_transform) {
-			p_root->xform_dirty = true;
-		}
-	}
-
-	// For testing purposes, it can be possible to calculate bounds as a preprocess
-	// (rather than on the main _render_canvas_item() call). This can be used to verify
-	// the results between the two techniques of bound calculation - _calculate_canvas_item_bound()
-	// or _render_canvas_item(). The results should be the same in both cases.
-#if 0
-	Rect2 dummy_bound;
-	_calculate_canvas_item_bound(p_root, &dummy_bound);
-#endif
+void VisualServerCanvas::_prepare_tree_bounds(Item *p_root) {
+	Rect2 root_bound;
+	_calculate_canvas_item_bound(p_root, &root_bound);
 }
 
 // This function provides an alternative means of recursively calculating canvas item
@@ -261,20 +243,25 @@ void VisualServerCanvas::_finalize_and_merge_local_bound_to_branch(Item *p_canva
 	if (r_branch_bound) {
 		Rect2 this_rect = p_canvas_item->get_rect();
 
+		// If this item has a bound...
 		if (!p_canvas_item->local_bound.has_no_area()) {
+			// If the rect has an area...
 			if (!this_rect.has_no_area()) {
 				p_canvas_item->local_bound = p_canvas_item->local_bound.merge(this_rect);
 			} else {
-				// Do nothing .. neither has any area.
-				// don't merge zero area, as it may expand the branch bound
-				// unnecessarily.
-				return;
+				// The local bound is set by the children, but is not affected by the canvas item rect.
+				// So pass through and merge the local bound to the parent.
 			}
 		} else {
 			p_canvas_item->local_bound = this_rect;
+			// don't merge zero area, as it may expand the branch bound
+			// unnecessarily.
+			if (p_canvas_item->local_bound.has_no_area()) {
+				return;
+			}
 		}
 
-		// merge the local bound
+		// Merge the local bound to the parent.
 		_merge_local_bound_to_branch(p_canvas_item, r_branch_bound);
 	}
 }
@@ -284,8 +271,7 @@ void VisualServerCanvas::_merge_local_bound_to_branch(Item *p_canvas_item, Rect2
 		return;
 	}
 
-	Item *ci = p_canvas_item;
-	Rect2 this_item_total_local_bound = ci->xform.xform(ci->local_bound);
+	Rect2 this_item_total_local_bound = p_canvas_item->xform.xform(p_canvas_item->local_bound);
 
 	if (!r_branch_bound->has_no_area()) {
 		*r_branch_bound = r_branch_bound->merge(this_item_total_local_bound);
@@ -418,116 +404,38 @@ void VisualServerCanvas::_render_canvas_item_cull_by_item(Item *p_canvas_item, c
 	}
 }
 
-void VisualServerCanvas::_render_canvas_item_cull_by_node(Item *p_canvas_item, const Transform2D &p_transform, const Rect2 &p_clip_rect, const Color &p_modulate, int p_z, RasterizerCanvas::Item **z_list, RasterizerCanvas::Item **z_last_list, Item *p_canvas_clip, Item *p_material_owner, bool p_update_global_rects, Rect2 *r_branch_bound, bool p_enclosed) {
+void VisualServerCanvas::_render_canvas_item_cull_by_node(Item *p_canvas_item, const Transform2D &p_transform, const Rect2 &p_clip_rect, const Color &p_modulate, int p_z, RasterizerCanvas::Item **z_list, RasterizerCanvas::Item **z_last_list, Item *p_canvas_clip, Item *p_material_owner, bool p_enclosed) {
 	Item *ci = p_canvas_item;
 
 	if (!ci->visible) {
 		return;
 	}
 
-	// If the caller is requesting the bounds to be calculated.
-	// The simplest case is handled here if the bound is not dirty.
-	if (r_branch_bound && !ci->bound_dirty) {
-		Rect2 this_item_total_local_bound = ci->xform.xform(ci->local_bound);
+	// This should have been calculated as a pre-process.
+	DEV_ASSERT(!ci->bound_dirty);
 
-		if (!r_branch_bound->has_no_area()) {
-			*r_branch_bound = r_branch_bound->merge(this_item_total_local_bound);
-		} else {
-			*r_branch_bound = this_item_total_local_bound;
-		}
-	}
+	Rect2 rect = ci->get_rect();
 
-	Rect2 global_rect;
-	Transform2D xform;
+	Transform2D final_xform = ci->xform;
+	final_xform = p_transform * final_xform;
 
-	bool xform_dirty = ci->xform_dirty;
-
-	// Cached global rects and transforms lets us eliminate this
-	// expensive step if the item and camera are not moving.
-	// In theory we should be able to cache item rects in world space
-	// even if the camera is moving, but this doesn't save us much,
-	// as in Godot currently the camera transform is applied BEFORE
-	// sending to the GPU.
-	// (It could still perhaps be used for culling against world space camera
-	// bounds .. investigate if time).
-	if (p_update_global_rects || xform_dirty || ci->rect_dirty) {
-		Rect2 rect = ci->get_rect();
-
-		xform = ci->xform;
-		xform = p_transform * xform;
-
-		global_rect = xform.xform(rect);
-
-		// We store the global rect and transform,
-		// irrespective of whether the item is being drawn,
-		// because it saves us calculating it again next time.
-		ci->global_rect_cache = global_rect;
-		ci->final_transform = xform;
-
-		// Hopefully this will be optimized to something sensible.
-		// We could just set the flag, but let the optimizer decide.
-		if (xform_dirty) {
-			ci->xform_dirty = false;
-		}
-
-		// update the global rects of any children, as they will be affected
-		p_update_global_rects = true;
-
-#ifdef DEV_ENABLED
-		_global_rects_calced++;
-#endif
-	} else {
-		// Read from cached versions
-		global_rect = ci->global_rect_cache;
-		xform = ci->final_transform;
-
-#ifdef VISUAL_SERVER_CANVAS_CHECK_BOUNDS
-		// Verify the cached version is same as ground truth result
-		Transform2D xform2 = ci->xform;
-		xform2 = p_transform * xform2;
-		DEV_ASSERT(xform2 == xform);
-
-		Rect2 global_rect2 = xform2.xform(ci->get_rect());
-		DEV_ASSERT(global_rect2 == global_rect);
-#endif
-
-#ifdef DEV_ENABLED
-		_global_rects_read++;
-#endif
-	}
+	Rect2 global_rect = final_xform.xform(rect);
+	ci->global_rect_cache = global_rect;
+	ci->final_transform = final_xform;
 
 	global_rect.position += p_clip_rect.position;
 
 	int child_item_count = ci->child_items.size();
 
-	// if there are children, we can maybe cull them all out if the cached bound has not changed
-	if (!p_enclosed && !ci->bound_dirty && child_item_count) {
-		// get the bound in global space
-		Rect2 bound = xform.xform(ci->local_bound);
-		// print_line(String(Variant(ci->local_bound)) + " to " + String(Variant(bound)));
+	// If there are children, we can maybe cull them all out if the cached bound has not changed.
+	if (!p_enclosed && child_item_count) {
+		// Get the bound in final space.
+		Rect2 bound = final_xform.xform(ci->local_bound);
 
 		bound.position += p_clip_rect.position;
 		if (!ci->vp_render && !ci->copy_back_buffer) {
+			// Cull out ALL children in one step.
 			if (!p_clip_rect.intersects(bound, true)) {
-#ifdef VISUAL_SERVER_CANVAS_CHECK_BOUNDS
-				// This is a noop, except to calculate the test_bound used for the
-				// debugging check below.
-				Rect2 test_bound;
-				_calculate_canvas_item_bound(p_canvas_item, &test_bound);
-
-				if (!test_bound.has_no_area()) {
-					Rect2 test_comparison = ci->xform.xform(ci->local_bound);
-
-					if (test_bound != test_comparison) {
-						ERR_PRINT("bounds incorrect");
-
-						// repeat so we can debug through
-						//Rect2 test_bound;
-						//_calculate_canvas_item_bound(p_canvas_item, p_transform, &test_bound);
-					}
-				}
-#endif
-
 				return;
 			}
 		}
@@ -537,26 +445,10 @@ void VisualServerCanvas::_render_canvas_item_cull_by_node(Item *p_canvas_item, c
 		p_enclosed = p_clip_rect.encloses(bound);
 	}
 
-	// If we are recalculating the bound, set a pointer to the local bound to calculate,
-	// and use this instead of the dirty flag from now on.
-	Rect2 *local_bound = nullptr;
-	if (ci->bound_dirty) {
-		local_bound = &ci->local_bound;
-		*local_bound = Rect2();
-		ci->bound_dirty = false;
-	}
-
 	// if we are culled, and no children, no more needs doing
 	bool item_is_visible = ((!ci->commands.empty() && (p_enclosed ? true : p_clip_rect.intersects(global_rect, true))) || ci->vp_render || ci->copy_back_buffer);
-	if (!item_is_visible && !child_item_count) {
-		// there is only this item, no children, so use the rect directly for a new bound
-		if (local_bound) {
-			*local_bound = ci->get_rect();
-		}
 
-		// Merge the local bound to the requested branch bound, if required
-		// N.B. possibly can be moved to the if statement above? As this may have already been done for non dirty items?
-		_merge_local_bound_to_branch(ci, r_branch_bound);
+	if (!item_is_visible && !child_item_count) {
 		return;
 	}
 
@@ -570,13 +462,6 @@ void VisualServerCanvas::_render_canvas_item_cull_by_node(Item *p_canvas_item, c
 	Color modulate(ci->modulate.r * p_modulate.r, ci->modulate.g * p_modulate.g, ci->modulate.b * p_modulate.b, ci->modulate.a * p_modulate.a);
 
 	if (modulate.a < 0.007) {
-		// still may need to calculate the bounds if these are out of date,
-		// so the bounds hierarchy doesn't get corrupt
-		if (local_bound) {
-			_calculate_canvas_item_bound(p_canvas_item, local_bound);
-		}
-		// merge the local bound
-		_merge_local_bound_to_branch(ci, r_branch_bound);
 		return;
 	}
 
@@ -631,14 +516,14 @@ void VisualServerCanvas::_render_canvas_item_cull_by_node(Item *p_canvas_item, c
 			continue;
 		}
 		if (ci->sort_y) {
-			_render_canvas_item_cull_by_node(child_items[i], xform * child_items[i]->ysort_xform, p_clip_rect, modulate * child_items[i]->ysort_modulate, p_z, z_list, z_last_list, (Item *)ci->final_clip_owner, (Item *)child_items[i]->material_owner, p_update_global_rects, local_bound, p_enclosed);
+			_render_canvas_item_cull_by_node(child_items[i], final_xform * child_items[i]->ysort_xform, p_clip_rect, modulate * child_items[i]->ysort_modulate, p_z, z_list, z_last_list, (Item *)ci->final_clip_owner, (Item *)child_items[i]->material_owner, p_enclosed);
 		} else {
-			_render_canvas_item_cull_by_node(child_items[i], xform, p_clip_rect, modulate, p_z, z_list, z_last_list, (Item *)ci->final_clip_owner, p_material_owner, p_update_global_rects, local_bound, p_enclosed);
+			_render_canvas_item_cull_by_node(child_items[i], final_xform, p_clip_rect, modulate, p_z, z_list, z_last_list, (Item *)ci->final_clip_owner, p_material_owner, p_enclosed);
 		}
 	}
 
 	if (ci->copy_back_buffer) {
-		ci->copy_back_buffer->screen_rect = xform.xform(ci->copy_back_buffer->rect).clip(p_clip_rect);
+		ci->copy_back_buffer->screen_rect = final_xform.xform(ci->copy_back_buffer->rect).clip(p_clip_rect);
 	}
 
 	// something to draw?
@@ -675,14 +560,11 @@ void VisualServerCanvas::_render_canvas_item_cull_by_node(Item *p_canvas_item, c
 			continue;
 		}
 		if (ci->sort_y) {
-			_render_canvas_item_cull_by_node(child_items[i], xform * child_items[i]->ysort_xform, p_clip_rect, modulate * child_items[i]->ysort_modulate, p_z, z_list, z_last_list, (Item *)ci->final_clip_owner, (Item *)child_items[i]->material_owner, p_update_global_rects, local_bound, p_enclosed);
+			_render_canvas_item_cull_by_node(child_items[i], final_xform * child_items[i]->ysort_xform, p_clip_rect, modulate * child_items[i]->ysort_modulate, p_z, z_list, z_last_list, (Item *)ci->final_clip_owner, (Item *)child_items[i]->material_owner, p_enclosed);
 		} else {
-			_render_canvas_item_cull_by_node(child_items[i], xform, p_clip_rect, modulate, p_z, z_list, z_last_list, (Item *)ci->final_clip_owner, p_material_owner, p_update_global_rects, local_bound, p_enclosed);
+			_render_canvas_item_cull_by_node(child_items[i], final_xform, p_clip_rect, modulate, p_z, z_list, z_last_list, (Item *)ci->final_clip_owner, p_material_owner, p_enclosed);
 		}
 	}
-
-	// merge the local bound
-	_finalize_and_merge_local_bound_to_branch(ci, r_branch_bound);
 }
 
 void VisualServerCanvas::_light_mask_canvas_items(int p_z, RasterizerCanvas::Item *p_canvas_item, RasterizerCanvas::Light *p_masked_lights, int p_canvas_layer_id) {
@@ -766,8 +648,8 @@ void VisualServerCanvas::render_canvas(Canvas *p_canvas, const Transform2D &p_tr
 #endif
 			if (_canvas_cull_mode == CANVAS_CULL_MODE_NODE) {
 				for (int i = 0; i < l; i++) {
-					_prepare_tree_bounds(ci[i].item, p_transform);
-					_render_canvas_item_cull_by_node(ci[i].item, p_transform, p_clip_rect, Color(1, 1, 1, 1), 0, z_list, z_last_list, nullptr, nullptr, false, nullptr, false);
+					_prepare_tree_bounds(ci[i].item);
+					_render_canvas_item_cull_by_node(ci[i].item, p_transform, p_clip_rect, Color(1, 1, 1, 1), 0, z_list, z_last_list, nullptr, nullptr, false);
 				}
 			} else {
 				for (int i = 0; i < l; i++) {
@@ -945,7 +827,6 @@ void VisualServerCanvas::canvas_item_set_transform(RID p_item, const Transform2D
 	ERR_FAIL_COND(!canvas_item);
 
 	canvas_item->xform = p_transform;
-	canvas_item->xform_dirty = true;
 
 	// Special case!
 	// Modifying the transform DOES NOT affect the local bound.

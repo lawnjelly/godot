@@ -985,7 +985,6 @@ public:
 		bool light_masked : 1;
 		mutable bool custom_rect : 1;
 		mutable bool rect_dirty : 1;
-		mutable bool xform_dirty : 1;
 		mutable bool bound_dirty : 1;
 
 		Vector<Command *> commands;
@@ -1188,7 +1187,6 @@ public:
 			commands.clear();
 			clip = false;
 			rect_dirty = true;
-			xform_dirty = true;
 			final_clip_owner = nullptr;
 			material_owner = nullptr;
 			light_masked = false;
@@ -1208,7 +1206,6 @@ public:
 			final_modulate = Color(1, 1, 1, 1);
 			visible = true;
 			rect_dirty = true;
-			xform_dirty = true;
 			bound_dirty = true;
 			custom_rect = false;
 			behind = false;
