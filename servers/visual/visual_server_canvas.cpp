@@ -35,6 +35,14 @@
 
 static const int z_range = VS::CANVAS_ITEM_Z_MAX - VS::CANVAS_ITEM_Z_MIN + 1;
 
+void _log_line(int p_depth, String p_sz) {
+	String sz;
+	for (int n = 0; n < p_depth; n++) {
+		sz += "\t";
+	}
+	print_line(sz + p_sz);
+}
+
 void VisualServerCanvas::_render_canvas_item_tree(Item *p_canvas_item, const Transform2D &p_transform, const Rect2 &p_clip_rect, const Color &p_modulate, RasterizerCanvas::Light *p_lights) {
 	memset(z_list, 0, z_range * sizeof(RasterizerCanvas::Item *));
 	memset(z_last_list, 0, z_range * sizeof(RasterizerCanvas::Item *));
@@ -194,22 +202,25 @@ void VisualServerCanvas::_prepare_tree_bounds(Item *p_root, const Transform2D &p
 	// we need to recalculate all global rects.
 	// Just changing the root node to dirty will be enough to force recalculation
 	// of the tree.
+	/*
 	if (p_root && !p_root->xform_dirty) {
 		Transform2D xform = p_root->xform;
 		xform = p_transform * xform;
 		if (xform != p_root->final_transform) {
 			p_root->xform_dirty = true;
+			print_line("new root xform " + String(Variant(xform)));
 		}
 	}
+	*/
 
 	// For testing purposes, it can be possible to calculate bounds as a preprocess
 	// (rather than on the main _render_canvas_item() call). This can be used to verify
 	// the results between the two techniques of bound calculation - _calculate_canvas_item_bound()
 	// or _render_canvas_item(). The results should be the same in both cases.
-#if 0
+	//#if 0
 	Rect2 dummy_bound;
-	_calculate_canvas_item_bound(p_root, &dummy_bound);
-#endif
+	_calculate_canvas_item_bound(0, p_root, &dummy_bound);
+	//#endif
 }
 
 // This function provides an alternative means of recursively calculating canvas item
@@ -219,7 +230,7 @@ void VisualServerCanvas::_prepare_tree_bounds(Item *p_root, const Transform2D &p
 // prevent further drawing in the tree (such as alpha nearing 0.0), in which we
 // *still* need to calculate the bounds for lower branches and use them for culling,
 // just in case alpha increases above the threshold in a later frame.
-void VisualServerCanvas::_calculate_canvas_item_bound(Item *p_canvas_item, Rect2 *r_branch_bound) {
+void VisualServerCanvas::_calculate_canvas_item_bound(int p_depth, Item *p_canvas_item, Rect2 *r_branch_bound) {
 	// TODO - this higher level technique may be able to be optimized better,
 	// to perhaps only recalculate this on "reappearance" of the child branch, in a
 	// similar manner to how visibility is handled.
@@ -230,9 +241,11 @@ void VisualServerCanvas::_calculate_canvas_item_bound(Item *p_canvas_item, Rect2
 		return;
 	}
 
+	_log_line(p_depth, "_calculate_canvas_item_bound " + p_canvas_item->name);
+
 	// easy case, not dirty
 	if (!ci->bound_dirty) {
-		_merge_local_bound_to_branch(ci, r_branch_bound);
+		_merge_local_bound_to_branch(ci, r_branch_bound, p_depth);
 		return;
 	}
 
@@ -251,46 +264,54 @@ void VisualServerCanvas::_calculate_canvas_item_bound(Item *p_canvas_item, Rect2
 		// if (ci->sort_y)
 		// NYI do we need to apply the child_items[i]->ysort_xform? TEST
 		// See the _render_canvas_item for how to apply.
-		_calculate_canvas_item_bound(child_items[i], local_bound);
+		_calculate_canvas_item_bound(p_depth + 1, child_items[i], local_bound);
 	}
 
-	_finalize_and_merge_local_bound_to_branch(ci, r_branch_bound);
+	_finalize_and_merge_local_bound_to_branch(ci, r_branch_bound, p_depth);
 }
 
-void VisualServerCanvas::_finalize_and_merge_local_bound_to_branch(Item *p_canvas_item, Rect2 *r_branch_bound) {
+void VisualServerCanvas::_finalize_and_merge_local_bound_to_branch(Item *p_canvas_item, Rect2 *r_branch_bound, int p_depth) {
 	if (r_branch_bound) {
 		Rect2 this_rect = p_canvas_item->get_rect();
 
+		// If this item has a bound...
 		if (!p_canvas_item->local_bound.has_no_area()) {
+			// If the rect has an area...
 			if (!this_rect.has_no_area()) {
 				p_canvas_item->local_bound = p_canvas_item->local_bound.merge(this_rect);
+				_log_line(p_depth, "finalize merged local bound : " + p_canvas_item->name + " " + String(Variant(p_canvas_item->local_bound)));
 			} else {
-				// Do nothing .. neither has any area.
-				// don't merge zero area, as it may expand the branch bound
-				// unnecessarily.
-				return;
+				// The local bound is set by the children, but is not affected by the canvas item rect.
+				// So pass through and merge the local bound to the parent.
 			}
 		} else {
+			_log_line(p_depth, "finalize first local bound : " + p_canvas_item->name + " " + String(Variant(this_rect)));
 			p_canvas_item->local_bound = this_rect;
+			// don't merge zero area, as it may expand the branch bound
+			// unnecessarily.
+			if (p_canvas_item->local_bound.has_no_area()) {
+				return;
+			}
 		}
 
-		// merge the local bound
-		_merge_local_bound_to_branch(p_canvas_item, r_branch_bound);
+		// Merge the local bound to the parent.
+		_merge_local_bound_to_branch(p_canvas_item, r_branch_bound, p_depth);
 	}
 }
 
-void VisualServerCanvas::_merge_local_bound_to_branch(Item *p_canvas_item, Rect2 *r_branch_bound) {
+void VisualServerCanvas::_merge_local_bound_to_branch(Item *p_canvas_item, Rect2 *r_branch_bound, int p_depth) {
 	if (!r_branch_bound) {
 		return;
 	}
 
-	Item *ci = p_canvas_item;
-	Rect2 this_item_total_local_bound = ci->xform.xform(ci->local_bound);
+	Rect2 this_item_total_local_bound = p_canvas_item->xform.xform(p_canvas_item->local_bound);
 
 	if (!r_branch_bound->has_no_area()) {
 		*r_branch_bound = r_branch_bound->merge(this_item_total_local_bound);
+		_log_line(p_depth, "merging local to parent : " + p_canvas_item->name + " " + String(Variant(this_item_total_local_bound)));
 	} else {
 		*r_branch_bound = this_item_total_local_bound;
+		_log_line(p_depth, "first local to parent : " + p_canvas_item->name + " " + String(Variant(this_item_total_local_bound)));
 	}
 }
 
@@ -440,7 +461,7 @@ void VisualServerCanvas::_render_canvas_item_cull_by_node(Item *p_canvas_item, c
 	Rect2 global_rect;
 	Transform2D xform;
 
-	bool xform_dirty = ci->xform_dirty;
+	//	bool xform_dirty = ci->xform_dirty;
 
 	// Cached global rects and transforms lets us eliminate this
 	// expensive step if the item and camera are not moving.
@@ -450,7 +471,8 @@ void VisualServerCanvas::_render_canvas_item_cull_by_node(Item *p_canvas_item, c
 	// sending to the GPU.
 	// (It could still perhaps be used for culling against world space camera
 	// bounds .. investigate if time).
-	if (p_update_global_rects || xform_dirty || ci->rect_dirty) {
+	//	if (p_update_global_rects || xform_dirty || ci->rect_dirty) {
+	if (true) {
 		Rect2 rect = ci->get_rect();
 
 		xform = ci->xform;
@@ -466,17 +488,18 @@ void VisualServerCanvas::_render_canvas_item_cull_by_node(Item *p_canvas_item, c
 
 		// Hopefully this will be optimized to something sensible.
 		// We could just set the flag, but let the optimizer decide.
-		if (xform_dirty) {
-			ci->xform_dirty = false;
-		}
+		//		if (xform_dirty) {
+		//			ci->xform_dirty = false;
+		//		}
 
 		// update the global rects of any children, as they will be affected
-		p_update_global_rects = true;
+		//		p_update_global_rects = true;
 
 #ifdef DEV_ENABLED
 		_global_rects_calced++;
 #endif
 	} else {
+		/*
 		// Read from cached versions
 		global_rect = ci->global_rect_cache;
 		xform = ci->final_transform;
@@ -485,15 +508,20 @@ void VisualServerCanvas::_render_canvas_item_cull_by_node(Item *p_canvas_item, c
 		// Verify the cached version is same as ground truth result
 		Transform2D xform2 = ci->xform;
 		xform2 = p_transform * xform2;
-		DEV_ASSERT(xform2 == xform);
-
 		Rect2 global_rect2 = xform2.xform(ci->get_rect());
+
+		if (xform2 != xform) {
+			_print_tree(p_canvas_item);
+			DEV_ASSERT(xform2 == xform);
+		}
+
 		DEV_ASSERT(global_rect2 == global_rect);
 #endif
 
 #ifdef DEV_ENABLED
 		_global_rects_read++;
 #endif
+		*/
 	}
 
 	global_rect.position += p_clip_rect.position;
@@ -513,7 +541,7 @@ void VisualServerCanvas::_render_canvas_item_cull_by_node(Item *p_canvas_item, c
 				// This is a noop, except to calculate the test_bound used for the
 				// debugging check below.
 				Rect2 test_bound;
-				_calculate_canvas_item_bound(p_canvas_item, &test_bound);
+				_calculate_canvas_item_bound(0, p_canvas_item, &test_bound);
 
 				if (!test_bound.has_no_area()) {
 					Rect2 test_comparison = ci->xform.xform(ci->local_bound);
@@ -548,6 +576,7 @@ void VisualServerCanvas::_render_canvas_item_cull_by_node(Item *p_canvas_item, c
 
 	// if we are culled, and no children, no more needs doing
 	bool item_is_visible = ((!ci->commands.empty() && (p_enclosed ? true : p_clip_rect.intersects(global_rect, true))) || ci->vp_render || ci->copy_back_buffer);
+
 	if (!item_is_visible && !child_item_count) {
 		// there is only this item, no children, so use the rect directly for a new bound
 		if (local_bound) {
@@ -573,10 +602,10 @@ void VisualServerCanvas::_render_canvas_item_cull_by_node(Item *p_canvas_item, c
 		// still may need to calculate the bounds if these are out of date,
 		// so the bounds hierarchy doesn't get corrupt
 		if (local_bound) {
-			_calculate_canvas_item_bound(p_canvas_item, local_bound);
+			_calculate_canvas_item_bound(0, p_canvas_item, local_bound);
 		}
 		// merge the local bound
-		_merge_local_bound_to_branch(ci, r_branch_bound);
+		_merge_local_bound_to_branch(ci, r_branch_bound, 0);
 		return;
 	}
 
@@ -683,6 +712,10 @@ void VisualServerCanvas::_render_canvas_item_cull_by_node(Item *p_canvas_item, c
 
 	// merge the local bound
 	_finalize_and_merge_local_bound_to_branch(ci, r_branch_bound);
+
+	//	if (xform_dirty) {
+	//		ci->xform_dirty = false;
+	//	}
 }
 
 void VisualServerCanvas::_light_mask_canvas_items(int p_z, RasterizerCanvas::Item *p_canvas_item, RasterizerCanvas::Light *p_masked_lights, int p_canvas_layer_id) {
@@ -945,7 +978,7 @@ void VisualServerCanvas::canvas_item_set_transform(RID p_item, const Transform2D
 	ERR_FAIL_COND(!canvas_item);
 
 	canvas_item->xform = p_transform;
-	canvas_item->xform_dirty = true;
+	//canvas_item->xform_dirty = true;
 
 	// Special case!
 	// Modifying the transform DOES NOT affect the local bound.
@@ -1526,7 +1559,8 @@ void VisualServerCanvas::canvas_item_set_z_as_relative_to_parent(RID p_item, boo
 Rect2 VisualServerCanvas::_debug_canvas_item_get_bounding_rect(RID p_item) {
 	Item *canvas_item = canvas_item_owner.getornull(p_item);
 	ERR_FAIL_COND_V(!canvas_item, Rect2());
-	return canvas_item->get_rect();
+	//	return canvas_item->get_rect();
+	return canvas_item->local_bound;
 }
 
 void VisualServerCanvas::canvas_item_set_skeleton_relative_xform(RID p_item, Transform2D p_relative_xform) {
@@ -2149,6 +2183,10 @@ void VisualServerCanvas::_print_tree_down(int p_child_id, int p_depth, const Ite
 	if (p_item->bound_dirty) {
 		sz += "(dirty) ";
 	}
+
+	//	if (p_item->xform_dirty) {
+	//		sz += "(xform_dirty) ";
+	//	}
 
 	if (p_item->parent == RID()) {
 		sz += "(parent NULL) ";

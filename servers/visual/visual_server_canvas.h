@@ -178,10 +178,10 @@ private:
 	void _render_canvas_item_cull_by_node(Item *p_canvas_item, const Transform2D &p_transform, const Rect2 &p_clip_rect, const Color &p_modulate, int p_z, RasterizerCanvas::Item **z_list, RasterizerCanvas::Item **z_last_list, Item *p_canvas_clip, Item *p_material_owner, bool p_update_global_rects, Rect2 *r_branch_bound, bool p_enclosed);
 
 	void _prepare_tree_bounds(Item *p_root, const Transform2D &p_transform);
-	void _calculate_canvas_item_bound(Item *p_canvas_item, Rect2 *r_branch_bound);
+	void _calculate_canvas_item_bound(int p_depth, Item *p_canvas_item, Rect2 *r_branch_bound);
 
-	void _finalize_and_merge_local_bound_to_branch(Item *p_canvas_item, Rect2 *r_branch_bound);
-	void _merge_local_bound_to_branch(Item *p_canvas_item, Rect2 *r_branch_bound);
+	void _finalize_and_merge_local_bound_to_branch(Item *p_canvas_item, Rect2 *r_branch_bound, int p_depth = 0);
+	void _merge_local_bound_to_branch(Item *p_canvas_item, Rect2 *r_branch_bound, int p_depth = 0);
 
 	// If bounds flags are attempted to be modified multithreaded, the
 	// tree could become corrupt. Multithread access may not be possible,
