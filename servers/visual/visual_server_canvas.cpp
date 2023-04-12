@@ -121,6 +121,10 @@ void VisualServerCanvas::_make_bound_dirty_reparent(Item *p_item) {
 }
 
 void VisualServerCanvas::_make_bound_dirty(Item *p_item, bool p_changing_visibility) {
+	if (_canvas_cull_mode != CANVAS_CULL_MODE_NODE) {
+		return;
+	}
+
 	MutexLock lock(_bound_mutex);
 	DEV_ASSERT(p_item);
 
@@ -625,8 +629,8 @@ void VisualServerCanvas::render_canvas(Canvas *p_canvas, const Transform2D &p_tr
 				uint64_t afterB = OS::get_singleton()->get_ticks_usec();
 
 				uint64_t beforeA = OS::get_singleton()->get_ticks_usec();
-				_prepare_tree_bounds(ci[i].item, p_transform);
-				_render_canvas_item_cull_by_node(ci[i].item, p_transform, p_clip_rect, Color(1, 1, 1, 1), 0, z_list, z_last_list, nullptr, nullptr, false, nullptr, false);
+				_prepare_tree_bounds(ci[i].item);
+				_render_canvas_item_cull_by_node(ci[i].item, p_transform, p_clip_rect, Color(1, 1, 1, 1), 0, z_list, z_last_list, nullptr, nullptr, false);
 				uint64_t afterA = OS::get_singleton()->get_ticks_usec();
 
 				totalA += afterA - beforeA;
@@ -635,11 +639,6 @@ void VisualServerCanvas::render_canvas(Canvas *p_canvas, const Transform2D &p_tr
 			} // for i
 
 			print_line("old : " + itos(totalB) + ", new : " + itos(totalA));
-#ifdef DEV_ENABLED
-			print_line("global rects calced: " + itos(_global_rects_calced) + ", read: " + itos(_global_rects_read));
-			_global_rects_calced = 0;
-			_global_rects_read = 0;
-#endif
 
 		} // if measure
 		else {
