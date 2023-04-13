@@ -1403,7 +1403,7 @@ void VisualServerCanvas::canvas_item_set_z_as_relative_to_parent(RID p_item, boo
 	_check_bound_integrity(canvas_item);
 }
 
-Rect2 VisualServerCanvas::_debug_canvas_item_get_bounding_rect(RID p_item) {
+Rect2 VisualServerCanvas::_debug_canvas_item_get_rect(RID p_item) {
 	Item *canvas_item = canvas_item_owner.getornull(p_item);
 	ERR_FAIL_COND_V(!canvas_item, Rect2());
 	return canvas_item->get_rect();
