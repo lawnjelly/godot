@@ -1,10 +1,10 @@
 short_name = "godot"
-name = "Godot Engine"
+name = "GodotPlus (Unofficial)"
 major = 3
 minor = 6
 patch = 0
-status = "beta"
+status = "alpha 3"
 module_config = ""
-year = 2022
-website = "https://godotengine.org"
+year = 2023
+website = "https://github.com/lawnjelly"
 docs = "3.5"
