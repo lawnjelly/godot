@@ -728,7 +728,7 @@
 				Modulates all colors in the given canvas.
 			</description>
 		</method>
-		<method name="debug_canvas_item_get_bounding_rect">
+		<method name="debug_canvas_item_get_rect">
 			<return type="Rect2" />
 			<argument index="0" name="item" type="RID" />
 			<description>
