@@ -464,10 +464,6 @@ public:
 	FUNC7(environment_set_fog_depth, RID, bool, float, float, float, bool, float)
 	FUNC5(environment_set_fog_height, RID, bool, float, float, float)
 
-	/* INTERPOLATION API */
-
-	FUNC1(set_physics_interpolation_enabled, bool)
-
 	/* SCENARIO API */
 
 	FUNCRID(scenario)
@@ -620,6 +616,10 @@ public:
 	FUNC2(canvas_item_set_z_index, RID, int)
 	FUNC2(canvas_item_set_z_as_relative_to_parent, RID, bool)
 	FUNC3(canvas_item_set_copy_to_backbuffer, RID, bool, const Rect2 &)
+	FUNC2(canvas_item_set_interpolated, RID, bool)
+	FUNC1(canvas_item_reset_physics_interpolation, RID)
+	FUNC2(canvas_item_transform_physics_interpolation, RID, Transform2D)
+
 	FUNC2(canvas_item_attach_skeleton, RID, RID)
 	FUNC2(canvas_item_set_skeleton_relative_xform, RID, Transform2D)
 	FUNC1R(Rect2, _debug_canvas_item_get_rect, RID)
@@ -683,11 +683,12 @@ public:
 
 	virtual void init();
 	virtual void finish();
+	virtual void tick();
+	virtual void pre_draw(bool p_will_draw);
 	virtual void draw(bool p_swap_buffers, double frame_step);
 	virtual void sync();
-	FUNC0(tick)
-	FUNC1(pre_draw, bool)
 	FUNC1RC(bool, has_changed, ChangedPriority)
+	virtual void set_physics_interpolation_enabled(bool p_enabled);
 
 	/* RENDER INFO */
 

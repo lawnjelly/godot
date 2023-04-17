@@ -55,8 +55,12 @@ void Camera2D::_update_scroll() {
 	if (current) {
 		ERR_FAIL_COND(custom_viewport && !ObjectDB::get_instance(custom_viewport_id));
 
-		Transform2D xform = get_camera_transform();
-
+		Transform2D xform;
+		if (is_physics_interpolated_and_enabled()) {
+			xform = _interpolation_data.xform_prev.interpolate_with(_interpolation_data.xform_curr, Engine::get_singleton()->get_physics_interpolation_fraction());
+		} else {
+			xform = get_camera_transform();
+		}
 		viewport->set_canvas_transform(xform);
 
 		Size2 screen_size = viewport->get_visible_rect().size;
@@ -67,13 +71,18 @@ void Camera2D::_update_scroll() {
 }
 
 void Camera2D::_update_process_mode() {
-	// smoothing can be enabled in the editor but will never be active
-	if (process_mode == CAMERA2D_PROCESS_IDLE) {
-		set_process_internal(smoothing_active);
-		set_physics_process_internal(false);
+	if (is_physics_interpolated_and_enabled()) {
+		set_process_internal(is_current());
+		set_physics_process_internal(is_current());
 	} else {
-		set_process_internal(false);
-		set_physics_process_internal(smoothing_active);
+		// smoothing can be enabled in the editor but will never be active
+		if (process_mode == CAMERA2D_PROCESS_IDLE) {
+			set_process_internal(smoothing_active);
+			set_physics_process_internal(false);
+		} else {
+			set_process_internal(false);
+			set_physics_process_internal(smoothing_active);
+		}
 	}
 }
 
@@ -236,13 +245,22 @@ Transform2D Camera2D::get_camera_transform() {
 
 void Camera2D::_notification(int p_what) {
 	switch (p_what) {
-		case NOTIFICATION_INTERNAL_PROCESS:
-		case NOTIFICATION_INTERNAL_PHYSICS_PROCESS: {
+		case NOTIFICATION_INTERNAL_PROCESS: {
 			_update_scroll();
-
+		} break;
+		case NOTIFICATION_INTERNAL_PHYSICS_PROCESS: {
+			if (is_physics_interpolated_and_enabled()) {
+				_interpolation_data.xform_prev = _interpolation_data.xform_curr;
+				_interpolation_data.xform_curr = get_camera_transform();
+			} else {
+				_update_scroll();
+			}
+		} break;
+		case NOTIFICATION_RESET_PHYSICS_INTERPOLATION: {
+			_interpolation_data.xform_prev = _interpolation_data.xform_curr;
 		} break;
 		case NOTIFICATION_TRANSFORM_CHANGED: {
-			if (!smoothing_active) {
+			if (!smoothing_active && !is_physics_interpolated_and_enabled()) {
 				_update_scroll();
 			}
 
@@ -400,10 +418,15 @@ Camera2D::Camera2DProcessMode Camera2D::get_process_mode() const {
 }
 
 void Camera2D::_make_current(Object *p_which) {
+	bool new_current = false;
+
 	if (p_which == this) {
-		current = true;
-	} else {
-		current = false;
+		new_current = true;
+	}
+
+	if (new_current != current) {
+		current = new_current;
+		_update_process_mode();
 	}
 }
 
@@ -413,6 +436,7 @@ void Camera2D::_set_current(bool p_current) {
 	}
 
 	current = p_current;
+	_update_process_mode();
 	update();
 }
 
@@ -427,6 +451,7 @@ void Camera2D::make_current() {
 		get_tree()->call_group_flags(SceneTree::GROUP_CALL_REALTIME, group_name, "_make_current", this);
 	}
 	_update_scroll();
+	_update_process_mode();
 }
 
 void Camera2D::clear_current() {
@@ -434,6 +459,7 @@ void Camera2D::clear_current() {
 	if (is_inside_tree()) {
 		get_tree()->call_group_flags(SceneTree::GROUP_CALL_REALTIME, group_name, "_make_current", (Object *)nullptr);
 	}
+	_update_process_mode();
 }
 
 void Camera2D::set_limit(Margin p_margin, int p_limit) {
