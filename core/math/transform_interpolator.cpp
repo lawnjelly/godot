@@ -30,6 +30,8 @@
 
 #include "transform_interpolator.h"
 
+#include "core/math/transform_2d.h"
+
 void TransformInterpolator::interpolate_transform2D(const Transform2D &p_prev, const Transform2D &p_curr, Transform2D &r_result, real_t p_fraction) {
 	//extract parameters
 	Vector2 p1 = p_prev.get_origin();

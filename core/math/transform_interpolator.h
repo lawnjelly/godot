@@ -46,7 +46,7 @@
 // several frames may occur between each physics tick, which will make it cheaper
 // than performing every frame.
 
-class Transform;
+struct Transform2D;
 
 class TransformInterpolator {
 public:
