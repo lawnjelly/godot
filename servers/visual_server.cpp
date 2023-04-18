@@ -2215,6 +2215,9 @@ void VisualServer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("canvas_item_set_z_index", "item", "z_index"), &VisualServer::canvas_item_set_z_index);
 	ClassDB::bind_method(D_METHOD("canvas_item_set_z_as_relative_to_parent", "item", "enabled"), &VisualServer::canvas_item_set_z_as_relative_to_parent);
 	ClassDB::bind_method(D_METHOD("canvas_item_set_copy_to_backbuffer", "item", "enabled", "rect"), &VisualServer::canvas_item_set_copy_to_backbuffer);
+	ClassDB::bind_method(D_METHOD("canvas_item_set_interpolated", "item", "interpolated"), &VisualServer::canvas_item_set_interpolated);
+	ClassDB::bind_method(D_METHOD("canvas_item_reset_physics_interpolation", "item"), &VisualServer::canvas_item_reset_physics_interpolation);
+	ClassDB::bind_method(D_METHOD("canvas_item_transform_physics_interpolation", "item", "xform"), &VisualServer::canvas_item_transform_physics_interpolation);
 	ClassDB::bind_method(D_METHOD("canvas_item_clear", "item"), &VisualServer::canvas_item_clear);
 	ClassDB::bind_method(D_METHOD("canvas_item_set_draw_index", "item", "index"), &VisualServer::canvas_item_set_draw_index);
 	ClassDB::bind_method(D_METHOD("canvas_item_set_material", "item", "material"), &VisualServer::canvas_item_set_material);

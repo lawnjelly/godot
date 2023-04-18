@@ -29,6 +29,7 @@
 /**************************************************************************/
 
 #include "visual_server_canvas.h"
+#include "core/math/transform_interpolator.h"
 #include "visual_server_globals.h"
 #include "visual_server_raster.h"
 #include "visual_server_viewport.h"
@@ -65,7 +66,7 @@ void _collect_ysort_children(VisualServerCanvas::Item *p_canvas_item, Transform2
 				r_items[r_index] = child_items[i];
 				child_items[i]->ysort_modulate = p_modulate;
 				child_items[i]->ysort_xform = p_transform;
-				child_items[i]->ysort_pos = p_transform.xform(child_items[i]->xform.elements[2]);
+				child_items[i]->ysort_pos = p_transform.xform(child_items[i]->xform_curr.elements[2]);
 				child_items[i]->material_owner = child_items[i]->use_parent_material ? p_material_owner : nullptr;
 				child_items[i]->ysort_index = r_index;
 			}
@@ -74,7 +75,7 @@ void _collect_ysort_children(VisualServerCanvas::Item *p_canvas_item, Transform2
 
 			if (child_items[i]->sort_y) {
 				_collect_ysort_children(child_items[i],
-						p_transform * child_items[i]->xform,
+						p_transform * child_items[i]->xform_curr,
 						child_items[i]->use_parent_material ? p_material_owner : child_items[i],
 						p_modulate * child_items[i]->modulate,
 						r_items, r_index);
@@ -275,7 +276,7 @@ void VisualServerCanvas::_merge_local_bound_to_branch(Item *p_canvas_item, Rect2
 		return;
 	}
 
-	Rect2 this_item_total_local_bound = p_canvas_item->xform.xform(p_canvas_item->local_bound);
+	Rect2 this_item_total_local_bound = p_canvas_item->xform_curr.xform(p_canvas_item->local_bound);
 
 	if (!r_branch_bound->has_no_area()) {
 		*r_branch_bound = r_branch_bound->merge(this_item_total_local_bound);
@@ -297,10 +298,17 @@ void VisualServerCanvas::_render_canvas_item_cull_by_item(Item *p_canvas_item, c
 	}
 
 	Rect2 rect = ci->get_rect();
-	Transform2D xform = ci->xform;
-	xform = p_transform * xform;
 
-	Rect2 global_rect = xform.xform(rect);
+	Transform2D final_xform;
+	if (!_interpolation_data.interpolation_enabled || !ci->interpolated) {
+		final_xform = ci->xform_curr;
+	} else {
+		real_t f = Engine::get_singleton()->get_physics_interpolation_fraction();
+		TransformInterpolator::interpolate_transform2D(ci->xform_prev, ci->xform_curr, final_xform, f);
+	}
+	final_xform = p_transform * final_xform;
+
+	Rect2 global_rect = final_xform.xform(rect);
 	global_rect.position += p_clip_rect.position;
 
 	if (ci->use_parent_material && p_material_owner) {
@@ -360,14 +368,14 @@ void VisualServerCanvas::_render_canvas_item_cull_by_item(Item *p_canvas_item, c
 			continue;
 		}
 		if (ci->sort_y) {
-			_render_canvas_item_cull_by_item(child_items[i], xform * child_items[i]->ysort_xform, p_clip_rect, modulate * child_items[i]->ysort_modulate, p_z, z_list, z_last_list, (Item *)ci->final_clip_owner, (Item *)child_items[i]->material_owner);
+			_render_canvas_item_cull_by_item(child_items[i], final_xform * child_items[i]->ysort_xform, p_clip_rect, modulate * child_items[i]->ysort_modulate, p_z, z_list, z_last_list, (Item *)ci->final_clip_owner, (Item *)child_items[i]->material_owner);
 		} else {
-			_render_canvas_item_cull_by_item(child_items[i], xform, p_clip_rect, modulate, p_z, z_list, z_last_list, (Item *)ci->final_clip_owner, p_material_owner);
+			_render_canvas_item_cull_by_item(child_items[i], final_xform, p_clip_rect, modulate, p_z, z_list, z_last_list, (Item *)ci->final_clip_owner, p_material_owner);
 		}
 	}
 
 	if (ci->copy_back_buffer) {
-		ci->copy_back_buffer->screen_rect = xform.xform(ci->copy_back_buffer->rect).clip(p_clip_rect);
+		ci->copy_back_buffer->screen_rect = final_xform.xform(ci->copy_back_buffer->rect).clip(p_clip_rect);
 	}
 
 	if (ci->update_when_visible) {
@@ -376,7 +384,7 @@ void VisualServerCanvas::_render_canvas_item_cull_by_item(Item *p_canvas_item, c
 
 	if ((!ci->commands.empty() && p_clip_rect.intersects(global_rect, true)) || ci->vp_render || ci->copy_back_buffer) {
 		//something to draw?
-		ci->final_transform = xform;
+		ci->final_transform = final_xform;
 		ci->final_modulate = Color(modulate.r * ci->self_modulate.r, modulate.g * ci->self_modulate.g, modulate.b * ci->self_modulate.b, modulate.a * ci->self_modulate.a);
 		ci->global_rect_cache = global_rect;
 		ci->global_rect_cache.position -= p_clip_rect.position;
@@ -401,9 +409,9 @@ void VisualServerCanvas::_render_canvas_item_cull_by_item(Item *p_canvas_item, c
 			continue;
 		}
 		if (ci->sort_y) {
-			_render_canvas_item_cull_by_item(child_items[i], xform * child_items[i]->ysort_xform, p_clip_rect, modulate * child_items[i]->ysort_modulate, p_z, z_list, z_last_list, (Item *)ci->final_clip_owner, (Item *)child_items[i]->material_owner);
+			_render_canvas_item_cull_by_item(child_items[i], final_xform * child_items[i]->ysort_xform, p_clip_rect, modulate * child_items[i]->ysort_modulate, p_z, z_list, z_last_list, (Item *)ci->final_clip_owner, (Item *)child_items[i]->material_owner);
 		} else {
-			_render_canvas_item_cull_by_item(child_items[i], xform, p_clip_rect, modulate, p_z, z_list, z_last_list, (Item *)ci->final_clip_owner, p_material_owner);
+			_render_canvas_item_cull_by_item(child_items[i], final_xform, p_clip_rect, modulate, p_z, z_list, z_last_list, (Item *)ci->final_clip_owner, p_material_owner);
 		}
 	}
 }
@@ -420,7 +428,13 @@ void VisualServerCanvas::_render_canvas_item_cull_by_node(Item *p_canvas_item, c
 
 	Rect2 rect = ci->get_rect();
 
-	Transform2D final_xform = ci->xform;
+	Transform2D final_xform;
+	if (!_interpolation_data.interpolation_enabled || !ci->interpolated) {
+		final_xform = ci->xform_curr;
+	} else {
+		real_t f = Engine::get_singleton()->get_physics_interpolation_fraction();
+		TransformInterpolator::interpolate_transform2D(ci->xform_prev, ci->xform_curr, final_xform, f);
+	}
 	final_xform = p_transform * final_xform;
 
 	Rect2 global_rect = final_xform.xform(rect);
@@ -825,7 +839,16 @@ void VisualServerCanvas::canvas_item_set_transform(RID p_item, const Transform2D
 	Item *canvas_item = canvas_item_owner.getornull(p_item);
 	ERR_FAIL_COND(!canvas_item);
 
-	canvas_item->xform = p_transform;
+	if (_interpolation_data.interpolation_enabled && canvas_item->interpolated) {
+		if (!canvas_item->on_interpolate_transform_list) {
+			_interpolation_data.canvas_item_transform_update_list_curr->push_back(p_item);
+			canvas_item->on_interpolate_transform_list = true;
+		} else {
+			DEV_ASSERT(_interpolation_data.canvas_item_transform_update_list_curr->size());
+		}
+	}
+
+	canvas_item->xform_curr = p_transform;
 
 	// Special case!
 	// Modifying the transform DOES NOT affect the local bound.
@@ -1435,6 +1458,28 @@ void VisualServerCanvas::canvas_item_set_skeleton_relative_xform(RID p_item, Tra
 	}
 }
 
+// Useful especially for origin shifting.
+void VisualServerCanvas::canvas_item_transform_physics_interpolation(RID p_item, Transform2D p_transform) {
+	Item *canvas_item = canvas_item_owner.getornull(p_item);
+	ERR_FAIL_COND(!canvas_item);
+
+	canvas_item->xform_prev = p_transform * canvas_item->xform_prev;
+	canvas_item->xform_curr = p_transform * canvas_item->xform_curr;
+}
+
+void VisualServerCanvas::canvas_item_reset_physics_interpolation(RID p_item) {
+	Item *canvas_item = canvas_item_owner.getornull(p_item);
+	ERR_FAIL_COND(!canvas_item);
+
+	canvas_item->xform_prev = canvas_item->xform_curr;
+}
+
+void VisualServerCanvas::canvas_item_set_interpolated(RID p_item, bool p_interpolated) {
+	Item *canvas_item = canvas_item_owner.getornull(p_item);
+	ERR_FAIL_COND(!canvas_item);
+	canvas_item->interpolated = p_interpolated;
+}
+
 void VisualServerCanvas::canvas_item_attach_skeleton(RID p_item, RID p_skeleton) {
 	Item *canvas_item = canvas_item_owner.getornull(p_item);
 	ERR_FAIL_COND(!canvas_item);
@@ -1871,6 +1916,7 @@ bool VisualServerCanvas::free(RID p_rid) {
 		Item *canvas_item = canvas_item_owner.get(p_rid);
 		ERR_FAIL_COND_V(!canvas_item, true);
 		_make_bound_dirty(canvas_item);
+		_interpolation_data.notify_free_canvas_item(p_rid, *canvas_item);
 
 		if (canvas_item->parent.is_valid()) {
 			if (canvas_owner.owns(canvas_item->parent)) {
@@ -2055,6 +2101,59 @@ void VisualServerCanvas::_print_tree_down(int p_child_id, int p_depth, const Ite
 }
 
 #endif
+
+void VisualServerCanvas::tick() {
+	if (_interpolation_data.interpolation_enabled) {
+		update_interpolation_tick(true);
+	}
+}
+
+void VisualServerCanvas::update_interpolation_tick(bool p_process) {
+	// Detect any that were on the previous transform list that are no longer active.
+	for (unsigned int n = 0; n < _interpolation_data.canvas_item_transform_update_list_prev->size(); n++) {
+		const RID &rid = (*_interpolation_data.canvas_item_transform_update_list_prev)[n];
+		Item *item = canvas_item_owner.getornull(rid);
+
+		// no longer active? (either the instance deleted or no longer being transformed)
+		if (item && !item->on_interpolate_transform_list) {
+			// both prev and current are the same, just in case of any interpolations
+			item->xform_prev = item->xform_curr;
+		}
+	}
+
+	// and now for any in the transform list (being actively interpolated), keep the previous transform
+	// value up to date ready for the next tick
+	if (p_process) {
+		for (unsigned int n = 0; n < _interpolation_data.canvas_item_transform_update_list_curr->size(); n++) {
+			const RID &rid = (*_interpolation_data.canvas_item_transform_update_list_curr)[n];
+			Item *item = canvas_item_owner.getornull(rid);
+
+			if (item) {
+				item->xform_prev = item->xform_curr;
+				item->on_interpolate_transform_list = false;
+			}
+		}
+	}
+
+	// we maintain a mirror list for the transform updates, so we can detect when an instance
+	// is no longer being transformed, and remove it from the interpolate list
+	SWAP(_interpolation_data.canvas_item_transform_update_list_curr, _interpolation_data.canvas_item_transform_update_list_prev);
+
+	// prepare for the next iteration
+	_interpolation_data.canvas_item_transform_update_list_curr->clear();
+}
+
+void VisualServerCanvas::InterpolationData::notify_free_canvas_item(RID p_rid, VisualServerCanvas::Item &r_canvas_item) {
+	r_canvas_item.on_interpolate_transform_list = false;
+
+	if (!interpolation_enabled) {
+		return;
+	}
+
+	// if the instance was on any of the lists, remove
+	canvas_item_transform_update_list_curr->erase_multiple_unordered(p_rid);
+	canvas_item_transform_update_list_prev->erase_multiple_unordered(p_rid);
+}
 
 VisualServerCanvas::VisualServerCanvas() {
 	z_list = (RasterizerCanvas::Item **)memalloc(z_range * sizeof(RasterizerCanvas::Item *));

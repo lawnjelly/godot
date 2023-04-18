@@ -325,6 +325,14 @@
 				Once finished with your RID, you will want to free the RID using the VisualServer's [method free_rid] static method.
 			</description>
 		</method>
+		<method name="canvas_item_reset_physics_interpolation">
+			<return type="void" />
+			<argument index="0" name="item" type="RID" />
+			<description>
+				Prevents physics interpolation for the current physics tick.
+				This is useful when moving a canvas item to a new location, to give an instantaneous change rather than interpolation from the previous location.
+			</description>
+		</method>
 		<method name="canvas_item_set_clip">
 			<return type="void" />
 			<argument index="0" name="item" type="RID" />
@@ -373,6 +381,14 @@
 			<argument index="1" name="index" type="int" />
 			<description>
 				Sets the index for the [CanvasItem].
+			</description>
+		</method>
+		<method name="canvas_item_set_interpolated">
+			<return type="void" />
+			<argument index="0" name="item" type="RID" />
+			<argument index="1" name="interpolated" type="bool" />
+			<description>
+				Turns on and off physics interpolation for the canvas item.
 			</description>
 		</method>
 		<method name="canvas_item_set_light_mask">
@@ -461,6 +477,16 @@
 			<argument index="1" name="z_index" type="int" />
 			<description>
 				Sets the [CanvasItem]'s Z index, i.e. its draw order (lower indexes are drawn first).
+			</description>
+		</method>
+		<method name="canvas_item_transform_physics_interpolation">
+			<return type="void" />
+			<argument index="0" name="item" type="RID" />
+			<argument index="1" name="xform" type="Transform2D" />
+			<description>
+				Transforms both the current and previous stored transform for a canvas item.
+				This allows transforming a canvas item without creating a "glitch" in the interpolation.
+				This is particularly useful for large worlds utilising a shifting origin.
 			</description>
 		</method>
 		<method name="canvas_light_attach_to_canvas">

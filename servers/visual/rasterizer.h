@@ -977,13 +977,19 @@ public:
 			Rect2 rect;
 		};
 
-		Transform2D xform;
+		// For interpolation we store the current local xform,
+		// and the previous xform from the previous tick.
+		Transform2D xform_curr;
+		Transform2D xform_prev;
+
 		bool clip : 1;
 		bool visible : 1;
 		bool behind : 1;
 		bool update_when_visible : 1;
 		bool distance_field : 1;
 		bool light_masked : 1;
+		bool on_interpolate_transform_list : 1;
+		bool interpolated : 1;
 		mutable bool custom_rect : 1;
 		mutable bool rect_dirty : 1;
 		mutable bool bound_dirty : 1;
@@ -1191,6 +1197,7 @@ public:
 			final_clip_owner = nullptr;
 			material_owner = nullptr;
 			light_masked = false;
+			on_interpolate_transform_list = false;
 
 			if (skinning_data) {
 				memdelete(skinning_data);
@@ -1215,6 +1222,8 @@ public:
 			distance_field = false;
 			light_masked = false;
 			update_when_visible = false;
+			on_interpolate_transform_list = false;
+			interpolated = true;
 		}
 		virtual ~Item() {
 			clear();

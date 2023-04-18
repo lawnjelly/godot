@@ -250,6 +250,9 @@ public:
 	void canvas_item_set_z_index(RID p_item, int p_z);
 	void canvas_item_set_z_as_relative_to_parent(RID p_item, bool p_enable);
 	void canvas_item_set_copy_to_backbuffer(RID p_item, bool p_enable, const Rect2 &p_rect);
+	void canvas_item_set_interpolated(RID p_item, bool p_interpolated);
+	void canvas_item_reset_physics_interpolation(RID p_item);
+	void canvas_item_transform_physics_interpolation(RID p_item, Transform2D p_transform);
 	void canvas_item_attach_skeleton(RID p_item, RID p_skeleton);
 	void _canvas_item_skeleton_moved(RID p_item);
 
@@ -301,6 +304,21 @@ public:
 	void canvas_occluder_polygon_set_cull_mode(RID p_occluder_polygon, VS::CanvasOccluderPolygonCullMode p_mode);
 
 	bool free(RID p_rid);
+
+	// Interpolation
+	void tick();
+	void update_interpolation_tick(bool p_process = true);
+	void set_physics_interpolation_enabled(bool p_enabled) { _interpolation_data.interpolation_enabled = p_enabled; }
+
+	struct InterpolationData {
+		void notify_free_canvas_item(RID p_rid, VisualServerCanvas::Item &r_canvas_item);
+		LocalVector<RID> canvas_item_transform_update_lists[2];
+		LocalVector<RID> *canvas_item_transform_update_list_curr = &canvas_item_transform_update_lists[0];
+		LocalVector<RID> *canvas_item_transform_update_list_prev = &canvas_item_transform_update_lists[1];
+
+		bool interpolation_enabled = false;
+	} _interpolation_data;
+
 	VisualServerCanvas();
 	~VisualServerCanvas();
 };

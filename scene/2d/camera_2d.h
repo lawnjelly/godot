@@ -94,6 +94,11 @@ protected:
 
 	Camera2DProcessMode process_mode;
 
+	struct InterpolationData {
+		Transform2D xform_curr;
+		Transform2D xform_prev;
+	} _interpolation_data;
+
 protected:
 	virtual Transform2D get_camera_transform();
 	void _notification(int p_what);

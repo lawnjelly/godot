@@ -236,6 +236,7 @@ protected:
 	}
 
 	void item_rect_changed(bool p_size_changed = true);
+	virtual void _physics_interpolated_changed();
 
 	void _notification(int p_what);
 	static void _bind_methods();
