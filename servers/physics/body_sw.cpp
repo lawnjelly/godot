@@ -319,7 +319,6 @@ void BodySW::set_state(PhysicsServer::BodyState p_state, const Variant &p_varian
 				_set_inv_transform(get_transform().inverse());
 			}
 			wakeup();
-
 		} break;
 		case PhysicsServer::BODY_STATE_LINEAR_VELOCITY: {
 			/*

@@ -1,0 +1,124 @@
+// Copyright 2026-present Lawnjelly
+// SPDX-License-Identifier: MIT
+
+#pragma once
+
+#include "navphysics_pointf.h"
+
+//typedef u32 np_handle;
+
+// 24 bit ID, 8 bit revision.
+class np_handle {
+	u32 _val = UINT32_MAX;
+
+public:
+	bool operator==(const np_handle &p_o) const { return _val == p_o._val; }
+	bool operator!=(const np_handle &p_o) const { return !(*this == p_o); }
+
+	bool is_valid() const { return _val != UINT32_MAX; }
+	u32 handle_to_id(u32 &r_revision) const {
+		r_revision = _val;
+		r_revision >>= 24;
+		return _val & 0xffffff;
+	}
+	u32 to_id() const {
+		return _val & 0xffffff;
+	}
+
+	void id_to_handle(u32 p_id, u32 p_revision) {
+		_val = p_id;
+		p_revision <<= 24;
+		_val |= p_revision;
+	}
+
+	static void wrapped_increment_revision(u32 &r_revision) {
+		r_revision++;
+		if (r_revision >= 256) {
+			// skip 0, as that is reserved for unused
+			// r_revision = 1;
+			r_revision = 0;
+		}
+	}
+
+	np_handle(u32 p_id, u32 p_revision) {
+		id_to_handle(p_id, p_revision);
+	}
+	np_handle() = default;
+};
+
+namespace NavPhysics {
+
+#define NAV_PHYSICS_POLY_MAX_VERTS 7
+
+enum AgentState : u32 {
+	AGENT_STATE_CLEAR,
+	AGENT_STATE_COLLIDING,
+	AGENT_STATE_PENDING_COLLIDING,
+	AGENT_STATE_BLOCKED_BY_FULL_ZONE,
+};
+
+struct AgentCallbackData {
+	uint64_t user_data = UINT64_MAX;
+	NavPhysics::FPoint3 position_world_space;
+	NavPhysics::FPoint3 impulse_world_space;
+	NavPhysics::FPoint3 impulse_mesh_space;
+	bool changing_mesh = false;
+};
+
+struct TraceResult {
+	struct MeshTraceResult {
+		bool hit = false;
+		FPoint3 hit_point;
+		FPoint3 hit_normal;
+
+		u32 hit_poly_id = UINT32_MAX;
+
+		// Set if something blocked the first intermediate trace in a dual trace.
+		// Unused in normal body trace.
+		bool first_trace_hit = false;
+	} mesh;
+
+	struct ObstacleTraceResult {
+		enum {
+			MAX_OBSTACLES = 256,
+		};
+
+		u32 num_hit = 0;
+		np_handle bodies_hit[MAX_OBSTACLES];
+	} obstacles;
+
+	void blank() {
+		mesh.hit = false;
+		obstacles.num_hit = 0;
+	}
+};
+
+struct BodyInfo {
+	u32 poly_id;
+
+	u32 narrowing_id;
+	u32 narrowing_available;
+	u32 narrowing_used;
+
+	u32 blocking_zone_id;
+	u32 blocking_zone_available;
+	u32 blocking_zone_used;
+
+	BodyInfo() { blank(); }
+	void blank() {
+		poly_id = UINT32_MAX;
+
+		narrowing_id = UINT32_MAX;
+		narrowing_available = 0;
+		narrowing_used = 0;
+
+		blocking_zone_id = UINT32_MAX;
+		blocking_zone_available = 0;
+		blocking_zone_used = 0;
+	}
+	u32 checksum() const {
+		return poly_id + narrowing_id + narrowing_available - narrowing_used + blocking_zone_id + blocking_zone_available - blocking_zone_used;
+	}
+};
+
+} // namespace NavPhysics

@@ -455,10 +455,13 @@ void EditorSpatialGizmo::add_solid_box(Ref<Material> &p_material, Vector3 p_size
 
 	Array arrays = cubem.surface_get_arrays(0);
 	PoolVector3Array vertex = arrays[VS::ARRAY_VERTEX];
-	PoolVector3Array::Write w = vertex.write();
 
-	for (int i = 0; i < vertex.size(); ++i) {
-		w[i] += p_position;
+	{
+		PoolVector3Array::Write w = vertex.write();
+
+		for (int i = 0; i < vertex.size(); ++i) {
+			w[i] += p_position;
+		}
 	}
 
 	arrays[VS::ARRAY_VERTEX] = vertex;
