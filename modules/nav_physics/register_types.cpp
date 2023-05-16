@@ -1,0 +1,35 @@
+#include "register_types.h"
+
+#include "core/class_db.h"
+#ifndef _3D_DISABLED
+#include "godot/np_agent.h"
+#include "godot/np_bake_params.h"
+#include "godot/np_mesh.h"
+#include "godot/np_mesh_instance.h"
+#include "godot/np_point.h"
+
+#ifdef TOOLS_ENABLED
+#include "editor/navphysics_mesh_editor_plugin.h"
+#endif
+#endif
+
+void register_nav_physics_types() {
+#ifndef _3D_DISABLED
+	ClassDB::register_class<NPMeshInstance>();
+	ClassDB::register_class<NPMesh>();
+	ClassDB::register_class<NPAgent>();
+	ClassDB::register_class<NPBakeParams_Agent>();
+	ClassDB::register_class<NPBakeParams_Mesh>();
+	ClassDB::register_class<NPBakeParams>();
+	ClassDB::register_class<NPPoint>();
+
+#ifdef TOOLS_ENABLED
+	EditorPlugins::add_by_type<NPMeshEditorPlugin>();
+#endif
+
+#endif
+}
+
+void unregister_nav_physics_types() {
+	//nothing to do here
+}

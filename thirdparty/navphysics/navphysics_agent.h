@@ -1,0 +1,330 @@
+// Copyright 2026-present Lawnjelly
+// SPDX-License-Identifier: MIT
+
+#pragma once
+
+#include "navphysics_defines.h"
+#include "navphysics_plane.h"
+#include "navphysics_pointf.h"
+#include "navphysics_pointi.h"
+
+namespace NavPhysics {
+
+class MeshInstance;
+
+// Single threaded way of passing around data
+
+struct AgentStatus {
+	// When in a jump link state between valid polys
+	static u32 jump_wall_id;
+
+	static IPoint2 jump_target_wall_pos;
+	
+	static IPoint3 jump_target_cross_pos;
+	static IPoint3 jump_target_vel;
+	//static freal jump_target_jump_vel;
+	//static FPoint3 jump_target_world_space_vel;
+
+	//static freal jump_target_local_height;
+
+	static bool jump_cross_only;
+
+	static bool is_in_jump_link() { return jump_wall_id != UINT32_MAX; }
+	static bool changing_mesh() { return jump_mesh_instance_id != UINT32_MAX; }
+
+	// When moving between meshes, we can
+	// pass a suggested poly id to make teleporting
+	// more efficient, as the calculation will have been done
+	// already in find_best_fit().
+	static u32 suggested_poly_id;
+	static u32 jump_mesh_instance_id;
+
+	static void debug_print(String p_sz);
+
+	static void reset() {
+		jump_wall_id = UINT32_MAX;
+		jump_cross_only = false;
+		suggested_poly_id = UINT32_MAX;
+		jump_mesh_instance_id = UINT32_MAX;
+
+#ifdef NP_DEV_ENABLED
+		// Just bug detection
+		//jump_target_local_height = FLT_MAX;
+		jump_target_wall_pos = IPoint2(INT32_MAX, INT32_MAX);
+		jump_target_cross_pos = IPoint3(INT32_MAX, INT32_MAX, INT32_MAX);
+		jump_target_vel = IPoint3(INT32_MAX, INT32_MAX, INT32_MAX);
+#endif
+	}
+};
+
+// Must be POD.
+struct Agent {
+private:
+	u32 mesh_instance_id = UINT32_MAX;
+
+	// The client code is responsible for scaling these to physics TPS.
+	// They are straight velocity multipliers.
+	freal friction = 0;
+	freal air_friction = 0;
+
+	// Yaw is in MESH space, not world space.
+	// It is supplied by the calling code (which is responsible
+	// for deciding an agent's yaw), and is ONLY used in order
+	// to restrict forces being applied along the agent's move axis
+	// (say in the case of vehicles).
+	// -PI to +PI.
+	f32 yaw = 0;
+
+	// Between 0 and 1, 1 only allows force to be applied in the direction of yaw.
+	f32 yaw_movement_restriction[2] = {};
+
+	bool _is_changing_mesh : 1;
+
+	u32 poly_id = UINT32_MAX;
+	u32 wall_id = UINT32_MAX;
+
+	IPoint3 pos;
+	IPoint3 vel;
+	
+	struct Data
+	{
+		FPoint3 pending_jump_world;
+	} data;
+
+public:
+
+	struct CallbackData {
+		// Used by client code to identify the agent,
+		// could be an ID or pointer or handle.
+		u64 user_data = 0;
+	} callback;
+
+	u32 get_mesh_instance_id() const { return mesh_instance_id; }
+	void set_mesh_instance_id(u32 p_mesh_id);
+
+	void set_is_changing_mesh(bool p_changing) { _is_changing_mesh = p_changing; }
+	bool is_changing_mesh() const { return _is_changing_mesh; }
+
+	void set_poly_id(u32 p_poly_id);
+	void clear_poly_id() {
+		set_poly_id(UINT32_MAX);
+	}
+	bool is_poly_id_null() const {
+		return poly_id == UINT32_MAX;
+	}
+	u32 get_poly_id() const {
+		return poly_id;
+	}
+	void set_wall_id(u32 p_wall_id);
+	bool is_wall_id_null() const {
+		return wall_id == UINT32_MAX;
+	}
+	void clear_wall_id() {
+		set_wall_id(UINT32_MAX);
+	}
+	u32 get_wall_id() const { return wall_id; }
+	
+	const IPoint3 &get_pos() const { return pos; }
+	void set_pos(const IPoint3 &p_pos);
+	IPoint2 get_2d_pos() const {return pos.xz();}
+	void set_2d_pos(const IPoint2 &p_pos) { set_pos(IPoint3(p_pos.x, get_pos().y, p_pos.y));}
+
+	void set_height(freal p_height);
+	freal get_height() const { return pos.y; }
+	
+	bool does_agent_need_move() const {return !get_velocity().is_zero() || !data.pending_jump_world.is_zero() || !fimpulse3.is_zero();}
+	
+	const IPoint3 &get_velocity() const { return vel; }
+	void set_velocity(const IPoint3 &p_vel);
+	void add_velocity(const IPoint3 &p_vel) { set_velocity(get_velocity() + p_vel); }
+	IPoint2 get_2d_velocity() const { return vel.xz(); }
+	void set_2d_velocity(const IPoint2 &p_vel) { set_velocity(IPoint3(p_vel.x, get_velocity().y, p_vel.y)); }
+	void add_2d_velocity(const IPoint2 &p_vel) { set_2d_velocity(get_2d_velocity() + p_vel); }
+
+	i32 get_jump_velocity() const { return vel.y; }
+	void set_jump_velocity(i32 p_vel);
+	void add_jump_velocity(i32 p_vel) { set_jump_velocity(get_jump_velocity() + p_vel); }
+
+	np_handle map = 0;
+	u32 revision = 0;
+	u32 agent_id = 0;
+
+#ifdef NP_DEV_ENABLED
+	// Used for communicating back to the client.
+	FPoint3 debug_pos[3];
+#endif
+
+	//IPoint2 vel;
+	// Jump velocity is also in local MeshInstance space.
+	//freal jump_velocity = 0;
+
+	//FPoint2 fpos;
+
+	// The agent may be jumping *above* the floor
+	int32_t floor_height = 0;
+
+	//FPoint3 world_space_air_velocity;
+
+	u32 ceiling_poly_id = UINT32_MAX;
+	u32 zone_id = UINT32_MAX;
+	u32 blocking_zone_id = UINT32_MAX;
+
+	// When in a jump link state between valid polys
+	u32 jump_link_wall_id = UINT32_MAX;
+	IPoint2 jump_link_target_pos;
+
+	bool is_in_jump_link() const { return jump_link_wall_id != UINT32_MAX; }
+
+	AgentState state : 4;
+	bool is_npc : 1;
+	bool on_floor : 1;
+	//bool world_space_gravity : 1;
+
+	// We need two flags to maintain the on_agent flag, as we want a single tick delay
+	// to clear it, because of order of operations.
+	bool on_agent : 1;
+	bool on_agent_prev_tick : 1;
+
+	// When crossing jump links, we aren't grounded until
+	// we hit the floor after the link, so we can prevent ceiling collisions
+	// during the transition.
+	bool grounded : 1;
+
+	// Depending on whether the agent is a Player or NPC
+	// you may want to disallow falling off edges etc.
+	// NPCs can STILL traverse jumps with pathfinding,
+	// but won't accidentally traverse links.
+	bool guard_internal_jump_links : 1;
+	bool pathfind_internal_jump_links : 1;
+	bool guard_external_jump_links : 1;
+	bool pathfind_external_jump_links : 1;
+
+	u16 priority = 0;
+
+	// Keep this up to date as we move between meshes,
+	// use it for collision response.
+	u32 radius_mesh_units = 0;
+
+	// each obstacle has an effect here, this is reported back to the client
+	// for avoidance
+	FPoint3 avoidance_fvel3;
+
+	// Modifiers
+	freal uphill_modifier = 0;
+	freal downhill_modifier = 0;
+
+	//  This is in local mesh space, or world space if the up_align is not mesh.
+	freal gravity = 0;
+
+	// Height is the physical height of the agent,
+	// whereas agent_height is the height above the ground.
+	freal collision_radius = 1.0;
+	freal collision_height = 2.0;
+
+	// Final input and output,
+	// these may be transformed by the mesh,
+	// and may not be in mesh space except during iteration.
+	FPoint3 fpos3;
+	FPoint3 fimpulse3;
+
+	// This is a separation bodge for agent collision.
+	// It is added to the velocity on the next frame only,
+	// then re-zeroed, so that there is no bouncing.
+	IPoint2 instant_impulse;
+
+	FPoint3 fpos3_teleport;
+
+	bool is_on_floor() const { return on_floor; }
+	bool is_on_agent() const { return on_agent; }
+	void set_on_agent() {
+		on_agent = true;
+		on_agent_prev_tick = true;
+	}
+
+	void set_yaw(f32 p_yaw) { yaw = Math::normalize_angle(p_yaw); }
+	void set_yaw_movement_restriction(f32 p_value, bool p_air);
+
+	void apply_impulse_world(FPoint3 p_impulse);
+	void apply_jump_world(FPoint3 p_jump);
+	void apply_friction();
+
+	void apply_restricted_velocity(const IPoint2 &p_new_velocity_before_restriction);
+
+	// E.g. 0.95 is gamey type friction.
+	// As if multiplied by the velocity each tick
+	// (in reality this is fudged for tick rate independence).
+	void set_friction(f32 p_friction, bool p_air);
+
+	void force_off_floor() {
+		on_floor = false;
+		grounded = false;
+	}
+	void fall() {
+		on_floor = false;
+		set_jump_velocity(0);
+	}
+	void iterate_jump_before(const MeshInstance &p_mesh_instance);
+	void iterate_jump_after(const MeshInstance &p_mesh_instance, const freal *p_ceiling_height = nullptr);
+	// void seek_yaw(float p_yaw);
+
+	// Call to blank relevant data when jumping between meshes.
+	void changing_mesh() {
+		//clear_poly_id();
+		//clear_wall_id();
+		ceiling_poly_id = UINT32_MAX;
+		grounded = false;
+	}
+
+	void blank() {
+		// DO NOT CHANGE REVISION,
+		// this should be preserved for error checking handles.
+#ifdef NP_DEV_ENABLED
+		agent_id = 0;
+		debug_pos[0] = FPoint3();
+		debug_pos[1] = FPoint3();
+		debug_pos[2] = FPoint3();
+#endif
+		map = 0;
+		mesh_instance_id = UINT32_MAX;
+		pos.zero();
+		vel.zero();
+		instant_impulse.zero();
+		floor_height = 0;
+		//agent_height = 0;
+		//jump_velocity = 0;
+		clear_poly_id();
+		clear_wall_id();
+		state = AGENT_STATE_CLEAR;
+		is_npc = true;
+		_is_changing_mesh = false;
+		on_floor = true;
+		//world_space_gravity = false;
+		on_agent = false;
+		on_agent_prev_tick = false;
+		grounded = true;
+		zone_id = UINT32_MAX;
+		blocking_zone_id = UINT32_MAX;
+
+		friction = 0.99;
+		air_friction = 0.99;
+
+		uphill_modifier = 0;
+		downhill_modifier = 0;
+
+		gravity = 0.1;
+		collision_radius = 1;
+		collision_height = 2;
+		fpos3.zero();
+		fimpulse3.zero();
+		fpos3_teleport.zero();
+		priority = 0;
+		avoidance_fvel3.zero();
+
+		guard_internal_jump_links = true;
+		guard_external_jump_links = true;
+		pathfind_internal_jump_links = true;
+		pathfind_external_jump_links = true;
+	}
+};
+
+} // namespace NavPhysics
