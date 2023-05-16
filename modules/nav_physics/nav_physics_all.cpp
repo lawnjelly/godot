@@ -1,0 +1,9 @@
+#include "register_types.cpp"
+
+#include "nav_physics_server.cpp"
+#include "np_loader.cpp"
+#include "np_map.cpp"
+#include "np_mesh.cpp"
+#include "np_region.cpp"
+#include "np_sap.cpp"
+#include "np_structs.cpp"
