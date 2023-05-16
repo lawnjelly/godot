@@ -441,6 +441,12 @@ Patches:
 - `fix-float-to-int-cast-ub.patch` (memononen/nanosvg#298)
 
 
+## navphysics
+
+- Upstream: N/A
+- Version: N/A
+- License: MIT
+
 ## oidn
 
 - Upstream: https://github.com/OpenImageDenoise/oidn

@@ -198,7 +198,7 @@ public:
 
 	void add_polygon(const Vector<int> &p_polygon);
 	int get_polygon_count() const;
-	Vector<int> get_polygon(int p_idx);
+	Vector<int> get_polygon(int p_idx) const;
 	void clear_polygons();
 
 	Ref<Mesh> get_debug_mesh();

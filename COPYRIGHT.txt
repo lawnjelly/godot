@@ -360,6 +360,11 @@ Comment: NanoSVG
 Copyright: 2013-2014, Mikko Mononen
 License: Zlib
 
+Files: ./thirdparty/navphysics/
+Comment: NavPhysics
+Copyright: 2026-present, Lawnjelly
+License: MIT
+
 Files: ./thirdparty/opus/
 Comment: Opus
 Copyright: 2001-2011, Xiph.Org, Skype Limited, Octasic,

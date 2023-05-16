@@ -1,0 +1,152 @@
+// Copyright 2026-present Lawnjelly
+// SPDX-License-Identifier: MIT
+
+#pragma once
+
+#include "navphysics_poi.h"
+#include "navphysics_pointf.h"
+#include "navphysics_pointi.h"
+#include "navphysics_structs.h"
+#include "navphysics_transform.h"
+#include "navphysics_vector.h"
+#include "navphysics_mesh.h"
+
+namespace NavPhysics {
+
+//class Mesh;
+
+class MeshInstance {
+	void _iterate_agent(Agent &r_agent, Mesh::MoveInfo &r_move_info);
+	bool _agent_enter_poly(Agent &r_agent, u32 p_new_poly_id, bool p_force_allow = false);
+	void _agent_slide_on_ceiling(Agent &r_agent, Mesh::MoveInfo &r_move_info, IPoint2 &r_agent_velocity);
+
+	Transform _transform;
+	Transform _transform_inverse;
+	bool _transform_identity = true;
+	bool _active = true;
+	
+	// This is the gravity direction in local space, scaled
+	// by the MeshInstance scale, such that multiplying this
+	// by agent worldspace gravity gives an integer space gravity addition
+	// each tick.
+	FPoint3 _gravity_local_space;
+	bool _is_gravity_local_space = false;
+	
+	// As we change the transform (or the mesh) the multiplier to go from one world space
+	// unit to fixed point units change.
+	// We keep track of this to allow fast translation of e.g. step_up / step_down params.
+	// Note that this assumes uniform scaling in MeshInstances, things will likely break with non-uniform scale.
+	freal _scale_world_space_to_local_fixed_point = 1;
+	//freal _scale_world_space_to_local = 1;
+	
+	u32 _id = UINT32_MAX;
+	np_handle _handle = UINT32_MAX;
+	u32 _mesh_id = UINT32_MAX;
+	u32 _map_slot = UINT32_MAX;
+	
+	// Can be passed from client code to identify this MeshInstance.
+	u64 _user_data = 0;
+
+	Vector<POI *> _POIs;
+	Vector<ZoneInstance> _zone_instances;
+
+	const ZoneInstance &get_zone_instance(u32 p_idx) const { return _zone_instances[p_idx]; }
+	ZoneInstance &get_zone_instance(u32 p_idx) { return _zone_instances[p_idx]; }
+
+	void _set_transform(const Transform &p_xform, const Transform &p_xform_inv, bool p_is_identity);
+	void _refresh_gravity();
+
+	void llog(String p_sz) const;
+	
+	// not used currently
+	void refresh_agent_local_velocity_from_world_space(Agent &r_agent, const FPoint3 &p_vel_world) const;
+public:
+	const Mesh &get_mesh() const;
+	
+	void set_id(u32 p_id) {_id = p_id;}
+	u32 get_id() const {return _id;}
+	
+	const FPoint3 &get_gravity_local_space() const {return _gravity_local_space;}
+	freal get_scale_world_space_to_local_fixed_point() const {return _scale_world_space_to_local_fixed_point;}
+
+	bool _iterate_agent_on_jump_link(Agent &r_agent, Mesh::MoveInfo &r_move_info, freal &r_distance);
+	u32 calculate_agent_radius_in_mesh_units(freal p_radius) const;
+
+	void refresh_agent_world_space_position(Agent &r_agent, bool p_remake_pos) const;
+
+	// less is better fit
+	freal find_agent_fit(Agent &r_agent, const FPoint3 &p_world_pos, u32 &r_best_poly_id, freal p_max_step_up, freal p_max_drop) const;
+	freal find_agent_jump_fit(Agent &r_agent, const JumpFinderData &p_jump_data, u32 &r_best_poly_id, freal p_max_step_up, freal p_max_drop, freal p_best_fit_so_far) const;
+	bool find_last_ditch_poly(Agent &r_agent, const FPoint3 &p_world_pos) const;
+
+	void iterate_agent(Agent &r_agent, Mesh::MoveInfo &r_move_info);
+	void iterate_agent_housekeeping_after(Agent &r_agent);
+
+	void teleport_agent(Agent &r_agent);
+	void agent_get_info(const Agent &p_agent, BodyInfo &r_body_info) const;
+
+	void body_trace(const Agent &p_agent, NavPhysics::TraceResult &r_result) const;
+	void body_dual_trace(const Agent &p_agent, FPoint3 p_intermediate_destination, NavPhysics::TraceResult &r_result) const;
+
+	FPoint3 choose_random_location() const;
+	
+	void set_gravity(const FPoint3 &p_direction, bool p_local_space);
+	void set_transform(const Transform &p_xform);
+	void set_active(bool p_active);
+	bool is_active() const { return _active; }
+	
+	// Allows client code to identify the MeshInstance.
+	void set_user_data(u64 p_data) {_user_data = p_data;}
+	u64 get_user_data() const {return _user_data;}
+
+	const Transform &get_transform() const { return _transform; }
+	const Transform &get_transform_inverse() const { return _transform_inverse; }
+	bool is_transform_identity() const { return _transform_identity; }
+
+	////////////////////////////////////////////
+	// Reference routines for xforming points and velocities.
+	FPoint3 local_fixed_point_to_world_space(const Mesh &p_mesh, const IPoint3 &p_pt_local) const;
+	IPoint3 world_space_to_local_fixed_point(const Mesh &p_mesh, const FPoint3 &p_pt_world) const;
+	
+	FPoint3 local_to_world_space(const FPoint3 &p_pt_local) const;
+	FPoint3 world_space_to_local(const FPoint3 &p_pt_world) const;
+	
+	FPoint3 velocity_local_to_world_space(const FPoint3 &p_vel_local) const;
+	FPoint3 velocity_world_space_to_local(const FPoint3 &p_vel_world) const;
+	
+	FPoint3 velocity_local_fixed_point_to_world_space(const Mesh &p_mesh, const IPoint3 &p_vel_local) const;
+	IPoint3 velocity_world_space_to_local_fixed_point(const Mesh &p_mesh, const FPoint3 &p_vel_world) const;
+	
+	//FPoint3 local_pos_to_world_space(const Mesh &p_mesh, const IPoint2 &p_pt_local, freal p_agent_height) const;
+	//IPoint2 world_space_pos_to_local(const Mesh &p_mesh, const FPoint3 &p_pt_world, freal &r_agent_height) const;
+
+	
+	//FPoint3 local_velocity_with_jump_velocity_to_world_space(const Mesh &p_mesh, const IPoint2 &p_vel_local, freal p_jump_velocity) const;
+	//FPoint3 local_velocity_to_world_space(const Mesh &p_mesh, const IPoint2 &p_vel_local) const;
+	
+	//IPoint2 world_space_velocity_to_local(const Mesh &p_mesh, const FPoint3 &p_vel_world) const;
+	////////////////////////////////////////////
+
+	void link_mesh(u32 p_mesh_id);
+
+	void link_map(u32 p_map_slot) { _map_slot = p_map_slot; }
+	u32 get_map_slot() const { return _map_slot; }
+
+	np_handle get_handle() const { return _handle; }
+
+	void poi_add(POI * p_poi);
+	void poi_set_position(POI * p_poi, const FPoint3 &p_pt_world);
+	bool poi_remove(POI * p_poi);
+	uint32_t poi_find(POI * p_poi) const;
+	void pois_clear() {
+		_POIs.clear();
+	}
+
+	void init(np_handle p_handle) {
+		_transform.init();
+		_transform_inverse.init();
+		_handle = p_handle;
+	}
+};
+
+} //namespace NavPhysics

@@ -167,6 +167,9 @@ public:
 		return (*this)[0];
 	}
 
+	T *ptr() { return (T *)_data; }
+	const T *ptr() const { return (const T *)_data; }
+
 	operator Vector<T>() const {
 		Vector<T> ret;
 		if (size()) {
