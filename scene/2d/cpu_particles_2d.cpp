@@ -1190,6 +1190,38 @@ void CPUParticles2D::_notification(int p_what) {
 	if (p_what == NOTIFICATION_INTERNAL_PHYSICS_PROCESS) {
 		_update_internal(true);
 	}
+#ifdef GODOT_CPU_PARTICLES_2D_LEGACY_COMPATIBILITY
+	if (p_what == NOTIFICATION_TRANSFORM_CHANGED) {
+		if (!_interpolated && !local_coords) {
+			inv_emission_transform = get_global_transform().affine_inverse();
+			int pc = particles.size();
+
+			PoolVector<float>::Write w = particle_data.write();
+			PoolVector<Particle>::Read r = particles.read();
+			float *ptr = w.ptr();
+
+			for (int i = 0; i < pc; i++) {
+				Transform2D t = inv_emission_transform * r[i].transform;
+
+				if (r[i].active) {
+					ptr[0] = t.elements[0][0];
+					ptr[1] = t.elements[1][0];
+					ptr[2] = 0;
+					ptr[3] = t.elements[2][0];
+					ptr[4] = t.elements[0][1];
+					ptr[5] = t.elements[1][1];
+					ptr[6] = 0;
+					ptr[7] = t.elements[2][1];
+
+				} else {
+					memset(ptr, 0, sizeof(float) * 8);
+				}
+
+				ptr += 13;
+			}
+		}
+	}
+#endif
 }
 
 void CPUParticles2D::convert_from_particles(Node *p_particles) {
