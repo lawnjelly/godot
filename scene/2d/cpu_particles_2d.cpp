@@ -101,17 +101,21 @@ void CPUParticles2D::set_lifetime_randomness(float p_random) {
 }
 void CPUParticles2D::set_use_local_coordinates(bool p_enable) {
 	local_coords = p_enable;
+
+#ifdef GODOT_CPU_PARTICLES_2D_LEGACY_COMPATIBILITY
+	// Need NOTIFICATION_TRANSFORM_CHANGED when in global mode...
 	set_notify_transform(!p_enable);
 
 	// Prevent sending item transforms when using global coords,
 	// and inform VisualServer to use identity mode.
-#ifdef GODOT_CPU_PARTICLES_2D_LEGACY_COMPATIBILITY
 	set_canvas_item_use_identity_transform((_interpolated) && (!p_enable));
 
 	// Always reset this, as it is unused when interpolation is on.
 	// (i.e. We do particles in global space, rather than pseudo globalspace.)
 	inv_emission_transform = Transform2D();
 #else
+	// When not using legacy, there is never a need for NOTIFICATION_TRANSFORM_CHANGED,
+	// so we leave it at the default (false).
 	set_canvas_item_use_identity_transform(!p_enable);
 #endif
 }
