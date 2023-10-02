@@ -45,6 +45,24 @@
 				Once finished with your RID, you will want to free the RID using the VisualServer's [method free_rid] static method.
 			</description>
 		</method>
+<<<<<<< HEAD
+=======
+		<method name="camera_reset_physics_interpolation">
+			<return type="void" />
+			<argument index="0" name="camera" type="RID" />
+			<description>
+				Prevents physics interpolation for the current physics tick.
+				This is useful when moving a [Camera] to a new location, to give an instantaneous change rather than interpolation from the previous location.
+			</description>
+		</method>
+		<method name="camera_set_blob_focus_position">
+			<return type="void" />
+			<argument index="0" name="camera" type="RID" />
+			<argument index="1" name="position" type="Vector3" />
+			<description>
+			</description>
+		</method>
+>>>>>>> 12b4269c6e (Blob shadows)
 		<method name="camera_set_cull_mask">
 			<return type="void" />
 			<argument index="0" name="camera" type="RID" />
