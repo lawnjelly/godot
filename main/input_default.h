@@ -52,6 +52,13 @@ class InputDefault : public Input {
 	MainLoop *main_loop;
 	bool legacy_just_pressed_behavior = false;
 
+	// Input can come in AFTER the user has had the opportunity to poll input for the
+	// frame or tick, and thus the input "clocks" are kept one ahead of the regular
+	// engine clocks, and syncing immediately prior to process() and physics_process()
+	// in order to minimize latency.
+	uint64_t _input_curr_tick = 0;
+	uint64_t _input_curr_idle_frame = 0;
+
 	struct Action {
 		uint64_t pressed_physics_frame = UINT64_MAX;
 		uint64_t pressed_idle_frame = UINT64_MAX;
@@ -317,6 +324,10 @@ public:
 	virtual void set_use_accumulated_input(bool p_enable);
 
 	virtual void release_pressed_events();
+
+	virtual void set_curr_tick(uint64_t p_tick) { _input_curr_tick = p_tick; }
+	virtual void set_curr_idle_frame(uint64_t p_frame) { _input_curr_idle_frame = p_frame; }
+
 	InputDefault();
 };
 

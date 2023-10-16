@@ -149,6 +149,9 @@ public:
 	virtual bool is_using_accumulated_input() = 0;
 	virtual void set_use_accumulated_input(bool p_enable) = 0;
 
+	virtual void set_curr_tick(uint64_t p_tick) = 0;
+	virtual void set_curr_idle_frame(uint64_t p_frame) = 0;
+
 	Input();
 };
 

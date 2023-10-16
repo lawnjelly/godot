@@ -508,12 +508,12 @@ void InputDefault::_parse_input_event_impl(const Ref<InputEvent> &p_event, bool 
 			if (!p_event->is_echo() && is_action_pressed(E->key(), false) != p_event->is_action_pressed(E->key())) {
 				if (p_event->is_action_pressed(E->key())) {
 					action.pressed = true;
-					action.pressed_physics_frame = Engine::get_singleton()->get_physics_frames();
-					action.pressed_idle_frame = Engine::get_singleton()->get_idle_frames();
+					action.pressed_physics_frame = _input_curr_tick;
+					action.pressed_idle_frame = _input_curr_idle_frame;
 				} else {
 					action.pressed = false;
-					action.released_physics_frame = Engine::get_singleton()->get_physics_frames();
-					action.released_idle_frame = Engine::get_singleton()->get_idle_frames();
+					action.released_physics_frame = _input_curr_tick;
+					action.released_idle_frame = _input_curr_idle_frame;
 				}
 				action.strength = 0.0f;
 				action.raw_strength = 0.0f;
@@ -645,8 +645,16 @@ void InputDefault::action_press(const StringName &p_action, float p_strength) {
 	// Create or retrieve existing action.
 	Action &action = action_state[p_action];
 
-	action.pressed_physics_frame = Engine::get_singleton()->get_physics_frames();
-	action.pressed_idle_frame = Engine::get_singleton()->get_idle_frames();
+	// Dev check we are correctly updating the input curr tick and frame.
+	// This should currently be done in the MainLoop.
+	// Things will go pretty wrong input wise, if this isn't done,
+	// so it makes sense to assert and catch this early.
+	// Probably most relevant to users overriding the MainLoop.
+	DEV_ASSERT((_input_curr_tick - Engine::get_singleton()->get_physics_frames()) <= 1);
+	DEV_ASSERT((_input_curr_idle_frame - Engine::get_singleton()->get_idle_frames()) <= 1);
+
+	action.pressed_physics_frame = _input_curr_tick;
+	action.pressed_idle_frame = _input_curr_idle_frame;
 	action.pressed = true;
 	action.exact = true;
 	action.strength = p_strength;
@@ -657,8 +665,8 @@ void InputDefault::action_release(const StringName &p_action) {
 	// Create or retrieve existing action.
 	Action &action = action_state[p_action];
 
-	action.released_physics_frame = Engine::get_singleton()->get_physics_frames();
-	action.released_idle_frame = Engine::get_singleton()->get_idle_frames();
+	action.released_physics_frame = _input_curr_tick;
+	action.released_idle_frame = _input_curr_idle_frame;
 	action.pressed = false;
 	action.exact = true;
 	action.strength = 0.0f;

@@ -100,6 +100,8 @@ void MainLoop::init() {
 	}
 }
 bool MainLoop::iteration(float p_time) {
+	Input::get_singleton()->set_curr_tick(Engine::get_singleton()->get_physics_frames() + 1);
+
 	if (get_script_instance()) {
 		return get_script_instance()->call("_iteration", p_time);
 	}
@@ -107,6 +109,8 @@ bool MainLoop::iteration(float p_time) {
 	return false;
 }
 bool MainLoop::idle(float p_time) {
+	Input::get_singleton()->set_curr_idle_frame(Engine::get_singleton()->get_idle_frames() + 1);
+
 	if (get_script_instance()) {
 		return get_script_instance()->call("_idle", p_time);
 	}
