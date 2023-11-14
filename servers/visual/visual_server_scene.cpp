@@ -2718,8 +2718,7 @@ void VisualServerScene::render_camera(RID p_camera, RID p_scenario, Size2 p_view
 		} break;
 	}
 
-	Transform camera_transform = _interpolation_data.interpolation_enabled ? camera->get_transform_interpolated() : camera->transform;
-	_blob_shadows.render_set_focus_handle(camera->blob_focus_handle, camera->get_blob_focus_pos_interpolated(), camera_transform, camera_matrix);
+	_blob_shadows.render_set_focus_handle(camera->blob_focus_handle, camera->get_blob_focus_pos_interpolated(), camera->transform, camera_matrix);
 
 	_prepare_scene(camera->transform, camera_matrix, ortho, camera->env, camera->visible_layers, p_scenario, p_shadow_atlas, RID(), camera->previous_room_id_hint);
 	_render_scene(camera->transform, camera_matrix, 0, ortho, camera->env, p_scenario, p_shadow_atlas, RID(), -1);

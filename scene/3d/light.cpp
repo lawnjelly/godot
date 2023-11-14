@@ -261,7 +261,7 @@ void Light::_notification(int p_what) {
 		} break;
 
 		case NOTIFICATION_TRANSFORM_CHANGED: {
-			if (_is_vi_visible() && blob_light.is_valid()) {
+			if (is_visible_in_tree() && blob_light.is_valid()) {
 				VisualServer::get_singleton()->blob_light_update(blob_light, get_global_transform());
 			}
 		} break;

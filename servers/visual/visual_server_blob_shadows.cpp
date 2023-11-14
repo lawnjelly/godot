@@ -430,7 +430,70 @@ void VisualServerBlobShadows::update_focus_caster(Focus &r_focus, const SortFocu
 	fc.last_update_frame = data.update_frame;
 }
 
+Vector3 choose_random_dir() {
+	Vector3 d = Vector3(Math::randf(), Math::randf(), Math::randf());
+	d *= 2.0f;
+	d -= Vector3(1, 1, 1);
+	d.normalize();
+	return d;
+}
+
+void test_direction_interpolation() {
+	const int MAX_DIRS = 3;
+	Vector3 dirs[MAX_DIRS];
+	float weights[MAX_DIRS];
+	Vector3 orig_dirs[MAX_DIRS];
+	float orig_weights[MAX_DIRS];
+	for (int run = 0; run < 10; run++) {
+		float total_weight = 0.0f;
+		for (int i = 0; i < MAX_DIRS; i++) {
+			orig_dirs[i] = choose_random_dir();
+			orig_weights[i] = Math::randf();
+			total_weight += orig_weights[i];
+		}
+		for (int i = 0; i < MAX_DIRS; i++) {
+			orig_weights[i] /= total_weight;
+		}
+
+		for (int i = 0; i < MAX_DIRS; i++) {
+			dirs[i] = orig_dirs[i];
+			weights[i] = orig_weights[i];
+		}
+
+		for (int n = MAX_DIRS - 1; n >= 1; n--) {
+			float w0 = weights[n - 1];
+			float w1 = weights[n];
+			float fraction = w0 / (w0 + w1);
+			Vector3 new_dir = dirs[n - 1].slerp(dirs[n], fraction);
+			new_dir.normalize();
+			dirs[n - 1] = new_dir;
+			weights[n - 1] = w0 + w1;
+		}
+
+		print_line("final result : " + String(Variant(dirs[0])));
+
+		for (int i = 0; i < MAX_DIRS; i++) {
+			dirs[i] = orig_dirs[MAX_DIRS - i - 1];
+			weights[i] = orig_weights[MAX_DIRS - i - 1];
+		}
+
+		for (int n = MAX_DIRS - 1; n >= 1; n--) {
+			float w0 = weights[n - 1];
+			float w1 = weights[n];
+			float fraction = w0 / (w0 + w1);
+			Vector3 new_dir = dirs[n - 1].slerp(dirs[n], fraction);
+			new_dir.normalize();
+			dirs[n - 1] = new_dir;
+			weights[n - 1] = w0 + w1;
+		}
+
+		print_line("final result2 : " + String(Variant(dirs[0])));
+		print_line("\n");
+	}
+}
+
 void VisualServerBlobShadows::find_best_light(FocusCaster &r_focus_caster) {
+	test_direction_interpolation();
 	const Caster &caster = data.casters[r_focus_caster.caster_id];
 
 	// first find relative weights of lights
