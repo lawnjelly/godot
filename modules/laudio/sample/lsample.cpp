@@ -3,6 +3,35 @@
 #include "core/os/memory.h"
 #include "lwav_importer.h"
 
+bool LSample::convert_to(uint32_t p_bytes_per_channel) {
+	LSample temp;
+	temp.create(p_bytes_per_channel, _format.num_channels, _format.sample_rate, _format.num_samples);
+	mix_to(temp, _format.num_samples);
+
+	create(p_bytes_per_channel, _format.num_channels, _format.sample_rate, _format.num_samples);
+	temp.copy_to(*this, _format.num_samples);
+
+	return true;
+}
+
+void LSample::resize(uint32_t p_num_samples, bool p_repeat) {
+	LSample temp;
+	temp.create(_format.bytes_per_channel, _format.num_channels, _format.sample_rate, p_num_samples);
+
+	if (p_repeat) {
+		for (uint32_t n = 0; n < p_num_samples; n++) {
+			for (uint32_t c = 0; c < _format.num_channels; c++) {
+				temp.set_f(n, c, safe_get_f(n, c, true));
+			}
+		}
+	} else {
+		copy_to(temp, p_num_samples);
+	}
+
+	create(_format.bytes_per_channel, _format.num_channels, _format.sample_rate, p_num_samples);
+	temp.copy_to(*this, _format.num_samples);
+}
+
 void LSample::create(uint32_t p_bytes_per_channel, uint32_t p_num_channels, uint32_t p_sample_rate, uint32_t p_num_samples) {
 	reset();
 
@@ -28,7 +57,7 @@ void LSample::create(uint32_t p_bytes_per_channel, uint32_t p_num_channels, uint
 	blank();
 }
 
-void LSample::normalize() {
+void LSample::normalize(float p_multiplier) {
 	// only supported for float for now
 	ERR_FAIL_COND(get_format().bytes_per_channel != 4);
 
@@ -45,6 +74,7 @@ void LSample::normalize() {
 		return;
 
 	float mult = 1.0f / peak;
+	mult *= p_multiplier;
 
 	for (uint32_t n = 0; n < get_format().num_samples; n++) {
 		for (uint32_t c = 0; c < get_format().num_channels; c++) {
@@ -173,6 +203,7 @@ void LSample::copy_to(LSample &r_dest, int32_t p_num_samples, int32_t p_dest_sta
 	if (!_calculate_overlap(r_dest, p_num_samples, p_dest_start_sample, p_source_start_sample))
 		return;
 
+	DEV_ASSERT(r_dest.get_format().bytes_per_channel == get_format().bytes_per_channel);
 	memcpy(r_dest.get_data(p_dest_start_sample), get_data(p_source_start_sample), p_num_samples * _format.bytes_per_channel * _format.num_channels);
 }
 

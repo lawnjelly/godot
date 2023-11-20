@@ -13,6 +13,9 @@
 #include "gui/pattern_view.cpp"
 #include "gui/virtual_box_container.cpp"
 
+#include "analyzer/lanalyzer.cpp"
+#include "analyzer/lfft.cpp"
+
 #include "sample/lsample.cpp"
 #include "sample/lsample_player.cpp"
 #include "sample/lsampler.cpp"

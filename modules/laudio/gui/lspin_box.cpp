@@ -287,9 +287,9 @@ void LSpinBox::_bind_methods() {
 }
 
 void LSpinBox::set_box_min_max(uint32_t p_box_id, int32_t p_min, int32_t p_max) {
-	Box &box = _boxes[p_box_id];
-	box.min_value = p_min;
-	box.max_value = p_max;
+	Box &boxA = _boxes[p_box_id];
+	boxA.min_value = p_min;
+	boxA.max_value = p_max;
 
 	// recalc multipliers
 	int32_t multiplier = 1;

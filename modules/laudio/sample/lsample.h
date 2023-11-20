@@ -23,13 +23,15 @@ class LSample {
 
 public:
 	void create(uint32_t p_bytes_per_channel, uint32_t p_num_channels, uint32_t p_sample_rate, uint32_t p_num_samples);
+	void resize(uint32_t p_num_samples, bool p_repeat = false);
 	bool load_wav(String p_filename);
 	bool save_wav(String p_filename);
 	void reset();
 	void blank();
 	const LAudioFormat &get_format() const { return _format; }
+	bool convert_to(uint32_t p_bytes_per_channel);
 
-	void normalize();
+	void normalize(float p_multiplier = 1.0f);
 
 	// All these values are RELATIVE to the SAMPLES
 	void mix_to(LSample &r_dest, int32_t p_num_samples, int32_t p_dest_start_sample = 0, int32_t p_source_start_sample = 0, float p_volume = 1.0f, float p_pan = 0.0f);
@@ -99,6 +101,32 @@ public:
 		return nullptr;
 	}
 
+	float get_f_interpolated(uint32_t p_sample, float p_fraction, uint32_t p_channel = 0, bool p_loop = true) const {
+		float s0 = safe_get_f(p_sample, p_channel, p_loop);
+		float s1 = safe_get_f(p_sample + 1, p_channel, p_loop);
+
+		// Linear for now.
+		return s0 + ((s1 - s0) * p_fraction);
+	}
+
+	//	float get_f_through_whole(float p_position, uint32_t p_channel = 0, bool p_loop = false) const {
+	//		DEV_ASSERT(_format.num_samples);
+	//		float f = p_position * _format.num_samples;
+	//		uint32_t samp = f;
+	//		f = f - samp;
+	//		return get_f_interpolated(samp, f, p_channel, p_loop);
+	//	}
+
+	float safe_get_f(uint32_t p_sample, uint32_t p_channel = 0, bool p_loop = false) const {
+		DEV_ASSERT(_format.num_samples);
+		if (p_loop) {
+			p_sample %= _format.num_samples;
+		} else {
+			p_sample = MIN(p_sample, _format.num_samples - 1);
+		}
+		return get_f(p_sample, p_channel);
+	}
+
 	float get_f(uint32_t p_sample, uint32_t p_channel = 0) const {
 		DEV_ASSERT(p_sample < _format.num_samples);
 		DEV_ASSERT(_data);
@@ -134,7 +162,7 @@ public:
 
 				float f = s.val;
 				// we lose the +1.0, because negative range is higher than positive
-				f /= -INT32_MIN;
+				f /= (-(int64_t)INT32_MIN);
 				return f;
 			} break;
 			case 4: {

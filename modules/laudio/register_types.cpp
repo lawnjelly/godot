@@ -2,6 +2,7 @@
 
 #include "register_types.h"
 
+#include "analyzer/lanalyzer.h"
 #include "core/class_db.h"
 #include "gui/lspin_box.h"
 #include "gui/pattern_view.h"
@@ -19,6 +20,7 @@ void register_laudio_types() {
 	ClassDB::register_class<Pattern>();
 	ClassDB::register_class<PatternView>();
 	ClassDB::register_class<Song>();
+	ClassDB::register_class<LAnalyzer>();
 
 	ClassDB::register_class<VirtualBoxContainer>();
 	ClassDB::register_class<VirtualVBoxContainer>();
