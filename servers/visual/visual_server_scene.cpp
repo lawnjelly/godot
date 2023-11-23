@@ -37,6 +37,30 @@
 
 #include <new>
 
+uint32_t VisualServerScene::LODCameras::request_slot() {
+	LOD_CAMERA_BITTYPE testbit = 1;
+	for (uint32_t n = 0; n < LOD_CAMERA_NUM_BITS; n++) {
+		if (!(used_slots & testbit)) {
+			used_slots |= testbit;
+			return n;
+		}
+		testbit <<= 1;
+	}
+
+	// no free slots
+	return UINT32_MAX;
+}
+
+void VisualServerScene::LODCameras::free_slot(uint32_t p_slot) {
+	// This can occur if we have more cameras than slots.
+	// Hysteresis won't be stored on such cameras.
+	if (p_slot >= LOD_CAMERA_NUM_BITS) {
+		return;
+	}
+	LOD_CAMERA_BITTYPE mask = p_slot;
+	used_slots |= ~mask;
+}
+
 /* CAMERA API */
 
 Transform VisualServerScene::Camera::get_transform_interpolated() const {
@@ -51,6 +75,7 @@ Transform VisualServerScene::Camera::get_transform_interpolated() const {
 
 RID VisualServerScene::camera_create() {
 	Camera *camera = memnew(Camera);
+	camera->lod_camera_id = _lod_cameras.request_slot();
 	return camera_owner.make_rid(camera);
 }
 
@@ -2021,6 +2046,15 @@ void VisualServerScene::instance_geometry_set_material_overlay(RID p_instance, R
 }
 
 void VisualServerScene::instance_geometry_set_draw_range(RID p_instance, float p_min, float p_max, float p_min_margin, float p_max_margin) {
+	Instance *instance = instance_owner.get(p_instance);
+	ERR_FAIL_COND(!instance);
+
+	instance->lod_begin = p_min;
+	instance->lod_end = p_max;
+	instance->lod_begin_hysteresis = p_min_margin;
+	instance->lod_end_hysteresis = p_max_margin;
+
+	instance->lod_active = (p_min > CMP_EPSILON) || (p_max > CMP_EPSILON);
 }
 void VisualServerScene::instance_geometry_set_as_instance_lod(RID p_instance, RID p_as_lod_of_instance) {
 }
@@ -2901,7 +2935,7 @@ void VisualServerScene::render_camera(RID p_camera, RID p_scenario, Size2 p_view
 
 	Transform camera_transform = _interpolation_data.interpolation_enabled ? camera->get_transform_interpolated() : camera->transform;
 
-	_prepare_scene(camera_transform, camera_matrix, ortho, camera->env, camera->visible_layers, p_scenario, p_shadow_atlas, RID(), camera->previous_room_id_hint);
+	_prepare_scene(camera_transform, camera_matrix, ortho, camera->env, camera->visible_layers, p_scenario, p_shadow_atlas, RID(), camera->previous_room_id_hint, camera);
 	_render_scene(camera_transform, camera_matrix, 0, ortho, camera->env, p_scenario, p_shadow_atlas, RID(), -1);
 #endif
 }
@@ -2980,22 +3014,29 @@ void VisualServerScene::render_camera(Ref<ARVRInterface> &p_interface, ARVRInter
 		mono_transform *= apply_z_shift;
 
 		// now prepare our scene with our adjusted transform projection matrix
-		_prepare_scene(mono_transform, combined_matrix, false, camera->env, camera->visible_layers, p_scenario, p_shadow_atlas, RID(), camera->previous_room_id_hint);
+		_prepare_scene(mono_transform, combined_matrix, false, camera->env, camera->visible_layers, p_scenario, p_shadow_atlas, RID(), camera->previous_room_id_hint, camera);
 	} else if (p_eye == ARVRInterface::EYE_MONO) {
 		// For mono render, prepare as per usual
-		_prepare_scene(cam_transform, camera_matrix, false, camera->env, camera->visible_layers, p_scenario, p_shadow_atlas, RID(), camera->previous_room_id_hint);
+		_prepare_scene(cam_transform, camera_matrix, false, camera->env, camera->visible_layers, p_scenario, p_shadow_atlas, RID(), camera->previous_room_id_hint, camera);
 	}
 
 	// And render our scene...
 	_render_scene(cam_transform, camera_matrix, p_eye, false, camera->env, p_scenario, p_shadow_atlas, RID(), -1);
 };
 
-void VisualServerScene::_prepare_scene(const Transform p_cam_transform, const CameraMatrix &p_cam_projection, bool p_cam_orthogonal, RID p_force_environment, uint32_t p_visible_layers, RID p_scenario, RID p_shadow_atlas, RID p_reflection_probe, int32_t &r_previous_room_id_hint) {
+void VisualServerScene::_prepare_scene(const Transform p_cam_transform, const CameraMatrix &p_cam_projection, bool p_cam_orthogonal, RID p_force_environment, uint32_t p_visible_layers, RID p_scenario, RID p_shadow_atlas, RID p_reflection_probe, int32_t &r_previous_room_id_hint, const Camera *p_camera) {
 	// Note, in stereo rendering:
 	// - p_cam_transform will be a transform in the middle of our two eyes
 	// - p_cam_projection is a wider frustrum that encompasses both eyes
 
 	Scenario *scenario = scenario_owner.getornull(p_scenario);
+
+	// Each camera can optionally have a bit which stores the lod hysteresis state
+	// in each instance.
+	LOD_CAMERA_BITTYPE lod_camera_mask = 0;
+	if (p_camera && (p_camera->lod_camera_id != UINT32_MAX)) {
+		lod_camera_mask = 1 << p_camera->lod_camera_id;
+	}
 
 	render_pass++;
 	uint32_t camera_layer_mask = p_visible_layers;
@@ -3089,65 +3130,105 @@ void VisualServerScene::_prepare_scene(const Transform p_cam_transform, const Ca
 
 			InstanceGeometryData *geom = static_cast<InstanceGeometryData *>(ins->base_data);
 
-			if (ins->redraw_if_visible) {
-				VisualServerRaster::redraw_request(false);
+			// If LOD is active, and the instance is not within its LOD range, don't render it.
+			if (ins->lod_active) {
+				// Calculate instance->depth from the camera.
+				// Only necessary here if LOD is active.
+				const Vector3 aabb_center = ins->transformed_aabb.position + (ins->transformed_aabb.size * 0.5);
+				if (p_cam_orthogonal) {
+					ins->depth = near_plane.distance_to(aabb_center);
+				} else {
+					ins->depth = p_cam_transform.origin.distance_to(aabb_center);
+				}
+
+				bool prev_lod_state = (ins->lod_camera_hysteresis_state & lod_camera_mask) != 0;
+
+				float lod_begin_with_hys = ins->lod_begin;
+				float lod_end_with_hys = ins->lod_end;
+				if (prev_lod_state) {
+					lod_begin_with_hys -= ins->lod_begin_hysteresis / 2.f;
+					lod_end_with_hys += ins->lod_end_hysteresis / 2.f;
+				} else {
+					lod_begin_with_hys += ins->lod_begin_hysteresis / 2.f;
+					lod_end_with_hys -= ins->lod_end_hysteresis / 2.f;
+				}
+
+				if (ins->lod_begin < CMP_EPSILON) {
+					lod_begin_with_hys = -Math_INF;
+				}
+				if (ins->lod_end < CMP_EPSILON) {
+					lod_end_with_hys = +Math_INF;
+				}
+
+				if (lod_begin_with_hys <= ins->depth && ins->depth < lod_end_with_hys) {
+					ins->lod_camera_hysteresis_state |= lod_camera_mask;
+				} else {
+					ins->lod_camera_hysteresis_state &= ~lod_camera_mask;
+					keep = false;
+				}
 			}
 
-			if (ins->base_type == VS::INSTANCE_PARTICLES) {
-				//particles visible? process them
-				if (VSG::storage->particles_is_inactive(ins->base)) {
-					//but if nothing is going on, don't do it.
-					keep = false;
-				} else {
-					if (OS::get_singleton()->is_update_pending(true)) {
-						VSG::storage->particles_request_process(ins->base);
-						//particles visible? request redraw
-						VisualServerRaster::redraw_request(false);
+			if (keep) {
+				if (ins->redraw_if_visible) {
+					VisualServerRaster::redraw_request(false);
+				}
+
+				if (ins->base_type == VS::INSTANCE_PARTICLES) {
+					//particles visible? process them
+					if (VSG::storage->particles_is_inactive(ins->base)) {
+						//but if nothing is going on, don't do it.
+						keep = false;
+					} else {
+						if (OS::get_singleton()->is_update_pending(true)) {
+							VSG::storage->particles_request_process(ins->base);
+							//particles visible? request redraw
+							VisualServerRaster::redraw_request(false);
+						}
 					}
 				}
-			}
 
-			if (geom->lighting_dirty) {
-				int l = 0;
-				//only called when lights AABB enter/exit this geometry
-				ins->light_instances.resize(geom->lighting.size());
+				if (geom->lighting_dirty) {
+					int l = 0;
+					//only called when lights AABB enter/exit this geometry
+					ins->light_instances.resize(geom->lighting.size());
 
-				for (List<Instance *>::Element *E = geom->lighting.front(); E; E = E->next()) {
-					InstanceLightData *light = static_cast<InstanceLightData *>(E->get()->base_data);
+					for (List<Instance *>::Element *E = geom->lighting.front(); E; E = E->next()) {
+						InstanceLightData *light = static_cast<InstanceLightData *>(E->get()->base_data);
 
-					ins->light_instances.write[l++] = light->instance;
+						ins->light_instances.write[l++] = light->instance;
+					}
+
+					geom->lighting_dirty = false;
 				}
 
-				geom->lighting_dirty = false;
-			}
+				if (geom->reflection_dirty) {
+					int l = 0;
+					//only called when reflection probe AABB enter/exit this geometry
+					ins->reflection_probe_instances.resize(geom->reflection_probes.size());
 
-			if (geom->reflection_dirty) {
-				int l = 0;
-				//only called when reflection probe AABB enter/exit this geometry
-				ins->reflection_probe_instances.resize(geom->reflection_probes.size());
+					for (List<Instance *>::Element *E = geom->reflection_probes.front(); E; E = E->next()) {
+						InstanceReflectionProbeData *reflection_probe = static_cast<InstanceReflectionProbeData *>(E->get()->base_data);
 
-				for (List<Instance *>::Element *E = geom->reflection_probes.front(); E; E = E->next()) {
-					InstanceReflectionProbeData *reflection_probe = static_cast<InstanceReflectionProbeData *>(E->get()->base_data);
+						ins->reflection_probe_instances.write[l++] = reflection_probe->instance;
+					}
 
-					ins->reflection_probe_instances.write[l++] = reflection_probe->instance;
+					geom->reflection_dirty = false;
 				}
 
-				geom->reflection_dirty = false;
-			}
+				if (geom->gi_probes_dirty) {
+					int l = 0;
+					//only called when reflection probe AABB enter/exit this geometry
+					ins->gi_probe_instances.resize(geom->gi_probes.size());
 
-			if (geom->gi_probes_dirty) {
-				int l = 0;
-				//only called when reflection probe AABB enter/exit this geometry
-				ins->gi_probe_instances.resize(geom->gi_probes.size());
+					for (List<Instance *>::Element *E = geom->gi_probes.front(); E; E = E->next()) {
+						InstanceGIProbeData *gi_probe = static_cast<InstanceGIProbeData *>(E->get()->base_data);
 
-				for (List<Instance *>::Element *E = geom->gi_probes.front(); E; E = E->next()) {
-					InstanceGIProbeData *gi_probe = static_cast<InstanceGIProbeData *>(E->get()->base_data);
+						ins->gi_probe_instances.write[l++] = gi_probe->probe_instance;
+					}
 
-					ins->gi_probe_instances.write[l++] = gi_probe->probe_instance;
+					geom->gi_probes_dirty = false;
 				}
-
-				geom->gi_probes_dirty = false;
-			}
+			} // only necessary if we are keeping this instance
 		}
 
 		if (!keep) {
@@ -3406,7 +3487,8 @@ bool VisualServerScene::_render_reflection_probe_step(Instance *p_instance, int 
 			shadow_atlas = scenario->reflection_probe_shadow_atlas;
 		}
 
-		_prepare_scene(xform, cm, false, RID(), VSG::storage->reflection_probe_get_cull_mask(p_instance->base), p_instance->scenario->self, shadow_atlas, reflection_probe->instance, reflection_probe->previous_room_id_hint);
+		// No LOD hysteresis handling for ReflectionProbes.
+		_prepare_scene(xform, cm, false, RID(), VSG::storage->reflection_probe_get_cull_mask(p_instance->base), p_instance->scenario->self, shadow_atlas, reflection_probe->instance, reflection_probe->previous_room_id_hint, nullptr);
 
 		bool async_forbidden_backup = VSG::storage->is_shader_async_hidden_forbidden();
 		VSG::storage->set_shader_async_hidden_forbidden(true);
@@ -4559,6 +4641,7 @@ bool VisualServerScene::free(RID p_rid) {
 		_interpolation_data.notify_free_camera(p_rid, *camera);
 
 		camera_owner.free(p_rid);
+		_lod_cameras.free_slot(camera->lod_camera_id);
 		memdelete(camera);
 	} else if (scenario_owner.owns(p_rid)) {
 		Scenario *scenario = scenario_owner.get(p_rid);
