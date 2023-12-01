@@ -73,7 +73,12 @@ void VisualServerViewport::_draw_3d(Viewport *p_viewport, ARVRInterface::Eyes p_
 	if (p_viewport->use_arvr && arvr_interface.is_valid()) {
 		VSG::scene->render_camera(arvr_interface, p_eye, p_viewport->camera, p_viewport->scenario, p_viewport->size, p_viewport->shadow_atlas);
 	} else {
+#ifdef VISUAL_SERVER_SOFTREND_ENABLED
+		//VSG::scene->render_camera(p_viewport->camera, p_viewport->scenario, p_viewport->size, p_viewport->shadow_atlas);
+		VSG::scene->software_render_camera(p_viewport->soft_surface, p_viewport->camera, p_viewport->scenario, p_viewport->size);
+#else
 		VSG::scene->render_camera(p_viewport->camera, p_viewport->scenario, p_viewport->size, p_viewport->shadow_atlas);
+#endif
 	}
 }
 

@@ -36,6 +36,9 @@
 
 // This is a "cheap" include, and can be used from scene side code as well as servers.
 
+// Uncomment to allow software rendering.
+#define VISUAL_SERVER_SOFTREND_ENABLED
+
 // Uncomment to provide comparison of node culling versus item culling
 // #define VISUAL_SERVER_CANVAS_TIME_NODE_CULLING
 

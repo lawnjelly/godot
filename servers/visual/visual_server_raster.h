@@ -101,6 +101,14 @@ public:
 	changes[1] += 1;
 #endif
 
+	// Special. To prevent rebinding for this special case,
+	// we allow the option for bound function to UNDO
+	// an implicit redraw request.
+	static void undo_redraw_request() {
+		DEV_ASSERT(changes[1]);
+		changes[1] -= 1;
+	}
+
 #define BIND0R(m_r, m_name) \
 	m_r m_name() { return BINDBASE->m_name(); }
 #define BIND1R(m_r, m_name, m_type1) \

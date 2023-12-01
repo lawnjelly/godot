@@ -36,6 +36,10 @@
 #include "servers/arvr/arvr_interface.h"
 #include "servers/visual_server.h"
 
+#ifdef VISUAL_SERVER_SOFTREND_ENABLED
+#include "servers/visual/software/soft_surface.h"
+#endif
+
 class VisualServerViewport {
 public:
 	struct CanvasBase : public RID_Data {
@@ -75,6 +79,10 @@ public:
 		VS::ViewportClearMode clear_mode;
 
 		bool transparent_bg;
+
+#ifdef VISUAL_SERVER_SOFTREND_ENABLED
+		SoftSurface soft_surface;
+#endif
 
 		struct CanvasKey {
 			int64_t stacking;

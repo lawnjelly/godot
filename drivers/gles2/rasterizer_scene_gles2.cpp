@@ -3251,6 +3251,31 @@ void RasterizerSceneGLES2::_post_process(Environment *env, const CameraMatrix &p
 	state.tonemap_shader.set_conditional(TonemapShaderGLES2::DISABLE_ALPHA, false);
 }
 
+void RasterizerSceneGLES2::software_render_scene(RID p_texture, uint32_t p_viewport_width, uint32_t p_viewport_height) {
+	RasterizerStorageGLES2::Texture *t = storage->texture_owner.get(p_texture);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glViewport(0, 0, p_viewport_width, p_viewport_height);
+	glDisable(GL_BLEND);
+	glDepthMask(GL_FALSE);
+	if (OS::get_singleton()->get_window_per_pixel_transparency_enabled()) {
+		glClearColor(0.0, 0.0, 0.0, 1.0);
+	} else {
+		glClearColor(0.0, 0.0, 0.0, 1.0);
+	}
+	glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	storage->canvas->canvas_begin();
+
+	Rect2 screenrect(0, 0, p_viewport_width, p_viewport_height);
+
+	WRAPPED_GL_ACTIVE_TEXTURE(GL_TEXTURE0 + storage->config.max_texture_image_units - 1);
+	glBindTexture(GL_TEXTURE_2D, t->tex_id);
+	storage->canvas->draw_generic_textured_rect(screenrect, Rect2(0, 0, 1, 1));
+	glBindTexture(GL_TEXTURE_2D, 0);
+	storage->canvas->canvas_end();
+}
+
 void RasterizerSceneGLES2::render_scene(const Transform &p_cam_transform, const CameraMatrix &p_cam_projection, const int p_eye, bool p_cam_ortogonal, InstanceBase **p_cull_result, int p_cull_count, RID *p_light_cull_result, int p_light_cull_count, RID *p_reflection_probe_cull_result, int p_reflection_probe_cull_count, RID p_environment, RID p_shadow_atlas, RID p_reflection_atlas, RID p_reflection_probe, int p_reflection_probe_pass) {
 	Transform cam_transform = p_cam_transform;
 

@@ -32,10 +32,20 @@
 
 #include "core/math/transform_interpolator.h"
 #include "core/os/os.h"
+#include "servers/visual/software/soft_mesh.h"
 #include "visual_server_globals.h"
 #include "visual_server_raster.h"
 
 #include <new>
+
+VisualServerScene::InstanceGeometryData::~InstanceGeometryData() {
+#ifdef VISUAL_SERVER_SOFTREND_ENABLED
+	if (softmesh_instance) {
+		memdelete(softmesh_instance);
+		softmesh_instance = nullptr;
+	}
+#endif
+}
 
 /* CAMERA API */
 
@@ -2855,6 +2865,426 @@ bool VisualServerScene::_light_instance_update_shadow(Instance *p_instance, cons
 
 	return animated_material_found;
 }
+
+#ifdef VISUAL_SERVER_SOFTREND_ENABLED
+void VisualServerScene::software_render_camera(SoftSurface &r_soft_surface, RID p_camera, RID p_scenario, Size2 p_viewport_size) {
+#ifndef _3D_DISABLED
+	Camera *camera = camera_owner.getornull(p_camera);
+	ERR_FAIL_COND(!camera);
+
+	if ((r_soft_surface.get_image()->get_width() != p_viewport_size.x) ||
+			((r_soft_surface.get_image()->get_height() != p_viewport_size.y))) {
+		r_soft_surface.create(p_viewport_size.x, p_viewport_size.y);
+	}
+
+	/* STEP 1 - SETUP CAMERA */
+	CameraMatrix camera_matrix;
+	bool ortho = false;
+
+	switch (camera->type) {
+		case Camera::ORTHOGONAL: {
+			camera_matrix.set_orthogonal(
+					camera->size,
+					p_viewport_size.width / (float)p_viewport_size.height,
+					camera->znear,
+					camera->zfar,
+					camera->vaspect);
+			ortho = true;
+		} break;
+		case Camera::PERSPECTIVE: {
+			camera_matrix.set_perspective(
+					camera->fov,
+					p_viewport_size.width / (float)p_viewport_size.height,
+					camera->znear,
+					camera->zfar,
+					camera->vaspect);
+			ortho = false;
+
+		} break;
+		case Camera::FRUSTUM: {
+			camera_matrix.set_frustum(
+					camera->size,
+					p_viewport_size.width / (float)p_viewport_size.height,
+					camera->offset,
+					camera->znear,
+					camera->zfar,
+					camera->vaspect);
+			ortho = false;
+		} break;
+	}
+
+	Transform camera_transform = _interpolation_data.interpolation_enabled ? camera->get_transform_interpolated() : camera->transform;
+	_software_prepare_scene(camera_transform, camera_matrix, ortho, camera->env, camera->visible_layers, p_scenario, camera->previous_room_id_hint);
+	_software_render_scene(r_soft_surface, camera_transform, camera_matrix, 0, ortho, camera->env, p_scenario);
+
+	VSG::scene_render->software_render_scene(r_soft_surface.get_read_texture(), p_viewport_size.width, p_viewport_size.height);
+#endif
+}
+
+void VisualServerScene::_software_prepare_scene(const Transform p_cam_transform, const CameraMatrix &p_cam_projection, bool p_cam_orthogonal, RID p_force_environment, uint32_t p_visible_layers, RID p_scenario, int32_t &r_previous_room_id_hint) {
+	// Note, in stereo rendering:
+	// - p_cam_transform will be a transform in the middle of our two eyes
+	// - p_cam_projection is a wider frustrum that encompasses both eyes
+
+	Scenario *scenario = scenario_owner.getornull(p_scenario);
+
+	//render_pass++;
+	//uint32_t camera_layer_mask = p_visible_layers;
+
+	//VSG::scene_render->set_scene_pass(render_pass);
+
+	Vector<Plane> planes = p_cam_projection.get_projection_planes(p_cam_transform);
+
+	Plane near_plane(p_cam_transform.origin, -p_cam_transform.basis.get_axis(2).normalized());
+	float z_far = p_cam_projection.get_z_far();
+
+	/* STEP 2 - CULL */
+	instance_cull_count = _cull_convex_from_point(scenario, p_cam_transform, p_cam_projection, planes, instance_cull_result, MAX_INSTANCE_CULL, r_previous_room_id_hint);
+	light_cull_count = 0;
+
+	// STEP 4 - REMOVE FURTHER CULLED OBJECTS, ADD LIGHTS
+	/*
+	for (int i = 0; i < instance_cull_count; i++) {
+		Instance *ins = instance_cull_result[i];
+
+		bool keep = false;
+
+		if ((camera_layer_mask & ins->layer_mask) == 0) {
+			//failure
+		} else if (ins->base_type == VS::INSTANCE_LIGHT && ins->visible) {
+			if (light_cull_count < MAX_LIGHTS_CULLED) {
+				InstanceLightData *light = static_cast<InstanceLightData *>(ins->base_data);
+
+				if (!light->geometries.empty()) {
+					//do not add this light if no geometry is affected by it..
+					light_cull_result[light_cull_count] = ins;
+					light_instance_cull_result[light_cull_count] = light->instance;
+					if (p_shadow_atlas.is_valid() && VSG::storage->light_has_shadow(ins->base)) {
+						VSG::scene_render->light_instance_mark_visible(light->instance); //mark it visible for shadow allocation later
+					}
+
+					light_cull_count++;
+				}
+			}
+		} else if (ins->base_type == VS::INSTANCE_REFLECTION_PROBE && ins->visible) {
+			if (reflection_probe_cull_count < MAX_REFLECTION_PROBES_CULLED) {
+				InstanceReflectionProbeData *reflection_probe = static_cast<InstanceReflectionProbeData *>(ins->base_data);
+
+				if (p_reflection_probe != reflection_probe->instance) {
+					//avoid entering The Matrix
+
+					if (!reflection_probe->geometries.empty()) {
+						//do not add this light if no geometry is affected by it..
+
+						if (reflection_probe->reflection_dirty || VSG::scene_render->reflection_probe_instance_needs_redraw(reflection_probe->instance)) {
+							if (!reflection_probe->update_list.in_list()) {
+								reflection_probe->render_step = 0;
+								reflection_probe_render_list.add_last(&reflection_probe->update_list);
+							}
+
+							reflection_probe->reflection_dirty = false;
+						}
+
+						if (VSG::scene_render->reflection_probe_instance_has_reflection(reflection_probe->instance)) {
+							reflection_probe_instance_cull_result[reflection_probe_cull_count] = reflection_probe->instance;
+							reflection_probe_cull_count++;
+						}
+					}
+				}
+			}
+
+		} else if (ins->base_type == VS::INSTANCE_GI_PROBE && ins->visible) {
+			InstanceGIProbeData *gi_probe = static_cast<InstanceGIProbeData *>(ins->base_data);
+			if (!gi_probe->update_element.in_list()) {
+				gi_probe_update_list.add(&gi_probe->update_element);
+			}
+
+		} else if (((1 << ins->base_type) & VS::INSTANCE_GEOMETRY_MASK) && ins->visible && ins->cast_shadows != VS::SHADOW_CASTING_SETTING_SHADOWS_ONLY) {
+			keep = true;
+
+			InstanceGeometryData *geom = static_cast<InstanceGeometryData *>(ins->base_data);
+
+			if (ins->redraw_if_visible) {
+				VisualServerRaster::redraw_request(false);
+			}
+
+			if (ins->base_type == VS::INSTANCE_PARTICLES) {
+				//particles visible? process them
+				if (VSG::storage->particles_is_inactive(ins->base)) {
+					//but if nothing is going on, don't do it.
+					keep = false;
+				} else {
+					if (OS::get_singleton()->is_update_pending(true)) {
+						VSG::storage->particles_request_process(ins->base);
+						//particles visible? request redraw
+						VisualServerRaster::redraw_request(false);
+					}
+				}
+			}
+
+			if (geom->lighting_dirty) {
+				int l = 0;
+				//only called when lights AABB enter/exit this geometry
+				ins->light_instances.resize(geom->lighting.size());
+
+				for (List<Instance *>::Element *E = geom->lighting.front(); E; E = E->next()) {
+					InstanceLightData *light = static_cast<InstanceLightData *>(E->get()->base_data);
+
+					ins->light_instances.write[l++] = light->instance;
+				}
+
+				geom->lighting_dirty = false;
+			}
+
+			if (geom->reflection_dirty) {
+				int l = 0;
+				//only called when reflection probe AABB enter/exit this geometry
+				ins->reflection_probe_instances.resize(geom->reflection_probes.size());
+
+				for (List<Instance *>::Element *E = geom->reflection_probes.front(); E; E = E->next()) {
+					InstanceReflectionProbeData *reflection_probe = static_cast<InstanceReflectionProbeData *>(E->get()->base_data);
+
+					ins->reflection_probe_instances.write[l++] = reflection_probe->instance;
+				}
+
+				geom->reflection_dirty = false;
+			}
+
+			if (geom->gi_probes_dirty) {
+				int l = 0;
+				//only called when reflection probe AABB enter/exit this geometry
+				ins->gi_probe_instances.resize(geom->gi_probes.size());
+
+				for (List<Instance *>::Element *E = geom->gi_probes.front(); E; E = E->next()) {
+					InstanceGIProbeData *gi_probe = static_cast<InstanceGIProbeData *>(E->get()->base_data);
+
+					ins->gi_probe_instances.write[l++] = gi_probe->probe_instance;
+				}
+
+				geom->gi_probes_dirty = false;
+			}
+		}
+
+		if (!keep) {
+			// remove, no reason to keep
+			instance_cull_count--;
+			SWAP(instance_cull_result[i], instance_cull_result[instance_cull_count]);
+			i--;
+			ins->last_render_pass = 0; // make invalid
+		} else {
+			ins->last_render_pass = render_pass;
+		}
+	}
+
+	// STEP 5 - PROCESS LIGHTS
+
+	RID *directional_light_ptr = &light_instance_cull_result[light_cull_count];
+	directional_light_count = 0;
+
+		   // directional lights
+	{
+		Instance **lights_with_shadow = (Instance **)alloca(sizeof(Instance *) * scenario->directional_lights.size());
+		int directional_shadow_count = 0;
+
+		for (List<Instance *>::Element *E = scenario->directional_lights.front(); E; E = E->next()) {
+			if (light_cull_count + directional_light_count >= MAX_LIGHTS_CULLED) {
+				break;
+			}
+
+			if (!E->get()->visible) {
+				continue;
+			}
+
+			InstanceLightData *light = static_cast<InstanceLightData *>(E->get()->base_data);
+
+				   //check shadow..
+
+			if (light) {
+				if (p_shadow_atlas.is_valid() && VSG::storage->light_has_shadow(E->get()->base)) {
+					lights_with_shadow[directional_shadow_count++] = E->get();
+				}
+				//add to list
+				directional_light_ptr[directional_light_count++] = light->instance;
+			}
+		}
+
+		VSG::scene_render->set_directional_shadow_count(directional_shadow_count);
+
+		for (int i = 0; i < directional_shadow_count; i++) {
+			_light_instance_update_shadow(lights_with_shadow[i], p_cam_transform, p_cam_projection, p_cam_orthogonal, p_shadow_atlas, scenario, p_visible_layers);
+		}
+	}
+
+	{ //setup shadow maps
+
+			   //SortArray<Instance*,_InstanceLightsort> sorter;
+			   //sorter.sort(light_cull_result,light_cull_count);
+		for (int i = 0; i < light_cull_count; i++) {
+			Instance *ins = light_cull_result[i];
+
+			if (!p_shadow_atlas.is_valid() || !VSG::storage->light_has_shadow(ins->base)) {
+				continue;
+			}
+
+			InstanceLightData *light = static_cast<InstanceLightData *>(ins->base_data);
+
+			float coverage = 0.f;
+
+			{ //compute coverage
+
+				Transform cam_xf = p_cam_transform;
+				float zn = p_cam_projection.get_z_near();
+				Plane p(cam_xf.origin + cam_xf.basis.get_axis(2) * -zn, -cam_xf.basis.get_axis(2)); //camera near plane
+
+					   // near plane half width and height
+				Vector2 vp_half_extents = p_cam_projection.get_viewport_half_extents();
+
+				switch (VSG::storage->light_get_type(ins->base)) {
+					case VS::LIGHT_OMNI: {
+						float radius = VSG::storage->light_get_param(ins->base, VS::LIGHT_PARAM_RANGE);
+
+							   //get two points parallel to near plane
+						Vector3 points[2] = {
+							ins->transform.origin,
+							ins->transform.origin + cam_xf.basis.get_axis(0) * radius
+						};
+
+						if (!p_cam_orthogonal) {
+							//if using perspetive, map them to near plane
+							for (int j = 0; j < 2; j++) {
+								if (p.distance_to(points[j]) < 0) {
+									points[j].z = -zn; //small hack to keep size constant when hitting the screen
+								}
+
+								p.intersects_segment(cam_xf.origin, points[j], &points[j]); //map to plane
+							}
+						}
+
+						float screen_diameter = points[0].distance_to(points[1]) * 2;
+						coverage = screen_diameter / (vp_half_extents.x + vp_half_extents.y);
+					} break;
+					case VS::LIGHT_SPOT: {
+						float radius = VSG::storage->light_get_param(ins->base, VS::LIGHT_PARAM_RANGE);
+						float angle = VSG::storage->light_get_param(ins->base, VS::LIGHT_PARAM_SPOT_ANGLE);
+
+						float w = radius * Math::sin(Math::deg2rad(angle));
+						float d = radius * Math::cos(Math::deg2rad(angle));
+
+						Vector3 base = ins->transform.origin - ins->transform.basis.get_axis(2).normalized() * d;
+
+						Vector3 points[2] = {
+							base,
+							base + cam_xf.basis.get_axis(0) * w
+						};
+
+						if (!p_cam_orthogonal) {
+							//if using perspetive, map them to near plane
+							for (int j = 0; j < 2; j++) {
+								if (p.distance_to(points[j]) < 0) {
+									points[j].z = -zn; //small hack to keep size constant when hitting the screen
+								}
+
+								p.intersects_segment(cam_xf.origin, points[j], &points[j]); //map to plane
+							}
+						}
+
+						float screen_diameter = points[0].distance_to(points[1]) * 2;
+						coverage = screen_diameter / (vp_half_extents.x + vp_half_extents.y);
+
+					} break;
+					default: {
+						ERR_PRINT("Invalid Light Type");
+					}
+				}
+			}
+
+			if (light->shadow_dirty) {
+				light->last_version++;
+				light->shadow_dirty = false;
+			}
+
+			bool redraw = VSG::scene_render->shadow_atlas_update_light(p_shadow_atlas, light->instance, coverage, light->last_version);
+
+			if (redraw) {
+				//must redraw!
+				light->shadow_dirty = _light_instance_update_shadow(ins, p_cam_transform, p_cam_projection, p_cam_orthogonal, p_shadow_atlas, scenario, p_visible_layers);
+			}
+		}
+	}
+	*/
+	// Calculate instance->depth from the camera, after shadow calculation has stopped overwriting instance->depth
+	for (int i = 0; i < instance_cull_count; i++) {
+		Instance *ins = instance_cull_result[i];
+
+		if (((1 << ins->base_type) & VS::INSTANCE_GEOMETRY_MASK) && ins->visible && ins->cast_shadows != VS::SHADOW_CASTING_SETTING_SHADOWS_ONLY) {
+			Vector3 center = ins->transform.origin;
+			if (ins->use_aabb_center) {
+				center = ins->transformed_aabb.position + (ins->transformed_aabb.size * 0.5);
+			}
+			if (p_cam_orthogonal) {
+				ins->depth = near_plane.distance_to(center) - ins->sorting_offset;
+			} else {
+				ins->depth = p_cam_transform.origin.distance_to(center) - ins->sorting_offset;
+			}
+			ins->depth_layer = CLAMP(int(ins->depth * 16 / z_far), 0, 15);
+		}
+	}
+}
+
+void VisualServerScene::_software_render_scene(SoftSurface &r_soft_surface, const Transform p_cam_transform, const CameraMatrix &p_cam_projection, const int p_eye, bool p_cam_orthogonal, RID p_force_environment, RID p_scenario) {
+	//Scenario *scenario = scenario_owner.getornull(p_scenario);
+
+	g_soft_rend.set_render_target(&r_soft_surface);
+	r_soft_surface.clear();
+	g_soft_rend.prepare();
+
+	for (int i = 0; i < instance_cull_count; i++) {
+		Instance *ins = instance_cull_result[i];
+
+		if (((1 << ins->base_type) & VS::INSTANCE_GEOMETRY_MASK) && ins->visible && ins->cast_shadows != VS::SHADOW_CASTING_SETTING_SHADOWS_ONLY) {
+			InstanceGeometryData *geom = static_cast<InstanceGeometryData *>(ins->base_data);
+
+			if (ins->base_type == VS::INSTANCE_MESH) {
+				// If softmesh not present, create.
+				if (!geom->softmesh_instance) {
+					geom->softmesh_instance = memnew(SoftMeshInstance);
+					geom->softmesh_instance->create_from_mesh(ins);
+				}
+
+				g_soft_rend.push_mesh(*geom->softmesh_instance, p_cam_transform, p_cam_projection, ins->transform);
+				//geom->softmesh->draw(r_soft_surface, p_cam_transform, p_cam_projection, ins->transform);
+
+			} // mesh
+
+			if (ins->base_type == VS::INSTANCE_MULTIMESH) {
+				// If softmesh not present, create.
+				if (!geom->softmesh_instance) {
+					geom->softmesh_instance = memnew(SoftMeshInstance);
+					geom->softmesh_instance->create_from_multimesh(ins);
+				}
+
+				RID multimesh_rid = ins->base;
+
+				int count = VS::get_singleton()->multimesh_get_visible_instances(multimesh_rid);
+				if (count == -1) {
+					count = VS::get_singleton()->multimesh_get_instance_count(multimesh_rid);
+				}
+
+				for (int n = 0; n < count; n++) {
+					Transform tr = VS::get_singleton()->multimesh_instance_get_transform(multimesh_rid, n);
+					g_soft_rend.push_mesh(*geom->softmesh_instance, p_cam_transform, p_cam_projection, ins->transform * tr);
+				}
+			} // multimesh
+
+		} // geometry
+	}
+
+	g_soft_rend.flush();
+
+	//	VSG::scene_render->render_scene(p_cam_transform, p_cam_projection, p_eye, p_cam_orthogonal, (RasterizerScene::InstanceBase **)instance_cull_result, instance_cull_count, light_instance_cull_result, light_cull_count + directional_light_count, reflection_probe_instance_cull_result, reflection_probe_cull_count, environment, p_shadow_atlas, scenario->reflection_atlas, p_reflection_probe, p_reflection_probe_pass);
+}
+
+#endif // software rendering
 
 void VisualServerScene::render_camera(RID p_camera, RID p_scenario, Size2 p_viewport_size, RID p_shadow_atlas) {
 // render to mono camera

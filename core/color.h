@@ -59,6 +59,7 @@ struct _NO_DISCARD_CLASS_ Color {
 	float get_s() const;
 	float get_v() const;
 	void set_hsv(float p_h, float p_s, float p_v, float p_alpha = 1.0);
+	void set_rgba32(uint32_t p_rgba);
 
 	_FORCE_INLINE_ float &operator[](int idx) {
 		return components[idx];
