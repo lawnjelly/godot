@@ -31,6 +31,8 @@
 #ifndef VISUAL_SERVER_H
 #define VISUAL_SERVER_H
 
+#define VS_SOFT_REND
+
 #include "core/image.h"
 #include "core/math/bsp_tree.h"
 #include "core/math/geometry.h"
