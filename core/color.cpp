@@ -153,6 +153,17 @@ float Color::get_v() const {
 	return max;
 }
 
+void Color::set_rgba32(uint32_t p_rgba) {
+	uint32_t temp = (p_rgba >> 24) & 255;
+	r = (temp / 255.0f);
+	temp = (p_rgba >> 16) & 255;
+	g = (temp / 255.0f);
+	temp = (p_rgba >> 8) & 255;
+	b = (temp / 255.0f);
+	temp = p_rgba & 255;
+	a = (temp / 255.0f);
+}
+
 void Color::set_hsv(float p_h, float p_s, float p_v, float p_alpha) {
 	int i;
 	float f, p, q, t;

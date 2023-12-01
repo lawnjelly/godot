@@ -2872,6 +2872,11 @@ void VisualServerScene::software_render_camera(SoftSurface &r_soft_surface, RID 
 	Camera *camera = camera_owner.getornull(p_camera);
 	ERR_FAIL_COND(!camera);
 
+	if ((r_soft_surface.get_image()->get_width() != p_viewport_size.x) ||
+			((r_soft_surface.get_image()->get_height() != p_viewport_size.y))) {
+		r_soft_surface.create(p_viewport_size.x, p_viewport_size.y);
+	}
+
 	/* STEP 1 - SETUP CAMERA */
 	CameraMatrix camera_matrix;
 	bool ortho = false;
@@ -2912,6 +2917,7 @@ void VisualServerScene::software_render_camera(SoftSurface &r_soft_surface, RID 
 	_software_prepare_scene(camera_transform, camera_matrix, ortho, camera->env, camera->visible_layers, p_scenario, camera->previous_room_id_hint);
 	_software_render_scene(r_soft_surface, camera_transform, camera_matrix, 0, ortho, camera->env, p_scenario);
 
+	VSG::scene_render->software_render_scene(r_soft_surface.get_texture());
 #endif
 }
 
@@ -2923,7 +2929,7 @@ void VisualServerScene::_software_prepare_scene(const Transform p_cam_transform,
 	Scenario *scenario = scenario_owner.getornull(p_scenario);
 
 	//render_pass++;
-	uint32_t camera_layer_mask = p_visible_layers;
+	//uint32_t camera_layer_mask = p_visible_layers;
 
 	//VSG::scene_render->set_scene_pass(render_pass);
 
@@ -3226,7 +3232,11 @@ void VisualServerScene::_software_prepare_scene(const Transform p_cam_transform,
 }
 
 void VisualServerScene::_software_render_scene(SoftSurface &r_soft_surface, const Transform p_cam_transform, const CameraMatrix &p_cam_projection, const int p_eye, bool p_cam_orthogonal, RID p_force_environment, RID p_scenario) {
-	Scenario *scenario = scenario_owner.getornull(p_scenario);
+	//Scenario *scenario = scenario_owner.getornull(p_scenario);
+
+	_soft_rend.set_render_target(&r_soft_surface);
+	r_soft_surface.clear();
+	_soft_rend.prepare();
 
 	for (int i = 0; i < instance_cull_count; i++) {
 		Instance *ins = instance_cull_result[i];
@@ -3235,15 +3245,26 @@ void VisualServerScene::_software_render_scene(SoftSurface &r_soft_surface, cons
 			InstanceGeometryData *geom = static_cast<InstanceGeometryData *>(ins->base_data);
 
 			if (ins->base_type == VS::INSTANCE_MESH) {
+				// If softmesh not present, create.
+				if (!geom->softmesh) {
+					geom->softmesh = memnew(SoftMesh);
+					geom->softmesh->create(_soft_rend, ins);
+				}
+
+				_soft_rend.push_mesh(*geom->softmesh, p_cam_transform, p_cam_projection, ins->transform);
+				//geom->softmesh->draw(r_soft_surface, p_cam_transform, p_cam_projection, ins->transform);
+
 			} // mesh
 
 		} // geometry
 	}
 
+	_soft_rend.flush();
+
 	//	VSG::scene_render->render_scene(p_cam_transform, p_cam_projection, p_eye, p_cam_orthogonal, (RasterizerScene::InstanceBase **)instance_cull_result, instance_cull_count, light_instance_cull_result, light_cull_count + directional_light_count, reflection_probe_instance_cull_result, reflection_probe_cull_count, environment, p_shadow_atlas, scenario->reflection_atlas, p_reflection_probe, p_reflection_probe_pass);
 }
 
-#endif
+#endif // software rendering
 
 void VisualServerScene::render_camera(RID p_camera, RID p_scenario, Size2 p_viewport_size, RID p_shadow_atlas) {
 // render to mono camera

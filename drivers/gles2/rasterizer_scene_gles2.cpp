@@ -3251,6 +3251,71 @@ void RasterizerSceneGLES2::_post_process(Environment *env, const CameraMatrix &p
 	state.tonemap_shader.set_conditional(TonemapShaderGLES2::DISABLE_ALPHA, false);
 }
 
+void RasterizerSceneGLES2::software_render_scene(RID p_texture) {
+	//	Rect2 screenrect = Rect2(0, 0, 1024, 600);
+	//	RasterizerStorageGLES2::Texture *t = storage->texture_owner.get(p_texture);
+	//	WRAPPED_GL_ACTIVE_TEXTURE(GL_TEXTURE0 + storage->config.max_texture_image_units - 1);
+	//	glBindTexture(GL_TEXTURE_2D, t->tex_id);
+	//	storage->canvas->draw_generic_textured_rect(screenrect, Rect2(0, 0, 1, 1));
+	//	glBindTexture(GL_TEXTURE_2D, 0);
+
+	////
+	RasterizerStorageGLES2::Texture *t = storage->texture_owner.get(p_texture);
+
+	int window_w = OS::get_singleton()->get_video_mode(0).width;
+	int window_h = OS::get_singleton()->get_video_mode(0).height;
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glViewport(0, 0, window_w, window_h);
+	glDisable(GL_BLEND);
+	glDepthMask(GL_FALSE);
+	if (OS::get_singleton()->get_window_per_pixel_transparency_enabled()) {
+		glClearColor(0.0, 0.0, 0.0, 0.0);
+	} else {
+		glClearColor(0.0, 0.0, 0.0, 0.0);
+		//		glClearColor(p_color.r, p_color.g, p_color.b, 1.0);
+	}
+	glClear(GL_COLOR_BUFFER_BIT);
+
+	storage->canvas->canvas_begin();
+
+	//	RID texture = RID_PRIME(storage->texture_create());
+	//	storage->texture_allocate(texture, p_image->get_width(), p_image->get_height(), 0, p_image->get_format(), VS::TEXTURE_TYPE_2D, p_use_filter ? (uint32_t)VS::TEXTURE_FLAG_FILTER : 0);
+	//	storage->texture_set_data(texture, p_image);
+
+	Rect2 imgrect(0, 0, window_w, window_h);
+	//	Rect2 imgrect(0, 0, p_image->get_width(), p_image->get_height());
+	Rect2 screenrect;
+	//	if (p_scale) {
+	//		if (window_w > window_h) {
+	//			//scale horizontally
+	//			screenrect.size.y = window_h;
+	//			screenrect.size.x = imgrect.size.x * window_h / imgrect.size.y;
+	//			screenrect.position.x = (window_w - screenrect.size.x) / 2;
+
+	//		} else {
+	//			//scale vertically
+	//			screenrect.size.x = window_w;
+	//			screenrect.size.y = imgrect.size.y * window_w / imgrect.size.x;
+	//			screenrect.position.y = (window_h - screenrect.size.y) / 2;
+	//		}
+	//	} else {
+	screenrect = imgrect;
+	screenrect.position += ((Size2(window_w, window_h) - screenrect.size) / 2.0).floor();
+	//	}
+
+	//	RasterizerStorageGLES2::Texture *t = storage->texture_owner.get(texture);
+	WRAPPED_GL_ACTIVE_TEXTURE(GL_TEXTURE0 + storage->config.max_texture_image_units - 1);
+	glBindTexture(GL_TEXTURE_2D, t->tex_id);
+	storage->canvas->draw_generic_textured_rect(screenrect, Rect2(0, 0, 1, 1));
+	glBindTexture(GL_TEXTURE_2D, 0);
+	storage->canvas->canvas_end();
+
+	//storage->free(texture);
+
+	//storage->end_frame(true);
+}
+
 void RasterizerSceneGLES2::render_scene(const Transform &p_cam_transform, const CameraMatrix &p_cam_projection, const int p_eye, bool p_cam_ortogonal, InstanceBase **p_cull_result, int p_cull_count, RID *p_light_cull_result, int p_light_cull_count, RID *p_reflection_probe_cull_result, int p_reflection_probe_cull_count, RID p_environment, RID p_shadow_atlas, RID p_reflection_atlas, RID p_reflection_probe, int p_reflection_probe_pass) {
 	Transform cam_transform = p_cam_transform;
 

@@ -43,6 +43,10 @@
 #include "portals/portal_renderer.h"
 #include "servers/arvr/arvr_interface.h"
 
+#ifdef VS_SOFT_REND
+#include "servers/visual/software/soft_renderer.h"
+#endif
+
 class SoftSurface;
 class SoftMesh;
 
@@ -933,6 +937,9 @@ private:
 	bool _use_bvh;
 	VisualServerCallbacks *_visual_server_callbacks;
 	PortalResources _portal_resources;
+#ifdef VS_SOFT_REND
+	SoftRend _soft_rend;
+#endif
 
 public:
 	VisualServerScene();

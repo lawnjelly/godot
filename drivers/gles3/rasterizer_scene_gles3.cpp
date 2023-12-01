@@ -4108,6 +4108,9 @@ bool RasterizerSceneGLES3::_element_needs_directional_add(RenderList::Element *e
 	return false; // no visible unbaked light
 }
 
+void RasterizerSceneGLES3::software_render_scene(RID p_texture) {
+}
+
 void RasterizerSceneGLES3::render_scene(const Transform &p_cam_transform, const CameraMatrix &p_cam_projection, const int p_eye, bool p_cam_ortogonal, InstanceBase **p_cull_result, int p_cull_count, RID *p_light_cull_result, int p_light_cull_count, RID *p_reflection_probe_cull_result, int p_reflection_probe_cull_count, RID p_environment, RID p_shadow_atlas, RID p_reflection_atlas, RID p_reflection_probe, int p_reflection_probe_pass) {
 	//first of all, make a new render pass
 	render_pass++;
