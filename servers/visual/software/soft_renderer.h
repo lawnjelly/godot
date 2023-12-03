@@ -2,6 +2,7 @@
 
 #include "core/math/plane.h"
 #include "core/math/vector2.h"
+#include "core/os/thread_work_pool.h"
 #include "servers/visual/software/soft_surface.h"
 #include "soft_material.h"
 
@@ -21,6 +22,12 @@ class SoftRend {
 
 		Color clear_color;
 		uint32_t clear_rgba = 0;
+
+#ifndef NO_THREADS
+		/// Pooled threads for computing steps
+		ThreadWorkPool thread_pool;
+		int thread_cores = 0;
+#endif // NO_THREADS
 	} state;
 
 	struct FinalTri {
@@ -78,13 +85,25 @@ class SoftRend {
 		LocalVector<Vector2> uvs;
 	} _vertices;
 
-	void draw_tri(const FinalTri &tri);
-	void draw_tri_to_gbuffer(const FinalTri &tri, uint32_t p_tri_id, uint32_t p_item_id_p1);
+	struct Tile {
+		Rect2i clip_rect;
+	};
+
+	struct Tiles {
+		void create(uint32_t p_viewport_width, uint32_t p_viewport_height);
+		LocalVector<Tile> tiles;
+	} _tiles;
+
+	//void draw_tri(const FinalTri &tri);
+	void draw_tri_to_gbuffer(const Rect2i &p_clip_rect, const FinalTri &tri, uint32_t p_tri_id, uint32_t p_item_id_p1);
 	void set_pixel(float x, float y);
 	bool texture_map_tri(int x, int y, const FinalTri &tri, const Vector3 &p_bary);
 
 	bool texture_map_tri_to_gbuffer(int x, int y, const FinalTri &tri, const Vector3 &p_bary, uint32_t p_tri_id_p1, uint32_t p_item_id_p1);
-	void flush_to_gbuffer();
+	void flush_to_gbuffer_work(uint32_t p_tile_id, void *p_userdata);
+	void flush_to_gbuffer(Rect2i p_clip_rect);
+
+	void flush_final(uint32_t p_tile_id, uint32_t *p_frame_buffer_orig);
 
 	String itof(float f) { return String(Variant(f)); }
 
@@ -96,10 +115,34 @@ public:
 
 	SoftMaterials materials;
 
+	SoftRend();
+	~SoftRend();
+
 private:
 	void GL_to_viewport_coords(const Vector3 &p_v, Vector2 &r_pt) const {
 		r_pt.x = ((p_v.x + 1.0f) * 0.5f) * state.fviewport_width;
 		r_pt.y = ((p_v.y + 1.0f) * 0.5f) * state.fviewport_height;
+	}
+
+	bool find_pixel_bary_optimized(Vector3 *s, const Vector2 &A, const Vector2 &P, Vector3 &ptBary) const {
+		//Vector3 s[2];
+
+		for (int i = 2; i--;) {
+			//s[i].coord[0] = C.coord[i] - A.coord[i];
+			//s[i].coord[1] = B.coord[i] - A.coord[i];
+			s[i].coord[2] = A.coord[i] - P.coord[i];
+		}
+		Vector3 u = s[0].cross(s[1]);
+		if (Math::absf(u.coord[2]) > 0.01f) // dont forget that u[2] is integer. If it is zero then triangle ABC is degenerate
+		{
+			ptBary.x = 1.f - (u.x + u.y) / u.z;
+			ptBary.y = u.y / u.z;
+			ptBary.z = u.x / u.z;
+			return true;
+		}
+
+		ptBary = Vector3(-1, 1, 1); // in this case generate negative coordinates, it will be thrown away by the rasterizator
+		return false;
 	}
 
 	bool find_pixel_bary(const Vector2 &A, const Vector2 &B, const Vector2 &C, const Vector2 &P, Vector3 &ptBary) const {

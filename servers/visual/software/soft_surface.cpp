@@ -11,7 +11,7 @@ void SoftSurface::create(uint32_t p_width, uint32_t p_height) {
 
 	data.gbuffer.resize(p_width * p_height);
 	GData g;
-	g.tri_id_p1 = 0;
+	g.blank();
 	data.gbuffer.fill(g);
 
 	if (data.texture[data.write_texture_id].is_valid() && !data.texture_allocated) {
