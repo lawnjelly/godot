@@ -14,9 +14,13 @@ class SoftRend {
 		SoftSurface *render_target = nullptr;
 		const SoftMaterial *curr_material = nullptr;
 
-		float viewport_width = 0;
-		float viewport_height = 0;
-		int32_t iviewport_height = 0;
+		float fviewport_width = 0;
+		float fviewport_height = 0;
+		int32_t viewport_width = 0;
+		int32_t viewport_height = 0;
+
+		Color clear_color;
+		uint32_t clear_rgba = 0;
 	} state;
 
 	struct FinalTri {
@@ -46,7 +50,7 @@ class SoftRend {
 
 	struct Tri {
 		uint32_t corns[3];
-		uint32_t index_start;
+		//uint32_t index_start;
 	};
 
 	LocalVector<Item> _items;
@@ -56,23 +60,31 @@ class SoftRend {
 		void clear() {
 			cam_space_coords.clear();
 			hcoords.clear();
+			uvs.clear();
 		}
 		void resize(uint32_t p_size) {
 			cam_space_coords.resize(p_size);
 			hcoords.resize(p_size);
+			uvs.resize(p_size);
 		}
-		void set(uint32_t p_index, const Plane &p_hcoord, const Vector3 &p_coord) {
+		void set(uint32_t p_index, const Plane &p_hcoord, const Vector3 &p_coord, const Vector2 &p_uv) {
 			cam_space_coords[p_index] = p_coord;
 			hcoords[p_index] = p_hcoord;
+			uvs[p_index] = p_uv;
 		}
 		uint32_t size() const { return hcoords.size(); }
 		LocalVector<Vector3> cam_space_coords;
 		LocalVector<Plane> hcoords;
+		LocalVector<Vector2> uvs;
 	} _vertices;
 
 	void draw_tri(const FinalTri &tri);
+	void draw_tri_to_gbuffer(const FinalTri &tri, uint32_t p_tri_id, uint32_t p_item_id_p1);
 	void set_pixel(float x, float y);
 	bool texture_map_tri(int x, int y, const FinalTri &tri, const Vector3 &p_bary);
+
+	bool texture_map_tri_to_gbuffer(int x, int y, const FinalTri &tri, const Vector3 &p_bary, uint32_t p_tri_id_p1, uint32_t p_item_id_p1);
+	void flush_to_gbuffer();
 
 	String itof(float f) { return String(Variant(f)); }
 
@@ -86,8 +98,8 @@ public:
 
 private:
 	void GL_to_viewport_coords(const Vector3 &p_v, Vector2 &r_pt) const {
-		r_pt.x = ((p_v.x + 1.0f) * 0.5f) * state.viewport_width;
-		r_pt.y = ((p_v.y + 1.0f) * 0.5f) * state.viewport_height;
+		r_pt.x = ((p_v.x + 1.0f) * 0.5f) * state.fviewport_width;
+		r_pt.y = ((p_v.y + 1.0f) * 0.5f) * state.fviewport_height;
 	}
 
 	bool find_pixel_bary(const Vector2 &A, const Vector2 &B, const Vector2 &C, const Vector2 &P, Vector3 &ptBary) const {

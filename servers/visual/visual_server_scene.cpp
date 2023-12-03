@@ -2917,7 +2917,7 @@ void VisualServerScene::software_render_camera(SoftSurface &r_soft_surface, RID 
 	_software_prepare_scene(camera_transform, camera_matrix, ortho, camera->env, camera->visible_layers, p_scenario, camera->previous_room_id_hint);
 	_software_render_scene(r_soft_surface, camera_transform, camera_matrix, 0, ortho, camera->env, p_scenario);
 
-	VSG::scene_render->software_render_scene(r_soft_surface.get_texture());
+	VSG::scene_render->software_render_scene(r_soft_surface.get_read_texture());
 #endif
 }
 

@@ -30,6 +30,11 @@ void SoftMesh::create(SoftRend &r_renderer, VisualServerScene::Instance *p_insta
 
 		surf.uvs = (PoolVector<Vector2>)arrays[VS::ARRAY_TEX_UV];
 
+		DEV_ASSERT(surf.uvs.size() == surf.positions.size());
+		if (surf.uvs.size() != surf.positions.size()) {
+			WARN_PRINT("SoftMesh num UVs does not match num verts.");
+		}
+
 		RID rid_material = p_instance->material_override;
 
 		if (!rid_material.is_valid()) {

@@ -15,7 +15,13 @@ void SoftTexture::create(Image *p_image) {
 		for (uint32_t x = 0; x < _width; x++) {
 			SoftRGBA &rgba = get(x, y);
 			Color col = p_image->get_pixel(x, y);
-			rgba.rgba = col.to_rgba32();
+			//col = Color(0, 0, 1, 1);
+			//col = Color(1, 0, 0, 0);
+
+			// The Godot color to_rgba32 seems to be the wrong way around?
+			// Create an issue?
+			rgba.rgba = col.to_abgr32();
+			//col = Color(1, 0, 0, 0);
 		}
 	}
 	p_image->unlock();

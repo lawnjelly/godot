@@ -34,6 +34,14 @@ public:
 		DEV_ASSERT(((y * _width) + x) < _num_pixels);
 		return _pixels[(y * _width) + x];
 	}
+	uint32_t get8(const Vector2 &p_uv) const {
+		int32_t x = (p_uv.x * _width);
+		int32_t y = (p_uv.y * _height);
+		x %= _width;
+		y %= _height;
+		const SoftRGBA &rgba = get(x, y);
+		return rgba.rgba;
+	}
 	Color get_color(const Vector2 &p_uv) const {
 		int32_t x = (p_uv.x * _width);
 		int32_t y = (p_uv.y * _height);

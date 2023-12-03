@@ -4,9 +4,10 @@
 void SoftRend::set_render_target(SoftSurface *p_soft_surface) {
 	DEV_ASSERT(p_soft_surface);
 	state.render_target = p_soft_surface;
+	state.fviewport_width = p_soft_surface->data.width;
+	state.fviewport_height = p_soft_surface->data.height;
 	state.viewport_width = p_soft_surface->data.width;
 	state.viewport_height = p_soft_surface->data.height;
-	state.iviewport_height = p_soft_surface->data.height;
 }
 
 void SoftRend::prepare() {
@@ -50,7 +51,10 @@ void SoftRend::push_mesh(SoftMesh &r_softmesh, const Transform &p_cam_transform,
 			//hpos.normal /= hpos.d;
 			pos = hpos.normal / hpos.d;
 
-			_vertices.set(first_surface_list_vert + v, hpos, pos);
+			Vector2 uv = surf.uvs[v];
+			_vertices.set(first_surface_list_vert + v, hpos, pos, uv);
+
+			//			final_tri.uvs[c] = surf.uvs[is[i + c]];
 
 			//surf.xformed_hpositions[v] = hpos;
 			//surf.xformed_positions[v] = pos;
@@ -80,10 +84,12 @@ void SoftRend::push_mesh(SoftMesh &r_softmesh, const Transform &p_cam_transform,
 				continue;
 			}
 
+			//tri.uvs[c] = surf.uvs[is[i + c]];
+
 			// The start index is needed for reading the UVs from the original
 			// surface, because we may delete backfacing tris, so we can't just
 			// use the triangle number to derive this.
-			tri.index_start = i;
+			//tri.index_start = i;
 
 			_tris.push_back(tri);
 			it.num_tris += 1;
@@ -97,8 +103,97 @@ void SoftRend::push_mesh(SoftMesh &r_softmesh, const Transform &p_cam_transform,
 	}
 }
 
+void SoftRend::flush_to_gbuffer() {
+	// Each surface item.
+	for (uint32_t i = 0; i < _items.size(); i++) {
+		const Item &item = _items[i];
+		if (!item.num_tris)
+			continue;
+
+		SoftMesh::Surface &surf = item.mesh->data.surfaces[item.surf_id];
+
+		state.curr_material = nullptr;
+		if (surf.soft_material_id != UINT32_MAX) {
+			state.curr_material = &materials.get(surf.soft_material_id);
+		}
+
+		FinalTri final_tri;
+
+		//const LocalVector<int> &is = surf.indices;
+
+		for (uint32_t t = 0; t < item.num_tris; t++) {
+			const Tri &tri = _tris[item.first_tri + t];
+			//uint32_t i = tri.index_start;
+
+			for (uint32_t c = 0; c < 3; c++) {
+				uint32_t vert_id = tri.corns[c];
+				final_tri.coords[c] = _vertices.cam_space_coords[tri.corns[c]];
+				final_tri.hcoords[c] = _vertices.hcoords[vert_id];
+				//final_tri.uvs[c] = surf.uvs[is[i + c]];
+				//Vector2 uv_test = _vertices.uvs[vert_id];
+				final_tri.uvs[c] = _vertices.uvs[vert_id];
+				//DEV_ASSERT(uv_test == final_tri.uvs[c]);
+			}
+			draw_tri_to_gbuffer(final_tri, item.first_tri + t, i + 1);
+		}
+	}
+}
+
 void SoftRend::flush() {
+	state.clear_color = Color(0.15, 0.3, 0.7, 1);
+	state.clear_rgba = state.clear_color.to_abgr32();
+	//data.image->fill(Color(0.15, 0.3, 0.7, 1));
+
+	flush_to_gbuffer();
+
 	state.render_target->get_image()->lock();
+
+	PoolVector<uint8_t> &frame_buffer_pool = state.render_target->get_image()->get_data_pool();
+	PoolVector<uint8_t>::Write write = frame_buffer_pool.write();
+	uint32_t *frame_buffer_orig = (uint32_t *)write.ptr();
+
+	// Go through pixels and deferred render.
+	for (uint32_t y = 0; y < state.viewport_height; y++) {
+		uint32_t *frame_buffer = frame_buffer_orig + ((state.viewport_height - y - 1) * state.viewport_width);
+
+		for (uint32_t x = 0; x < state.viewport_width; x++) {
+			const SoftSurface::GData &g = state.render_target->get_g(x, y);
+
+			// Background
+			if (!g.item_id_p1) {
+				*frame_buffer++ = state.clear_rgba;
+				continue;
+			}
+
+			uint32_t item_id = g.item_id_p1 - 1;
+			float u = g.uv.x;
+			float v = g.uv.y;
+
+			const Item &item = _items[item_id];
+
+			SoftMesh::Surface &surf = item.mesh->data.surfaces[item.surf_id];
+
+			state.curr_material = nullptr;
+			if (surf.soft_material_id != UINT32_MAX) {
+				state.curr_material = &materials.get(surf.soft_material_id);
+			}
+
+			//Color col;
+			uint32_t rgba;
+			if (state.curr_material) {
+				//col = state.curr_material->st_albedo.get_color(Vector2(u, v));
+				rgba = state.curr_material->st_albedo.get8(Vector2(u, v));
+				//rgba = (255 << 24) | 255;
+			} else {
+				//col = Color(u, v, 1, 1);
+				rgba = 0;
+			}
+
+			//state.render_target->get_image()->set_pixel(x, state.viewport_height - y - 1, col);
+			*frame_buffer++ = rgba;
+		}
+	}
+	/*
 
 	// Each surface item.
 	for (uint32_t i = 0; i < _items.size(); i++) {
@@ -115,36 +210,105 @@ void SoftRend::flush() {
 
 		FinalTri final_tri;
 
-		const LocalVector<int> &is = surf.indices;
+		//const LocalVector<int> &is = surf.indices;
 
 		for (uint32_t t = 0; t < item.num_tris; t++) {
 			const Tri &tri = _tris[item.first_tri + t];
-			//uint32_t i = t * 3;
-			uint32_t i = tri.index_start;
+			//uint32_t i = tri.index_start;
+
 
 			for (uint32_t c = 0; c < 3; c++) {
+				uint32_t vert_id =tri.corns[c];
 				final_tri.coords[c] = _vertices.cam_space_coords[tri.corns[c]];
-			}
-
-			for (uint32_t c = 0; c < 3; c++) {
-				final_tri.hcoords[c] = _vertices.hcoords[tri.corns[c]];
-				final_tri.uvs[c] = surf.uvs[is[i + c]];
+				final_tri.hcoords[c] = _vertices.hcoords[vert_id];
+				//final_tri.uvs[c] = surf.uvs[is[i + c]];
+				//Vector2 uv_test = _vertices.uvs[vert_id];
+				final_tri.uvs[c] = _vertices.uvs[vert_id];
+				//DEV_ASSERT(uv_test == final_tri.uvs[c]);
 			}
 			draw_tri(final_tri);
 		}
 	}
-
+*/
 	state.render_target->get_image()->unlock();
 	state.render_target->update();
 }
 
 void SoftRend::set_pixel(float x, float y) {
-	if ((x < 0) || (x >= state.viewport_width))
+	if ((x < 0) || (x >= state.fviewport_width))
 		return;
-	if ((y < 0) || (y >= state.viewport_height))
+	if ((y < 0) || (y >= state.fviewport_height))
 		return;
 	Color col = Color(1, 1, 1, 1);
 	state.render_target->get_image()->set_pixel(x, y, col);
+}
+
+void SoftRend::draw_tri_to_gbuffer(const FinalTri &tri, uint32_t p_tri_id, uint32_t p_item_id_p1) {
+	Vector2 pts[3];
+	for (uint32_t c = 0; c < 3; c++) {
+		GL_to_viewport_coords(tri.coords[c], pts[c]);
+	}
+
+	Rect2i bound;
+	bound.position = Point2i(pts[0].x, pts[0].y);
+
+	for (uint32_t n = 1; n < 3; n++) {
+		bound.expand_to(Point2i(pts[n].x, pts[n].y));
+	}
+	bound.size += Vector2i(1, 1);
+
+	bound = bound.clip(Rect2i(0, 0, state.fviewport_width, state.fviewport_height));
+	if (bound.has_no_area())
+		return;
+
+	Vector3 bc_screen;
+
+	uint32_t tri_id_p1 = p_tri_id + 1;
+
+	for (int y = bound.position.y; y < bound.position.y + bound.size.y; y++) {
+		for (int x = bound.position.x; x < bound.position.x + bound.size.x; x++) {
+			if (!find_pixel_bary(pts[0], pts[1], pts[2], Vector2(x, y), bc_screen))
+				continue;
+
+			if (bc_screen.x < 0.0f)
+				continue;
+			if (bc_screen.y < 0.0f)
+				continue;
+			if (bc_screen.z < 0.0f)
+				continue;
+
+			//				   // zbuffer
+			Vector3 pt3;
+			find_point_barycentric(tri.coords, pt3, bc_screen.x, bc_screen.y, bc_screen.z);
+			//			tri.FindPoint_Barycentric(pt3, ptBary.x, ptBary.y, ptBary.z);
+			//			float &z = m_pZBuffer->GetItem(x, y).g;
+
+			Vector3 bc_clip = Vector3(bc_screen.x / tri.hcoords[0].d, bc_screen.y / tri.hcoords[1].d, bc_screen.z / tri.hcoords[2].d);
+
+			float clip_denom = bc_clip.x + bc_clip.y + bc_clip.z;
+			if (clip_denom <= 0) {
+				continue;
+			}
+			bc_clip = bc_clip / clip_denom;
+			//float frag_depth = clipc[2]*bc_clip;
+
+			// CHECK Z BUFFER
+			float *z = state.render_target->get_z(x, y);
+			DEV_ASSERT(z);
+
+			if (pt3.z >= *z)
+				continue; // failed z test
+
+			if (pt3.z < 0)
+				continue;
+
+			if (texture_map_tri_to_gbuffer(x, y, tri, bc_clip, tri_id_p1, p_item_id_p1)) {
+				//if (texture_map_tri(x, y, tri, bc_screen)) {
+				// write z only if not discarded by alpha test
+				*z = pt3.z;
+			}
+		}
+	}
 }
 
 void SoftRend::draw_tri(const FinalTri &tri) {
@@ -161,7 +325,7 @@ void SoftRend::draw_tri(const FinalTri &tri) {
 	}
 	bound.size += Vector2i(1, 1);
 
-	bound = bound.clip(Rect2i(0, 0, state.viewport_width, state.viewport_height));
+	bound = bound.clip(Rect2i(0, 0, state.fviewport_width, state.fviewport_height));
 	if (bound.has_no_area())
 		return;
 
@@ -226,6 +390,28 @@ void SoftRend::draw_tri(const FinalTri &tri) {
 	}
 }
 
+bool SoftRend::texture_map_tri_to_gbuffer(int x, int y, const FinalTri &tri, const Vector3 &p_bary, uint32_t p_tri_id_p1, uint32_t p_item_id_p1) {
+	float u, v;
+	find_uv_barycentric(tri.uvs, u, v, p_bary.x, p_bary.y, p_bary.z);
+
+	SoftSurface::GData &gdata = state.render_target->get_g(x, y);
+	gdata.tri_id_p1 = p_tri_id_p1;
+	gdata.item_id_p1 = p_item_id_p1;
+	gdata.uv = Vector2(u, v);
+	/*
+		   //set_pixel(r_soft_surface, x, y);
+	Color col;
+	if (state.curr_material) {
+		col = state.curr_material->st_albedo.get_color(Vector2(u, v));
+	} else {
+		col = Color(u, v, 1, 1);
+	}
+
+	state.render_target->get_image()->set_pixel(x, state.iviewport_height - y - 1, col);
+	*/
+	return true;
+}
+
 bool SoftRend::texture_map_tri(int x, int y, const FinalTri &tri, const Vector3 &p_bary) {
 	float u, v;
 	find_uv_barycentric(tri.uvs, u, v, p_bary.x, p_bary.y, p_bary.z);
@@ -238,7 +424,53 @@ bool SoftRend::texture_map_tri(int x, int y, const FinalTri &tri, const Vector3 
 		col = Color(u, v, 1, 1);
 	}
 
-	state.render_target->get_image()->set_pixel(x, state.iviewport_height - y - 1, col);
+	state.render_target->get_image()->set_pixel(x, state.viewport_height - y - 1, col);
 
 	return true;
 }
+
+/*
+void SoftRend::flush_OLD() {
+	flush_to_gbuffer();
+
+	state.render_target->get_image()->lock();
+
+		   // Each surface item.
+	for (uint32_t i = 0; i < _items.size(); i++) {
+		const Item &item = _items[i];
+		if (!item.num_tris)
+			continue;
+
+		SoftMesh::Surface &surf = item.mesh->data.surfaces[item.surf_id];
+
+		state.curr_material = nullptr;
+		if (surf.soft_material_id != UINT32_MAX) {
+			state.curr_material = &materials.get(surf.soft_material_id);
+		}
+
+		FinalTri final_tri;
+
+			   //const LocalVector<int> &is = surf.indices;
+
+		for (uint32_t t = 0; t < item.num_tris; t++) {
+			const Tri &tri = _tris[item.first_tri + t];
+			//uint32_t i = tri.index_start;
+
+
+			for (uint32_t c = 0; c < 3; c++) {
+				uint32_t vert_id =tri.corns[c];
+				final_tri.coords[c] = _vertices.cam_space_coords[tri.corns[c]];
+				final_tri.hcoords[c] = _vertices.hcoords[vert_id];
+				//final_tri.uvs[c] = surf.uvs[is[i + c]];
+				//Vector2 uv_test = _vertices.uvs[vert_id];
+				final_tri.uvs[c] = _vertices.uvs[vert_id];
+				//DEV_ASSERT(uv_test == final_tri.uvs[c]);
+			}
+			draw_tri(final_tri);
+		}
+	}
+
+	state.render_target->get_image()->unlock();
+	state.render_target->update();
+}
+*/
