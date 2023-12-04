@@ -39,6 +39,8 @@ public:
 		int32_t y = (p_uv.y * _height);
 		x %= _width;
 		y %= _height;
+		//x = CLAMP(x, 0, _width - 1);
+		//y = CLAMP(y, 0, _height - 1);
 		const SoftRGBA &rgba = get(x, y);
 		return rgba.rgba;
 	}

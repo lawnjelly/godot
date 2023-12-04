@@ -11,6 +11,26 @@ class Transform;
 struct CameraMatrix;
 
 class SoftRend {
+	class ScanConverter {
+		LocalVector<int32_t> scan_buffer;
+		int32_t _y_min = 0;
+		int32_t _y_max = 0;
+		uint32_t _y_height = 0;
+
+	public:
+		void create(int32_t p_y_min, uint32_t p_height) {
+			scan_buffer.resize(p_height * 2);
+			scan_buffer.fill(INT32_MAX);
+			_y_min = p_y_min;
+			_y_height = p_height;
+			_y_max = _y_min + _y_height;
+		}
+
+		void scan_convert_triangle(const Vector2 &p_min_y_vert, const Vector2 &p_mid_y_vert, const Vector2 &p_max_y_vert);
+		void scan_convert_line(const Vector2 &p_min_y_vert, const Vector2 &p_max_y_vert, int32_t p_which_side);
+		void get_x_min_max(int32_t p_y, int32_t &r_x_min, int32_t &r_x_max) const;
+	};
+
 	struct Node {
 		Rect2i clip_rect;
 		LocalVector<uint32_t> tris;
@@ -42,6 +62,7 @@ class SoftRend {
 
 		Color clear_color;
 		uint32_t clear_rgba = 0;
+		uint32_t frame_count = UINT32_MAX;
 
 		Node *tree = nullptr;
 
@@ -91,6 +112,12 @@ class SoftRend {
 			right = left + p_rect.size.x;
 			bottom = top + p_rect.size.y;
 		}
+		void set_safe(const Rect2i &p_rect) {
+			left = CLAMP(p_rect.position.x, INT16_MIN, INT16_MAX);
+			top = CLAMP(p_rect.position.y, INT16_MIN, INT16_MAX);
+			right = CLAMP(left + p_rect.size.x, INT16_MIN, INT16_MAX);
+			bottom = CLAMP(top + p_rect.size.y, INT16_MIN, INT16_MAX);
+		}
 		bool intersects(const Bound16 &o) const {
 			return !((left >= o.right) || (o.left >= right) || (top >= o.bottom) || (o.top >= bottom));
 		}
@@ -116,7 +143,6 @@ class SoftRend {
 		uint32_t corns[3];
 		uint32_t item_id;
 		Bound16 bound;
-		//uint32_t index_start;
 	};
 
 	LocalVector<Item> _items;
@@ -147,10 +173,17 @@ class SoftRend {
 	struct Tile {
 		Rect2i clip_rect;
 		const LocalVector<uint32_t> *tri_list = nullptr;
+		ScanConverter scan_converter;
+		void create() {
+			scan_converter.create(clip_rect.position.y, clip_rect.size.y);
+		}
+
+		// Optimization...
+		// If this tile is already clear, no need to reclear.
+		bool clear = false;
 	};
 
 	struct Tiles {
-		//void create(uint32_t p_viewport_width, uint32_t p_viewport_height);
 		LocalVector<Tile> tiles;
 		uint32_t tile_width = 0;
 		uint32_t tile_height = 0;
@@ -158,15 +191,13 @@ class SoftRend {
 		uint32_t tiles_y = 0;
 	} _tiles;
 
-	//void draw_tri(const FinalTri &tri);
 	bool which_side(const Vector2 &wall_a, const Vector2 &wall_vec, const Vector2 &pt) const;
-	void draw_tri_to_gbuffer(const Rect2i &p_clip_rect, const FinalTri &tri, uint32_t p_tri_id, uint32_t p_item_id_p1);
+	void draw_tri_to_gbuffer(Tile &p_tile, const FinalTri &tri, uint32_t p_tri_id, uint32_t p_item_id_p1);
 	void set_pixel(float x, float y);
 	bool texture_map_tri(int x, int y, const FinalTri &tri, const Vector3 &p_bary);
 
-	bool texture_map_tri_to_gbuffer(int x, int y, const FinalTri &tri, const Vector3 &p_bary, uint32_t p_tri_id_p1, uint32_t p_item_id_p1);
+	bool texture_map_tri_to_gbuffer(int x, int y, const FinalTri &tri, const Vector3 &p_bary, uint32_t p_item_id_p1);
 	void flush_to_gbuffer_work(uint32_t p_tile_id, void *p_userdata);
-	//void flush_to_gbuffer(Rect2i p_clip_rect);
 
 	void flush_final(uint32_t p_tile_id, uint32_t *p_frame_buffer_orig);
 

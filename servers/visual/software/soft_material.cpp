@@ -36,10 +36,9 @@ void SoftMaterial::create(RID p_mat) {
 		Ref<Image> temp = image_albedo->duplicate();
 		temp->decompress();
 
-		//		while ((temp->get_width() > 64) || (temp->get_height() > 64))
-		//		{
-		//			temp->shrink_x2();
-		//		}
+		while ((temp->get_width() > 64) || (temp->get_height() > 64)) {
+			temp->shrink_x2();
+		}
 
 		st_albedo.create(temp.ptr());
 	}
