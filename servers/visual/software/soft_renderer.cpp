@@ -1,11 +1,30 @@
 #include "soft_renderer.h"
 #include "soft_mesh.h"
 
+uint32_t SoftRend::Node::tile_width = 128;
+uint32_t SoftRend::Node::tile_height = 128;
+
+SoftRend::Node::~Node() {
+	for (uint32_t n = 0; n < 2; n++) {
+		if (children[n]) {
+			memdelete(children[n]);
+			children[n] = nullptr;
+		}
+	}
+}
+
+/*
 void SoftRend::Tiles::create(uint32_t p_viewport_width, uint32_t p_viewport_height) {
-	uint32_t tiles_x = 4;
-	uint32_t tiles_y = 4;
-	uint32_t tile_width = p_viewport_width / tiles_x;
-	uint32_t tile_height = p_viewport_height / tiles_y;
+	//	tiles_x = 4;
+	//	tiles_y = 4;
+	//	tile_width = p_viewport_width / tiles_x;
+	//	tile_height = p_viewport_height / tiles_y;
+
+	tile_width = 128;
+	tile_height = 128;
+	tiles_x = p_viewport_width / tile_width;
+	tiles_y = p_viewport_height / tile_height;
+
 	tiles.resize(tiles_x * tiles_y);
 
 	uint32_t count = 0;
@@ -19,26 +38,117 @@ void SoftRend::Tiles::create(uint32_t p_viewport_width, uint32_t p_viewport_heig
 		}
 	}
 }
+*/
 
 void SoftRend::set_render_target(SoftSurface *p_soft_surface) {
 	DEV_ASSERT(p_soft_surface);
 	state.render_target = p_soft_surface;
-	state.fviewport_width = p_soft_surface->data.width;
-	state.fviewport_height = p_soft_surface->data.height;
-	state.viewport_width = p_soft_surface->data.width;
-	state.viewport_height = p_soft_surface->data.height;
 
-	_tiles.create(state.viewport_width, state.viewport_height);
+	// Aliases
+	uint32_t new_width = p_soft_surface->data.width;
+	uint32_t new_height = p_soft_surface->data.height;
+	int32_t &width = state.viewport_width;
+	int32_t &height = state.viewport_height;
+
+	// Noop?
+	if ((new_width == width) && (new_height == height)) {
+		return;
+	}
+
+	width = new_width;
+	height = new_height;
+	state.fviewport_width = width;
+	state.fviewport_height = height;
+
+	_tiles.tiles.clear();
+	//_tiles.create(width, height);
+
+	// Build the tree.
+	if (state.tree) {
+		memdelete(state.tree);
+		state.tree = nullptr;
+	}
+
+	state.tree = memnew(Node);
+	state.tree->clip_rect = Rect2i(0, 0, width, height);
+	state.tree->build_tree_split();
+	state.tree->debug_tree();
+
+	link_leaf_nodes_to_tiles(state.tree);
+}
+
+void SoftRend::link_leaf_nodes_to_tiles(Node *p_node) {
+	// Leaf node?
+	if (!p_node->children[0]) {
+		p_node->tile_id_p1 = _tiles.tiles.size() + 1;
+		Tile t;
+		t.clip_rect = p_node->clip_rect;
+		t.tri_list = &p_node->tris;
+		_tiles.tiles.push_back(t);
+		return;
+	}
+
+	link_leaf_nodes_to_tiles(p_node->children[0]);
+	link_leaf_nodes_to_tiles(p_node->children[1]);
+}
+
+void SoftRend::Node::build_tree_split() {
+	// find longest axis and split on it
+	uint32_t w = clip_rect.size.x / tile_width;
+	uint32_t h = clip_rect.size.y / tile_height;
+
+	if ((w <= 1) && (h <= 1)) {
+		// leaf node
+		return;
+	}
+
+	children[0] = memnew(Node);
+	children[1] = memnew(Node);
+
+	// Old rect
+	Vector2i op = clip_rect.position;
+	Vector2i os = clip_rect.size;
+
+	if (w > h) {
+		uint32_t split = (w / 2) * tile_width;
+		children[0]->clip_rect = Rect2i(op.x, op.y, split, os.y);
+		children[1]->clip_rect = Rect2i(op.x + split, op.y, os.x - split, os.y);
+	} else {
+		uint32_t split = (h / 2) * tile_height;
+		children[0]->clip_rect = Rect2i(op.x, op.y, os.x, split);
+		children[1]->clip_rect = Rect2i(op.x, op.y + split, os.x, os.y - split);
+	}
+
+	children[0]->build_tree_split();
+	children[1]->build_tree_split();
+}
+
+void SoftRend::Node::debug_tree(uint32_t p_depth) {
+	String sz;
+	for (uint32_t n = 0; n < p_depth; n++) {
+		sz += String("\t");
+	}
+	sz += String(clip_rect);
+	print_line(sz);
+
+	if (children[0]) {
+		children[0]->debug_tree(p_depth + 1);
+		children[1]->debug_tree(p_depth + 1);
+	}
 }
 
 void SoftRend::prepare() {
 	_items.clear();
 	_tris.clear();
 	_vertices.clear();
+	state.tris_rejected_by_edges = 0;
 }
 
 void SoftRend::push_mesh(SoftMesh &r_softmesh, const Transform &p_cam_transform, const CameraMatrix &p_cam_projection, const Transform &p_instance_xform) {
 	Transform xcam = p_cam_transform.affine_inverse();
+
+	// Combine instance and camera transform as cheaper per vert.
+	Transform view_matrix = xcam * p_instance_xform;
 
 	// Keep track of first list vert for each surface.
 	uint32_t first_surface_list_vert = _vertices.size();
@@ -56,14 +166,16 @@ void SoftRend::push_mesh(SoftMesh &r_softmesh, const Transform &p_cam_transform,
 		it.first_tri = _tris.size();
 		it.surf_id = s;
 
+		uint32_t item_id = _items.size();
+
 		Vector3 pos;
 		Plane hpos;
 		for (uint32_t v = 0; v < num_verts; v++) {
 			pos = surf.positions[v];
 
-			pos = p_instance_xform.xform(pos);
-
-			pos = xcam.xform(pos);
+			//pos = p_instance_xform.xform(pos);
+			//pos = xcam.xform(pos);
+			pos = view_matrix.xform(pos);
 
 			hpos = Plane(pos, 1.0f);
 			hpos = p_cam_projection.xform4(hpos);
@@ -105,6 +217,24 @@ void SoftRend::push_mesh(SoftMesh &r_softmesh, const Transform &p_cam_transform,
 				continue;
 			}
 
+			tri.bound.unset();
+			tri.item_id = item_id;
+
+			Vector2 pt_screen;
+			for (uint32_t c = 0; c < 3; c++) {
+				//final_tri.coords[c] = surf.xformed_positions[is[i + c]];
+				GL_to_viewport_coords(final_tri.coords[c], pt_screen);
+
+				int32_t x, y;
+				x = pt_screen.x;
+				y = pt_screen.y;
+				x = CLAMP(x, INT16_MIN, INT16_MAX - 1);
+				y = CLAMP(y, INT16_MIN, INT16_MAX - 1);
+				tri.bound.expand_to_include(x, y);
+				tri.bound.right += 1;
+				tri.bound.bottom += 1;
+			}
+
 			//tri.uvs[c] = surf.uvs[is[i + c]];
 
 			// The start index is needed for reading the UVs from the original
@@ -124,6 +254,7 @@ void SoftRend::push_mesh(SoftMesh &r_softmesh, const Transform &p_cam_transform,
 	}
 }
 
+/*
 void SoftRend::flush_to_gbuffer(Rect2i p_clip_rect) {
 	// Each surface item.
 	for (uint32_t i = 0; i < _items.size(); i++) {
@@ -131,47 +262,85 @@ void SoftRend::flush_to_gbuffer(Rect2i p_clip_rect) {
 		if (!item.num_tris)
 			continue;
 
-		//		SoftMesh::Surface &surf = item.mesh->data.surfaces[item.surf_id];
-
-		//		state.curr_material = nullptr;
-		//		if (surf.soft_material_id != UINT32_MAX) {
-		//			state.curr_material = &materials.get(surf.soft_material_id);
-		//		}
-
 		FinalTri final_tri;
-
-		//const LocalVector<int> &is = surf.indices;
 
 		for (uint32_t t = 0; t < item.num_tris; t++) {
 			const Tri &tri = _tris[item.first_tri + t];
-			//uint32_t i = tri.index_start;
 
 			for (uint32_t c = 0; c < 3; c++) {
 				uint32_t vert_id = tri.corns[c];
 				final_tri.coords[c] = _vertices.cam_space_coords[tri.corns[c]];
 				final_tri.hcoords[c] = _vertices.hcoords[vert_id];
-				//final_tri.uvs[c] = surf.uvs[is[i + c]];
-				//Vector2 uv_test = _vertices.uvs[vert_id];
 				final_tri.uvs[c] = _vertices.uvs[vert_id];
-				//DEV_ASSERT(uv_test == final_tri.uvs[c]);
 			}
 			draw_tri_to_gbuffer(p_clip_rect, final_tri, item.first_tri + t, i + 1);
 		}
 	}
 }
+*/
 
 void SoftRend::flush_to_gbuffer_work(uint32_t p_tile_id, void *p_userdata) {
-	flush_to_gbuffer(_tiles.tiles[p_tile_id].clip_rect);
+	const Tile &tile = _tiles.tiles[p_tile_id];
+
+	FinalTri final_tri;
+	for (uint32_t t = 0; t < tile.tri_list->size(); t++) {
+		uint32_t tri_id = (*tile.tri_list)[t];
+		const Tri &tri = _tris[tri_id];
+
+		for (uint32_t c = 0; c < 3; c++) {
+			uint32_t vert_id = tri.corns[c];
+			final_tri.coords[c] = _vertices.cam_space_coords[tri.corns[c]];
+			final_tri.hcoords[c] = _vertices.hcoords[vert_id];
+			final_tri.uvs[c] = _vertices.uvs[vert_id];
+		}
+		draw_tri_to_gbuffer(tile.clip_rect, final_tri, tri_id, tri.item_id + 1);
+	}
+	//flush_to_gbuffer(_tiles.tiles[p_tile_id].clip_rect);
+}
+
+void SoftRend::fill_tree(Node *p_node, const LocalVector<uint32_t> &p_parent_tri_list) {
+	DEV_ASSERT(p_node);
+	p_node->tris.clear();
+
+	// translate tile clip rect to 16
+	Bound16 clip_rect;
+	clip_rect.set(p_node->clip_rect);
+
+	for (uint32_t n = 0; n < p_parent_tri_list.size(); n++) {
+		uint32_t tri_id = p_parent_tri_list[n];
+		const Tri &tri = _tris[tri_id];
+
+		if (tri.bound.intersects(clip_rect)) {
+			p_node->tris.push_back(tri_id);
+		}
+	}
+
+	if (p_node->children[0]) {
+		fill_tree(p_node->children[0], p_node->tris);
+		fill_tree(p_node->children[1], p_node->tris);
+	}
 }
 
 void SoftRend::flush() {
+	// Seed tris
+	DEV_ASSERT(state.tree);
+	state.tree->tris.resize(_tris.size());
+	for (uint32_t n = 0; n < _tris.size(); n++) {
+		state.tree->tris[n] = n;
+	}
+	if (state.tree->children[0]) {
+		fill_tree(state.tree->children[0], state.tree->tris);
+		fill_tree(state.tree->children[1], state.tree->tris);
+	}
+
 	state.clear_color = Color(0.15, 0.3, 0.7, 1);
 	state.clear_rgba = state.clear_color.to_abgr32();
 	//data.image->fill(Color(0.15, 0.3, 0.7, 1));
 
 #ifndef NO_THREADS
 	if (!state.thread_cores && state.thread_pool.get_thread_count() == 0) {
-		state.thread_cores = OS::get_singleton()->get_default_thread_pool_size() - 2;
+		//state.thread_cores = OS::get_singleton()->get_default_thread_pool_size() / 2;
+		state.thread_cores = 1;
 		state.thread_cores = MAX(state.thread_cores, 1);
 
 		if (state.thread_cores > 1) {
@@ -186,12 +355,12 @@ void SoftRend::flush() {
 				nullptr);
 	} else {
 		for (uint32_t t = 0; t < _tiles.tiles.size(); t++) {
-			flush_to_gbuffer(_tiles.tiles[t].clip_rect);
+			flush_to_gbuffer_work(t, nullptr);
 		}
 	}
 #else
 	for (uint32_t t = 0; t < _tiles.tiles.size(); t++) {
-		flush_to_gbuffer(_tiles.tiles[t].clip_rect);
+		flush_to_gbuffer_work(t, nullptr);
 	}
 #endif // NO_THREADS
 
@@ -329,6 +498,11 @@ void SoftRend::set_pixel(float x, float y) {
 	state.render_target->get_image()->set_pixel(x, y, col);
 }
 
+bool SoftRend::which_side(const Vector2 &wall_a, const Vector2 &wall_vec, const Vector2 &pt) const {
+	Vector2 pt_vec = pt - wall_a;
+	return wall_vec.cross(pt_vec) > 0;
+}
+
 void SoftRend::draw_tri_to_gbuffer(const Rect2i &p_clip_rect, const FinalTri &tri, uint32_t p_tri_id, uint32_t p_item_id_p1) {
 	Vector2 pts[3];
 	for (uint32_t c = 0; c < 3; c++) {
@@ -347,6 +521,24 @@ void SoftRend::draw_tri_to_gbuffer(const Rect2i &p_clip_rect, const FinalTri &tr
 	if (bound.has_no_area())
 		return;
 
+	// Do a more accurate cull of each triangle edge.
+	for (uint32_t e = 0; e < 3; e++) {
+		const Vector2 &a = pts[e];
+		const Vector2 &b = pts[(e + 1) % 3];
+
+		Vector2 wall_vec = b - a;
+
+		if (which_side(a, wall_vec, p_clip_rect.position) &&
+				which_side(a, wall_vec, p_clip_rect.position + Vector2i(p_clip_rect.size.x, 0)) &&
+				which_side(a, wall_vec, p_clip_rect.position + Vector2i(0, p_clip_rect.size.y)) &&
+				which_side(a, wall_vec, p_clip_rect.position + p_clip_rect.size)) {
+#ifdef DEV_ENABLED
+			state.tris_rejected_by_edges += 1;
+#endif
+			return;
+		}
+	}
+
 	Vector3 bc_screen;
 
 	uint32_t tri_id_p1 = p_tri_id + 1;
@@ -359,6 +551,8 @@ void SoftRend::draw_tri_to_gbuffer(const Rect2i &p_clip_rect, const FinalTri &tr
 		// Just for safety, can be removed.
 		bary_s[i].coord[2] = 0;
 	}
+
+	//uint32_t pixels_written = 0;
 
 	for (int y = bound.position.y; y < bound.position.y + bound.size.y; y++) {
 		// get z and g buffer as one off per line
@@ -397,6 +591,8 @@ void SoftRend::draw_tri_to_gbuffer(const Rect2i &p_clip_rect, const FinalTri &tr
 			// CHECK Z BUFFER
 			//float *z = state.render_target->get_z(x, y);
 			//DEV_ASSERT(z);
+
+			//pixels_written++;
 
 			if (pt3.z >= *z)
 				continue; // failed z test
@@ -531,6 +727,11 @@ SoftRend::~SoftRend() {
 #ifndef NO_THREADS
 	state.thread_pool.finish();
 #endif // !NO_THREADS
+
+	if (state.tree) {
+		memdelete(state.tree);
+		state.tree = 0;
+	}
 }
 
 /*

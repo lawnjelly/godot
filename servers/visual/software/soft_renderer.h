@@ -11,6 +11,26 @@ class Transform;
 struct CameraMatrix;
 
 class SoftRend {
+	struct Node {
+		Rect2i clip_rect;
+		LocalVector<uint32_t> tris;
+		Node *children[2];
+
+		// The corresponding tile in the tile list if a leaf node.
+		uint32_t tile_id_p1 = 0;
+
+		void build_tree_split();
+		void debug_tree(uint32_t p_depth = 0);
+
+		// Blank children using value initialization.
+		Node() :
+				children() {}
+		~Node();
+
+		static uint32_t tile_width;
+		static uint32_t tile_height;
+	};
+
 	struct State {
 		SoftSurface *render_target = nullptr;
 		const SoftMaterial *curr_material = nullptr;
@@ -22,6 +42,11 @@ class SoftRend {
 
 		Color clear_color;
 		uint32_t clear_rgba = 0;
+
+		Node *tree = nullptr;
+
+		// Stats
+		uint32_t tris_rejected_by_edges = 0;
 
 #ifndef NO_THREADS
 		/// Pooled threads for computing steps
@@ -55,8 +80,42 @@ class SoftRend {
 		uint32_t num_tris = 0;
 	};
 
+	struct Bound16 {
+		int16_t left;
+		int16_t top;
+		int16_t right;
+		int16_t bottom;
+		void set(const Rect2i &p_rect) {
+			left = p_rect.position.x;
+			top = p_rect.position.y;
+			right = left + p_rect.size.x;
+			bottom = top + p_rect.size.y;
+		}
+		bool intersects(const Bound16 &o) const {
+			return !((left >= o.right) || (o.left >= right) || (top >= o.bottom) || (o.top >= bottom));
+		}
+		void expand_to_include(int16_t x, int16_t y) {
+			if (x < left)
+				left = x;
+			if (x > right)
+				right = x;
+			if (y < top)
+				top = y;
+			if (y > bottom)
+				bottom = y;
+		}
+		void unset() {
+			left = INT16_MAX;
+			right = INT16_MIN;
+			top = INT16_MAX;
+			bottom = INT16_MIN;
+		}
+	};
+
 	struct Tri {
 		uint32_t corns[3];
+		uint32_t item_id;
+		Bound16 bound;
 		//uint32_t index_start;
 	};
 
@@ -87,25 +146,35 @@ class SoftRend {
 
 	struct Tile {
 		Rect2i clip_rect;
+		const LocalVector<uint32_t> *tri_list = nullptr;
 	};
 
 	struct Tiles {
-		void create(uint32_t p_viewport_width, uint32_t p_viewport_height);
+		//void create(uint32_t p_viewport_width, uint32_t p_viewport_height);
 		LocalVector<Tile> tiles;
+		uint32_t tile_width = 0;
+		uint32_t tile_height = 0;
+		uint32_t tiles_x = 0;
+		uint32_t tiles_y = 0;
 	} _tiles;
 
 	//void draw_tri(const FinalTri &tri);
+	bool which_side(const Vector2 &wall_a, const Vector2 &wall_vec, const Vector2 &pt) const;
 	void draw_tri_to_gbuffer(const Rect2i &p_clip_rect, const FinalTri &tri, uint32_t p_tri_id, uint32_t p_item_id_p1);
 	void set_pixel(float x, float y);
 	bool texture_map_tri(int x, int y, const FinalTri &tri, const Vector3 &p_bary);
 
 	bool texture_map_tri_to_gbuffer(int x, int y, const FinalTri &tri, const Vector3 &p_bary, uint32_t p_tri_id_p1, uint32_t p_item_id_p1);
 	void flush_to_gbuffer_work(uint32_t p_tile_id, void *p_userdata);
-	void flush_to_gbuffer(Rect2i p_clip_rect);
+	//void flush_to_gbuffer(Rect2i p_clip_rect);
 
 	void flush_final(uint32_t p_tile_id, uint32_t *p_frame_buffer_orig);
 
 	String itof(float f) { return String(Variant(f)); }
+
+	// Nodes
+	void link_leaf_nodes_to_tiles(Node *p_node);
+	void fill_tree(Node *p_node, const LocalVector<uint32_t> &p_parent_tri_list);
 
 public:
 	void set_render_target(SoftSurface *p_soft_surface);
