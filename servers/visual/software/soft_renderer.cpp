@@ -1,3 +1,4 @@
+
 #include "soft_renderer.h"
 #include "soft_mesh.h"
 //#include "core/math/math_funcs.h"
@@ -6,6 +7,10 @@
 
 uint32_t SoftRend::Node::tile_width = 128;
 uint32_t SoftRend::Node::tile_height = 128;
+
+#ifdef VISUAL_SERVER_SOFTREND_ENABLED
+SoftRend g_soft_rend;
+#endif // softrend enabled
 
 void SoftRend::ScanConverter::get_x_min_max(int32_t p_y, int32_t &r_x_min, int32_t &r_x_max) const {
 	p_y -= _y_min;
@@ -103,6 +108,9 @@ void SoftRend::set_render_target(SoftSurface *p_soft_surface) {
 
 	width = new_width;
 	height = new_height;
+
+	print_line("SoftRender setting new render target size " + itos(width) + " x " + itos(height));
+
 	state.fviewport_width = width;
 	state.fviewport_height = height;
 
@@ -118,7 +126,7 @@ void SoftRend::set_render_target(SoftSurface *p_soft_surface) {
 	state.tree = memnew(Node);
 	state.tree->clip_rect = Rect2i(0, 0, width, height);
 	state.tree->build_tree_split();
-	state.tree->debug_tree();
+	//state.tree->debug_tree();
 
 	link_leaf_nodes_to_tiles(state.tree);
 
@@ -199,16 +207,17 @@ void SoftRend::prepare() {
 
 void SoftRend::push_mesh(SoftMeshInstance &r_softmesh, const Transform &p_cam_transform, const CameraMatrix &p_cam_projection, const Transform &p_instance_xform) {
 	Transform xcam = p_cam_transform.affine_inverse();
+	//Transform xcam = p_cam_transform;
 
 	// Combine instance and camera transform as cheaper per vert.
 	Transform view_matrix = xcam * p_instance_xform;
 
-	// Keep track of first list vert for each surface.
-	uint32_t first_surface_list_vert = _vertices.size();
-
 	const SoftMesh &mesh = meshes->get(r_softmesh.get_mesh_id());
 
 	for (uint32_t s = 0; s < mesh.data.surfaces.size(); s++) {
+		// Keep track of first list vert for each surface.
+		uint32_t first_surface_list_vert = _vertices.size();
+
 		const SoftMesh::Surface &surf = mesh.data.surfaces[s];
 
 		uint32_t num_verts = surf.positions.size();
@@ -240,7 +249,7 @@ void SoftRend::push_mesh(SoftMeshInstance &r_softmesh, const Transform &p_cam_tr
 			pos = hpos.normal / hpos.d;
 
 			Vector2 uv = surf.uvs[v];
-			_vertices.set(first_surface_list_vert + v, hpos, pos, uv);
+			_vertices[first_surface_list_vert + v].set(hpos, pos, uv);
 
 			//			final_tri.uvs[c] = surf.uvs[is[i + c]];
 
@@ -253,30 +262,46 @@ void SoftRend::push_mesh(SoftMeshInstance &r_softmesh, const Transform &p_cam_tr
 
 		const LocalVector<int> &is = surf.indices;
 
-		FinalTri final_tri;
+		//FinalTri final_tri;
 
 		for (uint32_t t = 0; t < num_tris; t++) {
 			uint32_t i = t * 3;
 
-			Tri tri;
+			//Tri tri;
+			uint32_t corns[3];
 			for (uint32_t c = 0; c < 3; c++) {
-				tri.corns[c] = is[i + c] + first_surface_list_vert;
+				corns[c] = is[i + c] + first_surface_list_vert;
 			}
 
-			for (uint32_t c = 0; c < 3; c++) {
-				//final_tri.coords[c] = surf.xformed_positions[is[i + c]];
-				final_tri.coords[c] = _vertices.cam_space_coords[tri.corns[c]];
-			}
+			//			for (uint32_t c = 0; c < 3; c++) {
+			//				final_tri.coords[c] = _vertices.cam_space_coords[corns[c]];
+			//			}
 
 			// Backface culling
-#define SOFTREND_BACKFACE_CULLING
+//#define SOFTREND_BACKFACE_CULLING
 #ifdef SOFTREND_BACKFACE_CULLING
-			if (!final_tri.is_front_facing()) {
-				continue;
+
+			Vector3 normal_camera_space;
+			// backface cull
+			//			const Vector3 &h0 = _vertices.hcoords[corns[0]].normal;
+			//			const Vector3 &h1 = _vertices.hcoords[corns[1]].normal;
+			//			const Vector3 &h2 = _vertices.hcoords[corns[2]].normal;
+			const Vector3 &h0 = _vertices.cam_space_coords[corns[0]];
+			const Vector3 &h1 = _vertices.cam_space_coords[corns[1]];
+			const Vector3 &h2 = _vertices.cam_space_coords[corns[2]];
+			normal_camera_space = (h2 - h0).cross(h1 - h0);
+			if (normal_camera_space.z < 0) {
+				//continue;
 			}
+
+//			if (!final_tri.is_front_facing()) {
+//				continue;
+//			}
 #endif
 
-#define SOFTREND_REMOVE_NEAR_TRIS
+			// clipping
+
+//#define SOFTREND_REMOVE_NEAR_TRIS
 #ifdef SOFTREND_REMOVE_NEAR_TRIS
 			bool ignore_near = false;
 			for (uint32_t c = 0; c < 3; c++) {
@@ -293,42 +318,206 @@ void SoftRend::push_mesh(SoftMeshInstance &r_softmesh, const Transform &p_cam_tr
 				continue;
 			}
 #endif
-
-			tri.bound.unset();
-			tri.item_id = item_id;
-
-			Vector2 pt_screen;
-			for (uint32_t c = 0; c < 3; c++) {
-				//final_tri.coords[c] = surf.xformed_positions[is[i + c]];
-				GL_to_viewport_coords(final_tri.coords[c], pt_screen);
-
-				int32_t x, y;
-				x = pt_screen.x;
-				y = pt_screen.y;
-				x = CLAMP(x, INT16_MIN, INT16_MAX - 1);
-				y = CLAMP(y, INT16_MIN, INT16_MAX - 1);
-				tri.bound.expand_to_include(x, y);
-				tri.bound.right += 1;
-				tri.bound.bottom += 1;
-			}
-
-			//tri.uvs[c] = surf.uvs[is[i + c]];
-
-			// The start index is needed for reading the UVs from the original
-			// surface, because we may delete backfacing tris, so we can't just
-			// use the triangle number to derive this.
-			//tri.index_start = i;
-
-			_tris.push_back(tri);
-			it.num_tris += 1;
+			clip_tri(corns, it, item_id);
 		}
 
 		// set for next surface / mesh
-		first_surface_list_vert += num_verts;
+		//first_surface_list_vert += num_verts;
 
 		// Push surface item.
 		_items.push_back(it);
 	}
+}
+
+bool SoftRend::is_inside_view_frustum(uint32_t p_ind) {
+	const Plane &v = _vertices[p_ind].hcoord;
+	float w = Math::absf(v.d);
+	return ((Math::absf(v.normal.x) <= w) &&
+			(Math::absf(v.normal.y) <= w) &&
+			(Math::absf(v.normal.z) <= w));
+}
+
+void SoftRend::clip_tri(const uint32_t *p_inds, Item &r_item, uint32_t p_item_id) {
+	bool inside[3];
+	for (uint32_t c = 0; c < 3; c++) {
+		inside[c] = is_inside_view_frustum(p_inds[c]);
+	}
+
+	if (inside[0] && inside[1] && inside[2]) {
+		push_tri(p_inds, r_item, p_item_id);
+		return;
+	}
+
+	//	if (!inside[0] && !inside[1] && !inside[2]) {
+	//		return;
+	//	}
+
+	// If we got to here, we need to clip.
+	FixedArray<uint32_t, 16> inds;
+	FixedArray<uint32_t, 16> auxillary;
+
+	inds.push_back(p_inds[0]);
+	inds.push_back(p_inds[1]);
+	inds.push_back(p_inds[2]);
+
+	if (clip_polygon_axis(inds, auxillary, 0) &&
+			clip_polygon_axis(inds, auxillary, 1) &&
+			clip_polygon_axis(inds, auxillary, 2)) {
+		uint32_t corns[3];
+		corns[0] = inds[0];
+
+		// display clipped
+		//		for (uint32_t n = 0; n < inds.size(); n++) {
+		//			Plane p = _vertices.hcoords[inds[n]];
+		//			print_line(itos(n) + " ) " + itos(inds[n]) + " : " + String(Variant(p)) + " is " + String(Variant(p.normal / p.d)));
+		//		}
+
+		for (uint32_t i = 1; i < inds.size() - 1; i++) {
+			corns[1] = inds[i];
+			corns[2] = inds[i + 1];
+
+			push_tri(corns, r_item, p_item_id);
+		}
+	} else {
+		//print_line("clipping failed");
+	}
+}
+
+bool SoftRend::clip_polygon_axis(FixedArray<uint32_t, 16> &inds, FixedArray<uint32_t, 16> &aux, int32_t component_index) {
+	// debug
+	//	for (uint32_t n=0; n<inds.size(); n++)
+	//	{
+	//		Plane p = _vertices.hcoords[inds[n]];
+	//		print_line(itos(n) + " ) " + itos(inds[n]) + " : " + String(Variant(p)) + " is " + String(Variant(p.normal / p.d)));
+	//	}
+
+	clip_polygon_component(inds, aux, component_index, 1.0f);
+	inds.clear();
+
+	if (aux.is_empty()) {
+		return false;
+	}
+
+	clip_polygon_component(aux, inds, component_index, -1.0f);
+	aux.clear();
+
+	return !inds.is_empty();
+}
+
+void SoftRend::clip_polygon_component(FixedArray<uint32_t, 16> &inds, FixedArray<uint32_t, 16> &result, int32_t component_index, float component_factor) {
+	uint32_t prev_ind = inds[inds.size() - 1];
+	Plane prev_vert = _vertices[prev_ind].hcoord;
+
+	float prev_component = prev_vert.normal.coord[component_index] * component_factor;
+	bool prev_inside = prev_component <= prev_vert.d;
+
+	//	Vertex previousVertex = vertices.get(vertices.size() - 1);
+	//	float previousComponent = previousVertex.Get(componentIndex) * componentFactor;
+	//	boolean previousInside = previousComponent <= previousVertex.GetPosition().GetW();
+
+	for (uint32_t i = 0; i < inds.size(); i++) {
+		uint32_t curr_ind = inds[i];
+		Plane curr_vert = _vertices[curr_ind].hcoord;
+		float curr_component = curr_vert.normal.coord[component_index] * component_factor;
+		bool curr_inside = curr_component <= curr_vert.d;
+
+		if (curr_inside ^ prev_inside) {
+			float f = (prev_vert.d - prev_component) /
+					((prev_vert.d - prev_component) -
+							(curr_vert.d - curr_component));
+
+			//			if (curr_inside)
+			//			{
+			//				f *= 1.001f;
+			//			}
+			//			else
+			//			{
+			//				f *= 0.999f;
+			//			}
+
+			Vertex v;
+
+			// construct a new vertex lerped
+			v.hcoord = lerp_hcoord(prev_vert, curr_vert, f);
+			v.coord_cam_space = v.hcoord.normal / v.hcoord.d;
+			v.uv = _vertices[prev_ind].uv.linear_interpolate(_vertices[curr_ind].uv, f);
+
+			_vertices.push_back(v);
+			result.push_back(_vertices.size() - 1);
+		}
+
+		if (curr_inside) {
+			result.push_back(curr_ind);
+		}
+
+		prev_vert = curr_vert;
+		prev_ind = curr_ind;
+		prev_component = curr_component;
+		prev_inside = curr_inside;
+	}
+
+	/*
+	Iterator<Vertex> it = vertices.iterator();
+	while(it.hasNext())
+	{
+		Vertex currentVertex = it.next();
+		float currentComponent = currentVertex.Get(componentIndex) * componentFactor;
+		boolean currentInside = currentComponent <= currentVertex.GetPosition().GetW();
+
+		if(currentInside ^ previousInside)
+		{
+			float lerpAmt = (previousVertex.GetPosition().GetW() - previousComponent) /
+					((previousVertex.GetPosition().GetW() - previousComponent) -
+							(currentVertex.GetPosition().GetW() - currentComponent));
+
+			result.add(previousVertex.Lerp(currentVertex, lerpAmt));
+		}
+
+		if(currentInside)
+		{
+			result.add(currentVertex);
+		}
+
+		previousVertex = currentVertex;
+		previousComponent = currentComponent;
+		previousInside = currentInside;
+	}
+*/
+}
+
+void SoftRend::push_tri(const uint32_t *p_inds, Item &r_item, uint32_t p_item_id) {
+	Tri tri;
+	memcpy(&tri.corns, p_inds, sizeof(uint32_t) * 3);
+	tri.bound.unset();
+	tri.item_id = p_item_id;
+
+	Vector2 pt_screen[3];
+	for (uint32_t c = 0; c < 3; c++) {
+		const Vector3 &cam_coords = _vertices[p_inds[c]].coord_cam_space;
+		GL_to_viewport_coords(cam_coords, pt_screen[c]);
+
+		int32_t x, y;
+		x = pt_screen[c].x;
+		y = pt_screen[c].y;
+		x = CLAMP(x, INT16_MIN, INT16_MAX - 1);
+		y = CLAMP(y, INT16_MIN, INT16_MAX - 1);
+		tri.bound.expand_to_include(x, y);
+		tri.bound.right += 1;
+		tri.bound.bottom += 1;
+	}
+
+	// cull
+	Vector2 c0 = pt_screen[0];
+	Vector2 c1 = pt_screen[1];
+	Vector2 c2 = pt_screen[2];
+	float cross = (c1 - c0).cross(c2 - c0);
+
+	if (cross > 0) {
+		return;
+	}
+
+	_tris.push_back(tri);
+	r_item.num_tris += 1;
 }
 
 void SoftRend::flush_to_gbuffer_work(uint32_t p_tile_id, void *p_userdata) {
@@ -341,9 +530,9 @@ void SoftRend::flush_to_gbuffer_work(uint32_t p_tile_id, void *p_userdata) {
 
 		for (uint32_t c = 0; c < 3; c++) {
 			uint32_t vert_id = tri.corns[c];
-			final_tri.coords[c] = _vertices.cam_space_coords[tri.corns[c]];
-			final_tri.hcoords[c] = _vertices.hcoords[vert_id];
-			final_tri.uvs[c] = _vertices.uvs[vert_id];
+			final_tri.coords[c] = _vertices[tri.corns[c]].coord_cam_space;
+			final_tri.hcoords[c] = _vertices[vert_id].hcoord;
+			final_tri.uvs[c] = _vertices[vert_id].uv;
 		}
 		draw_tri_to_gbuffer(tile, final_tri, tri_id, tri.item_id + 1);
 	}
@@ -373,6 +562,8 @@ void SoftRend::fill_tree(Node *p_node, const LocalVector<uint32_t> &p_parent_tri
 }
 
 void SoftRend::flush() {
+	// for debugging clipping, contract a bit
+
 	// Seed tris
 	DEV_ASSERT(state.tree);
 	state.tree->tris.resize(_tris.size());
@@ -479,37 +670,71 @@ void SoftRend::flush_final(uint32_t p_tile_id, uint32_t *p_frame_buffer_orig) {
 
 		for (uint32_t x = left; x < right; x++) {
 			const SoftSurface::GData &g = *gdata++;
-
-			// Background
-			if (!g.item_id_p1) {
-				*frame_buffer++ = state.clear_rgba;
-				continue;
-			}
-
-			uint32_t item_id = g.item_id_p1 - 1;
-			float u = g.uv.x;
-			float v = g.uv.y;
-
-			const Item &item = _items[item_id];
-			uint32_t soft_material_id = item.mesh_instance->get_surface_material_id(item.surf_id);
-
-			const SoftMaterial *curr_material = nullptr;
-			if (soft_material_id != UINT32_MAX) {
-				curr_material = &materials.get(soft_material_id);
-			}
-
-			//Color col;
-			uint32_t rgba;
-			if (curr_material) {
-				rgba = curr_material->st_albedo.get8(Vector2(u, v));
-			} else {
-				// Black
-				rgba = 255;
-			}
-
-			*frame_buffer++ = rgba;
+			*frame_buffer++ = pixel_shader(x, y, g);
 		}
 	}
+}
+
+uint32_t SoftRend::pixel_shader(uint32_t x, uint32_t y, const SoftSurface::GData &g) const {
+	// Background
+	if (!g.item_id_p1) {
+		return state.clear_rgba;
+	}
+
+	uint32_t item_id = g.item_id_p1 - 1;
+
+	const Item &item = _items[item_id];
+	uint32_t soft_material_id = item.mesh_instance->get_surface_material_id(item.surf_id);
+
+	float u = g.uv.x;
+	float v = g.uv.y;
+
+	// Get source triangle.
+	const Tri &tri = _tris[g.tri_id_p1 - 1];
+	Vector2 uvs[3];
+	for (uint32_t c = 0; c < 3; c++) {
+		uvs[c] = _vertices[tri.corns[c]].uv;
+	}
+
+	Vector3 bary;
+	pixel_shader_calculate_bary(x, y, g, bary);
+
+	// LOCALLY
+	float u2, v2;
+	find_uv_barycentric(uvs, u2, v2, bary.x, bary.y, bary.z);
+
+	const SoftMaterial *curr_material = nullptr;
+	if (soft_material_id != UINT32_MAX) {
+		curr_material = &materials.get(soft_material_id);
+	}
+
+	//Color col;
+	uint32_t rgba;
+	if (curr_material) {
+		if (!curr_material->st_albedo.is_empty()) {
+			rgba = curr_material->st_albedo.get8(Vector2(u, v));
+		} else {
+			// WHITE
+			rgba = UINT32_MAX;
+		}
+	} else {
+		// Black
+		rgba = 255;
+	}
+
+	return rgba;
+}
+
+void SoftRend::pixel_shader_calculate_bary(uint32_t x, uint32_t y, const SoftSurface::GData &g, Vector3 &r_bary) const {
+	//bool find_pixel_bary(const Vector2 &A, const Vector2 &B, const Vector2 &C, const Vector2 &P, Vector3 &ptBary) const {
+
+	//	Vector3 bc_clip = Vector3(bc_screen.x / tri.hcoords[0].d, bc_screen.y / tri.hcoords[1].d, bc_screen.z / tri.hcoords[2].d);
+
+	//	float clip_denom = bc_clip.x + bc_clip.y + bc_clip.z;
+	//	if (clip_denom <= 0) {
+	//		continue;
+	//	}
+	//	bc_clip = bc_clip / clip_denom;
 }
 
 void SoftRend::set_pixel(float x, float y) {
@@ -602,6 +827,8 @@ void SoftRend::draw_tri_to_gbuffer(Tile &p_tile, const FinalTri &tri, uint32_t p
 	y_start = MAX(y_start, bound16.top);
 	y_end = MIN(y_end, bound16.bottom);
 
+	uint32_t tri_id_p1 = p_tri_id + 1;
+
 	for (int y = y_start; y < y_end; y++) {
 		int32_t x_start, x_end;
 		p_tile.scan_converter.get_x_min_max(y, x_start, x_end);
@@ -630,9 +857,6 @@ void SoftRend::draw_tri_to_gbuffer(Tile &p_tile, const FinalTri &tri, uint32_t p
 				continue;
 #endif
 
-			Vector3 pt3;
-			find_point_barycentric(tri.coords, pt3, bc_screen.x, bc_screen.y, bc_screen.z);
-
 			Vector3 bc_clip = Vector3(bc_screen.x / tri.hcoords[0].d, bc_screen.y / tri.hcoords[1].d, bc_screen.z / tri.hcoords[2].d);
 
 			float clip_denom = bc_clip.x + bc_clip.y + bc_clip.z;
@@ -642,13 +866,17 @@ void SoftRend::draw_tri_to_gbuffer(Tile &p_tile, const FinalTri &tri, uint32_t p
 			bc_clip = bc_clip / clip_denom;
 			//float frag_depth = clipc[2]*bc_clip;
 
+			// PURELY for z coordinate?
+			Vector3 pt3;
+			find_point_barycentric(tri.coords, pt3, bc_screen.x, bc_screen.y, bc_screen.z);
+
 			if (pt3.z >= *z)
 				continue; // failed z test
 
 			//			if (pt3.z < 0)
 			//				continue;
 
-			if (texture_map_tri_to_gbuffer(x, y, tri, bc_clip, p_item_id_p1)) {
+			if (texture_map_tri_to_gbuffer(x, y, tri, bc_clip, p_item_id_p1, tri_id_p1)) {
 				// write z only if not discarded by alpha test
 				*z = pt3.z;
 			}
@@ -769,12 +997,12 @@ void SoftRend::draw_tri_to_gbuffer(Tile &p_tile, const FinalTri &tri, uint32_t p
 }
 */
 
-bool SoftRend::texture_map_tri_to_gbuffer(int x, int y, const FinalTri &tri, const Vector3 &p_bary, uint32_t p_item_id_p1) {
+bool SoftRend::texture_map_tri_to_gbuffer(int x, int y, const FinalTri &tri, const Vector3 &p_bary, uint32_t p_item_id_p1, uint32_t p_tri_id_p1) {
 	float u, v;
 	find_uv_barycentric(tri.uvs, u, v, p_bary.x, p_bary.y, p_bary.z);
 
 	SoftSurface::GData &gdata = state.render_target->get_g(x, y);
-	//gdata.tri_id_p1 = p_tri_id_p1;
+	gdata.tri_id_p1 = p_tri_id_p1;
 	gdata.item_id_p1 = p_item_id_p1;
 	gdata.uv = Vector2(u, v);
 	//	gdata.uv = Vector2(0,0);

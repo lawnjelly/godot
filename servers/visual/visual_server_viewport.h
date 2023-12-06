@@ -36,7 +36,7 @@
 #include "servers/arvr/arvr_interface.h"
 #include "servers/visual_server.h"
 
-#ifdef VS_SOFT_REND
+#ifdef VISUAL_SERVER_SOFTREND_ENABLED
 #include "servers/visual/software/soft_surface.h"
 #endif
 
@@ -80,7 +80,7 @@ public:
 
 		bool transparent_bg;
 
-#ifdef VS_SOFT_REND
+#ifdef VISUAL_SERVER_SOFTREND_ENABLED
 		SoftSurface soft_surface;
 #endif
 

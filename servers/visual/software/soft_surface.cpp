@@ -1,4 +1,5 @@
 #include "soft_surface.h"
+#include "servers/visual/visual_server_raster.h"
 #include "servers/visual_server.h"
 
 void SoftSurface::create(uint32_t p_width, uint32_t p_height) {
@@ -35,6 +36,7 @@ void SoftSurface::clear() {
 void SoftSurface::update() {
 	if (data.texture[data.write_texture_id].is_valid() && data.texture_allocated) {
 		VisualServer::get_singleton()->texture_set_data(data.texture[data.write_texture_id], data.image);
+		VisualServerRaster::undo_redraw_request();
 	}
 
 	data.read_texture_id = (data.read_texture_id + 1) % SOFT_REND_NUM_BUFFERS;

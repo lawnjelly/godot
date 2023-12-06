@@ -2,11 +2,13 @@
 
 #include "core/local_vector.h"
 #include "servers/visual/visual_server_scene.h"
+#include "soft_renderer.h"
 
 class SoftMaterial;
 
 class SoftMesh {
 	RID rid;
+	uint32_t refcount = 0;
 
 public:
 	struct Surface {
@@ -25,8 +27,18 @@ public:
 		LocalVector<Surface> surfaces;
 	} data;
 
-	void create(SoftRend &r_renderer, const RID &p_mesh);
+	void create(const RID &p_mesh);
 	const RID &get_rid() const { return rid; }
+
+	void ref() { refcount++; }
+	bool unref() {
+		if (refcount) {
+			refcount--;
+			return !refcount;
+		}
+		DEV_ASSERT(0);
+		return true;
+	}
 };
 
 class SoftMeshInstance {
@@ -34,25 +46,38 @@ class SoftMeshInstance {
 	LocalVector<uint32_t> surface_material_ids;
 
 public:
-	void create(SoftRend &r_renderer, VisualServerScene::Instance *p_instance);
+	void create(VisualServerScene::Instance *p_instance);
 	uint32_t get_mesh_id() const { return _mesh_id; }
 	uint32_t get_surface_material_id(uint32_t p_surface) { return surface_material_ids[p_surface]; }
+	~SoftMeshInstance();
 };
 
 class SoftMeshes {
-	LocalVector<SoftMesh> _meshes;
+	TrackedPooledList<SoftMesh> _meshes;
 
 public:
-	uint32_t find_or_create(SoftRend &r_renderer, RID p_mesh) {
-		for (uint32_t n = 0; n < _meshes.size(); n++) {
-			if (_meshes[n].get_rid() == p_mesh) {
-				return n;
+	uint32_t find_or_create(RID p_mesh) {
+		for (uint32_t n = 0; n < _meshes.active_size(); n++) {
+			uint32_t id = _meshes.get_active_id(n);
+			if (_meshes[id].get_rid() == p_mesh) {
+				// Add another reference.
+				_meshes[id].ref();
+				return id;
 			}
 		}
-		uint32_t id = _meshes.size();
-		_meshes.resize(id + 1);
-		_meshes[id].create(r_renderer, p_mesh);
+		uint32_t id;
+		SoftMesh *mesh = _meshes.request(id);
+		mesh->create(p_mesh);
+		mesh->ref();
+
+		//print_line("create mesh " + itos(id) + ", total meshes " + itos(_meshes.active_size()));
 		return id;
+	}
+	void unref_mesh(uint32_t p_id) {
+		SoftMesh &mesh = get(p_id);
+		if (mesh.unref()) {
+			_meshes.free(p_id);
+		}
 	}
 	SoftMesh &get(uint32_t p_id) {
 		return _meshes[p_id];

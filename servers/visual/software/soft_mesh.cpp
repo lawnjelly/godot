@@ -3,7 +3,7 @@
 #include "servers/visual/visual_server_globals.h"
 #include "soft_surface.h"
 
-void SoftMesh::create(SoftRend &r_renderer, const RID &p_mesh) {
+void SoftMesh::create(const RID &p_mesh) {
 	rid = p_mesh;
 
 	int num_surfs = VSG::storage->mesh_get_surface_count(rid);
@@ -40,7 +40,7 @@ void SoftMesh::create(SoftRend &r_renderer, const RID &p_mesh) {
 
 		//DEV_ASSERT(surf.uvs.size() == surf.positions.size());
 		if (surf.uvs.size() != surf.positions.size()) {
-			WARN_PRINT("SoftMesh num UVs does not match num verts.");
+			WARN_PRINT_ONCE("SoftMesh num UVs does not match num verts.");
 			surf.uvs.resize(surf.positions.size());
 			surf.uvs.fill(Vector2());
 		}
@@ -58,17 +58,24 @@ void SoftMesh::create(SoftRend &r_renderer, const RID &p_mesh) {
 		//		}
 
 		if (rid_material.is_valid()) {
-			surf.soft_material_id = r_renderer.materials.find_or_create_material(rid_material);
+			surf.soft_material_id = g_soft_rend.materials.find_or_create_material(rid_material);
 		}
 	}
 }
 
-void SoftMeshInstance::create(SoftRend &r_renderer, VisualServerScene::Instance *p_instance) {
+SoftMeshInstance::~SoftMeshInstance() {
+	if (_mesh_id != UINT32_MAX) {
+		g_soft_rend.meshes->unref_mesh(_mesh_id);
+		_mesh_id = UINT32_MAX;
+	}
+}
+
+void SoftMeshInstance::create(VisualServerScene::Instance *p_instance) {
 	//VisualServerScene::InstanceGeometryData *geom = static_cast<VisualServerScene::InstanceGeometryData *>(p_instance->base_data);
 	RID mesh_rid = p_instance->base;
 
-	_mesh_id = r_renderer.meshes->find_or_create(r_renderer, mesh_rid);
-	const SoftMesh &mesh = r_renderer.meshes->get(_mesh_id);
+	_mesh_id = g_soft_rend.meshes->find_or_create(mesh_rid);
+	const SoftMesh &mesh = g_soft_rend.meshes->get(_mesh_id);
 
 	surface_material_ids.resize(mesh.data.surfaces.size());
 
@@ -85,7 +92,7 @@ void SoftMeshInstance::create(SoftRend &r_renderer, VisualServerScene::Instance 
 			// Use the mesh material
 			surface_material_ids[n] = mesh.data.surfaces[n].soft_material_id;
 		} else {
-			surface_material_ids[n] = r_renderer.materials.find_or_create_material(rid_material);
+			surface_material_ids[n] = g_soft_rend.materials.find_or_create_material(rid_material);
 		}
 	}
 }

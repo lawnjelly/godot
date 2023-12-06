@@ -25,6 +25,7 @@ class SoftTexture {
 	uint32_t _num_pixels = 0;
 
 public:
+	bool is_empty() const { return !_num_pixels; }
 	void create(Image *p_image);
 	SoftRGBA &get(uint32_t x, uint32_t y) {
 		DEV_ASSERT(((y * _width) + x) < _num_pixels);

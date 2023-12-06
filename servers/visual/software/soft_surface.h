@@ -10,11 +10,11 @@ class SoftSurface {
 	friend class SoftRend;
 
 	struct GData {
-		//uint32_t tri_id_p1;
+		uint32_t tri_id_p1;
 		uint32_t item_id_p1;
 		Vector2 uv;
 		void blank() {
-			//tri_id_p1 = 0;
+			tri_id_p1 = 0;
 			item_id_p1 = 0;
 			uv = Vector2();
 		}

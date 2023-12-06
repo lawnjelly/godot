@@ -1,5 +1,8 @@
 #pragma once
 
+#include "servers/visual/visual_server_constants.h"
+
+#include "core/fixed_array.h"
 #include "core/math/plane.h"
 #include "core/math/vector2.h"
 #include "core/os/thread_work_pool.h"
@@ -149,27 +152,35 @@ class SoftRend {
 	LocalVector<Item> _items;
 	LocalVector<Tri> _tris;
 
-	struct Vertices {
-		void clear() {
-			cam_space_coords.clear();
-			hcoords.clear();
-			uvs.clear();
+	struct Vertex {
+		void set(const Plane &p_hcoord, const Vector3 &p_coord, const Vector2 &p_uv) {
+			coord_cam_space = p_coord;
+			hcoord = p_hcoord;
+			uv = p_uv;
 		}
-		void resize(uint32_t p_size) {
-			cam_space_coords.resize(p_size);
-			hcoords.resize(p_size);
-			uvs.resize(p_size);
-		}
-		void set(uint32_t p_index, const Plane &p_hcoord, const Vector3 &p_coord, const Vector2 &p_uv) {
-			cam_space_coords[p_index] = p_coord;
-			hcoords[p_index] = p_hcoord;
-			uvs[p_index] = p_uv;
-		}
-		uint32_t size() const { return hcoords.size(); }
-		LocalVector<Vector3> cam_space_coords;
-		LocalVector<Plane> hcoords;
-		LocalVector<Vector2> uvs;
-	} _vertices;
+		Vector3 coord_cam_space;
+		Plane hcoord;
+		Vector2 coord_screen;
+		Vector2 uv;
+	};
+
+	LocalVector<Vertex> _vertices;
+	//	struct Vertices {
+	//		void clear() {
+	//			verts.clear();
+	//		}
+	//		void resize(uint32_t p_size) {
+	//			verts.resize(p_size);
+	//		}
+	//		void set(uint32_t p_index, const Plane &p_hcoord, const Vector3 &p_coord, const Vector2 &p_uv) {
+	//			Vertex &vert = verts[p_index];
+	//			vert.coord_cam_space = p_coord;
+	//			vert.hcoord = p_hcoord;
+	//			vert.uv = p_uv;
+	//		}
+	//		uint32_t size() const { return verts.size(); }
+	//		LocalVector<Vertex> verts;
+	//	} _vertices;
 
 	struct Tile {
 		Rect2i clip_rect;
@@ -197,7 +208,7 @@ class SoftRend {
 	void set_pixel(float x, float y);
 	bool texture_map_tri(int x, int y, const FinalTri &tri, const Vector3 &p_bary);
 
-	bool texture_map_tri_to_gbuffer(int x, int y, const FinalTri &tri, const Vector3 &p_bary, uint32_t p_item_id_p1);
+	bool texture_map_tri_to_gbuffer(int x, int y, const FinalTri &tri, const Vector3 &p_bary, uint32_t p_item_id_p1, uint32_t p_tri_id_p1);
 	void flush_to_gbuffer_work(uint32_t p_tile_id, void *p_userdata);
 
 	void flush_final(uint32_t p_tile_id, uint32_t *p_frame_buffer_orig);
@@ -207,6 +218,12 @@ class SoftRend {
 	// Nodes
 	void link_leaf_nodes_to_tiles(Node *p_node);
 	void fill_tree(Node *p_node, const LocalVector<uint32_t> &p_parent_tri_list);
+
+	void clip_tri(const uint32_t *p_inds, Item &r_item, uint32_t p_item_id);
+	void push_tri(const uint32_t *p_inds, Item &r_item, uint32_t p_item_id);
+	bool is_inside_view_frustum(uint32_t p_ind);
+	bool clip_polygon_axis(FixedArray<uint32_t, 16> &inds, FixedArray<uint32_t, 16> &aux, int32_t component_index);
+	void clip_polygon_component(FixedArray<uint32_t, 16> &inds, FixedArray<uint32_t, 16> &result, int32_t component_index, float component_factor);
 
 public:
 	void set_render_target(SoftSurface *p_soft_surface);
@@ -291,4 +308,18 @@ private:
 		fU = (p_uvs[0].x * u) + (p_uvs[1].x * v) + (p_uvs[2].x * w);
 		fV = (p_uvs[0].y * u) + (p_uvs[1].y * v) + (p_uvs[2].y * w);
 	}
+
+	Plane lerp_hcoord(const Plane &a, const Plane &b, float f) const {
+		Plane lerped;
+		lerped.normal = a.normal + ((b.normal - a.normal) * f);
+		lerped.d = a.d + ((b.d - a.d) * f);
+		return lerped;
+	}
+
+	uint32_t pixel_shader(uint32_t x, uint32_t y, const SoftSurface::GData &g) const;
+	void pixel_shader_calculate_bary(uint32_t x, uint32_t y, const SoftSurface::GData &g, Vector3 &r_bary) const;
 };
+
+#ifdef VISUAL_SERVER_SOFTREND_ENABLED
+extern SoftRend g_soft_rend;
+#endif

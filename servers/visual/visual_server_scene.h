@@ -43,7 +43,7 @@
 #include "portals/portal_renderer.h"
 #include "servers/arvr/arvr_interface.h"
 
-#ifdef VS_SOFT_REND
+#ifdef VISUAL_SERVER_SOFTREND_ENABLED
 #include "servers/visual/software/soft_renderer.h"
 #endif
 
@@ -447,7 +447,7 @@ public:
 
 		List<Instance *> lightmap_captures;
 
-#ifdef VS_SOFT_REND
+#ifdef VISUAL_SERVER_SOFTREND_ENABLED
 		SoftMeshInstance *softmesh_instance = nullptr;
 #endif
 
@@ -875,7 +875,7 @@ public:
 	void render_camera(Ref<ARVRInterface> &p_interface, ARVRInterface::Eyes p_eye, RID p_camera, RID p_scenario, Size2 p_viewport_size, RID p_shadow_atlas);
 	void update_dirty_instances();
 
-#ifdef VS_SOFT_REND
+#ifdef VISUAL_SERVER_SOFTREND_ENABLED
 	void software_render_camera(SoftSurface &r_soft_surface, RID p_camera, RID p_scenario, Size2 p_viewport_size);
 	void _software_prepare_scene(const Transform p_cam_transform, const CameraMatrix &p_cam_projection, bool p_cam_orthogonal, RID p_force_environment, uint32_t p_visible_layers, RID p_scenario, int32_t &r_previous_room_id_hint);
 	void _software_render_scene(SoftSurface &r_soft_surface, const Transform p_cam_transform, const CameraMatrix &p_cam_projection, const int p_eye, bool p_cam_orthogonal, RID p_force_environment, RID p_scenario);
@@ -937,9 +937,6 @@ private:
 	bool _use_bvh;
 	VisualServerCallbacks *_visual_server_callbacks;
 	PortalResources _portal_resources;
-#ifdef VS_SOFT_REND
-	SoftRend _soft_rend;
-#endif
 
 public:
 	VisualServerScene();
