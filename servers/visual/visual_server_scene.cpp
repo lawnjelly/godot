@@ -40,9 +40,9 @@
 
 VisualServerScene::InstanceGeometryData::~InstanceGeometryData() {
 #ifdef VS_SOFT_REND
-	if (softmesh) {
-		memdelete(softmesh);
-		softmesh = nullptr;
+	if (softmesh_instance) {
+		memdelete(softmesh_instance);
+		softmesh_instance = nullptr;
 	}
 #endif
 }
@@ -3246,12 +3246,12 @@ void VisualServerScene::_software_render_scene(SoftSurface &r_soft_surface, cons
 
 			if (ins->base_type == VS::INSTANCE_MESH) {
 				// If softmesh not present, create.
-				if (!geom->softmesh) {
-					geom->softmesh = memnew(SoftMesh);
-					geom->softmesh->create(_soft_rend, ins);
+				if (!geom->softmesh_instance) {
+					geom->softmesh_instance = memnew(SoftMeshInstance);
+					geom->softmesh_instance->create(_soft_rend, ins);
 				}
 
-				_soft_rend.push_mesh(*geom->softmesh, p_cam_transform, p_cam_projection, ins->transform);
+				_soft_rend.push_mesh(*geom->softmesh_instance, p_cam_transform, p_cam_projection, ins->transform);
 				//geom->softmesh->draw(r_soft_surface, p_cam_transform, p_cam_projection, ins->transform);
 
 			} // mesh

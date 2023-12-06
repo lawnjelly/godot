@@ -2,7 +2,7 @@
 #include "soft_mesh.h"
 //#include "core/math/math_funcs.h"
 
-#define SOFTREND_USE_MULTITHREAD
+//#define SOFTREND_USE_MULTITHREAD
 
 uint32_t SoftRend::Node::tile_width = 128;
 uint32_t SoftRend::Node::tile_height = 128;
@@ -197,7 +197,7 @@ void SoftRend::prepare() {
 	state.frame_count += 1;
 }
 
-void SoftRend::push_mesh(SoftMesh &r_softmesh, const Transform &p_cam_transform, const CameraMatrix &p_cam_projection, const Transform &p_instance_xform) {
+void SoftRend::push_mesh(SoftMeshInstance &r_softmesh, const Transform &p_cam_transform, const CameraMatrix &p_cam_projection, const Transform &p_instance_xform) {
 	Transform xcam = p_cam_transform.affine_inverse();
 
 	// Combine instance and camera transform as cheaper per vert.
@@ -206,15 +206,17 @@ void SoftRend::push_mesh(SoftMesh &r_softmesh, const Transform &p_cam_transform,
 	// Keep track of first list vert for each surface.
 	uint32_t first_surface_list_vert = _vertices.size();
 
-	for (uint32_t s = 0; s < r_softmesh.data.surfaces.size(); s++) {
-		SoftMesh::Surface &surf = r_softmesh.data.surfaces[s];
+	const SoftMesh &mesh = meshes->get(r_softmesh.get_mesh_id());
+
+	for (uint32_t s = 0; s < mesh.data.surfaces.size(); s++) {
+		const SoftMesh::Surface &surf = mesh.data.surfaces[s];
 
 		uint32_t num_verts = surf.positions.size();
 		_vertices.resize(_vertices.size() + num_verts);
 
 		// Push the surface item.
 		Item it;
-		it.mesh = &r_softmesh;
+		it.mesh_instance = &r_softmesh;
 		it.first_list_vert = _vertices.size();
 		it.first_tri = _tris.size();
 		it.surf_id = s;
@@ -279,6 +281,10 @@ void SoftRend::push_mesh(SoftMesh &r_softmesh, const Transform &p_cam_transform,
 			bool ignore_near = false;
 			for (uint32_t c = 0; c < 3; c++) {
 				if (final_tri.coords[c].z <= 0) {
+					ignore_near = true;
+					break;
+				}
+				if (final_tri.coords[c].z > 1) {
 					ignore_near = true;
 					break;
 				}
@@ -472,7 +478,6 @@ void SoftRend::flush_final(uint32_t p_tile_id, uint32_t *p_frame_buffer_orig) {
 		const SoftSurface::GData *gdata = &state.render_target->get_g(left, y);
 
 		for (uint32_t x = left; x < right; x++) {
-			//const SoftSurface::GData &g = state.render_target->get_g(x, y);
 			const SoftSurface::GData &g = *gdata++;
 
 			// Background
@@ -486,28 +491,22 @@ void SoftRend::flush_final(uint32_t p_tile_id, uint32_t *p_frame_buffer_orig) {
 			float v = g.uv.y;
 
 			const Item &item = _items[item_id];
-
-			SoftMesh::Surface &surf = item.mesh->data.surfaces[item.surf_id];
+			uint32_t soft_material_id = item.mesh_instance->get_surface_material_id(item.surf_id);
 
 			const SoftMaterial *curr_material = nullptr;
-			//state.curr_material = nullptr;
-			if (surf.soft_material_id != UINT32_MAX) {
-				curr_material = &materials.get(surf.soft_material_id);
+			if (soft_material_id != UINT32_MAX) {
+				curr_material = &materials.get(soft_material_id);
 			}
 
 			//Color col;
 			uint32_t rgba;
 			if (curr_material) {
-				//col = state.curr_material->st_albedo.get_color(Vector2(u, v));
 				rgba = curr_material->st_albedo.get8(Vector2(u, v));
-				//rgba = (255 << 24) | 255;
 			} else {
-				//col = Color(u, v, 1, 1);
 				// Black
 				rgba = 255;
 			}
 
-			//state.render_target->get_image()->set_pixel(x, state.viewport_height - y - 1, col);
 			*frame_buffer++ = rgba;
 		}
 	}
@@ -811,9 +810,15 @@ bool SoftRend::texture_map_tri(int x, int y, const FinalTri &tri, const Vector3 
 }
 
 SoftRend::SoftRend() {
+	meshes = memnew(SoftMeshes);
 }
 
 SoftRend::~SoftRend() {
+	if (meshes) {
+		memdelete(meshes);
+		meshes = nullptr;
+	}
+
 #ifndef NO_THREADS
 	state.thread_pool.finish();
 #endif // !NO_THREADS

@@ -48,7 +48,7 @@
 #endif
 
 class SoftSurface;
-class SoftMesh;
+class SoftMeshInstance;
 
 class VisualServerScene {
 public:
@@ -448,7 +448,7 @@ public:
 		List<Instance *> lightmap_captures;
 
 #ifdef VS_SOFT_REND
-		SoftMesh *softmesh = nullptr;
+		SoftMeshInstance *softmesh_instance = nullptr;
 #endif
 
 		InstanceGeometryData() {

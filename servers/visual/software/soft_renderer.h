@@ -6,7 +6,8 @@
 #include "servers/visual/software/soft_surface.h"
 #include "soft_material.h"
 
-class SoftMesh;
+class SoftMeshInstance;
+class SoftMeshes;
 class Transform;
 struct CameraMatrix;
 
@@ -92,7 +93,7 @@ class SoftRend {
 	// every time the mesh is drawn.
 	struct Item {
 		// The source mesh.
-		SoftMesh *mesh = nullptr;
+		SoftMeshInstance *mesh_instance = nullptr;
 		uint32_t surf_id = 0;
 
 		// The first vertex in the pre-transformed list.
@@ -211,9 +212,10 @@ public:
 	void set_render_target(SoftSurface *p_soft_surface);
 	void prepare();
 	void flush();
-	void push_mesh(SoftMesh &r_softmesh, const Transform &p_cam_transform, const CameraMatrix &p_cam_projection, const Transform &p_instance_xform);
+	void push_mesh(SoftMeshInstance &r_softmesh, const Transform &p_cam_transform, const CameraMatrix &p_cam_projection, const Transform &p_instance_xform);
 
 	SoftMaterials materials;
+	SoftMeshes *meshes = nullptr;
 
 	SoftRend();
 	~SoftRend();
