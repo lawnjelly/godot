@@ -82,16 +82,28 @@ class SoftRend {
 #endif // NO_THREADS
 	} state;
 
-	struct FinalTri {
-		Plane hcoords[3];
-		Vector3 coords[3];
-		Vector2 uvs[3];
-		bool is_front_facing() const {
-			Vector3 normal_camera_space;
-			// backface cull
-			normal_camera_space = (coords[2] - coords[1]).cross((coords[1] - coords[0]));
-			return normal_camera_space.z >= 0;
+	struct Vertex {
+		void set(const Plane &p_hcoord, const Vector3 &p_coord, const Vector2 &p_uv) {
+			coord_cam_space = p_coord;
+			hcoord = p_hcoord;
+			uv = p_uv;
 		}
+		Vector3 coord_cam_space;
+		Plane hcoord;
+		Vector2 coord_screen;
+		Vector2 uv;
+	};
+
+	struct FinalTri {
+		Vertex v[3];
+		//		Plane hcoords[3];
+		//		Vector3 coords[3];
+		//		Vector2 uvs[3];
+		//		bool is_front_facing() const {
+		//			Vector3 normal_camera_space;
+		//			normal_camera_space = (coords[2] - coords[1]).cross((coords[1] - coords[0]));
+		//			return normal_camera_space.z >= 0;
+		//		}
 	};
 
 	// Source meshes have an item per surface,
@@ -156,18 +168,6 @@ class SoftRend {
 	LocalVector<Item> _items;
 	LocalVector<Tri> _tris;
 
-	struct Vertex {
-		void set(const Plane &p_hcoord, const Vector3 &p_coord, const Vector2 &p_uv) {
-			coord_cam_space = p_coord;
-			hcoord = p_hcoord;
-			uv = p_uv;
-		}
-		Vector3 coord_cam_space;
-		Plane hcoord;
-		Vector2 coord_screen;
-		Vector2 uv;
-	};
-
 	LocalVector<Vertex> _vertices;
 
 	struct Tile {
@@ -194,7 +194,6 @@ class SoftRend {
 	bool which_side(const Vector2 &wall_a, const Vector2 &wall_vec, const Vector2 &pt) const;
 	void draw_tri_to_gbuffer(Tile &p_tile, const FinalTri &tri, uint32_t p_tri_id, uint32_t p_item_id_p1);
 	void set_pixel(float x, float y);
-	bool texture_map_tri(int x, int y, const FinalTri &tri, const Vector3 &p_bary);
 
 	bool texture_map_tri_to_gbuffer(int x, int y, uint32_t p_item_id_p1, uint32_t p_tri_id_p1);
 	//bool texture_map_tri_to_gbuffer(int x, int y, const FinalTri &tri, const Vector3 &p_bary, uint32_t p_item_id_p1, uint32_t p_tri_id_p1);
@@ -296,11 +295,16 @@ private:
 		return false;
 	}
 
-	void find_point_barycentric(const Vector3 *p_tri, Vector3 &pt, float u, float v, float w) const {
-		pt.x = (p_tri[0].x * u) + (p_tri[1].x * v) + (p_tri[2].x * w);
-		pt.y = (p_tri[0].y * u) + (p_tri[1].y * v) + (p_tri[2].y * w);
-		pt.z = (p_tri[0].z * u) + (p_tri[1].z * v) + (p_tri[2].z * w);
+	void find_point_barycentric(const Vector3 &v0, const Vector3 &v1, const Vector3 &v2, Vector3 &pt, float u, float v, float w) const {
+		pt.x = (v0.x * u) + (v1.x * v) + (v2.x * w);
+		pt.y = (v0.y * u) + (v1.y * v) + (v2.y * w);
+		pt.z = (v0.z * u) + (v1.z * v) + (v2.z * w);
 	}
+	//	void find_point_barycentric(const Vector3 *p_tri, Vector3 &pt, float u, float v, float w) const {
+	//		pt.x = (p_tri[0].x * u) + (p_tri[1].x * v) + (p_tri[2].x * w);
+	//		pt.y = (p_tri[0].y * u) + (p_tri[1].y * v) + (p_tri[2].y * w);
+	//		pt.z = (p_tri[0].z * u) + (p_tri[1].z * v) + (p_tri[2].z * w);
+	//	}
 
 	void find_point4_barycentric(const Plane *p_tri, Vector3 &pt, float u, float v, float w) const {
 		pt.x = (p_tri[0].normal.x * u) + (p_tri[1].normal.x * v) + (p_tri[2].normal.x * w);
@@ -315,10 +319,14 @@ private:
 		norm.normalize();
 	}
 
-	void find_uv_barycentric(const Vector2 *p_uvs, float &fU, float &fV, float u, float v, float w) const {
-		fU = (p_uvs[0].x * u) + (p_uvs[1].x * v) + (p_uvs[2].x * w);
-		fV = (p_uvs[0].y * u) + (p_uvs[1].y * v) + (p_uvs[2].y * w);
+	void find_uv_barycentric(const Vector2 &uv0, const Vector2 &uv1, const Vector2 &uv2, Vector2 &uv, float u, float v, float w) const {
+		uv.x = (uv0.x * u) + (uv1.x * v) + (uv2.x * w);
+		uv.y = (uv0.y * u) + (uv1.y * v) + (uv2.y * w);
 	}
+	//	void find_uv_barycentric(const Vector2 *p_uvs, float &fU, float &fV, float u, float v, float w) const {
+	//		fU = (p_uvs[0].x * u) + (p_uvs[1].x * v) + (p_uvs[2].x * w);
+	//		fV = (p_uvs[0].y * u) + (p_uvs[1].y * v) + (p_uvs[2].y * w);
+	//	}
 
 	Plane lerp_hcoord(const Plane &a, const Plane &b, float f) const {
 		Plane lerped;
