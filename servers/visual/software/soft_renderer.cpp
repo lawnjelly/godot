@@ -24,7 +24,26 @@ void SoftRend::ScanConverter::get_x_min_max(int32_t p_y, int32_t &r_x_min, int32
 	DEV_ASSERT(r_x_max != INT32_MAX);
 }
 
-void SoftRend::ScanConverter::scan_convert_triangle(const Vector2 &p_min_y_vert, const Vector2 &p_mid_y_vert, const Vector2 &p_max_y_vert) {
+void SoftRend::ScanConverter::scan_convert_triangle(const Vector2 *p_verts, int32_t &r_y_start, int32_t &r_y_end) {
+	Vector2 t0 = p_verts[0];
+	Vector2 t1 = p_verts[1];
+	Vector2 t2 = p_verts[2];
+
+	// sort the vertices, t0, t1, t2 lower−to−upper (bubblesort yay!)
+	if (t0.y > t1.y)
+		SWAP(t0, t1);
+	if (t0.y > t2.y)
+		SWAP(t0, t2);
+	if (t1.y > t2.y)
+		SWAP(t1, t2);
+
+	_scan_convert_triangle(t0, t1, t2);
+
+	r_y_start = Math::ceil(t0.y);
+	r_y_end = Math::ceil(t2.y);
+}
+
+void SoftRend::ScanConverter::_scan_convert_triangle(const Vector2 &p_min_y_vert, const Vector2 &p_mid_y_vert, const Vector2 &p_max_y_vert) {
 	// Calculate handedness.. will change because of swapping due to y min.
 	const Vector2 &b = p_max_y_vert;
 	const Vector2 &c = p_mid_y_vert;
@@ -299,25 +318,6 @@ void SoftRend::push_mesh(SoftMeshInstance &r_softmesh, const Transform &p_cam_tr
 //			}
 #endif
 
-			// clipping
-
-//#define SOFTREND_REMOVE_NEAR_TRIS
-#ifdef SOFTREND_REMOVE_NEAR_TRIS
-			bool ignore_near = false;
-			for (uint32_t c = 0; c < 3; c++) {
-				if (final_tri.coords[c].z <= 0) {
-					ignore_near = true;
-					break;
-				}
-				if (final_tri.coords[c].z > 1) {
-					ignore_near = true;
-					break;
-				}
-			}
-			if (ignore_near) {
-				continue;
-			}
-#endif
 			clip_tri(corns, it, item_id);
 		}
 
@@ -494,7 +494,9 @@ void SoftRend::push_tri(const uint32_t *p_inds, Item &r_item, uint32_t p_item_id
 	Vector2 pt_screen[3];
 	for (uint32_t c = 0; c < 3; c++) {
 		const Vector3 &cam_coords = _vertices[p_inds[c]].coord_cam_space;
+
 		GL_to_viewport_coords(cam_coords, pt_screen[c]);
+		_vertices[p_inds[c]].coord_screen = pt_screen[c];
 
 		int32_t x, y;
 		x = pt_screen[c].x;
@@ -507,10 +509,15 @@ void SoftRend::push_tri(const uint32_t *p_inds, Item &r_item, uint32_t p_item_id
 	}
 
 	// cull
-	Vector2 c0 = pt_screen[0];
-	Vector2 c1 = pt_screen[1];
-	Vector2 c2 = pt_screen[2];
+	const Vector2 &c0 = pt_screen[0];
+	const Vector2 &c1 = pt_screen[1];
+	const Vector2 &c2 = pt_screen[2];
+
+	//	tri.c_minus_a = c2 - c0;
+	//	tri.b_minus_a = c1 - c0;
+
 	float cross = (c1 - c0).cross(c2 - c0);
+	//	float cross = tri.b_minus_a.cross(tri.c_minus_a);
 
 	if (cross > 0) {
 		return;
@@ -534,6 +541,7 @@ void SoftRend::flush_to_gbuffer_work(uint32_t p_tile_id, void *p_userdata) {
 			final_tri.hcoords[c] = _vertices[vert_id].hcoord;
 			final_tri.uvs[c] = _vertices[vert_id].uv;
 		}
+
 		draw_tri_to_gbuffer(tile, final_tri, tri_id, tri.item_id + 1);
 	}
 }
@@ -677,31 +685,59 @@ void SoftRend::flush_final(uint32_t p_tile_id, uint32_t *p_frame_buffer_orig) {
 
 uint32_t SoftRend::pixel_shader(uint32_t x, uint32_t y, const SoftSurface::GData &g) const {
 	// Background
-	if (!g.item_id_p1) {
+	if (!g.tri_id_p1) {
 		return state.clear_rgba;
 	}
 
-	uint32_t item_id = g.item_id_p1 - 1;
+	// Get source triangle.
+	//	const Tri &tri = _tris[g.tri_id_p1 - 1];
+	const Tri &tri = (_tris.ptr())[g.tri_id_p1 - 1];
 
-	const Item &item = _items[item_id];
+	//uint32_t item_id = g.item_id_p1 - 1;
+	uint32_t item_id = tri.item_id;
+
+	//	const Item &item = _items[item_id];
+	const Item &item = (_items.ptr())[item_id];
 	uint32_t soft_material_id = item.mesh_instance->get_surface_material_id(item.surf_id);
 
-	float u = g.uv.x;
-	float v = g.uv.y;
+	//	float u = g.uv.x;
+	//	float v = g.uv.y;
 
-	// Get source triangle.
-	const Tri &tri = _tris[g.tri_id_p1 - 1];
+	const Vertex &v0 = (_vertices.ptr())[tri.corns[0]];
+	const Vertex &v1 = (_vertices.ptr())[tri.corns[1]];
+	const Vertex &v2 = (_vertices.ptr())[tri.corns[2]];
+
 	Vector2 uvs[3];
-	for (uint32_t c = 0; c < 3; c++) {
-		uvs[c] = _vertices[tri.corns[c]].uv;
-	}
+	uvs[0] = v0.uv;
+	uvs[1] = v1.uv;
+	uvs[2] = v2.uv;
+
+	//	for (uint32_t c = 0; c < 3; c++) {
+	//		uvs[c] = _vertices[tri.corns[c]].uv;
+	//	}
 
 	Vector3 bary;
-	pixel_shader_calculate_bary(x, y, g, bary);
+	//pixel_shader_calculate_bary(x, y, g, bary);
+	pixel_shader_calculate_bary2(x, y, v0, v1, v2, bary);
+	//	pixel_shader_calculate_bary(x, y, v0.coord_screen, tri.b_minus_a, tri.c_minus_a,Vector3(v0.hcoord.d, v1.hcoord.d, v2.hcoord.d),  bary);
+
+	/*
+	{
+		find_pixel_bary(v0.coord_screen, v1.coord_screen, v2.coord_screen, Vector2(x, y), bary);
+
+		Vector3 bc_clip = Vector3(bary.x / v0.hcoord.d, bary.y / v1.hcoord.d, bary.z / v2.hcoord.d);
+
+		float clip_denom = bc_clip.x + bc_clip.y + bc_clip.z;
+		if (clip_denom <= 0) {
+			WARN_PRINT_ONCE("pixel_shader_calculate_bary clip_denom error");
+		}
+		bary = bc_clip / clip_denom;
+	}
+*/
 
 	// LOCALLY
-	float u2, v2;
-	find_uv_barycentric(uvs, u2, v2, bary.x, bary.y, bary.z);
+	float u, v;
+	find_uv_barycentric(uvs, u, v, bary.x, bary.y, bary.z);
 
 	const SoftMaterial *curr_material = nullptr;
 	if (soft_material_id != UINT32_MAX) {
@@ -725,16 +761,34 @@ uint32_t SoftRend::pixel_shader(uint32_t x, uint32_t y, const SoftSurface::GData
 	return rgba;
 }
 
-void SoftRend::pixel_shader_calculate_bary(uint32_t x, uint32_t y, const SoftSurface::GData &g, Vector3 &r_bary) const {
-	//bool find_pixel_bary(const Vector2 &A, const Vector2 &B, const Vector2 &C, const Vector2 &P, Vector3 &ptBary) const {
+/*
+void SoftRend::pixel_shader_calculate_bary(uint32_t x, uint32_t y, const Vector2 &a_screen, const Vector2 &b_minus_a, const Vector2 &c_minus_a, const Vector3 &W, Vector3 &r_bary) const
+{
+	Vector3 bc_screen;
+	find_pixel_bary_optimized2(a_screen, b_minus_a, c_minus_a, Vector2(x, y), bc_screen);
 
-	//	Vector3 bc_clip = Vector3(bc_screen.x / tri.hcoords[0].d, bc_screen.y / tri.hcoords[1].d, bc_screen.z / tri.hcoords[2].d);
+	Vector3 bc_clip = Vector3(bc_screen.x / W.x, bc_screen.y / W.y, bc_screen.z / W.z);
 
-	//	float clip_denom = bc_clip.x + bc_clip.y + bc_clip.z;
-	//	if (clip_denom <= 0) {
-	//		continue;
-	//	}
-	//	bc_clip = bc_clip / clip_denom;
+	float clip_denom = bc_clip.x + bc_clip.y + bc_clip.z;
+	if (clip_denom <= 0) {
+		WARN_PRINT_ONCE("pixel_shader_calculate_bary clip_denom error");
+	}
+	r_bary = bc_clip / clip_denom;
+
+}
+*/
+
+void SoftRend::pixel_shader_calculate_bary2(uint32_t x, uint32_t y, const Vertex &v0, const Vertex &v1, const Vertex &v2, Vector3 &r_bary) const {
+	Vector3 bc_screen;
+	find_pixel_bary(v0.coord_screen, v1.coord_screen, v2.coord_screen, Vector2(x, y), bc_screen);
+
+	Vector3 bc_clip = Vector3(bc_screen.x / v0.hcoord.d, bc_screen.y / v1.hcoord.d, bc_screen.z / v2.hcoord.d);
+
+	float clip_denom = bc_clip.x + bc_clip.y + bc_clip.z;
+	if (clip_denom <= 0) {
+		WARN_PRINT_ONCE("pixel_shader_calculate_bary clip_denom error");
+	}
+	r_bary = bc_clip / clip_denom;
 }
 
 void SoftRend::set_pixel(float x, float y) {
@@ -807,22 +861,8 @@ void SoftRend::draw_tri_to_gbuffer(Tile &p_tile, const FinalTri &tri, uint32_t p
 
 	//uint32_t pixels_written = 0;
 
-	Vector2 t0 = pts[0];
-	Vector2 t1 = pts[1];
-	Vector2 t2 = pts[2];
-
-	// sort the vertices, t0, t1, t2 lower−to−upper (bubblesort yay!)
-	if (t0.y > t1.y)
-		SWAP(t0, t1);
-	if (t0.y > t2.y)
-		SWAP(t0, t2);
-	if (t1.y > t2.y)
-		SWAP(t1, t2);
-
-	p_tile.scan_converter.scan_convert_triangle(t0, t1, t2);
-
-	int32_t y_start = Math::ceil(t0.y);
-	int32_t y_end = Math::ceil(t2.y);
+	int32_t y_start, y_end;
+	p_tile.scan_converter.scan_convert_triangle(pts, y_start, y_end);
 
 	y_start = MAX(y_start, bound16.top);
 	y_end = MIN(y_end, bound16.bottom);
@@ -857,6 +897,7 @@ void SoftRend::draw_tri_to_gbuffer(Tile &p_tile, const FinalTri &tri, uint32_t p
 				continue;
 #endif
 
+			/*
 			Vector3 bc_clip = Vector3(bc_screen.x / tri.hcoords[0].d, bc_screen.y / tri.hcoords[1].d, bc_screen.z / tri.hcoords[2].d);
 
 			float clip_denom = bc_clip.x + bc_clip.y + bc_clip.z;
@@ -865,6 +906,13 @@ void SoftRend::draw_tri_to_gbuffer(Tile &p_tile, const FinalTri &tri, uint32_t p
 			}
 			bc_clip = bc_clip / clip_denom;
 			//float frag_depth = clipc[2]*bc_clip;
+*/
+
+			//			Vector3 bary_test;
+			//			SoftSurface::GData gtest;
+			//			gtest.blank();
+			//			gtest.tri_id_p1 = tri_id_p1;
+			//			pixel_shader_calculate_bary(x, y, gtest, bary_test);
 
 			// PURELY for z coordinate?
 			Vector3 pt3;
@@ -876,7 +924,8 @@ void SoftRend::draw_tri_to_gbuffer(Tile &p_tile, const FinalTri &tri, uint32_t p
 			//			if (pt3.z < 0)
 			//				continue;
 
-			if (texture_map_tri_to_gbuffer(x, y, tri, bc_clip, p_item_id_p1, tri_id_p1)) {
+			//if (texture_map_tri_to_gbuffer(x, y, tri, bc_clip, p_item_id_p1, tri_id_p1)) {
+			if (texture_map_tri_to_gbuffer(x, y, p_item_id_p1, tri_id_p1)) {
 				// write z only if not discarded by alpha test
 				*z = pt3.z;
 			}
@@ -997,15 +1046,16 @@ void SoftRend::draw_tri_to_gbuffer(Tile &p_tile, const FinalTri &tri, uint32_t p
 }
 */
 
-bool SoftRend::texture_map_tri_to_gbuffer(int x, int y, const FinalTri &tri, const Vector3 &p_bary, uint32_t p_item_id_p1, uint32_t p_tri_id_p1) {
-	float u, v;
-	find_uv_barycentric(tri.uvs, u, v, p_bary.x, p_bary.y, p_bary.z);
+bool SoftRend::texture_map_tri_to_gbuffer(int x, int y, uint32_t p_item_id_p1, uint32_t p_tri_id_p1) {
+	//bool SoftRend::texture_map_tri_to_gbuffer(int x, int y, const FinalTri &tri, const Vector3 &p_bary, uint32_t p_item_id_p1, uint32_t p_tri_id_p1) {
+	//float u, v;
+	//find_uv_barycentric(tri.uvs, u, v, p_bary.x, p_bary.y, p_bary.z);
 
 	SoftSurface::GData &gdata = state.render_target->get_g(x, y);
 	gdata.tri_id_p1 = p_tri_id_p1;
-	gdata.item_id_p1 = p_item_id_p1;
-	gdata.uv = Vector2(u, v);
-	//	gdata.uv = Vector2(0,0);
+	//gdata.item_id_p1 = p_item_id_p1;
+	//gdata.uv = Vector2(u, v);
+
 	/*
 		   //set_pixel(r_soft_surface, x, y);
 	Color col;

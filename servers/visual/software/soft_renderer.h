@@ -21,6 +21,8 @@ class SoftRend {
 		int32_t _y_max = 0;
 		uint32_t _y_height = 0;
 
+		void _scan_convert_triangle(const Vector2 &p_min_y_vert, const Vector2 &p_mid_y_vert, const Vector2 &p_max_y_vert);
+
 	public:
 		void create(int32_t p_y_min, uint32_t p_height) {
 			scan_buffer.resize(p_height * 2);
@@ -30,7 +32,7 @@ class SoftRend {
 			_y_max = _y_min + _y_height;
 		}
 
-		void scan_convert_triangle(const Vector2 &p_min_y_vert, const Vector2 &p_mid_y_vert, const Vector2 &p_max_y_vert);
+		void scan_convert_triangle(const Vector2 *p_verts, int32_t &r_y_start, int32_t &r_y_end);
 		void scan_convert_line(const Vector2 &p_min_y_vert, const Vector2 &p_max_y_vert, int32_t p_which_side);
 		void get_x_min_max(int32_t p_y, int32_t &r_x_min, int32_t &r_x_max) const;
 	};
@@ -147,6 +149,8 @@ class SoftRend {
 		uint32_t corns[3];
 		uint32_t item_id;
 		Bound16 bound;
+		//		Vector2 c_minus_a;
+		//		Vector2 b_minus_a;
 	};
 
 	LocalVector<Item> _items;
@@ -165,22 +169,6 @@ class SoftRend {
 	};
 
 	LocalVector<Vertex> _vertices;
-	//	struct Vertices {
-	//		void clear() {
-	//			verts.clear();
-	//		}
-	//		void resize(uint32_t p_size) {
-	//			verts.resize(p_size);
-	//		}
-	//		void set(uint32_t p_index, const Plane &p_hcoord, const Vector3 &p_coord, const Vector2 &p_uv) {
-	//			Vertex &vert = verts[p_index];
-	//			vert.coord_cam_space = p_coord;
-	//			vert.hcoord = p_hcoord;
-	//			vert.uv = p_uv;
-	//		}
-	//		uint32_t size() const { return verts.size(); }
-	//		LocalVector<Vertex> verts;
-	//	} _vertices;
 
 	struct Tile {
 		Rect2i clip_rect;
@@ -208,7 +196,8 @@ class SoftRend {
 	void set_pixel(float x, float y);
 	bool texture_map_tri(int x, int y, const FinalTri &tri, const Vector3 &p_bary);
 
-	bool texture_map_tri_to_gbuffer(int x, int y, const FinalTri &tri, const Vector3 &p_bary, uint32_t p_item_id_p1, uint32_t p_tri_id_p1);
+	bool texture_map_tri_to_gbuffer(int x, int y, uint32_t p_item_id_p1, uint32_t p_tri_id_p1);
+	//bool texture_map_tri_to_gbuffer(int x, int y, const FinalTri &tri, const Vector3 &p_bary, uint32_t p_item_id_p1, uint32_t p_tri_id_p1);
 	void flush_to_gbuffer_work(uint32_t p_tile_id, void *p_userdata);
 
 	void flush_final(uint32_t p_tile_id, uint32_t *p_frame_buffer_orig);
@@ -244,8 +233,30 @@ private:
 	}
 
 	bool find_pixel_bary_optimized(Vector3 *s, const Vector2 &A, const Vector2 &P, Vector3 &ptBary) const {
-		//Vector3 s[2];
+		for (int i = 2; i--;) {
+			//s[i].coord[0] = C.coord[i] - A.coord[i];
+			//s[i].coord[1] = B.coord[i] - A.coord[i];
+			s[i].coord[2] = A.coord[i] - P.coord[i];
+		}
+		Vector3 u = s[0].cross(s[1]);
+		if (Math::absf(u.coord[2]) > 0.01f) // dont forget that u[2] is integer. If it is zero then triangle ABC is degenerate
+		{
+			ptBary.x = 1.f - (u.x + u.y) / u.z;
+			ptBary.y = u.y / u.z;
+			ptBary.z = u.x / u.z;
+			return true;
+		}
 
+		ptBary = Vector3(-1, 1, 1); // in this case generate negative coordinates, it will be thrown away by the rasterizator
+		return false;
+	}
+
+	bool find_pixel_bary_optimized2(const Vector2 &A, const Vector2 &B_MINUS_A, const Vector2 &C_MINUS_A, const Vector2 &P, Vector3 &ptBary) const {
+		Vector3 s[2];
+		s[0].x = C_MINUS_A.x;
+		s[0].y = B_MINUS_A.x;
+		s[1].x = C_MINUS_A.y;
+		s[1].y = B_MINUS_A.y;
 		for (int i = 2; i--;) {
 			//s[i].coord[0] = C.coord[i] - A.coord[i];
 			//s[i].coord[1] = B.coord[i] - A.coord[i];
@@ -317,7 +328,9 @@ private:
 	}
 
 	uint32_t pixel_shader(uint32_t x, uint32_t y, const SoftSurface::GData &g) const;
-	void pixel_shader_calculate_bary(uint32_t x, uint32_t y, const SoftSurface::GData &g, Vector3 &r_bary) const;
+	//void pixel_shader_calculate_bary(uint32_t x, uint32_t y, const SoftSurface::GData &g, Vector3 &r_bary) const;
+	void pixel_shader_calculate_bary2(uint32_t x, uint32_t y, const Vertex &v0, const Vertex &v1, const Vertex &v2, Vector3 &r_bary) const;
+	//void pixel_shader_calculate_bary(uint32_t x, uint32_t y, const Vector2 &a_screen, const Vector2 &b_minus_a, const Vector2 &c_minus_a, const Vector3 &W, Vector3 &r_bary) const;
 };
 
 #ifdef VISUAL_SERVER_SOFTREND_ENABLED

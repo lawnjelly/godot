@@ -21,8 +21,8 @@ void SoftSurface::create(uint32_t p_width, uint32_t p_height) {
 		}
 		data.texture_allocated = true;
 	}
-	data.write_texture_id = 0;
-	data.read_texture_id = 1 % SOFT_REND_NUM_BUFFERS;
+	//data.write_texture_id = 0;
+	//data.read_texture_id = 1 % SOFT_REND_NUM_BUFFERS;
 }
 
 void SoftSurface::clear() {
@@ -31,6 +31,9 @@ void SoftSurface::clear() {
 	GData g;
 	g.blank();
 	data.gbuffer.fill(g);
+
+	data.read_texture_id = (data.read_texture_id + 1) % SOFT_REND_NUM_BUFFERS;
+	data.write_texture_id = (data.write_texture_id + 1) % SOFT_REND_NUM_BUFFERS;
 }
 
 void SoftSurface::update() {
@@ -38,9 +41,6 @@ void SoftSurface::update() {
 		VisualServer::get_singleton()->texture_set_data(data.texture[data.write_texture_id], data.image);
 		VisualServerRaster::undo_redraw_request();
 	}
-
-	data.read_texture_id = (data.read_texture_id + 1) % SOFT_REND_NUM_BUFFERS;
-	data.write_texture_id = (data.write_texture_id + 1) % SOFT_REND_NUM_BUFFERS;
 }
 
 SoftSurface::SoftSurface() {
