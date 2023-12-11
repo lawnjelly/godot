@@ -3,7 +3,7 @@
 #include "soft_mesh.h"
 //#include "core/math/math_funcs.h"
 
-#define SOFTREND_USE_MULTITHREAD
+//#define SOFTREND_USE_MULTITHREAD
 
 uint32_t SoftRend::Node::tile_width = 64;
 uint32_t SoftRend::Node::tile_height = 64;
@@ -24,10 +24,10 @@ void SoftRend::ScanConverter::get_x_min_max(int32_t p_y, int32_t &r_x_min, int32
 	DEV_ASSERT(r_x_max != INT32_MAX);
 }
 
-void SoftRend::ScanConverter::scan_convert_triangle(const Vector2 *p_verts, int32_t &r_y_start, int32_t &r_y_end) {
-	Vector2 t0 = p_verts[0];
-	Vector2 t1 = p_verts[1];
-	Vector2 t2 = p_verts[2];
+void SoftRend::ScanConverter::scan_convert_triangle(Vector2 t0, Vector2 t1, Vector2 t2, int32_t &r_y_start, int32_t &r_y_end) {
+	//	Vector2 t0 = p_verts[0];
+	//	Vector2 t1 = p_verts[1];
+	//	Vector2 t2 = p_verts[2];
 
 	// sort the vertices, t0, t1, t2 lower−to−upper (bubblesort yay!)
 	if (t0.y > t1.y)
@@ -491,9 +491,22 @@ void SoftRend::push_tri(const uint32_t *p_inds, Item &r_item, uint32_t p_item_id
 	tri.bound.unset();
 	tri.item_id = p_item_id;
 
+	tri.z_max = FLT_MIN;
+	tri.z_min = FLT_MAX;
+
+	if (_tris.size() == 93844) {
+		print_line("test  tri");
+	}
+
 	Vector2 pt_screen[3];
 	for (uint32_t c = 0; c < 3; c++) {
-		const Vector3 &cam_coords = _vertices[p_inds[c]].coord_cam_space;
+		const Vertex &vert = _vertices[p_inds[c]];
+		const Vector3 &cam_coords = vert.coord_cam_space;
+
+		tri.z_max = MAX(tri.z_max, cam_coords.z);
+		tri.z_min = MIN(tri.z_min, cam_coords.z);
+		//		tri.z_max = MAX(tri.z_max, vert.hcoord.normal.z);
+		//		tri.z_min = MIN(tri.z_min, vert.hcoord.normal.z);
 
 		GL_to_viewport_coords(cam_coords, pt_screen[c]);
 		_vertices[p_inds[c]].coord_screen = pt_screen[c];
@@ -504,9 +517,9 @@ void SoftRend::push_tri(const uint32_t *p_inds, Item &r_item, uint32_t p_item_id
 		x = CLAMP(x, INT16_MIN, INT16_MAX - 1);
 		y = CLAMP(y, INT16_MIN, INT16_MAX - 1);
 		tri.bound.expand_to_include(x, y);
-		tri.bound.right += 1;
-		tri.bound.bottom += 1;
 	}
+	tri.bound.right += 1;
+	tri.bound.bottom += 1;
 
 	// cull
 	const Vector2 &c0 = pt_screen[0];
@@ -519,7 +532,7 @@ void SoftRend::push_tri(const uint32_t *p_inds, Item &r_item, uint32_t p_item_id
 	float cross = (c1 - c0).cross(c2 - c0);
 	//	float cross = tri.b_minus_a.cross(tri.c_minus_a);
 
-	if (cross > 0) {
+	if (cross >= 0) {
 		return;
 	}
 
@@ -529,22 +542,99 @@ void SoftRend::push_tri(const uint32_t *p_inds, Item &r_item, uint32_t p_item_id
 
 void SoftRend::flush_to_gbuffer_work(uint32_t p_tile_id, void *p_userdata) {
 	Tile &tile = _tiles.tiles[p_tile_id];
+	tile.clear();
+
+	for (int32_t t = 0; t < tile.tri_list->size(); t++) {
+		uint32_t tri_id = (*tile.tri_list)[t];
+		const Tri &tri = _tris[tri_id];
+
+		//		if (tri.z_max > 0.9)
+		//		{
+		//			tile.tri_list->remove_unordered(t);
+		//			t--; // repeat this element
+		//			continue;
+
+		//		}
+
+		int res = tile_test_tri(tile, tri);
+		switch (res) {
+			default:
+				break;
+			case 1: {
+				tile.tri_list->remove_unordered(t);
+				t--; // repeat this element
+			} break;
+			case 2: {
+				// Should we move full tri to high priority?
+				// May be completely hidden by a previous full tri.
+				if (true)
+				//				if (tri.z_min <= tile.full_tri_max_z)
+				{
+					tile.priority_tri_list.push_back(tri_id);
+					tile.full_tri_max_z = MIN(tile.full_tri_max_z, tri.z_max);
+
+					FinalTri final_tri2;
+					for (uint32_t c = 0; c < 3; c++) {
+						final_tri2.v[c] = _vertices[tri.corns[c]];
+					}
+					draw_tri_to_gbuffer(tile, final_tri2, tri_id, tri.item_id + 1, false, true);
+
+					if (!assert_tile_depth_is_at_least(tile, tri.z_max)) {
+						print_line("Full tile failed!");
+						print_line("Tile cliprect : " + String(tile.clip_rect));
+						print_line("Tri : ");
+						for (uint32_t c = 0; c < 3; c++) {
+							print_line(String(Variant(final_tri2.v[c].coord_screen)));
+						}
+					}
+				}
+
+				tile.tri_list->remove_unordered(t);
+				t--; // repeat this element
+			} break;
+		}
+	}
 
 	FinalTri final_tri;
+
+	// High priority
+	for (uint32_t t = 0; t < tile.priority_tri_list.size(); t++) {
+		uint32_t tri_id = tile.priority_tri_list[t];
+		const Tri &tri = _tris[tri_id];
+
+		// Z reject
+		//		if (tri.z_min > tile.full_tri_max_z)
+		//		{
+		//			continue;
+		//		}
+
+		for (uint32_t c = 0; c < 3; c++) {
+			final_tri.v[c] = _vertices[tri.corns[c]];
+		}
+
+		draw_tri_to_gbuffer(tile, final_tri, tri_id, tri.item_id + 1, false, true);
+	}
+
+	// Low priority
+	//	return;
 	for (uint32_t t = 0; t < tile.tri_list->size(); t++) {
 		uint32_t tri_id = (*tile.tri_list)[t];
 		const Tri &tri = _tris[tri_id];
 
 		for (uint32_t c = 0; c < 3; c++) {
 			final_tri.v[c] = _vertices[tri.corns[c]];
-			//			uint32_t vert_id = tri.corns[c];
-			//			final_tri.coords[c] = _vertices[tri.corns[c]].coord_cam_space;
-			//			final_tri.hcoords[c] = _vertices[vert_id].hcoord;
-			//			final_tri.uvs[c] = _vertices[vert_id].uv;
 		}
 
-		draw_tri_to_gbuffer(tile, final_tri, tri_id, tri.item_id + 1);
+		// Z reject
+		if (tri.z_min > tile.full_tri_max_z) {
+			draw_tri_to_gbuffer(tile, final_tri, tri_id, tri.item_id + 1, true, false);
+			continue;
+		}
+
+		draw_tri_to_gbuffer(tile, final_tri, tri_id, tri.item_id + 1, false, false);
 	}
+
+	DEV_ASSERT(tile.debug_actual_max_z <= tile.full_tri_max_z);
 }
 
 void SoftRend::fill_tree(Node *p_node, const LocalVector<uint32_t> &p_parent_tri_list) {
@@ -656,10 +746,10 @@ void SoftRend::flush_final(uint32_t p_tile_id, uint32_t *p_frame_buffer_orig) {
 	uint32_t bottom = clip_rect.position.y + clip_rect.size.y;
 
 	// Special, for unhit tiles
-	if (!tile.tri_list->size()) {
+	if (!tile.tri_list->size() && !tile.priority_tri_list.size()) {
 		// return;
-		if (!tile.clear) {
-			tile.clear = true;
+		if (!tile.background_clear) {
+			tile.background_clear = true;
 			for (uint32_t y = top; y < bottom; y++) {
 				uint32_t *frame_buffer = p_frame_buffer_orig + ((state.viewport_height - y - 1) * state.viewport_width) + left;
 				for (uint32_t x = left; x < right; x++) {
@@ -669,7 +759,7 @@ void SoftRend::flush_final(uint32_t p_tile_id, uint32_t *p_frame_buffer_orig) {
 		}
 		return;
 	} else {
-		tile.clear = false;
+		tile.background_clear = false;
 	}
 
 	// Go through pixels and deferred render.
@@ -801,24 +891,140 @@ void SoftRend::set_pixel(float x, float y) {
 	state.render_target->get_image()->set_pixel(x, y, col);
 }
 
-bool SoftRend::which_side(const Vector2 &wall_a, const Vector2 &wall_vec, const Vector2 &pt) const {
+int SoftRend::which_side(const Vector2 &wall_a, const Vector2 &wall_vec, const Vector2 &pt) const {
 	Vector2 pt_vec = pt - wall_a;
-	return wall_vec.cross(pt_vec) > 0;
+	return (wall_vec.cross(pt_vec) > 0);
 }
 
-void SoftRend::draw_tri_to_gbuffer(Tile &p_tile, const FinalTri &tri, uint32_t p_tri_id, uint32_t p_item_id_p1) {
-	const Rect2i &p_clip_rect = p_tile.clip_rect;
+int SoftRend::tile_test_tri(Tile &p_tile, const Tri &tri) {
+	const Rect2i &clip_rect = p_tile.clip_rect;
 
-	Vector2 pts[3];
-	for (uint32_t c = 0; c < 3; c++) {
-		GL_to_viewport_coords(tri.v[c].coord_cam_space, pts[c]);
+	Vector2 ps[3];
+	for (uint32_t n = 0; n < 3; n++) {
+		ps[n] = _vertices[tri.corns[n]].coord_screen;
 	}
 
+	// Expand the tile rect to account for off by one errors in the scan conversion.
+	Vector2i rpos = clip_rect.position - Vector2i(2, 2);
+	Vector2i rsize = clip_rect.size + Vector2i(4, 4);
+
+	int inside = Geometry::is_point_in_triangle(rpos, ps[0], ps[1], ps[2]);
+	inside += (Geometry::is_point_in_triangle(rpos + Vector2i(rsize.x, 0), ps[0], ps[1], ps[2]));
+	inside += (Geometry::is_point_in_triangle(rpos + Vector2i(0, rsize.y), ps[0], ps[1], ps[2]));
+	inside += (Geometry::is_point_in_triangle(rpos + rsize, ps[0], ps[1], ps[2]));
+
+	if (inside == 4) {
+		return 2;
+	}
+	return 0;
+
+	uint32_t tile_inside_edge_count = 0;
+
+	for (uint32_t e = 0; e < 3; e++) {
+		const Vector2 &a = ps[e];
+		const Vector2 &b = ps[(e + 1) % 3];
+
+		Vector2 wall_vec = b - a;
+
+		//		if (false) {
+		if (tile_inside_edge_count == e) {
+			//			if (which_side(a, wall_vec, clip_rect.position) &&
+			//					which_side(a, wall_vec, clip_rect.position + Vector2i(clip_rect.size.x, 0)) &&
+			//					which_side(a, wall_vec, clip_rect.position + Vector2i(0, clip_rect.size.y)) &&
+			//					which_side(a, wall_vec, clip_rect.position + clip_rect.size)) {
+			//				return 1;
+			//			}
+
+			int inside = which_side(a, wall_vec, clip_rect.position);
+			inside += which_side(a, wall_vec, clip_rect.position + Vector2i(clip_rect.size.x, 0));
+			inside += which_side(a, wall_vec, clip_rect.position + Vector2i(0, clip_rect.size.y));
+			inside += which_side(a, wall_vec, clip_rect.position + clip_rect.size);
+
+			if (inside == 4) {
+#ifdef DEV_ENABLED
+				state.tris_rejected_by_edges += 1;
+#endif
+				//				DEV_ASSERT (which_side(a, wall_vec, clip_rect.position) &&
+				//						which_side(a, wall_vec, clip_rect.position + Vector2i(clip_rect.size.x, 0)) &&
+				//						which_side(a, wall_vec, clip_rect.position + Vector2i(0, clip_rect.size.y)) &&
+				//						which_side(a, wall_vec, clip_rect.position + clip_rect.size));
+
+				return 1;
+			}
+			if (!inside) {
+				tile_inside_edge_count++;
+			}
+
+		} else {
+			if (which_side(a, wall_vec, clip_rect.position) &&
+					which_side(a, wall_vec, clip_rect.position + Vector2i(clip_rect.size.x, 0)) &&
+					which_side(a, wall_vec, clip_rect.position + Vector2i(0, clip_rect.size.y)) &&
+					which_side(a, wall_vec, clip_rect.position + clip_rect.size)) {
+#ifdef DEV_ENABLED
+				state.tris_rejected_by_edges += 1;
+#endif
+				return 1;
+			}
+		}
+	}
+	if (tile_inside_edge_count == 3) {
+		//print_line("inside!");
+
+		// Expand the tile rect to account for off by one errors in the scan conversion.
+		Vector2i rpos = clip_rect.position - Vector2i(1, 1);
+		Vector2i rsize = clip_rect.size + Vector2i(2, 2);
+
+		DEV_ASSERT(Geometry::is_point_in_triangle(rpos, ps[0], ps[1], ps[2]));
+		DEV_ASSERT(Geometry::is_point_in_triangle(rpos + Vector2i(rsize.x, 0), ps[0], ps[1], ps[2]));
+		DEV_ASSERT(Geometry::is_point_in_triangle(rpos + Vector2i(0, rsize.y), ps[0], ps[1], ps[2]));
+		DEV_ASSERT(Geometry::is_point_in_triangle(rpos + rsize, ps[0], ps[1], ps[2]));
+
+		return 2;
+	}
+
+	return 0;
+}
+
+bool SoftRend::assert_tile_depth_is_at_least(Tile &p_tile, float p_depth) {
+	const Rect2i &p_clip_rect = p_tile.clip_rect;
+	int32_t y_start = p_clip_rect.position.y;
+	int32_t y_end = y_start + p_clip_rect.size.y;
+
+	int32_t x_start = p_clip_rect.position.x;
+	int32_t x_end = x_start + p_clip_rect.size.x;
+
+	float max_depth_diff = 0;
+
+	for (int32_t y = y_start; y < y_end; y++) {
+		for (int32_t x = x_start; x < x_end; x++) {
+			float *z = state.render_target->get_z(x, y);
+			//DEV_ASSERT(*z <= p_depth);
+			if (*z > p_depth) {
+				max_depth_diff = MAX(max_depth_diff, *z - p_depth);
+			}
+		}
+	}
+
+	if (max_depth_diff < CMP_EPSILON) {
+		return true;
+	}
+
+	return false;
+}
+
+void SoftRend::draw_tri_to_gbuffer(Tile &p_tile, const FinalTri &tri, uint32_t p_tri_id, uint32_t p_item_id_p1, bool debug_flag_write, bool debug_full_tri) {
+	const Rect2i &p_clip_rect = p_tile.clip_rect;
+
+	//	Vector2 pts[3];
+	//	for (uint32_t c = 0; c < 3; c++) {
+	//		GL_to_viewport_coords(tri.v[c].coord_cam_space, pts[c]);
+	//	}
+
 	Rect2i bound;
-	bound.position = Point2i(pts[0].x, pts[0].y);
+	bound.position = tri.v[0].coord_screen;
 
 	for (uint32_t n = 1; n < 3; n++) {
-		bound.expand_to(Point2i(pts[n].x, pts[n].y));
+		bound.expand_to(tri.v[n].coord_screen);
 	}
 	bound.size += Vector2i(1, 1);
 
@@ -830,39 +1036,79 @@ void SoftRend::draw_tri_to_gbuffer(Tile &p_tile, const FinalTri &tri, uint32_t p
 	bound16.set_safe(bound);
 
 	// Do a more accurate cull of each triangle edge.
-	for (uint32_t e = 0; e < 3; e++) {
-		const Vector2 &a = pts[e];
-		const Vector2 &b = pts[(e + 1) % 3];
+	/*
+		uint32_t tile_inside_edge_count = 0;
 
-		Vector2 wall_vec = b - a;
+		for (uint32_t e = 0; e < 3; e++) {
+			const Vector2 &a = tri.v[e].coord_screen;
+			const Vector2 &b = tri.v[(e + 1) % 3].coord_screen;
 
-		if (which_side(a, wall_vec, p_clip_rect.position) &&
-				which_side(a, wall_vec, p_clip_rect.position + Vector2i(p_clip_rect.size.x, 0)) &&
-				which_side(a, wall_vec, p_clip_rect.position + Vector2i(0, p_clip_rect.size.y)) &&
-				which_side(a, wall_vec, p_clip_rect.position + p_clip_rect.size)) {
-#ifdef DEV_ENABLED
-			state.tris_rejected_by_edges += 1;
-#endif
-			return;
+			Vector2 wall_vec = b - a;
+
+			if (tile_inside_edge_count == e) {
+				int inside = which_side(a, wall_vec, p_clip_rect.position);
+				inside += which_side(a, wall_vec, p_clip_rect.position + Vector2i(p_clip_rect.size.x, 0));
+				inside += which_side(a, wall_vec, p_clip_rect.position + Vector2i(0, p_clip_rect.size.y));
+				inside += which_side(a, wall_vec, p_clip_rect.position + p_clip_rect.size);
+
+				if (inside == 4) {
+	#ifdef DEV_ENABLED
+					state.tris_rejected_by_edges += 1;
+	#endif
+					return;
+				}
+				if (!inside) {
+					tile_inside_edge_count++;
+				}
+
+			} else {
+				if (which_side(a, wall_vec, p_clip_rect.position) &&
+						which_side(a, wall_vec, p_clip_rect.position + Vector2i(p_clip_rect.size.x, 0)) &&
+						which_side(a, wall_vec, p_clip_rect.position + Vector2i(0, p_clip_rect.size.y)) &&
+						which_side(a, wall_vec, p_clip_rect.position + p_clip_rect.size)) {
+	#ifdef DEV_ENABLED
+					state.tris_rejected_by_edges += 1;
+	#endif
+					return;
+				}
+			}
 		}
-	}
+		if (tile_inside_edge_count == 3) {
+			//print_line("inside!");
+		}
+		*/
 
 	Vector3 bc_screen;
 
+	const Vector2 &ps0 = tri.v[0].coord_screen;
+	const Vector2 &ps1 = tri.v[1].coord_screen;
+	const Vector2 &ps2 = tri.v[2].coord_screen;
+
 	Vector3 bary_s[2];
 	for (int i = 2; i--;) {
-		bary_s[i].coord[0] = pts[2].coord[i] - pts[0].coord[i];
-		bary_s[i].coord[1] = pts[1].coord[i] - pts[0].coord[i];
+		bary_s[i].coord[0] = ps2.coord[i] - ps0.coord[i];
+		bary_s[i].coord[1] = ps1.coord[i] - ps0.coord[i];
 
 		// Just for safety, can be removed.
 		bary_s[i].coord[2] = 0;
 	}
 
 	int32_t y_start, y_end;
-	p_tile.scan_converter.scan_convert_triangle(pts, y_start, y_end);
+	p_tile.scan_converter.scan_convert_triangle(ps0, ps1, ps2, y_start, y_end);
 
 	y_start = MAX(y_start, bound16.top);
 	y_end = MIN(y_end, bound16.bottom);
+
+	if (debug_full_tri) {
+		if (y_start != bound16.top) {
+			print_line("full tri y start is off by " + itos(y_start - bound16.top));
+		}
+		if (y_end != bound16.bottom) {
+			print_line("full tri y end is off by " + itos(y_end - bound16.bottom));
+		}
+		//DEV_ASSERT(y_start == bound16.top);
+		//DEV_ASSERT(y_end == bound16.bottom);
+	}
 
 	uint32_t tri_id_p1 = p_tri_id + 1;
 
@@ -873,6 +1119,39 @@ void SoftRend::draw_tri_to_gbuffer(Tile &p_tile, const FinalTri &tri, uint32_t p
 		x_start = MAX(x_start, bound16.left);
 		x_end = MIN(x_end, bound16.right);
 
+		if (debug_full_tri) {
+			if (x_start != bound16.left) {
+				print_line("full tri x start is off by " + itos(x_start - bound16.left));
+			}
+			if (x_end != bound16.right) {
+				print_line("full tri x end is off by " + itos(x_end - bound16.right));
+			}
+			//DEV_ASSERT(y_start == bound16.top);
+			//DEV_ASSERT(y_end == bound16.bottom);
+		}
+
+		///////////////////
+		// TEST
+		const Tri &orig_tri = _tris[p_tri_id];
+		//		float z_min = orig_tri.z_min;
+		//		float z_max = orig_tri.z_max;
+		//		Vector3 pt3;
+		//		find_pixel_bary_optimized(bary_s, ps0, ps0, bc_screen);
+		//		find_point_barycentric(tri.v[0].coord_cam_space, tri.v[1].coord_cam_space, tri.v[2].coord_cam_space, pt3, bc_screen.x, bc_screen.y, bc_screen.z);
+		//		DEV_ASSERT(pt3.z >= z_min);
+		//		DEV_ASSERT(pt3.z <= z_max);
+
+		//		find_pixel_bary_optimized(bary_s, ps0, ps1, bc_screen);
+		//		find_point_barycentric(tri.v[0].coord_cam_space, tri.v[1].coord_cam_space, tri.v[2].coord_cam_space, pt3, bc_screen.x, bc_screen.y, bc_screen.z);
+		//		DEV_ASSERT(pt3.z >= z_min);
+		//		DEV_ASSERT(pt3.z <= z_max);
+
+		//		find_pixel_bary_optimized(bary_s, ps0, ps2, bc_screen);
+		//		find_point_barycentric(tri.v[0].coord_cam_space, tri.v[1].coord_cam_space, tri.v[2].coord_cam_space, pt3, bc_screen.x, bc_screen.y, bc_screen.z);
+		//		DEV_ASSERT(pt3.z >= z_min);
+		//		DEV_ASSERT(pt3.z <= z_max);
+		//////////////////////
+
 		// get z buffer as one off per line
 		float *z_iterator = state.render_target->get_z(x_start, y);
 
@@ -880,7 +1159,7 @@ void SoftRend::draw_tri_to_gbuffer(Tile &p_tile, const FinalTri &tri, uint32_t p
 			float *z = z_iterator;
 			z_iterator++;
 
-			if (!find_pixel_bary_optimized(bary_s, pts[0], Vector2(x, y), bc_screen))
+			if (!find_pixel_bary_optimized(bary_s, ps0, Vector2(x, y), bc_screen))
 				continue;
 
 				// Use these for more accurate barycentric clipping
@@ -926,6 +1205,14 @@ void SoftRend::draw_tri_to_gbuffer(Tile &p_tile, const FinalTri &tri, uint32_t p
 			if (texture_map_tri_to_gbuffer(x, y, p_item_id_p1, tri_id_p1)) {
 				// write z only if not discarded by alpha test
 				*z = pt3.z;
+
+				DEV_ASSERT(pt3.z <= (orig_tri.z_max + CMP_EPSILON));
+
+				float tile_z_diff = p_tile.full_tri_max_z - pt3.z;
+				DEV_ASSERT(tile_z_diff >= -CMP_EPSILON);
+
+				p_tile.debug_actual_max_z = MIN(p_tile.debug_actual_max_z, pt3.z);
+				DEV_ASSERT(!debug_flag_write);
 			}
 		}
 	}

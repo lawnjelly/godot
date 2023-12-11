@@ -32,7 +32,7 @@ class SoftRend {
 			_y_max = _y_min + _y_height;
 		}
 
-		void scan_convert_triangle(const Vector2 *p_verts, int32_t &r_y_start, int32_t &r_y_end);
+		void scan_convert_triangle(Vector2 t0, Vector2 t1, Vector2 t2, int32_t &r_y_start, int32_t &r_y_end);
 		void scan_convert_line(const Vector2 &p_min_y_vert, const Vector2 &p_max_y_vert, int32_t p_which_side);
 		void get_x_min_max(int32_t p_y, int32_t &r_x_min, int32_t &r_x_max) const;
 	};
@@ -161,6 +161,8 @@ class SoftRend {
 		uint32_t corns[3];
 		uint32_t item_id;
 		Bound16 bound;
+		float z_min;
+		float z_max;
 		//		Vector2 c_minus_a;
 		//		Vector2 b_minus_a;
 	};
@@ -172,15 +174,26 @@ class SoftRend {
 
 	struct Tile {
 		Rect2i clip_rect;
-		const LocalVector<uint32_t> *tri_list = nullptr;
+		LocalVector<uint32_t> *tri_list = nullptr;
+
+		LocalVector<uint32_t> priority_tri_list;
+		float full_tri_max_z = FLT_MAX;
+		float debug_actual_max_z = FLT_MAX;
+
 		ScanConverter scan_converter;
 		void create() {
 			scan_converter.create(clip_rect.position.y, clip_rect.size.y);
 		}
 
+		void clear() {
+			priority_tri_list.clear();
+			full_tri_max_z = FLT_MAX;
+			debug_actual_max_z = FLT_MAX;
+		}
+
 		// Optimization...
 		// If this tile is already clear, no need to reclear.
-		bool clear = false;
+		bool background_clear = false;
 	};
 
 	struct Tiles {
@@ -191,8 +204,10 @@ class SoftRend {
 		uint32_t tiles_y = 0;
 	} _tiles;
 
-	bool which_side(const Vector2 &wall_a, const Vector2 &wall_vec, const Vector2 &pt) const;
-	void draw_tri_to_gbuffer(Tile &p_tile, const FinalTri &tri, uint32_t p_tri_id, uint32_t p_item_id_p1);
+	int which_side(const Vector2 &wall_a, const Vector2 &wall_vec, const Vector2 &pt) const;
+	int tile_test_tri(Tile &p_tile, const Tri &tri);
+	void draw_tri_to_gbuffer(Tile &p_tile, const FinalTri &tri, uint32_t p_tri_id, uint32_t p_item_id_p1, bool debug_flag_write, bool debug_full_tri);
+	bool assert_tile_depth_is_at_least(Tile &p_tile, float p_depth);
 	void set_pixel(float x, float y);
 
 	bool texture_map_tri_to_gbuffer(int x, int y, uint32_t p_item_id_p1, uint32_t p_tri_id_p1);
