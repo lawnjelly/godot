@@ -950,7 +950,7 @@ int SoftRend::which_side(const Vector2 &wall_a, const Vector2 &wall_vec, const V
 }
 
 int SoftRend::tile_test_tri(Tile &p_tile, const Tri &tri) {
-	return 0;
+	//	return 0;
 
 	const Rect2i &clip_rect = p_tile.clip_rect;
 
@@ -1242,6 +1242,8 @@ void SoftRend::draw_tri_to_gbuffer(Tile &p_tile, const FinalTri &tri, uint32_t p
 		//DEV_ASSERT(y_end == bound16.bottom);
 	}*/
 
+	bool tile_has_max_z = p_tile.full_tri_max_z != FLT_MAX;
+
 	uint32_t tri_id_p1 = p_tri_id + 1;
 
 	for (int y = y_start; y < y_end; y++) {
@@ -1296,12 +1298,41 @@ void SoftRend::draw_tri_to_gbuffer(Tile &p_tile, const FinalTri &tri, uint32_t p
 		//		GData *gdata = &state.render_target->get_g(x_start, y);
 		GData *gdata = p_tile.get_g(x_start, y);
 
+		// find z at the start of line
+		// and at the end
+		// and the step.
+		Vector3 pt3;
+		if (!find_pixel_bary_optimized(bary_s, ps0, Vector2(x_start, y), bc_screen))
+			continue;
+		find_point_barycentric(tri.v[0].coord_cam_space, tri.v[1].coord_cam_space, tri.v[2].coord_cam_space, pt3, bc_screen.x, bc_screen.y, bc_screen.z);
+		float z_start = pt3.z;
+		if (!find_pixel_bary_optimized(bary_s, ps0, Vector2(x_end - 1, y), bc_screen))
+			continue;
+		find_point_barycentric(tri.v[0].coord_cam_space, tri.v[1].coord_cam_space, tri.v[2].coord_cam_space, pt3, bc_screen.x, bc_screen.y, bc_screen.z);
+		float z_end = pt3.z;
+
+		// Can we totally ignore this line?
+		if (tile_has_max_z) {
+			if ((z_start > p_tile.full_tri_max_z) && (z_end > p_tile.full_tri_max_z)) {
+				continue;
+			}
+		}
+
+		float z_step = (z_end - z_start) / (x_end - x_start);
+
+		float z_curr = z_start;
+		float z_next = z_curr;
+
 		for (int x = x_start; x < x_end; x++) {
 			//float *z = z_iterator++;
 			GData *g = gdata++;
 
+			z_curr = z_next;
+			z_next += z_step;
+#ifdef SOFTREND_CALCULATE_Z_LONGHAND
 			if (!find_pixel_bary_optimized(bary_s, ps0, Vector2(x, y), bc_screen))
 				continue;
+#endif
 
 				// Use these for more accurate barycentric clipping
 //#define SOFTREND_BARYCENTRIC_TRI_CLIPPING
@@ -1314,29 +1345,34 @@ void SoftRend::draw_tri_to_gbuffer(Tile &p_tile, const FinalTri &tri, uint32_t p
 				continue;
 #endif
 
-			/*
-			Vector3 bc_clip = Vector3(bc_screen.x / tri.hcoords[0].d, bc_screen.y / tri.hcoords[1].d, bc_screen.z / tri.hcoords[2].d);
+				/*
+				Vector3 bc_clip = Vector3(bc_screen.x / tri.hcoords[0].d, bc_screen.y / tri.hcoords[1].d, bc_screen.z / tri.hcoords[2].d);
 
-			float clip_denom = bc_clip.x + bc_clip.y + bc_clip.z;
-			if (clip_denom <= 0) {
-				continue;
-			}
-			bc_clip = bc_clip / clip_denom;
-			//float frag_depth = clipc[2]*bc_clip;
-*/
+				float clip_denom = bc_clip.x + bc_clip.y + bc_clip.z;
+				if (clip_denom <= 0) {
+					continue;
+				}
+				bc_clip = bc_clip / clip_denom;
+				//float frag_depth = clipc[2]*bc_clip;
+	*/
 
-			//			Vector3 bary_test;
-			//			SoftSurface::GData gtest;
-			//			gtest.blank();
-			//			gtest.tri_id_p1 = tri_id_p1;
-			//			pixel_shader_calculate_bary(x, y, gtest, bary_test);
+				//			Vector3 bary_test;
+				//			SoftSurface::GData gtest;
+				//			gtest.blank();
+				//			gtest.tri_id_p1 = tri_id_p1;
+				//			pixel_shader_calculate_bary(x, y, gtest, bary_test);
 
-			// PURELY for z coordinate?
+				// PURELY for z coordinate?
+#ifdef SOFTREND_CALCULATE_Z_LONGHAND
 			Vector3 pt3;
 			//find_point_barycentric(tri.coords, pt3, bc_screen.x, bc_screen.y, bc_screen.z);
 			find_point_barycentric(tri.v[0].coord_cam_space, tri.v[1].coord_cam_space, tri.v[2].coord_cam_space, pt3, bc_screen.x, bc_screen.y, bc_screen.z);
 
-			if (pt3.z >= g->z)
+			//print_line("x " + itos(x) +  ", " + itof(pt3.z) + ", change " + itof(pt3.z - z_change));
+#endif
+
+			//			if (pt3.z >= g->z)
+			if (z_curr >= g->z)
 				continue; // failed z test
 
 			//			if (pt3.z < 0)
@@ -1348,7 +1384,8 @@ void SoftRend::draw_tri_to_gbuffer(Tile &p_tile, const FinalTri &tri, uint32_t p
 			g->tri_id_p1 = tri_id_p1;
 			{
 				// write z only if not discarded by alpha test
-				g->z = pt3.z;
+				//g->z = pt3.z;
+				g->z = z_curr;
 
 				/*
 				DEV_ASSERT(pt3.z <= (orig_tri.z_max + CMP_EPSILON));
