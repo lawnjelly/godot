@@ -2917,7 +2917,9 @@ void VisualServerScene::software_render_camera(SoftSurface &r_soft_surface, RID 
 	_software_prepare_scene(camera_transform, camera_matrix, ortho, camera->env, camera->visible_layers, p_scenario, camera->previous_room_id_hint);
 	_software_render_scene(r_soft_surface, camera_transform, camera_matrix, 0, ortho, camera->env, p_scenario);
 
+#ifndef VISUAL_SERVER_SOFTREND_OCCLUSION_CULL
 	VSG::scene_render->software_render_scene(r_soft_surface.get_read_texture(), p_viewport_size.width, p_viewport_size.height);
+#endif
 #endif
 }
 
@@ -3238,6 +3240,10 @@ void VisualServerScene::_software_render_scene(SoftSurface &r_soft_surface, cons
 	r_soft_surface.clear();
 	g_soft_rend.prepare();
 
+#ifdef VISUAL_SERVER_SOFTREND_OCCLUSION_CULL
+	g_soft_rend.set_num_instances(instance_cull_count);
+#endif
+
 	for (int i = 0; i < instance_cull_count; i++) {
 		Instance *ins = instance_cull_result[i];
 
@@ -3251,7 +3257,7 @@ void VisualServerScene::_software_render_scene(SoftSurface &r_soft_surface, cons
 					geom->softmesh_instance->create_from_mesh(ins);
 				}
 
-				g_soft_rend.push_mesh(*geom->softmesh_instance, p_cam_transform, p_cam_projection, ins->transform);
+				g_soft_rend.push_mesh(*geom->softmesh_instance, p_cam_transform, p_cam_projection, ins->transform, i);
 				//geom->softmesh->draw(r_soft_surface, p_cam_transform, p_cam_projection, ins->transform);
 
 			} // mesh
@@ -3272,7 +3278,7 @@ void VisualServerScene::_software_render_scene(SoftSurface &r_soft_surface, cons
 
 				for (int n = 0; n < count; n++) {
 					Transform tr = VS::get_singleton()->multimesh_instance_get_transform(multimesh_rid, n);
-					g_soft_rend.push_mesh(*geom->softmesh_instance, p_cam_transform, p_cam_projection, ins->transform * tr);
+					g_soft_rend.push_mesh(*geom->softmesh_instance, p_cam_transform, p_cam_projection, ins->transform * tr, i);
 				}
 			} // multimesh
 
@@ -3280,6 +3286,16 @@ void VisualServerScene::_software_render_scene(SoftSurface &r_soft_surface, cons
 	}
 
 	g_soft_rend.flush();
+
+#ifdef VISUAL_SERVER_SOFTREND_OCCLUSION_CULL
+	for (int32_t n = instance_cull_count - 1; n >= 0; n--) {
+		if (!g_soft_rend.is_instance_visible(n)) {
+			// unordered remove
+			instance_cull_count--;
+			instance_cull_result[n] = instance_cull_result[instance_cull_count];
+		}
+	}
+#endif
 
 	//	VSG::scene_render->render_scene(p_cam_transform, p_cam_projection, p_eye, p_cam_orthogonal, (RasterizerScene::InstanceBase **)instance_cull_result, instance_cull_count, light_instance_cull_result, light_cull_count + directional_light_count, reflection_probe_instance_cull_result, reflection_probe_cull_count, environment, p_shadow_atlas, scenario->reflection_atlas, p_reflection_probe, p_reflection_probe_pass);
 }
@@ -3440,7 +3456,9 @@ void VisualServerScene::_prepare_scene(const Transform p_cam_transform, const Ca
 	float z_far = p_cam_projection.get_z_far();
 
 	/* STEP 2 - CULL */
+#ifndef VISUAL_SERVER_SOFTREND_ENABLED
 	instance_cull_count = _cull_convex_from_point(scenario, p_cam_transform, p_cam_projection, planes, instance_cull_result, MAX_INSTANCE_CULL, r_previous_room_id_hint);
+#endif
 	light_cull_count = 0;
 
 	reflection_probe_cull_count = 0;

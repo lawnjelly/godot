@@ -109,7 +109,17 @@ class SoftRend {
 		uint32_t first_list_vert = 0;
 		uint32_t first_tri = 0;
 		uint32_t num_tris = 0;
+
+		// The instance ID in the cull list in the visual server.
+		uint32_t vs_instance_id = 0;
 	};
+
+#ifdef VISUAL_SERVER_SOFTREND_OCCLUSION_CULL
+	struct CullState {
+		bool visible = false;
+	};
+	LocalVector<CullState> _cull_states;
+#endif
 
 	struct Bound16 {
 		int16_t left;
@@ -235,10 +245,15 @@ class SoftRend {
 	void flush_to_gbuffer_work(uint32_t p_tile_id, void *p_userdata);
 
 	void flush_final(uint32_t p_tile_id, uint32_t *p_frame_buffer_orig);
+	void flush_tile_find_visible_instances(uint32_t p_tile_id);
 
 	void thread_do_tile_work(uint32_t p_tile_id, uint32_t *p_frame_buffer_orig) {
 		flush_to_gbuffer_work(p_tile_id, nullptr);
+#ifdef VISUAL_SERVER_SOFTREND_OCCLUSION_CULL
+		flush_tile_find_visible_instances(p_tile_id);
+#else
 		flush_final(p_tile_id, p_frame_buffer_orig);
+#endif
 	}
 
 	String itof(float f) { return String(Variant(f)); }
@@ -257,7 +272,16 @@ public:
 	void set_render_target(SoftSurface *p_soft_surface);
 	void prepare();
 	void flush();
-	void push_mesh(SoftMeshInstance &r_softmesh, const Transform &p_cam_transform, const CameraMatrix &p_cam_projection, const Transform &p_instance_xform);
+	void push_mesh(SoftMeshInstance &r_softmesh, const Transform &p_cam_transform, const CameraMatrix &p_cam_projection, const Transform &p_instance_xform, uint32_t p_vs_instance_id);
+#ifdef VISUAL_SERVER_SOFTREND_OCCLUSION_CULL
+	void set_num_instances(uint32_t p_count) {
+		_cull_states.resize(p_count);
+		_cull_states.fill(CullState());
+	}
+	bool is_instance_visible(uint32_t p_index) const {
+		return _cull_states[p_index].visible;
+	}
+#endif
 
 	SoftMaterials materials;
 	SoftMeshes *meshes = nullptr;

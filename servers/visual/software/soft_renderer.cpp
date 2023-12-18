@@ -229,7 +229,7 @@ void SoftRend::prepare() {
 	state.frame_count += 1;
 }
 
-void SoftRend::push_mesh(SoftMeshInstance &r_softmesh, const Transform &p_cam_transform, const CameraMatrix &p_cam_projection, const Transform &p_instance_xform) {
+void SoftRend::push_mesh(SoftMeshInstance &r_softmesh, const Transform &p_cam_transform, const CameraMatrix &p_cam_projection, const Transform &p_instance_xform, uint32_t p_vs_instance_id) {
 	Transform xcam = p_cam_transform.affine_inverse();
 
 	// Combine instance and camera transform as cheaper per vert.
@@ -252,6 +252,7 @@ void SoftRend::push_mesh(SoftMeshInstance &r_softmesh, const Transform &p_cam_tr
 		it.first_list_vert = _vertices.size();
 		it.first_tri = _tris.size();
 		it.surf_id = s;
+		it.vs_instance_id = p_vs_instance_id;
 
 		uint32_t item_id = _items.size();
 
@@ -631,7 +632,9 @@ void SoftRend::flush() {
 	}
 #endif
 
+#ifndef VISUAL_SERVER_SOFTREND_OCCLUSION_CULL
 	state.render_target->get_image()->lock();
+#endif
 
 	PoolVector<uint8_t> &frame_buffer_pool = state.render_target->get_image()->get_data_pool();
 	PoolVector<uint8_t>::Write write = frame_buffer_pool.write();
@@ -656,8 +659,35 @@ void SoftRend::flush() {
 	}
 #endif // NO_THREADS
 
+#ifndef VISUAL_SERVER_SOFTREND_OCCLUSION_CULL
 	state.render_target->get_image()->unlock();
 	state.render_target->update();
+#endif
+}
+
+void SoftRend::flush_tile_find_visible_instances(uint32_t p_tile_id) {
+	Tile &tile = _tiles.tiles[p_tile_id];
+
+	uint32_t tri_id_p1_prev = 0;
+
+	for (uint32_t n = 0; n < tile.gbuffer.size(); n++) {
+		const GData &g = tile.gbuffer[n];
+
+		if (g.tri_id_p1 == tri_id_p1_prev) {
+			continue;
+		}
+		tri_id_p1_prev = g.tri_id_p1;
+
+		if (g.tri_id_p1) {
+			// Get source triangle.
+			const Tri &tri = (_tris.ptr())[g.tri_id_p1 - 1];
+			uint32_t item_id = tri.item_id;
+			const Item &item = (_items.ptr())[item_id];
+
+			uint32_t instance_id = item.vs_instance_id;
+			_cull_states[instance_id].visible = true;
+		}
+	}
 }
 
 void SoftRend::flush_final(uint32_t p_tile_id, uint32_t *p_frame_buffer_orig) {
