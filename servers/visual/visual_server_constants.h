@@ -38,7 +38,7 @@
 
 // Uncomment to allow software rendering.
 #define VISUAL_SERVER_SOFTREND_ENABLED
-#define VISUAL_SERVER_SOFTREND_OCCLUSION_CULL
+//#define VISUAL_SERVER_SOFTREND_OCCLUSION_CULL
 
 // Uncomment to provide comparison of node culling versus item culling
 // #define VISUAL_SERVER_CANVAS_TIME_NODE_CULLING

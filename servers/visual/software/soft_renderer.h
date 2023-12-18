@@ -83,15 +83,18 @@ class SoftRend {
 	} state;
 
 	struct Vertex {
+		//		void set(const Plane &p_hcoord, const Vector3 &p_coord, const Vector2 &p_uv, bool p_inside) {
 		void set(const Plane &p_hcoord, const Vector3 &p_coord, const Vector2 &p_uv) {
 			coord_cam_space = p_coord;
 			hcoord = p_hcoord;
 			uv = p_uv;
+			//inside_frustum = p_inside;
 		}
 		Vector3 coord_cam_space;
 		Plane hcoord;
 		Vector2 coord_screen;
 		Vector2 uv;
+		//bool inside_frustum = true;
 	};
 
 	struct FinalTri {
@@ -170,7 +173,7 @@ class SoftRend {
 	LocalVector<Item> _items;
 	LocalVector<Tri> _tris;
 
-	LocalVector<Vertex> _vertices;
+	LocalVector<Vertex, uint32_t, true> _vertices;
 
 	struct GData {
 		uint32_t tri_id_p1;
@@ -265,6 +268,7 @@ class SoftRend {
 	void clip_tri(const uint32_t *p_inds, Item &r_item, uint32_t p_item_id);
 	void push_tri(const uint32_t *p_inds, Item &r_item, uint32_t p_item_id);
 	bool is_inside_view_frustum(uint32_t p_ind);
+	bool is_hcoord_inside_view_frustum(const Plane &p_hcoord) const;
 	bool clip_polygon_axis(FixedArray<uint32_t, 16> &inds, FixedArray<uint32_t, 16> &aux, int32_t component_index);
 	void clip_polygon_component(FixedArray<uint32_t, 16> &inds, FixedArray<uint32_t, 16> &result, int32_t component_index, float component_factor);
 

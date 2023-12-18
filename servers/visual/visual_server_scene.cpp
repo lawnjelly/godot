@@ -2872,9 +2872,17 @@ void VisualServerScene::software_render_camera(SoftSurface &r_soft_surface, RID 
 	Camera *camera = camera_owner.getornull(p_camera);
 	ERR_FAIL_COND(!camera);
 
-	if ((r_soft_surface.get_image()->get_width() != p_viewport_size.x) ||
-			((r_soft_surface.get_image()->get_height() != p_viewport_size.y))) {
-		r_soft_surface.create(p_viewport_size.x, p_viewport_size.y);
+	int desired_width = p_viewport_size.x;
+	int desired_height = p_viewport_size.y;
+
+#ifdef VISUAL_SERVER_SOFTREND_OCCLUSION_CULL
+	desired_width /= 4;
+	desired_height /= 4;
+#endif
+
+	if ((r_soft_surface.get_image()->get_width() != desired_width) ||
+			((r_soft_surface.get_image()->get_height() != desired_height))) {
+		r_soft_surface.create(desired_width, desired_height);
 	}
 
 	/* STEP 1 - SETUP CAMERA */

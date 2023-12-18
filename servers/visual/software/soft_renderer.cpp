@@ -264,11 +264,26 @@ void SoftRend::push_mesh(SoftMeshInstance &r_softmesh, const Transform &p_cam_tr
 			pos = view_matrix.xform(pos);
 
 			hpos = Plane(pos, 1.0f);
-			hpos = p_cam_projection.xform4(hpos);
+
+			// Do the camera projection inline here, for unrolling, and because
+			// fourth component of vector is always 1.0.
+			{
+				const CameraMatrix &m = p_cam_projection;
+
+				hpos.normal.x = m.matrix[0][0] * pos.x + m.matrix[1][0] * pos.y + m.matrix[2][0] * pos.z + m.matrix[3][0];
+				hpos.normal.y = m.matrix[0][1] * pos.x + m.matrix[1][1] * pos.y + m.matrix[2][1] * pos.z + m.matrix[3][1];
+				hpos.normal.z = m.matrix[0][2] * pos.x + m.matrix[1][2] * pos.y + m.matrix[2][2] * pos.z + m.matrix[3][2];
+				hpos.d = m.matrix[0][3] * pos.x + m.matrix[1][3] * pos.y + m.matrix[2][3] * pos.z + m.matrix[3][3];
+
+				// hpos = p_cam_projection.xform4(hpos);
+			}
 
 			pos = hpos.normal / hpos.d;
 
 			Vector2 uv = surf.uvs[v];
+
+			//bool inside = is_hcoord_inside_view_frustum(hpos);
+			//_vertices[first_surface_list_vert + v].set(hpos, pos, uv, inside);
 			_vertices[first_surface_list_vert + v].set(hpos, pos, uv);
 		}
 
@@ -315,6 +330,14 @@ void SoftRend::push_mesh(SoftMeshInstance &r_softmesh, const Transform &p_cam_tr
 	}
 }
 
+bool SoftRend::is_hcoord_inside_view_frustum(const Plane &p_hcoord) const {
+	const Plane &v = p_hcoord;
+	float w = Math::absf(v.d);
+	return ((Math::absf(v.normal.x) <= w) &&
+			(Math::absf(v.normal.y) <= w) &&
+			(Math::absf(v.normal.z) <= w));
+}
+
 bool SoftRend::is_inside_view_frustum(uint32_t p_ind) {
 	const Plane &v = _vertices[p_ind].hcoord;
 	float w = Math::absf(v.d);
@@ -324,18 +347,68 @@ bool SoftRend::is_inside_view_frustum(uint32_t p_ind) {
 }
 
 void SoftRend::clip_tri(const uint32_t *p_inds, Item &r_item, uint32_t p_item_id) {
-	bool inside[3];
-	for (uint32_t c = 0; c < 3; c++) {
-		inside[c] = is_inside_view_frustum(p_inds[c]);
+	//	for (uint32_t c = 0; c < 3; c++) {
+	//		const Vertex &vert = _vertices[p_inds[c]];
+	//		const Vector3 &cam_coords = vert.coord_cam_space;
+
+	/*
+	const Vertex &first_vert = _vertices[p_inds[0]];
+	Rect2 cam_rect = Rect2(first_vert.coord_cam_space.x, first_vert.coord_cam_space.y, 0, 0);
+
+	for (uint32_t c = 1; c < 3; c++) {
+		const Vertex &vert = _vertices[p_inds[c]];
+		cam_rect.expand_to(Vector2(vert.coord_cam_space.x, vert.coord_cam_space.y));
 	}
 
-	if (inside[0] && inside[1] && inside[2]) {
+	static Rect2 view_rect(-1, -1, 2, 2);
+
+	if (view_rect.encloses(cam_rect))
+	{
 		push_tri(p_inds, r_item, p_item_id);
 		return;
 	}
 
+	// If all outside, check the AABB, maybe the entire AABB is outside
+	if (!cam_rect.intersects(view_rect))
+	{
+		return;
+	}
+	*/
+
+	// backface cull
+	const Vector3 &vc0 = _vertices[p_inds[0]].coord_cam_space;
+	const Vector3 &vc1 = _vertices[p_inds[1]].coord_cam_space;
+	const Vector3 &vc2 = _vertices[p_inds[2]].coord_cam_space;
+
+	Vector2 c0(vc0.x, vc0.y);
+	Vector2 c1(vc1.x, vc1.y);
+	Vector2 c2(vc2.x, vc2.y);
+
+	float cross = (c1 - c0).cross(c2 - c0);
+
+	if (cross >= 0) {
+		return;
+	}
+
+	bool inside[3];
+	for (uint32_t c = 0; c < 3; c++) {
+		inside[c] = is_inside_view_frustum(p_inds[c]);
+		//const Vertex &vert = _vertices[p_inds[c]];
+		//inside[c] = vert.inside_frustum;
+		//cam_rect.expand_to(Vector2(vert.coord_cam_space.x, vert.coord_cam_space.y));
+	}
+
+	if (inside[0] && inside[1] && inside[2]) {
+		//DEV_ASSERT(Rect2(-1, -1, 2, 2).encloses(cam_rect));
+		push_tri(p_inds, r_item, p_item_id);
+		return;
+	}
+
+	// If all outside, check the AABB, maybe the entire AABB is outside
 	//	if (!inside[0] && !inside[1] && !inside[2]) {
-	//		return;
+
+	//		if (!cam_rect.intersects(Rect2(-1, -1, 2, 2)))
+	//			return;
 	//	}
 
 	// If we got to here, we need to clip.
@@ -474,6 +547,7 @@ void SoftRend::push_tri(const uint32_t *p_inds, Item &r_item, uint32_t p_item_id
 	tri.bound.bottom += 1;
 
 	// cull
+	/*
 	const Vector2 &c0 = pt_screen[0];
 	const Vector2 &c1 = pt_screen[1];
 	const Vector2 &c2 = pt_screen[2];
@@ -483,6 +557,7 @@ void SoftRend::push_tri(const uint32_t *p_inds, Item &r_item, uint32_t p_item_id
 	if (cross >= 0) {
 		return;
 	}
+	*/
 
 	_tris.push_back(tri);
 	r_item.num_tris += 1;
@@ -666,6 +741,7 @@ void SoftRend::flush() {
 }
 
 void SoftRend::flush_tile_find_visible_instances(uint32_t p_tile_id) {
+#ifdef VISUAL_SERVER_SOFTREND_OCCLUSION_CULL
 	Tile &tile = _tiles.tiles[p_tile_id];
 
 	uint32_t tri_id_p1_prev = 0;
@@ -688,6 +764,7 @@ void SoftRend::flush_tile_find_visible_instances(uint32_t p_tile_id) {
 			_cull_states[instance_id].visible = true;
 		}
 	}
+#endif
 }
 
 void SoftRend::flush_final(uint32_t p_tile_id, uint32_t *p_frame_buffer_orig) {
