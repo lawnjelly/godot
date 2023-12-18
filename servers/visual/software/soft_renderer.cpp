@@ -546,6 +546,29 @@ void SoftRend::push_tri(const uint32_t *p_inds, Item &r_item, uint32_t p_item_id
 	tri.bound.right += 1;
 	tri.bound.bottom += 1;
 
+	//	for (uint32_t c = 0; c < 3; c++) {
+	//		const Vertex &va = _vertices[p_inds[(c + 2) % 3]];
+	//		const Vertex &vb = _vertices[p_inds[c]];
+
+	//		bool x_more = va.coord_screen.x > vb.coord_screen.x;
+	//		bool y_more = va.coord_screen.y > vb.coord_screen.y;
+
+	//		uint32_t mask = 0;
+
+	//		if (x_more) {
+	//			mask = 1;
+	//		}
+	//		if (y_more) {
+	//			mask |= 2;
+	//		}
+
+	//		// Just for double check until debugged.
+	//		tri.test_corners[c] = mask;
+
+	//		mask <<= c * 2;
+	//		tri.edge_test_corners |= mask;
+	//	}
+
 	// cull
 	/*
 	const Vector2 &c0 = pt_screen[0];
@@ -677,6 +700,9 @@ void SoftRend::fill_tree(Node *p_node, const LocalVector<uint32_t> &p_parent_tri
 
 void SoftRend::flush() {
 	// for debugging clipping, contract a bit
+
+	// Sort the tris by Z
+	//_tris.sort();
 
 	// Seed tris
 	DEV_ASSERT(state.tree);
@@ -914,11 +940,81 @@ int SoftRend::which_side(const Vector2 &wall_a, const Vector2 &wall_vec, const V
 }
 
 int SoftRend::tile_test_tri(Tile &p_tile, const Tri &tri) {
+	//return 0;
+
 	const Rect2i &clip_rect = p_tile.clip_rect;
 
 	Vector2 ps[3];
 	for (uint32_t n = 0; n < 3; n++) {
 		ps[n] = _vertices[tri.corns[n]].coord_screen;
+	}
+
+	Vector2i c0 = clip_rect.position;
+	Vector2i c1 = clip_rect.position + Vector2i(clip_rect.size.x, 0);
+	Vector2i c2 = clip_rect.position + Vector2i(0, clip_rect.size.y);
+	Vector2i c3 = clip_rect.position + clip_rect.size;
+
+	//int inside = 0;
+	int straddles = 0;
+
+	for (uint32_t e = 0; e < 3; e++) {
+		const Vector2 &a = ps[e];
+		const Vector2 &b = ps[(e + 1) % 3];
+
+		bool x_more = b.x > a.x;
+		bool y_more = b.y > a.y;
+
+		Vector2 wall_vec = b - a;
+
+		if (x_more) {
+			if (y_more) {
+				// All points outside tile?
+				// BOTTOM RIGHT
+				if (which_side(a, wall_vec, c1)) {
+					//					DEV_ASSERT(which_side(a, wall_vec, c0));
+					//					DEV_ASSERT(which_side(a, wall_vec, c2));
+					//					DEV_ASSERT(which_side(a, wall_vec, c3));
+					return 1;
+				} else if (straddles || which_side(a, wall_vec, c2)) {
+					straddles++;
+				}
+			} else {
+				// All points outside tile?
+				// BOTTOM LEFT
+				if (which_side(a, wall_vec, c0)) {
+					//					DEV_ASSERT(which_side(a, wall_vec, c1));
+					//					DEV_ASSERT(which_side(a, wall_vec, c2));
+					//					DEV_ASSERT(which_side(a, wall_vec, c3));
+					return 1;
+				} else if (straddles || which_side(a, wall_vec, c3)) {
+					straddles++;
+				}
+			}
+		} else {
+			if (y_more) {
+				// All points outside tile?
+				// TOP RIGHT
+				if (which_side(a, wall_vec, c3)) {
+					//					DEV_ASSERT(which_side(a, wall_vec, c0));
+					//					DEV_ASSERT(which_side(a, wall_vec, c1));
+					//					DEV_ASSERT(which_side(a, wall_vec, c2));
+					return 1;
+				} else if (straddles || which_side(a, wall_vec, c0)) {
+					straddles++;
+				}
+			} else {
+				// All points outside tile?
+				// TOP LEFT
+				if (which_side(a, wall_vec, c2)) {
+					//					DEV_ASSERT(which_side(a, wall_vec, c0));
+					//					DEV_ASSERT(which_side(a, wall_vec, c1));
+					//					DEV_ASSERT(which_side(a, wall_vec, c3));
+					return 1;
+				} else if (straddles || which_side(a, wall_vec, c1)) {
+					straddles++;
+				}
+			}
+		}
 	}
 
 	/*
@@ -936,6 +1032,8 @@ int SoftRend::tile_test_tri(Tile &p_tile, const Tri &tri) {
 	}
 	return 0;
 */
+
+	/*
 	uint32_t tile_inside_edge_count = 0;
 
 	for (uint32_t e = 0; e < 3; e++) {
@@ -985,19 +1083,22 @@ int SoftRend::tile_test_tri(Tile &p_tile, const Tri &tri) {
 			}
 		}
 	}
-	if (tile_inside_edge_count == 3) {
+	*/
+
+	//	if (tile_inside_edge_count == 3) {
+	//if (inside == 3) {
+	if (!straddles) {
 		//print_line("inside!");
 
-		/*
 		// Expand the tile rect to account for off by one errors in the scan conversion.
-		Vector2i rpos = clip_rect.position - Vector2i(1, 1);
-		Vector2i rsize = clip_rect.size + Vector2i(2, 2);
-
-		DEV_ASSERT(Geometry::is_point_in_triangle(rpos, ps[0], ps[1], ps[2]));
-		DEV_ASSERT(Geometry::is_point_in_triangle(rpos + Vector2i(rsize.x, 0), ps[0], ps[1], ps[2]));
-		DEV_ASSERT(Geometry::is_point_in_triangle(rpos + Vector2i(0, rsize.y), ps[0], ps[1], ps[2]));
-		DEV_ASSERT(Geometry::is_point_in_triangle(rpos + rsize, ps[0], ps[1], ps[2]));
-*/
+		//		Vector2i rpos = clip_rect.position - Vector2i(1, 1);
+		//		Vector2i rsize = clip_rect.size + Vector2i(2, 2);
+		//		Vector2i rpos = clip_rect.position;
+		//		Vector2i rsize = clip_rect.size;
+		//		DEV_ASSERT(Geometry::is_point_in_triangle(rpos, ps[0], ps[1], ps[2]));
+		//		DEV_ASSERT(Geometry::is_point_in_triangle(rpos + Vector2i(rsize.x, 0), ps[0], ps[1], ps[2]));
+		//		DEV_ASSERT(Geometry::is_point_in_triangle(rpos + Vector2i(0, rsize.y), ps[0], ps[1], ps[2]));
+		//		DEV_ASSERT(Geometry::is_point_in_triangle(rpos + rsize, ps[0], ps[1], ps[2]));
 		return 2;
 	}
 

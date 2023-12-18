@@ -168,6 +168,8 @@ class SoftRend {
 		Bound16 bound;
 		float z_min;
 		float z_max;
+
+		bool operator<(const Tri &p_tri) const { return z_min > p_tri.z_min; }
 	};
 
 	LocalVector<Item> _items;
