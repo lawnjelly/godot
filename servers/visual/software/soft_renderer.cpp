@@ -346,6 +346,8 @@ bool SoftRend::is_inside_view_frustum(uint32_t p_ind) {
 			(Math::absf(v.normal.z) <= w));
 }
 
+//float previous_cross = 0;
+
 void SoftRend::clip_tri(const uint32_t *p_inds, Item &r_item, uint32_t p_item_id) {
 	//	for (uint32_t c = 0; c < 3; c++) {
 	//		const Vertex &vert = _vertices[p_inds[c]];
@@ -376,19 +378,20 @@ void SoftRend::clip_tri(const uint32_t *p_inds, Item &r_item, uint32_t p_item_id
 	*/
 
 	// backface cull
-	const Vector3 &vc0 = _vertices[p_inds[0]].coord_cam_space;
-	const Vector3 &vc1 = _vertices[p_inds[1]].coord_cam_space;
-	const Vector3 &vc2 = _vertices[p_inds[2]].coord_cam_space;
+	//	const Vector3 &vc0 = _vertices[p_inds[0]].coord_cam_space;
+	//	const Vector3 &vc1 = _vertices[p_inds[1]].coord_cam_space;
+	//	const Vector3 &vc2 = _vertices[p_inds[2]].coord_cam_space;
 
-	Vector2 c0(vc0.x, vc0.y);
-	Vector2 c1(vc1.x, vc1.y);
-	Vector2 c2(vc2.x, vc2.y);
+	//	Vector2 c0(vc0.x, vc0.y);
+	//	Vector2 c1(vc1.x, vc1.y);
+	//	Vector2 c2(vc2.x, vc2.y);
 
-	float cross = (c1 - c0).cross(c2 - c0);
+	//	float cross = (c1 - c0).cross(c2 - c0);
 
-	if (cross >= 0) {
-		return;
-	}
+	//	previous_cross = cross;
+	//	if (cross >= 0) {
+	//		return;
+	//	}
 
 	bool inside[3];
 	for (uint32_t c = 0; c < 3; c++) {
@@ -526,9 +529,14 @@ void SoftRend::push_tri(const uint32_t *p_inds, Item &r_item, uint32_t p_item_id
 	tri.z_min = FLT_MAX;
 
 	Vector2 pt_screen[3];
+
+	//	Vector2 pt_cam_test[3];
+
 	for (uint32_t c = 0; c < 3; c++) {
 		const Vertex &vert = _vertices[p_inds[c]];
 		const Vector3 &cam_coords = vert.coord_cam_space;
+
+		//		pt_cam_test[c] = Vector2(cam_coords.x, cam_coords.y);
 
 		tri.z_max = MAX(tri.z_max, cam_coords.z);
 		tri.z_min = MIN(tri.z_min, cam_coords.z);
@@ -570,7 +578,6 @@ void SoftRend::push_tri(const uint32_t *p_inds, Item &r_item, uint32_t p_item_id
 	//	}
 
 	// cull
-	/*
 	const Vector2 &c0 = pt_screen[0];
 	const Vector2 &c1 = pt_screen[1];
 	const Vector2 &c2 = pt_screen[2];
@@ -580,7 +587,10 @@ void SoftRend::push_tri(const uint32_t *p_inds, Item &r_item, uint32_t p_item_id
 	if (cross >= 0) {
 		return;
 	}
-	*/
+
+	//	float cross2 = (pt_cam_test[1] - pt_cam_test[0]).cross(pt_cam_test[2] - pt_cam_test[0]);
+	//	DEV_ASSERT(cross2 < CMP_EPSILON);
+	//	DEV_ASSERT(previous_cross < 0);
 
 	_tris.push_back(tri);
 	r_item.num_tris += 1;
@@ -940,7 +950,7 @@ int SoftRend::which_side(const Vector2 &wall_a, const Vector2 &wall_vec, const V
 }
 
 int SoftRend::tile_test_tri(Tile &p_tile, const Tri &tri) {
-	//return 0;
+	return 0;
 
 	const Rect2i &clip_rect = p_tile.clip_rect;
 
