@@ -5,6 +5,10 @@
 
 #define SOFTREND_USE_MULTITHREAD
 
+#ifdef SOFTREND_USE_MULTITHREAD
+//#define SOFTREND_THREADED_DRAWCALLS
+#endif
+
 uint32_t SoftRend::Node::tile_length = 64;
 uint32_t SoftRend::Node::tile_num_pixels = SoftRend::Node::tile_length * SoftRend::Node::tile_length;
 
@@ -222,6 +226,7 @@ void SoftRend::Node::debug_tree(uint32_t p_depth) {
 
 void SoftRend::prepare() {
 	_items.clear();
+	_drawcalls.clear();
 	_tris.clear();
 	_vertices.clear();
 	state.tris_rejected_by_edges = 0;
@@ -229,22 +234,187 @@ void SoftRend::prepare() {
 	state.frame_count += 1;
 }
 
+void SoftRend::thread_draw_call_clip(uint32_t p_drawcall, uint32_t *p_dummy) {
+	const DrawCall &dc = _drawcalls[p_drawcall];
+	if (!dc.num_items) {
+		return;
+	}
+
+	uint32_t mesh_id = _items[dc.first_item].mesh_instance->get_mesh_id();
+	const SoftMesh &mesh = meshes->get(mesh_id);
+
+	for (int32_t i = 0; i < dc.num_items; i++) {
+		uint32_t item_id = dc.first_item + i;
+		Item &it = _items[item_id];
+
+		const SoftMesh::Surface &surf = mesh.data.surfaces[it.surf_id];
+
+		uint32_t num_inds = surf.indices.size();
+		uint32_t num_tris = num_inds / 3;
+
+		const LocalVector<int> &is = surf.indices;
+
+		for (uint32_t t = 0; t < num_tris; t++) {
+			uint32_t i = t * 3;
+
+			uint32_t corns[3];
+			for (uint32_t c = 0; c < 3; c++) {
+				corns[c] = is[i + c] + it.first_list_vert;
+			}
+
+			clip_tri(corns, it, item_id);
+		}
+	} // through items (surfaces)
+}
+
+void SoftRend::thread_draw_call_transform(uint32_t p_drawcall_batch, uint32_t *p_dummy) {
+	uint32_t first_drawcall = p_drawcall_batch * state.draw_calls_per_thread;
+
+	for (uint32_t d = 0; d < state.draw_calls_per_thread; d++) {
+		uint32_t drawcall_id = first_drawcall + d;
+		if (drawcall_id >= _drawcalls.size()) {
+			break;
+		}
+
+		const DrawCall &dc = _drawcalls[drawcall_id];
+		if (!dc.num_items) {
+			return;
+		}
+
+		uint32_t mesh_id = _items[dc.first_item].mesh_instance->get_mesh_id();
+		const SoftMesh &mesh = meshes->get(mesh_id);
+
+		for (int32_t i = 0; i < dc.num_items; i++) {
+			uint32_t item_id = dc.first_item + i;
+			Item &it = _items[item_id];
+
+			const SoftMesh::Surface &surf = mesh.data.surfaces[it.surf_id];
+
+			uint32_t num_verts = surf.positions.size();
+
+			Vector3 pos;
+			Plane hpos;
+
+			const Vector3 *source_positions = surf.positions.ptr();
+			const Vector2 *source_uvs = surf.uvs.ptr();
+			Vertex *dest_verts = &_vertices[it.first_list_vert];
+			DEV_ASSERT(dest_verts);
+
+			for (uint32_t v = 0; v < num_verts; v++) {
+				pos = *source_positions++;
+				pos = dc.view_matrix.xform(pos);
+
+				hpos = Plane(pos, 1.0f);
+
+				{
+					const CameraMatrix &m = dc.proj_matrix;
+
+					hpos.normal.x = m.matrix[0][0] * pos.x + m.matrix[1][0] * pos.y + m.matrix[2][0] * pos.z + m.matrix[3][0];
+					hpos.normal.y = m.matrix[0][1] * pos.x + m.matrix[1][1] * pos.y + m.matrix[2][1] * pos.z + m.matrix[3][1];
+					hpos.normal.z = m.matrix[0][2] * pos.x + m.matrix[1][2] * pos.y + m.matrix[2][2] * pos.z + m.matrix[3][2];
+					hpos.d = m.matrix[0][3] * pos.x + m.matrix[1][3] * pos.y + m.matrix[2][3] * pos.z + m.matrix[3][3];
+				}
+
+				pos = hpos.normal / hpos.d;
+
+				const Vector2 &uv = *source_uvs++;
+				dest_verts->set(hpos, pos, uv);
+				dest_verts++;
+			} // through verts
+
+		} // through items (surfaces)
+
+	} // for d through drawcalls
+}
+
+/*
+void SoftRend::thread_do_draw_calls(uint32_t p_drawcall, uint32_t *p_dummy)
+{
+	const DrawCall &dc = _drawcalls[p_drawcall];
+	if (!dc.num_items)
+	{
+		return;
+	}
+
+	uint32_t mesh_id = _items[dc.first_item].mesh_instance->get_mesh_id();
+	const SoftMesh &mesh = meshes->get(mesh_id);
+
+
+	for (int32_t i=0; i<dc.num_items; i++)
+	{
+		uint32_t item_id = dc.first_item + i;
+		Item &it = _items[item_id];
+
+		const SoftMesh::Surface &surf = mesh.data.surfaces[it.surf_id];
+
+		uint32_t num_verts = surf.positions.size();
+
+		Vector3 pos;
+		Plane hpos;
+		for (uint32_t v = 0; v < num_verts; v++) {
+			pos = surf.positions[v];
+
+			pos = dc.view_matrix.xform(pos);
+
+			hpos = Plane(pos, 1.0f);
+
+			{
+				const CameraMatrix &m = dc.proj_matrix;
+
+				hpos.normal.x = m.matrix[0][0] * pos.x + m.matrix[1][0] * pos.y + m.matrix[2][0] * pos.z + m.matrix[3][0];
+				hpos.normal.y = m.matrix[0][1] * pos.x + m.matrix[1][1] * pos.y + m.matrix[2][1] * pos.z + m.matrix[3][1];
+				hpos.normal.z = m.matrix[0][2] * pos.x + m.matrix[1][2] * pos.y + m.matrix[2][2] * pos.z + m.matrix[3][2];
+				hpos.d = m.matrix[0][3] * pos.x + m.matrix[1][3] * pos.y + m.matrix[2][3] * pos.z + m.matrix[3][3];
+			}
+
+			pos = hpos.normal / hpos.d;
+
+			Vector2 uv = surf.uvs[v];
+
+				   //bool inside = is_hcoord_inside_view_frustum(hpos);
+				   //_vertices[it.first_list_vert + v].set(hpos, pos, uv, inside);
+			_vertices[it.first_list_vert + v].set(hpos, pos, uv);
+		} // through verts
+
+
+		uint32_t num_inds = surf.indices.size();
+		uint32_t num_tris = num_inds / 3;
+
+		const LocalVector<int> &is = surf.indices;
+
+		for (uint32_t t = 0; t < num_tris; t++) {
+			uint32_t i = t * 3;
+
+			uint32_t corns[3];
+			for (uint32_t c = 0; c < 3; c++) {
+				corns[c] = is[i + c] + it.first_list_vert;
+			}
+
+			clip_tri(corns, it, item_id);
+		}
+	} // through items (surfaces)
+}
+*/
 void SoftRend::push_mesh(SoftMeshInstance &r_softmesh, const Transform &p_cam_transform, const CameraMatrix &p_cam_projection, const Transform &p_instance_xform, uint32_t p_vs_instance_id) {
 	Transform xcam = p_cam_transform.affine_inverse();
 
 	// Combine instance and camera transform as cheaper per vert.
 	Transform view_matrix = xcam * p_instance_xform;
 
+#ifdef SOFTREND_THREADED_DRAWCALLS
+	DrawCall dc;
+	dc.view_matrix = view_matrix;
+	dc.proj_matrix = p_cam_projection;
+	dc.first_item = _items.size();
+	dc.num_items = 0;
+#endif
+
 	const SoftMesh &mesh = meshes->get(r_softmesh.get_mesh_id());
 
 	for (uint32_t s = 0; s < mesh.data.surfaces.size(); s++) {
-		// Keep track of first list vert for each surface.
-		uint32_t first_surface_list_vert = _vertices.size();
-
 		const SoftMesh::Surface &surf = mesh.data.surfaces[s];
 
 		uint32_t num_verts = surf.positions.size();
-		_vertices.resize(_vertices.size() + num_verts);
 
 		// Push the surface item.
 		Item it;
@@ -254,6 +424,9 @@ void SoftRend::push_mesh(SoftMeshInstance &r_softmesh, const Transform &p_cam_tr
 		it.surf_id = s;
 		it.vs_instance_id = p_vs_instance_id;
 
+		_vertices.resize(_vertices.size() + num_verts);
+
+#ifndef SOFTREND_THREADED_DRAWCALLS
 		uint32_t item_id = _items.size();
 
 		Vector3 pos;
@@ -283,8 +456,8 @@ void SoftRend::push_mesh(SoftMeshInstance &r_softmesh, const Transform &p_cam_tr
 			Vector2 uv = surf.uvs[v];
 
 			//bool inside = is_hcoord_inside_view_frustum(hpos);
-			//_vertices[first_surface_list_vert + v].set(hpos, pos, uv, inside);
-			_vertices[first_surface_list_vert + v].set(hpos, pos, uv);
+			//_vertices[it.first_list_vert + v].set(hpos, pos, uv, inside);
+			_vertices[it.first_list_vert + v].set(hpos, pos, uv);
 		}
 
 		uint32_t num_inds = surf.indices.size();
@@ -297,7 +470,7 @@ void SoftRend::push_mesh(SoftMeshInstance &r_softmesh, const Transform &p_cam_tr
 
 			uint32_t corns[3];
 			for (uint32_t c = 0; c < 3; c++) {
-				corns[c] = is[i + c] + first_surface_list_vert;
+				corns[c] = is[i + c] + it.first_list_vert;
 			}
 
 			// Backface culling
@@ -324,10 +497,18 @@ void SoftRend::push_mesh(SoftMeshInstance &r_softmesh, const Transform &p_cam_tr
 
 			clip_tri(corns, it, item_id);
 		}
+#endif
 
 		// Push surface item.
 		_items.push_back(it);
+#ifdef SOFTREND_THREADED_DRAWCALLS
+		dc.num_items += 1;
+#endif
 	}
+
+#ifdef SOFTREND_THREADED_DRAWCALLS
+	_drawcalls.push_back(dc);
+#endif
 }
 
 bool SoftRend::is_hcoord_inside_view_frustum(const Plane &p_hcoord) const {
@@ -592,7 +773,14 @@ void SoftRend::push_tri(const uint32_t *p_inds, Item &r_item, uint32_t p_item_id
 	//	DEV_ASSERT(cross2 < CMP_EPSILON);
 	//	DEV_ASSERT(previous_cross < 0);
 
+	// This needs to be thread safe.
+#ifdef SOFTREND_THREADED_DRAWCALLS
+	//	state.tri_mutex.lock();
 	_tris.push_back(tri);
+//	state.tri_mutex.unlock();
+#else
+	_tris.push_back(tri);
+#endif
 	r_item.num_tris += 1;
 }
 
@@ -708,7 +896,93 @@ void SoftRend::fill_tree(Node *p_node, const LocalVector<uint32_t> &p_parent_tri
 	}
 }
 
+void SoftRend::flush_draw_calls() {
+#ifdef SOFTREND_THREADED_DRAWCALLS
+
+	bool threaded = false;
+#ifndef NO_THREADS
+	if (state.thread_cores > 1) {
+		threaded = true;
+
+		//state.draw_calls_per_thread = (_drawcalls.size() / state.thread_cores) + 1;
+		//uint32_t num_drawcall_batches = (_drawcalls.size() / state.draw_calls_per_thread) + 1;
+		uint32_t num_drawcall_batches = _drawcalls.size();
+
+		state.thread_pool.do_work(
+				num_drawcall_batches,
+				this,
+				&SoftRend::thread_draw_call_transform,
+				nullptr);
+	}
+
+#endif // NO_THREADS
+
+	if (!threaded) {
+		state.draw_calls_per_thread = 1;
+
+		for (uint32_t n = 0; n < _drawcalls.size(); n++) {
+			thread_draw_call_transform(n, nullptr);
+		}
+	}
+
+	threaded = false;
+	//#ifndef NO_THREADS
+	//	if (state.thread_cores > 1) {
+	//		threaded = true;
+	//		state.thread_pool.do_work(
+	//				_drawcalls.size(),
+	//				this,
+	//				&SoftRend::thread_draw_call_clip,
+	//				nullptr);
+	//	}
+	//#endif // NO_THREADS
+
+	if (!threaded) {
+		for (uint32_t n = 0; n < _drawcalls.size(); n++) {
+			thread_draw_call_clip(n, nullptr);
+		}
+	}
+
+#endif
+}
+
 void SoftRend::flush() {
+	// First calculate number of threads if not done already.
+#ifndef NO_THREADS
+	if (!state.thread_cores && state.thread_pool.get_thread_count() == 0) {
+#ifdef SOFTREND_USE_MULTITHREAD
+		//state.thread_cores = (OS::get_singleton()->get_default_thread_pool_size() * 2) / 8;
+		state.thread_cores = OS::get_singleton()->get_default_thread_pool_size();
+
+		switch (state.thread_cores) {
+			case 2: {
+				state.thread_cores = 1;
+			} break;
+			case 4: {
+				state.thread_cores = 2;
+			} break;
+			case 8: {
+				state.thread_cores = 6;
+			} break;
+			default: {
+				state.thread_cores = (state.thread_cores * 3) / 4;
+			} break;
+		}
+
+		state.thread_cores = MAX(state.thread_cores, 1);
+		print_line("SoftRend multithread using " + itos(state.thread_cores) + " cores.");
+#else
+		state.thread_cores = 1;
+#endif
+
+		if (state.thread_cores > 1) {
+			state.thread_pool.init(state.thread_cores);
+		}
+	}
+#endif
+
+	flush_draw_calls();
+
 	// for debugging clipping, contract a bit
 
 	// Sort the tris by Z
@@ -728,21 +1002,6 @@ void SoftRend::flush() {
 	state.clear_color = Color(0.15, 0.3, 0.7, 1);
 	state.clear_rgba = state.clear_color.to_abgr32();
 
-#ifndef NO_THREADS
-	if (!state.thread_cores && state.thread_pool.get_thread_count() == 0) {
-#ifdef SOFTREND_USE_MULTITHREAD
-		state.thread_cores = (OS::get_singleton()->get_default_thread_pool_size() * 4) / 3;
-		state.thread_cores = MAX(state.thread_cores, 1);
-#else
-		state.thread_cores = 1;
-#endif
-
-		if (state.thread_cores > 1) {
-			state.thread_pool.init(state.thread_cores);
-		}
-	}
-#endif
-
 #ifndef VISUAL_SERVER_SOFTREND_OCCLUSION_CULL
 	state.render_target->get_image()->lock();
 #endif
@@ -753,8 +1012,12 @@ void SoftRend::flush() {
 
 #ifndef NO_THREADS
 	if (state.thread_cores > 1) {
+		uint32_t num_tile_batches = _tiles.tiles.size();
+		//state.tiles_per_thread = (_tiles.tiles.size() / state.thread_cores) + 1;
+		//uint32_t num_tile_batches = (_tiles.tiles.size() / state.tiles_per_thread) + 1;
+
 		state.thread_pool.do_work(
-				_tiles.tiles.size(),
+				num_tile_batches,
 				this,
 				//&SoftRend::flush_final,
 				&SoftRend::thread_do_tile_work,

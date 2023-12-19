@@ -3,6 +3,7 @@
 #include "servers/visual/visual_server_constants.h"
 
 #include "core/fixed_array.h"
+#include "core/math/camera_matrix.h"
 #include "core/math/plane.h"
 #include "core/math/vector2.h"
 #include "core/os/thread_work_pool.h"
@@ -11,8 +12,8 @@
 
 class SoftMeshInstance;
 class SoftMeshes;
-class Transform;
-struct CameraMatrix;
+//class Transform;
+//struct CameraMatrix;
 
 class SoftRend {
 	class ScanConverter {
@@ -79,6 +80,12 @@ class SoftRend {
 		/// Pooled threads for computing steps
 		ThreadWorkPool thread_pool;
 		int thread_cores = 0;
+
+		Mutex tri_mutex;
+
+		uint32_t draw_calls_per_thread = 1;
+		uint32_t tiles_per_thread = 1;
+
 #endif // NO_THREADS
 	} state;
 
@@ -172,6 +179,14 @@ class SoftRend {
 		bool operator<(const Tri &p_tri) const { return z_min > p_tri.z_min; }
 	};
 
+	struct DrawCall {
+		Transform view_matrix;
+		CameraMatrix proj_matrix;
+		uint32_t first_item;
+		uint32_t num_items;
+	};
+
+	LocalVector<DrawCall> _drawcalls;
 	LocalVector<Item> _items;
 	LocalVector<Tri> _tris;
 
@@ -251,14 +266,25 @@ class SoftRend {
 
 	void flush_final(uint32_t p_tile_id, uint32_t *p_frame_buffer_orig);
 	void flush_tile_find_visible_instances(uint32_t p_tile_id);
+	void flush_draw_calls();
 
-	void thread_do_tile_work(uint32_t p_tile_id, uint32_t *p_frame_buffer_orig) {
-		flush_to_gbuffer_work(p_tile_id, nullptr);
+	void thread_draw_call_clip(uint32_t p_drawcall, uint32_t *p_dummy);
+	void thread_draw_call_transform(uint32_t p_drawcall_batch, uint32_t *p_dummy);
+
+	void thread_do_tile_work(uint32_t p_tile_batch, uint32_t *p_frame_buffer_orig) {
+		uint32_t first_tile = p_tile_batch * state.tiles_per_thread;
+		for (uint32_t n = 0; n < state.tiles_per_thread; n++) {
+			uint32_t tile_id = first_tile + n;
+			if (tile_id >= _tiles.tiles.size())
+				break;
+
+			flush_to_gbuffer_work(tile_id, nullptr);
 #ifdef VISUAL_SERVER_SOFTREND_OCCLUSION_CULL
-		flush_tile_find_visible_instances(p_tile_id);
+			flush_tile_find_visible_instances(tile_id);
 #else
-		flush_final(p_tile_id, p_frame_buffer_orig);
+			flush_final(tile_id, p_frame_buffer_orig);
 #endif
+		}
 	}
 
 	String itof(float f) { return String(Variant(f)); }
