@@ -827,17 +827,19 @@ void AnimationTree::_process_graph(float p_delta) {
 			for (int i = 0; i < a->get_track_count(); i++) {
 				NodePath path = a->track_get_path(i);
 
-				ERR_CONTINUE(!track_cache.has(path));
+				TrackCache **pp_track = track_cache.getptr(path);
+				ERR_CONTINUE(!pp_track);
 
-				TrackCache *track = track_cache[path];
+				TrackCache *track = *pp_track;
 				if (track->type != a->track_get_type(i)) {
 					continue; //may happen should not
 				}
 
 				track->root_motion = root_motion_track == path;
 
-				ERR_CONTINUE(!state.track_map.has(path));
-				int blend_idx = state.track_map[path];
+				int *p_blend_idx = state.track_map.getptr(path);
+				ERR_CONTINUE(!p_blend_idx);
+				int blend_idx = *p_blend_idx;
 
 				ERR_CONTINUE(blend_idx < 0 || blend_idx >= state.track_count);
 
