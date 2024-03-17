@@ -32,6 +32,93 @@
 
 #include "core/print_string.h"
 
+NodePath::NodePathMap NodePath::_unique_map;
+
+//#define GODOT_NODE_PATH_MAP_VERBOSE
+
+void NodePath::NodePathMap::reref(NodePath::Data &r_data, const String &p_string, uint32_t p_hash) {
+	unref(r_data);
+	ref(r_data, p_string, p_hash);
+}
+
+void NodePath::NodePathMap::ref(NodePath::Data &r_data, const String &p_string, uint32_t p_hash) {
+	//	return;
+	MutexLock lock(_mutex);
+
+	if (!_initialized) {
+		_initialized = true;
+		// Make sure zero is never used in the pool.
+		// (It is used to indicate no entry.)
+		uint32_t dummy;
+		_paths.request(dummy)->create();
+	}
+
+	DEV_ASSERT(!r_data.unique_map_id);
+	DEV_ASSERT(p_string.size());
+
+	// Does it exist already?
+	for (uint32_t n = 0; n < _paths.active_size(); n++) {
+		uint32_t id = _paths.get_active_id(n);
+		UniqueNodePath &path = _paths[id];
+
+		if (id) {
+			DEV_ASSERT(path.path_string);
+
+			if ((path.hash == p_hash) && (*path.path_string == p_string)) {
+				path.refcount++;
+				r_data.unique_map_id = id;
+#ifdef GODOT_NODE_PATH_MAP_VERBOSE
+				print_line("[" + itos(_paths.active_size()) + "] Referencing upath : " + p_string + " (" + itos(n) + ") " + String::addr(&r_data) + ", refcount " + itos(path.refcount));
+#endif
+				return;
+			}
+		}
+	}
+
+	// Not found, create.
+	UniqueNodePath *upath = _paths.request(r_data.unique_map_id);
+	upath->create();
+	upath->refcount = 1;
+	upath->path_string = memnew(String);
+	*upath->path_string = p_string;
+	upath->hash = p_hash;
+
+#ifdef GODOT_NODE_PATH_MAP_VERBOSE
+	print_line("[" + itos(_paths.active_size()) + "] Adding upath : " + p_string + " (" + itos(r_data.unique_map_id) + ") " + String::addr(&r_data) + ", refcount " + itos(upath->refcount));
+#endif
+}
+
+void NodePath::NodePathMap::unref(NodePath::Data &r_data) {
+	//	return;
+	MutexLock lock(_mutex);
+	if (r_data.unique_map_id) {
+		UniqueNodePath &path = _paths[r_data.unique_map_id];
+		DEV_ASSERT(path.refcount);
+
+		path.refcount--;
+
+		if (!path.refcount) {
+			DEV_ASSERT(path.path_string);
+#ifdef GODOT_NODE_PATH_MAP_VERBOSE
+			print_line("[" + itos(_paths.active_size()) + "] Deleting upath : " + *path.path_string + ", refcount " + itos(path.refcount));
+#endif
+			memdelete(path.path_string);
+			path.path_string = nullptr;
+
+			path.refcount = 0;
+
+			_paths.free(r_data.unique_map_id);
+		} else {
+#ifdef GODOT_NODE_PATH_MAP_VERBOSE
+			DEV_ASSERT(path.path_string);
+			print_line("[" + itos(_paths.active_size()) + "] Unreferencing upath : " + *path.path_string + ", refcount " + itos(path.refcount));
+#endif
+		}
+
+		r_data.unique_map_id = 0;
+	}
+}
+
 void NodePath::_update_hash_cache() const {
 	uint32_t h = data->absolute ? 1 : 0;
 	int pc = data->path.size();
@@ -53,6 +140,7 @@ void NodePath::prepend_period() {
 	if (data->path.size() && data->path[0].operator String() != ".") {
 		data->path.insert(0, ".");
 		data->hash_cache_valid = false;
+		_unique_map.reref(*data, (String) * this, hash());
 	}
 }
 
@@ -91,6 +179,8 @@ StringName NodePath::get_subname(int p_idx) const {
 
 void NodePath::unref() {
 	if (data && data->refcount.unref()) {
+		// Remove from unique map.
+		_unique_map.unref(*data);
 		memdelete(data);
 	}
 	data = nullptr;
@@ -104,6 +194,10 @@ bool NodePath::operator==(const NodePath &p_path) const {
 	if (!data || !p_path.data) {
 		return false;
 	}
+
+	// prediction
+	bool same = data->unique_map_id == p_path.data->unique_map_id;
+	return same;
 
 	if (data->absolute != p_path.data->absolute) {
 		return false;
@@ -297,6 +391,9 @@ NodePath::NodePath(const Vector<StringName> &p_path, bool p_absolute) {
 	data->path = p_path;
 	data->has_slashes = true;
 	data->hash_cache_valid = false;
+
+	// Add to the unique map.
+	_unique_map.ref(*data, (String)(*this), hash());
 }
 
 NodePath::NodePath(const Vector<StringName> &p_path, const Vector<StringName> &p_subpath, bool p_absolute) {
@@ -313,6 +410,9 @@ NodePath::NodePath(const Vector<StringName> &p_path, const Vector<StringName> &p
 	data->subpath = p_subpath;
 	data->has_slashes = true;
 	data->hash_cache_valid = false;
+
+	// Add to the unique map.
+	_unique_map.ref(*data, (String)(*this), hash());
 }
 
 void NodePath::simplify() {
@@ -338,6 +438,7 @@ void NodePath::simplify() {
 		}
 	}
 	data->hash_cache_valid = false;
+	_unique_map.reref(*data, (String) * this, hash());
 }
 
 NodePath NodePath::simplified() const {
@@ -429,6 +530,9 @@ NodePath::NodePath(const String &p_path) {
 			last_is_slash = false;
 		}
 	}
+
+	// Add to the unique map.
+	_unique_map.ref(*data, (String)(*this), hash());
 }
 
 bool NodePath::is_empty() const {

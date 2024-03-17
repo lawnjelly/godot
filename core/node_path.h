@@ -31,6 +31,7 @@
 #ifndef NODE_PATH_H
 #define NODE_PATH_H
 
+#include "core/pooled_list.h"
 #include "core/string_name.h"
 #include "core/ustring.h"
 
@@ -44,7 +45,36 @@ class NodePath {
 		bool has_slashes;
 		mutable bool hash_cache_valid;
 		mutable uint32_t hash_cache;
+		uint32_t unique_map_id = 0;
 	};
+
+	class NodePathMap {
+		struct UniqueNodePath {
+			uint32_t refcount;
+			uint32_t hash;
+			String *path_string;
+			void create() {
+				refcount = 0;
+				hash = 0;
+				path_string = nullptr;
+			}
+		};
+		TrackedPooledList<UniqueNodePath> _paths;
+		Mutex _mutex;
+		bool _initialized = false;
+
+	public:
+		void ref(NodePath::Data &r_data, const String &p_string, uint32_t p_hash);
+		void reref(NodePath::Data &r_data, const String &p_string, uint32_t p_hash);
+		void unref(NodePath::Data &r_data);
+		NodePathMap() {
+			// Make sure zero is never used in the pool.
+			// (It is used to indicate no entry.)
+			// uint32_t dummy;
+			// _paths.request(dummy);
+		}
+	};
+	static NodePathMap _unique_map;
 
 	mutable Data *data;
 	void unref();
