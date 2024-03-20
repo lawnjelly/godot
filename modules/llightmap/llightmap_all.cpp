@@ -1,0 +1,22 @@
+// defines
+
+// single compilation unit
+#include "gdlightmapper.cpp"
+#include "lambient_occlusion.cpp"
+#include "lbitfield_dynamic.cpp"
+#include "llightmapper.cpp"
+#include "llightmapper_base.cpp"
+#include "llightmapper_editor_plugin.cpp"
+#include "llightprobe.cpp"
+#include "llightscene.cpp"
+#include "llighttests_simd.cpp"
+#include "llighttracer.cpp"
+#include "lmaterials.cpp"
+#include "lmerger.cpp"
+#include "lqmc.cpp"
+#include "lraybank.cpp"
+#include "lscene_saver.cpp"
+#include "lsky.cpp"
+#include "lstitcher.cpp"
+#include "lunmerger.cpp"
+#include "register_types.cpp"
