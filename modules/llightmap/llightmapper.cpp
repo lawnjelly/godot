@@ -219,8 +219,12 @@ bool LightMapper::LightmapMesh(Spatial *pMeshesRoot, const Spatial &light_root, 
 		m_Image_AO.Create(m_iWidth, m_iHeight);
 
 	if (m_Settings_BakeMode != LMBAKEMODE_MERGE) {
-		if (m_Logic_Process_AO)
+		if (m_Logic_Process_AO) {
+			if (bake_step_function) {
+				bake_step_function(0, String("QMC Create"));
+			}
 			m_QMC.Create(m_AdjustedSettings.m_AO_Samples);
+		}
 
 		uint32_t before, after;
 		FindLights_Recursive(&light_root);
@@ -234,15 +238,29 @@ bool LightMapper::LightmapMesh(Spatial *pMeshesRoot, const Spatial &light_root, 
 			m_TriIDs.clear(true);
 		}
 
+		if (bake_step_function) {
+			bake_step_function(0, String("Barycentric Create"));
+		}
 		m_Image_Barycentric.Create(m_iWidth, m_iHeight);
+
+		//		if (bake_end_function) {
+		//			bake_end_function();
+		//		}
 
 		//m_Image_Cuts.Create(m_iWidth, m_iHeight);
 		//m_CuttingTris.clear(true);
 
+		if (bake_step_function) {
+			bake_step_function(0, String("Scene Create"));
+		}
 		print_line("Scene Create");
 		before = OS::get_singleton()->get_ticks_msec();
 		if (!m_Scene.Create(pMeshesRoot, m_iWidth, m_iHeight, m_Settings_VoxelDensity, m_AdjustedSettings.m_Max_Material_Size, m_AdjustedSettings.m_EmissionDensity))
 			return false;
+
+		if (bake_step_function) {
+			bake_step_function(0, String("Prepare Lights"));
+		}
 
 		PrepareLights();
 

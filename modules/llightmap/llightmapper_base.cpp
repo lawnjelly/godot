@@ -90,6 +90,23 @@ LightMapper_Base::LightMapper_Base() {
 	m_Settings_Sky_Brightness = 1.0f;
 }
 
+void LightMapper_Base::debug_save(LightImage<uint32_t> &p_im, String p_filename) {
+	//	Ref<Image> image = memnew(Image(width, height, false, Image::FORMAT_RGBA8));
+	Ref<Image> im = memnew(Image(p_im.GetWidth(), p_im.GetHeight(), false, Image::FORMAT_RGBA8));
+	;
+	//im.create(p_im.GetWidth(), p_im.GetHeight(), false, Image::FORMAT_RGBA8);
+	im->lock();
+	for (uint32_t y = 0; y < p_im.GetHeight(); y++) {
+		for (uint32_t x = 0; x < p_im.GetWidth(); x++) {
+			Color c = Color::hex(p_im.GetItem(x, y));
+			im->set_pixel(x, y, c);
+		}
+	}
+	im->unlock();
+
+	im->save_png(p_filename);
+}
+
 void LightMapper_Base::Base_Reset() {
 	m_Image_L.Reset();
 	m_Image_L_mirror.Reset();

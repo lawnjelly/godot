@@ -1,4 +1,5 @@
 #include "llightscene.h"
+#include "core/os/thread_work_pool.h"
 #include "llightmapper_base.h"
 #include "llighttests_simd.h"
 #include "llighttypes.h"
@@ -889,16 +890,222 @@ bool LightScene::FindPrimaryTextureColors(int tri_id, const Vector3 &bary, Color
 	return m_Materials.FindColors(mat_id_p1, uvs, albedo, bTransparent);
 }
 
+void LightScene::thread_rasterize_triangle_ids(uint32_t p_tile, uint32_t *p_dummy) {
+	RasterizeTriangleIDParams &rtip = _rasterize_triangle_id_params;
+
+	//	if (rtip.base->bake_step_function) {
+	//		bool cancel = rtip.base->bake_step_function(p_tile / (float)rtip.num_tiles_high, String("Process UVTris: ") + " (" + itos(p_tile) + ")");
+	//	   			if (cancel) {
+	//	   				if (base.bake_end_function) {
+	//	   					base.bake_end_function();
+	//	   				}
+	//	   				return false;
+	//	   			}
+	//	}
+
+	int width = rtip.im_p1->GetWidth();
+	int height = rtip.im_p1->GetHeight();
+
+	int height_min = p_tile * rtip.tile_height;
+	int height_max = height_min + rtip.tile_height;
+
+	if (height_min >= height)
+		return;
+
+	height_min = CLAMP(height_min, 0, height);
+	height_max = CLAMP(height_max, 0, height);
+
+	for (int n = 0; n < m_UVTris.size(); n++) {
+		//		if (base.bake_step_function && ((n % 4096) == 0)) {
+		//			bool cancel = base.bake_step_function(n / (float)m_UVTris.size(), String("Process UVTris: ") + " (" + itos(n) + ")");
+		//			if (cancel) {
+		//				if (base.bake_end_function) {
+		//					base.bake_end_function();
+		//				}
+		//				return false;
+		//			}
+		//		}
+
+		//const Rect2 &aabb = m_TriUVaabbs[n];
+		const UVTri &tri = m_UVTris[n];
+
+		/*
+		int min_x = aabb.position.x * width;
+		int min_y = aabb.position.y * height;
+		int max_x = (aabb.position.x + aabb.size.x) * width;
+		int max_y = (aabb.position.y + aabb.size.y) * height;
+
+		// add a bit for luck
+		min_x--;
+		min_y--;
+		max_x++;
+		max_y++;
+		*/
+
+		const Rect2i &bound = m_TriUVbounds[n];
+
+		// clamp
+		int min_x = bound.min_x;
+		int min_y = CLAMP(bound.min_y, height_min, height_max);
+		int max_x = bound.max_x;
+		int max_y = CLAMP(bound.max_y, height_min, height_max);
+
+		int debug_overlap_count = 0;
+
+		for (int y = min_y; y < max_y; y++) {
+			for (int x = min_x; x < max_x; x++) {
+				float s = (x + 0.5f) / (float)width;
+				float t = (y + 0.5f) / (float)height;
+
+				//				if ((x == 26) && (y == 25))
+				//				{
+				//					print_line("testing");
+				//				}
+
+				if (tri.ContainsPoint(Vector2(s, t)))
+				//if (tri.ContainsTexel(x, y, width , height))
+				{
+					if (rtip.base->m_Logic_Process_AO)
+						rtip.temp_image_tris.GetItem(x, y).push_back(n);
+
+					uint32_t &id_p1 = rtip.im_p1->GetItem(x, y);
+
+					// hopefully this was 0 before
+					if (id_p1) {
+						debug_overlap_count++;
+						//						if (debug_overlap_count == 64)
+						//						{
+						//							print_line("overlap detected");
+						//						}
+
+						// store the overlapped ID in a second map
+						//im2_p1.GetItem(x, y) = id_p1;
+					}
+
+					// save new id
+					id_p1 = n + 1;
+
+					// find barycentric coords
+					float u, v, w;
+
+					// note this returns NAN for degenerate triangles!
+					tri.FindBarycentricCoords(Vector2(s, t), u, v, w);
+
+					//					assert (!isnan(u));
+					//					assert (!isnan(v));
+					//					assert (!isnan(w));
+
+					Vector3 &bary = rtip.im_bary->GetItem(x, y);
+					bary = Vector3(u, v, w);
+				}
+
+			} // for x
+		} // for y
+	} // for tri
+
+	/*
+	if (base.m_Logic_Process_AO) {
+		// translate temporary image vectors into mini lists
+		for (int y = 0; y < height; y++) {
+			for (int x = 0; x < width; x++) {
+				MiniList &ml = base.m_Image_TriIDs.GetItem(x, y);
+				ml.first = base.m_TriIDs.size();
+
+				const LocalVector<uint32_t> &vec = temp_image_tris.GetItem(x, y);
+
+				for (int n = 0; n < vec.size(); n++) {
+					base.m_TriIDs.push_back(vec[n]);
+					ml.num += 1;
+				}
+
+					   //				if (!ml.num)
+					   //				{
+					   //					ml.first = base.m_TriIDs.size();
+					   //				}
+					   //				BUG IS THESE ARE NOT CONTIGUOUS
+					   //				ml.num += 1;
+					   //				base.m_TriIDs.push_back(n);
+			} // for x
+		} // for y
+
+	} // only if processing AO
+	*/
+
+	//	if (base.bake_end_function) {
+	//		base.bake_end_function();
+	//	}
+}
+
 //void LightScene::RasterizeTriangleIDs(LightMapper_Base &base, LightImage<uint32_t> &im_p1, LightImage<uint32_t> &im2_p1, LightImage<Vector3> &im_bary)
 bool LightScene::RasterizeTriangleIDs(LightMapper_Base &base, LightImage<uint32_t> &im_p1, LightImage<Vector3> &im_bary) {
 	int width = im_p1.GetWidth();
 	int height = im_p1.GetHeight();
 
 	// create a temporary image of vectors to store the triangles per texel
-	LightImage<Vector<uint32_t>> temp_image_tris;
-
 	if (base.m_Logic_Process_AO)
-		temp_image_tris.Create(width, height, false);
+		_rasterize_triangle_id_params.temp_image_tris.Create(width, height, false);
+
+//#ifndef NO_THREADS
+#if 0
+	// First find tri min maxes in texture space.
+	m_TriUVbounds.resize(m_UVTris.size());
+
+	for (int n = 0; n < m_UVTris.size(); n++) {
+		const Rect2 &aabb = m_TriUVaabbs[n];
+
+		int min_x = aabb.position.x * width;
+		int min_y = aabb.position.y * height;
+		int max_x = (aabb.position.x + aabb.size.x) * width;
+		int max_y = (aabb.position.y + aabb.size.y) * height;
+
+		// add a bit for luck
+		min_x--;
+		min_y--;
+		max_x++;
+		max_y++;
+
+		// clamp
+		min_x = CLAMP(min_x, 0, width);
+		min_y = CLAMP(min_y, 0, height);
+		max_x = CLAMP(max_x, 0, width);
+		max_y = CLAMP(max_y, 0, height);
+
+		Rect2i &bound = m_TriUVbounds[n];
+		bound.min_x = min_x;
+		bound.min_y = min_y;
+		bound.max_x = max_x;
+		bound.max_y = max_y;
+	}
+
+	_rasterize_triangle_id_params.base = &base;
+	_rasterize_triangle_id_params.im_bary = &im_bary;
+	_rasterize_triangle_id_params.im_p1 = &im_p1;
+
+	ThreadWorkPool thread_pool;
+	int thread_cores = OS::get_singleton()->get_default_thread_pool_size();
+
+	_rasterize_triangle_id_params.tile_height = (height / thread_cores) + 1;
+
+	_rasterize_triangle_id_params.num_tiles_high = height / _rasterize_triangle_id_params.tile_height;
+
+	thread_pool.init(thread_cores);
+	thread_pool.do_work(
+			_rasterize_triangle_id_params.num_tiles_high,
+			this,
+			&LightScene::thread_rasterize_triangle_ids,
+			nullptr);
+	thread_pool.finish();
+
+#else
+
+	//	int width = im_p1.GetWidth();
+	//	int height = im_p1.GetHeight();
+
+	//	// create a temporary image of vectors to store the triangles per texel
+	//	LightImage<LocalVector<uint32_t>> temp_image_tris;
+
+	//	if (base.m_Logic_Process_AO)
+	//		temp_image_tris.Create(width, height, false);
 
 	for (int n = 0; n < m_UVTris.size(); n++) {
 		if (base.bake_step_function && ((n % 4096) == 0)) {
@@ -947,7 +1154,7 @@ bool LightScene::RasterizeTriangleIDs(LightMapper_Base &base, LightImage<uint32_
 				//if (tri.ContainsTexel(x, y, width , height))
 				{
 					if (base.m_Logic_Process_AO)
-						temp_image_tris.GetItem(x, y).push_back(n);
+						_rasterize_triangle_id_params.temp_image_tris.GetItem(x, y).push_back(n);
 
 					uint32_t &id_p1 = im_p1.GetItem(x, y);
 
@@ -984,6 +1191,8 @@ bool LightScene::RasterizeTriangleIDs(LightMapper_Base &base, LightImage<uint32_
 		} // for y
 	} // for tri
 
+#endif
+
 	if (base.m_Logic_Process_AO) {
 		// translate temporary image vectors into mini lists
 		for (int y = 0; y < height; y++) {
@@ -991,7 +1200,7 @@ bool LightScene::RasterizeTriangleIDs(LightMapper_Base &base, LightImage<uint32_
 				MiniList &ml = base.m_Image_TriIDs.GetItem(x, y);
 				ml.first = base.m_TriIDs.size();
 
-				const Vector<uint32_t> &vec = temp_image_tris.GetItem(x, y);
+				const LocalVector<uint32_t> &vec = _rasterize_triangle_id_params.temp_image_tris.GetItem(x, y);
 
 				for (int n = 0; n < vec.size(); n++) {
 					base.m_TriIDs.push_back(vec[n]);
@@ -1013,6 +1222,10 @@ bool LightScene::RasterizeTriangleIDs(LightMapper_Base &base, LightImage<uint32_
 	if (base.bake_end_function) {
 		base.bake_end_function();
 	}
+
+	_rasterize_triangle_id_params.temp_image_tris.Reset();
+
+	base.debug_save(im_p1, "imp1.png");
 
 	return true;
 }

@@ -62,6 +62,19 @@ public:
 	bool FindAllTextureColors(int tri_id, const Vector3 &bary, Color &albedo, Color &emission, bool &bTransparent, bool &bEmitter);
 
 	// setup
+	struct RasterizeTriangleIDParams {
+		LightMapper_Base *base = nullptr;
+		LightImage<uint32_t> *im_p1 = nullptr;
+		LightImage<Vector3> *im_bary = nullptr;
+		uint32_t tile_width = 0;
+		uint32_t tile_height = 0;
+		uint32_t num_tiles_high = 0;
+		uint32_t num_tiles_wide = 0;
+
+		LightImage<LocalVector<uint32_t>> temp_image_tris;
+	} _rasterize_triangle_id_params;
+
+	void thread_rasterize_triangle_ids(uint32_t p_tile, uint32_t *p_dummy);
 	bool RasterizeTriangleIDs(LightMapper_Base &base, LightImage<uint32_t> &im_p1, LightImage<Vector3> &im_bary);
 	int GetNumTris() const { return m_UVTris.size(); }
 
@@ -88,7 +101,15 @@ private:
 	//PoolVector<Vector2> m_UVs;
 	//PoolVector<int> m_Inds;
 
+	struct Rect2i {
+		uint16_t min_x = 0;
+		uint16_t min_y = 0;
+		uint16_t max_x = 0;
+		uint16_t max_y = 0;
+	};
+
 	LVector<Rect2> m_TriUVaabbs;
+	LVector<Rect2i> m_TriUVbounds;
 	LVector<AABB> m_TriPos_aabbs;
 	LVector<MeshInstance *> m_Meshes;
 

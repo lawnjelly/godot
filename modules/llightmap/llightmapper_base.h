@@ -22,6 +22,8 @@ class LightMapper_Base {
 	friend class LightScene;
 	friend class LightProbes;
 
+	void debug_save(LightImage<uint32_t> &p_im, String p_filename);
+
 protected:
 	class LLight {
 	public:
