@@ -890,7 +890,7 @@ bool LightScene::FindPrimaryTextureColors(int tri_id, const Vector3 &bary, Color
 }
 
 //void LightScene::RasterizeTriangleIDs(LightMapper_Base &base, LightImage<uint32_t> &im_p1, LightImage<uint32_t> &im2_p1, LightImage<Vector3> &im_bary)
-void LightScene::RasterizeTriangleIDs(LightMapper_Base &base, LightImage<uint32_t> &im_p1, LightImage<Vector3> &im_bary) {
+bool LightScene::RasterizeTriangleIDs(LightMapper_Base &base, LightImage<uint32_t> &im_p1, LightImage<Vector3> &im_bary) {
 	int width = im_p1.GetWidth();
 	int height = im_p1.GetHeight();
 
@@ -901,6 +901,16 @@ void LightScene::RasterizeTriangleIDs(LightMapper_Base &base, LightImage<uint32_
 		temp_image_tris.Create(width, height, false);
 
 	for (int n = 0; n < m_UVTris.size(); n++) {
+		if (base.bake_step_function && ((n % 4096) == 0)) {
+			bool cancel = base.bake_step_function(n / (float)m_UVTris.size(), String("Process UVTris: ") + " (" + itos(n) + ")");
+			if (cancel) {
+				if (base.bake_end_function) {
+					base.bake_end_function();
+				}
+				return false;
+			}
+		}
+
 		const Rect2 &aabb = m_TriUVaabbs[n];
 		const UVTri &tri = m_UVTris[n];
 
@@ -999,6 +1009,12 @@ void LightScene::RasterizeTriangleIDs(LightMapper_Base &base, LightImage<uint32_
 		} // for y
 
 	} // only if processing AO
+
+	if (base.bake_end_function) {
+		base.bake_end_function();
+	}
+
+	return true;
 }
 
 void LightScene::Transform_Verts(const PoolVector<Vector3> &ptsLocal, PoolVector<Vector3> &ptsWorld, const Transform &tr) const {

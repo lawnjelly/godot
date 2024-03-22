@@ -23,12 +23,13 @@ bool LightMapper::uv_map_meshes(Spatial *pRoot) {
 		return false;
 
 	// can't do uv mapping if not tools build, as xatlas isn't compiled
-	if (bake_begin_function) {
-		bake_begin_function(4);
-	}
+	float steps = 4;
+	//	if (bake_begin_function) {
+	//		bake_begin_function(4);
+	//	}
 
 	if (bake_step_function) {
-		bake_step_function(0, String("Saving uvmap_backup.tscn"));
+		bake_step_function(0 / steps, String("Saving uvmap_backup.tscn"));
 	}
 
 	// first back up the existing meshes scene.
@@ -36,7 +37,7 @@ bool LightMapper::uv_map_meshes(Spatial *pRoot) {
 	saver.SaveScene(pRoot, "res://uvmap_backup.tscn");
 
 	if (bake_step_function) {
-		bake_step_function(1, String("Merging to proxy"));
+		bake_step_function(1 / steps, String("Merging to proxy"));
 	}
 
 	Merger m;
@@ -52,7 +53,7 @@ bool LightMapper::uv_map_meshes(Spatial *pRoot) {
 	//saver.SaveScene(pMerged, "res://merged_test.tscn");
 
 	if (bake_step_function) {
-		bake_step_function(2, String("Unmerging"));
+		bake_step_function(2 / steps, String("Unmerging"));
 	}
 
 	// unmerge
@@ -65,7 +66,7 @@ bool LightMapper::uv_map_meshes(Spatial *pRoot) {
 	pMerged->queue_delete();
 
 	if (bake_step_function) {
-		bake_step_function(2, String("Saving"));
+		bake_step_function(2 / steps, String("Saving"));
 	}
 
 	// if we specified an output file, save
@@ -255,7 +256,9 @@ bool LightMapper::LightmapMesh(Spatial *pMeshesRoot, const Spatial &light_root, 
 
 		print_line("PrepareImageMaps");
 		before = OS::get_singleton()->get_ticks_msec();
-		PrepareImageMaps();
+		if (!PrepareImageMaps()) {
+			m_bCancel = true;
+		}
 		after = OS::get_singleton()->get_ticks_msec();
 		print_line("PrepareImageMaps took " + itos(after - before) + " ms");
 
@@ -353,7 +356,7 @@ void LightMapper::ProcessTexels_AmbientBounce(int section_size, int num_sections
 		int section_start = s * section_size;
 
 		if (bake_step_function) {
-			m_bCancel = bake_step_function(section_start, String("Process TexelsBounce: ") + " (" + itos(section_start) + ")");
+			m_bCancel = bake_step_function(section_start / (float)m_iHeight, String("Process TexelsBounce: ") + " (" + itos(section_start) + ")");
 			if (m_bCancel) {
 				if (bake_end_function)
 					bake_end_function();
@@ -377,7 +380,7 @@ void LightMapper::ProcessTexels_AmbientBounce(int section_size, int num_sections
 			//			OS::get_singleton()->delay_usec(1);
 
 			if (bake_step_function) {
-				m_bCancel = bake_step_function(y, String("Process TexelsBounce: ") + " (" + itos(y) + ")");
+				m_bCancel = bake_step_function(y / (float)m_iHeight, String("Process TexelsBounce: ") + " (" + itos(y) + ")");
 				if (m_bCancel)
 					return;
 			}
@@ -414,15 +417,15 @@ void LightMapper::ProcessTexels_AmbientBounce(int section_size, int num_sections
 void LightMapper::Backward_TraceTriangles() {
 	int nTris = m_Scene.m_Tris.size();
 
-	if (bake_begin_function) {
-		int progress_range = nTris;
-		bake_begin_function(progress_range);
-	}
+	//	if (bake_begin_function) {
+	//		int progress_range = nTris;
+	//		bake_begin_function(progress_range);
+	//	}
 
 	for (int n = 0; n < nTris; n++) {
 		if ((n % 128) == 0) {
 			if (bake_step_function) {
-				m_bCancel = bake_step_function(n, String("Process Backward Tris: ") + " (" + itos(n) + ")");
+				m_bCancel = bake_step_function(n / (float)nTris, String("Process Backward Tris: ") + " (" + itos(n) + ")");
 				if (m_bCancel) {
 					if (bake_end_function)
 						bake_end_function();
@@ -528,10 +531,10 @@ void LightMapper::ProcessTexels() {
 	int num_sections = m_iHeight / section_size;
 	int leftover_start = 0;
 
-	if (bake_begin_function) {
-		int progress_range = m_iHeight;
-		bake_begin_function(progress_range);
-	}
+	//	if (bake_begin_function) {
+	//		int progress_range = m_iHeight;
+	//		bake_begin_function(progress_range);
+	//	}
 
 	m_iNumTests = 0;
 
@@ -547,7 +550,7 @@ void LightMapper::ProcessTexels() {
 		int section_start = s * section_size;
 
 		if (bake_step_function) {
-			m_bCancel = bake_step_function(section_start, String("Process Texels: ") + " (" + itos(section_start) + ")");
+			m_bCancel = bake_step_function(section_start / (float)m_iHeight, String("Process Texels: ") + " (" + itos(section_start) + ")");
 			if (m_bCancel) {
 				if (bake_end_function)
 					bake_end_function();
@@ -571,7 +574,7 @@ void LightMapper::ProcessTexels() {
 			//OS::get_singleton()->delay_usec(1);
 
 			if (bake_step_function) {
-				m_bCancel = bake_step_function(y, String("Process Texels: ") + " (" + itos(y) + ")");
+				m_bCancel = bake_step_function(y / (float)m_iHeight, String("Process Texels: ") + " (" + itos(y) + ")");
 				if (m_bCancel) {
 					if (bake_end_function)
 						bake_end_function();
@@ -600,10 +603,10 @@ void LightMapper::DoAmbientBounces() {
 	int section_size = m_iHeight / 64; //nCores;
 	int num_sections = m_iHeight / section_size;
 
-	if (bake_begin_function) {
-		int progress_range = m_iHeight;
-		bake_begin_function(progress_range);
-	}
+	//	if (bake_begin_function) {
+	//		int progress_range = m_iHeight;
+	//		bake_begin_function(progress_range);
+	//	}
 
 	for (int b = 0; b < m_AdjustedSettings.m_NumAmbientBounces; b++) {
 		if (!m_bCancel)
@@ -1277,13 +1280,13 @@ void LightMapper::ProcessLightProbes() {
 	LightProbes probes;
 	int stages = probes.Create(*this);
 	if (stages != -1) {
-		if (bake_begin_function) {
-			bake_begin_function(stages);
-		}
+		//		if (bake_begin_function) {
+		//			bake_begin_function(stages);
+		//		}
 
 		for (int n = 0; n < stages; n++) {
 			if (bake_step_function) {
-				m_bCancel = bake_step_function(n, String("Process LightProbes: ") + " (" + itos(n) + ")");
+				m_bCancel = bake_step_function(n / (float)stages, String("Process LightProbes: ") + " (" + itos(n) + ")");
 				if (m_bCancel)
 					break;
 			}
@@ -1611,14 +1614,14 @@ void LightMapper::ProcessEmissionTris() {
 
 	float fraction = 1.0f / num_sections;
 
-	if (bake_begin_function) {
-		bake_begin_function(num_sections);
-	}
+	//	if (bake_begin_function) {
+	//		bake_begin_function(num_sections);
+	//	}
 
 	for (int s = 0; s < num_sections; s++) {
 		if ((s % 1) == 0) {
 			if (bake_step_function) {
-				m_bCancel = bake_step_function(s, String("Process Emission Section: ") + " (" + itos(s) + ")");
+				m_bCancel = bake_step_function(s / (float)num_sections, String("Process Emission Section: ") + " (" + itos(s) + ")");
 				if (m_bCancel) {
 					if (bake_end_function)
 						bake_end_function();
@@ -1733,9 +1736,9 @@ void LightMapper::ProcessLights() {
 
 	int num_sections = m_iNumRays / m_iRaysPerSection;
 
-	if (bake_begin_function) {
-		bake_begin_function(num_sections);
-	}
+	//	if (bake_begin_function) {
+	//		bake_begin_function(num_sections);
+	//	}
 
 	for (int n = 0; n < m_Lights.size(); n++) {
 		for (int s = 0; s < num_sections; s++) {
@@ -1746,7 +1749,7 @@ void LightMapper::ProcessLights() {
 
 			if ((s % 1) == 0) {
 				if (bake_step_function) {
-					m_bCancel = bake_step_function(s, String("Process Light Section: ") + " (" + itos(s) + ")");
+					m_bCancel = bake_step_function(s / (float)num_sections, String("Process Light Section: ") + " (" + itos(s) + ")");
 					if (m_bCancel) {
 						if (bake_end_function)
 							bake_end_function();

@@ -37,6 +37,7 @@ void LLightmapEditorPlugin::make_visible(bool p_visible) {
 	}
 }
 
+/*
 void LLightmapEditorPlugin::bake_func_begin(int p_steps) {
 	ERR_FAIL_COND(tmp_progress != NULL);
 
@@ -50,11 +51,35 @@ bool LLightmapEditorPlugin::bake_func_step(int p_step, const String &p_descripti
 
 	return tmp_progress->step(p_description, p_step, false);
 }
+*/
+bool LLightmapEditorPlugin::bake_func_step(float p_progress, const String &p_description) {
+	if (!tmp_progress) {
+		tmp_progress = memnew(EditorProgress("bake_lightmaps", TTR("Bake Lightmap"), 1000, true));
+		ERR_FAIL_NULL_V(tmp_progress, false);
+	}
+	// Allow some interactivity of UI.
+	OS::get_singleton()->delay_usec(1000);
+	return tmp_progress->step(p_description, p_progress * 1000, true);
+}
+
+bool LLightmapEditorPlugin::bake_func_substep(float p_progress, const String &p_description, bool p_force_refresh) {
+	if (!tmp_subprogress) {
+		tmp_subprogress = memnew(EditorProgress("bake_lightmaps_substep", "", 1000, true));
+		ERR_FAIL_NULL_V(tmp_subprogress, false);
+	}
+	return tmp_subprogress->step(p_description, p_progress * 1000, p_force_refresh);
+}
 
 void LLightmapEditorPlugin::bake_func_end() {
-	ERR_FAIL_COND(tmp_progress == NULL);
-	memdelete(tmp_progress);
-	tmp_progress = NULL;
+	if (tmp_progress != nullptr) {
+		memdelete(tmp_progress);
+		tmp_progress = nullptr;
+	}
+
+	if (tmp_subprogress != nullptr) {
+		memdelete(tmp_subprogress);
+		tmp_subprogress = nullptr;
+	}
 }
 
 void LLightmapEditorPlugin::_bind_methods() {
@@ -72,8 +97,9 @@ LLightmapEditorPlugin::LLightmapEditorPlugin(EditorNode *p_node) {
 	add_control_to_container(CONTAINER_SPATIAL_EDITOR_MENU, bake);
 	lightmap = NULL;
 
-	LightMapper::bake_begin_function = bake_func_begin;
+	//	LightMapper::bake_begin_function = bake_func_begin;
 	LightMapper::bake_step_function = bake_func_step;
+	LightMapper::bake_substep_function = bake_func_substep;
 	LightMapper::bake_end_function = bake_func_end;
 }
 

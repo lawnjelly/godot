@@ -17,8 +17,10 @@ class LLightmapEditorPlugin : public EditorPlugin {
 	static EditorProgress *tmp_progress;
 	static EditorProgress *tmp_subprogress;
 
-	static void bake_func_begin(int p_steps);
-	static bool bake_func_step(int p_step, const String &p_description);
+	//	static void bake_func_begin(int p_steps);
+	//	static bool bake_func_step(int p_step, const String &p_description);
+	static bool bake_func_step(float p_progress, const String &p_description);
+	static bool bake_func_substep(float p_progress, const String &p_description, bool p_force_refresh = false);
 	static void bake_func_end();
 
 	void _bake();

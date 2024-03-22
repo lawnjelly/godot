@@ -80,8 +80,8 @@ void LLightmap::_bind_methods() {
 
 	ADD_GROUP("Size", "");
 
-	LIMPL_PROPERTY_RANGE(Variant::INT, tex_width, set_tex_width, get_tex_width, "128,8192,128");
-	LIMPL_PROPERTY_RANGE(Variant::INT, tex_height, set_tex_height, get_tex_height, "128,8192,128");
+	LIMPL_PROPERTY_RANGE(Variant::INT, tex_width, set_tex_width, get_tex_width, "64,8192,64");
+	LIMPL_PROPERTY_RANGE(Variant::INT, tex_height, set_tex_height, get_tex_height, "64,8192,64");
 	//	LIMPL_PROPERTY(Variant::VECTOR3, voxel_grid, set_voxel_dims, get_voxel_dims);
 	LIMPL_PROPERTY(Variant::REAL, surface_bias, set_surface_bias, get_surface_bias);
 	LIMPL_PROPERTY_RANGE(Variant::INT, material_size, set_material_size, get_material_size, "128,2048,128");

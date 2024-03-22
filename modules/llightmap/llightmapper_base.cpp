@@ -10,9 +10,10 @@
 
 using namespace LM;
 
-LightMapper_Base::BakeBeginFunc LightMapper_Base::bake_begin_function = NULL;
-LightMapper_Base::BakeStepFunc LightMapper_Base::bake_step_function = NULL;
-LightMapper_Base::BakeEndFunc LightMapper_Base::bake_end_function = NULL;
+//LightMapper_Base::BakeBeginFunc LightMapper_Base::bake_begin_function = NULL;
+LightMapper_Base::BakeStepFunc LightMapper_Base::bake_step_function = nullptr;
+LightMapper_Base::BakeSubStepFunc LightMapper_Base::bake_substep_function = nullptr;
+LightMapper_Base::BakeEndFunc LightMapper_Base::bake_end_function = nullptr;
 
 LightMapper_Base::LightMapper_Base() {
 	m_iNumRays = 1;
@@ -428,13 +429,14 @@ void LightMapper_Base::LightToPlane(LLight &light) {
 	print_line("dir light D : " + String(Variant(pD)));
 }
 
-void LightMapper_Base::PrepareImageMaps() {
+bool LightMapper_Base::PrepareImageMaps() {
 	m_Image_ID_p1.Blank();
 	//m_Image_ID2_p1.Blank();
 
 	// rasterize each triangle in turn
 	//m_Scene.RasterizeTriangleIDs(*this, m_Image_ID_p1, m_Image_ID2_p1, m_Image_Barycentric);
-	m_Scene.RasterizeTriangleIDs(*this, m_Image_ID_p1, m_Image_Barycentric);
+	if (!m_Scene.RasterizeTriangleIDs(*this, m_Image_ID_p1, m_Image_Barycentric))
+		return false;
 
 	/*
 	// go through each texel
@@ -453,6 +455,8 @@ void LightMapper_Base::PrepareImageMaps() {
 		}
 	}
 	*/
+
+	return true;
 }
 
 void LightMapper_Base::Normalize_AO() {

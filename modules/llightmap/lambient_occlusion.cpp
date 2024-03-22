@@ -29,9 +29,9 @@ void AmbientOcclusion::ProcessAO_Texel(int tx, int ty, int qmc_variation) {
 }
 
 void AmbientOcclusion::ProcessAO() {
-	if (bake_begin_function) {
-		bake_begin_function(m_iHeight);
-	}
+	//	if (bake_begin_function) {
+	//		bake_begin_function(m_iHeight);
+	//	}
 
 	// find the max range in voxels. This can be used to speed up the ray trace
 	const float range = m_Settings_AO_Range;
@@ -50,7 +50,7 @@ void AmbientOcclusion::ProcessAO() {
 		int y_section_start = s * y_section_size;
 
 		if (bake_step_function) {
-			m_bCancel = bake_step_function(y_section_start, String("Process Texels: ") + " (" + itos(y_section_start) + ")");
+			m_bCancel = bake_step_function(y_section_start / (float)m_iHeight, String("Process Texels: ") + " (" + itos(y_section_start) + ")");
 			if (m_bCancel) {
 				if (bake_end_function) {
 					bake_end_function();

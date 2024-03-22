@@ -84,11 +84,15 @@ public:
 	};
 
 	// these enable feedback in the Godot UI as we bake
-	typedef void (*BakeBeginFunc)(int);
-	typedef bool (*BakeStepFunc)(int, const String &);
+	//	typedef void (*BakeBeginFunc)(int);
+	//	typedef bool (*BakeStepFunc)(int, const String &);
+	typedef bool (*BakeStepFunc)(float, const String &);
+	typedef bool (*BakeSubStepFunc)(float, const String &, bool);
 	typedef void (*BakeEndFunc)();
-	static BakeBeginFunc bake_begin_function;
+
+	//	static BakeBeginFunc bake_begin_function;
 	static BakeStepFunc bake_step_function;
+	static BakeSubStepFunc bake_substep_function;
 	static BakeEndFunc bake_end_function;
 
 	void ShowWarning(String sz, bool bAlert = true);
@@ -100,7 +104,7 @@ protected:
 	void FindLight(const Node *pNode);
 	void PrepareLights();
 
-	void PrepareImageMaps();
+	bool PrepareImageMaps();
 	void Normalize();
 	void Normalize_AO();
 	void ApplyNoiseReduction();

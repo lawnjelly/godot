@@ -62,7 +62,7 @@ public:
 	bool FindAllTextureColors(int tri_id, const Vector3 &bary, Color &albedo, Color &emission, bool &bTransparent, bool &bEmitter);
 
 	// setup
-	void RasterizeTriangleIDs(LightMapper_Base &base, LightImage<uint32_t> &im_p1, LightImage<Vector3> &im_bary);
+	bool RasterizeTriangleIDs(LightMapper_Base &base, LightImage<uint32_t> &im_p1, LightImage<Vector3> &im_bary);
 	int GetNumTris() const { return m_UVTris.size(); }
 
 	int GetNumMeshes() const { return m_Meshes.size(); }
