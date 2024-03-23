@@ -639,7 +639,7 @@ bool LightScene::Create_FromMeshSurface(int mesh_id, int surf_id, Ref<Mesh> rmes
 		Tri &tri_edge = m_Tris_EdgeForm[an];
 		Plane &tri_plane = m_TriPlanes[an];
 		UVTri &uvt = m_UVTris[an];
-		Rect2 &rect = m_TriUVaabbs[an];
+		Rect2 &uv_rect = m_TriUVaabbs[an];
 		AABB &aabb = m_TriPos_aabbs[an];
 
 		//		m_Tri_MeshIDs[an] = mesh_id;
@@ -648,7 +648,7 @@ bool LightScene::Create_FromMeshSurface(int mesh_id, int surf_id, Ref<Mesh> rmes
 		UVTri &uvt_primary = m_UVTris_Primary[an];
 
 		int ind = inds[i];
-		rect = Rect2(uvs[ind], Vector2(0, 0));
+		uv_rect = Rect2(uvs[ind], Vector2(0, 0));
 		aabb.position = positions_world[ind];
 		aabb.size = Vector3(0, 0, 0);
 
@@ -659,7 +659,7 @@ bool LightScene::Create_FromMeshSurface(int mesh_id, int surf_id, Ref<Mesh> rmes
 			tri_norm.pos[c] = normals_world[ind];
 			uvt.uv[c] = uvs[ind];
 			//rect = Rect2(uvt.uv[0], Vector2(0, 0));
-			rect.expand_to(uvt.uv[c]);
+			uv_rect.expand_to(uvt.uv[c]);
 			//aabb.position = t.pos[0];
 			aabb.expand_to(t.pos[c]);
 
@@ -737,7 +737,9 @@ bool LightScene::Create_FromMeshSurface(int mesh_id, int surf_id, Ref<Mesh> rmes
 		//		aabb.size.y *= height;
 
 		// expand aabb just a tad
-		rect = rect.expand(Vector2(0.01, 0.01));
+		// FIXME: This line was causing a bug where nothing was showing,
+		// when it was active.
+		//uv_rect = uv_rect.expand(Vector2(0.01, 0.01));
 
 		CalculateTriTexelSize(an, width, height);
 	}
@@ -950,7 +952,10 @@ void LightScene::thread_rasterize_triangle_ids(uint32_t p_tile, uint32_t *p_dumm
 		int max_x = bound.max_x;
 		int max_y = CLAMP(bound.max_y, height_min, height_max);
 
+//#define LLIGHTMAP_DEBUG_RASTERIZE_OVERLAP
+#ifdef LLIGHTMAP_DEBUG_RASTERIZE_OVERLAP
 		int debug_overlap_count = 0;
+#endif
 
 		for (int y = min_y; y < max_y; y++) {
 			for (int x = min_x; x < max_x; x++) {
@@ -970,6 +975,7 @@ void LightScene::thread_rasterize_triangle_ids(uint32_t p_tile, uint32_t *p_dumm
 
 					uint32_t &id_p1 = rtip.im_p1->GetItem(x, y);
 
+#ifdef LLIGHTMAP_DEBUG_RASTERIZE_OVERLAP
 					// hopefully this was 0 before
 					if (id_p1) {
 						debug_overlap_count++;
@@ -981,6 +987,7 @@ void LightScene::thread_rasterize_triangle_ids(uint32_t p_tile, uint32_t *p_dumm
 						// store the overlapped ID in a second map
 						//im2_p1.GetItem(x, y) = id_p1;
 					}
+#endif
 
 					// save new id
 					id_p1 = n + 1;
@@ -1045,8 +1052,8 @@ bool LightScene::RasterizeTriangleIDs(LightMapper_Base &base, LightImage<uint32_
 	if (base.m_Logic_Process_AO)
 		_rasterize_triangle_id_params.temp_image_tris.Create(width, height, false);
 
-//#ifndef NO_THREADS
-#if 0
+#ifndef NO_THREADS
+	//	#if 0
 	// First find tri min maxes in texture space.
 	m_TriUVbounds.resize(m_UVTris.size());
 
@@ -1138,7 +1145,9 @@ bool LightScene::RasterizeTriangleIDs(LightMapper_Base &base, LightImage<uint32_
 		max_x = CLAMP(max_x, 0, width);
 		max_y = CLAMP(max_y, 0, height);
 
+#ifdef LLIGHTMAP_DEBUG_RASTERIZE_OVERLAP
 		int debug_overlap_count = 0;
+#endif
 
 		for (int y = min_y; y < max_y; y++) {
 			for (int x = min_x; x < max_x; x++) {
@@ -1158,6 +1167,7 @@ bool LightScene::RasterizeTriangleIDs(LightMapper_Base &base, LightImage<uint32_
 
 					uint32_t &id_p1 = im_p1.GetItem(x, y);
 
+#ifdef LLIGHTMAP_DEBUG_RASTERIZE_OVERLAP
 					// hopefully this was 0 before
 					if (id_p1) {
 						debug_overlap_count++;
@@ -1169,6 +1179,7 @@ bool LightScene::RasterizeTriangleIDs(LightMapper_Base &base, LightImage<uint32_
 						// store the overlapped ID in a second map
 						//im2_p1.GetItem(x, y) = id_p1;
 					}
+#endif
 
 					// save new id
 					id_p1 = n + 1;
@@ -1225,7 +1236,7 @@ bool LightScene::RasterizeTriangleIDs(LightMapper_Base &base, LightImage<uint32_
 
 	_rasterize_triangle_id_params.temp_image_tris.Reset();
 
-	base.debug_save(im_p1, "imp1.png");
+	//base.debug_save(im_p1, "imp1.png");
 
 	return true;
 }

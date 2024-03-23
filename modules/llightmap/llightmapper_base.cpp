@@ -411,8 +411,9 @@ void LightMapper_Base::LightToPlane(LLight &light) {
 
 	// find point at mins of the planes
 	Vector3 ptPlaneMins;
-	bool res = pl.intersect_3(pl_tangent, pl_bitangent, &ptPlaneMins);
-	assert(res);
+	if (!pl.intersect_3(pl_tangent, pl_bitangent, &ptPlaneMins)) {
+		DEV_ASSERT("intersect3 failed");
+	}
 
 	// for flat sky, adjust the point to account for the incoming light direction
 	// so as not to have part of the mesh in shadow

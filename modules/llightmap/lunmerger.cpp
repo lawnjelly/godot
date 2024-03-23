@@ -203,9 +203,9 @@ bool UnMerger::UnMerge_Mesh(MeshInstance &mi, LMerged &merged) {
 
 	// get the old material before setting the new mesh
 	Ref<Material> mat = mi.get_surface_material(0);
-	bool mat_on_mi = true;
+	//	bool mat_on_mi = true;
 	if (!mat.ptr()) {
-		mat_on_mi = false;
+		//		mat_on_mi = false;
 		mat = rmesh->surface_get_material(0);
 	}
 

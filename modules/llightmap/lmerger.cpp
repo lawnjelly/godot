@@ -96,10 +96,12 @@ bool Merger::MergeMeshes(MeshInstance &merged) {
 	//	arr[Mesh::ARRAY_TEX_UV] = dummy_uvs;
 
 	// sanity check on the indices
+#ifdef DEV_ENABLED
 	for (int n = 0; n < inds.size(); n++) {
 		int i = inds[n];
-		assert(i < verts.size());
+		DEV_ASSERT(i < verts.size());
 	}
+#endif
 
 	//	void add_surface_from_arrays(PrimitiveType p_primitive, const Array &p_arrays, const Array &p_blend_shapes = Array(), uint32_t p_flags = ARRAY_COMPRESS_DEFAULT);
 
