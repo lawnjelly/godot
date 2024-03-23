@@ -108,7 +108,9 @@ bool Merger::MergeMeshes(MeshInstance &merged) {
 	am->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, arr, Array(), Mesh::ARRAY_COMPRESS_DEFAULT);
 
 	//if (bLightmapUnwrap)
+	//#if 0
 	LightmapUnwrap(am, merged.get_global_transform());
+	//#endif
 
 	// duplicate the UV2 to uv1 just in case they are needed
 	arr[Mesh::ARRAY_TEX_UV] = arr[Mesh::ARRAY_TEX_UV2];
@@ -121,14 +123,10 @@ bool Merger::MergeMeshes(MeshInstance &merged) {
 	return true;
 }
 
-void Merger::Merge_MeshInstance(const MeshInstance &mi, PoolVector<Vector3> &verts, PoolVector<Vector3> &norms, PoolVector<int> &inds) {
-	// some godot jiggery pokery to get the mesh verts in local space
+void Merger::Merge_MeshInstance_surface(const MeshInstance &mi, PoolVector<Vector3> &verts, PoolVector<Vector3> &norms, PoolVector<int> &inds, int p_surface_id) {
 	Ref<Mesh> rmesh = mi.get_mesh();
 
-	if (rmesh->get_surface_count() == 0)
-		return;
-
-	Array arrays = rmesh->surface_get_arrays(0);
+	Array arrays = rmesh->surface_get_arrays(p_surface_id);
 	PoolVector<Vector3> p_vertices = arrays[VS::ARRAY_VERTEX];
 	PoolVector<Vector3> p_normals = arrays[VS::ARRAY_NORMAL];
 	PoolVector<int> p_indices = arrays[VS::ARRAY_INDEX];
@@ -195,6 +193,20 @@ void Merger::Merge_MeshInstance(const MeshInstance &mi, PoolVector<Vector3> &ver
 	//		assert (l1 > epsilon);
 	//		assert (l2 > epsilon);
 	//	}
+}
+
+void Merger::Merge_MeshInstance(const MeshInstance &mi, PoolVector<Vector3> &verts, PoolVector<Vector3> &norms, PoolVector<int> &inds) {
+	// some godot jiggery pokery to get the mesh verts in local space
+	Ref<Mesh> rmesh = mi.get_mesh();
+
+	int num_surfaces = rmesh->get_surface_count();
+
+	for (int s = 0; s < num_surfaces; s++) {
+		Merge_MeshInstance_surface(mi, verts, norms, inds, s);
+	}
+
+	//	if (rmesh->get_surface_count() == 0)
+	//		return;
 }
 
 void Merger::FindMeshes(Spatial *pNode) {

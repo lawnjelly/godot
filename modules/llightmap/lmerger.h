@@ -15,6 +15,7 @@ private:
 	void FindMeshes(Spatial *pNode);
 	bool MergeMeshes(MeshInstance &merged);
 	void Merge_MeshInstance(const MeshInstance &mi, PoolVector<Vector3> &verts, PoolVector<Vector3> &norms, PoolVector<int> &inds);
+	void Merge_MeshInstance_surface(const MeshInstance &mi, PoolVector<Vector3> &verts, PoolVector<Vector3> &norms, PoolVector<int> &inds, int p_surface_id);
 	bool LightmapUnwrap(Ref<ArrayMesh> am, const Transform &trans);
 
 #ifdef TOOLS_ENABLED

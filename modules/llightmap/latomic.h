@@ -7,7 +7,7 @@ namespace LM {
 
 class LAtomic {
 public:
-	enum { NUM_LOCKS = 8 };
+	enum { NUM_LOCKS = 32 };
 
 	std::atomic_flag m_Locks[NUM_LOCKS];
 
