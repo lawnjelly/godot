@@ -155,346 +155,346 @@ void LLightmap::_bind_methods() {
 }
 
 void LLightmap::set_mode(LLightmap::eMode p_mode) {
-	m_LM.m_Settings_Mode = (LM::LightMapper::eLMMode)p_mode;
+	m_LM.settings.mode = (LM::LightMapper::eLMMode)p_mode;
 }
 LLightmap::eMode LLightmap::get_mode() const {
-	return (LLightmap::eMode)m_LM.m_Settings_Mode;
+	return (LLightmap::eMode)m_LM.settings.mode;
 }
 
 void LLightmap::set_bake_mode(LLightmap::eBakeMode p_mode) {
-	m_LM.m_Settings_BakeMode = (LM::LightMapper::eLMBakeMode)p_mode;
+	m_LM.settings.bake_mode = (LM::LightMapper::eLMBakeMode)p_mode;
 }
 LLightmap::eBakeMode LLightmap::get_bake_mode() const {
-	return (LLightmap::eBakeMode)m_LM.m_Settings_BakeMode;
+	return (LLightmap::eBakeMode)m_LM.settings.bake_mode;
 }
 
 void LLightmap::set_quality(LLightmap::eQuality p_quality) {
-	m_LM.m_Settings_Quality = (LM::LightMapper::eLMBakeQuality)p_quality;
+	m_LM.settings.quality = (LM::LightMapper::eLMBakeQuality)p_quality;
 }
 LLightmap::eQuality LLightmap::get_quality() const {
-	return (LLightmap::eQuality)m_LM.m_Settings_Quality;
+	return (LLightmap::eQuality)m_LM.settings.quality;
 }
 
 void LLightmap::set_max_light_distance(int dist) {
-	m_LM.m_Settings_MaxLightDist = dist;
+	m_LM.settings.max_light_dist = dist;
 }
 
 int LLightmap::get_max_light_distance() const {
-	return m_LM.m_Settings_MaxLightDist;
+	return m_LM.settings.max_light_dist;
 }
 
 void LLightmap::set_mesh_path(const NodePath &p_path) {
-	m_LM.m_Settings_Path_Mesh = p_path;
+	m_LM.settings.path_mesh = p_path;
 }
 NodePath LLightmap::get_mesh_path() const {
-	return m_LM.m_Settings_Path_Mesh;
+	return m_LM.settings.path_mesh;
 }
 void LLightmap::set_lights_path(const NodePath &p_path) {
-	m_LM.m_Settings_Path_Lights = p_path;
+	m_LM.settings.path_lights = p_path;
 }
 NodePath LLightmap::get_lights_path() const {
-	return m_LM.m_Settings_Path_Lights;
+	return m_LM.settings.path_lights;
 }
 
 void LLightmap::set_num_samples(int num_samples) {
-	m_LM.m_Settings_NumPrimaryRays = num_samples;
+	m_LM.settings.num_primary_rays = num_samples;
 }
 int LLightmap::get_num_samples() const {
-	return m_LM.m_Settings_NumPrimaryRays;
+	return m_LM.settings.num_primary_rays;
 }
 
 void LLightmap::set_num_bounces(int num_bounces) {
-	m_LM.m_Settings_NumDirectionalBounces = num_bounces;
+	m_LM.settings.num_directional_bounces = num_bounces;
 }
 int LLightmap::get_num_bounces() const {
-	return m_LM.m_Settings_NumDirectionalBounces;
+	return m_LM.settings.num_directional_bounces;
 }
 
-//void LLightmap::set_forward_ray_power(float ray_power) {m_LM.m_Settings_Forward_RayPower = ray_power;}
-//float LLightmap::get_forward_ray_power() const {return m_LM.m_Settings_Forward_RayPower;}
+//void LLightmap::set_forward_ray_power(float ray_power) {m_LM.settings.Forward_RayPower = ray_power;}
+//float LLightmap::get_forward_ray_power() const {return m_LM.settings.Forward_RayPower;}
 
 void LLightmap::set_bounce_power(float bounce_power) {
-	m_LM.m_Settings_DirectionalBouncePower = bounce_power;
+	m_LM.settings.directional_bounce_power = bounce_power;
 }
 float LLightmap::get_bounce_power() const {
-	return m_LM.m_Settings_DirectionalBouncePower;
+	return m_LM.settings.directional_bounce_power;
 }
 
 void LLightmap::set_roughness(float roughness) {
-	m_LM.m_Settings_Smoothness = 1.0f - roughness;
+	m_LM.settings.smoothness = 1.0f - roughness;
 }
 float LLightmap::get_roughness() const {
-	return 1.0f - m_LM.m_Settings_Smoothness;
+	return 1.0f - m_LM.settings.smoothness;
 }
 
 void LLightmap::set_emission_density(float density) {
-	m_LM.m_Settings_EmissionDensity = density;
+	m_LM.settings.emission_density = density;
 }
 float LLightmap::get_emission_density() const {
-	return m_LM.m_Settings_EmissionDensity;
+	return m_LM.settings.emission_density;
 }
 
 void LLightmap::set_glow(float glow) {
-	m_LM.m_Settings_Glow = glow;
+	m_LM.settings.glow = glow;
 }
 float LLightmap::get_glow() const {
-	return m_LM.m_Settings_Glow;
+	return m_LM.settings.glow;
 }
 
 ////////////////////////////
 void LLightmap::set_backward_num_rays(int num_rays) {
-	m_LM.m_Settings_Backward_NumRays = num_rays;
+	m_LM.settings.backward_num_rays = num_rays;
 }
 int LLightmap::get_backward_num_rays() const {
-	return m_LM.m_Settings_Backward_NumRays;
+	return m_LM.settings.backward_num_rays;
 }
 
 void LLightmap::set_num_ambient_bounce_samples(int num_samples) {
-	m_LM.m_Settings_NumAmbientBounceRays = num_samples;
+	m_LM.settings.num_ambient_bounce_rays = num_samples;
 }
 int LLightmap::get_num_ambient_bounce_samples() const {
-	return m_LM.m_Settings_NumAmbientBounceRays;
+	return m_LM.settings.num_ambient_bounce_rays;
 }
 
-//void LLightmap::set_backward_num_bounces(int num_bounces) {m_LM.m_Settings_Backward_NumBounces = num_bounces;}
-//int LLightmap::get_backward_num_bounces() const {return m_LM.m_Settings_Backward_NumBounces;}
+//void LLightmap::set_backward_num_bounces(int num_bounces) {m_LM.settings.Backward_NumBounces = num_bounces;}
+//int LLightmap::get_backward_num_bounces() const {return m_LM.settings.Backward_NumBounces;}
 
-//void LLightmap::set_backward_ray_power(float ray_power) {m_LM.m_Settings_Backward_RayPower = ray_power;}
-//float LLightmap::get_backward_ray_power() const {return m_LM.m_Settings_Backward_RayPower;}
+//void LLightmap::set_backward_ray_power(float ray_power) {m_LM.settings.Backward_RayPower = ray_power;}
+//float LLightmap::get_backward_ray_power() const {return m_LM.settings.Backward_RayPower;}
 
 void LLightmap::set_ambient_bounce_power(float bounce_power) {
-	m_LM.m_Settings_AmbientBouncePower = bounce_power;
+	m_LM.settings.ambient_bounce_power = bounce_power;
 }
 float LLightmap::get_ambient_bounce_power() const {
-	return m_LM.m_Settings_AmbientBouncePower;
+	return m_LM.settings.ambient_bounce_power;
 }
 ////////////////////////////
 
 void LLightmap::set_num_ambient_bounces(int num_bounces) {
-	m_LM.m_Settings_NumAmbientBounces = num_bounces;
+	m_LM.settings.num_ambient_bounces = num_bounces;
 }
 int LLightmap::get_num_ambient_bounces() const {
-	return m_LM.m_Settings_NumAmbientBounces;
+	return m_LM.settings.num_ambient_bounces;
 }
 
 void LLightmap::set_ao_range(float ao_range) {
-	m_LM.m_Settings_AO_Range = ao_range;
+	m_LM.settings.AO_range = ao_range;
 }
 float LLightmap::get_ao_range() const {
-	return m_LM.m_Settings_AO_Range;
+	return m_LM.settings.AO_range;
 }
 
 void LLightmap::set_ao_cut_range(float ao_cut_range) {
-	m_LM.m_Settings_AO_CutRange = ao_cut_range;
+	m_LM.settings.AO_cut_range = ao_cut_range;
 }
 float LLightmap::get_ao_cut_range() const {
-	return m_LM.m_Settings_AO_CutRange;
+	return m_LM.settings.AO_cut_range;
 }
 
 void LLightmap::set_ao_num_samples(int ao_num_samples) {
-	m_LM.m_Settings_AO_Samples = ao_num_samples;
+	m_LM.settings.AO_samples = ao_num_samples;
 }
 int LLightmap::get_ao_num_samples() const {
-	return m_LM.m_Settings_AO_Samples;
+	return m_LM.settings.AO_samples;
 }
 
 ////////////////////////////
 
 void LLightmap::set_tex_width(int width) {
-	m_LM.m_Settings_TexWidth = width;
+	m_LM.settings.tex_width = width;
 }
 int LLightmap::get_tex_width() const {
-	return m_LM.m_Settings_TexWidth;
+	return m_LM.settings.tex_width;
 }
 
 void LLightmap::set_tex_height(int height) {
-	m_LM.m_Settings_TexHeight = height;
+	m_LM.settings.tex_height = height;
 }
 int LLightmap::get_tex_height() const {
-	return m_LM.m_Settings_TexHeight;
+	return m_LM.settings.tex_height;
 }
 
 void LLightmap::set_material_size(int size) {
-	m_LM.m_Settings_Max_Material_Size = size;
+	m_LM.settings.max_material_size = size;
 }
 int LLightmap::get_material_size() const {
-	return m_LM.m_Settings_Max_Material_Size;
+	return m_LM.settings.max_material_size;
 }
 
 void LLightmap::set_voxel_density(int density) {
-	m_LM.m_Settings_VoxelDensity = density;
+	m_LM.settings.voxel_density = density;
 }
 int LLightmap::get_voxel_density() const {
-	return m_LM.m_Settings_VoxelDensity;
+	return m_LM.settings.voxel_density;
 }
 
 void LLightmap::set_surface_bias(float bias) {
-	m_LM.m_Settings_SurfaceBias = bias;
+	m_LM.settings.surface_bias = bias;
 }
 float LLightmap::get_surface_bias() const {
-	return m_LM.m_Settings_SurfaceBias;
+	return m_LM.settings.surface_bias;
 }
 
 void LLightmap::set_normalize(bool norm) {
-	m_LM.m_Settings_Normalize = norm;
+	m_LM.settings.normalize = norm;
 }
 bool LLightmap::get_normalize() const {
-	return m_LM.m_Settings_Normalize;
+	return m_LM.settings.normalize;
 }
 
 void LLightmap::set_normalize_multiplier(float bias) {
-	m_LM.m_Settings_NormalizeBias = bias;
+	m_LM.settings.normalize_bias = bias;
 }
 float LLightmap::get_normalize_multiplier() const {
-	return m_LM.m_Settings_NormalizeBias;
+	return m_LM.settings.normalize_bias;
 }
 
 void LLightmap::set_light_ao_ratio(float ratio) {
-	m_LM.m_Settings_Light_AO_Ratio = ratio;
+	m_LM.settings.light_AO_ratio = ratio;
 }
 float LLightmap::get_light_ao_ratio() const {
-	return m_LM.m_Settings_Light_AO_Ratio;
+	return m_LM.settings.light_AO_ratio;
 }
 
 void LLightmap::set_gamma(float gamma) {
-	m_LM.m_Settings_Gamma = gamma;
+	m_LM.settings.gamma = gamma;
 }
 float LLightmap::get_gamma() const {
-	return m_LM.m_Settings_Gamma;
+	return m_LM.settings.gamma;
 }
 
 void LLightmap::set_uv_filename(const String &p_filename) {
-	m_LM.m_Settings_UVFilename = p_filename;
+	m_LM.settings.UV_filename = p_filename;
 }
 String LLightmap::get_uv_filename() const {
-	return m_LM.m_Settings_UVFilename;
+	return m_LM.settings.UV_filename;
 }
 
 void LLightmap::set_uv_padding(int pad) {
-	m_LM.m_Settings_UVPadding = pad;
+	m_LM.settings.UV_padding = pad;
 }
 int LLightmap::get_uv_padding() const {
-	return m_LM.m_Settings_UVPadding;
+	return m_LM.settings.UV_padding;
 }
 
 // probes
 void LLightmap::set_probe_density(int density) {
-	m_LM.m_Settings_ProbeDensity = density;
+	m_LM.settings.probe_density = density;
 }
 int LLightmap::get_probe_density() const {
-	return m_LM.m_Settings_ProbeDensity;
+	return m_LM.settings.probe_density;
 }
 
 void LLightmap::set_probe_samples(int samples) {
-	m_LM.m_Settings_ProbeSamples = samples;
+	m_LM.settings.num_probe_samples = samples;
 }
 int LLightmap::get_probe_samples() const {
-	return m_LM.m_Settings_ProbeSamples;
+	return m_LM.settings.num_probe_samples;
 }
 
 void LLightmap::set_noise_reduction(float nr) {
-	m_LM.m_Settings_NoiseReduction = nr;
+	m_LM.settings.noise_reduction = nr;
 }
 float LLightmap::get_noise_reduction() const {
-	return m_LM.m_Settings_NoiseReduction;
+	return m_LM.settings.noise_reduction;
 }
 
 void LLightmap::set_noise_threshold(float threshold) {
-	m_LM.m_Settings_NoiseThreshold = threshold;
+	m_LM.settings.noise_threshold = threshold;
 }
 float LLightmap::get_noise_threshold() const {
-	return m_LM.m_Settings_NoiseThreshold;
+	return m_LM.settings.noise_threshold;
 }
 
 void LLightmap::set_noise_reduction_method(int method) {
-	m_LM.m_Settings_NoiseReductionMethod = (LM::LightMapper_Base::eNRMethod)method;
+	m_LM.settings.noise_reduction_method = (LM::LightMapper_Base::eNRMethod)method;
 }
 
 int LLightmap::get_noise_reduction_method() const {
-	return m_LM.m_Settings_NoiseReductionMethod;
+	return m_LM.settings.noise_reduction_method;
 }
 
 void LLightmap::set_seam_stitching(bool active) {
-	m_LM.m_Settings_SeamStitching = active;
+	m_LM.settings.use_seam_stitching = active;
 }
 
 bool LLightmap::get_seam_stitching() const {
-	return m_LM.m_Settings_SeamStitching;
+	return m_LM.settings.use_seam_stitching;
 }
 
 void LLightmap::set_seam_distance_threshold(float threshold) {
-	m_LM.m_Settings_SeamDistanceThreshold = threshold;
+	m_LM.settings.seam_distance_threshold = threshold;
 }
 
 float LLightmap::get_seam_distance_threshold() const {
-	return m_LM.m_Settings_SeamDistanceThreshold;
+	return m_LM.settings.seam_distance_threshold;
 }
 
 void LLightmap::set_seam_normal_threshold(float threshold) {
-	m_LM.m_Settings_SeamNormalThreshold = threshold;
+	m_LM.settings.seam_normal_threshold = threshold;
 }
 
 float LLightmap::get_seam_normal_threshold() const {
-	return m_LM.m_Settings_SeamNormalThreshold;
+	return m_LM.settings.seam_normal_threshold;
 }
 
 void LLightmap::set_visualize_seams(bool active) {
-	m_LM.m_Settings_VisualizeSeams = active;
+	m_LM.settings.visualize_seams_enabled = active;
 }
 
 bool LLightmap::get_visualize_seams() const {
-	return m_LM.m_Settings_VisualizeSeams;
+	return m_LM.settings.visualize_seams_enabled;
 }
 
 void LLightmap::set_dilate(bool active) {
-	m_LM.m_Settings_Dilate = active;
+	m_LM.settings.dilate_enabled = active;
 }
 
 bool LLightmap::get_dilate() const {
-	return m_LM.m_Settings_Dilate;
+	return m_LM.settings.dilate_enabled;
 }
 
 void LLightmap::set_sky_filename(const String &p_filename) {
-	m_LM.m_Settings_Sky_Filename = p_filename;
+	m_LM.settings.sky_filename = p_filename;
 }
 String LLightmap::get_sky_filename() const {
-	return m_LM.m_Settings_Sky_Filename;
+	return m_LM.settings.sky_filename;
 }
 
 void LLightmap::set_sky_blur(float p_blur) {
-	m_LM.m_Settings_Sky_BlurAmount = p_blur;
+	m_LM.settings.sky_blur_amount = p_blur;
 }
 
 float LLightmap::get_sky_blur() const {
-	return m_LM.m_Settings_Sky_BlurAmount;
+	return m_LM.settings.sky_blur_amount;
 }
 
 void LLightmap::set_sky_size(int p_size) {
-	m_LM.m_Settings_Sky_Size = p_size;
+	m_LM.settings.sky_size = p_size;
 }
 
 int LLightmap::get_sky_size() const {
-	return m_LM.m_Settings_Sky_Size;
+	return m_LM.settings.sky_size;
 }
 
 void LLightmap::set_sky_samples(int p_samples) {
-	m_LM.m_Settings_Sky_Samples = p_samples;
+	m_LM.settings.sky_num_samples = p_samples;
 }
 
 int LLightmap::get_sky_samples() const {
-	return m_LM.m_Settings_Sky_Samples;
+	return m_LM.settings.sky_num_samples;
 }
 
 void LLightmap::set_sky_brightness(float p_brightness) {
-	m_LM.m_Settings_Sky_Brightness = p_brightness;
+	m_LM.settings.sky_brightness = p_brightness;
 }
 
 float LLightmap::get_sky_brightness() const {
-	return m_LM.m_Settings_Sky_Brightness;
+	return m_LM.settings.sky_brightness;
 }
 
-//void LLightmap::set_probe_filename(const String &p_filename) {m_LM.m_Settings_ProbeFilename = p_filename;}
-//String LLightmap::get_probe_filename() const {return m_LM.m_Settings_ProbeFilename;}
+//void LLightmap::set_probe_filename(const String &p_filename) {m_LM.settings.ProbeFilename = p_filename;}
+//String LLightmap::get_probe_filename() const {return m_LM.settings.ProbeFilename;}
 
 #define LLIGHTMAP_IMPLEMENT_SETGET_FILENAME(SET_FUNC_NAME, GET_FUNC_NAME, SETTING, SETTING_HDR) \
 	void LLightmap::SET_FUNC_NAME(const String &p_filename) {                                   \
@@ -507,9 +507,9 @@ float LLightmap::get_sky_brightness() const {
 	}                                                                                           \
 	String LLightmap::GET_FUNC_NAME() const { return m_LM.SETTING; }
 
-LLIGHTMAP_IMPLEMENT_SETGET_FILENAME(set_lightmap_filename, get_lightmap_filename, m_Settings_LightmapFilename, m_Settings_LightmapIsHDR)
-LLIGHTMAP_IMPLEMENT_SETGET_FILENAME(set_ao_filename, get_ao_filename, m_Settings_AmbientFilename, m_Settings_AmbientIsHDR)
-//LLIGHTMAP_IMPLEMENT_SETGET_FILENAME(set_combined_filename, get_combined_filename, m_Settings_CombinedFilename, m_Settings_CombinedIsHDR)
+LLIGHTMAP_IMPLEMENT_SETGET_FILENAME(set_lightmap_filename, get_lightmap_filename, settings.lightmap_filename, settings.lightmap_is_HDR)
+LLIGHTMAP_IMPLEMENT_SETGET_FILENAME(set_ao_filename, get_ao_filename, settings.ambient_filename, settings.ambient_is_HDR)
+//LLIGHTMAP_IMPLEMENT_SETGET_FILENAME(set_combined_filename, get_combined_filename, settings.CombinedFilename, settings.CombinedIsHDR)
 
 void LLightmap::set_combined_filename(const String &p_filename) {
 	String new_filename = p_filename;
@@ -519,17 +519,17 @@ void LLightmap::set_combined_filename(const String &p_filename) {
 	if (ext == "")
 		new_filename += ".png";
 
-	m_LM.m_Settings_CombinedFilename = new_filename;
+	m_LM.settings.combined_filename = new_filename;
 
 	if (ext == "exr") {
-		m_LM.m_Settings_CombinedIsHDR = true;
+		m_LM.settings.combined_is_HDR = true;
 	} else {
-		m_LM.m_Settings_CombinedIsHDR = false;
+		m_LM.settings.combined_is_HDR = false;
 	}
 }
 
 String LLightmap::get_combined_filename() const {
-	return m_LM.m_Settings_CombinedFilename;
+	return m_LM.settings.combined_filename;
 }
 
 #undef LLIGHTMAP_IMPLEMENT_SETGET_FILENAME
@@ -547,12 +547,12 @@ String LLightmap::get_combined_filename() const {
 //}
 
 bool LLightmap::uvmap() {
-	if (!has_node(m_LM.m_Settings_Path_Mesh)) {
+	if (!has_node(m_LM.settings.path_mesh)) {
 		ShowWarning("Meshes nodepath is invalid.");
 		return false;
 	}
 
-	Spatial *pRoot = Object::cast_to<Spatial>(get_node(m_LM.m_Settings_Path_Mesh));
+	Spatial *pRoot = Object::cast_to<Spatial>(get_node(m_LM.settings.path_mesh));
 	if (!pRoot) {
 		ShowWarning("Meshes nodepath is not a spatial.");
 		return false;
@@ -567,13 +567,13 @@ bool LLightmap::uvmap() {
 }
 
 bool LLightmap::lightmap_bake() {
-	if (m_LM.m_Settings_BakeMode == LM::LightMapper_Base::LMBAKEMODE_UVMAP) {
+	if (m_LM.settings.bake_mode == LM::LightMapper_Base::LMBAKEMODE_UVMAP) {
 		return uvmap();
 	}
 
-	if (m_LM.m_Settings_LightmapFilename == "")
+	if (m_LM.settings.lightmap_filename == "")
 		return false;
-	if (m_LM.m_Settings_CombinedFilename == "")
+	if (m_LM.settings.combined_filename == "")
 		return false;
 
 	// bake to a file
@@ -581,11 +581,11 @@ bool LLightmap::lightmap_bake() {
 	Ref<Image> image_ao;
 	Ref<Image> image_combined;
 
-	int w = m_LM.m_Settings_TexWidth;
-	int h = m_LM.m_Settings_TexHeight;
+	int w = m_LM.settings.tex_width;
+	int h = m_LM.settings.tex_height;
 
 	// create either low or HDR images
-	if (m_LM.m_Settings_LightmapIsHDR) {
+	if (m_LM.settings.lightmap_is_HDR) {
 		Ref<Image> image = memnew(Image(w, h, false, Image::FORMAT_RGBAF));
 		image_lightmap = image;
 	} else {
@@ -593,7 +593,7 @@ bool LLightmap::lightmap_bake() {
 		image_lightmap = image;
 	}
 
-	if (m_LM.m_Settings_AmbientIsHDR) {
+	if (m_LM.settings.ambient_is_HDR) {
 		Ref<Image> image = memnew(Image(w, h, false, Image::FORMAT_RF));
 		image_ao = image;
 	} else {
@@ -601,7 +601,7 @@ bool LLightmap::lightmap_bake() {
 		image_ao = image;
 	}
 
-	if (m_LM.m_Settings_CombinedIsHDR) {
+	if (m_LM.settings.combined_is_HDR) {
 		Ref<Image> image = memnew(Image(w, h, false, Image::FORMAT_RGBAF));
 		image_combined = image;
 	} else {
@@ -612,47 +612,47 @@ bool LLightmap::lightmap_bake() {
 	lightmap_bake_to_image(image_lightmap.ptr(), image_ao.ptr(), image_combined.ptr());
 
 	// save the images, png or exr
-	if (m_LM.m_Logic_Process_Lightmap) {
-		if (m_LM.m_Settings_LightmapIsHDR) {
-			String szGlobalPath = ProjectSettings::get_singleton()->globalize_path(m_LM.m_Settings_LightmapFilename);
+	if (m_LM.logic.process_lightmap) {
+		if (m_LM.settings.lightmap_is_HDR) {
+			String szGlobalPath = ProjectSettings::get_singleton()->globalize_path(m_LM.settings.lightmap_filename);
 			print_line("saving lights EXR .. global path : " + szGlobalPath);
 			Error err = image_lightmap->save_exr(szGlobalPath, false);
 
 			if (err != OK)
-				OS::get_singleton()->alert("Error writing EXR file. Does this folder exist?\n\n" + m_LM.m_Settings_LightmapFilename, "WARNING");
+				OS::get_singleton()->alert("Error writing EXR file. Does this folder exist?\n\n" + m_LM.settings.lightmap_filename, "WARNING");
 		} else {
-			image_lightmap->save_png(m_LM.m_Settings_LightmapFilename);
+			image_lightmap->save_png(m_LM.settings.lightmap_filename);
 		}
 	}
 
-	if (m_LM.m_Logic_Process_AO) {
-		if (m_LM.m_Settings_AmbientIsHDR) {
-			String szGlobalPath = ProjectSettings::get_singleton()->globalize_path(m_LM.m_Settings_AmbientFilename);
+	if (m_LM.logic.process_AO) {
+		if (m_LM.settings.ambient_is_HDR) {
+			String szGlobalPath = ProjectSettings::get_singleton()->globalize_path(m_LM.settings.ambient_filename);
 			print_line("saving ao EXR .. global path : " + szGlobalPath);
 			Error err = image_ao->save_exr(szGlobalPath, false);
 
 			if (err != OK)
-				OS::get_singleton()->alert("Error writing EXR file. Does this folder exist?\n\n" + m_LM.m_Settings_AmbientFilename, "WARNING");
+				OS::get_singleton()->alert("Error writing EXR file. Does this folder exist?\n\n" + m_LM.settings.ambient_filename, "WARNING");
 		} else {
-			image_ao->save_png(m_LM.m_Settings_AmbientFilename);
+			image_ao->save_png(m_LM.settings.ambient_filename);
 		}
 	}
 
 	// only if making final output
-	if (m_LM.m_Logic_Output_Final) {
+	if (m_LM.logic.output_final) {
 		Error err;
 
-		if (m_LM.m_Settings_CombinedIsHDR) {
-			String szGlobalPath = ProjectSettings::get_singleton()->globalize_path(m_LM.m_Settings_CombinedFilename);
+		if (m_LM.settings.combined_is_HDR) {
+			String szGlobalPath = ProjectSettings::get_singleton()->globalize_path(m_LM.settings.combined_filename);
 			err = image_combined->save_exr(szGlobalPath, false);
 		} else {
-			err = image_combined->save_png(m_LM.m_Settings_CombinedFilename);
+			err = image_combined->save_png(m_LM.settings.combined_filename);
 		}
 
 		if (err == OK)
-			ResourceLoader::import(m_LM.m_Settings_CombinedFilename);
+			ResourceLoader::import(m_LM.settings.combined_filename);
 		else
-			OS::get_singleton()->alert("Error writing combined file. Does this folder exist?\n\n" + m_LM.m_Settings_CombinedFilename, "WARNING");
+			OS::get_singleton()->alert("Error writing combined file. Does this folder exist?\n\n" + m_LM.settings.combined_filename, "WARNING");
 	}
 
 	return true;
@@ -660,23 +660,23 @@ bool LLightmap::lightmap_bake() {
 
 bool LLightmap::lightmap_bake_to_image(Object *pOutputLightmapImage, Object *pOutputAOImage, Object *pOutputCombinedImage) {
 	// get the mesh instance and light root
-	if (!has_node(m_LM.m_Settings_Path_Mesh)) {
+	if (!has_node(m_LM.settings.path_mesh)) {
 		ShowWarning("Meshes nodepath is invalid.");
 		return false;
 	}
 
-	Spatial *pMeshInstance = Object::cast_to<Spatial>(get_node(m_LM.m_Settings_Path_Mesh));
+	Spatial *pMeshInstance = Object::cast_to<Spatial>(get_node(m_LM.settings.path_mesh));
 	if (!pMeshInstance) {
 		ShowWarning("Meshes nodepath is not a spatial.");
 		return false;
 	}
 
-	if (!has_node(m_LM.m_Settings_Path_Lights)) {
+	if (!has_node(m_LM.settings.path_lights)) {
 		ShowWarning("Lights nodepath is invalid.");
 		return false;
 	}
 
-	Node *pLightRoot = Object::cast_to<Node>(get_node(m_LM.m_Settings_Path_Lights));
+	Node *pLightRoot = Object::cast_to<Node>(get_node(m_LM.settings.path_lights));
 	if (!pLightRoot) {
 		ShowWarning("Lights nodepath is not a node.");
 		return false;

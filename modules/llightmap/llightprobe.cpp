@@ -12,18 +12,18 @@ int LightProbes::Create(LightMapper &lm) {
 	m_pLightMapper = &lm;
 
 	// get the aabb (smallest) of the world bound.
-	AABB bb = lm.GetTracer().GetWorldBound_contracted();
+	AABB bb = lm.get_tracer().get_world_bound_contracted();
 
 	// can't make probes for a non existant world
 	if (bb.get_shortest_axis_size() <= 0.0f)
 		return -1;
 
 	// use the probe density to estimate the number of voxels
-	m_Dims = lm.GetTracer().EstimateVoxelDims(lm.m_Settings_ProbeDensity);
+	m_Dims = lm.get_tracer().estimate_voxel_dims(lm.settings.probe_density);
 	m_DimXTimesY = (m_Dims.x * m_Dims.y);
 
 	Vector3 voxel_dims;
-	m_Dims.To(voxel_dims);
+	m_Dims.to(voxel_dims);
 
 	print_line("Probes voxel dims : " + String(Variant(voxel_dims)));
 
@@ -51,7 +51,7 @@ void LightProbes::Process(int stage) {
 }
 
 void LightProbes::Save() {
-	String filename = m_pLightMapper->m_Settings_CombinedFilename;
+	String filename = m_pLightMapper->settings.combined_filename;
 	filename = filename.get_basename();
 	filename += ".probe";
 
@@ -70,8 +70,8 @@ void LightProbes::CalculateProbe_Old(const Vec3i &pt) {
 	const int nLightTests = 9;
 	Vector3 ptLightSpacing = m_VoxelSize / (nLightTests + 2);
 
-	for (int l = 0; l < m_pLightMapper->m_Lights.size(); l++) {
-		const LightMapper_Base::LLight &light = m_pLightMapper->m_Lights[l];
+	for (int l = 0; l < m_pLightMapper->_lights.size(); l++) {
+		const LightMapper_Base::LLight &light = m_pLightMapper->_lights[l];
 
 		// the start of the mini grid for each voxel
 		Vector3 ptLightStart = pos - (ptLightSpacing * ((nLightTests - 1) / 2));
@@ -100,7 +100,7 @@ void LightProbes::CalculateProbe_Old(const Vec3i &pt) {
 					// to start with just trace a ray to each light
 					Vector3 bary;
 					float nearest_t;
-					int tri_id = m_pLightMapper->m_Scene.FindIntersect_Ray(r, bary, nearest_t);
+					int tri_id = m_pLightMapper->_scene.find_intersect_ray(r, bary, nearest_t);
 
 					// light blocked
 					if ((tri_id != -1) && (nearest_t < dist_to_light))
@@ -127,16 +127,16 @@ void LightProbes::CalculateProbe_Old(const Vec3i &pt) {
 	}
 
 	// indirect light
-	pProbe->m_Color_Indirect = m_pLightMapper->Probe_CalculateIndirectLight(pos);
+	pProbe->m_Color_Indirect = m_pLightMapper->probe_calculate_indirect_light(pos);
 
 	// apply gamma
-	float gamma = 1.0f / m_pLightMapper->m_Settings_Gamma;
+	float gamma = 1.0f / m_pLightMapper->settings.gamma;
 	pProbe->m_Color_Indirect.r = powf(pProbe->m_Color_Indirect.r, gamma);
 	pProbe->m_Color_Indirect.g = powf(pProbe->m_Color_Indirect.g, gamma);
 	pProbe->m_Color_Indirect.b = powf(pProbe->m_Color_Indirect.b, gamma);
 
 	Color col_ind;
-	pProbe->m_Color_Indirect.To(col_ind);
+	pProbe->m_Color_Indirect.to(col_ind);
 	//print_line("\tprobe " + pt.ToString() + " indirect " + String(Variant(col_ind)));
 }
 
@@ -148,10 +148,10 @@ void LightProbes::CalculateProbe(const Vec3i &pt) {
 	assert(pProbe);
 
 	// do multiple tests per light
-	const int nSamples = m_pLightMapper->m_Settings_ProbeSamples / 8;
+	const int nSamples = m_pLightMapper->settings.num_probe_samples / 8;
 
-	for (int l = 0; l < m_pLightMapper->m_Lights.size(); l++) {
-		const LightMapper_Base::LLight &light = m_pLightMapper->m_Lights[l];
+	for (int l = 0; l < m_pLightMapper->_lights.size(); l++) {
+		const LightMapper_Base::LLight &light = m_pLightMapper->_lights[l];
 
 		// for a spotlight, we can cull completely in a lot of cases.
 		// and we MUST .. because otherwise the cone ray generator will have infinite loop.
@@ -207,7 +207,7 @@ void LightProbes::CalculateProbe(const Vec3i &pt) {
 
 			float multiplier;
 			bool disallow_sample;
-			bool bClear = m_pLightMapper->Probe_SampleToLight(light, ptStart, multiplier, disallow_sample);
+			bool bClear = m_pLightMapper->probe_sample_to_light(light, ptStart, multiplier, disallow_sample);
 
 			// don't count samples if there is not path from the light centre to the light sample
 			if (!disallow_sample)
@@ -235,16 +235,16 @@ void LightProbes::CalculateProbe(const Vec3i &pt) {
 	}
 
 	// indirect light
-	pProbe->m_Color_Indirect = m_pLightMapper->Probe_CalculateIndirectLight(pos);
+	pProbe->m_Color_Indirect = m_pLightMapper->probe_calculate_indirect_light(pos);
 
 	// apply gamma
-	float gamma = 1.0f / m_pLightMapper->m_Settings_Gamma;
+	float gamma = 1.0f / m_pLightMapper->settings.gamma;
 	pProbe->m_Color_Indirect.r = powf(pProbe->m_Color_Indirect.r, gamma);
 	pProbe->m_Color_Indirect.g = powf(pProbe->m_Color_Indirect.g, gamma);
 	pProbe->m_Color_Indirect.b = powf(pProbe->m_Color_Indirect.b, gamma);
 
 	Color col_ind;
-	pProbe->m_Color_Indirect.To(col_ind);
+	pProbe->m_Color_Indirect.to(col_ind);
 	//print_line("\tprobe " + pt.ToString() + " indirect " + String(Variant(col_ind)));
 }
 
@@ -316,11 +316,11 @@ void LightProbes::Save(String pszFilename) {
 	Save_Vector3(f, m_VoxelSize);
 
 	// num lights
-	f->store_16(m_pLightMapper->m_Lights.size());
+	f->store_16(m_pLightMapper->_lights.size());
 
-	for (int n = 0; n < m_pLightMapper->m_Lights.size(); n++) {
+	for (int n = 0; n < m_pLightMapper->_lights.size(); n++) {
 		// light info
-		const LightMapper_Base::LLight &light = m_pLightMapper->m_Lights[n];
+		const LightMapper_Base::LLight &light = m_pLightMapper->_lights[n];
 
 		// type
 		f->store_8(light.type);
@@ -370,7 +370,7 @@ void LightProbes::Save(String pszFilename) {
 void LightProbe::Save_Secondary(FileAccess *f) {
 	// color
 	uint8_t r, g, b;
-	m_Color_Indirect.To_u8(r, g, b, 1.0f);
+	m_Color_Indirect.to_u8(r, g, b, 1.0f);
 
 	f->store_8(r);
 	f->store_8(g);

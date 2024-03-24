@@ -9,20 +9,20 @@ extern bool (*array_mesh_lightmap_unwrap_callback)(float p_texel_size, const flo
 
 namespace LM {
 
-int Merger::m_iUVPadding = 4;
+int Merger::_uv_padding = 4;
 
-Node *Merger::FindSceneRoot(Node *pNode) const {
+Node *Merger::find_scene_root(Node *pNode) const {
 	if (pNode->get_parent()) {
-		return FindSceneRoot(pNode->get_parent());
+		return find_scene_root(pNode->get_parent());
 	}
 
 	return pNode;
 }
 
-MeshInstance *Merger::Merge(Spatial *pRoot, int padding) {
-	m_iUVPadding = padding;
+MeshInstance *Merger::merge(Spatial *pRoot, int padding) {
+	_uv_padding = padding;
 
-	FindMeshes(pRoot);
+	find_meshes(pRoot);
 
 	MeshInstance *pMerged = memnew(MeshInstance);
 	pMerged->set_name("lightmap_proxy");
@@ -44,7 +44,7 @@ MeshInstance *Merger::Merge(Spatial *pRoot, int padding) {
 	//		print_line("\t" + pChild->get_name());
 	//	}
 
-	if (!MergeMeshes(*pMerged)) {
+	if (!merge_meshes(*pMerged)) {
 		pMerged->queue_delete();
 		return 0;
 	}
@@ -53,13 +53,13 @@ MeshInstance *Merger::Merge(Spatial *pRoot, int padding) {
 	return pMerged;
 }
 
-bool Merger::MergeMeshes(MeshInstance &merged) {
+bool Merger::merge_meshes(MeshInstance &merged) {
 	PoolVector<Vector3> verts;
 	PoolVector<Vector3> normals;
 	PoolVector<int> inds;
 
-	for (int n = 0; n < m_Meshes.size(); n++) {
-		Merge_MeshInstance(*m_Meshes[n], verts, normals, inds);
+	for (int n = 0; n < _meshes.size(); n++) {
+		merge_mesh_instance(*_meshes[n], verts, normals, inds);
 	}
 
 	print_line("Merging, num verts is " + itos(verts.size()));
@@ -109,7 +109,7 @@ bool Merger::MergeMeshes(MeshInstance &merged) {
 
 	//if (bLightmapUnwrap)
 	//#if 0
-	LightmapUnwrap(am, merged.get_global_transform());
+	lightmap_unwrap(am, merged.get_global_transform());
 	//#endif
 
 	// duplicate the UV2 to uv1 just in case they are needed
@@ -123,7 +123,7 @@ bool Merger::MergeMeshes(MeshInstance &merged) {
 	return true;
 }
 
-void Merger::Merge_MeshInstance_surface(const MeshInstance &mi, PoolVector<Vector3> &verts, PoolVector<Vector3> &norms, PoolVector<int> &inds, int p_surface_id) {
+void Merger::merge_mesh_instance_surface(const MeshInstance &mi, PoolVector<Vector3> &verts, PoolVector<Vector3> &norms, PoolVector<int> &inds, int p_surface_id) {
 	Ref<Mesh> rmesh = mi.get_mesh();
 
 	Array arrays = rmesh->surface_get_arrays(p_surface_id);
@@ -137,7 +137,7 @@ void Merger::Merge_MeshInstance_surface(const MeshInstance &mi, PoolVector<Vecto
 
 	// special case, if no indices, create some
 	int num_indices_before = p_indices.size();
-	if (!EnsureIndicesValid(p_indices, p_vertices)) {
+	if (!ensure_indices_valid(p_indices, p_vertices)) {
 		print_line("\tignoring INVALID TRIANGLES (duplicate indices or zero area triangle) detected in " + mi.get_name() + ", num inds before / after " + itos(num_indices_before) + " / " + itos(p_indices.size()));
 	}
 
@@ -195,27 +195,27 @@ void Merger::Merge_MeshInstance_surface(const MeshInstance &mi, PoolVector<Vecto
 	//	}
 }
 
-void Merger::Merge_MeshInstance(const MeshInstance &mi, PoolVector<Vector3> &verts, PoolVector<Vector3> &norms, PoolVector<int> &inds) {
+void Merger::merge_mesh_instance(const MeshInstance &mi, PoolVector<Vector3> &verts, PoolVector<Vector3> &norms, PoolVector<int> &inds) {
 	// some godot jiggery pokery to get the mesh verts in local space
 	Ref<Mesh> rmesh = mi.get_mesh();
 
 	int num_surfaces = rmesh->get_surface_count();
 
 	for (int s = 0; s < num_surfaces; s++) {
-		Merge_MeshInstance_surface(mi, verts, norms, inds, s);
+		merge_mesh_instance_surface(mi, verts, norms, inds, s);
 	}
 
 	//	if (rmesh->get_surface_count() == 0)
 	//		return;
 }
 
-void Merger::FindMeshes(Spatial *pNode) {
+void Merger::find_meshes(Spatial *pNode) {
 	// mesh instance?
 	MeshInstance *pMI = Object::cast_to<MeshInstance>(pNode);
 	if (pMI) {
-		if (IsMeshInstanceSuitable(*pMI)) {
+		if (is_mesh_instance_suitable(*pMI)) {
 			print_line("found mesh : " + pMI->get_name());
-			m_Meshes.push_back(pMI);
+			_meshes.push_back(pMI);
 		}
 	}
 
@@ -224,12 +224,12 @@ void Merger::FindMeshes(Spatial *pNode) {
 	for (int n = 0; n < nChildren; n++) {
 		Spatial *pChild = Object::cast_to<Spatial>(pNode->get_child(n));
 		if (pChild) {
-			FindMeshes(pChild);
+			find_meshes(pChild);
 		}
 	}
 }
 
-bool Merger::LightmapUnwrap(Ref<ArrayMesh> am, const Transform &trans) {
+bool Merger::lightmap_unwrap(Ref<ArrayMesh> am, const Transform &trans) {
 #ifdef TOOLS_ENABLED
 	array_mesh_lightmap_unwrap_callback = xatlas_unwrap;
 
@@ -266,7 +266,7 @@ bool Merger::xatlas_unwrap(float p_texel_size, const float *p_vertices, const fl
 	pack_options.blockAlign = true;
 	//pack_options.texelsPerUnit = 1.0 / p_texel_size;
 	pack_options.texelsPerUnit = 1.0 / 0.05;
-	pack_options.padding = m_iUVPadding; // 4
+	pack_options.padding = _uv_padding; // 4
 
 	xatlas::Atlas *atlas = xatlas::Create();
 	printf("Adding mesh..\n");

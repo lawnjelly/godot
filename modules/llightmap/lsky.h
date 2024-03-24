@@ -25,22 +25,22 @@ private:
 
 	const FColor &_blur_read_x(int x, int y) const {
 		// wrap x
-		int w = _texture.GetWidth();
+		int w = _texture.get_width();
 		x += w;
 		x %= w;
-		return _texture.GetItem(x, y);
+		return _texture.get_item(x, y);
 	}
 
 	const FColor &_blur_read_y(int x, int y) const {
 		// wrap y
-		int h = _texture.GetHeight();
+		int h = _texture.get_height();
 		y = CLAMP(y, 0, h - 1);
-		return _texture.GetItem(x, y);
+		return _texture.get_item(x, y);
 	}
 
 	FColor _gaussian_blur(const FColor *p_scan, int p_num_scan, int p_scan_pointer, const float *p_curve) const {
 		FColor total;
-		total.Set(0.0);
+		total.set(0.0);
 
 		for (int n = 0; n < p_num_scan; n++) {
 			total += p_scan[p_scan_pointer] * p_curve[n];

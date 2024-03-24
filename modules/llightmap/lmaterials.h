@@ -10,54 +10,54 @@ struct LTexture {
 	int width;
 	int height;
 
-	void Sample(const Vector2 &uv, Color &col) const;
+	void sample(const Vector2 &uv, Color &col) const;
 };
 
 struct LMaterial {
-	void Create() {
-		pAlbedo = 0;
-		pGodotMaterial = 0;
-		m_bEmitter = false;
-		m_Power_Emission = 0.0f;
-		m_bTransparent = false;
+	void create() {
+		albedo = 0;
+		godot_material = 0;
+		is_emitter = false;
+		power_emission = 0.0f;
+		is_transparent = false;
 	}
-	void Destroy();
+	void destroy();
 
-	const Material *pGodotMaterial;
-	LTexture *pAlbedo;
+	const Material *godot_material;
+	LTexture *albedo;
 
-	bool m_bTransparent;
-	bool m_bEmitter;
+	bool is_transparent;
+	bool is_emitter;
 
-	float m_Power_Emission;
-	Color m_Col_Emission; // color multiplied by emission power
+	float power_emission;
+	Color color_emission; // color multiplied by emission power
 };
 
 class LMaterials {
 public:
 	LMaterials();
 	~LMaterials();
-	void Reset();
-	void Prepare(unsigned int max_material_size) { m_uiMaxMaterialSize = max_material_size; }
+	void reset();
+	void prepare(unsigned int max_material_size) { _max_material_size = max_material_size; }
 
-	int FindOrCreateMaterial(const MeshInstance &mi, Ref<Mesh> rmesh, int surf_id);
-	bool FindColors(int mat_id, const Vector2 &uv, Color &albedo, bool &bTransparent);
+	int find_or_create_material(const MeshInstance &mi, Ref<Mesh> rmesh, int surf_id);
+	bool find_colors(int mat_id, const Vector2 &uv, Color &albedo, bool &bTransparent);
 
-	const LMaterial &GetMaterial(int i) const { return m_Materials[i]; }
+	const LMaterial &get_material(int i) const { return _materials[i]; }
 
 	// in order to account for emission density we need to reduce
 	// power to keep brightness the same
-	void AdjustMaterials(float emission_density);
+	void adjust_materials(float emission_density);
 
 private:
-	Variant FindCustom_AlbedoTex(Ref<Material> src_material);
-	void FindCustom_ShaderParams(Ref<Material> src_material, float &emission, Color &emission_color);
+	Variant find_custom_albedo_tex(Ref<Material> src_material);
+	void find_custom_shader_params(Ref<Material> src_material, float &emission, Color &emission_color);
 
 	LTexture *_get_bake_texture(Ref<Image> p_image, const Color &p_color_mul, const Color &p_color_add);
 	LTexture *_make_dummy_texture(LTexture *pLTexture, Color col);
 
-	LVector<LMaterial> m_Materials;
-	unsigned int m_uiMaxMaterialSize;
+	LVector<LMaterial> _materials;
+	unsigned int _max_material_size;
 };
 
 } //namespace LM

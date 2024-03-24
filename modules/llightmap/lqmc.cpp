@@ -2,16 +2,16 @@
 
 namespace LM {
 
-void QMC::Create(int num_samples) {
-	m_CurrentVariation = 0;
-	m_Group.m_Samples.resize(num_samples);
+void QMC::create(int num_samples) {
+	_current_variation = 0;
+	_group.samples.resize(num_samples);
 
 	for (int n = 0; n < NUM_VARIATIONS; n++) {
-		GenerateVariation(m_Group, n);
+		generate_variation(_group, n);
 	}
 }
 
-void QMC::RandomUnitDir(Vector3 &dir) const {
+void QMC::random_unit_dir(Vector3 &dir) const {
 	while (true) {
 		dir.x = Math::random(-1.0f, 1.0f);
 		dir.y = Math::random(-1.0f, 1.0f);
@@ -25,8 +25,8 @@ void QMC::RandomUnitDir(Vector3 &dir) const {
 	}
 }
 
-void QMC::GenerateVariation(Group &group, int var) {
-	int nSamples = m_Group.m_Samples.size();
+void QMC::generate_variation(Group &group, int var) {
+	int nSamples = _group.samples.size();
 
 	const int nTestSamples = 8;
 	Vector3 tests[nTestSamples];
@@ -35,7 +35,7 @@ void QMC::GenerateVariation(Group &group, int var) {
 	for (int s = 0; s < nSamples; s++) {
 		// choose some random test directions
 		for (int n = 0; n < nTestSamples; n++) {
-			RandomUnitDir(tests[n]);
+			random_unit_dir(tests[n]);
 		}
 
 		// find the best
@@ -48,7 +48,7 @@ void QMC::GenerateVariation(Group &group, int var) {
 
 		// compare to all the rest
 		for (int n = 0; n < s - 1; n++) {
-			const Vector3 &existing_dir = group.m_Samples[n].dir[var];
+			const Vector3 &existing_dir = group.samples[n].dir[var];
 
 			for (int t = 0; t < nTestSamples; t++) {
 				float dot = existing_dir.dot(tests[t]);
@@ -67,15 +67,15 @@ void QMC::GenerateVariation(Group &group, int var) {
 		}
 
 		// now we know the best, add it to the list
-		group.m_Samples[s].dir[var] = tests[best_t];
+		group.samples[s].dir[var] = tests[best_t];
 	} // for variation
 }
 
-int QMC::RandomVariation() const {
+int QMC::random_variation() const {
 	return Math::rand() % NUM_VARIATIONS;
 }
 
-int QMC::GetNextVariation(int previous) const {
+int QMC::get_next_variation(int previous) const {
 	int next = previous + 1;
 	if (next >= NUM_VARIATIONS)
 		next = 0;

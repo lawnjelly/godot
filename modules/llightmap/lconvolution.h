@@ -15,91 +15,91 @@ public:
 
 	Convolution() {
 		for (int n = 0; n < NUM_LINES; n++) {
-			m_pLines_Source[n] = nullptr;
-			m_pLines_Dest[n] = nullptr;
+			_p_lines_source[n] = nullptr;
+			_p_lines_dest[n] = nullptr;
 		}
 	}
 
 	~Convolution() {
-		Destroy();
+		destroy();
 	}
 
-	void Destroy() {
+	void destroy() {
 		for (int n = 0; n < NUM_LINES; n++) {
-			if (m_pLines_Source[n]) {
-				memdelete_arr(m_pLines_Source[n]);
-				m_pLines_Source[n] = nullptr;
+			if (_p_lines_source[n]) {
+				memdelete_arr(_p_lines_source[n]);
+				_p_lines_source[n] = nullptr;
 			}
-			if (m_pLines_Dest[n]) {
-				memdelete_arr(m_pLines_Dest[n]);
-				m_pLines_Dest[n] = nullptr;
+			if (_p_lines_dest[n]) {
+				memdelete_arr(_p_lines_dest[n]);
+				_p_lines_dest[n] = nullptr;
 			}
 		}
 	}
 
-	void CreateLines() {
-		CRASH_COND(m_pLines_Source[0]);
-		CRASH_COND(!m_iLineLength_Expanded);
+	void create_lines() {
+		CRASH_COND(_p_lines_source[0]);
+		CRASH_COND(!_line_length_expanded);
 
 		for (int n = 0; n < NUM_LINES; n++) {
-			m_pLines_Source[n] = memnew_arr(T, m_iLineLength_Expanded);
-			m_pLines_Dest[n] = memnew_arr(T, m_iLineLength_Expanded);
+			_p_lines_source[n] = memnew_arr(T, _line_length_expanded);
+			_p_lines_dest[n] = memnew_arr(T, _line_length_expanded);
 		}
 	}
 
-	void CopySourceLine(int source_y, int dest_y) {
-		const T *pSource = m_pLines_Source[source_y];
-		T *pDest = m_pLines_Source[dest_y];
+	void copy_source_line(int source_y, int dest_y) {
+		const T *pSource = _p_lines_source[source_y];
+		T *pDest = _p_lines_source[dest_y];
 
-		for (int x = 0; x < m_iLineLength_Expanded; x++) {
+		for (int x = 0; x < _line_length_expanded; x++) {
 			pDest[x] = pSource[x];
 		}
 	}
 
-	void LoadLine(int source_y, int dest_y) {
-		const T *pSource = &m_pImage->GetItem(0, source_y);
-		T *pDest = m_pLines_Source[dest_y];
+	void load_line(int source_y, int dest_y) {
+		const T *pSource = &_p_image->get_item(0, source_y);
+		T *pDest = _p_lines_source[dest_y];
 
 		// leave a pixel gap at start and end for filtering
-		for (int x = 0; x < m_iLineLength_Orig; x++) {
+		for (int x = 0; x < _line_length_orig; x++) {
 			pDest[x + 1] = pSource[x];
 		}
 
 		// wrap start and end
 		pDest[0] = pDest[1];
-		pDest[m_iLineLength_Expanded - 1] = pDest[m_iLineLength_Expanded - 2];
+		pDest[_line_length_expanded - 1] = pDest[_line_length_expanded - 2];
 	}
 
-	void SaveLine(int source_y, int dest_y) {
-		const T *pSource = m_pLines_Dest[source_y];
+	void save_line(int source_y, int dest_y) {
+		const T *pSource = _p_lines_dest[source_y];
 		pSource++;
-		T *pDest = &m_pImage->GetItem(0, dest_y);
+		T *pDest = &_p_image->get_item(0, dest_y);
 
-		for (int x = 0; x < m_iLineLength_Orig; x++) {
+		for (int x = 0; x < _line_length_orig; x++) {
 			pDest[x] = pSource[x];
 		}
 	}
 
-	void ZeroPixel(float &f) { f = 0.0f; }
-	void ZeroPixel(FColor &c) { c.Set(0.0f); }
+	void zero_pixel(float &f) { f = 0.0f; }
+	void zero_pixel(FColor &c) { c.set(0.0f); }
 	//	void ZeroPixel(Color &c) { c = Color(0.0f, 0.0f, 0.0f, 1.0f);}
 
-	void AdjustCentre(float &centre, float average) {
+	void adjust_centre(float &centre, float average) {
 		float diff = average - centre;
-		if (fabsf(diff) < m_fTolerance) {
-			centre = m_fAmount * average + (centre * (1.0f - m_fAmount));
+		if (fabsf(diff) < _tolerance) {
+			centre = _amount * average + (centre * (1.0f - _amount));
 		}
 	}
 
-	void AdjustCentre(FColor &centre, FColor average) {
+	void adjust_centre(FColor &centre, FColor average) {
 		FColor diff = average;
 		diff -= centre;
 
-		if ((fabsf(diff.r) < m_fTolerance) &&
-				(fabsf(diff.g) < m_fTolerance) &&
-				(fabsf(diff.b) < m_fTolerance)) {
-			centre *= 1.0f - m_fAmount;
-			average *= m_fAmount;
+		if ((fabsf(diff.r) < _tolerance) &&
+				(fabsf(diff.g) < _tolerance) &&
+				(fabsf(diff.b) < _tolerance)) {
+			centre *= 1.0f - _amount;
+			average *= _amount;
 			centre += average;
 		}
 	}
@@ -119,58 +119,58 @@ public:
 	//		centre.a = 1.0f;
 	//	}
 
-	void ConvolvePixel(int x, int top, int mid, int bot) {
+	void convolve_pixel(int x, int top, int mid, int bot) {
 		T total;
-		ZeroPixel(total);
+		zero_pixel(total);
 
-		total += m_pLines_Source[top][x - 1];
-		total += m_pLines_Source[top][x];
-		total += m_pLines_Source[top][x + 1];
+		total += _p_lines_source[top][x - 1];
+		total += _p_lines_source[top][x];
+		total += _p_lines_source[top][x + 1];
 
-		total += m_pLines_Source[mid][x - 1];
-		total += m_pLines_Source[mid][x + 1];
+		total += _p_lines_source[mid][x - 1];
+		total += _p_lines_source[mid][x + 1];
 
-		total += m_pLines_Source[bot][x - 1];
-		total += m_pLines_Source[bot][x];
-		total += m_pLines_Source[bot][x + 1];
+		total += _p_lines_source[bot][x - 1];
+		total += _p_lines_source[bot][x];
+		total += _p_lines_source[bot][x + 1];
 
-		T centre = m_pLines_Source[mid][x];
+		T centre = _p_lines_source[mid][x];
 
 		total += centre;
 
 		total *= 1.0f / 9.0f;
 
-		AdjustCentre(centre, total);
+		adjust_centre(centre, total);
 
 		// save
-		m_pLines_Dest[mid][x] = centre;
+		_p_lines_dest[mid][x] = centre;
 	}
 
-	void Run(LightImage<T> &image, float tolerance = 0.2f, float amount = 1.0f) {
-		m_pImage = &image;
-		m_fTolerance = tolerance;
-		m_fAmount = amount;
+	void run(LightImage<T> &image, float tolerance = 0.2f, float amount = 1.0f) {
+		_p_image = &image;
+		_tolerance = tolerance;
+		_amount = amount;
 
 		// noop?
 		if (amount <= 0.001f)
 			return;
 
-		if (image.GetWidth() < 2)
+		if (image.get_width() < 2)
 			return;
-		if (image.GetHeight() < 2)
+		if (image.get_height() < 2)
 			return;
 
-		m_iLineLength_Orig = image.GetWidth();
-		m_iLineLength_Expanded = m_iLineLength_Orig + 2;
+		_line_length_orig = image.get_width();
+		_line_length_expanded = _line_length_orig + 2;
 
-		CreateLines();
+		create_lines();
 
-		int height = image.GetHeight();
+		int height = image.get_height();
 
 		// preload for first line
-		LoadLine(0, 1);
-		LoadLine(1, 2);
-		CopySourceLine(1, 0);
+		load_line(0, 1);
+		load_line(1, 2);
+		copy_source_line(1, 0);
 
 		int top = 0;
 		int mid = 1;
@@ -178,13 +178,13 @@ public:
 
 		for (int y = 1; y < height + 1; y++) {
 			// convolve
-			for (int x = 1; x < m_iLineLength_Expanded - 1; x++) {
-				ConvolvePixel(x, top, mid, bot);
+			for (int x = 1; x < _line_length_expanded - 1; x++) {
+				convolve_pixel(x, top, mid, bot);
 			}
 
 			// save out top
 			if (y > 1)
-				SaveLine(top, y - 2);
+				save_line(top, y - 2);
 
 			// shuffle
 			int temp = top;
@@ -194,25 +194,25 @@ public:
 
 			// load bot
 			if ((y + 1) < height) {
-				LoadLine(y + 1, bot);
+				load_line(y + 1, bot);
 			} else {
 				// copy last line
-				CopySourceLine(mid, bot);
+				copy_source_line(mid, bot);
 			}
 		}
 
-		Destroy();
+		destroy();
 	}
 
 private:
-	LightImage<T> *m_pImage;
-	T *m_pLines_Source[NUM_LINES];
-	T *m_pLines_Dest[NUM_LINES];
+	LightImage<T> *_p_image;
+	T *_p_lines_source[NUM_LINES];
+	T *_p_lines_dest[NUM_LINES];
 
-	int m_iLineLength_Orig;
-	int m_iLineLength_Expanded;
-	float m_fTolerance;
-	float m_fAmount;
+	int _line_length_orig;
+	int _line_length_expanded;
+	float _tolerance;
+	float _amount;
 };
 
 } // namespace LM

@@ -64,8 +64,8 @@ void Stitcher::StitchObjectSeams(const MeshInstance &p_mi, LightImage<FColor> &r
 		norms[n] = p_normals[i];
 	}
 
-	Vector3 *pImageData = (Vector3 *)r_image.Get(0);
-	Vector2i lm_size = Vector2i(r_image.GetWidth(), r_image.GetHeight());
+	Vector3 *pImageData = (Vector3 *)r_image.get(0);
+	Vector2i lm_size = Vector2i(r_image.get_width(), r_image.get_height());
 
 	//////////////////////////////////
 

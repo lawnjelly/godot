@@ -97,38 +97,38 @@ public:
 	static BakeSubStepFunc bake_substep_function;
 	static BakeEndFunc bake_end_function;
 
-	void ShowWarning(String sz, bool bAlert = true);
+	void show_warning(String sz, bool bAlert = true);
 
 protected:
-	void Base_Reset();
+	void base_reset();
 
-	void FindLights_Recursive(const Node *pNode);
-	void FindLight(const Node *pNode);
-	void PrepareLights();
+	void find_lights_recursive(const Node *pNode);
+	void find_light(const Node *pNode);
+	void prepare_lights();
 
-	bool PrepareImageMaps();
-	void Normalize();
-	void Normalize_AO();
-	void ApplyNoiseReduction();
-	void StitchSeams();
+	bool prepare_image_maps();
+	void normalize();
+	void normalize_AO();
+	void apply_noise_reduction();
+	void stitch_seams();
 
-	void WriteOutputImage_Lightmap(Image &image);
-	void WriteOutputImage_AO(Image &image);
+	void write_output_image_lightmap(Image &image);
+	void write_output_image_AO(Image &image);
 
-	bool LoadLightmap(Image &image);
-	bool LoadAO(Image &image);
+	bool load_lightmap(Image &image);
+	bool load_AO(Image &image);
 
-	void Merge_AndWriteOutputImage_Combined(Image &image);
+	void merge_and_write_output_image_combined(Image &image);
 
-	void RandomUnitDir(Vector3 &dir) const;
-	void RandomSphereDir(Vector3 &dir, float max_length) const;
-	void RandomBarycentric(Vector3 &bary) const;
-	void RandomAxis(Vector3 &axis) const;
+	void generate_random_unit_dir(Vector3 &dir) const;
+	void generate_random_sphere_dir(Vector3 &dir, float max_length) const;
+	void generate_random_barycentric(Vector3 &bary) const;
+	void generate_random_axis(Vector3 &axis) const;
 
-	void LightToPlane(LLight &light);
-	Plane FindContainmentPlane(const Vector3 &dir, Vector3 pts[8], float &range, float padding);
+	void light_to_plane(LLight &light);
+	Plane find_containment_plane(const Vector3 &dir, Vector3 pts[8], float &range, float padding);
 
-	void CalculateQualityAdjustedSettings();
+	void calculate_quality_adjusted_settings();
 	float safe_acosf(float f) const {
 		f = CLAMP(f, -1.0f, 1.0f);
 		return acosf(f);
@@ -136,43 +136,43 @@ protected:
 
 protected:
 	// luminosity
-	LightImage<FColor> m_Image_L;
+	LightImage<FColor> _image_L;
 
 	// for bounces
-	LightImage<FColor> m_Image_L_mirror;
+	LightImage<FColor> _image_L_mirror;
 
 	// ambient occlusion
-	LightImage<float> m_Image_AO;
+	LightImage<float> _image_AO;
 
 	// just in case of overlapping triangles, for anti aliasing we will maintain 2 lists of triangles per pixel
-	LightImage<uint32_t> m_Image_ID_p1;
+	LightImage<uint32_t> _image_ID_p1;
 	//LightImage<uint32_t> m_Image_ID2_p1;
 
 	// store multiple triangles per texel
-	LightImage<MiniList> m_Image_TriIDs;
-	LVector<uint32_t> m_TriIDs;
+	LightImage<MiniList> _image_tri_ids;
+	LVector<uint32_t> _tri_ids;
 
-	LightImage<Vector3> m_Image_Barycentric;
+	LightImage<Vector3> _image_barycentric;
 
 	// triangles that cut texels (prevent shadow leaks)
 	//LightImage<uint8_t> m_Image_Cuts;
 
-	int m_iWidth;
-	int m_iHeight;
-	int m_iNumRays; // this will be modified from the settings_numrays
+	int _width;
+	int _height;
+	int _num_rays; // this will be modified from the settings_numrays
 
-	LightScene m_Scene;
-	LVector<LLight> m_Lights;
+	LightScene _scene;
+	LVector<LLight> _lights;
 
-	QMC m_QMC;
-	LAtomic m_Atomic;
-	LSky m_Sky;
+	QMC _QMC;
+	LAtomic _atomic;
+	LSky _sky;
 
 	// for stats
-	int m_iNumTests;
+	int _num_tests;
 
 	// if user cancels bake in editor
-	bool m_bCancel;
+	bool _pressed_cancel;
 
 	// these need to be public because can't get friend to work
 	// with LLightMapper_Base. It is not recognised in global namespace.
@@ -180,146 +180,151 @@ protected:
 public:
 	// actual params (after applying quality)
 	struct AdjustedSettings {
-		int m_Forward_NumRays;
-		int m_Backward_NumRays;
+		int forward_num_rays;
+		int backward_num_rays;
 		//int m_Forward_NumBounces;
 
-		int m_NumPrimaryRays;
+		int num_primary_rays;
 		//int m_Backward_NumBounces;
 
-		int m_NumAmbientBounces;
-		int m_NumAmbientBounceRays;
+		int num_ambient_bounces;
+		int num_ambient_bounce_rays;
 
-		int m_NumDirectionalBounces;
+		int num_directional_bounces;
 
-		float m_EmissionDensity;
-		int m_AO_Samples;
+		float emission_density;
+		int num_AO_samples;
 
-		int m_Max_Material_Size;
+		int max_material_size;
 
-		int m_Sky_Samples;
+		int num_sky_samples;
 
-		float m_Sky_Brightness;
-	} m_AdjustedSettings;
+		float sky_brightness;
+	} adjusted_settings;
 
 	// params
-	//	int m_Settings_Forward_NumRays;
-	//	float m_Settings_Forward_RayPower;
-	//float m_Settings_Forward_BouncePower;
-	//float m_Settings_Forward_BounceDirectionality;
+	//	int settings.Forward_NumRays;
+	//	float settings.Forward_RayPower;
+	//float settings.Forward_BouncePower;
+	//float settings.Forward_BounceDirectionality;
 
-	int m_Settings_Backward_NumRays;
-	float m_Settings_Backward_RayPower;
-	//float m_Settings_Backward_BouncePower;
+	struct Settings {
+		int backward_num_rays;
+		float backward_ray_power;
+		//float settings.Backward_BouncePower;
 
-	// this number means nothing itself .. it is
-	// standardized so that 32 is the normal amount, for backward and forward
-	// and is translated into number of forward or backward rays
-	int m_Settings_NumPrimaryRays;
+		// this number means nothing itself .. it is
+		// standardized so that 32 is the normal amount, for backward and forward
+		// and is translated into number of forward or backward rays
+		int num_primary_rays;
+		int num_ambient_bounces;
 
-	int m_Settings_NumAmbientBounces;
-	int m_Settings_NumAmbientBounceRays;
-	int m_Settings_NumDirectionalBounces;
-	float m_Settings_AmbientBouncePower;
-	float m_Settings_DirectionalBouncePower;
-	float m_Settings_Smoothness;
-	float m_Settings_EmissionDensity;
-	float m_Settings_Glow;
+		int num_ambient_bounce_rays;
+		int num_directional_bounces;
+		float ambient_bounce_power;
+		float directional_bounce_power;
+		float smoothness;
+		float emission_density;
+		float glow;
 
-	int m_Settings_AO_Samples;
-	float m_Settings_AO_Range;
-	float m_Settings_AO_CutRange;
-	float m_Settings_AO_ReverseBias;
+		int AO_samples;
+		float AO_range;
+		float AO_cut_range;
+		float AO_reverse_bias;
 
-	eLMMode m_Settings_Mode;
-	eLMBakeMode m_Settings_BakeMode;
-	eLMBakeQuality m_Settings_Quality;
+		eLMMode mode;
+		eLMBakeMode bake_mode;
+		eLMBakeQuality quality;
 
-	// for faster baking, limit length that light can reach
-	int m_Settings_MaxLightDist;
+		// for faster baking, limit length that light can reach
+		int max_light_dist;
 
-	int m_Settings_VoxelDensity; // number of units on largest axis
-	float m_Settings_SurfaceBias;
+		int voxel_density; // number of units on largest axis
+		float surface_bias;
 
-	int m_Settings_TexWidth;
-	int m_Settings_TexHeight;
+		int tex_width;
+		int tex_height;
 
-	int m_Settings_Max_Material_Size;
+		int max_material_size;
 
-	bool m_Settings_Normalize;
-	float m_Settings_NormalizeBias;
-	float m_Settings_Light_AO_Ratio;
-	float m_Settings_Gamma;
+		bool normalize;
+		float normalize_bias;
+		float light_AO_ratio;
+		float gamma;
 
-	NodePath m_Settings_Path_Mesh;
-	NodePath m_Settings_Path_Lights;
+		NodePath path_mesh;
+		NodePath path_lights;
 
-	String m_Settings_LightmapFilename;
-	bool m_Settings_LightmapIsHDR;
+		String lightmap_filename;
+		bool lightmap_is_HDR;
 
-	String m_Settings_AmbientFilename;
-	bool m_Settings_AmbientIsHDR;
+		String ambient_filename;
+		bool ambient_is_HDR;
 
-	String m_Settings_CombinedFilename;
-	bool m_Settings_CombinedIsHDR;
+		String combined_filename;
+		bool combined_is_HDR;
 
-	String m_Settings_UVFilename;
-	int m_Settings_UVPadding;
+		String UV_filename;
+		int UV_padding;
 
-	String m_Settings_ProbeFilename;
-	int m_Settings_ProbeDensity; // number of units on largest axis
-	int m_Settings_ProbeSamples;
+		String probe_filename;
+		int probe_density; // number of units on largest axis
 
-	float m_Settings_NoiseThreshold;
-	float m_Settings_NoiseReduction;
-	eNRMethod m_Settings_NoiseReductionMethod;
+		int num_probe_samples;
 
-	bool m_Settings_SeamStitching;
+		float noise_threshold;
+		float noise_reduction;
+		eNRMethod noise_reduction_method;
 
-	float m_Settings_SeamDistanceThreshold;
-	float m_Settings_SeamNormalThreshold;
+		bool use_seam_stitching;
 
-	bool m_Settings_VisualizeSeams;
-	bool m_Settings_Dilate;
+		float seam_distance_threshold;
+		float seam_normal_threshold;
 
-	String m_Settings_Sky_Filename;
-	float m_Settings_Sky_BlurAmount;
-	int m_Settings_Sky_Size;
-	int m_Settings_Sky_Samples;
-	float m_Settings_Sky_Brightness;
+		bool visualize_seams_enabled;
+		bool dilate_enabled;
 
-	// some internal logic based on the bake state
-	bool m_Logic_Process_Lightmap;
-	bool m_Logic_Process_AO;
-	bool m_Logic_Process_Probes;
+		String sky_filename;
+		float sky_blur_amount;
+		int sky_size;
+		int sky_num_samples;
+		float sky_brightness;
+	} settings;
 
-	bool m_Logic_Reserve_AO;
-	bool m_Logic_Output_Final;
+	struct Logic {
+		// some internal logic based on the bake state
+		bool process_lightmap;
+		bool process_AO;
+		bool process_probes;
+
+		bool reserve_AO;
+		bool output_final;
+	} logic;
 
 	LightMapper_Base();
 
 protected:
 	//	static void _bind_methods();
 
-	float LightDistanceDropoff(float dist, const LLight &light, float power) const {
+	float light_distance_drop_off(float dist, const LLight &light, float power) const {
 		float local_power;
 
 		if (light.type != LLight::LT_DIRECTIONAL) {
-			local_power = power * InverseSquareDropoff(dist);
+			local_power = power * inverse_square_drop_off(dist);
 		} else
 			local_power = power;
 
 		return local_power;
 	}
 
-	float NormalizeAndFindLength(Vector3 &v) const {
+	float normalize_and_find_length(Vector3 &v) const {
 		float l = v.length();
 		if (l > 0.0f)
 			v /= l;
 		return l;
 	}
 
-	float InverseSquareDropoff(float dist) const {
+	float inverse_square_drop_off(float dist) const {
 		dist *= 0.2f;
 		dist += 0.282f;
 		// 4 PI = 12.5664
@@ -327,7 +332,7 @@ protected:
 		return 1.0f / area;
 	}
 
-	float LargestColorComponent(const Color &c) const {
+	float largest_color_component(const Color &c) const {
 		float l = c.r;
 		if (c.g > l)
 			l = c.g;
@@ -337,9 +342,9 @@ protected:
 	}
 
 	// use the alpha as a multiplier to increase dynamic range
-	void ColorToRGBM(Color &c) const {
+	void color_to_RGBM(Color &c) const {
 		c.a = 0.0f;
-		if (LargestColorComponent(c) > 1.0f) {
+		if (largest_color_component(c) > 1.0f) {
 			c *= 0.125f;
 			//c.a = 255.0f;
 		}
@@ -352,7 +357,7 @@ protected:
 		//		o.a = 16.0f / l;
 
 		// first find the largest component
-		float l = LargestColorComponent(o);
+		float l = largest_color_component(o);
 		if (l > 1.0f)
 			l = 1.0f;
 
@@ -384,7 +389,7 @@ protected:
 	}
 };
 
-inline void LightMapper_Base::RandomBarycentric(Vector3 &bary) const {
+inline void LightMapper_Base::generate_random_barycentric(Vector3 &bary) const {
 	float r1 = Math::randf();
 	float r2 = Math::randf();
 	float sqrt_r1 = sqrtf(r1);
@@ -394,7 +399,7 @@ inline void LightMapper_Base::RandomBarycentric(Vector3 &bary) const {
 	bary.z = 1.0f - bary.x - bary.y;
 }
 
-inline void LightMapper_Base::RandomAxis(Vector3 &axis) const {
+inline void LightMapper_Base::generate_random_axis(Vector3 &axis) const {
 	float sl;
 	while (true) {
 		axis.x = Math::random(-1.0f, 1.0f);
@@ -411,7 +416,7 @@ inline void LightMapper_Base::RandomAxis(Vector3 &axis) const {
 	axis /= l;
 }
 
-inline void LightMapper_Base::RandomSphereDir(Vector3 &dir, float max_length) const {
+inline void LightMapper_Base::generate_random_sphere_dir(Vector3 &dir, float max_length) const {
 	dir.x = Math::random(-1.0f, 1.0f);
 	dir.y = Math::random(-1.0f, 1.0f);
 	dir.z = Math::random(-1.0f, 1.0f);
@@ -423,7 +428,7 @@ inline void LightMapper_Base::RandomSphereDir(Vector3 &dir, float max_length) co
 	dir *= f;
 }
 
-inline void LightMapper_Base::RandomUnitDir(Vector3 &dir) const {
+inline void LightMapper_Base::generate_random_unit_dir(Vector3 &dir) const {
 	while (true) {
 		dir.x = Math::random(-1.0f, 1.0f);
 		dir.y = Math::random(-1.0f, 1.0f);

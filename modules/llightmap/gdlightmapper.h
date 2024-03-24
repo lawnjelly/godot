@@ -203,7 +203,7 @@ public:
 private:
 	LM::LightMapper m_LM;
 
-	void ShowWarning(String sz, bool bAlert = true) { m_LM.ShowWarning(sz, bAlert); }
+	void ShowWarning(String sz, bool bAlert = true) { m_LM.show_warning(sz, bAlert); }
 
 protected:
 	static void _bind_methods();

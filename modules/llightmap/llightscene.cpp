@@ -10,13 +10,13 @@
 
 using namespace LM;
 
-bool LightScene::TestVoxelHits(const Ray &ray, const PackedRay &pray, const Voxel &voxel, float max_dist, bool bCullBackFaces) {
-	int quads = voxel.m_PackedTriangles.size();
+bool LightScene::test_voxel_hits(const Ray &ray, const PackedRay &pray, const Voxel &voxel, float max_dist, bool bCullBackFaces) {
+	int quads = voxel.packed_triangles.size();
 
 	if (!bCullBackFaces) {
 		for (int q = 0; q < quads; q++) {
 			// get pointers to 4 triangles
-			const PackedTriangles &ptris = voxel.m_PackedTriangles[q];
+			const PackedTriangles &ptris = voxel.packed_triangles[q];
 			if (pray.IntersectTest(ptris, max_dist))
 				return true;
 		}
@@ -47,7 +47,7 @@ bool LightScene::TestVoxelHits(const Ray &ray, const PackedRay &pray, const Voxe
 
 		for (int q = 0; q < quads; q++) {
 			// get pointers to 4 triangles
-			const PackedTriangles &ptris = voxel.m_PackedTriangles[q];
+			const PackedTriangles &ptris = voxel.packed_triangles[q];
 			if (pray.IntersectTest_CullBackFaces(ptris, max_dist))
 				return true;
 		}
@@ -56,7 +56,7 @@ bool LightScene::TestVoxelHits(const Ray &ray, const PackedRay &pray, const Voxe
 	return false;
 }
 
-void LightScene::ProcessVoxelHits(const Ray &ray, const PackedRay &pray, const Voxel &voxel, float &r_nearest_t, int &r_nearest_tri) //, int ignore_triangle_id_p1)
+void LightScene::process_voxel_hits(const Ray &ray, const PackedRay &pray, const Voxel &voxel, float &r_nearest_t, int &r_nearest_tri) //, int ignore_triangle_id_p1)
 {
 	//#define LLIGHTMAPPED_DEBUG_COMPARE_SIMD
 
@@ -64,11 +64,11 @@ void LightScene::ProcessVoxelHits(const Ray &ray, const PackedRay &pray, const V
 	//	int record_nearest_tri = r_nearest_tri;
 
 	//#ifdef LLIGHTMAPPER_USE_SIMD
-	if (m_bUseSIMD) {
+	if (_use_SIMD) {
 		//LightTests_SIMD simd;
 
 		// groups of 4
-		int quads = voxel.m_PackedTriangles.size();
+		int quads = voxel.packed_triangles.size();
 
 		// special case of ignore triangles being set
 		//		int ignore_quad = -1;
@@ -90,7 +90,7 @@ void LightScene::ProcessVoxelHits(const Ray &ray, const PackedRay &pray, const V
 
 		for (int q = 0; q < quads; q++) {
 			// get pointers to 4 triangles
-			const PackedTriangles &ptris = voxel.m_PackedTriangles[q];
+			const PackedTriangles &ptris = voxel.packed_triangles[q];
 
 			//  we need to deal with the special case of the ignore_triangle being set. This will normally only occur on the first voxel.
 			int winner;
@@ -125,7 +125,7 @@ void LightScene::ProcessVoxelHits(const Ray &ray, const PackedRay &pray, const V
 				winner--;
 				int winner_tri_index = (q * 4) + winner;
 				//int winner_tri = m_Tracer.m_TriHits[winner_tri_index];
-				int winner_tri = voxel.m_TriIDs[winner_tri_index];
+				int winner_tri = voxel.tri_ids[winner_tri_index];
 
 #ifdef LLIGHTSCENE_TRACE_VERBOSE
 				const AABB &tri_bb = m_TriPos_aabbs[winner_tri];
@@ -168,7 +168,7 @@ void LightScene::ProcessVoxelHits(const Ray &ray, const PackedRay &pray, const V
 	//#endif
 
 	// trace after every voxel
-	int nHits = m_Tracer.m_TriHits.size();
+	int nHits = _tracer._tri_hits.size();
 	int nStart = 0;
 
 	// just for debugging do whole test again
@@ -178,11 +178,11 @@ void LightScene::ProcessVoxelHits(const Ray &ray, const PackedRay &pray, const V
 
 	// leftovers
 	for (int n = nStart; n < nHits; n++) {
-		unsigned int tri_id = m_Tracer.m_TriHits[n];
+		unsigned int tri_id = _tracer._tri_hits[n];
 
 		float t = 0.0f;
 		//			if (ray.TestIntersect(m_Tris[tri_id], t))
-		if (ray.TestIntersect_EdgeForm(m_Tris_EdgeForm[tri_id], t)) {
+		if (ray.test_intersect_edge_form(_tris_edge_form[tri_id], t)) {
 			if (t < r_nearest_t) {
 				r_nearest_t = t;
 				r_nearest_tri = tri_id;
@@ -197,15 +197,15 @@ void LightScene::ProcessVoxelHits(const Ray &ray, const PackedRay &pray, const V
 	//	assert (r_nearest_tri == simd_nearest_tri);
 }
 
-void LightScene::ProcessVoxelHits_Old(const Ray &ray, const Voxel &voxel, float &r_nearest_t, int &r_nearest_tri) {
+void LightScene::process_voxel_hits_old(const Ray &ray, const Voxel &voxel, float &r_nearest_t, int &r_nearest_tri) {
 	// trace after every voxel
-	int nHits = m_Tracer.m_TriHits.size();
+	int nHits = _tracer._tri_hits.size();
 	int nStart = 0;
 
 	//#define LLIGHTMAPPED_DEBUG_COMPARE_SIMD
 
 #ifdef LLIGHTMAPPER_USE_SIMD
-	if (m_bUseSIMD) {
+	if (_use_SIMD) {
 		LightTests_SIMD simd;
 
 		// groups of 4
@@ -221,7 +221,7 @@ void LightScene::ProcessVoxelHits_Old(const Ray &ray, const Voxel &voxel, float 
 #endif
 
 			for (int n = 0; n < 4; n++) {
-				unsigned int tri_id = m_Tracer.m_TriHits[nStart++];
+				unsigned int tri_id = _tracer._tri_hits[nStart++];
 
 #if LLIGHTMAPPED_DEBUG_COMPARE_SIMD
 				float t = 0.0f;
@@ -242,7 +242,7 @@ void LightScene::ProcessVoxelHits_Old(const Ray &ray, const Voxel &voxel, float 
 				}
 #endif
 
-				pTris[n] = &m_Tris_EdgeForm[tri_id];
+				pTris[n] = &_tris_edge_form[tri_id];
 			}
 
 			// compare with old
@@ -252,7 +252,7 @@ void LightScene::ProcessVoxelHits_Old(const Ray &ray, const Voxel &voxel, float 
 			int winner;
 			if (simd.TestIntersect4(pTris, ray, r_nearest_t, winner)) {
 				int winner_tri_index = nStart - 4 + winner;
-				int winner_tri = m_Tracer.m_TriHits[winner_tri_index];
+				int winner_tri = _tracer._tri_hits[winner_tri_index];
 
 				/*
 			// test assert condition
@@ -286,11 +286,11 @@ void LightScene::ProcessVoxelHits_Old(const Ray &ray, const Voxel &voxel, float 
 
 	// leftovers
 	for (int n = nStart; n < nHits; n++) {
-		unsigned int tri_id = m_Tracer.m_TriHits[n];
+		unsigned int tri_id = _tracer._tri_hits[n];
 
 		float t = 0.0f;
 		//			if (ray.TestIntersect(m_Tris[tri_id], t))
-		if (ray.TestIntersect_EdgeForm(m_Tris_EdgeForm[tri_id], t)) {
+		if (ray.test_intersect_edge_form(_tris_edge_form[tri_id], t)) {
 			if (t < r_nearest_t) {
 				r_nearest_t = t;
 				r_nearest_tri = tri_id;
@@ -299,7 +299,7 @@ void LightScene::ProcessVoxelHits_Old(const Ray &ray, const Voxel &voxel, float 
 	}
 }
 
-bool LightScene::TestIntersect_Line(const Vector3 &a, const Vector3 &b, bool bCullBackFaces) {
+bool LightScene::test_intersect_line(const Vector3 &a, const Vector3 &b, bool bCullBackFaces) {
 	Ray r;
 	r.o = a;
 	r.d = b - a;
@@ -307,7 +307,7 @@ bool LightScene::TestIntersect_Line(const Vector3 &a, const Vector3 &b, bool bCu
 	if (dist > 0.0f) {
 		// normalize
 		r.d /= dist;
-		bool res = TestIntersect_Ray(r, dist);
+		bool res = test_intersect_ray(r, dist);
 		/*
 		// double check
 		Vector3 bary;
@@ -333,18 +333,18 @@ bool LightScene::TestIntersect_Line(const Vector3 &a, const Vector3 &b, bool bCu
 	return false;
 }
 
-bool LightScene::TestIntersect_Ray(const Ray &ray, float max_dist, bool bCullBackFaces) {
+bool LightScene::test_intersect_ray(const Ray &ray, float max_dist, bool bCullBackFaces) {
 	Vec3i voxel_range;
-	m_Tracer.GetDistanceInVoxels(max_dist, voxel_range);
-	return TestIntersect_Ray(ray, max_dist, voxel_range, bCullBackFaces);
+	_tracer.get_distance_in_voxels(max_dist, voxel_range);
+	return test_intersect_ray(ray, max_dist, voxel_range, bCullBackFaces);
 }
 
-bool LightScene::TestIntersect_Ray(const Ray &ray, float max_dist, const Vec3i &voxel_range, bool bCullBackFaces) {
+bool LightScene::test_intersect_ray(const Ray &ray, float max_dist, const Vec3i &voxel_range, bool bCullBackFaces) {
 	Ray voxel_ray;
 	Vec3i ptVoxel;
 
 	// prepare voxel trace
-	if (!m_Tracer.RayTrace_Start(ray, voxel_ray, ptVoxel))
+	if (!_tracer.ray_trace_start(ray, voxel_ray, ptVoxel))
 		return false;
 
 	//bool bFirstHit = false;
@@ -360,11 +360,11 @@ bool LightScene::TestIntersect_Ray(const Ray &ray, float max_dist, const Vec3i &
 	while (true) {
 		//Vec3i ptVoxelBefore = ptVoxel;
 
-		const Voxel *pVoxel = m_Tracer.RayTrace(voxel_ray, voxel_ray, ptVoxel);
+		const Voxel *pVoxel = _tracer.ray_trace(voxel_ray, voxel_ray, ptVoxel);
 		if (!pVoxel)
 			break;
 
-		if (TestVoxelHits(ray, pray, *pVoxel, max_dist, bCullBackFaces))
+		if (test_voxel_hits(ray, pray, *pVoxel, max_dist, bCullBackFaces))
 			return true;
 
 		// check for voxel range
@@ -380,7 +380,7 @@ bool LightScene::TestIntersect_Ray(const Ray &ray, float max_dist, const Vec3i &
 	return false;
 }
 
-int LightScene::FindIntersect_Ray(const Ray &ray, float &u, float &v, float &w, float &nearest_t, const Vec3i *pVoxelRange) //, int ignore_tri_p1)
+int LightScene::find_intersect_ray(const Ray &ray, float &u, float &v, float &w, float &nearest_t, const Vec3i *pVoxelRange) //, int ignore_tri_p1)
 {
 	nearest_t = FLT_MAX;
 	int nearest_tri = -1;
@@ -389,7 +389,7 @@ int LightScene::FindIntersect_Ray(const Ray &ray, float &u, float &v, float &w, 
 	Vec3i ptVoxel;
 
 	// prepare voxel trace
-	if (!m_Tracer.RayTrace_Start(ray, voxel_ray, ptVoxel))
+	if (!_tracer.ray_trace_start(ray, voxel_ray, ptVoxel))
 		return nearest_tri;
 
 	bool bFirstHit = false;
@@ -409,12 +409,12 @@ int LightScene::FindIntersect_Ray(const Ray &ray, float &u, float &v, float &w, 
 	while (true) {
 		//		Vec3i ptVoxelBefore = ptVoxel;
 
-		const Voxel *pVoxel = m_Tracer.RayTrace(voxel_ray, voxel_ray, ptVoxel);
+		const Voxel *pVoxel = _tracer.ray_trace(voxel_ray, voxel_ray, ptVoxel);
 		//		if (!m_Tracer.RayTrace(voxel_ray, voxel_ray, ptVoxel))
 		if (!pVoxel)
 			break;
 
-		ProcessVoxelHits(ray, pray, *pVoxel, nearest_t, nearest_tri);
+		process_voxel_hits(ray, pray, *pVoxel, nearest_t, nearest_tri);
 
 		// count number of tests for stats
 		//int nHits = m_Tracer.m_TriHits.size();
@@ -425,13 +425,13 @@ int LightScene::FindIntersect_Ray(const Ray &ray, float &u, float &v, float &w, 
 		if (nearest_tri != nearest_tri_so_far) {
 			nearest_tri_so_far = nearest_tri;
 			Vector3 ptNearestHit = ray.o + (ray.d * nearest_t);
-			m_Tracer.FindNearestVoxel(ptNearestHit, ptVoxelFirstHit);
+			_tracer.find_nearest_voxel(ptNearestHit, ptVoxelFirstHit);
 			bFirstHit = true;
 
 			// length in voxels to nearest hit
 			Vec3i voxel_diff = ptVoxelFirstHit;
 			voxel_diff -= ptVoxelStart;
-			float voxel_length_to_nearest_hit = voxel_diff.Length();
+			float voxel_length_to_nearest_hit = voxel_diff.length();
 			// add a bit
 			voxel_length_to_nearest_hit += 2.0f;
 
@@ -457,7 +457,7 @@ int LightScene::FindIntersect_Ray(const Ray &ray, float &u, float &v, float &w, 
 			// check the range to this voxel. Have we gone further than the terminate voxel distance?
 			Vec3i voxel_diff = ptVoxel;
 			voxel_diff -= ptVoxelStart;
-			int sl = voxel_diff.SquareLength();
+			int sl = voxel_diff.square_length();
 			if (sl >= square_length_from_start_to_terminate)
 				break;
 		}
@@ -504,58 +504,58 @@ int LightScene::FindIntersect_Ray(const Ray &ray, float &u, float &v, float &w, 
 	} // while
 
 	if (nearest_tri != -1) {
-		ray.FindIntersect(m_Tris[nearest_tri], nearest_t, u, v, w);
+		ray.find_intersect(_tris[nearest_tri], nearest_t, u, v, w);
 	}
 
 	return nearest_tri;
 }
 
-void LightScene::Reset() {
-	m_Materials.Reset();
+void LightScene::reset() {
+	_materials.reset();
 	//	m_ptPositions.resize(0);
 	//	m_ptNormals.resize(0);
 	//m_UVs.resize(0);
 	//m_Inds.resize(0);
 
-	m_UVTris.clear(true);
-	m_TriUVaabbs.clear(true);
-	m_TriPos_aabbs.clear(true);
-	m_Tracer.Reset();
-	m_Tri_TexelSizeWorldSpace.clear(true);
+	_uv_tris.clear(true);
+	_tri_uv_aabbs.clear(true);
+	_tri_pos_aabbs.clear(true);
+	_tracer.reset();
+	_tri_texel_size_world_space.clear(true);
 
-	m_Tris.clear(true);
-	m_TriNormals.clear(true);
-	m_Tris_EdgeForm.clear(true);
-	m_TriPlanes.clear(true);
+	_tris.clear(true);
+	_tri_normals.clear(true);
+	_tris_edge_form.clear(true);
+	_tri_planes.clear(true);
 
-	m_EmissionTris.clear(true);
+	_emission_tris.clear(true);
 
-	m_Meshes.clear(true);
+	_meshes.clear(true);
 	//m_Tri_MeshIDs.clear(true);
 	//m_Tri_SurfIDs.clear(true);
-	m_Tri_LMaterialIDs.clear(true);
-	m_UVTris_Primary.clear(true);
+	_tri_lmaterial_ids.clear(true);
+	_uv_tris_primary.clear(true);
 }
 
-void LightScene::FindMeshes(Spatial *pNode) {
+void LightScene::find_meshes(Spatial *pNode) {
 	// mesh instance?
 	MeshInstance *pMI = Object::cast_to<MeshInstance>(pNode);
 	if (pMI) {
-		if (IsMeshInstanceSuitable(*pMI)) {
-			m_Meshes.push_back(pMI);
+		if (is_mesh_instance_suitable(*pMI)) {
+			_meshes.push_back(pMI);
 		}
 	}
 
 	for (int n = 0; n < pNode->get_child_count(); n++) {
 		Spatial *pChild = Object::cast_to<Spatial>(pNode->get_child(n));
 		if (pChild) {
-			FindMeshes(pChild);
+			find_meshes(pChild);
 		}
 	}
 }
 
-bool LightScene::Create_FromMeshSurface(int mesh_id, int surf_id, Ref<Mesh> rmesh, int width, int height) {
-	const MeshInstance &mi = *m_Meshes[mesh_id];
+bool LightScene::create_from_mesh_surface(int mesh_id, int surf_id, Ref<Mesh> rmesh, int width, int height) {
+	const MeshInstance &mi = *_meshes[mesh_id];
 
 	if (rmesh->surface_get_primitive_type(surf_id) != Mesh::PRIMITIVE_TRIANGLES)
 		return false; //only triangles
@@ -595,36 +595,36 @@ bool LightScene::Create_FromMeshSurface(int mesh_id, int surf_id, Ref<Mesh> rmes
 
 	PoolVector<Vector3> positions_world;
 	PoolVector<Vector3> normals_world;
-	Transform_Verts(verts, positions_world, trans);
-	Transform_Norms(norms, normals_world, trans);
+	transform_verts(verts, positions_world, trans);
+	transform_norms(norms, normals_world, trans);
 
 	// convert to longhand non indexed versions
 	int nTris = inds.size() / 3;
-	int nOldTris = m_Tris.size();
+	int nOldTris = _tris.size();
 	int nNewTris = nOldTris + nTris;
 
-	m_Tris.resize(nNewTris);
-	m_TriNormals.resize(nNewTris);
-	m_Tris_EdgeForm.resize(nNewTris);
-	m_TriPlanes.resize(nNewTris);
+	_tris.resize(nNewTris);
+	_tri_normals.resize(nNewTris);
+	_tris_edge_form.resize(nNewTris);
+	_tri_planes.resize(nNewTris);
 
-	m_UVTris.resize(nNewTris);
-	m_TriUVaabbs.resize(nNewTris);
-	m_TriPos_aabbs.resize(nNewTris);
-	m_Tri_TexelSizeWorldSpace.resize(nNewTris);
+	_uv_tris.resize(nNewTris);
+	_tri_uv_aabbs.resize(nNewTris);
+	_tri_pos_aabbs.resize(nNewTris);
+	_tri_texel_size_world_space.resize(nNewTris);
 
 	//m_Tri_MeshIDs.resize(nNewTris);
 	//m_Tri_SurfIDs.resize(nNewTris);
-	m_Tri_LMaterialIDs.resize(nNewTris);
-	m_UVTris_Primary.resize(nNewTris);
+	_tri_lmaterial_ids.resize(nNewTris);
+	_uv_tris_primary.resize(nNewTris);
 
 	// lmaterial
-	int lmat_id = m_Materials.FindOrCreateMaterial(mi, rmesh, surf_id);
+	int lmat_id = _materials.find_or_create_material(mi, rmesh, surf_id);
 
 	// emission tri?
 	bool bEmit = false;
 	if (lmat_id) {
-		bEmit = m_Materials.GetMaterial(lmat_id - 1).m_bEmitter;
+		bEmit = _materials.get_material(lmat_id - 1).is_emitter;
 	}
 
 	int num_bad_normals = 0;
@@ -634,18 +634,18 @@ bool LightScene::Create_FromMeshSurface(int mesh_id, int surf_id, Ref<Mesh> rmes
 		// adjusted n
 		int an = n + nOldTris;
 
-		Tri &t = m_Tris[an];
-		Tri &tri_norm = m_TriNormals[an];
-		Tri &tri_edge = m_Tris_EdgeForm[an];
-		Plane &tri_plane = m_TriPlanes[an];
-		UVTri &uvt = m_UVTris[an];
-		Rect2 &uv_rect = m_TriUVaabbs[an];
-		AABB &aabb = m_TriPos_aabbs[an];
+		Tri &t = _tris[an];
+		Tri &tri_norm = _tri_normals[an];
+		Tri &tri_edge = _tris_edge_form[an];
+		Plane &tri_plane = _tri_planes[an];
+		UVTri &uvt = _uv_tris[an];
+		Rect2 &uv_rect = _tri_uv_aabbs[an];
+		AABB &aabb = _tri_pos_aabbs[an];
 
 		//		m_Tri_MeshIDs[an] = mesh_id;
 		//		m_Tri_SurfIDs[an] = surf_id;
-		m_Tri_LMaterialIDs[an] = lmat_id;
-		UVTri &uvt_primary = m_UVTris_Primary[an];
+		_tri_lmaterial_ids[an] = lmat_id;
+		UVTri &uvt_primary = _uv_tris_primary[an];
 
 		int ind = inds[i];
 		uv_rect = Rect2(uvs[ind], Vector2(0, 0));
@@ -696,17 +696,17 @@ bool LightScene::Create_FromMeshSurface(int mesh_id, int surf_id, Ref<Mesh> rmes
 
 		// ALWAYS DO THE UV WINDING LAST!!
 		// make sure winding is standard in UV space
-		if (uvt.IsWindingCW()) {
-			uvt.FlipWinding();
-			t.FlipWinding();
-			tri_norm.FlipWinding();
+		if (uvt.is_winding_CW()) {
+			uvt.flip_winding();
+			t.flip_winding();
+			tri_norm.flip_winding();
 		}
 
 		if (bEmit) {
 			EmissionTri et;
 			et.tri_id = an;
-			et.area = t.CalculateArea();
-			m_EmissionTris.push_back(et);
+			et.area = t.calculate_area();
+			_emission_tris.push_back(et);
 		}
 
 #ifdef LLIGHTSCENE_VERBOSE
@@ -741,7 +741,7 @@ bool LightScene::Create_FromMeshSurface(int mesh_id, int surf_id, Ref<Mesh> rmes
 		// when it was active.
 		//uv_rect = uv_rect.expand(Vector2(0.01, 0.01));
 
-		CalculateTriTexelSize(an, width, height);
+		calculate_tri_texel_size(an, width, height);
 	}
 
 	if (num_bad_normals) {
@@ -751,15 +751,15 @@ bool LightScene::Create_FromMeshSurface(int mesh_id, int surf_id, Ref<Mesh> rmes
 	return true;
 }
 
-bool LightScene::Create_FromMesh(int mesh_id, int width, int height) {
-	const MeshInstance &mi = *m_Meshes[mesh_id];
+bool LightScene::create_from_mesh(int mesh_id, int width, int height) {
+	const MeshInstance &mi = *_meshes[mesh_id];
 
 	Ref<Mesh> rmesh = mi.get_mesh();
 
 	int num_surfaces = rmesh->get_surface_count();
 
 	for (int surf = 0; surf < num_surfaces; surf++) {
-		if (!Create_FromMeshSurface(mesh_id, surf, rmesh, width, height)) {
+		if (!create_from_mesh_surface(mesh_id, surf, rmesh, width, height)) {
 			String sz;
 			sz = "Mesh " + itos(mesh_id) + " surf " + itos(surf) + " cannot be converted.";
 			WARN_PRINT(sz);
@@ -769,34 +769,34 @@ bool LightScene::Create_FromMesh(int mesh_id, int width, int height) {
 	return true;
 }
 
-bool LightScene::Create(Spatial *pMeshesRoot, int width, int height, int voxel_density, int max_material_size, float emission_density) {
-	m_Materials.Prepare(max_material_size);
+bool LightScene::create(Spatial *pMeshesRoot, int width, int height, int voxel_density, int max_material_size, float emission_density) {
+	_materials.prepare(max_material_size);
 
-	m_bUseSIMD = true;
+	_use_SIMD = true;
 
-	FindMeshes(pMeshesRoot);
-	if (!m_Meshes.size())
+	find_meshes(pMeshesRoot);
+	if (!_meshes.size())
 		return false;
 
-	for (int n = 0; n < m_Meshes.size(); n++) {
-		if (!Create_FromMesh(n, width, height))
+	for (int n = 0; n < _meshes.size(); n++) {
+		if (!create_from_mesh(n, width, height))
 			return false;
 	}
 
-	m_Tracer.Create(*this, voxel_density);
+	_tracer.create(*this, voxel_density);
 
 	// adjust material emission power to take account of sample density,
 	// to keep brightness the same
-	m_Materials.AdjustMaterials(emission_density);
+	_materials.adjust_materials(emission_density);
 
 	return true;
 }
 
 // note this is assuming 1:1 aspect ratio lightmaps. This could do x and y size separately,
 // but more complex.
-void LightScene::CalculateTriTexelSize(int tri_id, int width, int height) {
-	const Tri &tri = m_Tris[tri_id];
-	const UVTri &uvtri = m_UVTris[tri_id];
+void LightScene::calculate_tri_texel_size(int tri_id, int width, int height) {
+	const Tri &tri = _tris[tri_id];
+	const UVTri &uvtri = _uv_tris[tri_id];
 
 	// length of edges in world space
 	float l0 = (tri.pos[1] - tri.pos[0]).length();
@@ -828,14 +828,14 @@ void LightScene::CalculateTriTexelSize(int tri_id, int width, int height) {
 			texel_size = l1 / tl1;
 	}
 
-	m_Tri_TexelSizeWorldSpace[tri_id] = texel_size;
+	_tri_texel_size_world_space[tri_id] = texel_size;
 }
 
-bool LightScene::FindEmissionColor(int tri_id, const Vector3 &bary, Color &texture_col, Color &col) {
+bool LightScene::find_emission_color(int tri_id, const Vector3 &bary, Color &texture_col, Color &col) {
 	Vector2 uvs;
-	m_UVTris_Primary[tri_id].FindUVBarycentric(uvs, bary.x, bary.y, bary.z);
+	_uv_tris_primary[tri_id].find_uv_barycentric(uvs, bary.x, bary.y, bary.z);
 
-	int mat_id_p1 = m_Tri_LMaterialIDs[tri_id];
+	int mat_id_p1 = _tri_lmaterial_ids[tri_id];
 
 	// should never happen?
 	if (!mat_id_p1) {
@@ -844,37 +844,37 @@ bool LightScene::FindEmissionColor(int tri_id, const Vector3 &bary, Color &textu
 		return false;
 	}
 
-	const LMaterial &mat = m_Materials.GetMaterial(mat_id_p1 - 1);
-	if (!mat.m_bEmitter)
+	const LMaterial &mat = _materials.get_material(mat_id_p1 - 1);
+	if (!mat.is_emitter)
 		return false;
 
 	// albedo
 	// return whether texture found
 	bool bTransparent;
-	bool res = m_Materials.FindColors(mat_id_p1, uvs, texture_col, bTransparent);
+	bool res = _materials.find_colors(mat_id_p1, uvs, texture_col, bTransparent);
 
-	texture_col *= mat.m_Col_Emission;
+	texture_col *= mat.color_emission;
 	//		power = mat.m_Power_Emission;
 
-	col = mat.m_Col_Emission;
+	col = mat.color_emission;
 	return res;
 }
 
-bool LightScene::FindAllTextureColors(int tri_id, const Vector3 &bary, Color &albedo, Color &emission, bool &bTransparent, bool &bEmitter) {
+bool LightScene::find_all_texture_colors(int tri_id, const Vector3 &bary, Color &albedo, Color &emission, bool &bTransparent, bool &bEmitter) {
 	Vector2 uvs;
-	m_UVTris_Primary[tri_id].FindUVBarycentric(uvs, bary.x, bary.y, bary.z);
+	_uv_tris_primary[tri_id].find_uv_barycentric(uvs, bary.x, bary.y, bary.z);
 
-	int mat_id_p1 = m_Tri_LMaterialIDs[tri_id];
+	int mat_id_p1 = _tri_lmaterial_ids[tri_id];
 
-	bool res = m_Materials.FindColors(mat_id_p1, uvs, albedo, bTransparent);
+	bool res = _materials.find_colors(mat_id_p1, uvs, albedo, bTransparent);
 
 	if (res) {
-		const LMaterial &mat = m_Materials.GetMaterial(mat_id_p1 - 1);
+		const LMaterial &mat = _materials.get_material(mat_id_p1 - 1);
 
 		// return whether emitter
-		bEmitter = mat.m_bEmitter;
+		bEmitter = mat.is_emitter;
 		//emission = albedo * mat.m_Col_Emission;
-		emission = mat.m_Col_Emission;
+		emission = mat.color_emission;
 	} else {
 		bEmitter = false;
 		emission = Color(0, 0, 0, 1);
@@ -883,13 +883,13 @@ bool LightScene::FindAllTextureColors(int tri_id, const Vector3 &bary, Color &al
 	return res;
 }
 
-bool LightScene::FindPrimaryTextureColors(int tri_id, const Vector3 &bary, Color &albedo, bool &bTransparent) {
+bool LightScene::find_primary_texture_colors(int tri_id, const Vector3 &bary, Color &albedo, bool &bTransparent) {
 	Vector2 uvs;
-	m_UVTris_Primary[tri_id].FindUVBarycentric(uvs, bary.x, bary.y, bary.z);
+	_uv_tris_primary[tri_id].find_uv_barycentric(uvs, bary.x, bary.y, bary.z);
 
-	int mat_id_p1 = m_Tri_LMaterialIDs[tri_id];
+	int mat_id_p1 = _tri_lmaterial_ids[tri_id];
 
-	return m_Materials.FindColors(mat_id_p1, uvs, albedo, bTransparent);
+	return _materials.find_colors(mat_id_p1, uvs, albedo, bTransparent);
 }
 
 void LightScene::thread_rasterize_triangle_ids(uint32_t p_tile, uint32_t *p_dummy) {
@@ -905,8 +905,8 @@ void LightScene::thread_rasterize_triangle_ids(uint32_t p_tile, uint32_t *p_dumm
 	//	   			}
 	//	}
 
-	int width = rtip.im_p1->GetWidth();
-	int height = rtip.im_p1->GetHeight();
+	int width = rtip.im_p1->get_width();
+	int height = rtip.im_p1->get_height();
 
 	int height_min = p_tile * rtip.tile_height;
 	int height_max = height_min + rtip.tile_height;
@@ -917,7 +917,7 @@ void LightScene::thread_rasterize_triangle_ids(uint32_t p_tile, uint32_t *p_dumm
 	height_min = CLAMP(height_min, 0, height);
 	height_max = CLAMP(height_max, 0, height);
 
-	for (int n = 0; n < m_UVTris.size(); n++) {
+	for (int n = 0; n < _uv_tris.size(); n++) {
 		//		if (base.bake_step_function && ((n % 4096) == 0)) {
 		//			bool cancel = base.bake_step_function(n / (float)m_UVTris.size(), String("Process UVTris: ") + " (" + itos(n) + ")");
 		//			if (cancel) {
@@ -929,7 +929,7 @@ void LightScene::thread_rasterize_triangle_ids(uint32_t p_tile, uint32_t *p_dumm
 		//		}
 
 		//const Rect2 &aabb = m_TriUVaabbs[n];
-		const UVTri &tri = m_UVTris[n];
+		const UVTri &tri = _uv_tris[n];
 
 		/*
 		int min_x = aabb.position.x * width;
@@ -944,7 +944,7 @@ void LightScene::thread_rasterize_triangle_ids(uint32_t p_tile, uint32_t *p_dumm
 		max_y++;
 		*/
 
-		const Rect2i &bound = m_TriUVbounds[n];
+		const Rect2i &bound = _tri_uv_bounds[n];
 
 		// clamp
 		int min_x = bound.min_x;
@@ -967,13 +967,13 @@ void LightScene::thread_rasterize_triangle_ids(uint32_t p_tile, uint32_t *p_dumm
 				//					print_line("testing");
 				//				}
 
-				if (tri.ContainsPoint(Vector2(s, t)))
+				if (tri.contains_point(Vector2(s, t)))
 				//if (tri.ContainsTexel(x, y, width , height))
 				{
-					if (rtip.base->m_Logic_Process_AO)
-						rtip.temp_image_tris.GetItem(x, y).push_back(n);
+					if (rtip.base->logic.process_AO)
+						rtip.temp_image_tris.get_item(x, y).push_back(n);
 
-					uint32_t &id_p1 = rtip.im_p1->GetItem(x, y);
+					uint32_t &id_p1 = rtip.im_p1->get_item(x, y);
 
 #ifdef LLIGHTMAP_DEBUG_RASTERIZE_OVERLAP
 					// hopefully this was 0 before
@@ -996,13 +996,13 @@ void LightScene::thread_rasterize_triangle_ids(uint32_t p_tile, uint32_t *p_dumm
 					float u, v, w;
 
 					// note this returns NAN for degenerate triangles!
-					tri.FindBarycentricCoords(Vector2(s, t), u, v, w);
+					tri.find_barycentric_coords(Vector2(s, t), u, v, w);
 
 					//					assert (!isnan(u));
 					//					assert (!isnan(v));
 					//					assert (!isnan(w));
 
-					Vector3 &bary = rtip.im_bary->GetItem(x, y);
+					Vector3 &bary = rtip.im_bary->get_item(x, y);
 					bary = Vector3(u, v, w);
 				}
 
@@ -1011,7 +1011,7 @@ void LightScene::thread_rasterize_triangle_ids(uint32_t p_tile, uint32_t *p_dumm
 	} // for tri
 
 	/*
-	if (base.m_Logic_Process_AO) {
+	if (base.logic.Process_AO) {
 		// translate temporary image vectors into mini lists
 		for (int y = 0; y < height; y++) {
 			for (int x = 0; x < width; x++) {
@@ -1044,21 +1044,21 @@ void LightScene::thread_rasterize_triangle_ids(uint32_t p_tile, uint32_t *p_dumm
 }
 
 //void LightScene::RasterizeTriangleIDs(LightMapper_Base &base, LightImage<uint32_t> &im_p1, LightImage<uint32_t> &im2_p1, LightImage<Vector3> &im_bary)
-bool LightScene::RasterizeTriangleIDs(LightMapper_Base &base, LightImage<uint32_t> &im_p1, LightImage<Vector3> &im_bary) {
-	int width = im_p1.GetWidth();
-	int height = im_p1.GetHeight();
+bool LightScene::rasterize_triangles_ids(LightMapper_Base &base, LightImage<uint32_t> &im_p1, LightImage<Vector3> &im_bary) {
+	int width = im_p1.get_width();
+	int height = im_p1.get_height();
 
 	// create a temporary image of vectors to store the triangles per texel
-	if (base.m_Logic_Process_AO)
-		_rasterize_triangle_id_params.temp_image_tris.Create(width, height, false);
+	if (base.logic.process_AO)
+		_rasterize_triangle_id_params.temp_image_tris.create(width, height, false);
 
 #ifndef NO_THREADS
 	//	#if 0
 	// First find tri min maxes in texture space.
-	m_TriUVbounds.resize(m_UVTris.size());
+	_tri_uv_bounds.resize(_uv_tris.size());
 
-	for (int n = 0; n < m_UVTris.size(); n++) {
-		const Rect2 &aabb = m_TriUVaabbs[n];
+	for (int n = 0; n < _uv_tris.size(); n++) {
+		const Rect2 &aabb = _tri_uv_aabbs[n];
 
 		int min_x = aabb.position.x * width;
 		int min_y = aabb.position.y * height;
@@ -1077,7 +1077,7 @@ bool LightScene::RasterizeTriangleIDs(LightMapper_Base &base, LightImage<uint32_
 		max_x = CLAMP(max_x, 0, width);
 		max_y = CLAMP(max_y, 0, height);
 
-		Rect2i &bound = m_TriUVbounds[n];
+		Rect2i &bound = _tri_uv_bounds[n];
 		bound.min_x = min_x;
 		bound.min_y = min_y;
 		bound.max_x = max_x;
@@ -1111,7 +1111,7 @@ bool LightScene::RasterizeTriangleIDs(LightMapper_Base &base, LightImage<uint32_
 	//	// create a temporary image of vectors to store the triangles per texel
 	//	LightImage<LocalVector<uint32_t>> temp_image_tris;
 
-	//	if (base.m_Logic_Process_AO)
+	//	if (base.logic.Process_AO)
 	//		temp_image_tris.Create(width, height, false);
 
 	for (int n = 0; n < m_UVTris.size(); n++) {
@@ -1162,7 +1162,7 @@ bool LightScene::RasterizeTriangleIDs(LightMapper_Base &base, LightImage<uint32_
 				if (tri.ContainsPoint(Vector2(s, t)))
 				//if (tri.ContainsTexel(x, y, width , height))
 				{
-					if (base.m_Logic_Process_AO)
+					if (base.logic.Process_AO)
 						_rasterize_triangle_id_params.temp_image_tris.GetItem(x, y).push_back(n);
 
 					uint32_t &id_p1 = im_p1.GetItem(x, y);
@@ -1204,17 +1204,17 @@ bool LightScene::RasterizeTriangleIDs(LightMapper_Base &base, LightImage<uint32_
 
 #endif
 
-	if (base.m_Logic_Process_AO) {
+	if (base.logic.process_AO) {
 		// translate temporary image vectors into mini lists
 		for (int y = 0; y < height; y++) {
 			for (int x = 0; x < width; x++) {
-				MiniList &ml = base.m_Image_TriIDs.GetItem(x, y);
-				ml.first = base.m_TriIDs.size();
+				MiniList &ml = base._image_tri_ids.get_item(x, y);
+				ml.first = base._tri_ids.size();
 
-				const LocalVector<uint32_t> &vec = _rasterize_triangle_id_params.temp_image_tris.GetItem(x, y);
+				const LocalVector<uint32_t> &vec = _rasterize_triangle_id_params.temp_image_tris.get_item(x, y);
 
 				for (int n = 0; n < vec.size(); n++) {
-					base.m_TriIDs.push_back(vec[n]);
+					base._tri_ids.push_back(vec[n]);
 					ml.num += 1;
 				}
 
@@ -1234,21 +1234,21 @@ bool LightScene::RasterizeTriangleIDs(LightMapper_Base &base, LightImage<uint32_
 		base.bake_end_function();
 	}
 
-	_rasterize_triangle_id_params.temp_image_tris.Reset();
+	_rasterize_triangle_id_params.temp_image_tris.reset();
 
 	//base.debug_save(im_p1, "imp1.png");
 
 	return true;
 }
 
-void LightScene::Transform_Verts(const PoolVector<Vector3> &ptsLocal, PoolVector<Vector3> &ptsWorld, const Transform &tr) const {
+void LightScene::transform_verts(const PoolVector<Vector3> &ptsLocal, PoolVector<Vector3> &ptsWorld, const Transform &tr) const {
 	for (int n = 0; n < ptsLocal.size(); n++) {
 		Vector3 ptWorld = tr.xform(ptsLocal[n]);
 		ptsWorld.push_back(ptWorld);
 	}
 }
 
-void LightScene::Transform_Norms(const PoolVector<Vector3> &normsLocal, PoolVector<Vector3> &normsWorld, const Transform &tr) const {
+void LightScene::transform_norms(const PoolVector<Vector3> &normsLocal, PoolVector<Vector3> &normsWorld, const Transform &tr) const {
 	int invalid_normals = 0;
 
 	for (int n = 0; n < normsLocal.size(); n++) {

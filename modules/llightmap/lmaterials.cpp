@@ -4,48 +4,48 @@
 
 namespace LM {
 
-void LMaterial::Destroy() {
-	if (pAlbedo) {
-		memdelete(pAlbedo);
-		pAlbedo = 0;
+void LMaterial::destroy() {
+	if (albedo) {
+		memdelete(albedo);
+		albedo = 0;
 	}
 }
 
 /////////////////////////////////
 
 LMaterials::LMaterials() {
-	m_uiMaxMaterialSize = 256;
+	_max_material_size = 256;
 }
 
 LMaterials::~LMaterials() {
-	Reset();
+	reset();
 }
 
-void LMaterials::Reset() {
-	for (int n = 0; n < m_Materials.size(); n++) {
-		m_Materials[n].Destroy();
+void LMaterials::reset() {
+	for (int n = 0; n < _materials.size(); n++) {
+		_materials[n].destroy();
 	}
 
-	m_Materials.clear(true);
+	_materials.clear(true);
 }
 
-void LMaterials::AdjustMaterials(float emission_density) {
+void LMaterials::adjust_materials(float emission_density) {
 	if (emission_density == 0.0f)
 		return;
 
 	float emission_multiplier = 1.0f / emission_density;
 
-	for (int n = 0; n < m_Materials.size(); n++) {
-		LMaterial &mat = m_Materials[n];
+	for (int n = 0; n < _materials.size(); n++) {
+		LMaterial &mat = _materials[n];
 
-		if (mat.m_bEmitter) {
-			mat.m_Power_Emission *= emission_multiplier;
-			mat.m_Col_Emission *= emission_multiplier;
+		if (mat.is_emitter) {
+			mat.power_emission *= emission_multiplier;
+			mat.color_emission *= emission_multiplier;
 		}
 	}
 }
 
-int LMaterials::FindOrCreateMaterial(const MeshInstance &mi, Ref<Mesh> rmesh, int surf_id) {
+int LMaterials::find_or_create_material(const MeshInstance &mi, Ref<Mesh> rmesh, int surf_id) {
 	Ref<Material> src_material;
 
 	// mesh instance has the material?
@@ -65,15 +65,15 @@ int LMaterials::FindOrCreateMaterial(const MeshInstance &mi, Ref<Mesh> rmesh, in
 		return 0;
 
 	// already exists?
-	for (int n = 0; n < m_Materials.size(); n++) {
-		if (m_Materials[n].pGodotMaterial == pSrcMaterial)
+	for (int n = 0; n < _materials.size(); n++) {
+		if (_materials[n].godot_material == pSrcMaterial)
 			return n + 1;
 	}
 
 	// doesn't exist create a new material
-	LMaterial *pMat = m_Materials.request();
-	pMat->Create();
-	pMat->pGodotMaterial = pSrcMaterial;
+	LMaterial *pMat = _materials.request();
+	pMat->create();
+	pMat->godot_material = pSrcMaterial;
 
 	// spatial material?
 	Ref<SpatialMaterial> spatial_mat = src_material;
@@ -91,24 +91,24 @@ int LMaterials::FindOrCreateMaterial(const MeshInstance &mi, Ref<Mesh> rmesh, in
 		emission_color = spatial_mat->get_emission();
 	} else {
 		// shader material?
-		Variant shader_tex = FindCustom_AlbedoTex(src_material);
+		Variant shader_tex = find_custom_albedo_tex(src_material);
 		albedo_tex = shader_tex;
 
 		// check the name of the material to allow emission
 		String szMat = src_material->get_path();
 		if (szMat.find(LM_STRING_TRANSPARENT) != -1) {
-			pMat->m_bTransparent = true;
+			pMat->is_transparent = true;
 		}
 
-		FindCustom_ShaderParams(src_material, emission, emission_color);
+		find_custom_shader_params(src_material, emission, emission_color);
 
 	} // not spatial mat
 
 	// emission
 	if (emission > 0.0f) {
-		pMat->m_bEmitter = true;
-		pMat->m_Power_Emission = emission / 1000.0f; // some constant to be comparable to lights
-		pMat->m_Col_Emission = emission_color * pMat->m_Power_Emission;
+		pMat->is_emitter = true;
+		pMat->power_emission = emission / 1000.0f; // some constant to be comparable to lights
+		pMat->color_emission = emission_color * pMat->power_emission;
 
 		// apply a modifier for the emission density. As the number of samples go up, the power per sample
 		// must reduce in order to prevent brightness changing.
@@ -117,7 +117,7 @@ int LMaterials::FindOrCreateMaterial(const MeshInstance &mi, Ref<Mesh> rmesh, in
 	Ref<Image> img_albedo;
 	if (albedo_tex.is_valid()) {
 		img_albedo = albedo_tex->get_data();
-		pMat->pAlbedo = _get_bake_texture(img_albedo, albedo, Color(0, 0, 0)); // albedo texture, color is multiplicative
+		pMat->albedo = _get_bake_texture(img_albedo, albedo, Color(0, 0, 0)); // albedo texture, color is multiplicative
 		//albedo_texture = _get_bake_texture(img_albedo, size, mat->get_albedo(), Color(0, 0, 0)); // albedo texture, color is multiplicative
 	} else {
 		//albedo_texture = _get_bake_texture(img_albedo, size, Color(1, 1, 1), mat->get_albedo()); // no albedo texture, color is additive
@@ -126,10 +126,10 @@ int LMaterials::FindOrCreateMaterial(const MeshInstance &mi, Ref<Mesh> rmesh, in
 	// emission?
 
 	// returns the new material ID plus 1
-	return m_Materials.size();
+	return _materials.size();
 }
 
-void LMaterials::FindCustom_ShaderParams(Ref<Material> src_material, float &emission, Color &emission_color) {
+void LMaterials::find_custom_shader_params(Ref<Material> src_material, float &emission, Color &emission_color) {
 	// defaults
 	emission = 0.0f;
 	emission_color = Color(1, 1, 1, 1);
@@ -148,7 +148,7 @@ void LMaterials::FindCustom_ShaderParams(Ref<Material> src_material, float &emis
 		emission_color = p_emission_color;
 }
 
-Variant LMaterials::FindCustom_AlbedoTex(Ref<Material> src_material) {
+Variant LMaterials::find_custom_albedo_tex(Ref<Material> src_material) {
 	Ref<ShaderMaterial> shader_mat = src_material;
 
 	if (!shader_mat.is_valid())
@@ -245,7 +245,7 @@ LTexture *LMaterials::_get_bake_texture(Ref<Image> p_image, const Color &p_color
 
 	bool bResize = false;
 	while (true) {
-		if ((w > m_uiMaxMaterialSize) || (h > m_uiMaxMaterialSize)) {
+		if ((w > _max_material_size) || (h > _max_material_size)) {
 			w /= 2;
 			h /= 2;
 			bResize = true;
@@ -285,7 +285,7 @@ LTexture *LMaterials::_get_bake_texture(Ref<Image> p_image, const Color &p_color
 	return lt;
 }
 
-void LTexture::Sample(const Vector2 &uv, Color &col) const {
+void LTexture::sample(const Vector2 &uv, Color &col) const {
 	// mod to surface (tiling)
 	float x = fmodf(uv.x, 1.0f);
 	float y = fmodf(uv.y, 1.0f);
@@ -311,7 +311,7 @@ void LTexture::Sample(const Vector2 &uv, Color &col) const {
 	col = colors[i];
 }
 
-bool LMaterials::FindColors(int mat_id, const Vector2 &uv, Color &albedo, bool &bTransparent) {
+bool LMaterials::find_colors(int mat_id, const Vector2 &uv, Color &albedo, bool &bTransparent) {
 	// mat_id is plus one
 	if (!mat_id) {
 		albedo = Color(1, 1, 1, 1);
@@ -320,18 +320,18 @@ bool LMaterials::FindColors(int mat_id, const Vector2 &uv, Color &albedo, bool &
 	}
 
 	mat_id--;
-	const LMaterial &mat = m_Materials[mat_id];
+	const LMaterial &mat = _materials[mat_id];
 
 	// return whether transparent
-	bTransparent = mat.m_bTransparent;
+	bTransparent = mat.is_transparent;
 
-	if (!mat.pAlbedo) {
+	if (!mat.albedo) {
 		albedo = Color(1, 1, 1, 1);
 		return false;
 	}
 
-	const LTexture &tex = *mat.pAlbedo;
-	tex.Sample(uv, albedo);
+	const LTexture &tex = *mat.albedo;
+	tex.sample(uv, albedo);
 	return true;
 }
 

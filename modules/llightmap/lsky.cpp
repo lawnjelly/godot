@@ -26,14 +26,14 @@ bool LSky::load_sky(String p_filename, float p_blur, int p_tex_size) {
 	int w = im->get_width();
 	int h = im->get_height();
 
-	_texture.Create(w, h);
+	_texture.create(w, h);
 
 	im->lock();
 
 	for (int y = 0; y < h; y++) {
 		for (int x = 0; x < w; x++) {
 			Color c = im->get_pixel(x, y);
-			_texture.GetItem(x, y).Set(c.r, c.g, c.b);
+			_texture.get_item(x, y).set(c.r, c.g, c.b);
 		}
 	}
 
@@ -57,18 +57,18 @@ bool LSky::load_sky(String p_filename, float p_blur, int p_tex_size) {
 }
 
 void LSky::unload_sky() {
-	_texture.Reset();
+	_texture.reset();
 	_active = false;
 }
 
 void LSky::_blur_horz(FColor *p_scan, const float *p_curve, int p_num_scan, LightImage<FColor> &p_output, int p_y) {
-	int w = _texture.GetWidth();
+	int w = _texture.get_width();
 
 	// horizontal
 	// prime
 	int count = 0;
 	FColor average;
-	average.Set(0.0);
+	average.set(0.0);
 
 	for (int x = -(_blur_pixels); x < _blur_pixels; x++) {
 		p_scan[count] = _blur_read_x(x, p_y);
@@ -77,7 +77,7 @@ void LSky::_blur_horz(FColor *p_scan, const float *p_curve, int p_num_scan, Ligh
 		average += p_scan[count];
 		count++;
 	}
-	p_scan[p_num_scan - 1].Set(0.0);
+	p_scan[p_num_scan - 1].set(0.0);
 
 	// next write
 	int scan_pointer = p_num_scan - 1;
@@ -96,18 +96,18 @@ void LSky::_blur_horz(FColor *p_scan, const float *p_curve, int p_num_scan, Ligh
 
 		// write output
 		//p_output.GetItem(x, p_y) = average / p_num_scan;
-		p_output.GetItem(x, p_y) = _gaussian_blur(p_scan, p_num_scan, scan_pointer, p_curve);
+		p_output.get_item(x, p_y) = _gaussian_blur(p_scan, p_num_scan, scan_pointer, p_curve);
 	}
 }
 
 void LSky::_blur_vert(FColor *p_scan, const float *p_curve, int p_num_scan, LightImage<FColor> &p_output, int p_x) {
-	int h = _texture.GetHeight();
+	int h = _texture.get_height();
 
 	// horizontal
 	// prime
 	int count = 0;
 	FColor average;
-	average.Set(0.0);
+	average.set(0.0);
 
 	for (int y = -(_blur_pixels); y < _blur_pixels; y++) {
 		p_scan[count] = _blur_read_y(p_x, y);
@@ -116,7 +116,7 @@ void LSky::_blur_vert(FColor *p_scan, const float *p_curve, int p_num_scan, Ligh
 		average += p_scan[count];
 		count++;
 	}
-	p_scan[p_num_scan - 1].Set(0.0);
+	p_scan[p_num_scan - 1].set(0.0);
 
 	// next write
 	int scan_pointer = p_num_scan - 1;
@@ -135,16 +135,16 @@ void LSky::_blur_vert(FColor *p_scan, const float *p_curve, int p_num_scan, Ligh
 
 		// write output
 		//		p_output.GetItem(p_x, y) = average / p_num_scan;
-		p_output.GetItem(p_x, y) = _gaussian_blur(p_scan, p_num_scan, scan_pointer, p_curve);
+		p_output.get_item(p_x, y) = _gaussian_blur(p_scan, p_num_scan, scan_pointer, p_curve);
 	}
 }
 
 void LSky::_blur() {
-	int w = _texture.GetWidth();
-	int h = _texture.GetHeight();
+	int w = _texture.get_width();
+	int h = _texture.get_height();
 
 	LightImage<FColor> output;
-	output.Create(w, h);
+	output.create(w, h);
 
 	int num_scan = (_blur_pixels * 2) + 1;
 
@@ -158,14 +158,14 @@ void LSky::_blur() {
 	}
 
 	// copy the intermediate output to the texture
-	output.CopyTo(_texture);
+	output.copy_to(_texture);
 
 	for (int x = 0; x < w; x++) {
 		_blur_vert(scan, curve, num_scan, output, x);
 	}
 
 	// copy the intermediate output to the texture
-	output.CopyTo(_texture);
+	output.copy_to(_texture);
 }
 
 void LSky::_create_curve(float *p_curve, int p_num_scan) {
@@ -190,16 +190,16 @@ void LSky::_create_curve(float *p_curve, int p_num_scan) {
 }
 
 void LSky::_adjust_brightness() {
-	int w = _texture.GetWidth();
-	int h = _texture.GetHeight();
+	int w = _texture.get_width();
+	int h = _texture.get_height();
 
 	// normalize at the same time, to an average per pixel value
 	FColor total;
-	total.Set(0.0);
+	total.set(0.0);
 
 	for (int y = 0; y < h; y++) {
 		for (int x = 0; x < w; x++) {
-			total += _texture.GetItem(x, y);
+			total += _texture.get_item(x, y);
 		}
 	}
 
@@ -212,14 +212,14 @@ void LSky::_adjust_brightness() {
 
 	for (int y = 0; y < h; y++) {
 		for (int x = 0; x < w; x++) {
-			_texture.GetItem(x, y) *= brightness;
+			_texture.get_item(x, y) *= brightness;
 		}
 	}
 }
 
 void LSky::_debug_save() {
-	int w = _texture.GetWidth();
-	int h = _texture.GetHeight();
+	int w = _texture.get_width();
+	int h = _texture.get_height();
 
 	Ref<Image> im;
 	im.instance();
@@ -230,7 +230,7 @@ void LSky::_debug_save() {
 
 	for (int y = 0; y < h; y++) {
 		for (int x = 0; x < w; x++) {
-			const FColor &c = _texture.GetItem(x, y);
+			const FColor &c = _texture.get_item(x, y);
 			im->set_pixel(x, y, Color(c.r, c.g, c.b, 1.0));
 		}
 	}
@@ -264,8 +264,8 @@ void LSky::read_sky(const Vector3 &ptDir, FColor &color) {
 }
 
 FColor LSky::_bilinear_sample(const Vector2 &p_uv, bool p_clamp_x, bool p_clamp_y) {
-	int width = _texture.GetWidth();
-	int height = _texture.GetHeight();
+	int width = _texture.get_width();
+	int height = _texture.get_height();
 
 	Vector2 uv;
 	uv.x = p_clamp_x ? p_uv.x : Math::fposmod(p_uv.x, 1.0f);
@@ -285,23 +285,23 @@ FColor LSky::_bilinear_sample(const Vector2 &p_uv, bool p_clamp_x, bool p_clamp_
 		sample_x = CLAMP(sample_x, 0, width - 1);
 		sample_y = CLAMP(sample_y, 0, height - 1);
 
-		texels[i] = _texture.GetItem(sample_x, sample_y);
+		texels[i] = _texture.get_item(sample_x, sample_y);
 	}
 
 	float tx = xf - xi;
 	float ty = yf - yi;
 
 	FColor c;
-	c.Set(0);
+	c.set(0);
 	//	for (int i = 0; i < 4; i++) {
 	FColor a = texels[0];
-	a.Lerp(texels[1], tx);
+	a.lerp(texels[1], tx);
 
 	FColor b = texels[2];
-	b.Lerp(texels[3], tx);
+	b.lerp(texels[3], tx);
 
 	c = a;
-	c.Lerp(b, ty);
+	c.lerp(b, ty);
 
 	//		c[i] = Math::lerp(Math::lerp(texels[0][i], texels[1][i], tx), Math::lerp(texels[2][i], texels[3][i], tx), ty);
 	//	}

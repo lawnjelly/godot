@@ -11,85 +11,85 @@ public:
 	bool uv_map_meshes(Spatial *pRoot);
 
 private:
-	bool LightmapMesh(Spatial *pMeshesRoot, const Spatial &light_root, Image &out_image_lightmap, Image &out_image_ao, Image &out_image_combined);
-	void Reset();
+	bool _lightmap_mesh(Spatial *pMeshesRoot, const Spatial &light_root, Image &out_image_lightmap, Image &out_image_ao, Image &out_image_combined);
+	void reset();
 
 private:
 	// forward tracing
-	void ProcessLights();
-	void ProcessLight(int light_id, int num_rays);
+	void process_lights();
+	void process_light(int light_id, int num_rays);
 
-	void ProcessEmissionTris();
-	void ProcessEmissionTris_Section(float fraction_of_total);
-	void ProcessEmissionTri(int etri_id, float fraction_of_total);
+	void process_emission_tris();
+	void process_emission_tris_section(float fraction_of_total);
+	void process_emission_tri(int etri_id, float fraction_of_total);
 
 	// ambient bounces
-	void DoAmbientBounces();
-	void ProcessTexels_AmbientBounce(int section_size, int num_sections);
-	void ProcessTexels_AmbientBounce_Line_MT(uint32_t offset_y, int start_y);
-	FColor ProcessTexel_AmbientBounce(int x, int y);
-	bool ProcessTexel_AmbientBounce_Sample(const Vector3 &plane_norm, const Vector3 &ray_origin, FColor &total_col);
+	void do_ambient_bounces();
+	void process_texels_ambient_bounce(int section_size, int num_sections);
+	void process_texels_ambient_bounce_line_MT(uint32_t offset_y, int start_y);
+	FColor process_texel_ambient_bounce(int x, int y);
+	bool process_texel_ambient_bounce_sample(const Vector3 &plane_norm, const Vector3 &ray_origin, FColor &total_col);
 
 	// backward tracing
-	void ProcessTexels();
-	void ProcessTexel_Line_MT(uint32_t offset_y, int start_y);
+	void backward_process_texels();
+	void backward_process_texel_line_MT(uint32_t offset_y, int start_y);
 
 	// backward forward tracing
-	void BF_ProcessTexel(int tx, int ty);
-	void BF_ProcessTexel_Light(const Color &orig_albedo, int light_id, const Vector3 &ptSource, const Vector3 &orig_face_normal, const Vector3 &orig_vertex_normal, FColor &color, int nSamples); //, uint32_t tri_ignore);
-	void BF_ProcessTexel_LightBounce(int bounces_left, Ray r, FColor ray_color);
+	void BF_process_texel(int tx, int ty);
+	void BF_process_texel_light(const Color &orig_albedo, int light_id, const Vector3 &ptSource, const Vector3 &orig_face_normal, const Vector3 &orig_vertex_normal, FColor &color, int nSamples); //, uint32_t tri_ignore);
+	void BF_process_texel_light_bounce(int bounces_left, Ray r, FColor ray_color);
 
-	bool BF_ProcessTexel_Sky(const Color &orig_albedo, const Vector3 &ptSource, const Vector3 &orig_face_normal, const Vector3 &orig_vertex_normal, FColor &color);
+	bool BF_process_texel_sky(const Color &orig_albedo, const Vector3 &ptSource, const Vector3 &orig_face_normal, const Vector3 &orig_vertex_normal, FColor &color);
 
-	bool BounceRay(Ray &r, const Vector3 &face_normal, bool apply_epsilon = true);
+	bool bounce_ray(Ray &r, const Vector3 &face_normal, bool apply_epsilon = true);
 
 	// new backward tracing experiment, by triangle
-	void Backward_TraceTriangles();
-	void Backward_TraceTriangle(int tri_id);
-	void Backward_TraceSample(int tri_id);
+	void backward_trace_triangles();
+	void backward_trace_triangle(int tri_id);
+	void backward_trace_sample(int tri_id);
 
 	// multithread safe. This must prevent against several threads trying to access the same texel
 	// at once. This will be rare but must be prevented.
-	void MT_SafeAddToTexel(int tx, int ty, const FColor &col) {
+	void MT_safe_add_to_texel(int tx, int ty, const FColor &col) {
 		// not yet thread safe
-		FColor *pTexel = m_Image_L.Get(tx, ty);
+		FColor *pTexel = _image_L.get(tx, ty);
 		if (!pTexel)
 			return;
 
-		m_Atomic.AtomicAddCol(tx, *pTexel, col);
+		_atomic.AtomicAddCol(tx, *pTexel, col);
 		//*pTexel += col;
 	}
 
 	// light probes
-	void ProcessLightProbes();
+	void process_light_probes();
 
 public:
 	// encapsulate a single backward trace to a light, because this will be useful for light probes as well as backward tracing
-	bool Probe_SampleToLight(const LLight &light, const Vector3 &ptProbe, float &multiplier, bool &disallow_sample);
+	bool probe_sample_to_light(const LLight &light, const Vector3 &ptProbe, float &multiplier, bool &disallow_sample);
 
-	bool Light_RandomSample(const LLight &light, const Vector3 &ptSurf, Ray &ray, Vector3 &ptLight, float &ray_length, float &multiplier) const;
+	bool light_random_sample(const LLight &light, const Vector3 &ptSurf, Ray &ray, Vector3 &ptLight, float &ray_length, float &multiplier) const;
 
 	//bool Process_BackwardSample_Light(const LLight &light, const Vector3 &ptSource, const Vector3 &ptNormal, FColor &color, float power, float &multiplier, bool bTestLightToSample);
 
-	FColor Probe_CalculateIndirectLight(const Vector3 &pos);
+	FColor probe_calculate_indirect_light(const Vector3 &pos);
 
 private:
-	void Refresh_Process_State();
+	void refresh_process_state();
 	//	const int m_iRaysPerSection = 1024 * 1024 * 4; // 64
-	const int m_iRaysPerSection = 1024 * 64; // 64
+	const int RAYS_PER_SECTION = 1024 * 64; // 64
 	// 1024*1024 is 46 megs
 };
 
-bool LightMapper::Probe_SampleToLight(const LLight &light, const Vector3 &ptProbe, float &multiplier, bool &disallow_sample) {
+bool LightMapper::probe_sample_to_light(const LLight &light, const Vector3 &ptProbe, float &multiplier, bool &disallow_sample) {
 	Ray r;
 	Vector3 ptLight;
 	float ray_length;
-	if (!Light_RandomSample(light, ptProbe, r, ptLight, ray_length, multiplier))
+	if (!light_random_sample(light, ptProbe, r, ptLight, ray_length, multiplier))
 		return false;
 
 	// if there is no clear path from the light to the the light sample point, we disallow the sample
 	// but not for directional lights as only the direction matters for these, not the origin
-	if ((light.type != LLight::LT_DIRECTIONAL) && m_Scene.TestIntersect_Line(light.pos, ptLight)) {
+	if ((light.type != LLight::LT_DIRECTIONAL) && _scene.test_intersect_line(light.pos, ptLight)) {
 		disallow_sample = true;
 		return false;
 	}
@@ -97,7 +97,7 @@ bool LightMapper::Probe_SampleToLight(const LLight &light, const Vector3 &ptProb
 	disallow_sample = false;
 
 	// just an intersect test for now
-	if (m_Scene.TestIntersect_Line(ptProbe, ptLight))
+	if (_scene.test_intersect_line(ptProbe, ptLight))
 		return false;
 
 	return true;
@@ -296,7 +296,7 @@ bool LightMapper::Process_BackwardSample_Light(const LLight &light, const Vector
 					const Tri &triangle = m_Scene.m_Tris[tri];
 					triangle.InterpolateBarycentric(pos, u, v, w);
 
-					float push = -m_Settings_SurfaceBias;
+					float push = -settings.SurfaceBias;
 					if (bBackFace) push = -push;
 
 					r.o = pos + (face_normal * push);

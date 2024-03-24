@@ -16,16 +16,16 @@ protected:
 
 	enum { MAX_COMPLEX_AO_TEXEL_SAMPLES = 16 };
 
-	void ProcessAO();
-	void ProcessAO_LineMT(uint32_t y_offset, int y_section_start);
-	void ProcessAO_Texel(int tx, int ty, int qmc_variation);
-	float CalculateAO(int tx, int ty, int qmc_variation, const MiniList &ml);
-	float CalculateAO_Complex(int tx, int ty, int qmc_variation, const MiniList &ml);
+	void process_AO();
+	void process_AO_line_MT(uint32_t y_offset, int y_section_start);
+	void process_AO_texel(int tx, int ty, int qmc_variation);
+	float calculate_AO(int tx, int ty, int qmc_variation, const MiniList &ml);
+	float calculate_AO_complex(int tx, int ty, int qmc_variation, const MiniList &ml);
 
 private:
-	int AO_FindSamplePoints(int tx, int ty, const MiniList &ml, AOSample samples[MAX_COMPLEX_AO_TEXEL_SAMPLES]);
+	int AO_find_sample_points(int tx, int ty, const MiniList &ml, AOSample samples[MAX_COMPLEX_AO_TEXEL_SAMPLES]);
 
-	void AO_RandomTexelSample(Vector2 &st, int tx, int ty, int n) const {
+	void AO_random_texel_sample(Vector2 &st, int tx, int ty, int n) const {
 		if (n) {
 			st.x = Math::randf() + tx;
 			st.y = Math::randf() + ty;
@@ -36,21 +36,21 @@ private:
 		}
 
 		// has to be ranged 0 to 1
-		st.x /= m_iWidth;
-		st.y /= m_iHeight;
+		st.x /= _width;
+		st.y /= _height;
 	}
 
-	bool AO_FindTexelTriangle(const MiniList &ml, const Vector2 &st, uint32_t &tri_inside, Vector3 &bary) const {
+	bool AO_find_texel_triangle(const MiniList &ml, const Vector2 &st, uint32_t &tri_inside, Vector3 &bary) const {
 		// barycentric coords.
 		const UVTri *pUVTri;
 
 		for (uint32_t i = 0; i < ml.num; i++) {
-			tri_inside = m_TriIDs[ml.first + i];
-			pUVTri = &m_Scene.m_UVTris[tri_inside];
+			tri_inside = _tri_ids[ml.first + i];
+			pUVTri = &_scene._uv_tris[tri_inside];
 
 			// within?
-			pUVTri->FindBarycentricCoords(st, bary);
-			if (BarycentricInside(bary)) {
+			pUVTri->find_barycentric_coords(st, bary);
+			if (barycentric_inside(bary)) {
 				return true;
 			}
 		}
@@ -59,10 +59,10 @@ private:
 		return false;
 	}
 
-	void AO_RandomQMCDirection(Vector3 &dir, const Vector3 &ptNormal, int n, int qmc_variation) const {
-		Vector3 push = ptNormal * m_Settings_SurfaceBias; //0.005f;
+	void AO_random_QMC_direction(Vector3 &dir, const Vector3 &ptNormal, int n, int qmc_variation) const {
+		Vector3 push = ptNormal * settings.surface_bias; //0.005f;
 
-		m_QMC.QMCRandomUnitDir(dir, n, qmc_variation);
+		_QMC.QMC_random_unit_dir(dir, n, qmc_variation);
 
 		// clip?
 		float dot = dir.dot(ptNormal);
@@ -76,14 +76,14 @@ private:
 		dir.normalize();
 	}
 
-	void AO_RandomQMCRay(Ray &r, const Vector3 &ptNormal, int n, int qmc_variation) const {
-		Vector3 push = ptNormal * m_Settings_SurfaceBias; // 0.005f;
+	void AO_random_QMC_ray(Ray &r, const Vector3 &ptNormal, int n, int qmc_variation) const {
+		Vector3 push = ptNormal * settings.surface_bias; // 0.005f;
 
 		// push ray origin
 		r.o += push;
 
 		//		RandomUnitDir(r.d);
-		m_QMC.QMCRandomUnitDir(r.d, n, qmc_variation);
+		_QMC.QMC_random_unit_dir(r.d, n, qmc_variation);
 
 		// clip?
 		float dot = r.d.dot(ptNormal);
@@ -101,14 +101,14 @@ private:
 		r.d.normalize();
 	}
 
-	void AO_FindSamplesRandomRay(Ray &r, const Vector3 &ptNormal) const {
-		//Vector3 push = ptNormal * m_Settings_AO_ReverseBias; //0.005f;
-		Vector3 push = ptNormal * m_Settings_SurfaceBias; //0.005f;
+	void AO_find_samples_random_ray(Ray &r, const Vector3 &ptNormal) const {
+		//Vector3 push = ptNormal * settings.AO_ReverseBias; //0.005f;
+		Vector3 push = ptNormal * settings.surface_bias; //0.005f;
 
 		// push ray origin
 		r.o -= push;
 
-		RandomUnitDir(r.d);
+		generate_random_unit_dir(r.d);
 
 		// clip?
 		float dot = r.d.dot(ptNormal);

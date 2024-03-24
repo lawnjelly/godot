@@ -15,23 +15,23 @@ class QMC {
 	};
 
 	struct Group {
-		LVector<Sample> m_Samples;
+		LVector<Sample> samples;
 	};
 
 public:
-	void Create(int num_samples);
-	void QMCRandomUnitDir(Vector3 &dir, int count, int variation) const {
-		dir = m_Group.m_Samples[count].dir[variation];
+	void create(int num_samples);
+	void QMC_random_unit_dir(Vector3 &dir, int count, int variation) const {
+		dir = _group.samples[count].dir[variation];
 	}
-	int GetNextVariation(int previous) const;
-	int RandomVariation() const;
+	int get_next_variation(int previous) const;
+	int random_variation() const;
 
 private:
-	void GenerateVariation(Group &group, int var);
-	void RandomUnitDir(Vector3 &dir) const;
+	void generate_variation(Group &group, int var);
+	void random_unit_dir(Vector3 &dir) const;
 
-	int m_CurrentVariation;
-	Group m_Group;
+	int _current_variation;
+	Group _group;
 };
 
 } //namespace LM

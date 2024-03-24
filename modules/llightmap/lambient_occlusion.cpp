@@ -3,16 +3,16 @@
 
 namespace LM {
 
-void AmbientOcclusion::ProcessAO_Texel(int tx, int ty, int qmc_variation) {
+void AmbientOcclusion::process_AO_texel(int tx, int ty, int qmc_variation) {
 	//	if ((tx == 77) && (ty == 221))
 	//		print_line("test");
 
-	const MiniList &ml = m_Image_TriIDs.GetItem(tx, ty);
+	const MiniList &ml = _image_tri_ids.get_item(tx, ty);
 	if (!ml.num)
 		return; // no triangles in this UV
 
 	// could be off the image
-	float *pfTexel = m_Image_AO.Get(tx, ty);
+	float *pfTexel = _image_AO.get(tx, ty);
 
 	float power = 0.0f;
 
@@ -20,38 +20,38 @@ void AmbientOcclusion::ProcessAO_Texel(int tx, int ty, int qmc_variation) {
 	if (1)
 	//	if (!m_Image_Cuts.GetItem(tx, ty))
 	{
-		power = CalculateAO(tx, ty, qmc_variation, ml);
+		power = calculate_AO(tx, ty, qmc_variation, ml);
 	} else {
-		power = CalculateAO_Complex(tx, ty, qmc_variation, ml);
+		power = calculate_AO_complex(tx, ty, qmc_variation, ml);
 	}
 
 	*pfTexel = power;
 }
 
-void AmbientOcclusion::ProcessAO() {
+void AmbientOcclusion::process_AO() {
 	//	if (bake_begin_function) {
 	//		bake_begin_function(m_iHeight);
 	//	}
 
 	// find the max range in voxels. This can be used to speed up the ray trace
-	const float range = m_Settings_AO_Range;
-	m_Scene.m_Tracer.GetDistanceInVoxels(range, m_Scene.m_VoxelRange);
+	const float range = settings.AO_range;
+	_scene._tracer.get_distance_in_voxels(range, _scene._voxel_range);
 
 #define LAMBIENT_OCCLUSION_USE_THREADS
 #ifdef LAMBIENT_OCCLUSION_USE_THREADS
 	//	int nCores = OS::get_singleton()->get_processor_count();
-	int nSections = m_iHeight / 64;
+	int nSections = _height / 64;
 	if (!nSections)
 		nSections = 1;
-	int y_section_size = m_iHeight / nSections;
+	int y_section_size = _height / nSections;
 	int leftover_start = y_section_size * nSections;
 
 	for (int s = 0; s < nSections; s++) {
 		int y_section_start = s * y_section_size;
 
 		if (bake_step_function) {
-			m_bCancel = bake_step_function(y_section_start / (float)m_iHeight, String("Process Texels: ") + " (" + itos(y_section_start) + ")");
-			if (m_bCancel) {
+			_pressed_cancel = bake_step_function(y_section_start / (float)_height, String("Process Texels: ") + " (" + itos(y_section_start) + ")");
+			if (_pressed_cancel) {
 				if (bake_end_function) {
 					bake_end_function();
 				}
@@ -59,14 +59,14 @@ void AmbientOcclusion::ProcessAO() {
 			}
 		}
 
-		thread_process_array(y_section_size, this, &AmbientOcclusion::ProcessAO_LineMT, y_section_start);
+		thread_process_array(y_section_size, this, &AmbientOcclusion::process_AO_line_MT, y_section_start);
 	}
 
 	// leftovers
-	int nLeftover = m_iHeight - leftover_start;
+	int nLeftover = _height - leftover_start;
 
 	if (nLeftover)
-		thread_process_array(nLeftover, this, &AmbientOcclusion::ProcessAO_LineMT, leftover_start);
+		thread_process_array(nLeftover, this, &AmbientOcclusion::process_AO_line_MT, leftover_start);
 #else
 
 	for (int y = 0; y < m_iHeight; y++) {
@@ -91,24 +91,24 @@ void AmbientOcclusion::ProcessAO() {
 	}
 }
 
-void AmbientOcclusion::ProcessAO_LineMT(uint32_t y_offset, int y_section_start) {
+void AmbientOcclusion::process_AO_line_MT(uint32_t y_offset, int y_section_start) {
 	int ty = y_section_start + y_offset;
 
 	// seed based on the line
-	int qmc_variation = m_QMC.RandomVariation();
+	int qmc_variation = _QMC.random_variation();
 
-	for (int x = 0; x < m_iWidth; x++) {
-		qmc_variation = m_QMC.GetNextVariation(qmc_variation);
-		ProcessAO_Texel(x, ty, qmc_variation);
+	for (int x = 0; x < _width; x++) {
+		qmc_variation = _QMC.get_next_variation(qmc_variation);
+		process_AO_texel(x, ty, qmc_variation);
 	}
 }
 
-float AmbientOcclusion::CalculateAO(int tx, int ty, int qmc_variation, const MiniList &ml) {
+float AmbientOcclusion::calculate_AO(int tx, int ty, int qmc_variation, const MiniList &ml) {
 	Ray r;
-	int nSamples = m_AdjustedSettings.m_AO_Samples;
+	int nSamples = adjusted_settings.num_AO_samples;
 
 	// find the max range in voxels. This can be used to speed up the ray trace
-	Vec3i voxel_range = m_Scene.m_VoxelRange;
+	Vec3i voxel_range = _scene._voxel_range;
 
 	int nHits = 0;
 	int nSamplesInside = 0;
@@ -116,29 +116,29 @@ float AmbientOcclusion::CalculateAO(int tx, int ty, int qmc_variation, const Min
 	for (int n = 0; n < nSamples; n++) {
 		// pick a float position within the texel
 		Vector2 st;
-		AO_RandomTexelSample(st, tx, ty, n);
+		AO_random_texel_sample(st, tx, ty, n);
 
 		// find which triangle on the minilist we are inside (if any)
 		uint32_t tri_inside_id;
 		Vector3 bary;
-		if (!AO_FindTexelTriangle(ml, st, tri_inside_id, bary))
+		if (!AO_find_texel_triangle(ml, st, tri_inside_id, bary))
 			continue;
 
 		nSamplesInside++;
 
 		// calculate world position ray origin from barycentric
-		m_Scene.m_Tris[tri_inside_id].InterpolateBarycentric(r.o, bary);
+		_scene._tris[tri_inside_id].interpolate_barycentric(r.o, bary);
 
 		// calculate surface normal (should be use plane?)
 		Vector3 ptNormal;
-		m_Scene.m_TriNormals[tri_inside_id].InterpolateBarycentric(ptNormal, bary);
+		_scene._tri_normals[tri_inside_id].interpolate_barycentric(ptNormal, bary);
 		//const Vector3 &ptNormal = m_Scene.m_TriPlanes[tri_inside_id].normal;
 
 		// construct a random ray to test
-		AO_RandomQMCRay(r, ptNormal, n, qmc_variation);
+		AO_random_QMC_ray(r, ptNormal, n, qmc_variation);
 
 		// test ray
-		if (m_Scene.TestIntersect_Ray(r, m_Settings_AO_Range, voxel_range)) {
+		if (_scene.test_intersect_ray(r, settings.AO_range, voxel_range)) {
 			nHits++;
 		}
 
@@ -153,15 +153,15 @@ float AmbientOcclusion::CalculateAO(int tx, int ty, int qmc_variation, const Min
 	return fTotal;
 }
 
-float AmbientOcclusion::CalculateAO_Complex(int tx, int ty, int qmc_variation, const MiniList &ml) {
+float AmbientOcclusion::calculate_AO_complex(int tx, int ty, int qmc_variation, const MiniList &ml) {
 	// first we need to identify some sample points
 	AOSample samples[MAX_COMPLEX_AO_TEXEL_SAMPLES];
-	int nSampleLocs = AO_FindSamplePoints(tx, ty, ml, samples);
+	int nSampleLocs = AO_find_sample_points(tx, ty, ml, samples);
 
 	// if no good samples locs found
 	if (!nSampleLocs) {
 		// set to dilate
-		m_Image_ID_p1.GetItem(tx, ty) = 0;
+		_image_ID_p1.get_item(tx, ty) = 0;
 		return 0.5f; // 0.5 could use an intermediate value for texture filtering to look better?
 	}
 
@@ -169,7 +169,7 @@ float AmbientOcclusion::CalculateAO_Complex(int tx, int ty, int qmc_variation, c
 	int nHits = 0;
 	Ray r;
 
-	for (int n = 0; n < m_Settings_AO_Samples; n++) {
+	for (int n = 0; n < settings.AO_samples; n++) {
 		// get the sample to look from
 		const AOSample &sample = samples[sample_counter++];
 
@@ -180,15 +180,15 @@ float AmbientOcclusion::CalculateAO_Complex(int tx, int ty, int qmc_variation, c
 		r.o = sample.pos;
 
 		// construct a random ray to test
-		AO_RandomQMCDirection(r.d, sample.normal, n, qmc_variation);
+		AO_random_QMC_direction(r.d, sample.normal, n, qmc_variation);
 
 		// test ray
-		if (m_Scene.TestIntersect_Ray(r, m_Settings_AO_Range, m_Scene.m_VoxelRange)) {
+		if (_scene.test_intersect_ray(r, settings.AO_range, _scene._voxel_range)) {
 			nHits++;
 		}
 	} // for n
 
-	float fTotal = (float)nHits / m_Settings_AO_Samples;
+	float fTotal = (float)nHits / settings.AO_samples;
 	fTotal = 1.0f - (fTotal * 1.0f);
 
 	if (fTotal < 0.0f)
@@ -197,12 +197,12 @@ float AmbientOcclusion::CalculateAO_Complex(int tx, int ty, int qmc_variation, c
 	return fTotal;
 }
 
-int AmbientOcclusion::AO_FindSamplePoints(int tx, int ty, const MiniList &ml, AOSample samples[MAX_COMPLEX_AO_TEXEL_SAMPLES]) {
+int AmbientOcclusion::AO_find_sample_points(int tx, int ty, const MiniList &ml, AOSample samples[MAX_COMPLEX_AO_TEXEL_SAMPLES]) {
 	int samples_found = 0;
-	int attempts = m_Settings_AO_Samples + 64;
+	int attempts = settings.AO_samples + 64;
 
 	// scale number of sample points roughly to the user interface quality
-	int num_desired_samples = m_Settings_AO_Samples;
+	int num_desired_samples = settings.AO_samples;
 	if (num_desired_samples > MAX_COMPLEX_AO_TEXEL_SAMPLES)
 		num_desired_samples = MAX_COMPLEX_AO_TEXEL_SAMPLES;
 
@@ -210,28 +210,28 @@ int AmbientOcclusion::AO_FindSamplePoints(int tx, int ty, const MiniList &ml, AO
 
 	for (int n = 0; n < attempts; n++) {
 		Vector2 st;
-		AO_RandomTexelSample(st, tx, ty, 10);
+		AO_random_texel_sample(st, tx, ty, 10);
 
 		// find which triangle on the minilist we are inside (if any)
 		uint32_t tri_inside_id;
 		Vector3 bary;
 
-		if (!AO_FindTexelTriangle(ml, st, tri_inside_id, bary))
+		if (!AO_find_texel_triangle(ml, st, tri_inside_id, bary))
 			continue; // not inside a triangle, failed this attempt
 
 		// calculate world position ray origin from barycentric
 		Vector3 pos;
-		m_Scene.m_Tris[tri_inside_id].InterpolateBarycentric(pos, bary);
+		_scene._tris[tri_inside_id].interpolate_barycentric(pos, bary);
 		r.o = pos;
 
 		// calculate surface normal (should be use plane?)
-		const Vector3 &ptNormal = m_Scene.m_TriPlanes[tri_inside_id].normal;
+		const Vector3 &ptNormal = _scene._tri_planes[tri_inside_id].normal;
 
 		// construct a random ray to test
-		AO_FindSamplesRandomRay(r, ptNormal);
+		AO_find_samples_random_ray(r, ptNormal);
 
 		// test ray
-		if (m_Scene.TestIntersect_Ray(r, m_Settings_AO_Range, m_Scene.m_VoxelRange, true))
+		if (_scene.test_intersect_ray(r, settings.AO_range, _scene._voxel_range, true))
 			continue; // hit, not interested
 
 		// no hit .. we can use this sample!
@@ -241,7 +241,7 @@ int AmbientOcclusion::AO_FindSamplePoints(int tx, int ty, const MiniList &ml, AO
 		// the find test offsets BACKWARDS to find tris on the floor
 		// the actual ambient test offsets FORWARDS to avoid self intersection.
 		// the ambient test could also use the backface culling test, but this is slower.
-		sample.pos = pos + (ptNormal * m_Settings_SurfaceBias); //0.005f);
+		sample.pos = pos + (ptNormal * settings.surface_bias); //0.005f);
 		sample.uv = st;
 		sample.normal = ptNormal;
 		sample.tri_id = tri_inside_id;

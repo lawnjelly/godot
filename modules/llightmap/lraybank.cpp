@@ -4,42 +4,42 @@
 
 namespace LM {
 
-void RayBank::RayBank_Data::Swap() {
-	if (m_MapRead) {
-		m_MapRead = 0;
-		m_MapWrite = 1;
+void RayBank::RayBank_Data::swap() {
+	if (map_read) {
+		map_read = 0;
+		map_write = 1;
 	} else {
-		m_MapRead = 1;
-		m_MapWrite = 0;
+		map_read = 1;
+		map_write = 0;
 	}
 }
 
-void RayBank::RayBank_Reset(bool recreate) {
-	m_Data_RB.m_Voxels[0].clear(true);
-	m_Data_RB.m_Voxels[1].clear(true);
+void RayBank::ray_bank_reset(bool recreate) {
+	_data_RB._voxels[0].clear(true);
+	_data_RB._voxels[1].clear(true);
 
 	if (recreate) {
-		RayBank_Create();
+		ray_bank_create();
 	}
 }
 
-void RayBank::RayBank_Create() {
-	m_Data_RB.m_MapWrite = 0;
-	m_Data_RB.m_MapRead = 1;
-	int num_voxels = GetTracer().m_iNumVoxels;
-	m_Data_RB.m_Voxels[0].resize(num_voxels);
-	m_Data_RB.m_Voxels[1].resize(num_voxels);
+void RayBank::ray_bank_create() {
+	_data_RB.map_write = 0;
+	_data_RB.map_read = 1;
+	int num_voxels = get_tracer()._num_voxels;
+	_data_RB._voxels[0].resize(num_voxels);
+	_data_RB._voxels[1].resize(num_voxels);
 }
 
 // either we know the start voxel or we find it during this routine (or it doesn't cut the world)
-FRay *RayBank::RayBank_RequestNewRay(Ray ray, int num_rays_left, const FColor &col, const Vec3i *pStartVoxel) {
+FRay *RayBank::ray_bank_request_new_ray(Ray ray, int num_rays_left, const FColor &col, const Vec3i *pStartVoxel) {
 	// if we don't know the start voxel
 	Vec3i ptStartVoxel;
 	if (!pStartVoxel) {
 		pStartVoxel = &ptStartVoxel;
 
 		// if tracing from outside, try to trace to the edge of the world bound
-		if (!GetTracer().m_SceneWorldBound_mid.has_point(ray.o)) {
+		if (!get_tracer()._scene_world_bound_mid.has_point(ray.o)) {
 			// as we are testing containment mid bounding box, push the ray back well out to get a
 			// consistance penetration
 			ray.o -= ray.d * 10.0f;
@@ -49,15 +49,15 @@ FRay *RayBank::RayBank_RequestNewRay(Ray ray, int num_rays_left, const FColor &c
 			// if the ray starts outside, and doesn't hit the world, the ray is invalid
 			// must use the expanded world bound here, so we catch triangles on the edge of the world
 			// the epsilons are CRUCIAL
-			if (!GetTracer().IntersectRayAABB(ray, GetTracer().m_SceneWorldBound_expanded, clip))
+			if (!get_tracer().intersect_ray_AABB(ray, get_tracer()._scene_world_bound_expanded, clip))
 				return 0;
 
 			// does hit the world bound
 			ray.o = clip;
 		}
 
-		const AABB &world_bound = GetTracer().m_SceneWorldBound_expanded;
-		const Vector3 &voxel_size = GetTracer().m_VoxelSize;
+		const AABB &world_bound = get_tracer()._scene_world_bound_expanded;
+		const Vector3 &voxel_size = get_tracer()._voxel_size;
 
 		// ray origin should now be in the bound
 		Vector3 o_voxelspace = ray.o - world_bound.position;
@@ -72,29 +72,29 @@ FRay *RayBank::RayBank_RequestNewRay(Ray ray, int num_rays_left, const FColor &c
 		// cap the start voxel .. this is important for floating point error right on the boundary
 		//GetTracer().ClampVoxelToBounds(ptStartVoxel);
 #if defined DEBUG_ENABLED && defined TOOLS_ENABLED
-		if (!GetTracer().VoxelWithinBounds(ptStartVoxel)) {
+		if (!get_tracer().voxel_within_bounds(ptStartVoxel)) {
 			WARN_PRINT_ONCE("ptStartVoxel out of bounds");
 		}
 #endif
 	}
 
 	// check start voxel is within bound
-	if (!GetTracer().VoxelWithinBounds(*pStartVoxel)) {
+	if (!get_tracer().voxel_within_bounds(*pStartVoxel)) {
 		// should not happen?
 		WARN_PRINT_ONCE("RayBank_RequestNewRay : Ray from outside is not within world bound");
 		return 0;
 	}
 
-	RB_Voxel &vox = RayBank_GetVoxelWrite(*pStartVoxel);
+	RB_Voxel &vox = ray_bank_get_voxel_write(*pStartVoxel);
 
-	FRay *fray = vox.m_Rays.request();
+	FRay *fray = vox.rays.request();
 
 	// should not happen
 	if (!fray)
 		return 0;
 
 	fray->ray = ray;
-	fray->hit.SetNoHit();
+	fray->hit.set_no_hit();
 	fray->num_rays_left = num_rays_left;
 	fray->color = col;
 
@@ -102,21 +102,21 @@ FRay *RayBank::RayBank_RequestNewRay(Ray ray, int num_rays_left, const FColor &c
 }
 
 // multithread accelerated .. do intersection tests on rays, calculate hit points and new rays
-void RayBank::RayBank_Process() {
+void RayBank::ray_bank_process() {
 	// swap the write and read
-	m_Data_RB.Swap();
+	_data_RB.swap();
 
-	int nVoxels = GetTracer().m_iNumVoxels;
+	int nVoxels = get_tracer()._num_voxels;
 	int nCores = OS::get_singleton()->get_processor_count();
 
 	for (int v = 0; v < nVoxels; v++) {
-		RB_Voxel &vox = m_Data_RB.GetVoxels_Read()[v];
+		RB_Voxel &vox = _data_RB.get_voxels_read()[v];
 
-		int num_rays = vox.m_Rays.size();
+		int num_rays = vox.rays.size();
 		if (!num_rays)
 			continue;
 
-		m_pCurrentThreadVoxel = &vox;
+		_p_current_thread_voxel = &vox;
 
 		//const int section_size = 1024 * 96;
 		int section_size = num_rays / nCores;
@@ -131,7 +131,7 @@ void RayBank::RayBank_Process() {
 			for (int s = 0; s < num_sections; s++) {
 				int section_start = s * section_size;
 
-				thread_process_array(section_size, this, &RayBank::RayBank_ProcessRay_MT, section_start);
+				thread_process_array(section_size, this, &RayBank::ray_bank_process_ray_MT, section_start);
 
 				//				for (int n=0; n<section_size; n++)
 				//				{
@@ -145,23 +145,23 @@ void RayBank::RayBank_Process() {
 
 		// leftovers
 		for (int n = leftover_start; n < num_rays; n++) {
-			RayBank_ProcessRay_MT(n, 0);
+			ray_bank_process_ray_MT(n, 0);
 		}
 	}
 }
 
-bool RayBank::RayBank_AreVoxelsClear() {
+bool RayBank::ray_bank_are_voxels_clear() {
 	//#ifdef DEBUG_ENABLED
-	int nVoxels = GetTracer().m_iNumVoxels;
-	LVector<RB_Voxel> &voxelsr = m_Data_RB.GetVoxels_Read();
-	LVector<RB_Voxel> &voxelsw = m_Data_RB.GetVoxels_Write();
+	int nVoxels = get_tracer()._num_voxels;
+	LVector<RB_Voxel> &voxelsr = _data_RB.get_voxels_read();
+	LVector<RB_Voxel> &voxelsw = _data_RB.get_voxels_write();
 
 	for (int v = 0; v < nVoxels; v++) {
 		RB_Voxel &voxr = voxelsr[v];
-		if (voxr.m_Rays.size())
+		if (voxr.rays.size())
 			return false;
 		RB_Voxel &voxw = voxelsw[v];
-		if (voxw.m_Rays.size())
+		if (voxw.rays.size())
 			return false;
 	}
 	//#endif
@@ -169,9 +169,9 @@ bool RayBank::RayBank_AreVoxelsClear() {
 }
 
 // flush ray results to the lightmap
-void RayBank::RayBank_Flush() {
-	int nVoxels = GetTracer().m_iNumVoxels;
-	LVector<RB_Voxel> &voxels = m_Data_RB.GetVoxels_Read();
+void RayBank::ray_bank_flush() {
+	int nVoxels = get_tracer()._num_voxels;
+	LVector<RB_Voxel> &voxels = _data_RB.get_voxels_read();
 
 	//RayBank_DebugCheckVoxelsEmpty(m_Data_RB.m_MapWrite);
 
@@ -179,33 +179,33 @@ void RayBank::RayBank_Flush() {
 		RB_Voxel &vox = voxels[v];
 
 		// save results to lightmap
-		for (int n = 0; n < vox.m_Rays.size(); n++) {
-			RayBank_FlushRay(vox, n);
+		for (int n = 0; n < vox.rays.size(); n++) {
+			ray_bank_flush_ray(vox, n);
 		}
 
 		// delete rays
 		// setting argument to true may be a little better on memory use at the cost of more allocation
-		vox.m_Rays.clear(true);
+		vox.rays.clear(true);
 	}
 
 	// swap the write and read
 	//	m_Data_RB.Swap();
 }
 
-void RayBank::RayBank_FlushRay(RB_Voxel &vox, int ray_id) {
-	const FRay &fray = vox.m_Rays[ray_id];
+void RayBank::ray_bank_flush_ray(RB_Voxel &vox, int ray_id) {
+	const FRay &fray = vox.rays[ray_id];
 
 	// bounces first
 	if (fray.num_rays_left) {
-		RayBank_RequestNewRay(fray.ray, fray.num_rays_left, fray.bounce_color, 0);
+		ray_bank_request_new_ray(fray.ray, fray.num_rays_left, fray.bounce_color, 0);
 	}
 
 	// now write the hit to the lightmap
 	const FHit &hit = fray.hit;
-	if (hit.IsNoHit())
+	if (hit.is_no_hit())
 		return;
 
-	FColor *pf = m_Image_L.Get(hit.tx, hit.ty);
+	FColor *pf = _image_L.get(hit.tx, hit.ty);
 #ifdef DEBUG_ENABLED
 	assert(pf);
 #endif
@@ -217,11 +217,11 @@ void RayBank::RayBank_FlushRay(RB_Voxel &vox, int ray_id) {
 
 //void RayBank::RayBank_ProcessRay(uint32_t ray_id, RB_Voxel &vox)
 
-void RayBank::RayBank_ProcessRay_MT_Old(uint32_t ray_id, int start_ray) {
+void RayBank::ray_bank_process_ray_MT_old(uint32_t ray_id, int start_ray) {
 	ray_id += start_ray;
-	RB_Voxel &vox = *m_pCurrentThreadVoxel;
+	RB_Voxel &vox = *_p_current_thread_voxel;
 
-	FRay &fray = vox.m_Rays[ray_id];
+	FRay &fray = vox.rays[ray_id];
 	Ray r = fray.ray;
 
 	// each evaluation
@@ -235,7 +235,7 @@ void RayBank::RayBank_ProcessRay_MT_Old(uint32_t ray_id, int start_ray) {
 
 	r.d.normalize();
 	float u, v, w, t;
-	int tri = m_Scene.FindIntersect_Ray(r, u, v, w, t);
+	int tri = _scene.find_intersect_ray(r, u, v, w, t);
 
 	// nothing hit
 	if (tri == -1) {
@@ -245,8 +245,8 @@ void RayBank::RayBank_ProcessRay_MT_Old(uint32_t ray_id, int start_ray) {
 
 	// hit the back of a face? if so terminate ray
 	Vector3 face_normal;
-	const Tri &triangle_normal = m_Scene.m_TriNormals[tri];
-	triangle_normal.InterpolateBarycentric(face_normal, u, v, w);
+	const Tri &triangle_normal = _scene._tri_normals[tri];
+	triangle_normal.interpolate_barycentric(face_normal, u, v, w);
 	face_normal.normalize();
 
 	// first dot
@@ -258,11 +258,11 @@ void RayBank::RayBank_ProcessRay_MT_Old(uint32_t ray_id, int start_ray) {
 
 	// convert barycentric to uv coords in the lightmap
 	Vector2 uv;
-	m_Scene.FindUVsBarycentric(tri, uv, u, v, w);
+	_scene.find_uvs_barycentric(tri, uv, u, v, w);
 
 	// texel address
-	int tx = uv.x * m_iWidth;
-	int ty = uv.y * m_iHeight;
+	int tx = uv.x * _width;
+	int ty = uv.y * _height;
 
 	// override?
 	//	if (pUV && tri == dest_tri_id)
@@ -272,7 +272,7 @@ void RayBank::RayBank_ProcessRay_MT_Old(uint32_t ray_id, int start_ray) {
 	//	}
 
 	// could be off the image
-	if (!m_Image_L.IsWithin(tx, ty)) {
+	if (!_image_L.is_within(tx, ty)) {
 		fray.num_rays_left = 0;
 		return;
 	}
@@ -310,22 +310,22 @@ void RayBank::RayBank_ProcessRay_MT_Old(uint32_t ray_id, int start_ray) {
 
 	if (fray.num_rays_left) {
 		Vector3 pos;
-		const Tri &triangle = m_Scene.m_Tris[tri];
-		triangle.InterpolateBarycentric(pos, u, v, w);
+		const Tri &triangle = _scene._tris[tri];
+		triangle.interpolate_barycentric(pos, u, v, w);
 
 		// get the albedo etc
 		Color albedo;
 		bool bTransparent;
-		m_Scene.FindPrimaryTextureColors(tri, Vector3(u, v, w), albedo, bTransparent);
+		_scene.find_primary_texture_colors(tri, Vector3(u, v, w), albedo, bTransparent);
 		FColor falbedo;
-		falbedo.Set(albedo);
+		falbedo.set(albedo);
 
 		// test
 		//fray.color = falbedo;
 
 		// pre find the bounce color here
-		fray.bounce_color = fray.color * falbedo * m_Settings_DirectionalBouncePower;
-		//		fray.bounce_color = fray.color * m_Settings_Forward_BouncePower;
+		fray.bounce_color = fray.color * falbedo * settings.directional_bounce_power;
+		//		fray.bounce_color = fray.color * settings.Forward_BouncePower;
 
 		//		Vector3 norm;
 		//		const Tri &triangle_normal = m_Scene.m_TriNormals[tri];
@@ -362,17 +362,17 @@ void RayBank::RayBank_ProcessRay_MT_Old(uint32_t ray_id, int start_ray) {
 			if (hemi_dir.dot(face_normal) < 0.0f)
 				hemi_dir = -hemi_dir;
 
-			new_ray.d = hemi_dir.linear_interpolate(mirror_dir, m_Settings_Smoothness);
+			new_ray.d = hemi_dir.linear_interpolate(mirror_dir, settings.smoothness);
 
 			new_ray.o = pos + (face_normal * 0.01f);
 
 			// copy the info to the existing fray
 			fray.ray = new_ray;
-			//fray.power *= m_Settings_Forward_BouncePower;
+			//fray.power *= settings.Forward_BouncePower;
 
 			return;
 			//			return true;
-			//			RayBank_RequestNewRay(new_ray, fray.num_rays_left, fray.power * m_Settings_Forward_BouncePower, 0);
+			//			RayBank_RequestNewRay(new_ray, fray.num_rays_left, fray.power * settings.Forward_BouncePower, 0);
 		} // in opposite directions
 		//		else
 		//		{ // if normal in same direction as ray
@@ -383,11 +383,11 @@ void RayBank::RayBank_ProcessRay_MT_Old(uint32_t ray_id, int start_ray) {
 	//	return false;
 }
 
-void RayBank::RayBank_ProcessRay_MT(uint32_t ray_id, int start_ray) {
+void RayBank::ray_bank_process_ray_MT(uint32_t ray_id, int start_ray) {
 	ray_id += start_ray;
-	RB_Voxel &vox = *m_pCurrentThreadVoxel;
+	RB_Voxel &vox = *_p_current_thread_voxel;
 
-	FRay &fray = vox.m_Rays[ray_id];
+	FRay &fray = vox.rays[ray_id];
 	Ray r = fray.ray;
 
 	// each evaluation
@@ -401,7 +401,7 @@ void RayBank::RayBank_ProcessRay_MT(uint32_t ray_id, int start_ray) {
 
 	r.d.normalize();
 	float u, v, w, t;
-	int tri = m_Scene.FindIntersect_Ray(r, u, v, w, t);
+	int tri = _scene.find_intersect_ray(r, u, v, w, t);
 
 	// nothing hit
 	if (tri == -1) {
@@ -411,14 +411,14 @@ void RayBank::RayBank_ProcessRay_MT(uint32_t ray_id, int start_ray) {
 
 	// hit the back of a face? if so terminate ray
 	Vector3 vertex_normal;
-	const Tri &triangle_normal = m_Scene.m_TriNormals[tri];
-	triangle_normal.InterpolateBarycentric(vertex_normal, u, v, w);
+	const Tri &triangle_normal = _scene._tri_normals[tri];
+	triangle_normal.interpolate_barycentric(vertex_normal, u, v, w);
 	vertex_normal.normalize(); // is this necessary as we are just checking a dot product polarity?
 
 	// first get the texture details
 	Color albedo;
 	bool bTransparent;
-	m_Scene.FindPrimaryTextureColors(tri, Vector3(u, v, w), albedo, bTransparent);
+	_scene.find_primary_texture_colors(tri, Vector3(u, v, w), albedo, bTransparent);
 	bool pass_through = bTransparent && (albedo.a < 0.001f);
 
 	// test
@@ -430,7 +430,7 @@ void RayBank::RayBank_ProcessRay_MT(uint32_t ray_id, int start_ray) {
 
 	bool bBackFace = false;
 
-	const Vector3 &face_normal = m_Scene.m_TriPlanes[tri].normal;
+	const Vector3 &face_normal = _scene._tri_planes[tri].normal;
 
 	float face_dot = face_normal.dot(r.d);
 	if (face_dot >= 0.0f) {
@@ -449,22 +449,22 @@ void RayBank::RayBank_ProcessRay_MT(uint32_t ray_id, int start_ray) {
 
 	// convert barycentric to uv coords in the lightmap
 	Vector2 uv;
-	m_Scene.FindUVsBarycentric(tri, uv, u, v, w);
+	_scene.find_uvs_barycentric(tri, uv, u, v, w);
 
 	// texel address
-	int tx = uv.x * m_iWidth;
-	int ty = uv.y * m_iHeight;
+	int tx = uv.x * _width;
+	int ty = uv.y * _height;
 
 	// could be off the image
-	if (!m_Image_L.IsWithin(tx, ty)) {
+	if (!_image_L.is_within(tx, ty)) {
 		fray.num_rays_left = 0;
 		return;
 	}
 
 	// position of potential hit
 	Vector3 pos;
-	const Tri &triangle = m_Scene.m_Tris[tri];
-	triangle.InterpolateBarycentric(pos, u, v, w);
+	const Tri &triangle = _scene._tris[tri];
+	triangle.interpolate_barycentric(pos, u, v, w);
 
 	// deal with tranparency
 	if (bTransparent) {
@@ -475,7 +475,7 @@ void RayBank::RayBank_ProcessRay_MT(uint32_t ray_id, int start_ray) {
 
 		// if the ray is passing through, we want to calculate the color modified by the surface
 		if (pass_through)
-			CalculateTransmittance(albedo, fray.color);
+			calculate_transmittance(albedo, fray.color);
 
 		// if pass through
 		if (bBackFace || pass_through) {
@@ -509,15 +509,15 @@ void RayBank::RayBank_ProcessRay_MT(uint32_t ray_id, int start_ray) {
 	// bounce and lower power
 	if (fray.num_rays_left) {
 		FColor falbedo;
-		falbedo.Set(albedo);
+		falbedo.set(albedo);
 
 		// pre find the bounce color here
 		//		if (!pass_through)
 		//		{
 
-		fray.bounce_color = fray.color * falbedo * m_Settings_DirectionalBouncePower;
+		fray.bounce_color = fray.color * falbedo * settings.directional_bounce_power;
 
-		//		fray.bounce_color = fray.color * m_Settings_Forward_BouncePower;
+		//		fray.bounce_color = fray.color * settings.Forward_BouncePower;
 
 		//		Vector3 norm;
 		//		const Tri &triangle_normal = m_Scene.m_TriNormals[tri];
@@ -554,18 +554,18 @@ void RayBank::RayBank_ProcessRay_MT(uint32_t ray_id, int start_ray) {
 			if (hemi_dir.dot(face_normal) < 0.0f)
 				hemi_dir = -hemi_dir;
 
-			new_ray.d = hemi_dir.linear_interpolate(mirror_dir, m_Settings_Smoothness);
+			new_ray.d = hemi_dir.linear_interpolate(mirror_dir, settings.smoothness);
 
 			// standard epsilon? NYI
-			new_ray.o = pos + (face_normal * m_Settings_SurfaceBias); //0.01f);
+			new_ray.o = pos + (face_normal * settings.surface_bias); //0.01f);
 
 			// copy the info to the existing fray
 			fray.ray = new_ray;
-			//fray.power *= m_Settings_Forward_BouncePower;
+			//fray.power *= settings.Forward_BouncePower;
 
 			return;
 			//			return true;
-			//			RayBank_RequestNewRay(new_ray, fray.num_rays_left, fray.power * m_Settings_Forward_BouncePower, 0);
+			//			RayBank_RequestNewRay(new_ray, fray.num_rays_left, fray.power * settings.Forward_BouncePower, 0);
 		} // in opposite directions
 		//		else
 		//		{ // if normal in same direction as ray

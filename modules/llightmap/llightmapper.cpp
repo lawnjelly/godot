@@ -10,12 +10,12 @@
 namespace LM {
 
 bool LightMapper::uv_map_meshes(Spatial *pRoot) {
-	if (m_Settings_UVFilename == "") {
-		ShowWarning("UV Filename is not set, aborting.");
+	if (settings.UV_filename == "") {
+		show_warning("UV Filename is not set, aborting.");
 		return false;
 	}
 
-	CalculateQualityAdjustedSettings();
+	calculate_quality_adjusted_settings();
 
 	bool replace_mesh_scene = false;
 
@@ -41,7 +41,7 @@ bool LightMapper::uv_map_meshes(Spatial *pRoot) {
 	}
 
 	Merger m;
-	MeshInstance *pMerged = m.Merge(pRoot, m_Settings_UVPadding);
+	MeshInstance *pMerged = m.merge(pRoot, settings.UV_padding);
 	if (!pMerged) {
 		if (bake_end_function) {
 			bake_end_function();
@@ -58,7 +58,7 @@ bool LightMapper::uv_map_meshes(Spatial *pRoot) {
 
 	// unmerge
 	UnMerger u;
-	bool res = u.UnMerge(m, *pMerged);
+	bool res = u.unmerge(m, *pMerged);
 
 	// for debug save the merged version
 	saver.SaveScene(pMerged, "res://merged_proxy.tscn");
@@ -70,11 +70,11 @@ bool LightMapper::uv_map_meshes(Spatial *pRoot) {
 	}
 
 	// if we specified an output file, save
-	if (m_Settings_UVFilename != "") {
+	if (settings.UV_filename != "") {
 		Node *pOrigOwner = pRoot->get_owner();
 
-		if (!saver.SaveScene(pRoot, m_Settings_UVFilename, true)) {
-			ShowWarning("Error saving UV mapped scene. Does the folder exist?\n\n" + m_Settings_UVFilename);
+		if (!saver.SaveScene(pRoot, settings.UV_filename, true)) {
+			show_warning("Error saving UV mapped scene. Does the folder exist?\n\n" + settings.UV_filename);
 		}
 
 		if (replace_mesh_scene) {
@@ -86,9 +86,9 @@ bool LightMapper::uv_map_meshes(Spatial *pRoot) {
 			pRoot->queue_delete();
 
 			// now load the new file
-			//ResourceLoader::import(m_Settings_UVFilename);
+			//ResourceLoader::import(settings.UVFilename);
 
-			Ref<PackedScene> ps = ResourceLoader::load(m_Settings_UVFilename, "PackedScene");
+			Ref<PackedScene> ps = ResourceLoader::load(settings.UV_filename, "PackedScene");
 			if (ps.is_null()) {
 				if (bake_end_function) {
 					bake_end_function();
@@ -120,28 +120,28 @@ bool LightMapper::uv_map_meshes(Spatial *pRoot) {
 }
 
 bool LightMapper::lightmap_mesh(Spatial *pMeshesRoot, Spatial *pLR, Image *pIm_Lightmap, Image *pIm_AO, Image *pIm_Combined) {
-	CalculateQualityAdjustedSettings();
+	calculate_quality_adjusted_settings();
 
 	// get the output dimensions before starting, because we need this
 	// to determine number of rays, and the progress range
-	m_iWidth = pIm_Combined->get_width();
-	m_iHeight = pIm_Combined->get_height();
-	m_iNumRays = m_AdjustedSettings.m_Forward_NumRays;
+	_width = pIm_Combined->get_width();
+	_height = pIm_Combined->get_height();
+	_num_rays = adjusted_settings.forward_num_rays;
 
-	int nTexels = m_iWidth * m_iHeight;
+	int nTexels = _width * _height;
 
 	// set num rays depending on method
-	if (m_Settings_Mode == LMMODE_FORWARD) {
+	if (settings.mode == LMMODE_FORWARD) {
 		// the num rays / texel. This is per light!
-		m_iNumRays *= nTexels;
+		_num_rays *= nTexels;
 	}
 
 	// do twice to test SIMD
 	uint32_t beforeA = OS::get_singleton()->get_ticks_msec();
-	m_Scene.m_bUseSIMD = true;
-	m_Scene.m_Tracer.m_bSIMD = true;
+	_scene._use_SIMD = true;
+	_scene._tracer._use_SIMD = true;
 
-	bool res = LightmapMesh(pMeshesRoot, *pLR, *pIm_Lightmap, *pIm_AO, *pIm_Combined);
+	bool res = _lightmap_mesh(pMeshesRoot, *pLR, *pIm_Lightmap, *pIm_AO, *pIm_Combined);
 
 	uint32_t afterA = OS::get_singleton()->get_ticks_msec();
 	print_line("Overall took : " + itos(afterA - beforeA));
@@ -149,99 +149,99 @@ bool LightMapper::lightmap_mesh(Spatial *pMeshesRoot, Spatial *pLR, Image *pIm_L
 	return res;
 }
 
-void LightMapper::Reset() {
-	m_Lights.clear(true);
-	m_Scene.Reset();
-	RayBank_Reset();
-	Base_Reset();
+void LightMapper::reset() {
+	_lights.clear(true);
+	_scene.reset();
+	ray_bank_reset();
+	base_reset();
 }
 
-void LightMapper::Refresh_Process_State() {
+void LightMapper::refresh_process_state() {
 	// defaults
-	m_Logic_Process_Lightmap = true;
-	m_Logic_Process_AO = true;
-	m_Logic_Reserve_AO = true;
-	m_Logic_Process_Probes = false;
-	m_Logic_Output_Final = true;
+	logic.process_lightmap = true;
+	logic.process_AO = true;
+	logic.reserve_AO = true;
+	logic.process_probes = false;
+	logic.output_final = true;
 
 	// process states
-	switch (m_Settings_BakeMode) {
+	switch (settings.bake_mode) {
 		case LMBAKEMODE_PROBES: {
-			m_Logic_Process_Probes = true;
-			m_Logic_Process_Lightmap = false;
-			m_Logic_Process_AO = false;
-			m_Logic_Output_Final = false;
+			logic.process_probes = true;
+			logic.process_lightmap = false;
+			logic.process_AO = false;
+			logic.output_final = false;
 		} break;
 		case LMBAKEMODE_LIGHTMAP: {
-			m_Logic_Process_AO = false;
-			m_Logic_Reserve_AO = false;
+			logic.process_AO = false;
+			logic.reserve_AO = false;
 		} break;
 		case LMBAKEMODE_AO: {
-			m_Logic_Process_Lightmap = false;
+			logic.process_lightmap = false;
 		} break;
 		case LMBAKEMODE_MERGE: {
-			m_Logic_Process_Lightmap = false;
-			m_Logic_Process_AO = false;
+			logic.process_lightmap = false;
+			logic.process_AO = false;
 		} break;
 		case LMBAKEMODE_UVMAP: {
-			m_Logic_Process_Lightmap = false;
-			m_Logic_Process_AO = false;
-			m_Logic_Reserve_AO = false;
-			m_Logic_Output_Final = false;
+			logic.process_lightmap = false;
+			logic.process_AO = false;
+			logic.reserve_AO = false;
+			logic.output_final = false;
 		} break;
 		default: {
 		} break;
 	}
 }
 
-bool LightMapper::LightmapMesh(Spatial *pMeshesRoot, const Spatial &light_root, Image &out_image_lightmap, Image &out_image_ao, Image &out_image_combined) {
+bool LightMapper::_lightmap_mesh(Spatial *pMeshesRoot, const Spatial &light_root, Image &out_image_lightmap, Image &out_image_ao, Image &out_image_combined) {
 	// print out settings
 	print_line("Lightmap mesh");
-	print_line("\tnum_directional_bounces " + itos(m_AdjustedSettings.m_NumDirectionalBounces));
-	print_line("\tdirectional_bounce_power " + String(Variant(m_Settings_DirectionalBouncePower)));
+	print_line("\tnum_directional_bounces " + itos(adjusted_settings.num_directional_bounces));
+	print_line("\tdirectional_bounce_power " + String(Variant(settings.directional_bounce_power)));
 
-	Refresh_Process_State();
+	refresh_process_state();
 
-	Reset();
-	m_bCancel = false;
+	reset();
+	_pressed_cancel = false;
 
-	if (m_iWidth <= 0)
+	if (_width <= 0)
 		return false;
-	if (m_iHeight <= 0)
+	if (_height <= 0)
 		return false;
 
 	// create stuff used by everything
-	m_Image_L.Create(m_iWidth, m_iHeight);
-	m_Image_L_mirror.Create(m_iWidth, m_iHeight);
+	_image_L.create(_width, _height);
+	_image_L_mirror.create(_width, _height);
 
 	// whether we need storage
-	if (m_Logic_Reserve_AO)
-		m_Image_AO.Create(m_iWidth, m_iHeight);
+	if (logic.reserve_AO)
+		_image_AO.create(_width, _height);
 
-	if (m_Settings_BakeMode != LMBAKEMODE_MERGE) {
-		if (m_Logic_Process_AO) {
+	if (settings.bake_mode != LMBAKEMODE_MERGE) {
+		if (logic.process_AO) {
 			if (bake_step_function) {
 				bake_step_function(0, String("QMC Create"));
 			}
-			m_QMC.Create(m_AdjustedSettings.m_AO_Samples);
+			_QMC.create(adjusted_settings.num_AO_samples);
 		}
 
 		uint32_t before, after;
-		FindLights_Recursive(&light_root);
-		print_line("Found " + itos(m_Lights.size()) + " lights.");
+		find_lights_recursive(&light_root);
+		print_line("Found " + itos(_lights.size()) + " lights.");
 
-		m_Image_ID_p1.Create(m_iWidth, m_iHeight);
+		_image_ID_p1.create(_width, _height);
 		//m_Image_ID2_p1.Create(m_iWidth, m_iHeight);
 
-		if (m_Logic_Process_AO) {
-			m_Image_TriIDs.Create(m_iWidth, m_iHeight);
-			m_TriIDs.clear(true);
+		if (logic.process_AO) {
+			_image_tri_ids.create(_width, _height);
+			_tri_ids.clear(true);
 		}
 
 		if (bake_step_function) {
 			bake_step_function(0, String("Barycentric Create"));
 		}
-		m_Image_Barycentric.Create(m_iWidth, m_iHeight);
+		_image_barycentric.create(_width, _height);
 
 		//		if (bake_end_function) {
 		//			bake_end_function();
@@ -255,72 +255,72 @@ bool LightMapper::LightmapMesh(Spatial *pMeshesRoot, const Spatial &light_root, 
 		}
 		print_line("Scene Create");
 		before = OS::get_singleton()->get_ticks_msec();
-		if (!m_Scene.Create(pMeshesRoot, m_iWidth, m_iHeight, m_Settings_VoxelDensity, m_AdjustedSettings.m_Max_Material_Size, m_AdjustedSettings.m_EmissionDensity))
+		if (!_scene.create(pMeshesRoot, _width, _height, settings.voxel_density, adjusted_settings.max_material_size, adjusted_settings.emission_density))
 			return false;
 
 		if (bake_step_function) {
 			bake_step_function(0, String("Prepare Lights"));
 		}
 
-		PrepareLights();
+		prepare_lights();
 
-		RayBank_Create();
+		ray_bank_create();
 
 		after = OS::get_singleton()->get_ticks_msec();
 		print_line("SceneCreate took " + itos(after - before) + " ms");
 
-		if (m_bCancel)
+		if (_pressed_cancel)
 			return false;
 
 		print_line("PrepareImageMaps");
 		before = OS::get_singleton()->get_ticks_msec();
-		if (!PrepareImageMaps()) {
-			m_bCancel = true;
+		if (!prepare_image_maps()) {
+			_pressed_cancel = true;
 		}
 		after = OS::get_singleton()->get_ticks_msec();
 		print_line("PrepareImageMaps took " + itos(after - before) + " ms");
 
-		if (m_bCancel)
+		if (_pressed_cancel)
 			return false;
 
-		if (m_Logic_Process_AO) {
+		if (logic.process_AO) {
 			print_line("ProcessAO");
 			before = OS::get_singleton()->get_ticks_msec();
-			ProcessAO();
+			process_AO();
 			after = OS::get_singleton()->get_ticks_msec();
 			print_line("ProcessAO took " + itos(after - before) + " ms");
 
 			//Convolve_AO();
 		}
 
-		if (m_Logic_Process_Lightmap) {
+		if (logic.process_lightmap) {
 			print_line("ProcessTexels");
 			before = OS::get_singleton()->get_ticks_msec();
-			if (m_Settings_Mode == LMMODE_BACKWARD)
-				ProcessTexels();
+			if (settings.mode == LMMODE_BACKWARD)
+				backward_process_texels();
 			else {
-				ProcessLights();
-				ProcessEmissionTris();
+				process_lights();
+				process_emission_tris();
 			}
-			DoAmbientBounces();
+			do_ambient_bounces();
 			after = OS::get_singleton()->get_ticks_msec();
 			print_line("ProcessTexels took " + itos(after - before) + " ms");
 		}
 
-		if (m_Logic_Process_Probes) {
+		if (logic.process_probes) {
 			// calculate probes
 			print_line("ProcessProbes");
-			if (LoadLightmap(out_image_lightmap)) {
-				ProcessLightProbes();
+			if (load_lightmap(out_image_lightmap)) {
+				process_light_probes();
 			}
 		}
 
-		if (m_bCancel)
+		if (_pressed_cancel)
 			return false;
 
-		if (!m_Logic_Process_Probes) {
-			WriteOutputImage_Lightmap(out_image_lightmap);
-			WriteOutputImage_AO(out_image_ao);
+		if (!logic.process_probes) {
+			write_output_image_lightmap(out_image_lightmap);
+			write_output_image_AO(out_image_ao);
 
 			// test convolution
 			//			Merge_AndWriteOutputImage_Combined(out_image_combined);
@@ -333,39 +333,39 @@ bool LightMapper::LightmapMesh(Spatial *pMeshesRoot, const Spatial &light_root, 
 	else {
 		// merging
 		// need the meshes list for seam stitching
-		m_Scene.FindMeshes(pMeshesRoot);
+		_scene.find_meshes(pMeshesRoot);
 
 		// load the lightmap and ao from disk
-		LoadLightmap(out_image_lightmap);
-		LoadAO(out_image_ao);
+		load_lightmap(out_image_lightmap);
+		load_AO(out_image_ao);
 	}
 
 	//	print_line("WriteOutputImage");
 	//	before = OS::get_singleton()->get_ticks_msec();
-	if (m_Logic_Output_Final)
-		Merge_AndWriteOutputImage_Combined(out_image_combined);
+	if (logic.output_final)
+		merge_and_write_output_image_combined(out_image_combined);
 	//	after = OS::get_singleton()->get_ticks_msec();
 	//	print_line("WriteOutputImage took " + itos(after -before) + " ms");
 
 	// clear everything out of ram as no longer needed
-	Reset();
+	reset();
 
 	return true;
 }
 
-void LightMapper::ProcessTexels_AmbientBounce_Line_MT(uint32_t offset_y, int start_y) {
+void LightMapper::process_texels_ambient_bounce_line_MT(uint32_t offset_y, int start_y) {
 	int y = offset_y + start_y;
 
-	for (int x = 0; x < m_iWidth; x++) {
-		FColor power = ProcessTexel_AmbientBounce(x, y);
+	for (int x = 0; x < _width; x++) {
+		FColor power = process_texel_ambient_bounce(x, y);
 
 		// save the incoming light power in the mirror image (as the source is still being used)
-		m_Image_L_mirror.GetItem(x, y) = power;
+		_image_L_mirror.get_item(x, y) = power;
 	}
 }
 
-void LightMapper::ProcessTexels_AmbientBounce(int section_size, int num_sections) {
-	m_Image_L_mirror.Blank();
+void LightMapper::process_texels_ambient_bounce(int section_size, int num_sections) {
+	_image_L_mirror.blank();
 
 	// disable multithread
 	//num_sections = 0;
@@ -374,15 +374,15 @@ void LightMapper::ProcessTexels_AmbientBounce(int section_size, int num_sections
 		int section_start = s * section_size;
 
 		if (bake_step_function) {
-			m_bCancel = bake_step_function(section_start / (float)m_iHeight, String("Process TexelsBounce: ") + " (" + itos(section_start) + ")");
-			if (m_bCancel) {
+			_pressed_cancel = bake_step_function(section_start / (float)_height, String("Process TexelsBounce: ") + " (" + itos(section_start) + ")");
+			if (_pressed_cancel) {
 				if (bake_end_function)
 					bake_end_function();
 				return;
 			}
 		}
 
-		thread_process_array(section_size, this, &LightMapper::ProcessTexels_AmbientBounce_Line_MT, section_start);
+		thread_process_array(section_size, this, &LightMapper::process_texels_ambient_bounce_line_MT, section_start);
 
 		//		for (int n=0; n<section_size; n++)
 		//		{
@@ -392,19 +392,19 @@ void LightMapper::ProcessTexels_AmbientBounce(int section_size, int num_sections
 
 	int leftover_start = num_sections * section_size;
 
-	for (int y = leftover_start; y < m_iHeight; y++) {
+	for (int y = leftover_start; y < _height; y++) {
 		if ((y % 10) == 0) {
 			//			print_line("\tTexels bounce line " + itos(y));
 			//			OS::get_singleton()->delay_usec(1);
 
 			if (bake_step_function) {
-				m_bCancel = bake_step_function(y / (float)m_iHeight, String("Process TexelsBounce: ") + " (" + itos(y) + ")");
-				if (m_bCancel)
+				_pressed_cancel = bake_step_function(y / (float)_height, String("Process TexelsBounce: ") + " (" + itos(y) + ")");
+				if (_pressed_cancel)
 					return;
 			}
 		}
 
-		ProcessTexels_AmbientBounce_Line_MT(y, 0);
+		process_texels_ambient_bounce_line_MT(y, 0);
 		//		for (int x=0; x<m_iWidth; x++)
 		//		{
 		//			FColor power = ProcessTexel_Bounce(x, y);
@@ -415,11 +415,11 @@ void LightMapper::ProcessTexels_AmbientBounce(int section_size, int num_sections
 	}
 
 	// merge the 2 luminosity maps
-	for (int y = 0; y < m_iHeight; y++) {
-		for (int x = 0; x < m_iWidth; x++) {
-			FColor col = m_Image_L.GetItem(x, y);
+	for (int y = 0; y < _height; y++) {
+		for (int x = 0; x < _width; x++) {
+			FColor col = _image_L.get_item(x, y);
 
-			FColor col_add = m_Image_L_mirror.GetItem(x, y) * m_Settings_AmbientBouncePower;
+			FColor col_add = _image_L_mirror.get_item(x, y) * settings.ambient_bounce_power;
 
 			//			assert (col_add.r >= 0.0f);
 			//			assert (col_add.g >= 0.0f);
@@ -427,13 +427,13 @@ void LightMapper::ProcessTexels_AmbientBounce(int section_size, int num_sections
 
 			col += col_add;
 
-			m_Image_L.GetItem(x, y) = col;
+			_image_L.get_item(x, y) = col;
 		}
 	}
 }
 
-void LightMapper::Backward_TraceTriangles() {
-	int nTris = m_Scene.m_Tris.size();
+void LightMapper::backward_trace_triangles() {
+	int nTris = _scene._tris.size();
 
 	//	if (bake_begin_function) {
 	//		int progress_range = nTris;
@@ -443,8 +443,8 @@ void LightMapper::Backward_TraceTriangles() {
 	for (int n = 0; n < nTris; n++) {
 		if ((n % 128) == 0) {
 			if (bake_step_function) {
-				m_bCancel = bake_step_function(n / (float)nTris, String("Process Backward Tris: ") + " (" + itos(n) + ")");
-				if (m_bCancel) {
+				_pressed_cancel = bake_step_function(n / (float)nTris, String("Process Backward Tris: ") + " (" + itos(n) + ")");
+				if (_pressed_cancel) {
 					if (bake_end_function)
 						bake_end_function();
 					return;
@@ -452,7 +452,7 @@ void LightMapper::Backward_TraceTriangles() {
 			}
 		}
 
-		Backward_TraceTriangle(n);
+		backward_trace_triangle(n);
 	}
 
 	if (bake_end_function) {
@@ -460,27 +460,27 @@ void LightMapper::Backward_TraceTriangles() {
 	}
 }
 
-void LightMapper::Backward_TraceTriangle(int tri_id) {
-	const UVTri &tri = m_Scene.m_UVTris[tri_id];
+void LightMapper::backward_trace_triangle(int tri_id) {
+	const UVTri &tri = _scene._uv_tris[tri_id];
 
-	float area = tri.CalculateTwiceArea();
+	float area = tri.calculate_twice_area();
 	if (area < 0.0f)
 		area = -area;
 
-	int nSamples = area * 400000.0f * m_AdjustedSettings.m_Backward_NumRays;
+	int nSamples = area * 400000.0f * adjusted_settings.backward_num_rays;
 
 	for (int n = 0; n < nSamples; n++) {
-		Backward_TraceSample(tri_id);
+		backward_trace_sample(tri_id);
 	}
 }
 
-void LightMapper::Backward_TraceSample(int tri_id) {
-	const UVTri &uv_tri = m_Scene.m_UVTris[tri_id];
-	const Tri &tri = m_Scene.m_Tris[tri_id];
+void LightMapper::backward_trace_sample(int tri_id) {
+	const UVTri &uv_tri = _scene._uv_tris[tri_id];
+	const Tri &tri = _scene._tris[tri_id];
 
 	// choose random point on triangle
 	Vector3 bary;
-	RandomBarycentric(bary);
+	generate_random_barycentric(bary);
 
 	// test, clamp the barycentric
 	//	bary *= 0.998f;
@@ -488,16 +488,16 @@ void LightMapper::Backward_TraceSample(int tri_id) {
 
 	// get position in world space
 	Vector3 pos;
-	tri.InterpolateBarycentric(pos, bary);
+	tri.interpolate_barycentric(pos, bary);
 
 	// test, pull in a little
 	//pos = pos.linear_interpolate(tri.GetCentre(), 0.001f);
 
 	// get uv / texel position
 	Vector2 uv;
-	uv_tri.FindUVBarycentric(uv, bary);
-	uv.x *= m_iWidth;
-	uv.y *= m_iHeight;
+	uv_tri.find_uv_barycentric(uv, bary);
+	uv.x *= _width;
+	uv.y *= _height;
 
 	// round?
 	int tx = uv.x;
@@ -506,47 +506,47 @@ void LightMapper::Backward_TraceSample(int tri_id) {
 	//	int ty = Math::round(uv.y);
 
 	// could be off the image
-	FColor *pTexel = m_Image_L.Get(tx, ty);
+	FColor *pTexel = _image_L.get(tx, ty);
 	if (!pTexel)
 		return;
 
 	// apply bias
 	// add epsilon to pos to prevent self intersection and neighbour intersection
-	const Vector3 &plane_normal = m_Scene.m_TriPlanes[tri_id].normal;
-	pos += plane_normal * m_Settings_SurfaceBias;
+	const Vector3 &plane_normal = _scene._tri_planes[tri_id].normal;
+	pos += plane_normal * settings.surface_bias;
 
 	// interpolated normal
 	Vector3 normal;
-	m_Scene.m_TriNormals[tri_id].InterpolateBarycentric(normal, bary.x, bary.y, bary.z);
+	_scene._tri_normals[tri_id].interpolate_barycentric(normal, bary.x, bary.y, bary.z);
 
 	FColor temp;
-	for (int l = 0; l < m_Lights.size(); l++) {
-		BF_ProcessTexel_Light(Color(), l, pos, plane_normal, normal, temp, 1);
+	for (int l = 0; l < _lights.size(); l++) {
+		BF_process_texel_light(Color(), l, pos, plane_normal, normal, temp, 1);
 		*pTexel += temp;
 	}
 
 	// add emission
 	Color emission_tex_color;
 	Color emission_color;
-	if (m_Scene.FindEmissionColor(tri_id, bary, emission_tex_color, emission_color)) {
+	if (_scene.find_emission_color(tri_id, bary, emission_tex_color, emission_color)) {
 		FColor femm;
-		femm.Set(emission_tex_color);
+		femm.set(emission_tex_color);
 
-		//		float power = m_Settings_Backward_RayPower * m_AdjustedSettings.m_Backward_NumRays * 128.0f;
-		float power = m_Settings_Backward_RayPower * 128.0f;
+		//		float power = settings.Backward_RayPower * m_AdjustedSettings.m_Backward_NumRays * 128.0f;
+		float power = settings.backward_ray_power * 128.0f;
 
 		*pTexel += femm * power;
 	}
 }
 
-void LightMapper::ProcessTexels() {
+void LightMapper::backward_process_texels() {
 	//Backward_TraceTriangles();
 	//return;
 
 	//int nCores = OS::get_singleton()->get_processor_count();
 
-	int section_size = m_iHeight / 64; //nCores;
-	int num_sections = m_iHeight / section_size;
+	int section_size = _height / 64; //nCores;
+	int num_sections = _height / section_size;
 	int leftover_start = 0;
 
 	//	if (bake_begin_function) {
@@ -554,10 +554,10 @@ void LightMapper::ProcessTexels() {
 	//		bake_begin_function(progress_range);
 	//	}
 
-	m_iNumTests = 0;
+	_num_tests = 0;
 
 	// load sky
-	m_Sky.load_sky(m_Settings_Sky_Filename, m_Settings_Sky_BlurAmount, m_Settings_Sky_Size);
+	_sky.load_sky(settings.sky_filename, settings.sky_blur_amount, settings.sky_size);
 
 	// prevent multithread
 #ifndef BACKWARD_TRACE_MULTITHEADED
@@ -568,15 +568,15 @@ void LightMapper::ProcessTexels() {
 		int section_start = s * section_size;
 
 		if (bake_step_function) {
-			m_bCancel = bake_step_function(section_start / (float)m_iHeight, String("Process Texels: ") + " (" + itos(section_start) + ")");
-			if (m_bCancel) {
+			_pressed_cancel = bake_step_function(section_start / (float)_height, String("Process Texels: ") + " (" + itos(section_start) + ")");
+			if (_pressed_cancel) {
 				if (bake_end_function)
 					bake_end_function();
 				return;
 			}
 		}
 
-		thread_process_array(section_size, this, &LightMapper::ProcessTexel_Line_MT, section_start);
+		thread_process_array(section_size, this, &LightMapper::backward_process_texel_line_MT, section_start);
 
 		//		for (int n=0; n<section_size; n++)
 		//		{
@@ -586,14 +586,14 @@ void LightMapper::ProcessTexels() {
 
 	leftover_start = num_sections * section_size;
 
-	for (int y = leftover_start; y < m_iHeight; y++) {
+	for (int y = leftover_start; y < _height; y++) {
 		if ((y % 10) == 0) {
 			//print_line("\tTexels line " + itos(y));
 			//OS::get_singleton()->delay_usec(1);
 
 			if (bake_step_function) {
-				m_bCancel = bake_step_function(y / (float)m_iHeight, String("Process Texels: ") + " (" + itos(y) + ")");
-				if (m_bCancel) {
+				_pressed_cancel = bake_step_function(y / (float)_height, String("Process Texels: ") + " (" + itos(y) + ")");
+				if (_pressed_cancel) {
 					if (bake_end_function)
 						bake_end_function();
 					return;
@@ -601,34 +601,34 @@ void LightMapper::ProcessTexels() {
 			}
 		}
 
-		ProcessTexel_Line_MT(y, 0);
+		backward_process_texel_line_MT(y, 0);
 	}
 
 	//	m_iNumTests /= (m_iHeight * m_iWidth);
-	print_line("num tests : " + itos(m_iNumTests));
+	print_line("num tests : " + itos(_num_tests));
 
-	m_Sky.unload_sky();
+	_sky.unload_sky();
 
 	if (bake_end_function) {
 		bake_end_function();
 	}
 }
 
-void LightMapper::DoAmbientBounces() {
-	if (!m_AdjustedSettings.m_NumAmbientBounces)
+void LightMapper::do_ambient_bounces() {
+	if (!adjusted_settings.num_ambient_bounces)
 		return;
 
-	int section_size = m_iHeight / 64; //nCores;
-	int num_sections = m_iHeight / section_size;
+	int section_size = _height / 64; //nCores;
+	int num_sections = _height / section_size;
 
 	//	if (bake_begin_function) {
 	//		int progress_range = m_iHeight;
 	//		bake_begin_function(progress_range);
 	//	}
 
-	for (int b = 0; b < m_AdjustedSettings.m_NumAmbientBounces; b++) {
-		if (!m_bCancel)
-			ProcessTexels_AmbientBounce(section_size, num_sections);
+	for (int b = 0; b < adjusted_settings.num_ambient_bounces; b++) {
+		if (!_pressed_cancel)
+			process_texels_ambient_bounce(section_size, num_sections);
 	}
 
 	if (bake_end_function) {
@@ -636,15 +636,15 @@ void LightMapper::DoAmbientBounces() {
 	}
 }
 
-void LightMapper::ProcessTexel_Line_MT(uint32_t offset_y, int start_y) {
+void LightMapper::backward_process_texel_line_MT(uint32_t offset_y, int start_y) {
 	int y = offset_y + start_y;
 
-	for (int x = 0; x < m_iWidth; x++) {
-		BF_ProcessTexel(x, y);
+	for (int x = 0; x < _width; x++) {
+		BF_process_texel(x, y);
 	}
 }
 
-bool LightMapper::Light_RandomSample(const LLight &light, const Vector3 &ptSurf, Ray &ray, Vector3 &ptLight, float &ray_length, float &multiplier) const {
+bool LightMapper::light_random_sample(const LLight &light, const Vector3 &ptSurf, Ray &ray, Vector3 &ptLight, float &ray_length, float &multiplier) const {
 	// for a spotlight, we can cull completely in a lot of cases.
 	if (light.type == LLight::LT_SPOT) {
 		Ray r;
@@ -676,7 +676,7 @@ bool LightMapper::Light_RandomSample(const LLight &light, const Vector3 &ptSurf,
 			//Vector3 ptTarget = light.dir * -2.0f;
 
 			Vector3 offset;
-			RandomUnitDir(offset);
+			generate_random_unit_dir(offset);
 			offset *= light.scale;
 
 			offset += (light.dir * -2.0f);
@@ -700,7 +700,7 @@ bool LightMapper::Light_RandomSample(const LLight &light, const Vector3 &ptSurf,
 
 			while (true) {
 				Vector3 offset;
-				RandomUnitDir(offset);
+				generate_random_unit_dir(offset);
 				offset *= light.scale;
 
 				ray.o = light.pos;
@@ -710,7 +710,7 @@ bool LightMapper::Light_RandomSample(const LLight &light, const Vector3 &ptSurf,
 				ray.d = ptSurf - ray.o;
 
 				// normalize and find length
-				ray_length = NormalizeAndFindLength(ray.d);
+				ray_length = normalize_and_find_length(ray.d);
 
 				dot = ray.d.dot(light.dir);
 				//float angle = safe_acosf(dot);
@@ -736,7 +736,7 @@ bool LightMapper::Light_RandomSample(const LLight &light, const Vector3 &ptSurf,
 		} break;
 		default: {
 			Vector3 offset;
-			RandomUnitDir(offset);
+			generate_random_unit_dir(offset);
 			offset *= light.scale;
 			ptLight = light.pos + offset;
 
@@ -745,7 +745,7 @@ bool LightMapper::Light_RandomSample(const LLight &light, const Vector3 &ptSurf,
 			ray.d = ptLight - ray.o;
 
 			// normalize and find length
-			ray_length = NormalizeAndFindLength(ray.d);
+			ray_length = normalize_and_find_length(ray.d);
 
 			// safety
 			//assert (r.d.length() > 0.0f);
@@ -758,13 +758,13 @@ bool LightMapper::Light_RandomSample(const LLight &light, const Vector3 &ptSurf,
 	return true;
 }
 
-bool LightMapper::BF_ProcessTexel_Sky(const Color &orig_albedo, const Vector3 &ptSource, const Vector3 &orig_face_normal, const Vector3 &orig_vertex_normal, FColor &color) {
-	color.Set(0.0);
+bool LightMapper::BF_process_texel_sky(const Color &orig_albedo, const Vector3 &ptSource, const Vector3 &orig_face_normal, const Vector3 &orig_vertex_normal, FColor &color) {
+	color.set(0.0);
 
-	if (!m_Sky.is_active())
+	if (!_sky.is_active())
 		return false;
 
-	if (m_Settings_Sky_Brightness == 0.0f)
+	if (settings.sky_brightness == 0.0f)
 		return false;
 
 	Ray r;
@@ -772,16 +772,16 @@ bool LightMapper::BF_ProcessTexel_Sky(const Color &orig_albedo, const Vector3 &p
 	// we need more samples for sky, than for a normal light
 	//nSamples *= 4;
 
-	int nSamples = m_AdjustedSettings.m_Sky_Samples;
+	int nSamples = adjusted_settings.num_sky_samples;
 
 	FColor total;
-	total.Set(0.0);
+	total.set(0.0);
 
 	for (int s = 0; s < nSamples; s++) {
 		r.o = ptSource;
 
 		Vector3 offset;
-		RandomUnitDir(offset);
+		generate_random_unit_dir(offset);
 
 		//		offset += (light.dir * -2.0f);
 		//		r.d = offset.normalized();
@@ -796,30 +796,30 @@ bool LightMapper::BF_ProcessTexel_Sky(const Color &orig_albedo, const Vector3 &p
 			r.d = -r.d;
 
 		// ray test
-		if (!m_Scene.TestIntersect_Ray(r, FLT_MAX)) {
-			m_Sky.read_sky(r.d, total);
+		if (!_scene.test_intersect_ray(r, FLT_MAX)) {
+			_sky.read_sky(r.d, total);
 		}
 
 	} // for s
 
-	color = total * (m_AdjustedSettings.m_Sky_Brightness * (64.0 / nSamples));
+	color = total * (adjusted_settings.sky_brightness * (64.0 / nSamples));
 	return true;
 }
 
 // trace from the poly TO the light, not the other way round, to avoid precision errors
-void LightMapper::BF_ProcessTexel_Light(const Color &orig_albedo, int light_id, const Vector3 &ptSource, const Vector3 &orig_face_normal, const Vector3 &orig_vertex_normal, FColor &color, int nSamples) //, uint32_t tri_ignore)
+void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id, const Vector3 &ptSource, const Vector3 &orig_face_normal, const Vector3 &orig_vertex_normal, FColor &color, int nSamples) //, uint32_t tri_ignore)
 {
-	const LLight &light = m_Lights[light_id];
+	const LLight &light = _lights[light_id];
 
 	Ray r;
 
 	float power = light.energy;
-	power *= m_Settings_Backward_RayPower;
+	power *= settings.backward_ray_power;
 
 	//int nSamples = m_AdjustedSettings.m_Backward_NumRays;
 
 	// total light hitting texel
-	color.Set(0.0f);
+	color.set(0.0f);
 
 	// for a spotlight, we can cull completely in a lot of cases.
 	if (light.type == LLight::LT_SPOT) {
@@ -854,8 +854,8 @@ void LightMapper::BF_ProcessTexel_Light(const Color &orig_albedo, int light_id, 
 		float light_dist = light_vec.length();
 
 		// cull by dist test
-		if (m_Settings_MaxLightDist) {
-			if ((int)light_dist > m_Settings_MaxLightDist)
+		if (settings.max_light_dist) {
+			if ((int)light_dist > settings.max_light_dist)
 				return;
 		}
 
@@ -906,7 +906,7 @@ void LightMapper::BF_ProcessTexel_Light(const Color &orig_albedo, int light_id, 
 				//Vector3 ptTarget = light.dir * -2.0f;
 
 				Vector3 offset;
-				RandomUnitDir(offset);
+				generate_random_unit_dir(offset);
 				offset *= light.scale;
 
 				offset += (light.dir * -2.0f);
@@ -926,7 +926,7 @@ void LightMapper::BF_ProcessTexel_Light(const Color &orig_albedo, int light_id, 
 
 				while (true) {
 					Vector3 offset;
-					RandomUnitDir(offset);
+					generate_random_unit_dir(offset);
 					offset *= light.scale;
 
 					r.o = light.pos;
@@ -936,7 +936,7 @@ void LightMapper::BF_ProcessTexel_Light(const Color &orig_albedo, int light_id, 
 					r.d = ptSource - r.o;
 
 					// normalize and find length
-					ray_length = NormalizeAndFindLength(r.d);
+					ray_length = normalize_and_find_length(r.d);
 
 					dot = r.d.dot(light.dir);
 					//float angle = safe_acosf(dot);
@@ -959,7 +959,7 @@ void LightMapper::BF_ProcessTexel_Light(const Color &orig_albedo, int light_id, 
 			} break;
 			default: {
 				Vector3 offset;
-				RandomUnitDir(offset);
+				generate_random_unit_dir(offset);
 				offset *= light.scale;
 				ptDest += offset;
 
@@ -968,7 +968,7 @@ void LightMapper::BF_ProcessTexel_Light(const Color &orig_albedo, int light_id, 
 				r.d = ptDest - r.o;
 
 				// normalize and find length
-				ray_length = NormalizeAndFindLength(r.d);
+				ray_length = normalize_and_find_length(r.d);
 
 				// safety
 				//assert (r.d.length() > 0.0f);
@@ -992,7 +992,7 @@ void LightMapper::BF_ProcessTexel_Light(const Color &orig_albedo, int light_id, 
 
 		// quick reject triangle
 		if (quick_reject_tri_id != -1) {
-			if (m_Scene.TestIntersect_Ray_Triangle(r, ray_length, quick_reject_tri_id)) {
+			if (_scene.test_intersect_ray_triangle(r, ray_length, quick_reject_tri_id)) {
 				keep_tracing = false;
 			}
 		}
@@ -1003,8 +1003,8 @@ void LightMapper::BF_ProcessTexel_Light(const Color &orig_albedo, int light_id, 
 			// collision detect
 			float u, v, w, t;
 
-			m_Scene.m_Tracer.m_bUseSDF = true;
-			int tri = m_Scene.FindIntersect_Ray(r, u, v, w, t);
+			_scene._tracer._use_SDF = true;
+			int tri = _scene.find_intersect_ray(r, u, v, w, t);
 			//		m_Scene.m_Tracer.m_bUseSDF = false;
 			//		int tri2 = m_Scene.IntersectRay(r, u, v, w, t, m_iNumTests);
 			//		if (tri != tri2)
@@ -1037,7 +1037,7 @@ void LightMapper::BF_ProcessTexel_Light(const Color &orig_albedo, int light_id, 
 				// no drop off for directional lights
 				//float dist = (ptDest - ray_origin).length();
 				float dist = ray_length;
-				local_power = LightDistanceDropoff(dist, light, power);
+				local_power = light_distance_drop_off(dist, light, power);
 
 				// take into account normal
 				float dot = r.d.dot(orig_vertex_normal);
@@ -1059,7 +1059,7 @@ void LightMapper::BF_ProcessTexel_Light(const Color &orig_albedo, int light_id, 
 				// start the bounces
 
 				// probability of bounce based on alpha? NYI
-				if (m_AdjustedSettings.m_NumDirectionalBounces) {
+				if (adjusted_settings.num_directional_bounces) {
 					// pass the direction as incoming (i.e. from the light to the surface, not the other way around)
 
 					// the source ray is always the target surface (no matter whether we hit transparent or blockers)
@@ -1072,21 +1072,21 @@ void LightMapper::BF_ProcessTexel_Light(const Color &orig_albedo, int light_id, 
 					sample_color.b *= orig_albedo.b;
 
 					// bounce ray direction
-					if (BounceRay(r, orig_face_normal, false)) {
+					if (bounce_ray(r, orig_face_normal, false)) {
 						// should this normal be plane normal or vertex normal?
-						BF_ProcessTexel_LightBounce(m_AdjustedSettings.m_NumDirectionalBounces, r, sample_color);
+						BF_process_texel_light_bounce(adjusted_settings.num_directional_bounces, r, sample_color);
 					}
 				}
 			} else {
 				// hit something, could be transparent
 
 				// back face?
-				bool bBackFace = HitBackFace(r, tri, Vector3(u, v, w), hit_face_normal);
+				bool bBackFace = hit_back_face(r, tri, Vector3(u, v, w), hit_face_normal);
 
 				// first get the texture details
 				Color albedo;
 				bool bTransparent;
-				m_Scene.FindPrimaryTextureColors(tri, Vector3(u, v, w), albedo, bTransparent);
+				_scene.find_primary_texture_colors(tri, Vector3(u, v, w), albedo, bTransparent);
 
 				if (bTransparent) {
 					bool opaque = bTransparent && (albedo.a > 0.999f);
@@ -1099,17 +1099,17 @@ void LightMapper::BF_ProcessTexel_Light(const Color &orig_albedo, int light_id, 
 
 						// position of potential hit
 						Vector3 pos;
-						const Tri &triangle = m_Scene.m_Tris[tri];
-						triangle.InterpolateBarycentric(pos, u, v, w);
+						const Tri &triangle = _scene._tris[tri];
+						triangle.interpolate_barycentric(pos, u, v, w);
 
-						float push = -m_Settings_SurfaceBias;
+						float push = -settings.surface_bias;
 						if (bBackFace)
 							push = -push;
 
 						r.o = pos + (hit_face_normal * push);
 
 						// apply the color to the ray
-						CalculateTransmittance(albedo, sample_color);
+						calculate_transmittance(albedo, sample_color);
 
 						// this shouldn't happen, but if it did we'd get an infinite loop if we didn't break out
 						panic_count--;
@@ -1133,7 +1133,7 @@ void LightMapper::BF_ProcessTexel_Light(const Color &orig_albedo, int light_id, 
 	//	color *= 1024.0 / nSamples;
 }
 
-bool LightMapper::BounceRay(Ray &r, const Vector3 &face_normal, bool apply_epsilon) {
+bool LightMapper::bounce_ray(Ray &r, const Vector3 &face_normal, bool apply_epsilon) {
 	float face_dot = face_normal.dot(r.d);
 
 	// back face, don't bounce
@@ -1161,21 +1161,21 @@ bool LightMapper::BounceRay(Ray &r, const Vector3 &face_normal, bool apply_epsil
 	if (hemi_dir.dot(face_normal) < 0.0f)
 		hemi_dir = -hemi_dir;
 
-	r.d = hemi_dir.linear_interpolate(mirror_dir, m_Settings_Smoothness);
+	r.d = hemi_dir.linear_interpolate(mirror_dir, settings.smoothness);
 
 	// standard epsilon? NYI
 	if (apply_epsilon)
-		r.o += (face_normal * m_Settings_SurfaceBias); //0.01f);
+		r.o += (face_normal * settings.surface_bias); //0.01f);
 
 	return true;
 }
 
-void LightMapper::BF_ProcessTexel_LightBounce(int bounces_left, Ray r, FColor ray_color) {
+void LightMapper::BF_process_texel_light_bounce(int bounces_left, Ray r, FColor ray_color) {
 	// apply bounce power
-	ray_color *= m_Settings_DirectionalBouncePower;
+	ray_color *= settings.directional_bounce_power;
 
 	float u, v, w, t;
-	int tri = m_Scene.FindIntersect_Ray(r, u, v, w, t);
+	int tri = _scene.find_intersect_ray(r, u, v, w, t);
 
 	// nothing hit
 	if (tri == -1) {
@@ -1190,18 +1190,18 @@ void LightMapper::BF_ProcessTexel_LightBounce(int bounces_left, Ray r, FColor ra
 
 	// hit the back of a face? if so terminate ray
 	Vector3 vertex_normal;
-	const Tri &triangle_normal = m_Scene.m_TriNormals[tri];
-	triangle_normal.InterpolateBarycentric(vertex_normal, u, v, w);
+	const Tri &triangle_normal = _scene._tri_normals[tri];
+	triangle_normal.interpolate_barycentric(vertex_normal, u, v, w);
 	vertex_normal.normalize(); // is this necessary as we are just checking a dot product polarity?
 
 	// first get the texture details
 	Color albedo;
 	bool bTransparent;
-	m_Scene.FindPrimaryTextureColors(tri, Vector3(u, v, w), albedo, bTransparent);
+	_scene.find_primary_texture_colors(tri, Vector3(u, v, w), albedo, bTransparent);
 	bool pass_through = bTransparent && (albedo.a < 0.001f);
 
 	bool bBackFace = false;
-	const Vector3 &face_normal = m_Scene.m_TriPlanes[tri].normal;
+	const Vector3 &face_normal = _scene._tri_planes[tri].normal;
 
 	//float face_dot = face_normal.dot(r.d);
 	//	if (face_dot >= 0.0f)
@@ -1217,20 +1217,20 @@ void LightMapper::BF_ProcessTexel_LightBounce(int bounces_left, Ray r, FColor ra
 
 	// convert barycentric to uv coords in the lightmap
 	Vector2 uv;
-	m_Scene.FindUVsBarycentric(tri, uv, u, v, w);
+	_scene.find_uvs_barycentric(tri, uv, u, v, w);
 
 	// texel address
-	int tx = uv.x * m_iWidth;
-	int ty = uv.y * m_iHeight;
+	int tx = uv.x * _width;
+	int ty = uv.y * _height;
 
 	// could be off the image
-	if (!m_Image_L.IsWithin(tx, ty))
+	if (!_image_L.is_within(tx, ty))
 		return;
 
 	// position of potential hit
 	Vector3 pos;
-	const Tri &triangle = m_Scene.m_Tris[tri];
-	triangle.InterpolateBarycentric(pos, u, v, w);
+	const Tri &triangle = _scene._tris[tri];
+	triangle.interpolate_barycentric(pos, u, v, w);
 
 	// deal with tranparency
 	if (bTransparent) {
@@ -1241,7 +1241,7 @@ void LightMapper::BF_ProcessTexel_LightBounce(int bounces_left, Ray r, FColor ra
 
 		// if the ray is passing through, we want to calculate the color modified by the surface
 		if (pass_through)
-			CalculateTransmittance(albedo, ray_color);
+			calculate_transmittance(albedo, ray_color);
 
 		// if pass through
 		if (bBackFace || pass_through) {
@@ -1253,7 +1253,7 @@ void LightMapper::BF_ProcessTexel_LightBounce(int bounces_left, Ray r, FColor ra
 			r.o = pos + (face_normal * push);
 
 			// call recursively
-			BF_ProcessTexel_LightBounce(bounces_left, r, ray_color);
+			BF_process_texel_light_bounce(bounces_left, r, ray_color);
 			return;
 		}
 
@@ -1268,7 +1268,7 @@ void LightMapper::BF_ProcessTexel_LightBounce(int bounces_left, Ray r, FColor ra
 	ray_color *= lambert;
 
 	// apply
-	MT_SafeAddToTexel(tx, ty, ray_color);
+	MT_safe_add_to_texel(tx, ty, ray_color);
 
 	// any more bounces to go?
 	bounces_left--;
@@ -1282,19 +1282,19 @@ void LightMapper::BF_ProcessTexel_LightBounce(int bounces_left, Ray r, FColor ra
 
 	// bounce and lower power
 	FColor falbedo;
-	falbedo.Set(albedo);
+	falbedo.set(albedo);
 
 	// bounce color
 	ray_color = ray_color * falbedo;
 
 	// find the bounced direction from the face normal
-	BounceRay(r, face_normal);
+	bounce_ray(r, face_normal);
 
 	// call recursively
-	BF_ProcessTexel_LightBounce(bounces_left, r, ray_color);
+	BF_process_texel_light_bounce(bounces_left, r, ray_color);
 }
 
-void LightMapper::ProcessLightProbes() {
+void LightMapper::process_light_probes() {
 	LightProbes probes;
 	int stages = probes.Create(*this);
 	if (stages != -1) {
@@ -1304,15 +1304,15 @@ void LightMapper::ProcessLightProbes() {
 
 		for (int n = 0; n < stages; n++) {
 			if (bake_step_function) {
-				m_bCancel = bake_step_function(n / (float)stages, String("Process LightProbes: ") + " (" + itos(n) + ")");
-				if (m_bCancel)
+				_pressed_cancel = bake_step_function(n / (float)stages, String("Process LightProbes: ") + " (" + itos(n) + ")");
+				if (_pressed_cancel)
 					break;
 			}
 
 			probes.Process(n);
 		}
 
-		if (!m_bCancel)
+		if (!_pressed_cancel)
 			probes.Save();
 
 		if (bake_end_function) {
@@ -1321,37 +1321,37 @@ void LightMapper::ProcessLightProbes() {
 	}
 }
 
-FColor LightMapper::ProcessTexel_AmbientBounce(int x, int y) {
+FColor LightMapper::process_texel_ambient_bounce(int x, int y) {
 	FColor total;
-	total.Set(0.0f);
+	total.set(0.0f);
 
 	// find triangle
-	uint32_t tri_source = *m_Image_ID_p1.Get(x, y);
+	uint32_t tri_source = *_image_ID_p1.get(x, y);
 	if (!tri_source)
 		return total;
 	tri_source--; // plus one based
 
 	// barycentric
-	const Vector3 &bary = *m_Image_Barycentric.Get(x, y);
+	const Vector3 &bary = *_image_barycentric.get(x, y);
 
 	Vector3 pos;
-	m_Scene.m_Tris[tri_source].InterpolateBarycentric(pos, bary.x, bary.y, bary.z);
+	_scene._tris[tri_source].interpolate_barycentric(pos, bary.x, bary.y, bary.z);
 
 	Vector3 norm;
-	const Tri &triangle_normal = m_Scene.m_TriNormals[tri_source];
-	triangle_normal.InterpolateBarycentric(norm, bary.x, bary.y, bary.z);
+	const Tri &triangle_normal = _scene._tri_normals[tri_source];
+	triangle_normal.interpolate_barycentric(norm, bary.x, bary.y, bary.z);
 	norm.normalize();
 
 	// precalculate normal push and ray origin on top of the surface
-	const Vector3 &plane_norm = m_Scene.m_TriPlanes[tri_source].normal;
-	Vector3 normal_push = plane_norm * m_Settings_SurfaceBias;
+	const Vector3 &plane_norm = _scene._tri_planes[tri_source].normal;
+	Vector3 normal_push = plane_norm * settings.surface_bias;
 	Vector3 ray_origin = pos + normal_push;
 
-	int nSamples = m_AdjustedSettings.m_NumAmbientBounceRays;
+	int nSamples = adjusted_settings.num_ambient_bounce_rays;
 	int samples_counted = nSamples;
 
 	for (int n = 0; n < nSamples; n++) {
-		if (!ProcessTexel_AmbientBounce_Sample(plane_norm, ray_origin, total)) {
+		if (!process_texel_ambient_bounce_sample(plane_norm, ray_origin, total)) {
 			samples_counted--;
 		}
 	}
@@ -1363,12 +1363,12 @@ FColor LightMapper::ProcessTexel_AmbientBounce(int x, int y) {
 	return total;
 }
 
-FColor LightMapper::Probe_CalculateIndirectLight(const Vector3 &pos) {
+FColor LightMapper::probe_calculate_indirect_light(const Vector3 &pos) {
 	FColor total;
-	total.Set(0.0f);
+	total.set(0.0f);
 
 	// we will reuse the same routine from texel bounce
-	int nSamples = m_Settings_ProbeSamples;
+	int nSamples = settings.num_probe_samples;
 	int samples_counted = nSamples;
 
 	Vector3 ray_origin = pos;
@@ -1376,9 +1376,9 @@ FColor LightMapper::Probe_CalculateIndirectLight(const Vector3 &pos) {
 	for (int n = 0; n < nSamples; n++) {
 		// random normal
 		Vector3 norm;
-		RandomUnitDir(norm);
+		generate_random_unit_dir(norm);
 
-		if (!ProcessTexel_AmbientBounce_Sample(norm, ray_origin, total)) {
+		if (!process_texel_ambient_bounce_sample(norm, ray_origin, total)) {
 			samples_counted--;
 		}
 	}
@@ -1390,7 +1390,7 @@ FColor LightMapper::Probe_CalculateIndirectLight(const Vector3 &pos) {
 	return total;
 }
 
-bool LightMapper::ProcessTexel_AmbientBounce_Sample(const Vector3 &plane_norm, const Vector3 &ray_origin, FColor &total_col) {
+bool LightMapper::process_texel_ambient_bounce_sample(const Vector3 &plane_norm, const Vector3 &ray_origin, FColor &total_col) {
 	// first dot
 	Ray r;
 	r.o = ray_origin;
@@ -1403,7 +1403,7 @@ bool LightMapper::ProcessTexel_AmbientBounce_Sample(const Vector3 &plane_norm, c
 	//new_ray.d = r.d - (2.0f * (dot * norm));
 
 	// random hemisphere
-	RandomUnitDir(r.d);
+	generate_random_unit_dir(r.d);
 
 	// compare direction to normal, if opposite, flip it
 	if (r.d.dot(plane_norm) < 0.0f)
@@ -1414,34 +1414,34 @@ bool LightMapper::ProcessTexel_AmbientBounce_Sample(const Vector3 &plane_norm, c
 		// collision detect
 		Vector3 bary;
 		float t;
-		int tri_hit = m_Scene.FindIntersect_Ray(r, bary, t);
+		int tri_hit = _scene.find_intersect_ray(r, bary, t);
 
 		// nothing hit
 		//	if ((tri_hit != -1) && (tri_hit != (int) tri_source))
 		if (tri_hit != -1) {
 			// look up the UV of the tri hit
 			Vector2 uvs;
-			m_Scene.FindUVsBarycentric(tri_hit, uvs, bary);
+			_scene.find_uvs_barycentric(tri_hit, uvs, bary);
 
 			// find texel
-			int dx = (uvs.x * m_iWidth); // round?
-			int dy = (uvs.y * m_iHeight);
+			int dx = (uvs.x * _width); // round?
+			int dy = (uvs.y * _height);
 
 			// texel not on the UV map
-			if (!m_Image_L.IsWithin(dx, dy))
+			if (!_image_L.is_within(dx, dy))
 				return true;
 
 			// back face?
 			Vector3 face_normal;
-			bool bBackFace = HitBackFace(r, tri_hit, bary, face_normal);
+			bool bBackFace = hit_back_face(r, tri_hit, bary, face_normal);
 
 			// the contribution is the luminosity at that spot and the albedo
 			Color albedo;
 			bool bTransparent;
-			m_Scene.FindPrimaryTextureColors(tri_hit, bary, albedo, bTransparent);
+			_scene.find_primary_texture_colors(tri_hit, bary, albedo, bTransparent);
 
 			FColor falbedo;
-			falbedo.Set(albedo);
+			falbedo.set(albedo);
 
 			bool opaque = !(bTransparent && (albedo.a < 0.5f));
 
@@ -1454,15 +1454,15 @@ bool LightMapper::ProcessTexel_AmbientBounce_Sample(const Vector3 &plane_norm, c
 				// if it is front facing, still apply the 'haze' from the colour
 				// (this all counts as 1 sample, so could get super light in theory, if passing through several hazes...)
 				if (!bBackFace)
-					total_col += (m_Image_L.GetItem(dx, dy) * falbedo);
+					total_col += (_image_L.get_item(dx, dy) * falbedo);
 
 				// move the ray origin and do again
 				// position of potential hit
 				Vector3 pos;
-				const Tri &triangle = m_Scene.m_Tris[tri_hit];
-				triangle.InterpolateBarycentric(pos, bary);
+				const Tri &triangle = _scene._tris[tri_hit];
+				triangle.interpolate_barycentric(pos, bary);
 
-				float push = -m_Settings_SurfaceBias;
+				float push = -settings.surface_bias;
 				if (bBackFace)
 					push = -push;
 
@@ -1470,7 +1470,7 @@ bool LightMapper::ProcessTexel_AmbientBounce_Sample(const Vector3 &plane_norm, c
 
 				// and repeat the loop
 			} else {
-				total_col += (m_Image_L.GetItem(dx, dy) * falbedo);
+				total_col += (_image_L.get_item(dx, dy) * falbedo);
 
 				//assert (total_col.r >= 0.0f);
 				break;
@@ -1508,18 +1508,18 @@ bool LightMapper::ProcessTexel_AmbientBounce_Sample(const Vector3 &plane_norm, c
 //	Vector3 normal;
 //	m_Scene.m_TriNormals[tri].InterpolateBarycentric(normal, bary.x, bary.y, bary.z);
 
-void LightMapper::BF_ProcessTexel(int tx, int ty) {
+void LightMapper::BF_process_texel(int tx, int ty) {
 	//		if ((tx == 13) && (ty == 284))
 	//			print_line("testing");
 
 	// find triangle
-	uint32_t tri_id = *m_Image_ID_p1.Get(tx, ty);
+	uint32_t tri_id = *_image_ID_p1.get(tx, ty);
 	if (!tri_id)
 		return;
 	tri_id--; // plus one based
 
 	// barycentric
-	const Vector3 &bary = *m_Image_Barycentric.Get(tx, ty);
+	const Vector3 &bary = *_image_barycentric.get(tx, ty);
 	Vector3 bary_clamped; // = bary;
 
 	// new .. cap the barycentric to prevent edge artifacts
@@ -1537,19 +1537,19 @@ void LightMapper::BF_ProcessTexel(int tx, int ty) {
 	// At the light end this doesn't matter, but if we trace the other way
 	// we get artifacts due to precision loss due to normalized direction.
 	Vector3 pos;
-	m_Scene.m_Tris[tri_id].InterpolateBarycentric(pos, bary_clamped);
+	_scene._tris[tri_id].interpolate_barycentric(pos, bary_clamped);
 
 	// add epsilon to pos to prevent self intersection and neighbour intersection
-	const Vector3 &plane_normal = m_Scene.m_TriPlanes[tri_id].normal;
-	pos += plane_normal * m_Settings_SurfaceBias;
+	const Vector3 &plane_normal = _scene._tri_planes[tri_id].normal;
+	pos += plane_normal * settings.surface_bias;
 
 	Vector3 normal;
-	m_Scene.m_TriNormals[tri_id].InterpolateBarycentric(normal, bary.x, bary.y, bary.z);
+	_scene._tri_normals[tri_id].interpolate_barycentric(normal, bary.x, bary.y, bary.z);
 
 	//Vector2i tex_uv = Vector2i(x, y);
 
 	// could be off the image
-	if (!m_Image_L.IsWithin(tx, ty))
+	if (!_image_L.is_within(tx, ty))
 		return;
 
 	// find the colors of this texel
@@ -1557,24 +1557,24 @@ void LightMapper::BF_ProcessTexel(int tx, int ty) {
 	Color emission;
 	bool transparent;
 	bool emitter;
-	m_Scene.FindAllTextureColors(tri_id, bary, albedo, emission, transparent, emitter);
+	_scene.find_all_texture_colors(tri_id, bary, albedo, emission, transparent, emitter);
 
 	FColor texel_add;
-	texel_add.Set(0.0f);
+	texel_add.set(0.0f);
 
 	//	FColor * pTexel = m_Image_L.Get(tx, ty);
 	//	if (!pTexel)
 	//		return;
 
-	int nSamples = m_AdjustedSettings.m_Backward_NumRays;
+	int nSamples = adjusted_settings.backward_num_rays;
 	FColor temp;
-	for (int l = 0; l < m_Lights.size(); l++) {
-		BF_ProcessTexel_Light(albedo, l, pos, plane_normal, normal, temp, nSamples);
+	for (int l = 0; l < _lights.size(); l++) {
+		BF_process_texel_light(albedo, l, pos, plane_normal, normal, temp, nSamples);
 		texel_add += temp;
 	}
 
 	// sky (if present)
-	if (BF_ProcessTexel_Sky(albedo, pos, plane_normal, normal, temp)) {
+	if (BF_process_texel_sky(albedo, pos, plane_normal, normal, temp)) {
 		// scale sky by number of samples in the normal lights
 		float descale_to_match_normal_lights = nSamples / 1024.0;
 		texel_add += temp * descale_to_match_normal_lights;
@@ -1588,15 +1588,15 @@ void LightMapper::BF_ProcessTexel(int tx, int ty) {
 		// Glow determines how much the surface itself is lighted (and thus the ratio between glow and emission)
 		// emission density determines the number of rays and lighting effect
 		FColor femm;
-		femm.Set(emission);
-		float power = m_Settings_Backward_RayPower * m_AdjustedSettings.m_Backward_NumRays * 32.0f;
-		power *= m_Settings_Glow;
+		femm.set(emission);
+		float power = settings.backward_ray_power * adjusted_settings.backward_num_rays * 32.0f;
+		power *= settings.glow;
 		texel_add += femm * power;
 
 		// only if directional bounces are being used (could use ambient bounces for emission)
-		if (m_AdjustedSettings.m_NumDirectionalBounces) {
+		if (adjusted_settings.num_directional_bounces) {
 			// needs to be adjusted according to size of texture .. as there will be more emissive texels
-			int nSamples = m_AdjustedSettings.m_Backward_NumRays * 2 * m_AdjustedSettings.m_EmissionDensity;
+			int nSamples = adjusted_settings.backward_num_rays * 2 * adjusted_settings.emission_density;
 
 			// apply the albedo to the emission color to get the color emanating
 			femm.r *= albedo.r;
@@ -1605,27 +1605,27 @@ void LightMapper::BF_ProcessTexel(int tx, int ty) {
 
 			Ray r;
 			r.o = pos;
-			femm *= m_Settings_Backward_RayPower * 128.0f * (1.0f / m_AdjustedSettings.m_EmissionDensity);
+			femm *= settings.backward_ray_power * 128.0f * (1.0f / adjusted_settings.emission_density);
 
 			for (int n = 0; n < nSamples; n++) {
 				// send out emission bounce rays
-				RandomUnitDir(r.d);
+				generate_random_unit_dir(r.d);
 
 				float dot = plane_normal.dot(r.d);
 				if (dot < 0.0f)
 					r.d = -r.d;
 
-				BF_ProcessTexel_LightBounce(m_AdjustedSettings.m_NumDirectionalBounces, r, femm); // always at least 1 emission ray
+				BF_process_texel_light_bounce(adjusted_settings.num_directional_bounces, r, femm); // always at least 1 emission ray
 			}
 		}
 	}
 
 	// safe write
-	MT_SafeAddToTexel(tx, ty, texel_add);
+	MT_safe_add_to_texel(tx, ty, texel_add);
 }
 
-void LightMapper::ProcessEmissionTris() {
-	int num_sections = m_iNumRays / m_iRaysPerSection;
+void LightMapper::process_emission_tris() {
+	int num_sections = _num_rays / RAYS_PER_SECTION;
 
 	if (!num_sections)
 		num_sections = 1;
@@ -1639,8 +1639,8 @@ void LightMapper::ProcessEmissionTris() {
 	for (int s = 0; s < num_sections; s++) {
 		if ((s % 1) == 0) {
 			if (bake_step_function) {
-				m_bCancel = bake_step_function(s / (float)num_sections, String("Process Emission Section: ") + " (" + itos(s) + ")");
-				if (m_bCancel) {
+				_pressed_cancel = bake_step_function(s / (float)num_sections, String("Process Emission Section: ") + " (" + itos(s) + ")");
+				if (_pressed_cancel) {
 					if (bake_end_function)
 						bake_end_function();
 					return;
@@ -1648,13 +1648,13 @@ void LightMapper::ProcessEmissionTris() {
 			}
 		}
 
-		ProcessEmissionTris_Section(fraction);
+		process_emission_tris_section(fraction);
 
-		while (!RayBank_AreVoxelsClear())
+		while (!ray_bank_are_voxels_clear())
 		//for (int b=0; b<m_AdjustedSettings.m_Forward_NumBounces+1; b++)
 		{
-			RayBank_Process();
-			RayBank_Flush();
+			ray_bank_process();
+			ray_bank_flush();
 		} // for bounce
 	} // for section
 
@@ -1675,29 +1675,29 @@ void LightMapper::ProcessEmissionTris() {
 	}
 }
 
-void LightMapper::ProcessEmissionTris_Section(float fraction_of_total) {
-	for (int n = 0; n < m_Scene.m_EmissionTris.size(); n++) {
-		ProcessEmissionTri(n, fraction_of_total);
+void LightMapper::process_emission_tris_section(float fraction_of_total) {
+	for (int n = 0; n < _scene._emission_tris.size(); n++) {
+		process_emission_tri(n, fraction_of_total);
 	}
 }
 
-void LightMapper::ProcessEmissionTri(int etri_id, float fraction_of_total) {
-	const EmissionTri &etri = m_Scene.m_EmissionTris[etri_id];
+void LightMapper::process_emission_tri(int etri_id, float fraction_of_total) {
+	const EmissionTri &etri = _scene._emission_tris[etri_id];
 	int tri_id = etri.tri_id;
 
 	// get the material
 
 	// positions
-	const Tri &tri_pos = m_Scene.m_Tris[tri_id];
+	const Tri &tri_pos = _scene._tris[tri_id];
 
 	// normals .. just use plane normal for now (no interpolation)
-	Vector3 norm = m_Scene.m_TriPlanes[tri_id].normal;
+	Vector3 norm = _scene._tri_planes[tri_id].normal;
 
 	Ray ray;
 	ray.d = norm;
 
 	// use the area to get number of samples
-	float rays_per_unit_area = m_iNumRays * m_AdjustedSettings.m_EmissionDensity * 0.12f * 0.5f;
+	float rays_per_unit_area = _num_rays * adjusted_settings.emission_density * 0.12f * 0.5f;
 	int nSamples = etri.area * rays_per_unit_area * fraction_of_total;
 
 	// nSamples may be zero incorrectly for small triangles, maybe we need to adjust for this
@@ -1706,13 +1706,13 @@ void LightMapper::ProcessEmissionTri(int etri_id, float fraction_of_total) {
 	for (int s = 0; s < nSamples; s++) {
 		// find a random barycentric coord
 		Vector3 bary;
-		RandomBarycentric(bary);
+		generate_random_barycentric(bary);
 
 		// find point on this actual triangle
-		tri_pos.InterpolateBarycentric(ray.o, bary);
+		tri_pos.interpolate_barycentric(ray.o, bary);
 
 		// shoot a ray from this pos and normal, using the emission color
-		RandomUnitDir(ray.d);
+		generate_random_unit_dir(ray.d);
 		ray.d += norm;
 
 		if (ray.d.dot(norm) < 0.0f)
@@ -1723,42 +1723,42 @@ void LightMapper::ProcessEmissionTri(int etri_id, float fraction_of_total) {
 		// get the albedo etc
 		Color emission_tex_color;
 		Color emission_color;
-		m_Scene.FindEmissionColor(tri_id, bary, emission_tex_color, emission_color);
+		_scene.find_emission_color(tri_id, bary, emission_tex_color, emission_color);
 
 		FColor fcol;
-		fcol.Set(emission_tex_color);
-		RayBank_RequestNewRay(ray, m_AdjustedSettings.m_NumDirectionalBounces + 1, fcol);
+		fcol.set(emission_tex_color);
+		ray_bank_request_new_ray(ray, adjusted_settings.num_directional_bounces + 1, fcol);
 
 		// special. For emission we want to also affect the emitting surface.
 		// convert barycentric to uv coords in the lightmap
 		Vector2 uv;
-		m_Scene.FindUVsBarycentric(tri_id, uv, bary);
+		_scene.find_uvs_barycentric(tri_id, uv, bary);
 
 		// texel address
-		int tx = uv.x * m_iWidth;
-		int ty = uv.y * m_iHeight;
+		int tx = uv.x * _width;
+		int ty = uv.y * _height;
 
 		// could be off the image
-		if (!m_Image_L.IsWithin(tx, ty))
+		if (!_image_L.is_within(tx, ty))
 			continue;
 
-		FColor *pTexelCol = m_Image_L.Get(tx, ty);
+		FColor *pTexelCol = _image_L.get(tx, ty);
 
 		//		fcol.Set(emission_color * 0.5f);
-		*pTexelCol += fcol * m_Settings_Glow;
+		*pTexelCol += fcol * settings.glow;
 	}
 }
 
-void LightMapper::ProcessLights() {
+void LightMapper::process_lights() {
 	//	const int rays_per_section = 1024 * 16;
 
-	int num_sections = m_iNumRays / m_iRaysPerSection;
+	int num_sections = _num_rays / RAYS_PER_SECTION;
 
 	//	if (bake_begin_function) {
 	//		bake_begin_function(num_sections);
 	//	}
 
-	for (int n = 0; n < m_Lights.size(); n++) {
+	for (int n = 0; n < _lights.size(); n++) {
 		for (int s = 0; s < num_sections; s++) {
 			// double check the voxels are clear
 #ifdef DEBUG_ENABLED
@@ -1767,8 +1767,8 @@ void LightMapper::ProcessLights() {
 
 			if ((s % 1) == 0) {
 				if (bake_step_function) {
-					m_bCancel = bake_step_function(s / (float)num_sections, String("Process Light Section: ") + " (" + itos(s) + ")");
-					if (m_bCancel) {
+					_pressed_cancel = bake_step_function(s / (float)num_sections, String("Process Light Section: ") + " (" + itos(s) + ")");
+					if (_pressed_cancel) {
 						if (bake_end_function)
 							bake_end_function();
 						return;
@@ -1776,13 +1776,13 @@ void LightMapper::ProcessLights() {
 				}
 			}
 
-			ProcessLight(n, m_iRaysPerSection);
+			process_light(n, RAYS_PER_SECTION);
 
-			while (!RayBank_AreVoxelsClear())
+			while (!ray_bank_are_voxels_clear())
 			//for (int b=0; b<m_AdjustedSettings.m_Forward_NumBounces+1; b++)
 			{
-				RayBank_Process();
-				RayBank_Flush();
+				ray_bank_process();
+				ray_bank_flush();
 			} // for bounce
 
 			// if everything went correctly,
@@ -1793,19 +1793,19 @@ void LightMapper::ProcessLights() {
 
 		// left over
 		{
-			int num_leftover = m_iNumRays - (num_sections * m_iRaysPerSection);
-			ProcessLight(n, num_leftover);
+			int num_leftover = _num_rays - (num_sections * RAYS_PER_SECTION);
+			process_light(n, num_leftover);
 
-			while (!RayBank_AreVoxelsClear())
+			while (!ray_bank_are_voxels_clear())
 			//for (int b=0; b<m_AdjustedSettings.m_Forward_NumBounces+1; b++)
 			{
-				RayBank_Process();
-				RayBank_Flush();
+				ray_bank_process();
+				ray_bank_flush();
 			} // for bounce
 		}
 
 		// this is not really required, but is a protection against memory leaks
-		RayBank_Reset(true);
+		ray_bank_reset(true);
 	} // for light
 
 	if (bake_end_function) {
@@ -1813,8 +1813,8 @@ void LightMapper::ProcessLights() {
 	}
 }
 
-void LightMapper::ProcessLight(int light_id, int num_rays) {
-	const LLight &light = m_Lights[light_id];
+void LightMapper::process_light(int light_id, int num_rays) {
+	const LLight &light = _lights[light_id];
 
 	Ray r;
 	//	r.o = Vector3(0, 5, 0);
@@ -1825,7 +1825,7 @@ void LightMapper::ProcessLight(int light_id, int num_rays) {
 	// the power should depend on the volume, with 1x1x1 being normal power
 	//	float power = light.scale.x * light.scale.y * light.scale.z;
 	//	float power = light.energy;
-	//	power *= m_Settings_Forward_RayPower;
+	//	power *= settings.Forward_RayPower;
 
 	//	light_color.r = power;
 	//	light_color.g = power;
@@ -1839,7 +1839,7 @@ void LightMapper::ProcessLight(int light_id, int num_rays) {
 	num_rays *= light.indirect_energy;
 
 	// compensate for the number of rays in terms of the power per ray
-	float power = 0.01f; //m_Settings_Forward_RayPower;
+	float power = 0.01f; //settings.Forward_RayPower;
 
 	if (light.indirect_energy > 0.0001f)
 		power *= 1.0f / light.indirect_energy;
@@ -1884,7 +1884,7 @@ void LightMapper::ProcessLight(int light_id, int num_rays) {
 
 					bool direction_ok = false;
 					while (!direction_ok) {
-						RandomUnitDir(r.d);
+						generate_random_unit_dir(r.d);
 						r.d *= light.scale;
 						// must point down - reverse hemisphere if pointing up
 						if (light.dir.dot(r.d) < 0.0f) {
@@ -1900,7 +1900,7 @@ void LightMapper::ProcessLight(int light_id, int num_rays) {
 					}
 
 					// now we are starting from destination, we must trace back to origin
-					const AABB &bb = GetTracer().GetWorldBound_expanded();
+					const AABB &bb = get_tracer().get_world_bound_expanded();
 
 					// num units to top of map
 					// plus a bit to make intersecting the world bound easier
@@ -1934,14 +1934,14 @@ void LightMapper::ProcessLight(int light_id, int num_rays) {
 					//					if (ptHit.z < bb_min.z)
 					//						r.o.z += bb.size.z;
 
-					if (!GetTracer().GetWorldBound_expanded().intersects_ray(r.o, r.d)) {
+					if (!get_tracer().get_world_bound_expanded().intersects_ray(r.o, r.d)) {
 						hit_bound = false;
 					}
 				} // while hit bound
 			} break;
 			case LLight::LT_SPOT: {
 				Vector3 offset;
-				RandomUnitDir(offset);
+				generate_random_unit_dir(offset);
 				offset *= light.scale;
 				r.o += offset;
 
@@ -1949,7 +1949,7 @@ void LightMapper::ProcessLight(int light_id, int num_rays) {
 
 				// random axis
 				Vector3 axis;
-				RandomAxis(axis);
+				generate_random_axis(axis);
 
 				float falloff_start = 0.5f; // this could be adjustable;
 
@@ -2004,16 +2004,16 @@ void LightMapper::ProcessLight(int light_id, int num_rays) {
 			} break;
 			default: {
 				Vector3 offset;
-				RandomUnitDir(offset);
+				generate_random_unit_dir(offset);
 				offset *= light.scale;
 				r.o += offset;
 
-				RandomUnitDir(r.d);
+				generate_random_unit_dir(r.d);
 			} break;
 		}
 		//r.d.normalize();
 
-		RayBank_RequestNewRay(r, m_AdjustedSettings.m_NumDirectionalBounces + 1, light_color, 0);
+		ray_bank_request_new_ray(r, adjusted_settings.num_directional_bounces + 1, light_color, 0);
 
 		//		ProcessRay(r, 0, power);
 	}
