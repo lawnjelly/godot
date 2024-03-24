@@ -387,6 +387,82 @@ void LightTracer::fill_voxels() {
 	print_line("FillVoxels : Num AABBs " + itos(_p_scene->_tri_pos_aabbs.size()));
 	print_line("NumTris " + itos(_num_tris));
 
+	uint32_t tris_added = 0;
+
+	for (int t = 0; t < _num_tris; t++) {
+		AABB tri_aabb = _p_scene->_tri_pos_aabbs[t];
+
+		// expand a little for float error
+		tri_aabb.grow_by(0.001f);
+
+		Vector3 mins = tri_aabb.position;
+		Vector3 maxs = mins + tri_aabb.size;
+
+		// find all voxels it intersects
+		// by changing the AABB to voxel coords.
+		_world_coord_to_voxel_coord(mins);
+		_world_coord_to_voxel_coord(maxs);
+
+		Vec3i mins_i;
+		Vec3i maxs_i;
+
+		mins_i.set_floor(mins);
+		maxs_i.set_ceil(maxs);
+
+		mins_i.x = CLAMP(mins_i.x, 0, _dims.x);
+		mins_i.y = CLAMP(mins_i.y, 0, _dims.y);
+		mins_i.z = CLAMP(mins_i.z, 0, _dims.z);
+		maxs_i.x = CLAMP(maxs_i.x, 0, _dims.x);
+		maxs_i.y = CLAMP(maxs_i.y, 0, _dims.y);
+		maxs_i.z = CLAMP(maxs_i.z, 0, _dims.z);
+
+		/*
+		if ((t % 1024) == 0) {
+			String sz = "Tri " + itos(t) + " :\t";
+			sz += mins_i.to_string();
+			sz += " to ";
+			sz += maxs_i.to_string();
+			sz += " ... total tris added " + itos(tris_added);
+			print_line(sz);
+		}
+*/
+
+		for (int z = mins_i.z; z < maxs_i.z; z++) {
+			for (int y = mins_i.y; y < maxs_i.y; y++) {
+				for (int x = mins_i.x; x < maxs_i.x; x++) {
+					// Voxel number
+					int v = get_voxel_num(x, y, z);
+					Voxel &vox = get_voxel(v);
+
+					vox.add_triangle(_p_scene->_tris_edge_form[t], t);
+					tris_added++;
+				}
+			}
+		}
+	}
+
+	print_line("Total tris added : " + itos(tris_added));
+
+	int count = 0;
+	for (int z = 0; z < _dims.z; z++) {
+		for (int y = 0; y < _dims.y; y++) {
+			for (int x = 0; x < _dims.x; x++) {
+				Voxel &vox = _voxels[count++];
+				vox.finalize();
+			}
+		}
+	}
+
+	calculate_SDF();
+}
+
+/*
+void LightTracer::fill_voxels_old() {
+	print_line("FillVoxels : Num AABBs " + itos(_p_scene->_tri_pos_aabbs.size()));
+	print_line("NumTris " + itos(_num_tris));
+
+	uint32_t tris_added = 0;
+
 	int count = 0;
 	for (int z = 0; z < _dims.z; z++) {
 		for (int y = 0; y < _dims.y; y++) {
@@ -409,6 +485,7 @@ void LightTracer::fill_voxels() {
 						// add tri to voxel
 						//vox.m_TriIDs.push_back(t);
 						vox.add_triangle(_p_scene->_tris_edge_form[t], t);
+						tris_added++;
 
 						//						if ((z == 1) && (y == 1) && (x == 0))
 						//						{
@@ -426,8 +503,11 @@ void LightTracer::fill_voxels() {
 		} // for y
 	} // for z
 
+	print_line("Total tris added : " + itos(tris_added));
+
 	calculate_SDF();
 }
+*/
 
 Vec3i LightTracer::estimate_voxel_dims(int voxel_density) {
 	Vec3i dims;

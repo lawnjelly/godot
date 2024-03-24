@@ -96,6 +96,7 @@ private:
 	void calculate_world_bound();
 	void calculate_voxel_dims(int voxel_density);
 	void fill_voxels();
+	//void fill_voxels_old();
 	void calculate_SDF();
 	void debug_save_SDF();
 	void calculate_SDF_Voxel(const Vec3i &ptCentre);
@@ -145,11 +146,27 @@ private:
 	// to prevent integer overflow in the voxels, we calculate the maximum possible distance
 	real_t _max_test_dist;
 
-	int get_voxel_num(const Vec3i &pos) const {
-		int v = pos.z * _dims_x_times_y;
-		v += pos.y * _dims.x;
-		v += pos.x;
+	void _world_coord_to_voxel_coord(Vector3 &r_pt) const {
+		DEV_ASSERT(_voxel_size.x > 0);
+		DEV_ASSERT(_voxel_size.y > 0);
+		DEV_ASSERT(_voxel_size.z > 0);
+		r_pt.x -= _scene_world_bound_expanded.position.x;
+		r_pt.x /= _voxel_size.x;
+		r_pt.y -= _scene_world_bound_expanded.position.y;
+		r_pt.y /= _voxel_size.y;
+		r_pt.z -= _scene_world_bound_expanded.position.z;
+		r_pt.z /= _voxel_size.z;
+	}
+
+	int get_voxel_num(int x, int y, int z) const {
+		int v = z * _dims_x_times_y;
+		v += y * _dims.x;
+		v += x;
 		return v;
+	}
+
+	int get_voxel_num(const Vec3i &pos) const {
+		return get_voxel_num(pos.x, pos.y, pos.z);
 	}
 
 	const Voxel &get_voxel(const Vec3i &pos) const {
@@ -159,6 +176,10 @@ private:
 	}
 	Voxel &get_voxel(const Vec3i &pos) {
 		int v = get_voxel_num(pos);
+		assert(v < _num_voxels);
+		return _voxels[v];
+	}
+	Voxel &get_voxel(int v) {
 		assert(v < _num_voxels);
 		return _voxels[v];
 	}

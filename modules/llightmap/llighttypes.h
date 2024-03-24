@@ -42,6 +42,16 @@ public:
 		y = (int)(p.y + 0.5f);
 		z = (int)(p.z + 0.5f);
 	}
+	void set_floor(const Vector3 &p) {
+		x = p.x;
+		y = p.y;
+		z = p.z;
+	}
+	void set_ceil(const Vector3 &p) {
+		x = Math::ceil(p.x);
+		y = Math::ceil(p.y);
+		z = Math::ceil(p.z);
+	}
 	void to(Vector3 &p) const {
 		p.x = x;
 		p.y = y;
