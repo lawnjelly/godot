@@ -33,7 +33,7 @@ public:
 	//		String node_name;
 	//	};
 
-	void StitchObjectSeams(const MeshInstance &p_mi, LightImage<FColor> &r_image, float distance_threshold, float normal_threshold, bool p_visualize_seams);
+	void stitch_object_seams(const MeshInstance &p_mi, LightImage<FColor> &r_image, float distance_threshold, float normal_threshold, bool p_visualize_seams);
 
 private:
 	void _compute_seams(const Vector<Vector3> &points, const Vector<Vector2> &uv2s, const Vector<Vector3> &normals, Vector2i lm_size, LocalVector<UVSeam> &r_seams);

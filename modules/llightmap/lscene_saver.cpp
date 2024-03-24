@@ -5,15 +5,15 @@
 
 namespace LM {
 
-void SceneSaver::SetFilenameRecursive(Node *pNode) {
+void SceneSaver::set_filename_recursive(Node *pNode) {
 	pNode->set_filename("");
 
 	for (int n = 0; n < pNode->get_child_count(); n++) {
-		SetFilenameRecursive(pNode->get_child(n));
+		set_filename_recursive(pNode->get_child(n));
 	}
 }
 
-void SceneSaver::SetOwnerRecursive(Node *pNode, Node *pOwner) {
+void SceneSaver::set_owner_recursive(Node *pNode, Node *pOwner) {
 	//	String sz;
 	//	sz = "node " + pNode->get_name();
 	//	if (pNode->get_owner())
@@ -26,20 +26,20 @@ void SceneSaver::SetOwnerRecursive(Node *pNode, Node *pOwner) {
 		pNode->set_owner(pOwner);
 
 	for (int n = 0; n < pNode->get_child_count(); n++) {
-		SetOwnerRecursive(pNode->get_child(n), pOwner);
+		set_owner_recursive(pNode->get_child(n), pOwner);
 	}
 }
 
-bool SceneSaver::SaveScene(Node *pNode, String szFilename, bool reset_filenames) {
+bool SceneSaver::save_scene(Node *pNode, String szFilename, bool reset_filenames) {
 	// for subscenes, it doesn't seem to save edited stuff correctly unless we blank
 	// the filenames.
 	if (reset_filenames)
-		SetFilenameRecursive(pNode);
+		set_filename_recursive(pNode);
 
 	Node *pPreviousOwner = pNode->get_owner();
 
 	// godot needs owner to be set on nodes that are to be saved as part of a packed scene
-	SetOwnerRecursive(pNode, pNode);
+	set_owner_recursive(pNode, pNode);
 
 	//PackedScene ps;
 	// reference should self delete on exiting func .. check!
@@ -52,7 +52,7 @@ bool SceneSaver::SaveScene(Node *pNode, String szFilename, bool reset_filenames)
 	Error err = rs.save(szFilename, ps);
 
 	// set back previous owner
-	SetOwnerRecursive(pNode, pPreviousOwner);
+	set_owner_recursive(pNode, pPreviousOwner);
 
 	// reimport
 	//	ResourceLoader::import(szFilename);

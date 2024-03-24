@@ -34,7 +34,7 @@ bool LightMapper::uv_map_meshes(Spatial *pRoot) {
 
 	// first back up the existing meshes scene.
 	SceneSaver saver;
-	saver.SaveScene(pRoot, "res://uvmap_backup.tscn");
+	saver.save_scene(pRoot, "res://uvmap_backup.tscn");
 
 	if (bake_step_function) {
 		bake_step_function(1 / steps, String("Merging to proxy"));
@@ -61,7 +61,7 @@ bool LightMapper::uv_map_meshes(Spatial *pRoot) {
 	bool res = u.unmerge(m, *pMerged);
 
 	// for debug save the merged version
-	saver.SaveScene(pMerged, "res://merged_proxy.tscn");
+	saver.save_scene(pMerged, "res://merged_proxy.tscn");
 
 	pMerged->queue_delete();
 
@@ -73,7 +73,7 @@ bool LightMapper::uv_map_meshes(Spatial *pRoot) {
 	if (settings.UV_filename != "") {
 		Node *pOrigOwner = pRoot->get_owner();
 
-		if (!saver.SaveScene(pRoot, settings.UV_filename, true)) {
+		if (!saver.save_scene(pRoot, settings.UV_filename, true)) {
 			show_warning("Error saving UV mapped scene. Does the folder exist?\n\n" + settings.UV_filename);
 		}
 
@@ -101,7 +101,7 @@ bool LightMapper::uv_map_meshes(Spatial *pRoot) {
 				pParent->add_child(pFinalScene);
 
 				// set owners
-				saver.SetOwnerRecursive(pFinalScene, pFinalScene);
+				saver.set_owner_recursive(pFinalScene, pFinalScene);
 				pFinalScene->set_owner(pOrigOwner);
 			}
 
@@ -1296,7 +1296,7 @@ void LightMapper::BF_process_texel_light_bounce(int bounces_left, Ray r, FColor 
 
 void LightMapper::process_light_probes() {
 	LightProbes probes;
-	int stages = probes.Create(*this);
+	int stages = probes.create(*this);
 	if (stages != -1) {
 		//		if (bake_begin_function) {
 		//			bake_begin_function(stages);
@@ -1309,11 +1309,11 @@ void LightMapper::process_light_probes() {
 					break;
 			}
 
-			probes.Process(n);
+			probes.process(n);
 		}
 
 		if (!_pressed_cancel)
-			probes.Save();
+			probes.save();
 
 		if (bake_end_function) {
 			bake_end_function();

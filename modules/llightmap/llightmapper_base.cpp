@@ -521,7 +521,7 @@ void LightMapper_Base::stitch_seams() {
 	for (int n = 0; n < _scene.get_num_meshes(); n++) {
 		MeshInstance *mi = _scene.get_mesh(n);
 
-		stitcher.StitchObjectSeams(*mi, _image_L, settings.seam_distance_threshold, settings.seam_normal_threshold, settings.visualize_seams_enabled);
+		stitcher.stitch_object_seams(*mi, _image_L, settings.seam_distance_threshold, settings.seam_normal_threshold, settings.visualize_seams_enabled);
 	}
 }
 

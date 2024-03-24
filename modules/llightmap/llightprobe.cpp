@@ -5,11 +5,11 @@
 
 namespace LM {
 
-int LightProbes::Create(LightMapper &lm) {
+int LightProbes::create(LightMapper &lm) {
 	//	return;
 
 	// save locally
-	m_pLightMapper = &lm;
+	data.light_mapper = &lm;
 
 	// get the aabb (smallest) of the world bound.
 	AABB bb = lm.get_tracer().get_world_bound_contracted();
@@ -19,59 +19,59 @@ int LightProbes::Create(LightMapper &lm) {
 		return -1;
 
 	// use the probe density to estimate the number of voxels
-	m_Dims = lm.get_tracer().estimate_voxel_dims(lm.settings.probe_density);
-	m_DimXTimesY = (m_Dims.x * m_Dims.y);
+	data.dims = lm.get_tracer().estimate_voxel_dims(lm.settings.probe_density);
+	data.dim_x_times_y = (data.dims.x * data.dims.y);
 
 	Vector3 voxel_dims;
-	m_Dims.to(voxel_dims);
+	data.dims.to(voxel_dims);
 
 	print_line("Probes voxel dims : " + String(Variant(voxel_dims)));
 
 	// voxel dimensions and start point
-	m_VoxelSize = bb.size / voxel_dims;
+	data.voxel_size = bb.size / voxel_dims;
 
 	// start point is offset by half a voxel
-	m_ptMin = bb.position + (m_VoxelSize * 0.5f);
+	data.pt_min = bb.position + (data.voxel_size * 0.5f);
 
-	m_Probes.resize(m_Dims.x * m_Dims.y * m_Dims.z);
+	data.probes.resize(data.dims.x * data.dims.y * data.dims.z);
 
-	return m_Dims.z;
+	return data.dims.z;
 }
 
-void LightProbes::Process(int stage) {
+void LightProbes::process(int stage) {
 	int z = stage;
-	//	for (int z=0; z<m_Dims.z; z++)
+	//	for (int z=0; z<data.dims.z; z++)
 	//	{
-	for (int y = 0; y < m_Dims.y; y++) {
-		for (int x = 0; x < m_Dims.x; x++) {
-			CalculateProbe(Vec3i(x, y, z));
+	for (int y = 0; y < data.dims.y; y++) {
+		for (int x = 0; x < data.dims.x; x++) {
+			calculate_probe(Vec3i(x, y, z));
 		}
 	}
 	//	}
 }
 
-void LightProbes::Save() {
-	String filename = m_pLightMapper->settings.combined_filename;
+void LightProbes::save() {
+	String filename = data.light_mapper->settings.combined_filename;
 	filename = filename.get_basename();
 	filename += ".probe";
 
-	Save(filename);
+	save(filename);
 	//	Save("lightprobes.probe");
 }
 
-void LightProbes::CalculateProbe_Old(const Vec3i &pt) {
+void LightProbes::calculate_probe_old(const Vec3i &pt) {
 	Vector3 pos;
-	GetProbePosition(pt, pos);
+	get_probe_position(pt, pos);
 
-	LightProbe *pProbe = GetProbe(pt);
+	LightProbe *pProbe = get_probe(pt);
 	assert(pProbe);
 
 	// do multiple tests per light
 	const int nLightTests = 9;
-	Vector3 ptLightSpacing = m_VoxelSize / (nLightTests + 2);
+	Vector3 ptLightSpacing = data.voxel_size / (nLightTests + 2);
 
-	for (int l = 0; l < m_pLightMapper->_lights.size(); l++) {
-		const LightMapper_Base::LLight &light = m_pLightMapper->_lights[l];
+	for (int l = 0; l < data.light_mapper->_lights.size(); l++) {
+		const LightMapper_Base::LLight &light = data.light_mapper->_lights[l];
 
 		// the start of the mini grid for each voxel
 		Vector3 ptLightStart = pos - (ptLightSpacing * ((nLightTests - 1) / 2));
@@ -100,7 +100,7 @@ void LightProbes::CalculateProbe_Old(const Vec3i &pt) {
 					// to start with just trace a ray to each light
 					Vector3 bary;
 					float nearest_t;
-					int tri_id = m_pLightMapper->_scene.find_intersect_ray(r, bary, nearest_t);
+					int tri_id = data.light_mapper->_scene.find_intersect_ray(r, bary, nearest_t);
 
 					// light blocked
 					if ((tri_id != -1) && (nearest_t < dist_to_light))
@@ -115,7 +115,7 @@ void LightProbes::CalculateProbe_Old(const Vec3i &pt) {
 		if (nHits) {
 			// light got through..
 			// pProbe->m_fLight += 1.0f;
-			LightProbe::Contribution *pCont = pProbe->m_Contributions.request();
+			LightProbe::Contribution *pCont = pProbe->contributions.request();
 			pCont->light_id = l;
 
 			// calculate power based on distance
@@ -127,31 +127,31 @@ void LightProbes::CalculateProbe_Old(const Vec3i &pt) {
 	}
 
 	// indirect light
-	pProbe->m_Color_Indirect = m_pLightMapper->probe_calculate_indirect_light(pos);
+	pProbe->color_indirect = data.light_mapper->probe_calculate_indirect_light(pos);
 
 	// apply gamma
-	float gamma = 1.0f / m_pLightMapper->settings.gamma;
-	pProbe->m_Color_Indirect.r = powf(pProbe->m_Color_Indirect.r, gamma);
-	pProbe->m_Color_Indirect.g = powf(pProbe->m_Color_Indirect.g, gamma);
-	pProbe->m_Color_Indirect.b = powf(pProbe->m_Color_Indirect.b, gamma);
+	float gamma = 1.0f / data.light_mapper->settings.gamma;
+	pProbe->color_indirect.r = powf(pProbe->color_indirect.r, gamma);
+	pProbe->color_indirect.g = powf(pProbe->color_indirect.g, gamma);
+	pProbe->color_indirect.b = powf(pProbe->color_indirect.b, gamma);
 
 	Color col_ind;
-	pProbe->m_Color_Indirect.to(col_ind);
+	pProbe->color_indirect.to(col_ind);
 	//print_line("\tprobe " + pt.ToString() + " indirect " + String(Variant(col_ind)));
 }
 
-void LightProbes::CalculateProbe(const Vec3i &pt) {
+void LightProbes::calculate_probe(const Vec3i &pt) {
 	Vector3 pos;
-	GetProbePosition(pt, pos);
+	get_probe_position(pt, pos);
 
-	LightProbe *pProbe = GetProbe(pt);
+	LightProbe *pProbe = get_probe(pt);
 	assert(pProbe);
 
 	// do multiple tests per light
-	const int nSamples = m_pLightMapper->settings.num_probe_samples / 8;
+	const int nSamples = data.light_mapper->settings.num_probe_samples / 8;
 
-	for (int l = 0; l < m_pLightMapper->_lights.size(); l++) {
-		const LightMapper_Base::LLight &light = m_pLightMapper->_lights[l];
+	for (int l = 0; l < data.light_mapper->_lights.size(); l++) {
+		const LightMapper_Base::LLight &light = data.light_mapper->_lights[l];
 
 		// for a spotlight, we can cull completely in a lot of cases.
 		// and we MUST .. because otherwise the cone ray generator will have infinite loop.
@@ -172,11 +172,11 @@ void LightProbes::CalculateProbe(const Vec3i &pt) {
 
 		/*
 		AABB bb;
-		bb.position = m_ptMin;
-		bb.position.x += m_VoxelSize.x * pt.x;
-		bb.position.y += m_VoxelSize.y * pt.y;
-		bb.position.z += m_VoxelSize.z * pt.z;
-		bb.size = m_VoxelSize;
+		bb.position = data.pt_min;
+		bb.position.x += data.voxel_size.x * pt.x;
+		bb.position.y += data.voxel_size.y * pt.y;
+		bb.position.z += data.voxel_size.z * pt.z;
+		bb.size = data.voxel_size;
 		*/
 
 		//int nClear = 0;
@@ -192,7 +192,7 @@ void LightProbes::CalculateProbe(const Vec3i &pt) {
 		//fcol.Set(0.0f);
 
 		// test single ray from probe to light centre
-		//if (!m_pLightMapper->m_Scene.TestIntersect_Line(pos, light.pos))
+		//if (!data.light_mapper->m_Scene.TestIntersect_Line(pos, light.pos))
 		//	fClear = nSamples;
 
 		int sample_count = 0;
@@ -207,7 +207,7 @@ void LightProbes::CalculateProbe(const Vec3i &pt) {
 
 			float multiplier;
 			bool disallow_sample;
-			bool bClear = m_pLightMapper->probe_sample_to_light(light, ptStart, multiplier, disallow_sample);
+			bool bClear = data.light_mapper->probe_sample_to_light(light, ptStart, multiplier, disallow_sample);
 
 			// don't count samples if there is not path from the light centre to the light sample
 			if (!disallow_sample)
@@ -222,7 +222,7 @@ void LightProbes::CalculateProbe(const Vec3i &pt) {
 		if (fClear > 0.0f) {
 			// light got through..
 			// pProbe->m_fLight += 1.0f;
-			LightProbe::Contribution *pCont = pProbe->m_Contributions.request();
+			LightProbe::Contribution *pCont = pProbe->contributions.request();
 			pCont->light_id = l;
 
 			// calculate power based on distance
@@ -235,22 +235,22 @@ void LightProbes::CalculateProbe(const Vec3i &pt) {
 	}
 
 	// indirect light
-	pProbe->m_Color_Indirect = m_pLightMapper->probe_calculate_indirect_light(pos);
+	pProbe->color_indirect = data.light_mapper->probe_calculate_indirect_light(pos);
 
 	// apply gamma
-	float gamma = 1.0f / m_pLightMapper->settings.gamma;
-	pProbe->m_Color_Indirect.r = powf(pProbe->m_Color_Indirect.r, gamma);
-	pProbe->m_Color_Indirect.g = powf(pProbe->m_Color_Indirect.g, gamma);
-	pProbe->m_Color_Indirect.b = powf(pProbe->m_Color_Indirect.b, gamma);
+	float gamma = 1.0f / data.light_mapper->settings.gamma;
+	pProbe->color_indirect.r = powf(pProbe->color_indirect.r, gamma);
+	pProbe->color_indirect.g = powf(pProbe->color_indirect.g, gamma);
+	pProbe->color_indirect.b = powf(pProbe->color_indirect.b, gamma);
 
 	Color col_ind;
-	pProbe->m_Color_Indirect.to(col_ind);
+	pProbe->color_indirect.to(col_ind);
 	//print_line("\tprobe " + pt.ToString() + " indirect " + String(Variant(col_ind)));
 }
 
-float LightProbes::CalculatePower(const LightMapper_Base::LLight &light, float dist, const Vector3 &pos) const {
+float LightProbes::calculate_power(const LightMapper_Base::LLight &light, float dist, const Vector3 &pos) const {
 	// ignore light energy for getting more detail, we can apply the light energy at runtime
-	//float power = m_pLightMapper->LightDistanceDropoff(dist, light, 1.0f);
+	//float power = data.light_mapper->LightDistanceDropoff(dist, light, 1.0f);
 
 	// now we are calculating distance func in the shader, power can be used to represent how many rays hit the light,
 	// and also the cone of a spotlight
@@ -258,17 +258,17 @@ float LightProbes::CalculatePower(const LightMapper_Base::LLight &light, float d
 	return power;
 }
 
-void LightProbes::Save_Vector3(FileAccess *f, const Vector3 &v) {
+void LightProbes::save_Vector3(FileAccess *f, const Vector3 &v) {
 	f->store_float(v.x);
 	f->store_float(v.y);
 	f->store_float(v.z);
 }
 
-void LightProbes::Normalize_Indirect() {
+void LightProbes::normalize_indirect() {
 	float max = 0.0f;
 
-	for (int n = 0; n < m_Probes.size(); n++) {
-		FColor &col = m_Probes[n].m_Color_Indirect;
+	for (int n = 0; n < data.probes.size(); n++) {
+		FColor &col = data.probes[n].color_indirect;
 		if (col.r > max)
 			max = col.r;
 		if (col.g > max)
@@ -285,14 +285,14 @@ void LightProbes::Normalize_Indirect() {
 
 	float mult = 1.0f / max;
 
-	for (int n = 0; n < m_Probes.size(); n++) {
-		FColor &col = m_Probes[n].m_Color_Indirect;
+	for (int n = 0; n < data.probes.size(); n++) {
+		FColor &col = data.probes[n].color_indirect;
 		col *= mult;
 	}
 }
 
-void LightProbes::Save(String pszFilename) {
-	Normalize_Indirect();
+void LightProbes::save(String pszFilename) {
+	normalize_indirect();
 
 	// try to open file for writing
 	FileAccess *f = FileAccess::open(pszFilename, FileAccess::WRITE);
@@ -305,29 +305,29 @@ void LightProbes::Save(String pszFilename) {
 	f->store_16(100);
 
 	// first save dimensions
-	f->store_16(m_Dims.x);
-	f->store_16(m_Dims.y);
-	f->store_16(m_Dims.z);
+	f->store_16(data.dims.x);
+	f->store_16(data.dims.y);
+	f->store_16(data.dims.z);
 
 	// minimum pos
-	Save_Vector3(f, m_ptMin);
+	save_Vector3(f, data.pt_min);
 
 	// voxel size
-	Save_Vector3(f, m_VoxelSize);
+	save_Vector3(f, data.voxel_size);
 
 	// num lights
-	f->store_16(m_pLightMapper->_lights.size());
+	f->store_16(data.light_mapper->_lights.size());
 
-	for (int n = 0; n < m_pLightMapper->_lights.size(); n++) {
+	for (int n = 0; n < data.light_mapper->_lights.size(); n++) {
 		// light info
-		const LightMapper_Base::LLight &light = m_pLightMapper->_lights[n];
+		const LightMapper_Base::LLight &light = data.light_mapper->_lights[n];
 
 		// type
 		f->store_8(light.type);
 
 		// pos, direction
-		Save_Vector3(f, light.pos);
-		Save_Vector3(f, light.dir);
+		save_Vector3(f, light.pos);
+		save_Vector3(f, light.dir);
 
 		// energy
 		f->store_float(light.energy);
@@ -343,20 +343,20 @@ void LightProbes::Save(String pszFilename) {
 
 	// now save voxels .. 2 passes to make easier to compress with zip.
 	// the first pass will be easily compressable
-	for (int z = 0; z < m_Dims.z; z++) {
-		for (int y = 0; y < m_Dims.y; y++) {
-			for (int x = 0; x < m_Dims.x; x++) {
-				LightProbe *probe = GetProbe(Vec3i(x, y, z));
-				probe->Save(f);
+	for (int z = 0; z < data.dims.z; z++) {
+		for (int y = 0; y < data.dims.y; y++) {
+			for (int x = 0; x < data.dims.x; x++) {
+				LightProbe *probe = get_probe(Vec3i(x, y, z));
+				probe->save(f);
 			}
 		}
 	}
 
-	for (int z = 0; z < m_Dims.z; z++) {
-		for (int y = 0; y < m_Dims.y; y++) {
-			for (int x = 0; x < m_Dims.x; x++) {
-				LightProbe *probe = GetProbe(Vec3i(x, y, z));
-				probe->Save_Secondary(f);
+	for (int z = 0; z < data.dims.z; z++) {
+		for (int y = 0; y < data.dims.y; y++) {
+			for (int x = 0; x < data.dims.x; x++) {
+				LightProbe *probe = get_probe(Vec3i(x, y, z));
+				probe->save_secondary(f);
 			}
 		}
 	}
@@ -367,21 +367,21 @@ void LightProbes::Save(String pszFilename) {
 	}
 }
 
-void LightProbe::Save_Secondary(FileAccess *f) {
+void LightProbe::save_secondary(FileAccess *f) {
 	// color
 	uint8_t r, g, b;
-	m_Color_Indirect.to_u8(r, g, b, 1.0f);
+	color_indirect.to_u8(r, g, b, 1.0f);
 
 	f->store_8(r);
 	f->store_8(g);
 	f->store_8(b);
 
-	int nContribs = m_Contributions.size();
+	int nContribs = contributions.size();
 	if (nContribs > 255)
 		nContribs = 255;
 
 	for (int n = 0; n < nContribs; n++) {
-		const Contribution &c = m_Contributions[n];
+		const Contribution &c = contributions[n];
 
 		//f->store_8(c.light_id);
 
@@ -396,9 +396,9 @@ void LightProbe::Save_Secondary(FileAccess *f) {
 	}
 }
 
-void LightProbe::Save(FileAccess *f) {
+void LightProbe::save(FileAccess *f) {
 	// number of contributions
-	int nContribs = m_Contributions.size();
+	int nContribs = contributions.size();
 	if (nContribs > 255)
 		nContribs = 255;
 
@@ -406,7 +406,7 @@ void LightProbe::Save(FileAccess *f) {
 	f->store_8(nContribs);
 
 	for (int n = 0; n < nContribs; n++) {
-		const Contribution &c = m_Contributions[n];
+		const Contribution &c = contributions[n];
 
 		f->store_8(c.light_id);
 

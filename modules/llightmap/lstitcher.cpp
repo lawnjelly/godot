@@ -3,7 +3,7 @@
 
 using namespace LM;
 
-void Stitcher::StitchObjectSeams(const MeshInstance &p_mi, LightImage<FColor> &r_image, float distance_threshold, float normal_threshold, bool p_visualize_seams) {
+void Stitcher::stitch_object_seams(const MeshInstance &p_mi, LightImage<FColor> &r_image, float distance_threshold, float normal_threshold, bool p_visualize_seams) {
 	// important - the distance threshold is assumed to be in world space,
 	// but we are using the model in model space here. So we must apply a scaling
 	// to roughly get them to match up. Note this assumes uniform scaling. With non-uniform

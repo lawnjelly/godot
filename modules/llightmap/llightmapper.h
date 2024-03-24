@@ -56,7 +56,7 @@ private:
 		if (!pTexel)
 			return;
 
-		_atomic.AtomicAddCol(tx, *pTexel, col);
+		_atomic.atomic_add_col(tx, *pTexel, col);
 		//*pTexel += col;
 	}
 
