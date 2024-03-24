@@ -8,7 +8,7 @@ void Stitcher::stitch_object_seams(const MeshInstance &p_mi, LightImage<FColor> 
 	// but we are using the model in model space here. So we must apply a scaling
 	// to roughly get them to match up. Note this assumes uniform scaling. With non-uniform
 	// scaling your mileage may vary...
-	m_fDistanceThreshold = distance_threshold;
+	_distance_threshold = distance_threshold;
 	Vector3 scale3 = p_mi.get_global_transform().basis.get_scale();
 	float scale = (scale3.x + scale3.y + scale3.z) / 3.0f;
 
@@ -16,17 +16,17 @@ void Stitcher::stitch_object_seams(const MeshInstance &p_mi, LightImage<FColor> 
 	if (scale < 0.00001f)
 		return;
 
-	m_fDistanceThreshold *= 1.0f / scale;
+	_distance_threshold *= 1.0f / scale;
 
 	// position epsilon must take account scale
-	m_fPositionEpsilon = 0.001;
-	m_fPositionEpsilon *= 1.0f / scale;
-	m_fPositionEpsilon *= m_fPositionEpsilon;
+	_position_epsilon = 0.001;
+	_position_epsilon *= 1.0f / scale;
+	_position_epsilon *= _position_epsilon;
 
 	// normals should be same whatever the scale
-	m_fNormalThreshold = normal_threshold;
+	_normal_threshold = normal_threshold;
 
-	m_bVisualizeSeams = p_visualize_seams;
+	_visualize_seams = p_visualize_seams;
 
 	// seam optimizer wants unindexed lists of tri vertex positions and uvs.
 	// some godot jiggery pokery to get the mesh verts in local space
@@ -89,10 +89,10 @@ void Stitcher::_compute_seams(const Vector<Vector3> &points, const Vector<Vector
 	//	float max_normal_distance = 0.05f;
 
 	// the checks are against square distance
-	float max_pos_distance = m_fDistanceThreshold * m_fDistanceThreshold;
+	float max_pos_distance = _distance_threshold * _distance_threshold;
 
 	// normals are now measured by dot product
-	float min_dot_threshold = Math::cos(Math::deg2rad(m_fNormalThreshold));
+	float min_dot_threshold = Math::cos(Math::deg2rad(_normal_threshold));
 
 	//	float max_normal_distance = m_fNormalThreshold * m_fNormalThreshold;
 
@@ -137,7 +137,7 @@ void Stitcher::_compute_seams(const Vector<Vector3> &points, const Vector<Vector
 
 		// position epsilon must take account scale
 		//		const float pos_epsilon = 0.001 * 0.001; // 0.001
-		const float pos_epsilon = m_fPositionEpsilon;
+		const float pos_epsilon = _position_epsilon;
 
 		// get rid of zero area edges
 		if (edge0.uv[0].distance_squared_to(edge0.uv[1]) < uv_epsilon) {
@@ -269,7 +269,7 @@ void Stitcher::_fix_seam(const Vector2 &p_pos0, const Vector2 &p_pos1, const Vec
 		Vector3 current_color = r_write_buffer[pixel.y * p_size.x + pixel.x];
 		Vector3 sampled_color = p_read_buffer[sampled_point.y * p_size.x + sampled_point.x];
 
-		if (m_bVisualizeSeams)
+		if (_visualize_seams)
 			r_write_buffer[pixel.y * p_size.x + pixel.x] = Vector3(1.0f, 0.0f, 0.0f);
 		else
 			r_write_buffer[pixel.y * p_size.x + pixel.x] = current_color * 0.6f + sampled_color * 0.4f;

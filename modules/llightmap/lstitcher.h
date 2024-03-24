@@ -39,11 +39,12 @@ private:
 	void _compute_seams(const Vector<Vector3> &points, const Vector<Vector2> &uv2s, const Vector<Vector3> &normals, Vector2i lm_size, LocalVector<UVSeam> &r_seams);
 	void _fix_seams(const LocalVector<UVSeam> &p_seams, Vector3 *r_lightmap, Vector2i p_size);
 	void _fix_seam(const Vector2 &p_pos0, const Vector2 &p_pos1, const Vector2 &p_uv0, const Vector2 &p_uv1, const Vector3 *p_read_buffer, Vector3 *r_write_buffer, const Vector2i &p_size);
-};
 
-float m_fDistanceThreshold;
-float m_fNormalThreshold;
-float m_fPositionEpsilon;
-bool m_bVisualizeSeams;
+	// FIXME: These have been moved from outside the class, check for bugs.
+	float _distance_threshold = 0;
+	float _normal_threshold = 0;
+	float _position_epsilon = 0;
+	bool _visualize_seams = false;
+};
 
 } // namespace LM
