@@ -179,7 +179,42 @@ protected:
 	// Perhaps some Godot template fu is involved.
 public:
 	enum Param {
+		PARAM_TEX_WIDTH,
+		PARAM_TEX_HEIGHT,
+		PARAM_MAX_LIGHT_DISTANCE,
+		PARAM_SURFACE_BIAS,
+		PARAM_MATERIAL_SIZE,
+		PARAM_VOXEL_DENSITY,
+		PARAM_NUM_PRIMARY_RAYS,
+		PARAM_NUM_BOUNCES,
+		PARAM_BOUNCE_POWER,
+		PARAM_ROUGHNESS,
+		PARAM_NUM_AMBIENT_BOUNCES,
+		PARAM_NUM_AMBIENT_BOUNCE_RAYS,
+		PARAM_AMBIENT_BOUNCE_POWER,
 		PARAM_EMISSION_ENABLED,
+		PARAM_EMISSION_DENSITY,
+		PARAM_GLOW,
+		PARAM_AO_NUM_SAMPLES,
+		PARAM_AO_RANGE,
+		PARAM_SKY_SIZE,
+		PARAM_SKY_SAMPLES,
+		PARAM_SKY_BLUR,
+		PARAM_SKY_BRIGHTNESS,
+		PARAM_NORMALIZE,
+		PARAM_NORMALIZE_MULTIPLIER,
+		PARAM_AO_LIGHT_RATIO,
+		PARAM_GAMMA,
+		PARAM_DILATE_ENABLED,
+		PARAM_NOISE_REDUCTION,
+		PARAM_NOISE_THRESHOLD,
+		PARAM_SEAM_STITCHING_ENABLED,
+		PARAM_VISUALIZE_SEAMS_ENABLED,
+		PARAM_SEAM_DISTANCE_THRESHOLD,
+		PARAM_SEAM_NORMAL_THRESHOLD,
+		PARAM_PROBE_DENSITY,
+		PARAM_PROBE_SAMPLES,
+		PARAM_UV_PADDING,
 		PARAM_MAX,
 	};
 
@@ -189,30 +224,6 @@ public:
 	struct Data {
 		Variant params[PARAM_MAX];
 	} data;
-
-	// actual params (after applying quality)
-	struct AdjustedSettings {
-		int forward_num_rays;
-		int backward_num_rays;
-		//int m_Forward_NumBounces;
-
-		int num_primary_rays;
-		//int m_Backward_NumBounces;
-
-		int num_ambient_bounces;
-		int num_ambient_bounce_rays;
-
-		int num_directional_bounces;
-
-		float emission_density;
-		int num_AO_samples;
-
-		int max_material_size;
-
-		int num_sky_samples;
-
-		float sky_brightness;
-	} adjusted_settings;
 
 	// params
 	//	int settings.Forward_NumRays;
@@ -228,12 +239,12 @@ public:
 		// this number means nothing itself .. it is
 		// standardized so that 32 is the normal amount, for backward and forward
 		// and is translated into number of forward or backward rays
-		int num_primary_rays;
-		int num_ambient_bounces;
+		//int num_primary_rays;
+		//int num_ambient_bounces;
 
-		int num_ambient_bounce_rays;
-		int num_directional_bounces;
-		float ambient_bounce_power;
+		//int num_ambient_bounce_rays;
+		//int num_directional_bounces;
+		//float ambient_bounce_power;
 		float directional_bounce_power;
 		float smoothness;
 		float emission_density;
@@ -259,7 +270,7 @@ public:
 
 		int max_material_size;
 
-		bool normalize;
+		//bool normalize;
 		float normalize_bias;
 		float light_AO_ratio;
 		float gamma;
@@ -293,15 +304,36 @@ public:
 		float seam_distance_threshold;
 		float seam_normal_threshold;
 
-		bool visualize_seams_enabled;
-		bool dilate_enabled;
-
 		String sky_filename;
 		float sky_blur_amount;
 		int sky_size;
 		int sky_num_samples;
 		float sky_brightness;
 	} settings;
+
+	// actual params (after applying quality)
+	struct AdjustedSettings {
+		int forward_num_rays;
+		int backward_num_rays;
+		//int m_Forward_NumBounces;
+
+		int num_primary_rays;
+		//int m_Backward_NumBounces;
+
+		int num_ambient_bounces;
+		int num_ambient_bounce_rays;
+
+		int num_directional_bounces;
+
+		float emission_density;
+		int num_AO_samples;
+
+		int max_material_size;
+
+		int num_sky_samples;
+
+		float sky_brightness;
+	} adjusted_settings;
 
 	struct Logic {
 		// some internal logic based on the bake state

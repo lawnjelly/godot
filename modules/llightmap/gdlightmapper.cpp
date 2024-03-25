@@ -20,7 +20,42 @@ void LLightmap::_bind_methods() {
 	BIND_ENUM_CONSTANT(LLightmap::QUALITY_HIGH);
 	BIND_ENUM_CONSTANT(LLightmap::QUALITY_FINAL);
 
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_TEX_WIDTH);
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_TEX_HEIGHT);
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_MAX_LIGHT_DISTANCE);
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_SURFACE_BIAS);
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_MATERIAL_SIZE);
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_VOXEL_DENSITY);
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_NUM_PRIMARY_RAYS);
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_NUM_BOUNCES);
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_BOUNCE_POWER);
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_ROUGHNESS);
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_NUM_AMBIENT_BOUNCES);
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_NUM_AMBIENT_BOUNCE_RAYS);
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_AMBIENT_BOUNCE_POWER);
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_EMISSION_ENABLED);
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_EMISSION_DENSITY);
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_GLOW);
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_AO_NUM_SAMPLES);
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_AO_RANGE);
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_SKY_SIZE);
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_SKY_SAMPLES);
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_SKY_BLUR);
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_SKY_BRIGHTNESS);
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_NORMALIZE);
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_NORMALIZE_MULTIPLIER);
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_AO_LIGHT_RATIO);
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_GAMMA);
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_DILATE_ENABLED);
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_NOISE_REDUCTION);
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_NOISE_THRESHOLD);
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_SEAM_STITCHING_ENABLED);
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_VISUALIZE_SEAMS_ENABLED);
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_SEAM_DISTANCE_THRESHOLD);
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_SEAM_NORMAL_THRESHOLD);
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_PROBE_DENSITY);
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_PROBE_SAMPLES);
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_UV_PADDING);
 
 	ClassDB::bind_method(D_METHOD("set_param", "param", "value"), &LLightmap::set_param);
 	ClassDB::bind_method(D_METHOD("get_param", "param"), &LLightmap::get_param);
@@ -67,13 +102,19 @@ void LLightmap::_bind_methods() {
 	ClassDB::bind_method(D_METHOD(LIGHTMAP_TOSTRING(P_GET)), &LLightmap::P_GET);                            \
 	ADD_PROPERTY(PropertyInfo(P_TYPE, LIGHTMAP_TOSTRING(P_NAME), PROPERTY_HINT_RANGE, P_RANGE_STRING), LIGHTMAP_TOSTRING(P_SET), LIGHTMAP_TOSTRING(P_GET));
 
+#define LIMPL_PROPERTY_PARAM_RANGE(P_TYPE, P_NAME, P_RANGE_STRING, P_INDEX) \
+	ADD_PROPERTYI(PropertyInfo(P_TYPE, LIGHTMAP_TOSTRING(P_NAME), PROPERTY_HINT_RANGE, P_RANGE_STRING), "set_param", "get_param", P_INDEX);
+
+#define LIMPL_PROPERTY_PARAM(P_TYPE, P_NAME, P_INDEX) \
+	ADD_PROPERTYI(PropertyInfo(P_TYPE, LIGHTMAP_TOSTRING(P_NAME)), "set_param", "get_param", P_INDEX)
+
 	//	ADD_PROPERTYI(PropertyInfo(Variant::REAL, "light_specular", PROPERTY_HINT_RANGE, "0,1,0.01"), "set_param", "get_param", PARAM_SPECULAR);
 
 	ADD_GROUP("Main", "");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "bake_mode", PROPERTY_HINT_ENUM, "UVMap,Lightmap,AO,Merge,LightProbes,Combined"), "set_bake_mode", "get_bake_mode");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "mode", PROPERTY_HINT_ENUM, "Forward,Backward"), "set_mode", "get_mode");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "quality", PROPERTY_HINT_ENUM, "Low,Medium,High,Final"), "set_quality", "get_quality");
-	LIMPL_PROPERTY_RANGE(Variant::INT, max_light_distance, set_max_light_distance, get_max_light_distance, "0,999999,1");
+	LIMPL_PROPERTY_PARAM_RANGE(Variant::INT, max_light_distance, "0,999999,1", LM::LightMapper::PARAM_MAX_LIGHT_DISTANCE);
 
 	ADD_GROUP("Paths", "");
 	LIMPL_PROPERTY(Variant::NODE_PATH, meshes, set_mesh_path, get_mesh_path);
@@ -85,28 +126,29 @@ void LLightmap::_bind_methods() {
 
 	ADD_GROUP("Size", "");
 
-	LIMPL_PROPERTY_RANGE(Variant::INT, tex_width, set_tex_width, get_tex_width, "128,8192,128");
-	LIMPL_PROPERTY_RANGE(Variant::INT, tex_height, set_tex_height, get_tex_height, "128,8192,128");
+	LIMPL_PROPERTY_PARAM_RANGE(Variant::INT, tex_width, "128,8192,128", LM::LightMapper::PARAM_TEX_WIDTH);
+	LIMPL_PROPERTY_PARAM_RANGE(Variant::INT, tex_height, "128,8192,128", LM::LightMapper::PARAM_TEX_HEIGHT);
+
 	//	LIMPL_PROPERTY(Variant::VECTOR3, voxel_grid, set_voxel_dims, get_voxel_dims);
 	LIMPL_PROPERTY(Variant::REAL, surface_bias, set_surface_bias, get_surface_bias);
 	LIMPL_PROPERTY_RANGE(Variant::INT, material_size, set_material_size, get_material_size, "128,2048,128");
 	LIMPL_PROPERTY_RANGE(Variant::INT, voxel_density, set_voxel_density, get_voxel_density, "1,512,1");
 
 	ADD_GROUP("Common", "");
-	LIMPL_PROPERTY_RANGE(Variant::INT, samples, set_num_samples, get_num_samples, "1,4096,1");
+	LIMPL_PROPERTY_PARAM_RANGE(Variant::INT, primary_rays, "1,4096,1", LM::LightMapper::PARAM_NUM_PRIMARY_RAYS);
 
-	LIMPL_PROPERTY_RANGE(Variant::INT, num_bounces, set_num_bounces, get_num_bounces, "0,16,1");
+	LIMPL_PROPERTY_PARAM_RANGE(Variant::INT, num_bounces, "0,16,1", LM::LightMapper::PARAM_NUM_BOUNCES);
 	LIMPL_PROPERTY_RANGE(Variant::REAL, bounce_power, set_bounce_power, get_bounce_power, "0.0,8.0,0.05");
-	LIMPL_PROPERTY_RANGE(Variant::REAL, roughness, set_roughness, get_roughness, "0.0,1.0,0.05");
+	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, roughness, "0.0,1.0,0.05", LM::LightMapper::PARAM_ROUGHNESS);
 
 	ADD_GROUP("Ambient", "");
 
-	LIMPL_PROPERTY_RANGE(Variant::INT, a_bounces, set_num_ambient_bounces, get_num_ambient_bounces, "0,16,1");
-	LIMPL_PROPERTY(Variant::INT, a_bounce_samples, set_num_ambient_bounce_samples, get_num_ambient_bounce_samples);
-	LIMPL_PROPERTY(Variant::REAL, a_bounce_power, set_ambient_bounce_power, get_ambient_bounce_power);
+	LIMPL_PROPERTY_PARAM_RANGE(Variant::INT, a_bounces, "0,16,1", LM::LightMapper::PARAM_NUM_AMBIENT_BOUNCES);
+	LIMPL_PROPERTY_PARAM_RANGE(Variant::INT, a_bounce_samples, "0, 1024, 1", LM::LightMapper::PARAM_NUM_AMBIENT_BOUNCE_RAYS);
+	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, a_bounce_power, "0.0, 1.0", LM::LightMapper::PARAM_AMBIENT_BOUNCE_POWER);
 
 	ADD_GROUP("Emission", "");
-	ADD_PROPERTYI(PropertyInfo(Variant::BOOL, "emission_enabled"), "set_param", "get_param", LM::LightMapper::PARAM_EMISSION_ENABLED);
+	LIMPL_PROPERTY_PARAM(Variant::BOOL, emission_enabled, LM::LightMapper::PARAM_EMISSION_ENABLED);
 
 	LIMPL_PROPERTY_RANGE(Variant::REAL, emission_density, set_emission_density, get_emission_density, "0.0,8.0,0.05");
 	LIMPL_PROPERTY_RANGE(Variant::REAL, glow, set_glow, get_glow, "0.0,16.0,0.05");
@@ -137,13 +179,15 @@ void LLightmap::_bind_methods() {
 	LIMPL_PROPERTY_RANGE(Variant::REAL, gamma, set_gamma, get_gamma, "0.01,10.0,0.01");
 
 	ADD_GROUP("Post Processing", "");
-	LIMPL_PROPERTY(Variant::BOOL, dilate, set_dilate, get_dilate);
+	LIMPL_PROPERTY_PARAM(Variant::BOOL, dilate, LM::LightMapper::PARAM_DILATE_ENABLED);
+	//LIMPL_PROPERTY(Variant::BOOL, dilate, set_dilate, get_dilate);
 
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "noise method", PROPERTY_HINT_ENUM, "Disabled,Simple,Advanced"), "set_noise_reduction_method", "get_noise_reduction_method");
 	LIMPL_PROPERTY_RANGE(Variant::REAL, noise_reduction, set_noise_reduction, get_noise_reduction, "0.0,1.0,0.01");
 	LIMPL_PROPERTY_RANGE(Variant::REAL, noise_threshold, set_noise_threshold, get_noise_threshold, "0.0,1.0,0.01");
 	LIMPL_PROPERTY(Variant::BOOL, seam_stitching, set_seam_stitching, get_seam_stitching);
-	LIMPL_PROPERTY(Variant::BOOL, visualize_seams, set_visualize_seams, get_visualize_seams);
+	//LIMPL_PROPERTY(Variant::BOOL, visualize_seams, set_visualize_seams, get_visualize_seams);
+	LIMPL_PROPERTY_PARAM(Variant::BOOL, visualize_seams, LM::LightMapper::PARAM_VISUALIZE_SEAMS_ENABLED);
 
 	LIMPL_PROPERTY_RANGE(Variant::REAL, seam_distance_threshold, set_seam_distance_threshold, get_seam_distance_threshold, "0.0,0.01,0.0001");
 	LIMPL_PROPERTY_RANGE(Variant::REAL, seam_normal_threshold, set_seam_normal_threshold, get_seam_normal_threshold, "0.0,180.0,1.0");
@@ -181,13 +225,13 @@ LLightmap::eQuality LLightmap::get_quality() const {
 	return (LLightmap::eQuality)m_LM.settings.quality;
 }
 
-void LLightmap::set_max_light_distance(int dist) {
-	m_LM.settings.max_light_dist = dist;
-}
+//void LLightmap::set_max_light_distance(int dist) {
+//	m_LM.settings.max_light_dist = dist;
+//}
 
-int LLightmap::get_max_light_distance() const {
-	return m_LM.settings.max_light_dist;
-}
+//int LLightmap::get_max_light_distance() const {
+//	return m_LM.settings.max_light_dist;
+//}
 
 void LLightmap::set_mesh_path(const NodePath &p_path) {
 	m_LM.settings.path_mesh = p_path;
@@ -202,23 +246,6 @@ NodePath LLightmap::get_lights_path() const {
 	return m_LM.settings.path_lights;
 }
 
-void LLightmap::set_num_samples(int num_samples) {
-	m_LM.settings.num_primary_rays = num_samples;
-}
-int LLightmap::get_num_samples() const {
-	return m_LM.settings.num_primary_rays;
-}
-
-void LLightmap::set_num_bounces(int num_bounces) {
-	m_LM.settings.num_directional_bounces = num_bounces;
-}
-int LLightmap::get_num_bounces() const {
-	return m_LM.settings.num_directional_bounces;
-}
-
-//void LLightmap::set_forward_ray_power(float ray_power) {m_LM.settings.Forward_RayPower = ray_power;}
-//float LLightmap::get_forward_ray_power() const {return m_LM.settings.Forward_RayPower;}
-
 void LLightmap::set_bounce_power(float bounce_power) {
 	m_LM.settings.directional_bounce_power = bounce_power;
 }
@@ -226,12 +253,12 @@ float LLightmap::get_bounce_power() const {
 	return m_LM.settings.directional_bounce_power;
 }
 
-void LLightmap::set_roughness(float roughness) {
-	m_LM.settings.smoothness = 1.0f - roughness;
-}
-float LLightmap::get_roughness() const {
-	return 1.0f - m_LM.settings.smoothness;
-}
+//void LLightmap::set_roughness(float roughness) {
+//	m_LM.settings.smoothness = 1.0f - roughness;
+//}
+//float LLightmap::get_roughness() const {
+//	return 1.0f - m_LM.settings.smoothness;
+//}
 
 void LLightmap::set_emission_density(float density) {
 	m_LM.settings.emission_density = density;
@@ -255,12 +282,12 @@ int LLightmap::get_backward_num_rays() const {
 	return m_LM.settings.backward_num_rays;
 }
 
-void LLightmap::set_num_ambient_bounce_samples(int num_samples) {
-	m_LM.settings.num_ambient_bounce_rays = num_samples;
-}
-int LLightmap::get_num_ambient_bounce_samples() const {
-	return m_LM.settings.num_ambient_bounce_rays;
-}
+//void LLightmap::set_num_ambient_bounce_samples(int num_samples) {
+//	m_LM.settings.num_ambient_bounce_rays = num_samples;
+//}
+//int LLightmap::get_num_ambient_bounce_samples() const {
+//	return m_LM.settings.num_ambient_bounce_rays;
+//}
 
 //void LLightmap::set_backward_num_bounces(int num_bounces) {m_LM.settings.Backward_NumBounces = num_bounces;}
 //int LLightmap::get_backward_num_bounces() const {return m_LM.settings.Backward_NumBounces;}
@@ -268,20 +295,20 @@ int LLightmap::get_num_ambient_bounce_samples() const {
 //void LLightmap::set_backward_ray_power(float ray_power) {m_LM.settings.Backward_RayPower = ray_power;}
 //float LLightmap::get_backward_ray_power() const {return m_LM.settings.Backward_RayPower;}
 
-void LLightmap::set_ambient_bounce_power(float bounce_power) {
-	m_LM.settings.ambient_bounce_power = bounce_power;
-}
-float LLightmap::get_ambient_bounce_power() const {
-	return m_LM.settings.ambient_bounce_power;
-}
+//void LLightmap::set_ambient_bounce_power(float bounce_power) {
+//	m_LM.settings.ambient_bounce_power = bounce_power;
+//}
+//float LLightmap::get_ambient_bounce_power() const {
+//	return m_LM.settings.ambient_bounce_power;
+//}
 ////////////////////////////
 
-void LLightmap::set_num_ambient_bounces(int num_bounces) {
-	m_LM.settings.num_ambient_bounces = num_bounces;
-}
-int LLightmap::get_num_ambient_bounces() const {
-	return m_LM.settings.num_ambient_bounces;
-}
+//void LLightmap::set_num_ambient_bounces(int num_bounces) {
+//	m_LM.settings.num_ambient_bounces = num_bounces;
+//}
+//int LLightmap::get_num_ambient_bounces() const {
+//	return m_LM.settings.num_ambient_bounces;
+//}
 
 void LLightmap::set_ao_range(float ao_range) {
 	m_LM.settings.AO_range = ao_range;
@@ -306,19 +333,19 @@ int LLightmap::get_ao_num_samples() const {
 
 ////////////////////////////
 
-void LLightmap::set_tex_width(int width) {
-	m_LM.settings.tex_width = width;
-}
-int LLightmap::get_tex_width() const {
-	return m_LM.settings.tex_width;
-}
+//void LLightmap::set_tex_width(int width) {
+//	m_LM.settings.tex_width = width;
+//}
+//int LLightmap::get_tex_width() const {
+//	return m_LM.settings.tex_width;
+//}
 
-void LLightmap::set_tex_height(int height) {
-	m_LM.settings.tex_height = height;
-}
-int LLightmap::get_tex_height() const {
-	return m_LM.settings.tex_height;
-}
+//void LLightmap::set_tex_height(int height) {
+//	m_LM.settings.tex_height = height;
+//}
+//int LLightmap::get_tex_height() const {
+//	return m_LM.settings.tex_height;
+//}
 
 void LLightmap::set_material_size(int size) {
 	m_LM.settings.max_material_size = size;
@@ -341,12 +368,12 @@ float LLightmap::get_surface_bias() const {
 	return m_LM.settings.surface_bias;
 }
 
-void LLightmap::set_normalize(bool norm) {
-	m_LM.settings.normalize = norm;
-}
-bool LLightmap::get_normalize() const {
-	return m_LM.settings.normalize;
-}
+//void LLightmap::set_normalize(bool norm) {
+//	m_LM.settings.normalize = norm;
+//}
+//bool LLightmap::get_normalize() const {
+//	return m_LM.settings.normalize;
+//}
 
 void LLightmap::set_normalize_multiplier(float bias) {
 	m_LM.settings.normalize_bias = bias;
@@ -444,21 +471,21 @@ float LLightmap::get_seam_normal_threshold() const {
 	return m_LM.settings.seam_normal_threshold;
 }
 
-void LLightmap::set_visualize_seams(bool active) {
-	m_LM.settings.visualize_seams_enabled = active;
-}
+//void LLightmap::set_visualize_seams(bool active) {
+//	m_LM.settings.visualize_seams_enabled = active;
+//}
 
-bool LLightmap::get_visualize_seams() const {
-	return m_LM.settings.visualize_seams_enabled;
-}
+//bool LLightmap::get_visualize_seams() const {
+//	return m_LM.settings.visualize_seams_enabled;
+//}
 
-void LLightmap::set_dilate(bool active) {
-	m_LM.settings.dilate_enabled = active;
-}
+//void LLightmap::set_dilate(bool active) {
+//	m_LM.settings.dilate_enabled = active;
+//}
 
-bool LLightmap::get_dilate() const {
-	return m_LM.settings.dilate_enabled;
-}
+//bool LLightmap::get_dilate() const {
+//	return m_LM.settings.dilate_enabled;
+//}
 
 void LLightmap::set_sky_filename(const String &p_filename) {
 	m_LM.settings.sky_filename = p_filename;

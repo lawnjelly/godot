@@ -25,12 +25,12 @@ LightMapper_Base::LightMapper_Base() {
 
 	settings.directional_bounce_power = 1.0f;
 
-	settings.num_primary_rays = 32;
-
-	settings.num_ambient_bounces = 0;
-	settings.num_ambient_bounce_rays = 128;
-	settings.num_directional_bounces = 0;
-	settings.ambient_bounce_power = 0.5f;
+	data.params[PARAM_NUM_PRIMARY_RAYS] = 32;
+	data.params[PARAM_NUM_AMBIENT_BOUNCES] = 0;
+	data.params[PARAM_NUM_AMBIENT_BOUNCE_RAYS] = 128;
+	data.params[PARAM_NUM_BOUNCES] = 0;
+	data.params[PARAM_AMBIENT_BOUNCE_POWER] = 0.5f;
+	data.params[PARAM_ROUGHNESS] = 0.5f;
 	settings.smoothness = 0.5f;
 	settings.emission_density = 1.0f;
 	settings.glow = 1.0f;
@@ -46,15 +46,19 @@ LightMapper_Base::LightMapper_Base() {
 
 	// 0 is infinite
 	settings.max_light_dist = 0;
+	data.params[PARAM_MAX_LIGHT_DISTANCE] = 0;
 
+	data.params[PARAM_TEX_WIDTH] = 512;
+	data.params[PARAM_TEX_HEIGHT] = 512;
 	settings.tex_width = 512;
 	settings.tex_height = 512;
+
 	settings.voxel_density = 20;
 	settings.surface_bias = 0.005f;
 
 	settings.max_material_size = 256;
 
-	settings.normalize = true;
+	//settings.normalize = true;
 	settings.normalize_bias = 4.0f;
 	settings.light_AO_ratio = 0.5f;
 	settings.gamma = 2.2f;
@@ -81,19 +85,39 @@ LightMapper_Base::LightMapper_Base() {
 	settings.seam_distance_threshold = 0.001f;
 	settings.seam_normal_threshold = 45.0f;
 
-	settings.visualize_seams_enabled = false;
-	settings.dilate_enabled = true;
+	//	settings.visualize_seams_enabled = false;
+	//	settings.dilate_enabled = true;
 
 	settings.sky_blur_amount = 0.18f;
 	settings.sky_size = 256;
 	settings.sky_num_samples = 512;
 	settings.sky_brightness = 1.0f;
 
+	data.params[PARAM_NORMALIZE] = true;
 	data.params[PARAM_EMISSION_ENABLED] = true;
+	data.params[PARAM_DILATE_ENABLED] = true;
+	data.params[PARAM_VISUALIZE_SEAMS_ENABLED] = false;
 }
 
 void LightMapper_Base::set_param(Param p_param, Variant p_value) {
 	data.params[p_param] = p_value;
+
+	switch (p_param) {
+		case PARAM_TEX_WIDTH: {
+			settings.tex_width = p_value;
+		} break;
+		case PARAM_TEX_HEIGHT: {
+			settings.tex_height = p_value;
+		} break;
+		case PARAM_MAX_LIGHT_DISTANCE: {
+			settings.max_light_dist = p_value;
+		} break;
+		case PARAM_ROUGHNESS: {
+			settings.smoothness = 1.0f - (float) p_value;
+		} break;
+		default:
+			break;
+	}
 }
 
 Variant LightMapper_Base::get_param(Param p_param) {
@@ -138,16 +162,16 @@ void LightMapper_Base::calculate_quality_adjusted_settings() {
 	// set them initially to the same
 	AdjustedSettings &as = adjusted_settings;
 
-	as.num_primary_rays = settings.num_primary_rays;
+	as.num_primary_rays = data.params[PARAM_NUM_PRIMARY_RAYS];
 
 	//as.m_Forward_NumRays = settings.Forward_NumRays;
 	as.emission_density = settings.emission_density;
 
 	as.backward_num_rays = settings.backward_num_rays;
 
-	as.num_ambient_bounces = settings.num_ambient_bounces;
-	as.num_ambient_bounce_rays = settings.num_ambient_bounce_rays;
-	as.num_directional_bounces = settings.num_directional_bounces;
+	as.num_ambient_bounces = data.params[PARAM_NUM_AMBIENT_BOUNCES];
+	as.num_ambient_bounce_rays = data.params[PARAM_NUM_AMBIENT_BOUNCE_RAYS];
+	as.num_directional_bounces = data.params[PARAM_NUM_BOUNCES];
 
 	as.num_AO_samples = settings.AO_samples;
 
@@ -531,7 +555,7 @@ void LightMapper_Base::stitch_seams() {
 	for (int n = 0; n < _scene.get_num_meshes(); n++) {
 		MeshInstance *mi = _scene.get_mesh(n);
 
-		stitcher.stitch_object_seams(*mi, _image_L, settings.seam_distance_threshold, settings.seam_normal_threshold, settings.visualize_seams_enabled);
+		stitcher.stitch_object_seams(*mi, _image_L, settings.seam_distance_threshold, settings.seam_normal_threshold, data.params[PARAM_VISUALIZE_SEAMS_ENABLED]);
 	}
 }
 
@@ -561,7 +585,7 @@ void LightMapper_Base::apply_noise_reduction() {
 }
 
 void LightMapper_Base::normalize() {
-	if (!settings.normalize)
+	if (data.params[PARAM_NORMALIZE] != Variant(true))
 		return;
 
 	int nPixels = _image_L.get_num_pixels();
@@ -788,7 +812,7 @@ void LightMapper_Base::write_output_image_AO(Image &image) {
 	if (!_image_AO.get_num_pixels())
 		return;
 
-	if (settings.dilate_enabled) {
+	if (data.params[PARAM_DILATE_ENABLED] == Variant(true)) {
 		Dilate<float> dilate;
 		dilate.dilate_image(_image_AO, _image_ID_p1, 256);
 	}
@@ -838,7 +862,7 @@ void LightMapper_Base::show_warning(String sz, bool bAlert) {
 }
 
 void LightMapper_Base::write_output_image_lightmap(Image &image) {
-	if (settings.dilate_enabled) {
+	if (data.params[PARAM_DILATE_ENABLED] == Variant(true)) {
 		Dilate<FColor> dilate;
 		dilate.dilate_image(_image_L, _image_ID_p1, 256);
 	}

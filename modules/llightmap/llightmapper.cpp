@@ -418,11 +418,13 @@ void LightMapper::process_texels_ambient_bounce(int section_size, int num_sectio
 	}
 
 	// merge the 2 luminosity maps
+	float ambient_bounce_power = data.params[PARAM_AMBIENT_BOUNCE_POWER];
+
 	for (int y = 0; y < _height; y++) {
 		for (int x = 0; x < _width; x++) {
 			FColor col = _image_L.get_item(x, y);
 
-			FColor col_add = _image_L_mirror.get_item(x, y) * settings.ambient_bounce_power;
+			FColor col_add = _image_L_mirror.get_item(x, y) * ambient_bounce_power;
 
 			//			assert (col_add.r >= 0.0f);
 			//			assert (col_add.g >= 0.0f);

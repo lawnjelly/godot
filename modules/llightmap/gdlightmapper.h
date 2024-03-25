@@ -44,8 +44,8 @@ public:
 	void set_quality(LLightmap::eQuality p_quality);
 	LLightmap::eQuality get_quality() const;
 
-	void set_max_light_distance(int dist);
-	int get_max_light_distance() const;
+	//	void set_max_light_distance(int dist);
+	//	int get_max_light_distance() const;
 
 	void set_mesh_path(const NodePath &p_path);
 	NodePath get_mesh_path() const;
@@ -53,8 +53,8 @@ public:
 	NodePath get_lights_path() const;
 
 	////////////////////////////
-	void set_num_samples(int num_samples);
-	int get_num_samples() const;
+	//	void set_num_samples(int num_samples);
+	//	int get_num_samples() const;
 
 	//	void set_forward_ray_power(float ray_power);
 	//	float get_forward_ray_power() const;
@@ -76,23 +76,12 @@ public:
 	//	float get_backward_ray_power() const;
 
 	////////////////////////////
-	void set_num_bounces(int num_bounces);
-	int get_num_bounces() const;
 
 	void set_bounce_power(float bounce_power);
 	float get_bounce_power() const;
 
-	void set_roughness(float roughness);
-	float get_roughness() const;
-
-	void set_num_ambient_bounces(int num_bounces);
-	int get_num_ambient_bounces() const;
-
-	void set_num_ambient_bounce_samples(int num_samples);
-	int get_num_ambient_bounce_samples() const;
-
-	void set_ambient_bounce_power(float bounce_power);
-	float get_ambient_bounce_power() const;
+//	void set_roughness(float roughness);
+//	float get_roughness() const;
 
 	////////////////////////////
 
@@ -106,11 +95,11 @@ public:
 	int get_ao_num_samples() const;
 	////////////////////////////
 
-	void set_tex_width(int width);
-	int get_tex_width() const;
+	//	void set_tex_width(int width);
+	//	int get_tex_width() const;
 
-	void set_tex_height(int height);
-	int get_tex_height() const;
+	//	void set_tex_height(int height);
+	//	int get_tex_height() const;
 
 	void set_voxel_density(int density);
 	int get_voxel_density() const;
@@ -121,8 +110,8 @@ public:
 	void set_material_size(int size);
 	int get_material_size() const;
 
-	void set_normalize(bool norm);
-	bool get_normalize() const;
+	//	void set_normalize(bool norm);
+	//	bool get_normalize() const;
 
 	void set_normalize_multiplier(float bias);
 	float get_normalize_multiplier() const;
@@ -178,11 +167,11 @@ public:
 	void set_seam_normal_threshold(float threshold);
 	float get_seam_normal_threshold() const;
 
-	void set_visualize_seams(bool active);
-	bool get_visualize_seams() const;
+	//	void set_visualize_seams(bool active);
+	//	bool get_visualize_seams() const;
 
-	void set_dilate(bool active);
-	bool get_dilate() const;
+	//	void set_dilate(bool active);
+	//	bool get_dilate() const;
 
 	// sky
 	void set_sky_filename(const String &p_filename);
