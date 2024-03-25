@@ -868,7 +868,7 @@ bool LightScene::find_all_texture_colors(int tri_id, const Vector3 &bary, Color 
 	int mat_id_p1 = _tri_lmaterial_ids[tri_id];
 
 	bool res = _materials.find_colors(mat_id_p1, uvs, albedo, r_emission, bTransparent);
-	
+
 	/*
 	if (res) {
 		const LMaterial &mat = _materials.get_material(mat_id_p1 - 1);

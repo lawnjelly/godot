@@ -54,8 +54,8 @@ public:
 private:
 	Variant find_custom_albedo_tex(Ref<Material> src_material);
 	void find_custom_shader_params(Ref<Material> src_material, float &emission, Color &emission_color);
-	
-	LTexture * _load_bake_texture(Ref<Texture> p_texture, Color p_color_mul = Color(1, 1, 1, 1), Color p_color_add = Color(0, 0, 0, 0)) const;
+
+	LTexture *_load_bake_texture(Ref<Texture> p_texture, Color p_color_mul = Color(1, 1, 1, 1), Color p_color_add = Color(0, 0, 0, 0)) const;
 	LTexture *_get_bake_texture(Ref<Image> p_image, const Color &p_color_mul, const Color &p_color_add) const;
 	LTexture *_make_dummy_texture(LTexture *pLTexture, Color col) const;
 

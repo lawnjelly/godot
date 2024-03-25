@@ -100,10 +100,10 @@ int LMaterials::find_or_create_material(const MeshInstance &mi, Ref<Mesh> rmesh,
 			if (emission_tex.is_valid()) {
 				print_line("\temission_texture " + emission_tex->get_name());
 				// debug save
-//				Ref<Image> img = emission_tex->get_data();
-//				if (img.is_valid()) {
-//					img->save_png("res://Lightmap/emission_tex.png");
-//				}
+				//				Ref<Image> img = emission_tex->get_data();
+				//				if (img.is_valid()) {
+				//					img->save_png("res://Lightmap/emission_tex.png");
+				//				}
 			}
 		}
 	} else {

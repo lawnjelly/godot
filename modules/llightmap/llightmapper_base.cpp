@@ -92,7 +92,7 @@ LightMapper_Base::LightMapper_Base() {
 	//	settings.sky_brightness = 1.0f;
 
 	data.params[PARAM_EMISSION_ENABLED] = true;
-	
+
 	calculate_quality_adjusted_settings();
 }
 

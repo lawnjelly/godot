@@ -1476,7 +1476,7 @@ bool LightMapper::process_texel_ambient_bounce_sample(const Vector3 &plane_norm,
 				// and repeat the loop
 			} else {
 				total_col += (_image_L.get_item(dx, dy) * falbedo);
-				
+
 				FColor femission;
 				femission.set(emission);
 				total_col += femission;

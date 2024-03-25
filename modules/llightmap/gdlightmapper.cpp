@@ -252,7 +252,6 @@ String LLightmap::get_uv_filename() const {
 	return m_LM.settings.UV_filename;
 }
 
-
 void LLightmap::set_noise_reduction_method(int method) {
 	m_LM.settings.noise_reduction_method = (LM::LightMapper_Base::eNRMethod)method;
 }
@@ -261,14 +260,12 @@ int LLightmap::get_noise_reduction_method() const {
 	return m_LM.settings.noise_reduction_method;
 }
 
-
 void LLightmap::set_sky_filename(const String &p_filename) {
 	m_LM.settings.sky_filename = p_filename;
 }
 String LLightmap::get_sky_filename() const {
 	return m_LM.settings.sky_filename;
 }
-
 
 void LLightmap::set_param(LM::LightMapper::Param p_param, Variant p_value) {
 	m_LM.set_param(p_param, p_value);
@@ -353,7 +350,7 @@ bool LLightmap::uvmap() {
 
 bool LLightmap::lightmap_bake() {
 	m_LM.calculate_quality_adjusted_settings();
-	
+
 	if (m_LM.settings.bake_mode == LM::LightMapper_Base::LMBAKEMODE_UVMAP) {
 		return uvmap();
 	}
