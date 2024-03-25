@@ -362,7 +362,7 @@ void RayBank::ray_bank_process_ray_MT_old(uint32_t ray_id, int start_ray) {
 			if (hemi_dir.dot(face_normal) < 0.0f)
 				hemi_dir = -hemi_dir;
 
-			new_ray.d = hemi_dir.linear_interpolate(mirror_dir, settings.smoothness);
+			new_ray.d = hemi_dir.linear_interpolate(mirror_dir, adjusted_settings.smoothness);
 
 			new_ray.o = pos + (face_normal * 0.01f);
 
@@ -554,7 +554,7 @@ void RayBank::ray_bank_process_ray_MT(uint32_t ray_id, int start_ray) {
 			if (hemi_dir.dot(face_normal) < 0.0f)
 				hemi_dir = -hemi_dir;
 
-			new_ray.d = hemi_dir.linear_interpolate(mirror_dir, settings.smoothness);
+			new_ray.d = hemi_dir.linear_interpolate(mirror_dir, adjusted_settings.smoothness);
 
 			// standard epsilon? NYI
 			new_ray.o = pos + (face_normal * settings.surface_bias); //0.01f);

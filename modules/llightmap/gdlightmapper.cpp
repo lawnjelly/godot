@@ -150,8 +150,8 @@ void LLightmap::_bind_methods() {
 	ADD_GROUP("Emission", "");
 	LIMPL_PROPERTY_PARAM(Variant::BOOL, emission_enabled, LM::LightMapper::PARAM_EMISSION_ENABLED);
 
-	LIMPL_PROPERTY_RANGE(Variant::REAL, emission_density, set_emission_density, get_emission_density, "0.0,8.0,0.05");
-	LIMPL_PROPERTY_RANGE(Variant::REAL, glow, set_glow, get_glow, "0.0,16.0,0.05");
+	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, emission_density, "0.0,8.0,0.05", LM::LightMapper::PARAM_EMISSION_DENSITY);
+	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, glow, "0.0,16.0,0.05", LM::LightMapper::PARAM_GLOW);
 
 	//	ADD_GROUP("Forward Parameters", "");
 	//LIMPL_PROPERTY_RANGE(Variant::REAL, f_ray_power, set_forward_ray_power, get_forward_ray_power, "0.0,0.1,0.01");
@@ -161,8 +161,8 @@ void LLightmap::_bind_methods() {
 	//LIMPL_PROPERTY(Variant::REAL, b_ray_power, set_backward_ray_power, get_backward_ray_power);
 
 	ADD_GROUP("Ambient Occlusion", "");
-	LIMPL_PROPERTY_RANGE(Variant::INT, ao_samples, set_ao_num_samples, get_ao_num_samples, "1,2048,1");
-	LIMPL_PROPERTY(Variant::REAL, ao_range, set_ao_range, get_ao_range);
+	LIMPL_PROPERTY_PARAM_RANGE(Variant::INT, ao_samples, "1,2048,1", LM::LightMapper::PARAM_AO_NUM_SAMPLES);
+	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, ao_range, "0.0,1000.0", LM::LightMapper::PARAM_AO_RANGE);
 	//	LIMPL_PROPERTY(Variant::REAL, ao_cut_range, set_ao_cut_range, get_ao_cut_range);
 
 	ADD_GROUP("Sky", "");
@@ -260,19 +260,19 @@ float LLightmap::get_bounce_power() const {
 //	return 1.0f - m_LM.settings.smoothness;
 //}
 
-void LLightmap::set_emission_density(float density) {
-	m_LM.settings.emission_density = density;
-}
-float LLightmap::get_emission_density() const {
-	return m_LM.settings.emission_density;
-}
+//void LLightmap::set_emission_density(float density) {
+//	m_LM.settings.emission_density = density;
+//}
+//float LLightmap::get_emission_density() const {
+//	return m_LM.settings.emission_density;
+//}
 
-void LLightmap::set_glow(float glow) {
-	m_LM.settings.glow = glow;
-}
-float LLightmap::get_glow() const {
-	return m_LM.settings.glow;
-}
+//void LLightmap::set_glow(float glow) {
+//	m_LM.settings.glow = glow;
+//}
+//float LLightmap::get_glow() const {
+//	return m_LM.settings.glow;
+//}
 
 ////////////////////////////
 void LLightmap::set_backward_num_rays(int num_rays) {
@@ -282,41 +282,6 @@ int LLightmap::get_backward_num_rays() const {
 	return m_LM.settings.backward_num_rays;
 }
 
-//void LLightmap::set_num_ambient_bounce_samples(int num_samples) {
-//	m_LM.settings.num_ambient_bounce_rays = num_samples;
-//}
-//int LLightmap::get_num_ambient_bounce_samples() const {
-//	return m_LM.settings.num_ambient_bounce_rays;
-//}
-
-//void LLightmap::set_backward_num_bounces(int num_bounces) {m_LM.settings.Backward_NumBounces = num_bounces;}
-//int LLightmap::get_backward_num_bounces() const {return m_LM.settings.Backward_NumBounces;}
-
-//void LLightmap::set_backward_ray_power(float ray_power) {m_LM.settings.Backward_RayPower = ray_power;}
-//float LLightmap::get_backward_ray_power() const {return m_LM.settings.Backward_RayPower;}
-
-//void LLightmap::set_ambient_bounce_power(float bounce_power) {
-//	m_LM.settings.ambient_bounce_power = bounce_power;
-//}
-//float LLightmap::get_ambient_bounce_power() const {
-//	return m_LM.settings.ambient_bounce_power;
-//}
-////////////////////////////
-
-//void LLightmap::set_num_ambient_bounces(int num_bounces) {
-//	m_LM.settings.num_ambient_bounces = num_bounces;
-//}
-//int LLightmap::get_num_ambient_bounces() const {
-//	return m_LM.settings.num_ambient_bounces;
-//}
-
-void LLightmap::set_ao_range(float ao_range) {
-	m_LM.settings.AO_range = ao_range;
-}
-float LLightmap::get_ao_range() const {
-	return m_LM.settings.AO_range;
-}
-
 void LLightmap::set_ao_cut_range(float ao_cut_range) {
 	m_LM.settings.AO_cut_range = ao_cut_range;
 }
@@ -324,12 +289,12 @@ float LLightmap::get_ao_cut_range() const {
 	return m_LM.settings.AO_cut_range;
 }
 
-void LLightmap::set_ao_num_samples(int ao_num_samples) {
-	m_LM.settings.AO_samples = ao_num_samples;
-}
-int LLightmap::get_ao_num_samples() const {
-	return m_LM.settings.AO_samples;
-}
+//void LLightmap::set_ao_num_samples(int ao_num_samples) {
+//	m_LM.settings.AO_samples = ao_num_samples;
+//}
+//int LLightmap::get_ao_num_samples() const {
+//	return m_LM.settings.AO_samples;
+//}
 
 ////////////////////////////
 

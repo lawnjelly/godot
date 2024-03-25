@@ -246,12 +246,12 @@ public:
 		//int num_directional_bounces;
 		//float ambient_bounce_power;
 		float directional_bounce_power;
-		float smoothness;
-		float emission_density;
-		float glow;
+		//float smoothness;
+		//float emission_density;
+		//float glow;
 
-		int AO_samples;
-		float AO_range;
+		//int AO_samples;
+		//float AO_range;
 		float AO_cut_range;
 		float AO_reverse_bias;
 
@@ -326,7 +326,11 @@ public:
 		int num_directional_bounces;
 
 		float emission_density;
+		float glow;
+		float smoothness;
 		int num_AO_samples;
+
+		float AO_range;
 
 		int max_material_size;
 

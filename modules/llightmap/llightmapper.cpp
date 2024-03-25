@@ -1166,7 +1166,7 @@ bool LightMapper::bounce_ray(Ray &r, const Vector3 &face_normal, bool apply_epsi
 	if (hemi_dir.dot(face_normal) < 0.0f)
 		hemi_dir = -hemi_dir;
 
-	r.d = hemi_dir.linear_interpolate(mirror_dir, settings.smoothness);
+	r.d = hemi_dir.linear_interpolate(mirror_dir, adjusted_settings.smoothness);
 
 	// standard epsilon? NYI
 	if (apply_epsilon)
@@ -1595,7 +1595,7 @@ void LightMapper::BF_process_texel(int tx, int ty) {
 		FColor femm;
 		femm.set(emission);
 		float power = settings.backward_ray_power * adjusted_settings.backward_num_rays * 32.0f;
-		power *= settings.glow;
+		power *= adjusted_settings.glow;
 		texel_add += femm * power;
 
 		// only if directional bounces are being used (could use ambient bounces for emission)
@@ -1750,7 +1750,7 @@ void LightMapper::process_emission_tri(int etri_id, float fraction_of_total) {
 		FColor *pTexelCol = _image_L.get(tx, ty);
 
 		//		fcol.Set(emission_color * 0.5f);
-		*pTexelCol += fcol * settings.glow;
+		*pTexelCol += fcol * adjusted_settings.glow;
 	}
 }
 

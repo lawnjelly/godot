@@ -34,7 +34,7 @@ void AmbientOcclusion::process_AO() {
 	//	}
 
 	// find the max range in voxels. This can be used to speed up the ray trace
-	const float range = settings.AO_range;
+	const float range = adjusted_settings.AO_range;
 	_scene._tracer.get_distance_in_voxels(range, _scene._voxel_range);
 
 #define LAMBIENT_OCCLUSION_USE_THREADS
@@ -138,7 +138,7 @@ float AmbientOcclusion::calculate_AO(int tx, int ty, int qmc_variation, const Mi
 		AO_random_QMC_ray(r, ptNormal, n, qmc_variation);
 
 		// test ray
-		if (_scene.test_intersect_ray(r, settings.AO_range, voxel_range)) {
+		if (_scene.test_intersect_ray(r, adjusted_settings.AO_range, voxel_range)) {
 			nHits++;
 		}
 
@@ -168,8 +168,8 @@ float AmbientOcclusion::calculate_AO_complex(int tx, int ty, int qmc_variation, 
 	int sample_counter = 0;
 	int nHits = 0;
 	Ray r;
-
-	for (int n = 0; n < settings.AO_samples; n++) {
+	
+	for (int n = 0; n < adjusted_settings.num_AO_samples; n++) {
 		// get the sample to look from
 		const AOSample &sample = samples[sample_counter++];
 
@@ -183,12 +183,12 @@ float AmbientOcclusion::calculate_AO_complex(int tx, int ty, int qmc_variation, 
 		AO_random_QMC_direction(r.d, sample.normal, n, qmc_variation);
 
 		// test ray
-		if (_scene.test_intersect_ray(r, settings.AO_range, _scene._voxel_range)) {
+		if (_scene.test_intersect_ray(r, adjusted_settings.AO_range, _scene._voxel_range)) {
 			nHits++;
 		}
 	} // for n
 
-	float fTotal = (float)nHits / settings.AO_samples;
+	float fTotal = (float)nHits / adjusted_settings.num_AO_samples;
 	fTotal = 1.0f - (fTotal * 1.0f);
 
 	if (fTotal < 0.0f)
@@ -199,10 +199,10 @@ float AmbientOcclusion::calculate_AO_complex(int tx, int ty, int qmc_variation, 
 
 int AmbientOcclusion::AO_find_sample_points(int tx, int ty, const MiniList &ml, AOSample samples[MAX_COMPLEX_AO_TEXEL_SAMPLES]) {
 	int samples_found = 0;
-	int attempts = settings.AO_samples + 64;
+	int attempts = adjusted_settings.num_AO_samples + 64;
 
 	// scale number of sample points roughly to the user interface quality
-	int num_desired_samples = settings.AO_samples;
+	int num_desired_samples = adjusted_settings.num_AO_samples;
 	if (num_desired_samples > MAX_COMPLEX_AO_TEXEL_SAMPLES)
 		num_desired_samples = MAX_COMPLEX_AO_TEXEL_SAMPLES;
 
@@ -231,7 +231,7 @@ int AmbientOcclusion::AO_find_sample_points(int tx, int ty, const MiniList &ml, 
 		AO_find_samples_random_ray(r, ptNormal);
 
 		// test ray
-		if (_scene.test_intersect_ray(r, settings.AO_range, _scene._voxel_range, true))
+		if (_scene.test_intersect_ray(r, adjusted_settings.AO_range, _scene._voxel_range, true))
 			continue; // hit, not interested
 
 		// no hit .. we can use this sample!

@@ -31,12 +31,14 @@ LightMapper_Base::LightMapper_Base() {
 	data.params[PARAM_NUM_BOUNCES] = 0;
 	data.params[PARAM_AMBIENT_BOUNCE_POWER] = 0.5f;
 	data.params[PARAM_ROUGHNESS] = 0.5f;
-	settings.smoothness = 0.5f;
-	settings.emission_density = 1.0f;
-	settings.glow = 1.0f;
 
-	settings.AO_range = 2.0f;
-	settings.AO_samples = 256;
+	data.params[PARAM_EMISSION_DENSITY] = 1.0f;
+	data.params[PARAM_GLOW] = 1.0f;
+
+	data.params[PARAM_AO_RANGE] = 2.0f;
+	//settings.AO_range = 2.0f;
+	data.params[PARAM_AO_NUM_SAMPLES] = 256;
+	//settings.AO_samples = 256;
 	settings.AO_cut_range = 1.5f;
 	settings.AO_reverse_bias = 0.005f;
 
@@ -112,9 +114,6 @@ void LightMapper_Base::set_param(Param p_param, Variant p_value) {
 		case PARAM_MAX_LIGHT_DISTANCE: {
 			settings.max_light_dist = p_value;
 		} break;
-		case PARAM_ROUGHNESS: {
-			settings.smoothness = 1.0f - (float) p_value;
-		} break;
 		default:
 			break;
 	}
@@ -165,7 +164,9 @@ void LightMapper_Base::calculate_quality_adjusted_settings() {
 	as.num_primary_rays = data.params[PARAM_NUM_PRIMARY_RAYS];
 
 	//as.m_Forward_NumRays = settings.Forward_NumRays;
-	as.emission_density = settings.emission_density;
+	as.emission_density = data.params[PARAM_EMISSION_DENSITY];
+	as.glow = data.params[PARAM_GLOW];
+	as.smoothness = 1.0f - (float)data.params[PARAM_ROUGHNESS];
 
 	as.backward_num_rays = settings.backward_num_rays;
 
@@ -173,7 +174,8 @@ void LightMapper_Base::calculate_quality_adjusted_settings() {
 	as.num_ambient_bounce_rays = data.params[PARAM_NUM_AMBIENT_BOUNCE_RAYS];
 	as.num_directional_bounces = data.params[PARAM_NUM_BOUNCES];
 
-	as.num_AO_samples = settings.AO_samples;
+	as.num_AO_samples = data.params[PARAM_AO_NUM_SAMPLES];
+	as.AO_range = data.params[PARAM_AO_RANGE];
 
 	as.max_material_size = settings.max_material_size;
 
