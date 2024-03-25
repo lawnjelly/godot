@@ -314,9 +314,9 @@ void RayBank::ray_bank_process_ray_MT_old(uint32_t ray_id, int start_ray) {
 		triangle.interpolate_barycentric(pos, u, v, w);
 
 		// get the albedo etc
-		Color albedo;
+		Color albedo, emission;
 		bool bTransparent;
-		_scene.find_primary_texture_colors(tri, Vector3(u, v, w), albedo, bTransparent);
+		_scene.find_primary_texture_colors(tri, Vector3(u, v, w), albedo, emission, bTransparent);
 		FColor falbedo;
 		falbedo.set(albedo);
 
@@ -324,7 +324,7 @@ void RayBank::ray_bank_process_ray_MT_old(uint32_t ray_id, int start_ray) {
 		//fray.color = falbedo;
 
 		// pre find the bounce color here
-		fray.bounce_color = fray.color * falbedo * settings.directional_bounce_power;
+		fray.bounce_color = fray.color * falbedo * adjusted_settings.directional_bounce_power;
 		//		fray.bounce_color = fray.color * settings.Forward_BouncePower;
 
 		//		Vector3 norm;
@@ -416,9 +416,9 @@ void RayBank::ray_bank_process_ray_MT(uint32_t ray_id, int start_ray) {
 	vertex_normal.normalize(); // is this necessary as we are just checking a dot product polarity?
 
 	// first get the texture details
-	Color albedo;
+	Color albedo, emission;
 	bool bTransparent;
-	_scene.find_primary_texture_colors(tri, Vector3(u, v, w), albedo, bTransparent);
+	_scene.find_primary_texture_colors(tri, Vector3(u, v, w), albedo, emission, bTransparent);
 	bool pass_through = bTransparent && (albedo.a < 0.001f);
 
 	// test
@@ -515,7 +515,7 @@ void RayBank::ray_bank_process_ray_MT(uint32_t ray_id, int start_ray) {
 		//		if (!pass_through)
 		//		{
 
-		fray.bounce_color = fray.color * falbedo * settings.directional_bounce_power;
+		fray.bounce_color = fray.color * falbedo * adjusted_settings.directional_bounce_power;
 
 		//		fray.bounce_color = fray.color * settings.Forward_BouncePower;
 
@@ -557,7 +557,7 @@ void RayBank::ray_bank_process_ray_MT(uint32_t ray_id, int start_ray) {
 			new_ray.d = hemi_dir.linear_interpolate(mirror_dir, adjusted_settings.smoothness);
 
 			// standard epsilon? NYI
-			new_ray.o = pos + (face_normal * settings.surface_bias); //0.01f);
+			new_ray.o = pos + (face_normal * adjusted_settings.surface_bias); //0.01f);
 
 			// copy the info to the existing fray
 			fray.ray = new_ray;

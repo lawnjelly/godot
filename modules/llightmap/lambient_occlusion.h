@@ -60,7 +60,7 @@ private:
 	}
 
 	void AO_random_QMC_direction(Vector3 &dir, const Vector3 &ptNormal, int n, int qmc_variation) const {
-		Vector3 push = ptNormal * settings.surface_bias; //0.005f;
+		Vector3 push = ptNormal * adjusted_settings.surface_bias; //0.005f;
 
 		_QMC.QMC_random_unit_dir(dir, n, qmc_variation);
 
@@ -77,7 +77,7 @@ private:
 	}
 
 	void AO_random_QMC_ray(Ray &r, const Vector3 &ptNormal, int n, int qmc_variation) const {
-		Vector3 push = ptNormal * settings.surface_bias; // 0.005f;
+		Vector3 push = ptNormal * adjusted_settings.surface_bias; // 0.005f;
 
 		// push ray origin
 		r.o += push;
@@ -103,7 +103,7 @@ private:
 
 	void AO_find_samples_random_ray(Ray &r, const Vector3 &ptNormal) const {
 		//Vector3 push = ptNormal * settings.AO_ReverseBias; //0.005f;
-		Vector3 push = ptNormal * settings.surface_bias; //0.005f;
+		Vector3 push = ptNormal * adjusted_settings.surface_bias; //0.005f;
 
 		// push ray origin
 		r.o -= push;

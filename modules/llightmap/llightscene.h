@@ -55,11 +55,11 @@ public:
 		_uv_tris[tri].find_uv_barycentric(uvs, bary);
 	}
 
-	bool find_primary_texture_colors(int tri_id, const Vector3 &bary, Color &albedo, bool &bTransparent);
+	bool find_primary_texture_colors(int tri_id, const Vector3 &bary, Color &albedo, Color &r_emission, bool &bTransparent);
 	bool find_emission_color(int tri_id, const Vector3 &bary, Color &texture_col, Color &col);
 
 	// single function
-	bool find_all_texture_colors(int tri_id, const Vector3 &bary, Color &albedo, Color &emission, bool &bTransparent, bool &bEmitter);
+	bool find_all_texture_colors(int tri_id, const Vector3 &bary, Color &albedo, Color &r_emission, bool &bTransparent, bool &bEmitter);
 
 	// setup
 	struct RasterizeTriangleIDParams {

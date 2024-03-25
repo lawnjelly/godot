@@ -44,9 +44,6 @@ public:
 	void set_quality(LLightmap::eQuality p_quality);
 	LLightmap::eQuality get_quality() const;
 
-	//	void set_max_light_distance(int dist);
-	//	int get_max_light_distance() const;
-
 	void set_mesh_path(const NodePath &p_path);
 	NodePath get_mesh_path() const;
 	void set_lights_path(const NodePath &p_path);
@@ -57,45 +54,6 @@ public:
 	int get_backward_num_rays() const;
 
 	////////////////////////////
-
-	void set_bounce_power(float bounce_power);
-	float get_bounce_power() const;
-
-	////////////////////////////
-
-	void set_ao_cut_range(float ao_cut_range);
-	float get_ao_cut_range() const;
-
-//	void set_ao_num_samples(int ao_num_samples);
-//	int get_ao_num_samples() const;
-	////////////////////////////
-
-	//	void set_tex_width(int width);
-	//	int get_tex_width() const;
-
-	//	void set_tex_height(int height);
-	//	int get_tex_height() const;
-
-	void set_voxel_density(int density);
-	int get_voxel_density() const;
-
-	void set_surface_bias(float bias);
-	float get_surface_bias() const;
-
-	void set_material_size(int size);
-	int get_material_size() const;
-
-	//	void set_normalize(bool norm);
-	//	bool get_normalize() const;
-
-	void set_normalize_multiplier(float bias);
-	float get_normalize_multiplier() const;
-
-	void set_light_ao_ratio(float ratio);
-	float get_light_ao_ratio() const;
-
-	void set_gamma(float gamma);
-	float get_gamma() const;
 
 	void set_lightmap_filename(const String &p_filename);
 	String get_lightmap_filename() const;
@@ -110,59 +68,12 @@ public:
 	void set_uv_filename(const String &p_filename);
 	String get_uv_filename() const;
 
-	void set_uv_padding(int pad);
-	int get_uv_padding() const;
-
-	// Probes
-	void set_probe_density(int density);
-	int get_probe_density() const;
-
-	void set_probe_samples(int samples);
-	int get_probe_samples() const;
-
-	//	void set_probe_filename(const String &p_filename);
-	//	String get_probe_filename() const;
-
-	// Noise reduction
-	void set_noise_reduction(float nr);
-	float get_noise_reduction() const;
-
-	void set_noise_threshold(float threshold);
-	float get_noise_threshold() const;
-
 	void set_noise_reduction_method(int method);
 	int get_noise_reduction_method() const;
-
-	void set_seam_stitching(bool active);
-	bool get_seam_stitching() const;
-
-	void set_seam_distance_threshold(float threshold);
-	float get_seam_distance_threshold() const;
-
-	void set_seam_normal_threshold(float threshold);
-	float get_seam_normal_threshold() const;
-
-	//	void set_visualize_seams(bool active);
-	//	bool get_visualize_seams() const;
-
-	//	void set_dilate(bool active);
-	//	bool get_dilate() const;
 
 	// sky
 	void set_sky_filename(const String &p_filename);
 	String get_sky_filename() const;
-
-	void set_sky_blur(float p_blur);
-	float get_sky_blur() const;
-
-	void set_sky_size(int p_size);
-	int get_sky_size() const;
-
-	void set_sky_samples(int p_samples);
-	int get_sky_samples() const;
-
-	void set_sky_brightness(float p_brightness);
-	float get_sky_brightness() const;
 
 	void set_param(LM::LightMapper::Param p_param, Variant p_value);
 	Variant get_param(LM::LightMapper::Param p_param);

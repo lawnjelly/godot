@@ -168,7 +168,7 @@ float AmbientOcclusion::calculate_AO_complex(int tx, int ty, int qmc_variation, 
 	int sample_counter = 0;
 	int nHits = 0;
 	Ray r;
-	
+
 	for (int n = 0; n < adjusted_settings.num_AO_samples; n++) {
 		// get the sample to look from
 		const AOSample &sample = samples[sample_counter++];
@@ -241,7 +241,7 @@ int AmbientOcclusion::AO_find_sample_points(int tx, int ty, const MiniList &ml, 
 		// the find test offsets BACKWARDS to find tris on the floor
 		// the actual ambient test offsets FORWARDS to avoid self intersection.
 		// the ambient test could also use the backface culling test, but this is slower.
-		sample.pos = pos + (ptNormal * settings.surface_bias); //0.005f);
+		sample.pos = pos + (ptNormal * adjusted_settings.surface_bias); //0.005f);
 		sample.uv = st;
 		sample.normal = ptNormal;
 		sample.tri_id = tri_inside_id;

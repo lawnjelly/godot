@@ -98,6 +98,7 @@ public:
 	static BakeEndFunc bake_end_function;
 
 	void show_warning(String sz, bool bAlert = true);
+	void calculate_quality_adjusted_settings();
 
 protected:
 	void base_reset();
@@ -128,7 +129,6 @@ protected:
 	void light_to_plane(LLight &light);
 	Plane find_containment_plane(const Vector3 &dir, Vector3 pts[8], float &range, float padding);
 
-	void calculate_quality_adjusted_settings();
 	float safe_acosf(float f) const {
 		f = CLAMP(f, -1.0f, 1.0f);
 		return acosf(f);
@@ -245,35 +245,35 @@ public:
 		//int num_ambient_bounce_rays;
 		//int num_directional_bounces;
 		//float ambient_bounce_power;
-		float directional_bounce_power;
+		//float directional_bounce_power;
 		//float smoothness;
 		//float emission_density;
 		//float glow;
 
 		//int AO_samples;
 		//float AO_range;
-		float AO_cut_range;
-		float AO_reverse_bias;
+		//float AO_cut_range;
+		//float AO_reverse_bias;
 
 		eLMMode mode;
 		eLMBakeMode bake_mode;
 		eLMBakeQuality quality;
 
 		// for faster baking, limit length that light can reach
-		int max_light_dist;
+		//int max_light_dist;
 
-		int voxel_density; // number of units on largest axis
-		float surface_bias;
+		//int voxel_density; // number of units on largest axis
+		//float surface_bias;
 
-		int tex_width;
-		int tex_height;
+		//int tex_width;
+		//int tex_height;
 
-		int max_material_size;
+		//int max_material_size;
 
 		//bool normalize;
-		float normalize_bias;
-		float light_AO_ratio;
-		float gamma;
+		//float normalize_bias;
+		//float light_AO_ratio;
+		//float gamma;
 
 		NodePath path_mesh;
 		NodePath path_lights;
@@ -288,31 +288,37 @@ public:
 		bool combined_is_HDR;
 
 		String UV_filename;
-		int UV_padding;
+		//int UV_padding;
 
 		String probe_filename;
-		int probe_density; // number of units on largest axis
+		//int probe_density; // number of units on largest axis
 
-		int num_probe_samples;
+		//int num_probe_samples;
 
-		float noise_threshold;
-		float noise_reduction;
+		//float noise_threshold;
+		//float noise_reduction;
 		eNRMethod noise_reduction_method;
 
-		bool use_seam_stitching;
+		//bool use_seam_stitching;
 
-		float seam_distance_threshold;
-		float seam_normal_threshold;
+		//		float seam_distance_threshold;
+		//		float seam_normal_threshold;
 
 		String sky_filename;
-		float sky_blur_amount;
-		int sky_size;
-		int sky_num_samples;
-		float sky_brightness;
+		//		float sky_blur_amount;
+		//		int sky_size;
+		//		int sky_num_samples;
+		//		float sky_brightness;
 	} settings;
 
 	// actual params (after applying quality)
 	struct AdjustedSettings {
+		int tex_width;
+		int tex_height;
+
+		int max_light_distance;
+		float surface_bias;
+
 		int forward_num_rays;
 		int backward_num_rays;
 		//int m_Forward_NumBounces;
@@ -324,6 +330,7 @@ public:
 		int num_ambient_bounce_rays;
 
 		int num_directional_bounces;
+		float directional_bounce_power;
 
 		float emission_density;
 		float glow;
@@ -333,9 +340,9 @@ public:
 		float AO_range;
 
 		int max_material_size;
+		float normalize_multiplier;
 
 		int num_sky_samples;
-
 		float sky_brightness;
 	} adjusted_settings;
 

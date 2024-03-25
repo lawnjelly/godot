@@ -19,7 +19,7 @@ int LightProbes::create(LightMapper &lm) {
 		return -1;
 
 	// use the probe density to estimate the number of voxels
-	data.dims = lm.get_tracer().estimate_voxel_dims(lm.settings.probe_density);
+	data.dims = lm.get_tracer().estimate_voxel_dims(lm.data.params[LightMapper::PARAM_PROBE_DENSITY]);
 	data.dim_x_times_y = (data.dims.x * data.dims.y);
 
 	Vector3 voxel_dims;
@@ -130,7 +130,7 @@ void LightProbes::calculate_probe_old(const Vec3i &pt) {
 	pProbe->color_indirect = data.light_mapper->probe_calculate_indirect_light(pos);
 
 	// apply gamma
-	float gamma = 1.0f / data.light_mapper->settings.gamma;
+	float gamma = 1.0f / (float)data.light_mapper->data.params[LightMapper_Base::PARAM_GAMMA];
 	pProbe->color_indirect.r = powf(pProbe->color_indirect.r, gamma);
 	pProbe->color_indirect.g = powf(pProbe->color_indirect.g, gamma);
 	pProbe->color_indirect.b = powf(pProbe->color_indirect.b, gamma);
@@ -148,7 +148,7 @@ void LightProbes::calculate_probe(const Vec3i &pt) {
 	assert(pProbe);
 
 	// do multiple tests per light
-	const int nSamples = data.light_mapper->settings.num_probe_samples / 8;
+	const int nSamples = (int)data.light_mapper->data.params[LightMapper::PARAM_PROBE_SAMPLES] / 8;
 
 	for (int l = 0; l < data.light_mapper->_lights.size(); l++) {
 		const LightMapper_Base::LLight &light = data.light_mapper->_lights[l];
@@ -238,7 +238,7 @@ void LightProbes::calculate_probe(const Vec3i &pt) {
 	pProbe->color_indirect = data.light_mapper->probe_calculate_indirect_light(pos);
 
 	// apply gamma
-	float gamma = 1.0f / data.light_mapper->settings.gamma;
+	float gamma = 1.0f / (float)data.light_mapper->data.params[LightMapper_Base::PARAM_GAMMA];
 	pProbe->color_indirect.r = powf(pProbe->color_indirect.r, gamma);
 	pProbe->color_indirect.g = powf(pProbe->color_indirect.g, gamma);
 	pProbe->color_indirect.b = powf(pProbe->color_indirect.b, gamma);

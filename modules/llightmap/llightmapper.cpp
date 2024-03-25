@@ -41,7 +41,7 @@ bool LightMapper::uv_map_meshes(Spatial *pRoot) {
 	}
 
 	Merger m;
-	MeshInstance *pMerged = m.merge(pRoot, settings.UV_padding);
+	MeshInstance *pMerged = m.merge(pRoot, data.params[PARAM_UV_PADDING]);
 	if (!pMerged) {
 		if (bake_end_function) {
 			bake_end_function();
@@ -198,7 +198,7 @@ bool LightMapper::_lightmap_mesh(Spatial *pMeshesRoot, const Spatial &light_root
 	// print out settings
 	print_line("Lightmap mesh");
 	print_line("\tnum_directional_bounces " + itos(adjusted_settings.num_directional_bounces));
-	print_line("\tdirectional_bounce_power " + String(Variant(settings.directional_bounce_power)));
+	print_line("\tdirectional_bounce_power " + String(data.params[PARAM_BOUNCE_POWER]));
 
 	refresh_process_state();
 
@@ -255,7 +255,7 @@ bool LightMapper::_lightmap_mesh(Spatial *pMeshesRoot, const Spatial &light_root
 		}
 		print_line("Scene Create");
 		before = OS::get_singleton()->get_ticks_msec();
-		if (!_scene.create(pMeshesRoot, _width, _height, settings.voxel_density, adjusted_settings.max_material_size, adjusted_settings.emission_density))
+		if (!_scene.create(pMeshesRoot, _width, _height, data.params[PARAM_VOXEL_DENSITY], adjusted_settings.max_material_size, adjusted_settings.emission_density))
 			return false;
 
 		if (bake_step_function) {
@@ -518,7 +518,7 @@ void LightMapper::backward_trace_sample(int tri_id) {
 	// apply bias
 	// add epsilon to pos to prevent self intersection and neighbour intersection
 	const Vector3 &plane_normal = _scene._tri_planes[tri_id].normal;
-	pos += plane_normal * settings.surface_bias;
+	pos += plane_normal * adjusted_settings.surface_bias;
 
 	// interpolated normal
 	Vector3 normal;
@@ -562,7 +562,7 @@ void LightMapper::backward_process_texels() {
 	_num_tests = 0;
 
 	// load sky
-	_sky.load_sky(settings.sky_filename, settings.sky_blur_amount, settings.sky_size);
+	_sky.load_sky(settings.sky_filename, data.params[PARAM_SKY_BLUR], data.params[PARAM_SKY_SIZE]);
 
 	// prevent multithread
 #ifndef BACKWARD_TRACE_MULTITHEADED
@@ -769,7 +769,7 @@ bool LightMapper::BF_process_texel_sky(const Color &orig_albedo, const Vector3 &
 	if (!_sky.is_active())
 		return false;
 
-	if (settings.sky_brightness == 0.0f)
+	if (adjusted_settings.sky_brightness == 0.0f)
 		return false;
 
 	Ray r;
@@ -859,8 +859,8 @@ void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id,
 		float light_dist = light_vec.length();
 
 		// cull by dist test
-		if (settings.max_light_dist) {
-			if ((int)light_dist > settings.max_light_dist)
+		if (adjusted_settings.max_light_distance) {
+			if ((int)light_dist > adjusted_settings.max_light_distance)
 				return;
 		}
 
@@ -1089,9 +1089,9 @@ void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id,
 				bool bBackFace = hit_back_face(r, tri, Vector3(u, v, w), hit_face_normal);
 
 				// first get the texture details
-				Color albedo;
+				Color albedo, emission;
 				bool bTransparent;
-				_scene.find_primary_texture_colors(tri, Vector3(u, v, w), albedo, bTransparent);
+				_scene.find_primary_texture_colors(tri, Vector3(u, v, w), albedo, emission, bTransparent);
 
 				if (bTransparent) {
 					bool opaque = bTransparent && (albedo.a > 0.999f);
@@ -1107,7 +1107,7 @@ void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id,
 						const Tri &triangle = _scene._tris[tri];
 						triangle.interpolate_barycentric(pos, u, v, w);
 
-						float push = -settings.surface_bias;
+						float push = -adjusted_settings.surface_bias;
 						if (bBackFace)
 							push = -push;
 
@@ -1170,14 +1170,14 @@ bool LightMapper::bounce_ray(Ray &r, const Vector3 &face_normal, bool apply_epsi
 
 	// standard epsilon? NYI
 	if (apply_epsilon)
-		r.o += (face_normal * settings.surface_bias); //0.01f);
+		r.o += (face_normal * adjusted_settings.surface_bias); //0.01f);
 
 	return true;
 }
 
 void LightMapper::BF_process_texel_light_bounce(int bounces_left, Ray r, FColor ray_color) {
 	// apply bounce power
-	ray_color *= settings.directional_bounce_power;
+	ray_color *= adjusted_settings.directional_bounce_power;
 
 	float u, v, w, t;
 	int tri = _scene.find_intersect_ray(r, u, v, w, t);
@@ -1200,9 +1200,9 @@ void LightMapper::BF_process_texel_light_bounce(int bounces_left, Ray r, FColor 
 	vertex_normal.normalize(); // is this necessary as we are just checking a dot product polarity?
 
 	// first get the texture details
-	Color albedo;
+	Color albedo, emission;
 	bool bTransparent;
-	_scene.find_primary_texture_colors(tri, Vector3(u, v, w), albedo, bTransparent);
+	_scene.find_primary_texture_colors(tri, Vector3(u, v, w), albedo, emission, bTransparent);
 	bool pass_through = bTransparent && (albedo.a < 0.001f);
 
 	bool bBackFace = false;
@@ -1349,7 +1349,7 @@ FColor LightMapper::process_texel_ambient_bounce(int x, int y) {
 
 	// precalculate normal push and ray origin on top of the surface
 	const Vector3 &plane_norm = _scene._tri_planes[tri_source].normal;
-	Vector3 normal_push = plane_norm * settings.surface_bias;
+	Vector3 normal_push = plane_norm * adjusted_settings.surface_bias;
 	Vector3 ray_origin = pos + normal_push;
 
 	int nSamples = adjusted_settings.num_ambient_bounce_rays;
@@ -1373,7 +1373,7 @@ FColor LightMapper::probe_calculate_indirect_light(const Vector3 &pos) {
 	total.set(0.0f);
 
 	// we will reuse the same routine from texel bounce
-	int nSamples = settings.num_probe_samples;
+	int nSamples = data.params[PARAM_PROBE_SAMPLES];
 	int samples_counted = nSamples;
 
 	Vector3 ray_origin = pos;
@@ -1441,9 +1441,9 @@ bool LightMapper::process_texel_ambient_bounce_sample(const Vector3 &plane_norm,
 			bool bBackFace = hit_back_face(r, tri_hit, bary, face_normal);
 
 			// the contribution is the luminosity at that spot and the albedo
-			Color albedo;
+			Color albedo, emission;
 			bool bTransparent;
-			_scene.find_primary_texture_colors(tri_hit, bary, albedo, bTransparent);
+			_scene.find_primary_texture_colors(tri_hit, bary, albedo, emission, bTransparent);
 
 			FColor falbedo;
 			falbedo.set(albedo);
@@ -1467,7 +1467,7 @@ bool LightMapper::process_texel_ambient_bounce_sample(const Vector3 &plane_norm,
 				const Tri &triangle = _scene._tris[tri_hit];
 				triangle.interpolate_barycentric(pos, bary);
 
-				float push = -settings.surface_bias;
+				float push = -adjusted_settings.surface_bias;
 				if (bBackFace)
 					push = -push;
 
@@ -1476,6 +1476,10 @@ bool LightMapper::process_texel_ambient_bounce_sample(const Vector3 &plane_norm,
 				// and repeat the loop
 			} else {
 				total_col += (_image_L.get_item(dx, dy) * falbedo);
+				
+				FColor femission;
+				femission.set(emission);
+				total_col += femission;
 
 				//assert (total_col.r >= 0.0f);
 				break;
@@ -1546,7 +1550,7 @@ void LightMapper::BF_process_texel(int tx, int ty) {
 
 	// add epsilon to pos to prevent self intersection and neighbour intersection
 	const Vector3 &plane_normal = _scene._tri_planes[tri_id].normal;
-	pos += plane_normal * settings.surface_bias;
+	pos += plane_normal * adjusted_settings.surface_bias;
 
 	Vector3 normal;
 	_scene._tri_normals[tri_id].interpolate_barycentric(normal, bary.x, bary.y, bary.z);

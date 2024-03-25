@@ -17,13 +17,14 @@ LightMapper_Base::BakeEndFunc LightMapper_Base::bake_end_function = nullptr;
 
 LightMapper_Base::LightMapper_Base() {
 	_num_rays = 1;
-	//settings.Forward_NumRays = 16;
-	//settings.Forward_RayPower = 0.01f;
 
-	//settings.Backward_NumRays = 128;
 	settings.backward_ray_power = 1.0f;
 
-	settings.directional_bounce_power = 1.0f;
+	data.params[PARAM_BOUNCE_POWER] = 1.0f;
+	//settings.directional_bounce_power = 1.0f;
+
+	data.params[PARAM_TEX_WIDTH] = 512;
+	data.params[PARAM_TEX_HEIGHT] = 512;
 
 	data.params[PARAM_NUM_PRIMARY_RAYS] = 32;
 	data.params[PARAM_NUM_AMBIENT_BOUNCES] = 0;
@@ -36,34 +37,24 @@ LightMapper_Base::LightMapper_Base() {
 	data.params[PARAM_GLOW] = 1.0f;
 
 	data.params[PARAM_AO_RANGE] = 2.0f;
-	//settings.AO_range = 2.0f;
 	data.params[PARAM_AO_NUM_SAMPLES] = 256;
-	//settings.AO_samples = 256;
-	settings.AO_cut_range = 1.5f;
-	settings.AO_reverse_bias = 0.005f;
 
 	settings.mode = LMMODE_BACKWARD;
 	settings.bake_mode = LMBAKEMODE_LIGHTMAP;
 	settings.quality = LM_QUALITY_MEDIUM;
 
 	// 0 is infinite
-	settings.max_light_dist = 0;
 	data.params[PARAM_MAX_LIGHT_DISTANCE] = 0;
 
-	data.params[PARAM_TEX_WIDTH] = 512;
-	data.params[PARAM_TEX_HEIGHT] = 512;
-	settings.tex_width = 512;
-	settings.tex_height = 512;
+	data.params[PARAM_VOXEL_DENSITY] = 20;
+	data.params[PARAM_SURFACE_BIAS] = 0.005f;
 
-	settings.voxel_density = 20;
-	settings.surface_bias = 0.005f;
+	data.params[PARAM_MATERIAL_SIZE] = 256;
 
-	settings.max_material_size = 256;
-
-	//settings.normalize = true;
-	settings.normalize_bias = 4.0f;
-	settings.light_AO_ratio = 0.5f;
-	settings.gamma = 2.2f;
+	data.params[PARAM_NORMALIZE] = true;
+	data.params[PARAM_NORMALIZE_MULTIPLIER] = 4.0f;
+	data.params[PARAM_AO_LIGHT_RATIO] = 0.5f;
+	data.params[PARAM_GAMMA] = 2.2f;
 
 	settings.lightmap_is_HDR = false;
 	settings.ambient_is_HDR = false;
@@ -75,45 +66,40 @@ LightMapper_Base::LightMapper_Base() {
 	logic.process_probes = true;
 	logic.output_final = true;
 
-	settings.UV_padding = 4; // 2
+	data.params[PARAM_UV_PADDING] = 4;
 
-	settings.probe_density = 64;
-	settings.num_probe_samples = 4096;
+	data.params[PARAM_PROBE_DENSITY] = 64;
+	data.params[PARAM_PROBE_SAMPLES] = 4096;
 
-	settings.noise_threshold = 0.1f;
-	settings.noise_reduction = 1.0f;
+	data.params[PARAM_NOISE_THRESHOLD] = 0.1f;
+	data.params[PARAM_NOISE_REDUCTION] = 1.0f;
 	settings.noise_reduction_method = NR_ADVANCED;
-	settings.use_seam_stitching = true;
-	settings.seam_distance_threshold = 0.001f;
-	settings.seam_normal_threshold = 45.0f;
 
-	//	settings.visualize_seams_enabled = false;
-	//	settings.dilate_enabled = true;
-
-	settings.sky_blur_amount = 0.18f;
-	settings.sky_size = 256;
-	settings.sky_num_samples = 512;
-	settings.sky_brightness = 1.0f;
-
-	data.params[PARAM_NORMALIZE] = true;
-	data.params[PARAM_EMISSION_ENABLED] = true;
 	data.params[PARAM_DILATE_ENABLED] = true;
+
+	data.params[PARAM_SEAM_STITCHING_ENABLED] = true;
+	data.params[PARAM_SEAM_DISTANCE_THRESHOLD] = 0.001f;
+	data.params[PARAM_SEAM_NORMAL_THRESHOLD] = 45.0f;
 	data.params[PARAM_VISUALIZE_SEAMS_ENABLED] = false;
+
+	data.params[PARAM_SKY_BLUR] = 0.18f;
+	data.params[PARAM_SKY_SIZE] = 256;
+	data.params[PARAM_SKY_SAMPLES] = 512;
+	data.params[PARAM_SKY_BRIGHTNESS] = 1.0f;
+	//	settings.sky_blur_amount = 0.18f;
+	//	settings.sky_size = 256;
+	//	settings.sky_num_samples = 512;
+	//	settings.sky_brightness = 1.0f;
+
+	data.params[PARAM_EMISSION_ENABLED] = true;
+	
+	calculate_quality_adjusted_settings();
 }
 
 void LightMapper_Base::set_param(Param p_param, Variant p_value) {
 	data.params[p_param] = p_value;
 
 	switch (p_param) {
-		case PARAM_TEX_WIDTH: {
-			settings.tex_width = p_value;
-		} break;
-		case PARAM_TEX_HEIGHT: {
-			settings.tex_height = p_value;
-		} break;
-		case PARAM_MAX_LIGHT_DISTANCE: {
-			settings.max_light_dist = p_value;
-		} break;
 		default:
 			break;
 	}
@@ -161,7 +147,13 @@ void LightMapper_Base::calculate_quality_adjusted_settings() {
 	// set them initially to the same
 	AdjustedSettings &as = adjusted_settings;
 
+	as.tex_width = data.params[PARAM_TEX_WIDTH];
+	as.tex_height = data.params[PARAM_TEX_HEIGHT];
+
 	as.num_primary_rays = data.params[PARAM_NUM_PRIMARY_RAYS];
+	as.max_light_distance = data.params[PARAM_MAX_LIGHT_DISTANCE];
+
+	as.surface_bias = data.params[PARAM_SURFACE_BIAS];
 
 	//as.m_Forward_NumRays = settings.Forward_NumRays;
 	as.emission_density = data.params[PARAM_EMISSION_DENSITY];
@@ -173,14 +165,17 @@ void LightMapper_Base::calculate_quality_adjusted_settings() {
 	as.num_ambient_bounces = data.params[PARAM_NUM_AMBIENT_BOUNCES];
 	as.num_ambient_bounce_rays = data.params[PARAM_NUM_AMBIENT_BOUNCE_RAYS];
 	as.num_directional_bounces = data.params[PARAM_NUM_BOUNCES];
+	as.directional_bounce_power = data.params[PARAM_BOUNCE_POWER];
 
 	as.num_AO_samples = data.params[PARAM_AO_NUM_SAMPLES];
 	as.AO_range = data.params[PARAM_AO_RANGE];
 
-	as.max_material_size = settings.max_material_size;
+	as.max_material_size = data.params[PARAM_MATERIAL_SIZE];
+	as.normalize_multiplier = data.params[PARAM_NORMALIZE_MULTIPLIER];
 
-	as.num_sky_samples = settings.sky_num_samples;
-	as.sky_brightness = settings.sky_brightness * settings.sky_brightness;
+	as.num_sky_samples = data.params[PARAM_SKY_SAMPLES];
+	as.sky_brightness = data.params[PARAM_SKY_BRIGHTNESS];
+	as.sky_brightness *= as.sky_brightness;
 
 	// overrides
 	switch (settings.quality) {
@@ -548,7 +543,7 @@ void LightMapper_Base::normalize_AO() {
 }
 
 void LightMapper_Base::stitch_seams() {
-	if (!settings.use_seam_stitching)
+	if (!data.params[PARAM_SEAM_STITCHING_ENABLED])
 		return;
 
 	Stitcher stitcher;
@@ -557,7 +552,7 @@ void LightMapper_Base::stitch_seams() {
 	for (int n = 0; n < _scene.get_num_meshes(); n++) {
 		MeshInstance *mi = _scene.get_mesh(n);
 
-		stitcher.stitch_object_seams(*mi, _image_L, settings.seam_distance_threshold, settings.seam_normal_threshold, data.params[PARAM_VISUALIZE_SEAMS_ENABLED]);
+		stitcher.stitch_object_seams(*mi, _image_L, data.params[PARAM_SEAM_DISTANCE_THRESHOLD], data.params[PARAM_SEAM_NORMAL_THRESHOLD], data.params[PARAM_VISUALIZE_SEAMS_ENABLED]);
 	}
 }
 
@@ -568,7 +563,7 @@ void LightMapper_Base::apply_noise_reduction() {
 		case NR_SIMPLE: {
 			// simple
 			Convolution<FColor> conv;
-			conv.run(_image_L, settings.noise_threshold, settings.noise_reduction);
+			conv.run(_image_L, data.params[PARAM_NOISE_THRESHOLD], data.params[PARAM_NOISE_REDUCTION]);
 
 			//	Convolution<float> conv_ao;
 			//	conv_ao.Run(m_Image_AO, settings.NoiseThreshold, settings.NoiseReduction);
@@ -609,7 +604,7 @@ void LightMapper_Base::normalize() {
 	float mult = 1.0f / fmax;
 
 	// apply bias
-	mult *= settings.normalize_bias;
+	mult *= adjusted_settings.normalize_multiplier;
 
 	// apply multiplier
 	for (int n = 0; n < nPixels; n++) {
@@ -675,7 +670,8 @@ void LightMapper_Base::merge_and_write_output_image_combined(Image &image) {
 	normalize();
 
 	// merge them both before applying noise reduction and seams
-	float gamma = 1.0f / settings.gamma;
+	float gamma = 1.0f / (float)data.params[PARAM_GAMMA];
+	float light_AO_ratio = data.params[PARAM_AO_LIGHT_RATIO];
 
 	for (int y = 0; y < _height; y++) {
 		for (int x = 0; x < _width; x++) {
@@ -698,12 +694,12 @@ void LightMapper_Base::merge_and_write_output_image_combined(Image &image) {
 				default: {
 					FColor mid = lum * ao;
 
-					if (settings.light_AO_ratio < 0.5f) {
-						float r = settings.light_AO_ratio / 0.5f;
+					if (light_AO_ratio < 0.5f) {
+						float r = light_AO_ratio / 0.5f;
 						f.set((1.0f - r) * ao);
 						f += mid * r;
 					} else {
-						float r = (settings.light_AO_ratio - 0.5f) / 0.5f;
+						float r = (light_AO_ratio - 0.5f) / 0.5f;
 						f = mid * (1.0f - r);
 						f += lum * r;
 					}

@@ -5,9 +5,13 @@
 namespace LM {
 
 void LMaterial::destroy() {
-	if (albedo) {
-		memdelete(albedo);
-		albedo = 0;
+	if (tex_albedo) {
+		memdelete(tex_albedo);
+		tex_albedo = nullptr;
+	}
+	if (tex_emission) {
+		memdelete(tex_emission);
+		tex_emission = nullptr;
 	}
 }
 
@@ -78,6 +82,7 @@ int LMaterials::find_or_create_material(const MeshInstance &mi, Ref<Mesh> rmesh,
 	// spatial material?
 	Ref<SpatialMaterial> spatial_mat = src_material;
 	Ref<Texture> albedo_tex;
+	Ref<Texture> emission_tex;
 	Color albedo = Color(1, 1, 1, 1);
 
 	float emission = 0.0f;
@@ -91,6 +96,15 @@ int LMaterials::find_or_create_material(const MeshInstance &mi, Ref<Mesh> rmesh,
 		if (spatial_mat->get_feature(Material3D::FEATURE_EMISSION)) {
 			emission = spatial_mat->get_emission_energy();
 			emission_color = spatial_mat->get_emission();
+			emission_tex = spatial_mat->get_texture(SpatialMaterial::TEXTURE_EMISSION);
+			if (emission_tex.is_valid()) {
+				print_line("\temission_texture " + emission_tex->get_name());
+				// debug save
+//				Ref<Image> img = emission_tex->get_data();
+//				if (img.is_valid()) {
+//					img->save_png("res://Lightmap/emission_tex.png");
+//				}
+			}
 		}
 	} else {
 		// shader material?
@@ -124,19 +138,21 @@ int LMaterials::find_or_create_material(const MeshInstance &mi, Ref<Mesh> rmesh,
 		// must reduce in order to prevent brightness changing.
 	}
 
-	Ref<Image> img_albedo;
-	if (albedo_tex.is_valid()) {
-		img_albedo = albedo_tex->get_data();
-		pMat->albedo = _get_bake_texture(img_albedo, albedo, Color(0, 0, 0)); // albedo texture, color is multiplicative
-		//albedo_texture = _get_bake_texture(img_albedo, size, mat->get_albedo(), Color(0, 0, 0)); // albedo texture, color is multiplicative
-	} else {
-		//albedo_texture = _get_bake_texture(img_albedo, size, Color(1, 1, 1), mat->get_albedo()); // no albedo texture, color is additive
-	}
-
-	// emission?
+	pMat->tex_albedo = _load_bake_texture(albedo_tex, albedo);
+	pMat->tex_emission = _load_bake_texture(emission_tex);
 
 	// returns the new material ID plus 1
 	return _materials.size();
+}
+
+LTexture *LMaterials::_load_bake_texture(Ref<Texture> p_texture, Color p_color_mul, Color p_color_add) const {
+	if (p_texture.is_valid()) {
+		Ref<Image> img;
+		img = p_texture->get_data();
+		return _get_bake_texture(img, p_color_mul, p_color_add); // albedo texture, color is multiplicative
+	}
+
+	return nullptr;
 }
 
 void LMaterials::find_custom_shader_params(Ref<Material> src_material, float &emission, Color &emission_color) {
@@ -220,7 +236,7 @@ Variant LMaterials::find_custom_albedo_tex(Ref<Material> src_material) {
 	*/
 }
 
-LTexture *LMaterials::_make_dummy_texture(LTexture *pLTexture, Color col) {
+LTexture *LMaterials::_make_dummy_texture(LTexture *pLTexture, Color col) const {
 	pLTexture->colors.resize(1);
 	pLTexture->colors.set(0, col);
 	pLTexture->width = 1;
@@ -228,7 +244,7 @@ LTexture *LMaterials::_make_dummy_texture(LTexture *pLTexture, Color col) {
 	return pLTexture;
 }
 
-LTexture *LMaterials::_get_bake_texture(Ref<Image> p_image, const Color &p_color_mul, const Color &p_color_add) {
+LTexture *LMaterials::_get_bake_texture(Ref<Image> p_image, const Color &p_color_mul, const Color &p_color_add) const {
 	LTexture *lt = memnew(LTexture);
 
 	// no image exists, use dummy texture
@@ -321,7 +337,7 @@ void LTexture::sample(const Vector2 &uv, Color &col) const {
 	col = colors[i];
 }
 
-bool LMaterials::find_colors(int mat_id, const Vector2 &uv, Color &albedo, bool &bTransparent) {
+bool LMaterials::find_colors(int mat_id, const Vector2 &uv, Color &albedo, Color &r_emission, bool &bTransparent) {
 	// mat_id is plus one
 	if (!mat_id) {
 		albedo = Color(1, 1, 1, 1);
@@ -335,14 +351,23 @@ bool LMaterials::find_colors(int mat_id, const Vector2 &uv, Color &albedo, bool 
 	// return whether transparent
 	bTransparent = mat.is_transparent;
 
-	if (!mat.albedo) {
+	bool found_any = false;
+
+	if (mat.tex_albedo) {
+		const LTexture &tex = *mat.tex_albedo;
+		tex.sample(uv, albedo);
+		found_any = true;
+	} else {
 		albedo = Color(1, 1, 1, 1);
-		return false;
 	}
 
-	const LTexture &tex = *mat.albedo;
-	tex.sample(uv, albedo);
-	return true;
+	if (mat.tex_emission) {
+		const LTexture &tex = *mat.tex_emission;
+		tex.sample(uv, r_emission);
+		found_any = true;
+	}
+
+	return found_any;
 }
 
 } //namespace LM

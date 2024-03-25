@@ -851,7 +851,8 @@ bool LightScene::find_emission_color(int tri_id, const Vector3 &bary, Color &tex
 	// albedo
 	// return whether texture found
 	bool bTransparent;
-	bool res = _materials.find_colors(mat_id_p1, uvs, texture_col, bTransparent);
+	Color texture_emission;
+	bool res = _materials.find_colors(mat_id_p1, uvs, texture_col, texture_emission, bTransparent);
 
 	texture_col *= mat.color_emission;
 	//		power = mat.m_Power_Emission;
@@ -860,14 +861,15 @@ bool LightScene::find_emission_color(int tri_id, const Vector3 &bary, Color &tex
 	return res;
 }
 
-bool LightScene::find_all_texture_colors(int tri_id, const Vector3 &bary, Color &albedo, Color &emission, bool &bTransparent, bool &bEmitter) {
+bool LightScene::find_all_texture_colors(int tri_id, const Vector3 &bary, Color &albedo, Color &r_emission, bool &bTransparent, bool &bEmitter) {
 	Vector2 uvs;
 	_uv_tris_primary[tri_id].find_uv_barycentric(uvs, bary.x, bary.y, bary.z);
 
 	int mat_id_p1 = _tri_lmaterial_ids[tri_id];
 
-	bool res = _materials.find_colors(mat_id_p1, uvs, albedo, bTransparent);
-
+	bool res = _materials.find_colors(mat_id_p1, uvs, albedo, r_emission, bTransparent);
+	
+	/*
 	if (res) {
 		const LMaterial &mat = _materials.get_material(mat_id_p1 - 1);
 
@@ -879,17 +881,18 @@ bool LightScene::find_all_texture_colors(int tri_id, const Vector3 &bary, Color 
 		bEmitter = false;
 		emission = Color(0, 0, 0, 1);
 	}
+*/
 
 	return res;
 }
 
-bool LightScene::find_primary_texture_colors(int tri_id, const Vector3 &bary, Color &albedo, bool &bTransparent) {
+bool LightScene::find_primary_texture_colors(int tri_id, const Vector3 &bary, Color &albedo, Color &r_emission, bool &bTransparent) {
 	Vector2 uvs;
 	_uv_tris_primary[tri_id].find_uv_barycentric(uvs, bary.x, bary.y, bary.z);
 
 	int mat_id_p1 = _tri_lmaterial_ids[tri_id];
 
-	return _materials.find_colors(mat_id_p1, uvs, albedo, bTransparent);
+	return _materials.find_colors(mat_id_p1, uvs, albedo, r_emission, bTransparent);
 }
 
 void LightScene::thread_rasterize_triangle_ids(uint32_t p_tile, uint32_t *p_dummy) {
