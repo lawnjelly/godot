@@ -178,6 +178,18 @@ protected:
 	// with LLightMapper_Base. It is not recognised in global namespace.
 	// Perhaps some Godot template fu is involved.
 public:
+	enum Param {
+		PARAM_EMISSION_ENABLED,
+		PARAM_MAX,
+	};
+
+	void set_param(LightMapper_Base::Param p_param, Variant p_value);
+	Variant get_param(LightMapper_Base::Param p_param);
+
+	struct Data {
+		Variant params[PARAM_MAX];
+	} data;
+
 	// actual params (after applying quality)
 	struct AdjustedSettings {
 		int forward_num_rays;

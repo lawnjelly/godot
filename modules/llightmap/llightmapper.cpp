@@ -300,7 +300,10 @@ bool LightMapper::_lightmap_mesh(Spatial *pMeshesRoot, const Spatial &light_root
 				backward_process_texels();
 			else {
 				process_lights();
-				process_emission_tris();
+
+				if (data.params[PARAM_EMISSION_ENABLED] == Variant(true)) {
+					process_emission_tris();
+				}
 			}
 			do_ambient_bounces();
 			after = OS::get_singleton()->get_ticks_msec();

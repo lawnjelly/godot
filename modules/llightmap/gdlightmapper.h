@@ -200,6 +200,9 @@ public:
 	void set_sky_brightness(float p_brightness);
 	float get_sky_brightness() const;
 
+	void set_param(LM::LightMapper::Param p_param, Variant p_value);
+	Variant get_param(LM::LightMapper::Param p_param);
+
 private:
 	LM::LightMapper m_LM;
 
@@ -209,6 +212,7 @@ protected:
 	static void _bind_methods();
 };
 
+VARIANT_ENUM_CAST(LM::LightMapper::Param);
 VARIANT_ENUM_CAST(LLightmap::eMode);
 VARIANT_ENUM_CAST(LLightmap::eBakeMode);
 VARIANT_ENUM_CAST(LLightmap::eQuality);

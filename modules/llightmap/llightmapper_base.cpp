@@ -88,6 +88,16 @@ LightMapper_Base::LightMapper_Base() {
 	settings.sky_size = 256;
 	settings.sky_num_samples = 512;
 	settings.sky_brightness = 1.0f;
+
+	data.params[PARAM_EMISSION_ENABLED] = true;
+}
+
+void LightMapper_Base::set_param(Param p_param, Variant p_value) {
+	data.params[p_param] = p_value;
+}
+
+Variant LightMapper_Base::get_param(Param p_param) {
+	return data.params[p_param];
 }
 
 void LightMapper_Base::debug_save(LightImage<uint32_t> &p_im, String p_filename) {

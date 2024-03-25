@@ -49,7 +49,7 @@ int LMaterials::find_or_create_material(const MeshInstance &mi, Ref<Mesh> rmesh,
 	Ref<Material> src_material;
 
 	// mesh instance has the material?
-	src_material = mi.get_surface_material(surf_id);
+	src_material = mi.get_active_material(surf_id);
 	if (src_material.ptr()) {
 		//mi.set_surface_material(0, mat);
 	} else {
@@ -84,13 +84,17 @@ int LMaterials::find_or_create_material(const MeshInstance &mi, Ref<Mesh> rmesh,
 	Color emission_color(1, 1, 1, 1);
 
 	if (spatial_mat.is_valid()) {
+		print_line("Adding Spatial Material: " + spatial_mat->get_name());
 		albedo_tex = spatial_mat->get_texture(SpatialMaterial::TEXTURE_ALBEDO);
 		albedo = spatial_mat->get_albedo();
 
-		emission = spatial_mat->get_emission_energy();
-		emission_color = spatial_mat->get_emission();
+		if (spatial_mat->get_feature(Material3D::FEATURE_EMISSION)) {
+			emission = spatial_mat->get_emission_energy();
+			emission_color = spatial_mat->get_emission();
+		}
 	} else {
 		// shader material?
+		print_line("Adding Shader Material: " + pSrcMaterial->get_name());
 		Variant shader_tex = find_custom_albedo_tex(src_material);
 		albedo_tex = shader_tex;
 
@@ -109,6 +113,12 @@ int LMaterials::find_or_create_material(const MeshInstance &mi, Ref<Mesh> rmesh,
 		pMat->is_emitter = true;
 		pMat->power_emission = emission / 1000.0f; // some constant to be comparable to lights
 		pMat->color_emission = emission_color * pMat->power_emission;
+
+		print_line("\tpower_emission " + String(Variant(pMat->power_emission)));
+		print_line("\tcolor_emission " + String(Variant(pMat->color_emission)));
+
+		// test
+		//pMat->is_emitter = false;
 
 		// apply a modifier for the emission density. As the number of samples go up, the power per sample
 		// must reduce in order to prevent brightness changing.

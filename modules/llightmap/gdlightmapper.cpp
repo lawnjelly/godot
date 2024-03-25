@@ -20,6 +20,11 @@ void LLightmap::_bind_methods() {
 	BIND_ENUM_CONSTANT(LLightmap::QUALITY_HIGH);
 	BIND_ENUM_CONSTANT(LLightmap::QUALITY_FINAL);
 
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_EMISSION_ENABLED);
+
+	ClassDB::bind_method(D_METHOD("set_param", "param", "value"), &LLightmap::set_param);
+	ClassDB::bind_method(D_METHOD("get_param", "param"), &LLightmap::get_param);
+
 	// main functions
 	ClassDB::bind_method(D_METHOD("lightmap_bake"), &LLightmap::lightmap_bake);
 	ClassDB::bind_method(D_METHOD("lightmap_bake_to_image", "output_image"), &LLightmap::lightmap_bake_to_image);
@@ -101,6 +106,7 @@ void LLightmap::_bind_methods() {
 	LIMPL_PROPERTY(Variant::REAL, a_bounce_power, set_ambient_bounce_power, get_ambient_bounce_power);
 
 	ADD_GROUP("Emission", "");
+	ADD_PROPERTYI(PropertyInfo(Variant::BOOL, "emission_enabled"), "set_param", "get_param", LM::LightMapper::PARAM_EMISSION_ENABLED);
 
 	LIMPL_PROPERTY_RANGE(Variant::REAL, emission_density, set_emission_density, get_emission_density, "0.0,8.0,0.05");
 	LIMPL_PROPERTY_RANGE(Variant::REAL, glow, set_glow, get_glow, "0.0,16.0,0.05");
@@ -491,6 +497,14 @@ void LLightmap::set_sky_brightness(float p_brightness) {
 
 float LLightmap::get_sky_brightness() const {
 	return m_LM.settings.sky_brightness;
+}
+
+void LLightmap::set_param(LM::LightMapper::Param p_param, Variant p_value) {
+	m_LM.set_param(p_param, p_value);
+}
+
+Variant LLightmap::get_param(LM::LightMapper::Param p_param) {
+	return m_LM.get_param(p_param);
 }
 
 //void LLightmap::set_probe_filename(const String &p_filename) {m_LM.settings.ProbeFilename = p_filename;}
