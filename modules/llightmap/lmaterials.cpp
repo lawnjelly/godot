@@ -1,4 +1,5 @@
 #include "lmaterials.h"
+#include "lcolor.h"
 
 #define LM_STRING_TRANSPARENT "_T_"
 
@@ -311,32 +312,7 @@ LTexture *LMaterials::_get_bake_texture(Ref<Image> p_image, const Color &p_color
 	return lt;
 }
 
-void LTexture::sample(const Vector2 &uv, Color &col) const {
-	// mod to surface (tiling)
-	float x = fmodf(uv.x, 1.0f);
-	float y = fmodf(uv.y, 1.0f);
-
-	// we need these because fmod can produce negative results
-	if (x < 0.0f)
-		x = 1.0f + x;
-	if (y < 0.0f)
-		y = 1.0f + y;
-
-	x *= width;
-	y *= height;
-
-	// no filtering as yet
-	int tx = x;
-	int ty = y;
-
-	tx = MIN(tx, width - 1);
-	ty = MIN(ty, height - 1);
-
-	int i = (ty * width) + tx;
-
-	col = colors[i];
-}
-
+/*
 bool LMaterials::find_colors(int mat_id, const Vector2 &uv, Color &albedo, Color &r_emission, bool &bTransparent) {
 	// mat_id is plus one
 	if (!mat_id) {
@@ -369,5 +345,6 @@ bool LMaterials::find_colors(int mat_id, const Vector2 &uv, Color &albedo, Color
 
 	return found_any;
 }
+*/
 
 } //namespace LM

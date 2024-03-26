@@ -1089,12 +1089,17 @@ void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id,
 				bool bBackFace = hit_back_face(r, tri, Vector3(u, v, w), hit_face_normal);
 
 				// first get the texture details
+				/*
 				Color albedo, emission;
 				bool bTransparent;
 				_scene.find_primary_texture_colors(tri, Vector3(u, v, w), albedo, emission, bTransparent);
+				*/
 
-				if (bTransparent) {
-					bool opaque = bTransparent && (albedo.a > 0.999f);
+				ColorSample cols;
+				_scene.take_triangle_color_sample(tri, Vector3(u, v, w), cols);
+
+				if (!cols.is_opaque) {
+					bool opaque = cols.albedo.a > 0.999f;
 
 					// push ray past the surface
 					if (!opaque) {
@@ -1114,7 +1119,7 @@ void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id,
 						r.o = pos + (hit_face_normal * push);
 
 						// apply the color to the ray
-						calculate_transmittance(albedo, sample_color);
+						calculate_transmittance(cols.albedo, sample_color);
 
 						// this shouldn't happen, but if it did we'd get an infinite loop if we didn't break out
 						panic_count--;
@@ -1200,10 +1205,16 @@ void LightMapper::BF_process_texel_light_bounce(int bounces_left, Ray r, FColor 
 	vertex_normal.normalize(); // is this necessary as we are just checking a dot product polarity?
 
 	// first get the texture details
+	/*
 	Color albedo, emission;
 	bool bTransparent;
 	_scene.find_primary_texture_colors(tri, Vector3(u, v, w), albedo, emission, bTransparent);
-	bool pass_through = bTransparent && (albedo.a < 0.001f);
+	*/
+
+	ColorSample cols;
+	_scene.take_triangle_color_sample(tri, Vector3(u, v, w), cols);
+
+	bool pass_through = !cols.is_opaque && (cols.albedo.a < 0.001f);
 
 	bool bBackFace = false;
 	const Vector3 &face_normal = _scene._tri_planes[tri].normal;
@@ -1217,7 +1228,7 @@ void LightMapper::BF_process_texel_light_bounce(int bounces_left, Ray r, FColor 
 		bBackFace = true;
 
 	// if not transparent and backface, then terminate ray
-	if (bBackFace && !bTransparent)
+	if (bBackFace && cols.is_opaque)
 		return;
 
 	// convert barycentric to uv coords in the lightmap
@@ -1238,15 +1249,15 @@ void LightMapper::BF_process_texel_light_bounce(int bounces_left, Ray r, FColor 
 	triangle.interpolate_barycentric(pos, u, v, w);
 
 	// deal with tranparency
-	if (bTransparent) {
+	if (!cols.is_opaque) {
 		// if not passing through, because clear, chance of pass through
 		if (!pass_through && !bBackFace) {
-			pass_through = Math::randf() > albedo.a;
+			pass_through = Math::randf() > cols.albedo.a;
 		}
 
 		// if the ray is passing through, we want to calculate the color modified by the surface
 		if (pass_through)
-			calculate_transmittance(albedo, ray_color);
+			calculate_transmittance(cols.albedo, ray_color);
 
 		// if pass through
 		if (bBackFace || pass_through) {
@@ -1287,7 +1298,7 @@ void LightMapper::BF_process_texel_light_bounce(int bounces_left, Ray r, FColor 
 
 	// bounce and lower power
 	FColor falbedo;
-	falbedo.set(albedo);
+	falbedo.set(cols.albedo);
 
 	// bounce color
 	ray_color = ray_color * falbedo;
@@ -1438,27 +1449,32 @@ bool LightMapper::process_texel_ambient_bounce_sample(const Vector3 &plane_norm,
 
 			// back face?
 			Vector3 face_normal;
-			bool bBackFace = hit_back_face(r, tri_hit, bary, face_normal);
+			bool is_backface = hit_back_face(r, tri_hit, bary, face_normal);
 
 			// the contribution is the luminosity at that spot and the albedo
+			/*
 			Color albedo, emission;
 			bool bTransparent;
 			_scene.find_primary_texture_colors(tri_hit, bary, albedo, emission, bTransparent);
+			*/
+			ColorSample cols;
+			_scene.take_triangle_color_sample(tri_hit, bary, cols);
 
 			FColor falbedo;
-			falbedo.set(albedo);
+			falbedo.set(cols.albedo);
 
-			bool opaque = !(bTransparent && (albedo.a < 0.5f));
+			//bool opaque = !(!cols.is_opaque && (cols.albedo.a < 0.5f));
+			bool opaque = cols.is_opaque || (cols.albedo.a >= 0.5f);
 
 			// if the surface transparent we may want to downgrade the influence a little
-			if (bTransparent)
-				falbedo *= albedo.a;
+			if (!cols.is_opaque)
+				falbedo *= cols.albedo.a;
 
 			// see through has no effect on colour
-			if (!opaque || (bBackFace && bTransparent)) {
+			if (!opaque || (is_backface && !cols.is_opaque)) {
 				// if it is front facing, still apply the 'haze' from the colour
 				// (this all counts as 1 sample, so could get super light in theory, if passing through several hazes...)
-				if (!bBackFace)
+				if (!is_backface)
 					total_col += (_image_L.get_item(dx, dy) * falbedo);
 
 				// move the ray origin and do again
@@ -1468,7 +1484,7 @@ bool LightMapper::process_texel_ambient_bounce_sample(const Vector3 &plane_norm,
 				triangle.interpolate_barycentric(pos, bary);
 
 				float push = -adjusted_settings.surface_bias;
-				if (bBackFace)
+				if (is_backface)
 					push = -push;
 
 				r.o = pos + (face_normal * push);
@@ -1477,9 +1493,10 @@ bool LightMapper::process_texel_ambient_bounce_sample(const Vector3 &plane_norm,
 			} else {
 				total_col += (_image_L.get_item(dx, dy) * falbedo);
 
-				FColor femission;
-				femission.set(emission);
-				total_col += femission;
+				// If we want emission on ambient bounces.
+				// FColor femission;
+				// femission.set(cols.emission);
+				// total_col += femission;
 
 				//assert (total_col.r >= 0.0f);
 				break;
@@ -1527,6 +1544,11 @@ void LightMapper::BF_process_texel(int tx, int ty) {
 		return;
 	tri_id--; // plus one based
 
+	// Could be off the image - does this ever happen? Could be assert? NYI
+	DEV_ASSERT(_image_L.is_within(tx, ty));
+	//	if (!_image_L.is_within(tx, ty))
+	//		return;
+
 	// barycentric
 	const Vector3 &bary = *_image_barycentric.get(tx, ty);
 	Vector3 bary_clamped; // = bary;
@@ -1557,35 +1579,37 @@ void LightMapper::BF_process_texel(int tx, int ty) {
 
 	//Vector2i tex_uv = Vector2i(x, y);
 
-	// could be off the image
-	if (!_image_L.is_within(tx, ty))
-		return;
-
 	// find the colors of this texel
+	ColorSample cols;
+	_scene.take_triangle_color_sample(tri_id, bary, cols);
+
+	/*
 	Color albedo;
 	Color emission;
 	bool transparent;
 	bool emitter;
-	_scene.find_all_texture_colors(tri_id, bary, albedo, emission, transparent, emitter);
+	_scene.take_triangle_color_sample(tri_id, bary, albedo, emission, transparent, emitter);
+	*/
 
 	FColor texel_add;
-	texel_add.set(0.0f);
+	texel_add.set(0);
 
 	//	FColor * pTexel = m_Image_L.Get(tx, ty);
 	//	if (!pTexel)
 	//		return;
 
-	int nSamples = adjusted_settings.backward_num_rays;
+	int num_samples = adjusted_settings.backward_num_rays;
+
 	FColor temp;
 	for (int l = 0; l < _lights.size(); l++) {
-		BF_process_texel_light(albedo, l, pos, plane_normal, normal, temp, nSamples);
+		BF_process_texel_light(cols.albedo, l, pos, plane_normal, normal, temp, num_samples);
 		texel_add += temp;
 	}
 
 	// sky (if present)
-	if (BF_process_texel_sky(albedo, pos, plane_normal, normal, temp)) {
+	if (BF_process_texel_sky(cols.albedo, pos, plane_normal, normal, temp)) {
 		// scale sky by number of samples in the normal lights
-		float descale_to_match_normal_lights = nSamples / 1024.0;
+		float descale_to_match_normal_lights = num_samples / 1024.0;
 		texel_add += temp * descale_to_match_normal_lights;
 	}
 
@@ -1593,11 +1617,11 @@ void LightMapper::BF_process_texel(int tx, int ty) {
 	//	Color emission_tex_color;
 	//	Color emission_color;
 	//	if (m_Scene.FindEmissionColor(tri_id, bary, emission_tex_color, emission_color))
-	if (emitter) {
+	if (cols.is_emitter) {
 		// Glow determines how much the surface itself is lighted (and thus the ratio between glow and emission)
 		// emission density determines the number of rays and lighting effect
 		FColor femm;
-		femm.set(emission);
+		femm.set(cols.emission);
 		float power = settings.backward_ray_power * adjusted_settings.backward_num_rays * 32.0f;
 		power *= adjusted_settings.glow;
 		texel_add += femm * power;
@@ -1608,9 +1632,9 @@ void LightMapper::BF_process_texel(int tx, int ty) {
 			int nSamples = adjusted_settings.backward_num_rays * 2 * adjusted_settings.emission_density;
 
 			// apply the albedo to the emission color to get the color emanating
-			femm.r *= albedo.r;
-			femm.g *= albedo.g;
-			femm.b *= albedo.b;
+			femm.r *= cols.albedo.r;
+			femm.g *= cols.albedo.g;
+			femm.b *= cols.albedo.b;
 
 			Ray r;
 			r.o = pos;

@@ -5,6 +5,8 @@
 
 namespace LM {
 
+struct ColorSample;
+
 struct LTexture {
 	Vector<Color> colors;
 	int width;
@@ -43,7 +45,8 @@ public:
 	void prepare(unsigned int max_material_size) { _max_material_size = max_material_size; }
 
 	int find_or_create_material(const MeshInstance &mi, Ref<Mesh> rmesh, int surf_id);
-	bool find_colors(int mat_id, const Vector2 &uv, Color &albedo, Color &r_emission, bool &bTransparent);
+	//bool find_colors(int mat_id, const Vector2 &uv, Color &albedo, Color &r_emission, bool &bTransparent);
+	bool find_colors(int mat_id, const Vector2 &uv, ColorSample &r_sample) const;
 
 	const LMaterial &get_material(int i) const { return _materials[i]; }
 
@@ -62,5 +65,63 @@ private:
 	LVector<LMaterial> _materials;
 	unsigned int _max_material_size;
 };
+
+inline bool LMaterials::find_colors(int mat_id, const Vector2 &uv, ColorSample &r_sample) const {
+	// mat_id is plus one
+	if (!mat_id) {
+		r_sample.albedo = Color(1, 1, 1, 1);
+		return false;
+	}
+
+	mat_id--;
+	const LMaterial &mat = _materials[mat_id];
+
+	r_sample.is_opaque = !mat.is_transparent;
+
+	bool found_any = false;
+
+	if (mat.tex_albedo) {
+		const LTexture &tex = *mat.tex_albedo;
+		tex.sample(uv, r_sample.albedo);
+		found_any = true;
+	} else {
+		r_sample.albedo = Color(1, 1, 1, 1);
+	}
+
+	if (mat.tex_emission) {
+		const LTexture &tex = *mat.tex_emission;
+		tex.sample(uv, r_sample.emission);
+		r_sample.is_emitter = true;
+		found_any = true;
+	}
+
+	return found_any;
+}
+
+inline void LTexture::sample(const Vector2 &uv, Color &col) const {
+	// mod to surface (tiling)
+	float x = fmodf(uv.x, 1.0f);
+	float y = fmodf(uv.y, 1.0f);
+
+	// we need these because fmod can produce negative results
+	if (x < 0.0f)
+		x = 1.0f + x;
+	if (y < 0.0f)
+		y = 1.0f + y;
+
+	x *= width;
+	y *= height;
+
+	// no filtering as yet
+	int tx = x;
+	int ty = y;
+
+	tx = MIN(tx, width - 1);
+	ty = MIN(ty, height - 1);
+
+	int i = (ty * width) + tx;
+
+	col = colors[i];
+}
 
 } //namespace LM

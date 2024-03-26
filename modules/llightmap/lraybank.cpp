@@ -217,6 +217,7 @@ void RayBank::ray_bank_flush_ray(RB_Voxel &vox, int ray_id) {
 
 //void RayBank::RayBank_ProcessRay(uint32_t ray_id, RB_Voxel &vox)
 
+/*
 void RayBank::ray_bank_process_ray_MT_old(uint32_t ray_id, int start_ray) {
 	ray_id += start_ray;
 	RB_Voxel &vox = *_p_current_thread_voxel;
@@ -291,20 +292,18 @@ void RayBank::ray_bank_process_ray_MT_old(uint32_t ray_id, int start_ray) {
 	//		return false;
 	//	}
 
-	/*
-	float * pf = m_Image_L.Get(tx, ty);
-	if (!pf)
-		return;
-	// scale according to distance
-	t /= 10.0f;
-	t = 1.0f - t;
-	if (t < 0.0f)
-		t = 0.0f;
-	t *= 2.0f;
-	t = fray.power;
-//	if (depth > 0)
-	*pf += t;
-	*/
+//	float * pf = m_Image_L.Get(tx, ty);
+//	if (!pf)
+//		return;
+//	// scale according to distance
+//	t /= 10.0f;
+//	t = 1.0f - t;
+//	if (t < 0.0f)
+//		t = 0.0f;
+//	t *= 2.0f;
+//	t = fray.power;
+////	if (depth > 0)
+//	*pf += t;
 
 	// bounce and lower power
 
@@ -317,6 +316,7 @@ void RayBank::ray_bank_process_ray_MT_old(uint32_t ray_id, int start_ray) {
 		Color albedo, emission;
 		bool bTransparent;
 		_scene.find_primary_texture_colors(tri, Vector3(u, v, w), albedo, emission, bTransparent);
+
 		FColor falbedo;
 		falbedo.set(albedo);
 
@@ -382,6 +382,7 @@ void RayBank::ray_bank_process_ray_MT_old(uint32_t ray_id, int start_ray) {
 
 	//	return false;
 }
+*/
 
 void RayBank::ray_bank_process_ray_MT(uint32_t ray_id, int start_ray) {
 	ray_id += start_ray;
@@ -416,10 +417,15 @@ void RayBank::ray_bank_process_ray_MT(uint32_t ray_id, int start_ray) {
 	vertex_normal.normalize(); // is this necessary as we are just checking a dot product polarity?
 
 	// first get the texture details
+	/*
 	Color albedo, emission;
 	bool bTransparent;
 	_scene.find_primary_texture_colors(tri, Vector3(u, v, w), albedo, emission, bTransparent);
-	bool pass_through = bTransparent && (albedo.a < 0.001f);
+	*/
+	ColorSample cols;
+	_scene.take_triangle_color_sample(tri, Vector3(u, v, w), cols);
+
+	bool pass_through = !cols.is_opaque && (cols.albedo.a < 0.001f);
 
 	// test
 	//	if (!bTransparent)
@@ -428,20 +434,20 @@ void RayBank::ray_bank_process_ray_MT(uint32_t ray_id, int start_ray) {
 	//		return;
 	//	}
 
-	bool bBackFace = false;
+	bool is_backface = false;
 
 	const Vector3 &face_normal = _scene._tri_planes[tri].normal;
 
 	float face_dot = face_normal.dot(r.d);
 	if (face_dot >= 0.0f) {
-		bBackFace = true;
+		is_backface = true;
 	}
 
 	float vertex_dot = vertex_normal.dot(r.d);
 
 	// if not transparent and backface, then terminate ray
-	if (bBackFace) {
-		if (!bTransparent) {
+	if (is_backface) {
+		if (cols.is_opaque) {
 			fray.num_rays_left = 0;
 			return;
 		}
@@ -467,24 +473,24 @@ void RayBank::ray_bank_process_ray_MT(uint32_t ray_id, int start_ray) {
 	triangle.interpolate_barycentric(pos, u, v, w);
 
 	// deal with tranparency
-	if (bTransparent) {
+	if (!cols.is_opaque) {
 		// if not passing through, because clear, chance of pass through
-		if (!pass_through && !bBackFace) {
-			pass_through = Math::randf() > albedo.a;
+		if (!pass_through && !is_backface) {
+			pass_through = Math::randf() > cols.albedo.a;
 		}
 
 		// if the ray is passing through, we want to calculate the color modified by the surface
 		if (pass_through)
-			calculate_transmittance(albedo, fray.color);
+			calculate_transmittance(cols.albedo, fray.color);
 
 		// if pass through
-		if (bBackFace || pass_through) {
+		if (is_backface || pass_through) {
 			fray.bounce_color = fray.color; // bounce is same as original ray, or modified color
 			fray.num_rays_left += 1; // bounce doesn't count as a hit
 
 			// push the ray origin through the hit surface
 			float push = -0.001f; // 0.001
-			if (bBackFace)
+			if (is_backface)
 				push = -push;
 
 			//const Vector3 &face_normal = m_Scene.m_TriPlanes[tri].normal;
@@ -509,7 +515,7 @@ void RayBank::ray_bank_process_ray_MT(uint32_t ray_id, int start_ray) {
 	// bounce and lower power
 	if (fray.num_rays_left) {
 		FColor falbedo;
-		falbedo.set(albedo);
+		falbedo.set(cols.albedo);
 
 		// pre find the bounce color here
 		//		if (!pass_through)

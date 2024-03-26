@@ -835,64 +835,46 @@ bool LightScene::find_emission_color(int tri_id, const Vector3 &bary, Color &tex
 	Vector2 uvs;
 	_uv_tris_primary[tri_id].find_uv_barycentric(uvs, bary.x, bary.y, bary.z);
 
-	int mat_id_p1 = _tri_lmaterial_ids[tri_id];
+	//	int mat_id_p1 = _tri_lmaterial_ids[tri_id];
 
-	// should never happen?
-	if (!mat_id_p1) {
-		texture_col = Color(0, 0, 0, 0);
-		col = Color(0, 0, 0, 0);
+	ColorSample cols;
+	if (!take_triangle_color_sample(tri_id, bary, cols)) {
 		return false;
 	}
 
-	const LMaterial &mat = _materials.get_material(mat_id_p1 - 1);
-	if (!mat.is_emitter)
+	if (!cols.is_emitter) {
 		return false;
+	}
 
-	// albedo
-	// return whether texture found
-	bool bTransparent;
-	Color texture_emission;
-	bool res = _materials.find_colors(mat_id_p1, uvs, texture_col, texture_emission, bTransparent);
-
-	texture_col *= mat.color_emission;
-	//		power = mat.m_Power_Emission;
-
-	col = mat.color_emission;
-	return res;
-}
-
-bool LightScene::find_all_texture_colors(int tri_id, const Vector3 &bary, Color &albedo, Color &r_emission, bool &bTransparent, bool &bEmitter) {
-	Vector2 uvs;
-	_uv_tris_primary[tri_id].find_uv_barycentric(uvs, bary.x, bary.y, bary.z);
-
-	int mat_id_p1 = _tri_lmaterial_ids[tri_id];
-
-	bool res = _materials.find_colors(mat_id_p1, uvs, albedo, r_emission, bTransparent);
+	texture_col = cols.albedo;
+	col = cols.emission;
+	texture_col *= col;
+	return true;
 
 	/*
-	if (res) {
+		// should never happen?
+		if (!mat_id_p1) {
+			texture_col = Color(0, 0, 0, 0);
+			col = Color(0, 0, 0, 0);
+			return false;
+		}
+
 		const LMaterial &mat = _materials.get_material(mat_id_p1 - 1);
+		if (!mat.is_emitter)
+			return false;
 
-		// return whether emitter
-		bEmitter = mat.is_emitter;
-		//emission = albedo * mat.m_Col_Emission;
-		emission = mat.color_emission;
-	} else {
-		bEmitter = false;
-		emission = Color(0, 0, 0, 1);
-	}
-*/
+		// albedo
+		// return whether texture found
+		bool bTransparent;
+		Color texture_emission;
+		bool res = _materials.find_colors(mat_id_p1, uvs, texture_col, texture_emission, bTransparent);
 
-	return res;
-}
+		texture_col *= mat.color_emission;
+		//		power = mat.m_Power_Emission;
 
-bool LightScene::find_primary_texture_colors(int tri_id, const Vector3 &bary, Color &albedo, Color &r_emission, bool &bTransparent) {
-	Vector2 uvs;
-	_uv_tris_primary[tri_id].find_uv_barycentric(uvs, bary.x, bary.y, bary.z);
-
-	int mat_id_p1 = _tri_lmaterial_ids[tri_id];
-
-	return _materials.find_colors(mat_id_p1, uvs, albedo, r_emission, bTransparent);
+		col = mat.color_emission;
+		return res;
+		*/
 }
 
 void LightScene::thread_rasterize_triangle_ids(uint32_t p_tile, uint32_t *p_dummy) {
@@ -1046,7 +1028,6 @@ void LightScene::thread_rasterize_triangle_ids(uint32_t p_tile, uint32_t *p_dumm
 	//	}
 }
 
-//void LightScene::RasterizeTriangleIDs(LightMapper_Base &base, LightImage<uint32_t> &im_p1, LightImage<uint32_t> &im2_p1, LightImage<Vector3> &im_bary)
 bool LightScene::rasterize_triangles_ids(LightMapper_Base &base, LightImage<uint32_t> &im_p1, LightImage<Vector3> &im_bary) {
 	int width = im_p1.get_width();
 	int height = im_p1.get_height();

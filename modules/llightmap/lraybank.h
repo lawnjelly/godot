@@ -30,7 +30,7 @@ private:
 	// used for below multithread routine
 	RB_Voxel *_p_current_thread_voxel;
 	void ray_bank_process_ray_MT(uint32_t ray_id, int start_ray);
-	void ray_bank_process_ray_MT_old(uint32_t ray_id, int start_ray);
+	//void ray_bank_process_ray_MT_old(uint32_t ray_id, int start_ray);
 
 	void ray_bank_flush_ray(RB_Voxel &vox, int ray_id);
 

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "lcolor.h"
 #include "llightimage.h"
 #include "llighttracer.h"
 #include "llighttypes.h"
@@ -55,11 +56,15 @@ public:
 		_uv_tris[tri].find_uv_barycentric(uvs, bary);
 	}
 
-	bool find_primary_texture_colors(int tri_id, const Vector3 &bary, Color &albedo, Color &r_emission, bool &bTransparent);
 	bool find_emission_color(int tri_id, const Vector3 &bary, Color &texture_col, Color &col);
 
 	// single function
-	bool find_all_texture_colors(int tri_id, const Vector3 &bary, Color &albedo, Color &r_emission, bool &bTransparent, bool &bEmitter);
+	bool take_triangle_color_sample(int tri_id, const Vector3 &bary, ColorSample &r_sample) const {
+		Vector2 uvs;
+		_uv_tris_primary[tri_id].find_uv_barycentric(uvs, bary.x, bary.y, bary.z);
+		int mat_id_p1 = _tri_lmaterial_ids[tri_id];
+		return _materials.find_colors(mat_id_p1, uvs, r_sample);
+	}
 
 	// setup
 	struct RasterizeTriangleIDParams {
