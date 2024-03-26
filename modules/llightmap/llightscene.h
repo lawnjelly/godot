@@ -125,6 +125,7 @@ private:
 
 protected:
 public:
+	LightImage<Color> _image_emission_done;
 	LVector<UVTri> _uv_tris;
 
 	LightTracer _tracer;
@@ -147,6 +148,9 @@ public:
 
 	// a list of triangles that have emission materials
 	LVector<EmissionTri> _emission_tris;
+	LVector<Vec2_i16> _emission_pixels;
+	LBitField_Dynamic _emission_tri_bitfield;
+	Mutex _emission_pixels_mutex;
 
 	// these are UVs in the first channel, if present, or 0.
 	// This allows mapping back to the albedo etc texture.

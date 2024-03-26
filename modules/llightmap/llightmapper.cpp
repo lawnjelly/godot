@@ -119,7 +119,7 @@ bool LightMapper::uv_map_meshes(Spatial *pRoot) {
 	return res;
 }
 
-bool LightMapper::lightmap_mesh(Spatial *pMeshesRoot, Spatial *pLR, Image *pIm_Lightmap, Image *pIm_AO, Image *pIm_Combined) {
+bool LightMapper::lightmap_meshes(Spatial *pMeshesRoot, Spatial *pLR, Image *pIm_Lightmap, Image *pIm_AO, Image *pIm_Combined) {
 	calculate_quality_adjusted_settings();
 
 	// get the output dimensions before starting, because we need this
@@ -129,19 +129,20 @@ bool LightMapper::lightmap_mesh(Spatial *pMeshesRoot, Spatial *pLR, Image *pIm_L
 	_num_rays = adjusted_settings.forward_num_rays;
 
 	int nTexels = _width * _height;
+	_num_rays_forward = _num_rays * nTexels;
 
 	// set num rays depending on method
-	if (settings.mode == LMMODE_FORWARD) {
-		// the num rays / texel. This is per light!
-		_num_rays *= nTexels;
-	}
+	//	if (settings.mode == LMMODE_FORWARD) {
+	//		// the num rays / texel. This is per light!
+	//		_num_rays *= nTexels;
+	//	}
 
 	// do twice to test SIMD
 	uint32_t beforeA = OS::get_singleton()->get_ticks_msec();
 	_scene._use_SIMD = true;
 	_scene._tracer._use_SIMD = true;
 
-	bool res = _lightmap_mesh(pMeshesRoot, *pLR, *pIm_Lightmap, *pIm_AO, *pIm_Combined);
+	bool res = _lightmap_meshes(pMeshesRoot, *pLR, *pIm_Lightmap, *pIm_AO, *pIm_Combined);
 
 	uint32_t afterA = OS::get_singleton()->get_ticks_msec();
 	print_line("Overall took : " + itos(afterA - beforeA));
@@ -194,7 +195,7 @@ void LightMapper::refresh_process_state() {
 	}
 }
 
-bool LightMapper::_lightmap_mesh(Spatial *pMeshesRoot, const Spatial &light_root, Image &out_image_lightmap, Image &out_image_ao, Image &out_image_combined) {
+bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_root, Image &out_image_lightmap, Image &out_image_ao, Image &out_image_combined) {
 	// print out settings
 	print_line("Lightmap mesh");
 	print_line("\tnum_directional_bounces " + itos(adjusted_settings.num_directional_bounces));
@@ -213,6 +214,8 @@ bool LightMapper::_lightmap_mesh(Spatial *pMeshesRoot, const Spatial &light_root
 	// create stuff used by everything
 	_image_L.create(_width, _height);
 	_image_L_mirror.create(_width, _height);
+
+	_scene._image_emission_done.create(_width, _height);
 
 	// whether we need storage
 	if (logic.reserve_AO)
@@ -300,10 +303,14 @@ bool LightMapper::_lightmap_mesh(Spatial *pMeshesRoot, const Spatial &light_root
 				backward_process_texels();
 			else {
 				process_lights();
-
-				if (data.params[PARAM_EMISSION_ENABLED] == Variant(true)) {
-					process_emission_tris();
-				}
+			}
+			if (data.params[PARAM_EMISSION_ENABLED] == Variant(true)) {
+#define LLIGHTMAP_EMISSION_USE_PIXELS
+#ifdef LLIGHTMAP_EMISSION_USE_PIXELS
+				process_emission_pixels();
+#else
+				process_emission_tris();
+#endif
 			}
 			do_ambient_bounces();
 			after = OS::get_singleton()->get_ticks_msec();
@@ -565,10 +572,13 @@ void LightMapper::backward_process_texels() {
 	_sky.load_sky(settings.sky_filename, data.params[PARAM_SKY_BLUR], data.params[PARAM_SKY_SIZE]);
 
 	// prevent multithread
-#ifndef BACKWARD_TRACE_MULTITHEADED
-	num_sections = 0;
-#endif
+	//#ifndef BACKWARD_TRACE_MULTITHEADED
+	//	num_sections = 0;
+	//#endif
 
+#if (defined NO_THREADS) || (!defined BACKWARD_TRACE_MULTITHEADED)
+	num_sections = 0;
+#else
 	for (int s = 0; s < num_sections; s++) {
 		int section_start = s * section_size;
 
@@ -588,6 +598,7 @@ void LightMapper::backward_process_texels() {
 		//			ProcessTexel_Line_MT(n, section_start);
 		//		}
 	}
+#endif
 
 	leftover_start = num_sections * section_size;
 
@@ -1534,29 +1545,22 @@ bool LightMapper::process_texel_ambient_bounce_sample(const Vector3 &plane_norm,
 //	Vector3 normal;
 //	m_Scene.m_TriNormals[tri].InterpolateBarycentric(normal, bary.x, bary.y, bary.z);
 
-void LightMapper::BF_process_texel(int tx, int ty) {
-	//		if ((tx == 13) && (ty == 284))
-	//			print_line("testing");
-
+bool LightMapper::load_texel_data(int32_t p_x, int32_t p_y, uint32_t &r_tri_id, const Vector3 **r_bary, Vector3 &r_pos_pushed, Vector3 &r_normal, const Vector3 **r_plane_normal) const {
 	// find triangle
-	uint32_t tri_id = *_image_ID_p1.get(tx, ty);
-	if (!tri_id)
-		return;
-	tri_id--; // plus one based
-
-	// Could be off the image - does this ever happen? Could be assert? NYI
-	DEV_ASSERT(_image_L.is_within(tx, ty));
-	//	if (!_image_L.is_within(tx, ty))
-	//		return;
+	r_tri_id = *_image_ID_p1.get(p_x, p_y);
+	if (!r_tri_id)
+		return false;
+	r_tri_id--; // plus one based
 
 	// barycentric
-	const Vector3 &bary = *_image_barycentric.get(tx, ty);
-	Vector3 bary_clamped; // = bary;
+	const Vector3 &bary = _image_barycentric.get_item(p_x, p_y);
+	*r_bary = &bary;
 
 	// new .. cap the barycentric to prevent edge artifacts
 	const float clamp_margin = 0.0001f;
 	const float clamp_margin_high = 1.0f - clamp_margin;
 
+	Vector3 bary_clamped;
 	bary_clamped.x = CLAMP(bary.x, clamp_margin, clamp_margin_high);
 	bary_clamped.y = CLAMP(bary.y, clamp_margin, clamp_margin_high);
 	bary_clamped.z = CLAMP(bary.z, clamp_margin, clamp_margin_high);
@@ -1567,21 +1571,73 @@ void LightMapper::BF_process_texel(int tx, int ty) {
 	// and there will be precision errors at the destination.
 	// At the light end this doesn't matter, but if we trace the other way
 	// we get artifacts due to precision loss due to normalized direction.
-	Vector3 pos;
-	_scene._tris[tri_id].interpolate_barycentric(pos, bary_clamped);
+	_scene._tris[r_tri_id].interpolate_barycentric(r_pos_pushed, bary_clamped);
 
 	// add epsilon to pos to prevent self intersection and neighbour intersection
-	const Vector3 &plane_normal = _scene._tri_planes[tri_id].normal;
-	pos += plane_normal * adjusted_settings.surface_bias;
+	const Vector3 &plane_normal = _scene._tri_planes[r_tri_id].normal;
+	*r_plane_normal = &plane_normal;
 
+	r_pos_pushed += plane_normal * adjusted_settings.surface_bias;
+
+	_scene._tri_normals[r_tri_id].interpolate_barycentric(r_normal, bary.x, bary.y, bary.z);
+
+	return true;
+}
+
+void LightMapper::BF_process_texel(int tx, int ty) {
+	//		if ((tx == 13) && (ty == 284))
+	//			print_line("testing");
+
+	DEV_ASSERT(_image_L.is_within(tx, ty));
+
+	uint32_t tri_id = 0;
+	Vector3 pos;
 	Vector3 normal;
-	_scene._tri_normals[tri_id].interpolate_barycentric(normal, bary.x, bary.y, bary.z);
+	const Vector3 *bary = nullptr;
+	const Vector3 *plane_normal = nullptr;
+	if (!load_texel_data(tx, ty, tri_id, &bary, pos, normal, &plane_normal))
+		return;
 
+	/*
+		// find triangle
+		uint32_t tri_id = *_image_ID_p1.get(tx, ty);
+		if (!tri_id)
+			return;
+		tri_id--; // plus one based
+
+		// barycentric
+		const Vector3 &bary = *_image_barycentric.get(tx, ty);
+		Vector3 bary_clamped; // = bary;
+
+		// new .. cap the barycentric to prevent edge artifacts
+		const float clamp_margin = 0.0001f;
+		const float clamp_margin_high = 1.0f - clamp_margin;
+
+		bary_clamped.x = CLAMP(bary.x, clamp_margin, clamp_margin_high);
+		bary_clamped.y = CLAMP(bary.y, clamp_margin, clamp_margin_high);
+		bary_clamped.z = CLAMP(bary.z, clamp_margin, clamp_margin_high);
+
+		// we will trace
+		// FROM THE SURFACE TO THE LIGHT!!
+		// this is very important, because the ray is origin and direction,
+		// and there will be precision errors at the destination.
+		// At the light end this doesn't matter, but if we trace the other way
+		// we get artifacts due to precision loss due to normalized direction.
+		Vector3 pos;
+		_scene._tris[tri_id].interpolate_barycentric(pos, bary_clamped);
+
+		// add epsilon to pos to prevent self intersection and neighbour intersection
+		const Vector3 &plane_normal = _scene._tri_planes[tri_id].normal;
+		pos += plane_normal * adjusted_settings.surface_bias;
+
+		Vector3 normal;
+		_scene._tri_normals[tri_id].interpolate_barycentric(normal, bary.x, bary.y, bary.z);
+	*/
 	//Vector2i tex_uv = Vector2i(x, y);
 
 	// find the colors of this texel
 	ColorSample cols;
-	_scene.take_triangle_color_sample(tri_id, bary, cols);
+	_scene.take_triangle_color_sample(tri_id, *bary, cols);
 
 	/*
 	Color albedo;
@@ -1602,12 +1658,12 @@ void LightMapper::BF_process_texel(int tx, int ty) {
 
 	FColor temp;
 	for (int l = 0; l < _lights.size(); l++) {
-		BF_process_texel_light(cols.albedo, l, pos, plane_normal, normal, temp, num_samples);
+		BF_process_texel_light(cols.albedo, l, pos, *plane_normal, normal, temp, num_samples);
 		texel_add += temp;
 	}
 
 	// sky (if present)
-	if (BF_process_texel_sky(cols.albedo, pos, plane_normal, normal, temp)) {
+	if (BF_process_texel_sky(cols.albedo, pos, *plane_normal, normal, temp)) {
 		// scale sky by number of samples in the normal lights
 		float descale_to_match_normal_lights = num_samples / 1024.0;
 		texel_add += temp * descale_to_match_normal_lights;
@@ -1644,7 +1700,7 @@ void LightMapper::BF_process_texel(int tx, int ty) {
 				// send out emission bounce rays
 				generate_random_unit_dir(r.d);
 
-				float dot = plane_normal.dot(r.d);
+				float dot = plane_normal->dot(r.d);
 				if (dot < 0.0f)
 					r.d = -r.d;
 
@@ -1657,8 +1713,82 @@ void LightMapper::BF_process_texel(int tx, int ty) {
 	MT_safe_add_to_texel(tx, ty, texel_add);
 }
 
+void LightMapper::process_emission_pixels() {
+	for (int n = 0; n < _scene._emission_pixels.size(); n++) {
+		const Vec2_i16 &coord = _scene._emission_pixels[n];
+		process_emission_pixel(coord.x, coord.y);
+	}
+
+	while (!ray_bank_are_voxels_clear()) {
+		ray_bank_process();
+		ray_bank_flush();
+	}
+}
+
+void LightMapper::process_emission_pixel(int32_t p_x, int32_t p_y) {
+	DEV_ASSERT(_image_L.is_within(p_x, p_y));
+
+	// find triangle
+	/*
+	uint32_t tri_id = *_image_ID_p1.get(p_x, p_y);
+	if (!tri_id)
+		return;
+	tri_id--; // plus one based
+	*/
+
+	uint32_t tri_id = 0;
+	Vector3 pos;
+	Vector3 normal;
+	const Vector3 *bary = nullptr;
+	const Vector3 *plane_normal = nullptr;
+	if (!load_texel_data(p_x, p_y, tri_id, &bary, pos, normal, &plane_normal))
+		return;
+
+	// find the colors of this texel
+	ColorSample cols;
+	_scene.take_triangle_color_sample(tri_id, *bary, cols);
+
+	//	const Color &emission = cols.albedo;
+	//	const Color &emission = cols.emission;
+
+	Color emission = _scene._image_emission_done.get_item(p_x, p_y);
+
+	emission *= adjusted_settings.emission_power;
+
+	float luminosity = 0;
+	for (int c = 0; c < 3; c++) {
+		luminosity += emission.components[c];
+	}
+	// Not emitting enough to be worth it.
+	if (luminosity < 0.1f)
+		return;
+
+	//	print_line("process_emission_pixel : color " + String(Variant(emission)) + " coords " +  itos(p_x) + ", " + itos(p_y) + " ... tri_id " + itos(tri_id) + " bary " + String(Variant(*bary)));
+
+	//	uint32_t num_rays = 512;
+	uint32_t num_rays = _num_rays * 64 * 16;
+
+	Ray r;
+	r.o = pos;
+
+	for (uint32_t n = 0; n < num_rays; n++) {
+		generate_random_unit_dir(r.d);
+
+		// Ensure ray goes outward from surface.
+		if (r.d.dot(*plane_normal) < 0) {
+			r.d = -r.d;
+		}
+
+		FColor fcol;
+		fcol.set(emission);
+		//fcol.set(0, 1, 0);
+
+		ray_bank_request_new_ray(r, 1, fcol, nullptr);
+	}
+}
+
 void LightMapper::process_emission_tris() {
-	int num_sections = _num_rays / RAYS_PER_SECTION;
+	int num_sections = _num_rays_forward / RAYS_PER_SECTION;
 
 	if (!num_sections)
 		num_sections = 1;
@@ -1730,7 +1860,7 @@ void LightMapper::process_emission_tri(int etri_id, float fraction_of_total) {
 	ray.d = norm;
 
 	// use the area to get number of samples
-	float rays_per_unit_area = _num_rays * adjusted_settings.emission_density * 0.12f * 0.5f;
+	float rays_per_unit_area = _num_rays_forward * adjusted_settings.emission_density * 0.12f * 0.5f;
 	int nSamples = etri.area * rays_per_unit_area * fraction_of_total;
 
 	// nSamples may be zero incorrectly for small triangles, maybe we need to adjust for this
@@ -1785,7 +1915,7 @@ void LightMapper::process_emission_tri(int etri_id, float fraction_of_total) {
 void LightMapper::process_lights() {
 	//	const int rays_per_section = 1024 * 16;
 
-	int num_sections = _num_rays / RAYS_PER_SECTION;
+	int num_sections = _num_rays_forward / RAYS_PER_SECTION;
 
 	//	if (bake_begin_function) {
 	//		bake_begin_function(num_sections);
@@ -1826,7 +1956,7 @@ void LightMapper::process_lights() {
 
 		// left over
 		{
-			int num_leftover = _num_rays - (num_sections * RAYS_PER_SECTION);
+			int num_leftover = _num_rays_forward - (num_sections * RAYS_PER_SECTION);
 			process_light(n, num_leftover);
 
 			while (!ray_bank_are_voxels_clear())

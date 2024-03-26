@@ -7,11 +7,11 @@ namespace LM {
 class LightMapper : public AmbientOcclusion {
 public:
 	// main function called from the godot class
-	bool lightmap_mesh(Spatial *pMeshesRoot, Spatial *pLR, Image *pIm_Lightmap, Image *pIm_AO, Image *pIm_Combined);
+	bool lightmap_meshes(Spatial *pMeshesRoot, Spatial *pLR, Image *pIm_Lightmap, Image *pIm_AO, Image *pIm_Combined);
 	bool uv_map_meshes(Spatial *pRoot);
 
 private:
-	bool _lightmap_mesh(Spatial *pMeshesRoot, const Spatial &light_root, Image &out_image_lightmap, Image &out_image_ao, Image &out_image_combined);
+	bool _lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_root, Image &out_image_lightmap, Image &out_image_ao, Image &out_image_combined);
 	void reset();
 
 private:
@@ -23,6 +23,9 @@ private:
 	void process_emission_tris_section(float fraction_of_total);
 	void process_emission_tri(int etri_id, float fraction_of_total);
 
+	void process_emission_pixels();
+	void process_emission_pixel(int32_t p_x, int32_t p_y);
+
 	// ambient bounces
 	void do_ambient_bounces();
 	void process_texels_ambient_bounce(int section_size, int num_sections);
@@ -33,6 +36,8 @@ private:
 	// backward tracing
 	void backward_process_texels();
 	void backward_process_texel_line_MT(uint32_t offset_y, int start_y);
+
+	bool load_texel_data(int32_t p_x, int32_t p_y, uint32_t &r_tri_id, const Vector3 **r_bary, Vector3 &r_pos_pushed, Vector3 &r_normal, const Vector3 **r_plane_normal) const;
 
 	// backward forward tracing
 	void BF_process_texel(int tx, int ty);

@@ -35,6 +35,7 @@ void LLightmap::_bind_methods() {
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_AMBIENT_BOUNCE_POWER);
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_EMISSION_ENABLED);
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_EMISSION_DENSITY);
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_EMISSION_POWER);
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_GLOW);
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_AO_NUM_SAMPLES);
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_AO_RANGE);
@@ -151,6 +152,7 @@ void LLightmap::_bind_methods() {
 	LIMPL_PROPERTY_PARAM(Variant::BOOL, emission_enabled, LM::LightMapper::PARAM_EMISSION_ENABLED);
 
 	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, emission_density, "0.0,8.0,0.05", LM::LightMapper::PARAM_EMISSION_DENSITY);
+	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, emission_power, "0.0,100.0", LM::LightMapper::PARAM_EMISSION_POWER);
 	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, glow, "0.0,16.0,0.05", LM::LightMapper::PARAM_GLOW);
 
 	//	ADD_GROUP("Forward Parameters", "");
@@ -349,6 +351,8 @@ bool LLightmap::uvmap() {
 }
 
 bool LLightmap::lightmap_bake() {
+	//MutexLock guard(baking_mutex);
+
 	m_LM.calculate_quality_adjusted_settings();
 
 	if (m_LM.settings.bake_mode == LM::LightMapper_Base::LMBAKEMODE_UVMAP) {
@@ -500,5 +504,5 @@ bool LLightmap::lightmap_mesh(Node *pMeshRoot, Node *pLightRoot, Object *pOutput
 		return false;
 	}
 
-	return m_LM.lightmap_mesh(pMI, pLR, pIm_Lightmap, pIm_AO, pIm_Combined);
+	return m_LM.lightmap_meshes(pMI, pLR, pIm_Lightmap, pIm_AO, pIm_Combined);
 }

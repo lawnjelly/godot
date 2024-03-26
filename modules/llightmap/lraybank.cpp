@@ -107,7 +107,9 @@ void RayBank::ray_bank_process() {
 	_data_RB.swap();
 
 	int nVoxels = get_tracer()._num_voxels;
+#ifdef RAYBANK_USE_THREADING
 	int nCores = OS::get_singleton()->get_processor_count();
+#endif
 
 	for (int v = 0; v < nVoxels; v++) {
 		RB_Voxel &vox = _data_RB.get_voxels_read()[v];
@@ -118,14 +120,14 @@ void RayBank::ray_bank_process() {
 
 		_p_current_thread_voxel = &vox;
 
-		//const int section_size = 1024 * 96;
-		int section_size = num_rays / nCores;
-
 		int leftover_start = 0;
 
 		// not worth doing multithread below a certain size
 		// because of threading overhead
 #ifdef RAYBANK_USE_THREADING
+		//const int section_size = 1024 * 96;
+		int section_size = num_rays / nCores;
+
 		if (section_size >= 64) {
 			int num_sections = num_rays / section_size;
 			for (int s = 0; s < num_sections; s++) {

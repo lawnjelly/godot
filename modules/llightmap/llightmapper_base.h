@@ -160,6 +160,7 @@ protected:
 	int _width;
 	int _height;
 	int _num_rays; // this will be modified from the settings_numrays
+	int _num_rays_forward = 0;
 
 	LightScene _scene;
 	LVector<LLight> _lights;
@@ -194,6 +195,7 @@ public:
 		PARAM_AMBIENT_BOUNCE_POWER,
 		PARAM_EMISSION_ENABLED,
 		PARAM_EMISSION_DENSITY,
+		PARAM_EMISSION_POWER,
 		PARAM_GLOW,
 		PARAM_AO_NUM_SAMPLES,
 		PARAM_AO_RANGE,
@@ -333,6 +335,8 @@ public:
 		float directional_bounce_power;
 
 		float emission_density;
+		float emission_power;
+
 		float glow;
 		float smoothness;
 		int num_AO_samples;

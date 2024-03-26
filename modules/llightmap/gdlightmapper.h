@@ -7,6 +7,8 @@
 class LLightmap : public Spatial {
 	GDCLASS(LLightmap, Spatial);
 
+	//Mutex baking_mutex;
+
 public:
 	enum eMode {
 		MODE_FORWARD = LM::LightMapper::LMMODE_FORWARD,

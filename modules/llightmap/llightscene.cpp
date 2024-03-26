@@ -529,6 +529,8 @@ void LightScene::reset() {
 	_tri_planes.clear(true);
 
 	_emission_tris.clear(true);
+	_emission_pixels.clear(true);
+	_emission_tri_bitfield.Create(0);
 
 	_meshes.clear(true);
 	//m_Tri_MeshIDs.clear(true);
@@ -600,23 +602,23 @@ bool LightScene::create_from_mesh_surface(int mesh_id, int surf_id, Ref<Mesh> rm
 
 	// convert to longhand non indexed versions
 	int nTris = inds.size() / 3;
-	int nOldTris = _tris.size();
-	int nNewTris = nOldTris + nTris;
+	int num_old_tris = _tris.size();
+	int num_new_tris = num_old_tris + nTris;
 
-	_tris.resize(nNewTris);
-	_tri_normals.resize(nNewTris);
-	_tris_edge_form.resize(nNewTris);
-	_tri_planes.resize(nNewTris);
+	_tris.resize(num_new_tris);
+	_tri_normals.resize(num_new_tris);
+	_tris_edge_form.resize(num_new_tris);
+	_tri_planes.resize(num_new_tris);
 
-	_uv_tris.resize(nNewTris);
-	_tri_uv_aabbs.resize(nNewTris);
-	_tri_pos_aabbs.resize(nNewTris);
-	_tri_texel_size_world_space.resize(nNewTris);
+	_uv_tris.resize(num_new_tris);
+	_tri_uv_aabbs.resize(num_new_tris);
+	_tri_pos_aabbs.resize(num_new_tris);
+	_tri_texel_size_world_space.resize(num_new_tris);
 
 	//m_Tri_MeshIDs.resize(nNewTris);
 	//m_Tri_SurfIDs.resize(nNewTris);
-	_tri_lmaterial_ids.resize(nNewTris);
-	_uv_tris_primary.resize(nNewTris);
+	_tri_lmaterial_ids.resize(num_new_tris);
+	_uv_tris_primary.resize(num_new_tris);
 
 	// lmaterial
 	int lmat_id = _materials.find_or_create_material(mi, rmesh, surf_id);
@@ -632,7 +634,7 @@ bool LightScene::create_from_mesh_surface(int mesh_id, int surf_id, Ref<Mesh> rm
 	int i = 0;
 	for (int n = 0; n < nTris; n++) {
 		// adjusted n
-		int an = n + nOldTris;
+		int an = n + num_old_tris;
 
 		Tri &t = _tris[an];
 		Tri &tri_norm = _tri_normals[an];
@@ -785,6 +787,14 @@ bool LightScene::create(Spatial *pMeshesRoot, int width, int height, int voxel_d
 
 	_tracer.create(*this, voxel_density);
 
+	// By this point all the tris should be created,
+	// so create bitfield as one off.
+	_emission_tri_bitfield.Create(_tris.size(), true);
+	for (int n = 0; n < _emission_tris.size(); n++) {
+		uint32_t emission_tri_id = _emission_tris[n].tri_id;
+		_emission_tri_bitfield.SetBit(emission_tri_id, 1);
+	}
+
 	// adjust material emission power to take account of sample density,
 	// to keep brightness the same
 	_materials.adjust_materials(emission_density);
@@ -915,6 +925,7 @@ void LightScene::thread_rasterize_triangle_ids(uint32_t p_tile, uint32_t *p_dumm
 
 		//const Rect2 &aabb = m_TriUVaabbs[n];
 		const UVTri &tri = _uv_tris[n];
+		bool is_emission_tri = _emission_tri_bitfield.GetBit(n);
 
 		/*
 		int min_x = aabb.position.x * width;
@@ -941,6 +952,10 @@ void LightScene::thread_rasterize_triangle_ids(uint32_t p_tile, uint32_t *p_dumm
 #ifdef LLIGHTMAP_DEBUG_RASTERIZE_OVERLAP
 		int debug_overlap_count = 0;
 #endif
+		int pixel_count = (max_y - min_y) * (max_x - min_x);
+		if (is_emission_tri && pixel_count) {
+			_emission_pixels_mutex.lock();
+		}
 
 		for (int y = min_y; y < max_y; y++) {
 			for (int x = min_x; x < max_x; x++) {
@@ -989,10 +1004,32 @@ void LightScene::thread_rasterize_triangle_ids(uint32_t p_tile, uint32_t *p_dumm
 
 					Vector3 &bary = rtip.im_bary->get_item(x, y);
 					bary = Vector3(u, v, w);
+
+					if (is_emission_tri) {
+						Color &em_col = _image_emission_done.get_item(x, y);
+
+						if (_image_emission_done.get_item(x, y).a < 2) {
+							_emission_pixels.push_back(Vec2_i16(x, y));
+							em_col.a = 4;
+						}
+
+						// store the highest emission color
+						ColorSample cols;
+						take_triangle_color_sample(n, bary, cols);
+
+						em_col.r = MAX(em_col.r, cols.emission.r);
+						em_col.g = MAX(em_col.g, cols.emission.g);
+						em_col.b = MAX(em_col.b, cols.emission.b);
+					}
 				}
 
 			} // for x
 		} // for y
+
+		if (is_emission_tri && pixel_count) {
+			_emission_pixels_mutex.unlock();
+		}
+
 	} // for tri
 
 	/*
@@ -1036,8 +1073,6 @@ bool LightScene::rasterize_triangles_ids(LightMapper_Base &base, LightImage<uint
 	if (base.logic.process_AO)
 		_rasterize_triangle_id_params.temp_image_tris.create(width, height, false);
 
-#ifndef NO_THREADS
-	//	#if 0
 	// First find tri min maxes in texture space.
 	_tri_uv_bounds.resize(_uv_tris.size());
 
@@ -1072,11 +1107,117 @@ bool LightScene::rasterize_triangles_ids(LightMapper_Base &base, LightImage<uint
 	_rasterize_triangle_id_params.im_bary = &im_bary;
 	_rasterize_triangle_id_params.im_p1 = &im_p1;
 
+#if (defined NO_THREADS) || (!defined LLIGHTMAP_MULTITHREADED)
+	_rasterize_triangle_id_params.tile_height = height;
+	_rasterize_triangle_id_params.num_tiles_high = 1;
+
+	LightScene::thread_rasterize_triangle_ids(0, nullptr);
+
+	/*
+	//	int width = im_p1.GetWidth();
+	//	int height = im_p1.GetHeight();
+
+	 //	// create a temporary image of vectors to store the triangles per texel
+	 //	LightImage<LocalVector<uint32_t>> temp_image_tris;
+
+	  //	if (base.logic.Process_AO)
+	  //		temp_image_tris.Create(width, height, false);
+
+	 for (int n = 0; n < m_UVTris.size(); n++) {
+		 if (base.bake_step_function && ((n % 4096) == 0)) {
+			 bool cancel = base.bake_step_function(n / (float)m_UVTris.size(), String("Process UVTris: ") + " (" + itos(n) + ")");
+			 if (cancel) {
+				 if (base.bake_end_function) {
+					 base.bake_end_function();
+				 }
+				 return false;
+			 }
+		 }
+
+		  const Rect2 &aabb = m_TriUVaabbs[n];
+		  const UVTri &tri = m_UVTris[n];
+
+		 int min_x = aabb.position.x * width;
+		 int min_y = aabb.position.y * height;
+		 int max_x = (aabb.position.x + aabb.size.x) * width;
+		 int max_y = (aabb.position.y + aabb.size.y) * height;
+
+		  // add a bit for luck
+		  min_x--;
+		  min_y--;
+		  max_x++;
+		  max_y++;
+
+		 // clamp
+		 min_x = CLAMP(min_x, 0, width);
+		 min_y = CLAMP(min_y, 0, height);
+		 max_x = CLAMP(max_x, 0, width);
+		 max_y = CLAMP(max_y, 0, height);
+
+  #ifdef LLIGHTMAP_DEBUG_RASTERIZE_OVERLAP
+		  int debug_overlap_count = 0;
+  #endif
+
+		 for (int y = min_y; y < max_y; y++) {
+			 for (int x = min_x; x < max_x; x++) {
+				 float s = (x + 0.5f) / (float)width;
+				 float t = (y + 0.5f) / (float)height;
+
+				  //				if ((x == 26) && (y == 25))
+				  //				{
+				  //					print_line("testing");
+				  //				}
+
+				 if (tri.ContainsPoint(Vector2(s, t)))
+				 //if (tri.ContainsTexel(x, y, width , height))
+				 {
+					 if (base.logic.Process_AO)
+						 _rasterize_triangle_id_params.temp_image_tris.GetItem(x, y).push_back(n);
+
+					  uint32_t &id_p1 = im_p1.GetItem(x, y);
+
+ #ifdef LLIGHTMAP_DEBUG_RASTERIZE_OVERLAP
+					 // hopefully this was 0 before
+					 if (id_p1) {
+						 debug_overlap_count++;
+						 //						if (debug_overlap_count == 64)
+						 //						{
+						 //							print_line("overlap detected");
+						 //						}
+
+						  // store the overlapped ID in a second map
+						  //im2_p1.GetItem(x, y) = id_p1;
+					  }
+  #endif
+
+					 // save new id
+					 id_p1 = n + 1;
+
+					  // find barycentric coords
+					  float u, v, w;
+
+					 // note this returns NAN for degenerate triangles!
+					 tri.FindBarycentricCoords(Vector2(s, t), u, v, w);
+
+					  //					assert (!isnan(u));
+					  //					assert (!isnan(v));
+					  //					assert (!isnan(w));
+
+					 Vector3 &bary = im_bary.GetItem(x, y);
+					 bary = Vector3(u, v, w);
+				 }
+
+			  } // for x
+		  } // for y
+	  } // for tri
+  */
+
+#else
+
 	ThreadWorkPool thread_pool;
 	int thread_cores = OS::get_singleton()->get_default_thread_pool_size();
 
 	_rasterize_triangle_id_params.tile_height = (height / thread_cores) + 1;
-
 	_rasterize_triangle_id_params.num_tiles_high = height / _rasterize_triangle_id_params.tile_height;
 
 	thread_pool.init(thread_cores);
@@ -1086,105 +1227,6 @@ bool LightScene::rasterize_triangles_ids(LightMapper_Base &base, LightImage<uint
 			&LightScene::thread_rasterize_triangle_ids,
 			nullptr);
 	thread_pool.finish();
-
-#else
-
-	//	int width = im_p1.GetWidth();
-	//	int height = im_p1.GetHeight();
-
-	//	// create a temporary image of vectors to store the triangles per texel
-	//	LightImage<LocalVector<uint32_t>> temp_image_tris;
-
-	//	if (base.logic.Process_AO)
-	//		temp_image_tris.Create(width, height, false);
-
-	for (int n = 0; n < m_UVTris.size(); n++) {
-		if (base.bake_step_function && ((n % 4096) == 0)) {
-			bool cancel = base.bake_step_function(n / (float)m_UVTris.size(), String("Process UVTris: ") + " (" + itos(n) + ")");
-			if (cancel) {
-				if (base.bake_end_function) {
-					base.bake_end_function();
-				}
-				return false;
-			}
-		}
-
-		const Rect2 &aabb = m_TriUVaabbs[n];
-		const UVTri &tri = m_UVTris[n];
-
-		int min_x = aabb.position.x * width;
-		int min_y = aabb.position.y * height;
-		int max_x = (aabb.position.x + aabb.size.x) * width;
-		int max_y = (aabb.position.y + aabb.size.y) * height;
-
-		// add a bit for luck
-		min_x--;
-		min_y--;
-		max_x++;
-		max_y++;
-
-		// clamp
-		min_x = CLAMP(min_x, 0, width);
-		min_y = CLAMP(min_y, 0, height);
-		max_x = CLAMP(max_x, 0, width);
-		max_y = CLAMP(max_y, 0, height);
-
-#ifdef LLIGHTMAP_DEBUG_RASTERIZE_OVERLAP
-		int debug_overlap_count = 0;
-#endif
-
-		for (int y = min_y; y < max_y; y++) {
-			for (int x = min_x; x < max_x; x++) {
-				float s = (x + 0.5f) / (float)width;
-				float t = (y + 0.5f) / (float)height;
-
-				//				if ((x == 26) && (y == 25))
-				//				{
-				//					print_line("testing");
-				//				}
-
-				if (tri.ContainsPoint(Vector2(s, t)))
-				//if (tri.ContainsTexel(x, y, width , height))
-				{
-					if (base.logic.Process_AO)
-						_rasterize_triangle_id_params.temp_image_tris.GetItem(x, y).push_back(n);
-
-					uint32_t &id_p1 = im_p1.GetItem(x, y);
-
-#ifdef LLIGHTMAP_DEBUG_RASTERIZE_OVERLAP
-					// hopefully this was 0 before
-					if (id_p1) {
-						debug_overlap_count++;
-						//						if (debug_overlap_count == 64)
-						//						{
-						//							print_line("overlap detected");
-						//						}
-
-						// store the overlapped ID in a second map
-						//im2_p1.GetItem(x, y) = id_p1;
-					}
-#endif
-
-					// save new id
-					id_p1 = n + 1;
-
-					// find barycentric coords
-					float u, v, w;
-
-					// note this returns NAN for degenerate triangles!
-					tri.FindBarycentricCoords(Vector2(s, t), u, v, w);
-
-					//					assert (!isnan(u));
-					//					assert (!isnan(v));
-					//					assert (!isnan(w));
-
-					Vector3 &bary = im_bary.GetItem(x, y);
-					bary = Vector3(u, v, w);
-				}
-
-			} // for x
-		} // for y
-	} // for tri
 
 #endif
 
@@ -1219,6 +1261,9 @@ bool LightScene::rasterize_triangles_ids(LightMapper_Base &base, LightImage<uint
 	}
 
 	_rasterize_triangle_id_params.temp_image_tris.reset();
+
+	print_line("\tnum emission tris : " + itos(_emission_tris.size()));
+	print_line("\tnum emission pixels : " + itos(_emission_pixels.size()));
 
 	//base.debug_save(im_p1, "imp1.png");
 

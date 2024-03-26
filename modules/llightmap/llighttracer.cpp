@@ -385,7 +385,7 @@ void LightTracer::calculate_SDF_Voxel(const Vec3i &ptCentre) {
 
 void LightTracer::fill_voxels() {
 	print_line("FillVoxels : Num AABBs " + itos(_p_scene->_tri_pos_aabbs.size()));
-	print_line("NumTris " + itos(_num_tris));
+	print_line("\tnum tris : " + itos(_num_tris));
 
 	uint32_t tris_added = 0;
 
@@ -441,7 +441,7 @@ void LightTracer::fill_voxels() {
 		}
 	}
 
-	print_line("Total tris added : " + itos(tris_added));
+	print_line("\ttotal voxel tris added : " + itos(tris_added));
 
 	int count = 0;
 	for (int z = 0; z < _dims.z; z++) {

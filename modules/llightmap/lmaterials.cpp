@@ -99,6 +99,7 @@ int LMaterials::find_or_create_material(const MeshInstance &mi, Ref<Mesh> rmesh,
 			emission_color = spatial_mat->get_emission();
 			emission_tex = spatial_mat->get_texture(SpatialMaterial::TEXTURE_EMISSION);
 			if (emission_tex.is_valid()) {
+				pMat->is_emitter = true;
 				print_line("\temission_texture " + emission_tex->get_name());
 				// debug save
 				//				Ref<Image> img = emission_tex->get_data();
@@ -140,17 +141,86 @@ int LMaterials::find_or_create_material(const MeshInstance &mi, Ref<Mesh> rmesh,
 	}
 
 	pMat->tex_albedo = _load_bake_texture(albedo_tex, albedo);
-	pMat->tex_emission = _load_bake_texture(emission_tex);
+	//pMat->tex_emission = _load_bake_texture(emission_tex, Color(1, 1, 1, 1), Color(0, 0, 0, 0), 4);
+	pMat->tex_emission = _load_emission_texture(emission_tex);
 
 	// returns the new material ID plus 1
 	return _materials.size();
 }
 
-LTexture *LMaterials::_load_bake_texture(Ref<Texture> p_texture, Color p_color_mul, Color p_color_add) const {
+LTexture *LMaterials::_load_emission_texture(Ref<Texture> p_texture) const {
+	return _load_bake_texture(p_texture);
+
 	if (p_texture.is_valid()) {
 		Ref<Image> img;
 		img = p_texture->get_data();
-		return _get_bake_texture(img, p_color_mul, p_color_add); // albedo texture, color is multiplicative
+
+		if (!img.is_valid())
+			return nullptr;
+
+		uint32_t mw = 32;
+		uint32_t mh = 32;
+
+		uint32_t sw = img->get_width();
+		uint32_t sh = img->get_height();
+
+		mw = MIN(mw, sw);
+		mh = MIN(mh, sh);
+
+		float stepx = sw / mw;
+		float stepy = sh / mh;
+
+		uint32_t stepx_i = Math::ceil(stepx);
+		uint32_t stepy_i = Math::ceil(stepy);
+
+		Ref<Image> mip = memnew(Image(mw, mh, false, Image::Format::FORMAT_RGB8));
+
+		mip->lock();
+		img->lock();
+		for (uint32_t y = 0; y < mh; y++) {
+			for (uint32_t x = 0; x < mw; x++) {
+				Color col;
+
+				// Find from source.
+				uint32_t start_x = x * stepx;
+				uint32_t start_y = y * stepy;
+
+				// Make sample.
+				for (uint32_t sy = 0; sy < stepy_i; sy++) {
+					uint32_t source_y = sy + start_y;
+					if (source_y >= sh)
+						continue;
+
+					for (uint32_t sx = 0; sx < stepx_i; sx++) {
+						uint32_t source_x = sx + start_x;
+
+						if (source_x >= sw)
+							continue;
+
+						Color source_pixel = img->get_pixel(source_x, source_y);
+						_max_color(source_pixel, col);
+					}
+				}
+
+				mip->set_pixel(x, y, col);
+			}
+		}
+		img->unlock();
+		mip->unlock();
+
+		//mip->save_png("res://emission_test.png");
+
+		return _get_bake_texture(mip, Color(1, 1, 1, 1), Color(0, 0, 0, 0), 0); // albedo texture, color is multiplicative
+	}
+
+	return nullptr;
+}
+
+LTexture *LMaterials::_load_bake_texture(Ref<Texture> p_texture, Color p_color_mul, Color p_color_add, int p_shrink) const {
+	if (p_texture.is_valid()) {
+		Ref<Image> img;
+		img = p_texture->get_data();
+		return _get_bake_texture(img, p_color_mul, p_color_add, p_shrink); // albedo texture, color is multiplicative
 	}
 
 	return nullptr;
@@ -245,7 +315,7 @@ LTexture *LMaterials::_make_dummy_texture(LTexture *pLTexture, Color col) const 
 	return pLTexture;
 }
 
-LTexture *LMaterials::_get_bake_texture(Ref<Image> p_image, const Color &p_color_mul, const Color &p_color_add) const {
+LTexture *LMaterials::_get_bake_texture(Ref<Image> p_image, const Color &p_color_mul, const Color &p_color_add, int p_shrink) const {
 	LTexture *lt = memnew(LTexture);
 
 	// no image exists, use dummy texture
@@ -270,9 +340,15 @@ LTexture *LMaterials::_get_bake_texture(Ref<Image> p_image, const Color &p_color
 	int w = p_image->get_width();
 	int h = p_image->get_height();
 
+	uint32_t max_material_size = _max_material_size;
+	if (p_shrink) {
+		max_material_size >>= p_shrink;
+		print_line("max_material_size " + itos(max_material_size));
+	}
+
 	bool bResize = false;
 	while (true) {
-		if ((w > _max_material_size) || (h > _max_material_size)) {
+		if ((w > max_material_size) || (h > max_material_size)) {
 			w /= 2;
 			h /= 2;
 			bResize = true;

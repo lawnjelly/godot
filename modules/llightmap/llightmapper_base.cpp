@@ -34,6 +34,7 @@ LightMapper_Base::LightMapper_Base() {
 	data.params[PARAM_ROUGHNESS] = 0.5f;
 
 	data.params[PARAM_EMISSION_DENSITY] = 1.0f;
+	data.params[PARAM_EMISSION_POWER] = 1.0f;
 	data.params[PARAM_GLOW] = 1.0f;
 
 	data.params[PARAM_AO_RANGE] = 2.0f;
@@ -137,6 +138,7 @@ void LightMapper_Base::base_reset() {
 	_tri_ids.clear(true);
 
 	_image_barycentric.reset();
+	_scene._image_emission_done.reset();
 
 	_lights.clear(true);
 
@@ -157,6 +159,8 @@ void LightMapper_Base::calculate_quality_adjusted_settings() {
 
 	//as.m_Forward_NumRays = settings.Forward_NumRays;
 	as.emission_density = data.params[PARAM_EMISSION_DENSITY];
+	as.emission_power = data.params[PARAM_EMISSION_POWER];
+
 	as.glow = data.params[PARAM_GLOW];
 	as.smoothness = 1.0f - (float)data.params[PARAM_ROUGHNESS];
 
