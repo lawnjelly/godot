@@ -271,6 +271,10 @@ public:
 };
 
 class UVTri {
+	bool is_point_in_rect(const Vector2 &pt, const Vector2 &p_rect_min, const Vector2 &p_rect_max) const;
+	bool contains_rect(const Vector2 &p_rect_min, const Vector2 &p_rect_max) const;
+	bool line_intersects_rectangle(const Vector2 &p1, const Vector2 &p2, const Vector2 &p_rect_min, const Vector2 &p_rect_max) const;
+
 public:
 	Vector2 uv[3];
 
@@ -521,6 +525,79 @@ bool ensure_indices_valid(PoolVector<int> &indices, const PoolVector<Vector3> &v
 	return true;
 }
 
+bool UVTri::is_point_in_rect(const Vector2 &pt, const Vector2 &p_rect_min, const Vector2 &p_rect_max) const {
+	return (pt.x > p_rect_min.x && pt.x < p_rect_max.x &&
+			pt.y > p_rect_min.y && pt.y < p_rect_max.y);
+}
+
+bool UVTri::line_intersects_rectangle(const Vector2 &p1, const Vector2 &p2, const Vector2 &p_rect_min, const Vector2 &p_rect_max) const {
+	// Check for intersection with each rectangle edge
+	for (int i = 0; i < 2; ++i) {
+		double minX = (i == 0) ? p_rect_min.x : p_rect_max.x;
+		double maxX = (i == 0) ? p_rect_max.x : p_rect_min.x;
+
+		if (p1.x <= minX && p2.x <= minX) {
+			continue;
+		} else if (p1.x >= maxX && p2.x >= maxX) {
+			continue;
+		}
+
+		double t = (minX - p1.x) / (p2.x - p1.x);
+		double y = p1.y + t * (p2.y - p1.y);
+		if (y >= p_rect_min.y && y <= p_rect_max.y) {
+			return true;
+		}
+	}
+
+	for (int i = 0; i < 2; ++i) {
+		double minY = (i == 0) ? p_rect_min.y : p_rect_max.y;
+		double maxY = (i == 0) ? p_rect_max.y : p_rect_min.y;
+
+		if (p1.y <= minY && p2.y <= minY) {
+			continue;
+		} else if (p1.y >= maxY && p2.y >= maxY) {
+			continue;
+		}
+
+		double t = (minY - p1.y) / (p2.y - p1.y);
+		double x = p1.x + t * (p2.x - p1.x);
+		if (x >= p_rect_min.x && x <= p_rect_max.x) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool UVTri::contains_rect(const Vector2 &p_rect_min, const Vector2 &p_rect_max) const {
+	// Check it any rectangle point is within triangle.
+	if (contains_point(p_rect_min))
+		return true;
+	if (contains_point(p_rect_max))
+		return true;
+	if (contains_point(Vector2(p_rect_min.x, p_rect_max.y)))
+		return true;
+	if (contains_point(Vector2(p_rect_max.x, p_rect_min.y)))
+		return true;
+
+	// Check if any triangle point is within the rectangle.
+	for (uint32_t n = 0; n < 3; n++) {
+		if (is_point_in_rect(uv[n], p_rect_min, p_rect_max))
+			return true;
+	}
+
+	// Check for intersection between each triangle edge and rectangle sides
+	for (size_t i = 0; i < 3; ++i) {
+		const Vector2 &p1 = uv[i];
+		const Vector2 &p2 = uv[(i + 1) % 3];
+		if (line_intersects_rectangle(p1, p2, p_rect_min, p_rect_max)) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
 // somewhat more complicated test to try and get all the tris that hit any part of the texel.
 // really this should be a box / tri test.
 inline bool UVTri::contains_texel(int tx, int ty, int width, int height) const {
@@ -528,24 +605,28 @@ inline bool UVTri::contains_texel(int tx, int ty, int width, int height) const {
 	float unit_y = 1.0f / height;
 	float fx = tx * unit_x;
 	float fy = ty * unit_y;
-	float half_x = unit_x * 0.5f;
-	float half_y = unit_y * 0.5f;
 
-	// centre first as most likely
-	if (contains_point(Vector2(fx + half_x, fy + half_y)))
-		return true;
+	return contains_rect(Vector2(fx, fy), Vector2(fx + unit_x, fy + unit_y));
+	/*
+		float half_x = unit_x * 0.5f;
+		float half_y = unit_y * 0.5f;
 
-	// 4 corners
-	if (contains_point(Vector2(fx, fy)))
-		return true;
-	if (contains_point(Vector2(fx + unit_x, fy + unit_y)))
-		return true;
-	if (contains_point(Vector2(fx + unit_x, fy)))
-		return true;
-	if (contains_point(Vector2(fx, fy + unit_y)))
-		return true;
+		// centre first as most likely
+		if (contains_point(Vector2(fx + half_x, fy + half_y)))
+			return true;
 
-	return false;
+		// 4 corners
+		if (contains_point(Vector2(fx, fy)))
+			return true;
+		if (contains_point(Vector2(fx + unit_x, fy + unit_y)))
+			return true;
+		if (contains_point(Vector2(fx + unit_x, fy)))
+			return true;
+		if (contains_point(Vector2(fx, fy + unit_y)))
+			return true;
+
+		return false;
+		*/
 }
 
 inline bool UVTri::contains_point(const Vector2 &pt, float epsilon) const {

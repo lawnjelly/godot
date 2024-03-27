@@ -927,19 +927,6 @@ void LightScene::thread_rasterize_triangle_ids(uint32_t p_tile, uint32_t *p_dumm
 		const UVTri &tri = _uv_tris[n];
 		bool is_emission_tri = _emission_tri_bitfield.GetBit(n);
 
-		/*
-		int min_x = aabb.position.x * width;
-		int min_y = aabb.position.y * height;
-		int max_x = (aabb.position.x + aabb.size.x) * width;
-		int max_y = (aabb.position.y + aabb.size.y) * height;
-
-		// add a bit for luck
-		min_x--;
-		min_y--;
-		max_x++;
-		max_y++;
-		*/
-
 		const Rect2i &bound = _tri_uv_bounds[n];
 
 		// clamp
@@ -1112,106 +1099,6 @@ bool LightScene::rasterize_triangles_ids(LightMapper_Base &base, LightImage<uint
 	_rasterize_triangle_id_params.num_tiles_high = 1;
 
 	LightScene::thread_rasterize_triangle_ids(0, nullptr);
-
-	/*
-	//	int width = im_p1.GetWidth();
-	//	int height = im_p1.GetHeight();
-
-	 //	// create a temporary image of vectors to store the triangles per texel
-	 //	LightImage<LocalVector<uint32_t>> temp_image_tris;
-
-	  //	if (base.logic.Process_AO)
-	  //		temp_image_tris.Create(width, height, false);
-
-	 for (int n = 0; n < m_UVTris.size(); n++) {
-		 if (base.bake_step_function && ((n % 4096) == 0)) {
-			 bool cancel = base.bake_step_function(n / (float)m_UVTris.size(), String("Process UVTris: ") + " (" + itos(n) + ")");
-			 if (cancel) {
-				 if (base.bake_end_function) {
-					 base.bake_end_function();
-				 }
-				 return false;
-			 }
-		 }
-
-		  const Rect2 &aabb = m_TriUVaabbs[n];
-		  const UVTri &tri = m_UVTris[n];
-
-		 int min_x = aabb.position.x * width;
-		 int min_y = aabb.position.y * height;
-		 int max_x = (aabb.position.x + aabb.size.x) * width;
-		 int max_y = (aabb.position.y + aabb.size.y) * height;
-
-		  // add a bit for luck
-		  min_x--;
-		  min_y--;
-		  max_x++;
-		  max_y++;
-
-		 // clamp
-		 min_x = CLAMP(min_x, 0, width);
-		 min_y = CLAMP(min_y, 0, height);
-		 max_x = CLAMP(max_x, 0, width);
-		 max_y = CLAMP(max_y, 0, height);
-
-  #ifdef LLIGHTMAP_DEBUG_RASTERIZE_OVERLAP
-		  int debug_overlap_count = 0;
-  #endif
-
-		 for (int y = min_y; y < max_y; y++) {
-			 for (int x = min_x; x < max_x; x++) {
-				 float s = (x + 0.5f) / (float)width;
-				 float t = (y + 0.5f) / (float)height;
-
-				  //				if ((x == 26) && (y == 25))
-				  //				{
-				  //					print_line("testing");
-				  //				}
-
-				 if (tri.ContainsPoint(Vector2(s, t)))
-				 //if (tri.ContainsTexel(x, y, width , height))
-				 {
-					 if (base.logic.Process_AO)
-						 _rasterize_triangle_id_params.temp_image_tris.GetItem(x, y).push_back(n);
-
-					  uint32_t &id_p1 = im_p1.GetItem(x, y);
-
- #ifdef LLIGHTMAP_DEBUG_RASTERIZE_OVERLAP
-					 // hopefully this was 0 before
-					 if (id_p1) {
-						 debug_overlap_count++;
-						 //						if (debug_overlap_count == 64)
-						 //						{
-						 //							print_line("overlap detected");
-						 //						}
-
-						  // store the overlapped ID in a second map
-						  //im2_p1.GetItem(x, y) = id_p1;
-					  }
-  #endif
-
-					 // save new id
-					 id_p1 = n + 1;
-
-					  // find barycentric coords
-					  float u, v, w;
-
-					 // note this returns NAN for degenerate triangles!
-					 tri.FindBarycentricCoords(Vector2(s, t), u, v, w);
-
-					  //					assert (!isnan(u));
-					  //					assert (!isnan(v));
-					  //					assert (!isnan(w));
-
-					 Vector3 &bary = im_bary.GetItem(x, y);
-					 bary = Vector3(u, v, w);
-				 }
-
-			  } // for x
-		  } // for y
-	  } // for tri
-  */
-
 #else
 
 	ThreadWorkPool thread_pool;

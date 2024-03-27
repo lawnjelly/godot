@@ -162,6 +162,7 @@ void LightMapper_Base::calculate_quality_adjusted_settings() {
 	as.emission_power = data.params[PARAM_EMISSION_POWER];
 
 	as.glow = data.params[PARAM_GLOW];
+	as.glow *= as.glow;
 	as.smoothness = 1.0f - (float)data.params[PARAM_ROUGHNESS];
 
 	as.backward_num_rays = settings.backward_num_rays;

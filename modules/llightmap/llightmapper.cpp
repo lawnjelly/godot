@@ -1645,9 +1645,12 @@ void LightMapper::BF_process_texel(int tx, int ty) {
 		// emission density determines the number of rays and lighting effect
 		FColor femm;
 		femm.set(cols.emission);
-		float power = settings.backward_ray_power * adjusted_settings.backward_num_rays * 32.0f;
-		power *= adjusted_settings.glow;
-		texel_add += femm * power;
+
+		// float power = settings.backward_ray_power * adjusted_settings.backward_num_rays * 32.0f;
+		// power *= adjusted_settings.glow;
+		// texel_add += femm * power;
+
+		texel_add += femm * adjusted_settings.glow * adjusted_settings.emission_power;
 
 		// only if directional bounces are being used (could use ambient bounces for emission)
 		if (adjusted_settings.num_directional_bounces) {

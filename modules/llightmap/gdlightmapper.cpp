@@ -153,7 +153,7 @@ void LLightmap::_bind_methods() {
 
 	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, emission_density, "0.0,8.0,0.05", LM::LightMapper::PARAM_EMISSION_DENSITY);
 	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, emission_power, "0.0,100.0", LM::LightMapper::PARAM_EMISSION_POWER);
-	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, glow, "0.0,16.0,0.05", LM::LightMapper::PARAM_GLOW);
+	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, glow, "0.0,4.0", LM::LightMapper::PARAM_GLOW);
 
 	//	ADD_GROUP("Forward Parameters", "");
 	//LIMPL_PROPERTY_RANGE(Variant::REAL, f_ray_power, set_forward_ray_power, get_forward_ray_power, "0.0,0.1,0.01");
