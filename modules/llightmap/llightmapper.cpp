@@ -367,10 +367,15 @@ void LightMapper::process_texels_ambient_bounce_line_MT(uint32_t offset_y, int s
 	int y = offset_y + start_y;
 
 	for (int x = 0; x < _width; x++) {
-		FColor power = process_texel_ambient_bounce(x, y);
+		// find triangle
+		uint32_t tri_source = *_image_ID_p1.get(x, y);
+		if (tri_source) {
+			tri_source--; // plus one based
+			FColor power = process_texel_ambient_bounce(x, y, tri_source);
 
-		// save the incoming light power in the mirror image (as the source is still being used)
-		_image_L_mirror.get_item(x, y) = power;
+			// save the incoming light power in the mirror image (as the source is still being used)
+			_image_L_mirror.get_item(x, y) = power;
+		}
 	}
 }
 
@@ -1320,15 +1325,9 @@ void LightMapper::process_light_probes() {
 	}
 }
 
-FColor LightMapper::process_texel_ambient_bounce(int x, int y) {
+FColor LightMapper::process_texel_ambient_bounce(int x, int y, uint32_t tri_source) {
 	FColor total;
 	total.set(0.0f);
-
-	// find triangle
-	uint32_t tri_source = *_image_ID_p1.get(x, y);
-	if (!tri_source)
-		return total;
-	tri_source--; // plus one based
 
 	// barycentric
 	const Vector3 &bary = *_image_barycentric.get(x, y);
@@ -1726,8 +1725,10 @@ void LightMapper::process_emission_pixel(int32_t p_x, int32_t p_y) {
 	if (luminosity < 0.1f)
 		return;
 
-	//	print_line("process_emission_pixel : color " + String(Variant(emission)) + " coords " +  itos(p_x) + ", " + itos(p_y) + " ... tri_id " + itos(tri_id) + " bary " + String(Variant(*bary)));
+		//	print_line("process_emission_pixel : color " + String(Variant(emission)) + " coords " +  itos(p_x) + ", " + itos(p_y) + " ... tri_id " + itos(tri_id) + " bary " + String(Variant(*bary)));
 
+//#define LLIGHTMAP_FORWARD_EMISSION_PIXELS
+#ifdef LLIGHTMAP_FORWARD_EMISSION_PIXELS
 	//	uint32_t num_rays = 512;
 	uint32_t num_rays = _num_rays * 64 * 16;
 
@@ -1743,6 +1744,84 @@ void LightMapper::process_emission_pixel(int32_t p_x, int32_t p_y) {
 		//fcol.set(0, 1, 0);
 
 		ray_bank_request_new_ray(r, 1, fcol, nullptr);
+	}
+#else
+	process_emission_pixel_backward(p_x, p_y, emission, pos, *plane_normal);
+#endif
+}
+
+void LightMapper::process_emission_pixel_backward(int32_t p_x, int32_t p_y, const Color &p_emission, const Vector3 &p_emission_pos, const Vector3 &p_emission_normal) {
+	Plane emission_plane(p_emission_pos, p_emission_normal);
+
+	for (int y = 0; y < _height; y++) {
+		for (int x = 0; x < _width; x++) {
+			// find triangle
+			uint32_t tri_source = *_image_ID_p1.get(x, y);
+			if (tri_source) {
+				tri_source--; // plus one based
+
+				if ((p_y == y) && (p_x == x))
+					continue; // check this goes to right place
+
+				// Find triangle info for this texel.
+				uint32_t tri_id = 0;
+				Vector3 pos;
+				Vector3 vertex_normal;
+				const Vector3 *bary = nullptr;
+				const Vector3 *plane_normal = nullptr;
+				if (!load_texel_data(x, y, tri_id, &bary, pos, vertex_normal, &plane_normal))
+					continue;
+
+				// If the tri is behind emission tri ignore.
+				if (emission_plane.distance_to(pos) <= 0)
+					continue;
+
+				// If the emission is behind the test tri, ignore.
+				Plane tri_plane(pos, *plane_normal);
+				if (tri_plane.distance_to(p_emission_pos) <= 0)
+					continue;
+
+				// If emission tri normal and this tri normal are not facing, ignore.
+				// TODO: possibly try the vertex interpolated normal if artifacts on edges.
+				//				float dot = p_emission_normal.dot(*plane_normal);
+				//				if (dot >= 0)
+				//					continue;
+
+				Ray r;
+				r.o = pos;
+				r.o += *plane_normal * adjusted_settings.surface_bias;
+
+				Vector3 offset_from_emission = p_emission_pos - r.o;
+				float dist_from_emission = offset_from_emission.length();
+
+				if (dist_from_emission <= 0)
+					continue;
+
+				// Normalize direction.
+				r.d = offset_from_emission / dist_from_emission;
+
+				// Test ray. If it hits, no light arrives.
+				if (_scene.test_intersect_ray(r, dist_from_emission, true))
+					continue;
+
+				// Calculate the power.
+				//////////////////////////////
+				// for backward tracing, first pass, this is a special case, because we DO
+				// take account of distance to the light, and normal, in order to simulate the effects
+				// of the likelihood of 'catching' a ray. In forward tracing this happens by magic.
+				float power = inverse_square_drop_off(dist_from_emission);
+
+				// take into account normal
+				float dot = r.d.dot(vertex_normal);
+				dot = fabs(dot);
+
+				power *= dot;
+				//////////////////////////////
+
+				// Test directly add the emission.
+				MT_safe_add_to_texel(x, y, p_emission * power);
+			}
+		}
 	}
 }
 

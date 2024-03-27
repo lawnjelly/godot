@@ -1,4 +1,5 @@
 #include "lqmc.h"
+#include "llighttypes.h"
 
 namespace LM {
 
@@ -8,20 +9,6 @@ void QMC::create(int num_samples) {
 
 	for (int n = 0; n < NUM_VARIATIONS; n++) {
 		generate_variation(_group, n);
-	}
-}
-
-void QMC::random_unit_dir(Vector3 &dir) const {
-	while (true) {
-		dir.x = Math::random(-1.0f, 1.0f);
-		dir.y = Math::random(-1.0f, 1.0f);
-		dir.z = Math::random(-1.0f, 1.0f);
-
-		float l = dir.length();
-		if (l > 0.001f) {
-			dir /= l;
-			return;
-		}
 	}
 }
 
@@ -35,7 +22,7 @@ void QMC::generate_variation(Group &group, int var) {
 	for (int s = 0; s < nSamples; s++) {
 		// choose some random test directions
 		for (int n = 0; n < nTestSamples; n++) {
-			random_unit_dir(tests[n]);
+			generate_random_unit_dir(tests[n]);
 		}
 
 		// find the best

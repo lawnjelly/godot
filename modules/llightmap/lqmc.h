@@ -28,7 +28,6 @@ public:
 
 private:
 	void generate_variation(Group &group, int var);
-	void random_unit_dir(Vector3 &dir) const;
 
 	int _current_variation;
 	Group _group;

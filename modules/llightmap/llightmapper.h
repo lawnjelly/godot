@@ -25,12 +25,13 @@ private:
 
 	void process_emission_pixels();
 	void process_emission_pixel(int32_t p_x, int32_t p_y);
+	void process_emission_pixel_backward(int32_t p_x, int32_t p_y, const Color &p_emission, const Vector3 &p_emission_pos, const Vector3 &p_emission_normal);
 
 	// ambient bounces
 	void do_ambient_bounces();
 	void process_texels_ambient_bounce(int section_size, int num_sections);
 	void process_texels_ambient_bounce_line_MT(uint32_t offset_y, int start_y);
-	FColor process_texel_ambient_bounce(int x, int y);
+	FColor process_texel_ambient_bounce(int x, int y, uint32_t tri_source);
 	bool process_texel_ambient_bounce_sample(const Vector3 &plane_norm, const Vector3 &ray_origin, FColor &total_col);
 
 	// backward tracing
@@ -52,6 +53,12 @@ private:
 	void backward_trace_triangles();
 	void backward_trace_triangle(int tri_id);
 	void backward_trace_sample(int tri_id);
+
+	void MT_safe_add_to_texel(int32_t p_x, int32_t p_y, const Color &p_col) {
+		FColor fcol;
+		fcol.set(p_col);
+		MT_safe_add_to_texel(p_x, p_y, fcol);
+	}
 
 	// multithread safe. This must prevent against several threads trying to access the same texel
 	// at once. This will be rare but must be prevented.
