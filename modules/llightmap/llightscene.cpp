@@ -954,61 +954,60 @@ void LightScene::thread_rasterize_triangle_ids(uint32_t p_tile, uint32_t *p_dumm
 				//					print_line("testing");
 				//				}
 
-				if (tri.contains_point(Vector2(s, t)))
-				//if (tri.ContainsTexel(x, y, width , height))
-				{
+				if (tri.contains_texel(x, y, width, height)) {
 					if (rtip.base->logic.process_AO)
 						rtip.temp_image_tris.get_item(x, y).push_back(n);
-
-					uint32_t &id_p1 = rtip.im_p1->get_item(x, y);
+					if (tri.contains_point(Vector2(s, t))) {
+						uint32_t &id_p1 = rtip.im_p1->get_item(x, y);
 
 #ifdef LLIGHTMAP_DEBUG_RASTERIZE_OVERLAP
-					// hopefully this was 0 before
-					if (id_p1) {
-						debug_overlap_count++;
-						//						if (debug_overlap_count == 64)
-						//						{
-						//							print_line("overlap detected");
-						//						}
+						// hopefully this was 0 before
+						if (id_p1) {
+							debug_overlap_count++;
+							//						if (debug_overlap_count == 64)
+							//						{
+							//							print_line("overlap detected");
+							//						}
 
-						// store the overlapped ID in a second map
-						//im2_p1.GetItem(x, y) = id_p1;
-					}
+							// store the overlapped ID in a second map
+							//im2_p1.GetItem(x, y) = id_p1;
+						}
 #endif
 
-					// save new id
-					id_p1 = n + 1;
+						// save new id
+						id_p1 = n + 1;
 
-					// find barycentric coords
-					float u, v, w;
+						// find barycentric coords
+						float u, v, w;
 
-					// note this returns NAN for degenerate triangles!
-					tri.find_barycentric_coords(Vector2(s, t), u, v, w);
+						// note this returns NAN for degenerate triangles!
+						tri.find_barycentric_coords(Vector2(s, t), u, v, w);
 
-					//					assert (!isnan(u));
-					//					assert (!isnan(v));
-					//					assert (!isnan(w));
+						//					assert (!isnan(u));
+						//					assert (!isnan(v));
+						//					assert (!isnan(w));
 
-					Vector3 &bary = rtip.im_bary->get_item(x, y);
-					bary = Vector3(u, v, w);
+						Vector3 &bary = rtip.im_bary->get_item(x, y);
+						bary = Vector3(u, v, w);
 
-					if (is_emission_tri) {
-						Color &em_col = _image_emission_done.get_item(x, y);
+						if (is_emission_tri) {
+							Color &em_col = _image_emission_done.get_item(x, y);
 
-						if (_image_emission_done.get_item(x, y).a < 2) {
-							_emission_pixels.push_back(Vec2_i16(x, y));
-							em_col.a = 4;
+							if (_image_emission_done.get_item(x, y).a < 2) {
+								_emission_pixels.push_back(Vec2_i16(x, y));
+								em_col.a = 4;
+							}
+
+							// store the highest emission color
+							ColorSample cols;
+							take_triangle_color_sample(n, bary, cols);
+
+							em_col.r = MAX(em_col.r, cols.emission.r);
+							em_col.g = MAX(em_col.g, cols.emission.g);
+							em_col.b = MAX(em_col.b, cols.emission.b);
 						}
-
-						// store the highest emission color
-						ColorSample cols;
-						take_triangle_color_sample(n, bary, cols);
-
-						em_col.r = MAX(em_col.r, cols.emission.r);
-						em_col.g = MAX(em_col.g, cols.emission.g);
-						em_col.b = MAX(em_col.b, cols.emission.b);
-					}
-				}
+					} // contains point
+				} // contains texel
 
 			} // for x
 		} // for y
