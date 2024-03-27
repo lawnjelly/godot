@@ -121,11 +121,6 @@ protected:
 
 	void merge_and_write_output_image_combined(Image &image);
 
-	void generate_random_unit_dir(Vector3 &dir) const;
-	void generate_random_sphere_dir(Vector3 &dir, float max_length) const;
-	void generate_random_barycentric(Vector3 &bary) const;
-	void generate_random_axis(Vector3 &axis) const;
-
 	void light_to_plane(LLight &light);
 	Plane find_containment_plane(const Vector3 &dir, Vector3 pts[8], float &range, float padding);
 
@@ -447,58 +442,5 @@ protected:
 		//	  return rgbm;
 	}
 };
-
-inline void LightMapper_Base::generate_random_barycentric(Vector3 &bary) const {
-	float r1 = Math::randf();
-	float r2 = Math::randf();
-	float sqrt_r1 = sqrtf(r1);
-
-	bary.x = 1.0f - sqrt_r1;
-	bary.y = r2 * sqrt_r1;
-	bary.z = 1.0f - bary.x - bary.y;
-}
-
-inline void LightMapper_Base::generate_random_axis(Vector3 &axis) const {
-	float sl;
-	while (true) {
-		axis.x = Math::random(-1.0f, 1.0f);
-		axis.y = Math::random(-1.0f, 1.0f);
-		axis.z = Math::random(-1.0f, 1.0f);
-
-		sl = axis.length_squared();
-		if (sl > 0.0001f)
-			break;
-	}
-
-	// normalize
-	float l = sqrtf(sl);
-	axis /= l;
-}
-
-inline void LightMapper_Base::generate_random_sphere_dir(Vector3 &dir, float max_length) const {
-	dir.x = Math::random(-1.0f, 1.0f);
-	dir.y = Math::random(-1.0f, 1.0f);
-	dir.z = Math::random(-1.0f, 1.0f);
-
-	// zero length is ok
-	dir.normalize();
-
-	float f = Math::random(0.0f, max_length);
-	dir *= f;
-}
-
-inline void LightMapper_Base::generate_random_unit_dir(Vector3 &dir) const {
-	while (true) {
-		dir.x = Math::random(-1.0f, 1.0f);
-		dir.y = Math::random(-1.0f, 1.0f);
-		dir.z = Math::random(-1.0f, 1.0f);
-
-		float l = dir.length();
-		if (l > 0.001f) {
-			dir /= l;
-			return;
-		}
-	}
-}
 
 } // namespace LM

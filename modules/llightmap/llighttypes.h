@@ -13,6 +13,13 @@ struct MiniList {
 	uint32_t num;
 };
 
+struct ColorSample {
+	Color albedo;
+	Color emission;
+	bool is_opaque = true;
+	bool is_emitter = false;
+};
+
 class Vec3i {
 public:
 	Vec3i() {}
@@ -287,6 +294,58 @@ public:
 		return (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y);
 	}
 };
+
+void generate_random_unit_dir(Vector3 &dir) {
+#define LLIGHTMAP_RANDOM_DIR_SPHERE_METHOD
+#ifdef LLIGHTMAP_RANDOM_DIR_SPHERE_METHOD
+	// Generate random spherical coordinates
+	float theta = Math::randf() * 2.0 * M_PI;
+	float phi = Math::acos(Math::randf() * 2.0 - 1.0);
+
+	// Convert to Cartesian coordinates and normalize
+	dir.x = Math::sin(phi) * Math::cos(theta);
+	dir.y = Math::sin(phi) * Math::sin(theta);
+	dir.z = Math::cos(phi);
+#else
+	// Simpler, but this gives a non-uniform distribution,
+	// so don't use.
+	while (true) {
+		dir.x = Math::random(-1.0f, 1.0f);
+		dir.y = Math::random(-1.0f, 1.0f);
+		dir.z = Math::random(-1.0f, 1.0f);
+
+		float l = dir.length();
+		if (l > 0.001f) {
+			dir /= l;
+			return;
+		}
+	}
+#endif
+}
+
+void generate_random_hemi_unit_dir(Vector3 &r_dir, const Vector3 &p_plane_normal) {
+	generate_random_unit_dir(r_dir);
+
+	// compare direction to normal, if opposite, flip it
+	if (r_dir.dot(p_plane_normal) < 0.0f)
+		r_dir = -r_dir;
+}
+
+void generate_random_sphere_dir(Vector3 &dir, float max_length) {
+	generate_random_unit_dir(dir);
+	float f = Math::random(0.0f, max_length);
+	dir *= f;
+}
+
+void generate_random_barycentric(Vector3 &bary) {
+	float r1 = Math::randf();
+	float r2 = Math::randf();
+	float sqrt_r1 = sqrtf(r1);
+
+	bary.x = 1.0f - sqrt_r1;
+	bary.y = r2 * sqrt_r1;
+	bary.z = 1.0f - bary.x - bary.y;
+}
 
 bool barycentric_inside(float u, float v, float w) {
 	if ((u < 0.0f) || (u > 1.0f) ||

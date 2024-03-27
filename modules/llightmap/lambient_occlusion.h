@@ -108,15 +108,9 @@ private:
 		// push ray origin
 		r.o -= push;
 
-		generate_random_unit_dir(r.d);
+		generate_random_hemi_unit_dir(r.d, ptNormal);
 
 		// clip?
-		float dot = r.d.dot(ptNormal);
-		if (dot < 0.0f) {
-			// make dot always positive for calculations as to the weight given to this hit
-			//dot = -dot;
-			r.d = -r.d;
-		}
 
 		// prevent parallel lines
 		r.d += push;

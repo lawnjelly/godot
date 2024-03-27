@@ -1,5 +1,4 @@
 #include "lmaterials.h"
-#include "lcolor.h"
 
 #define LM_STRING_TRANSPARENT "_T_"
 

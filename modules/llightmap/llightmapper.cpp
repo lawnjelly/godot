@@ -795,21 +795,7 @@ bool LightMapper::BF_process_texel_sky(const Color &orig_albedo, const Vector3 &
 
 	for (int s = 0; s < nSamples; s++) {
 		r.o = ptSource;
-
-		Vector3 offset;
-		generate_random_unit_dir(offset);
-
-		//		offset += (light.dir * -2.0f);
-		//		r.d = offset.normalized();
-		r.d = offset;
-
-		// disallow zero length (should be rare)
-		//		if (r.d.length_squared() < 0.00001f)
-		//			continue;
-
-		// don't allow from opposite direction
-		if (r.d.dot(orig_face_normal) < 0.0f)
-			r.d = -r.d;
+		generate_random_hemi_unit_dir(r.d, orig_face_normal);
 
 		// ray test
 		if (!_scene.test_intersect_ray(r, FLT_MAX)) {
@@ -1166,21 +1152,7 @@ bool LightMapper::bounce_ray(Ray &r, const Vector3 &face_normal, bool apply_epsi
 
 	// random hemisphere
 	Vector3 hemi_dir;
-
-	const float range = 1.0f;
-	while (true) {
-		hemi_dir.x = Math::random(-range, range);
-		hemi_dir.y = Math::random(-range, range);
-		hemi_dir.z = Math::random(-range, range);
-
-		float sl = hemi_dir.length_squared();
-		if (sl > 0.0001f) {
-			break;
-		}
-	}
-	// compare direction to normal, if opposite, flip it
-	if (hemi_dir.dot(face_normal) < 0.0f)
-		hemi_dir = -hemi_dir;
+	generate_random_hemi_unit_dir(hemi_dir, face_normal);
 
 	r.d = hemi_dir.linear_interpolate(mirror_dir, adjusted_settings.smoothness);
 
@@ -1430,11 +1402,7 @@ bool LightMapper::process_texel_ambient_bounce_sample(const Vector3 &plane_norm,
 	//new_ray.d = r.d - (2.0f * (dot * norm));
 
 	// random hemisphere
-	generate_random_unit_dir(r.d);
-
-	// compare direction to normal, if opposite, flip it
-	if (r.d.dot(plane_norm) < 0.0f)
-		r.d = -r.d;
+	generate_random_hemi_unit_dir(r.d, plane_norm);
 
 	// loop here just in case transparent
 	while (true) {
@@ -1698,12 +1666,7 @@ void LightMapper::BF_process_texel(int tx, int ty) {
 
 			for (int n = 0; n < nSamples; n++) {
 				// send out emission bounce rays
-				generate_random_unit_dir(r.d);
-
-				float dot = plane_normal->dot(r.d);
-				if (dot < 0.0f)
-					r.d = -r.d;
-
+				generate_random_hemi_unit_dir(r.d, *plane_normal);
 				BF_process_texel_light_bounce(adjusted_settings.num_directional_bounces, r, femm); // always at least 1 emission ray
 			}
 		}
@@ -1772,12 +1735,8 @@ void LightMapper::process_emission_pixel(int32_t p_x, int32_t p_y) {
 	r.o = pos;
 
 	for (uint32_t n = 0; n < num_rays; n++) {
-		generate_random_unit_dir(r.d);
-
 		// Ensure ray goes outward from surface.
-		if (r.d.dot(*plane_normal) < 0) {
-			r.d = -r.d;
-		}
+		generate_random_hemi_unit_dir(r.d, *plane_normal);
 
 		FColor fcol;
 		fcol.set(emission);
@@ -2112,7 +2071,7 @@ void LightMapper::process_light(int light_id, int num_rays) {
 
 				// random axis
 				Vector3 axis;
-				generate_random_axis(axis);
+				generate_random_unit_dir(axis);
 
 				float falloff_start = 0.5f; // this could be adjustable;
 

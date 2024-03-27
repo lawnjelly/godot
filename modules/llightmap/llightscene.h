@@ -1,6 +1,5 @@
 #pragma once
 
-#include "lcolor.h"
 #include "llightimage.h"
 #include "llighttracer.h"
 #include "llighttypes.h"
