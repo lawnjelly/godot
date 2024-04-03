@@ -584,6 +584,7 @@ void LightMapper::backward_process_texels() {
 	//	num_sections = 0;
 	//#endif
 
+//#if 1
 #if (defined NO_THREADS) || (!defined BACKWARD_TRACE_MULTITHEADED)
 	num_sections = 0;
 #else
@@ -1515,6 +1516,33 @@ bool LightMapper::process_texel_ambient_bounce_sample(const Vector3 &plane_norm,
 //	Vector3 normal;
 //	m_Scene.m_TriNormals[tri].InterpolateBarycentric(normal, bary.x, bary.y, bary.z);
 
+void LightMapper::_load_texel_data(uint32_t p_tri_id, const Vector3 &p_bary, Vector3 &r_pos_pushed, Vector3 &r_normal, const Vector3 **r_plane_normal) const {
+	// new .. cap the barycentric to prevent edge artifacts
+	const float clamp_margin = 0.0001f;
+	const float clamp_margin_high = 1.0f - clamp_margin;
+
+	Vector3 bary_clamped;
+	bary_clamped.x = CLAMP(p_bary.x, clamp_margin, clamp_margin_high);
+	bary_clamped.y = CLAMP(p_bary.y, clamp_margin, clamp_margin_high);
+	bary_clamped.z = CLAMP(p_bary.z, clamp_margin, clamp_margin_high);
+
+	// we will trace
+	// FROM THE SURFACE TO THE LIGHT!!
+	// this is very important, because the ray is origin and direction,
+	// and there will be precision errors at the destination.
+	// At the light end this doesn't matter, but if we trace the other way
+	// we get artifacts due to precision loss due to normalized direction.
+	_scene._tris[p_tri_id].interpolate_barycentric(r_pos_pushed, bary_clamped);
+
+	// add epsilon to pos to prevent self intersection and neighbour intersection
+	const Vector3 &plane_normal = _scene._tri_planes[p_tri_id].normal;
+	*r_plane_normal = &plane_normal;
+
+	r_pos_pushed += plane_normal * adjusted_settings.surface_bias;
+
+	_scene._tri_normals[p_tri_id].interpolate_barycentric(r_normal, p_bary.x, p_bary.y, p_bary.z);
+}
+
 bool LightMapper::load_texel_data(int32_t p_x, int32_t p_y, uint32_t &r_tri_id, const Vector3 **r_bary, Vector3 &r_pos_pushed, Vector3 &r_normal, const Vector3 **r_plane_normal) const {
 	// find triangle
 	r_tri_id = *_image_ID_p1.get(p_x, p_y);
@@ -1526,6 +1554,10 @@ bool LightMapper::load_texel_data(int32_t p_x, int32_t p_y, uint32_t &r_tri_id, 
 	const Vector3 &bary = _image_barycentric.get_item(p_x, p_y);
 	*r_bary = &bary;
 
+	_load_texel_data(r_tri_id, bary, r_pos_pushed, r_normal, r_plane_normal);
+	return true;
+
+	/*
 	// new .. cap the barycentric to prevent edge artifacts
 	const float clamp_margin = 0.0001f;
 	const float clamp_margin_high = 1.0f - clamp_margin;
@@ -1552,15 +1584,146 @@ bool LightMapper::load_texel_data(int32_t p_x, int32_t p_y, uint32_t &r_tri_id, 
 	_scene._tri_normals[r_tri_id].interpolate_barycentric(r_normal, bary.x, bary.y, bary.z);
 
 	return true;
+	*/
+}
+
+bool LightMapper::AA_BF_process_sub_texel(float p_fx, float p_fy, const MiniList &p_ml, Color &r_col) {
+	// find which triangle on the minilist we are inside (if any)
+	uint32_t tri_id;
+	Vector3 bary;
+
+	// has to be ranged 0 to 1
+	Vector2 st(p_fx, p_fy);
+	st.x /= _width;
+	st.y /= _height;
+
+	if (!AO_find_texel_triangle(p_ml, st, tri_id, bary))
+		return false;
+
+	Vector3 pos;
+	Vector3 normal;
+	//const Vector3 *bary = nullptr;
+	const Vector3 *plane_normal = nullptr;
+	_load_texel_data(tri_id, bary, pos, normal, &plane_normal);
+
+	// find the colors of this texel
+	ColorSample cols;
+	_scene.take_triangle_color_sample(tri_id, bary, cols);
+
+	//r_col.r += 1.0f;
+
+	int num_samples = adjusted_settings.backward_num_rays / adjusted_settings.antialias_samples_per_texel;
+	//	int num_samples = 1;
+
+	FColor texel_add;
+	texel_add.set(0);
+	FColor temp;
+
+	for (int l = 0; l < _lights.size(); l++) {
+		BF_process_texel_light(cols.albedo, l, pos, *plane_normal, normal, temp, num_samples);
+		texel_add += temp;
+	}
+
+	// sky (if present)
+	if (BF_process_texel_sky(cols.albedo, pos, *plane_normal, normal, temp)) {
+		// scale sky by number of samples in the normal lights
+		float descale_to_match_normal_lights = num_samples / 1024.0;
+		texel_add += temp * descale_to_match_normal_lights;
+	}
+
+	// add emission
+	//	Color emission_tex_color;
+	//	Color emission_color;
+	//	if (m_Scene.FindEmissionColor(tri_id, bary, emission_tex_color, emission_color))
+	if (cols.is_emitter && (data.params[PARAM_EMISSION_ENABLED] == Variant(true))) {
+		// Glow determines how much the surface itself is lighted (and thus the ratio between glow and emission)
+		// emission density determines the number of rays and lighting effect
+		FColor femm;
+		femm.set(cols.emission);
+
+		// float power = settings.backward_ray_power * adjusted_settings.backward_num_rays * 32.0f;
+		// power *= adjusted_settings.glow;
+		// texel_add += femm * power;
+
+		texel_add += (femm * adjusted_settings.glow * adjusted_settings.emission_power) / adjusted_settings.antialias_samples_per_texel;
+
+		// only if directional bounces are being used (could use ambient bounces for emission)
+		if (adjusted_settings.num_directional_bounces) {
+			// needs to be adjusted according to size of texture .. as there will be more emissive texels
+			int nSamples = adjusted_settings.backward_num_rays * 2 * adjusted_settings.emission_density;
+
+			// apply the albedo to the emission color to get the color emanating
+			femm.r *= cols.albedo.r;
+			femm.g *= cols.albedo.g;
+			femm.b *= cols.albedo.b;
+
+			Ray r;
+			r.o = pos;
+			femm *= settings.backward_ray_power * 128.0f * (1.0f / adjusted_settings.emission_density);
+
+			for (int n = 0; n < nSamples; n++) {
+				// send out emission bounce rays
+				generate_random_hemi_unit_dir(r.d, *plane_normal);
+				BF_process_texel_light_bounce(adjusted_settings.num_directional_bounces, r, femm); // always at least 1 emission ray
+			}
+		}
+	}
+
+	Color ctemp;
+	texel_add.to(ctemp);
+
+	ctemp *= adjusted_settings.antialias_samples_per_texel;
+
+	r_col += ctemp;
+
+	return true;
 }
 
 void LightMapper::AA_BF_process_texel(int p_tx, int p_ty) {
 	const MiniList &ml = _image_tri_ids.get_item(p_tx, p_ty);
 	if (!ml.num)
 		return; // no triangles in this UV
+
+	bool debug = false;
+	if ((p_tx == 305) && (p_ty == 248))
+		debug = true;
+
+	int aa_size = adjusted_settings.antialias_samples_width;
+	float step = 1.0f / (aa_size + 2);
+
+	Color col;
+	int samples_inside = 0;
+
+	for (int y = 0; y < aa_size; y++) {
+		float fy = p_ty + ((y + 0.5f) * step);
+
+		for (int x = 0; x < aa_size; x++) {
+			float fx = p_tx + ((x + 0.5f) * step);
+
+			if (AA_BF_process_sub_texel(fx, fy, ml, col))
+				samples_inside++;
+		}
+	}
+
+	if (debug) {
+		//print_line("samples inside " + itos(samples_inside) + ", col " + String(Variant(col)));
+	}
+
+	if (!samples_inside)
+		return;
+
+	col /= (float)samples_inside;
+
+	// safe write
+	FColor texel_add;
+	texel_add.set(col);
+	MT_safe_add_to_texel(p_tx, p_ty, texel_add);
 }
 
 void LightMapper::BF_process_texel(int tx, int ty) {
+	AA_BF_process_texel(tx, ty);
+	return;
+
 	//		if ((tx == 13) && (ty == 284))
 	//			print_line("testing");
 

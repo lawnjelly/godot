@@ -39,6 +39,7 @@ private:
 	void backward_process_texel_line_MT(uint32_t offset_y, int start_y);
 
 	bool load_texel_data(int32_t p_x, int32_t p_y, uint32_t &r_tri_id, const Vector3 **r_bary, Vector3 &r_pos_pushed, Vector3 &r_normal, const Vector3 **r_plane_normal) const;
+	void _load_texel_data(uint32_t p_tri_id, const Vector3 &p_bary, Vector3 &r_pos_pushed, Vector3 &r_normal, const Vector3 **r_plane_normal) const;
 
 	// backward forward tracing
 	void BF_process_texel(int tx, int ty);
@@ -51,6 +52,7 @@ private:
 
 	// Backward tracing with antialiasing.
 	void AA_BF_process_texel(int p_tx, int p_ty);
+	bool AA_BF_process_sub_texel(float p_fx, float p_fy, const MiniList &p_ml, Color &r_col);
 
 	// new backward tracing experiment, by triangle
 	void backward_trace_triangles();

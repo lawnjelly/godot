@@ -22,24 +22,6 @@ protected:
 	float calculate_AO(int tx, int ty, int qmc_variation, const MiniList &ml);
 	float calculate_AO_complex(int tx, int ty, int qmc_variation, const MiniList &ml);
 
-private:
-	int AO_find_sample_points(int tx, int ty, const MiniList &ml, AOSample samples[MAX_COMPLEX_AO_TEXEL_SAMPLES]);
-
-	void AO_random_texel_sample(Vector2 &st, int tx, int ty, int n) const {
-		if (n) {
-			st.x = Math::randf() + tx;
-			st.y = Math::randf() + ty;
-		} else {
-			// fix first to centre of texel
-			st.x = 0.5f + tx;
-			st.y = 0.5f + ty;
-		}
-
-		// has to be ranged 0 to 1
-		st.x /= _width;
-		st.y /= _height;
-	}
-
 	bool AO_find_texel_triangle(const MiniList &ml, const Vector2 &st, uint32_t &tri_inside, Vector3 &bary) const {
 		// barycentric coords.
 		const UVTri *pUVTri;
@@ -57,6 +39,24 @@ private:
 
 		// not inside any triangles
 		return false;
+	}
+
+private:
+	int AO_find_sample_points(int tx, int ty, const MiniList &ml, AOSample samples[MAX_COMPLEX_AO_TEXEL_SAMPLES]);
+
+	void AO_random_texel_sample(Vector2 &st, int tx, int ty, int n) const {
+		if (n) {
+			st.x = Math::randf() + tx;
+			st.y = Math::randf() + ty;
+		} else {
+			// fix first to centre of texel
+			st.x = 0.5f + tx;
+			st.y = 0.5f + ty;
+		}
+
+		// has to be ranged 0 to 1
+		st.x /= _width;
+		st.y /= _height;
 	}
 
 	void AO_random_QMC_direction(Vector3 &dir, const Vector3 &ptNormal, int n, int qmc_variation) const {

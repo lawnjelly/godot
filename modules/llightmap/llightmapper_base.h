@@ -343,6 +343,9 @@ public:
 
 		int num_sky_samples;
 		float sky_brightness;
+
+		int antialias_samples_width = 1;
+		int antialias_samples_per_texel = 1;
 	} adjusted_settings;
 
 	struct Logic {

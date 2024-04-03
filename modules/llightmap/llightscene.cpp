@@ -1093,6 +1093,7 @@ bool LightScene::rasterize_triangles_ids(LightMapper_Base &base, LightImage<uint
 	_rasterize_triangle_id_params.im_bary = &im_bary;
 	_rasterize_triangle_id_params.im_p1 = &im_p1;
 
+//#if 1
 #if (defined NO_THREADS) || (!defined LLIGHTMAP_MULTITHREADED)
 	_rasterize_triangle_id_params.tile_height = height;
 	_rasterize_triangle_id_params.num_tiles_high = 1;
@@ -1104,7 +1105,7 @@ bool LightScene::rasterize_triangles_ids(LightMapper_Base &base, LightImage<uint
 	int thread_cores = OS::get_singleton()->get_default_thread_pool_size();
 
 	_rasterize_triangle_id_params.tile_height = (height / thread_cores) + 1;
-	_rasterize_triangle_id_params.num_tiles_high = height / _rasterize_triangle_id_params.tile_height;
+	_rasterize_triangle_id_params.num_tiles_high = (height / _rasterize_triangle_id_params.tile_height) + 1;
 
 	thread_pool.init(thread_cores);
 	thread_pool.do_work(

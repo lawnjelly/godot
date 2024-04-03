@@ -176,6 +176,9 @@ void LightMapper_Base::calculate_quality_adjusted_settings() {
 	as.sky_brightness = data.params[PARAM_SKY_BRIGHTNESS];
 	as.sky_brightness *= as.sky_brightness;
 
+	as.antialias_samples_width = 8;
+	as.antialias_samples_per_texel = as.antialias_samples_width * as.antialias_samples_width;
+
 	// overrides
 	switch (settings.quality) {
 		case LM_QUALITY_LOW: {
