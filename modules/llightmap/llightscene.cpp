@@ -955,7 +955,7 @@ void LightScene::thread_rasterize_triangle_ids(uint32_t p_tile, uint32_t *p_dumm
 				//				}
 
 				if (tri.contains_texel(x, y, width, height)) {
-					if (rtip.base->logic.process_AO)
+					if (rtip.base->logic.rasterize_mini_lists)
 						rtip.temp_image_tris.get_item(x, y).push_back(n);
 					if (tri.contains_point(Vector2(s, t))) {
 						uint32_t &id_p1 = rtip.im_p1->get_item(x, y);
@@ -1056,7 +1056,7 @@ bool LightScene::rasterize_triangles_ids(LightMapper_Base &base, LightImage<uint
 	int height = im_p1.get_height();
 
 	// create a temporary image of vectors to store the triangles per texel
-	if (base.logic.process_AO)
+	if (base.logic.rasterize_mini_lists)
 		_rasterize_triangle_id_params.temp_image_tris.create(width, height, false);
 
 	// First find tri min maxes in texture space.
@@ -1116,7 +1116,10 @@ bool LightScene::rasterize_triangles_ids(LightMapper_Base &base, LightImage<uint
 
 #endif
 
-	if (base.logic.process_AO) {
+	if (base.logic.rasterize_mini_lists) {
+		uint32_t debug_valid_pixels = 0;
+		uint32_t debug_overlapped_pixels = 0;
+
 		// translate temporary image vectors into mini lists
 		for (int y = 0; y < height; y++) {
 			for (int x = 0; x < width; x++) {
@@ -1124,6 +1127,11 @@ bool LightScene::rasterize_triangles_ids(LightMapper_Base &base, LightImage<uint
 				ml.first = base._tri_ids.size();
 
 				const LocalVector<uint32_t> &vec = _rasterize_triangle_id_params.temp_image_tris.get_item(x, y);
+
+				if (vec.size()) {
+					debug_valid_pixels++;
+					debug_overlapped_pixels += vec.size();
+				}
 
 				for (int n = 0; n < vec.size(); n++) {
 					base._tri_ids.push_back(vec[n]);
@@ -1139,6 +1147,8 @@ bool LightScene::rasterize_triangles_ids(LightMapper_Base &base, LightImage<uint
 				//				base.m_TriIDs.push_back(n);
 			} // for x
 		} // for y
+
+		print_line("Found " + itos(debug_valid_pixels) + " valid pixels, " + itos(debug_overlapped_pixels) + " overlapped pixels.");
 
 	} // only if processing AO
 

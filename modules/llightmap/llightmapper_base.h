@@ -347,12 +347,13 @@ public:
 
 	struct Logic {
 		// some internal logic based on the bake state
-		bool process_lightmap;
-		bool process_AO;
-		bool process_probes;
+		bool process_lightmap = true;
+		bool process_AO = true;
+		bool process_probes = true;
+		bool rasterize_mini_lists = true;
 
-		bool reserve_AO;
-		bool output_final;
+		bool reserve_AO = true;
+		bool output_final = true;
 	} logic;
 
 	LightMapper_Base();

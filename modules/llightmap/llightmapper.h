@@ -49,6 +49,9 @@ private:
 
 	bool bounce_ray(Ray &r, const Vector3 &face_normal, bool apply_epsilon = true);
 
+	// Backward tracing with antialiasing.
+	void AA_BF_process_texel(int p_tx, int p_ty);
+
 	// new backward tracing experiment, by triangle
 	void backward_trace_triangles();
 	void backward_trace_triangle(int tri_id);

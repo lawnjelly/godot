@@ -61,12 +61,6 @@ LightMapper_Base::LightMapper_Base() {
 	settings.ambient_is_HDR = false;
 	settings.combined_is_HDR = false;
 
-	logic.process_lightmap = true;
-	logic.process_AO = true;
-	logic.reserve_AO = true;
-	logic.process_probes = true;
-	logic.output_final = true;
-
 	data.params[PARAM_UV_PADDING] = 4;
 
 	data.params[PARAM_PROBE_DENSITY] = 64;

@@ -164,6 +164,7 @@ void LightMapper::refresh_process_state() {
 	logic.reserve_AO = true;
 	logic.process_probes = false;
 	logic.output_final = true;
+	logic.rasterize_mini_lists = true;
 
 	// process states
 	switch (settings.bake_mode) {
@@ -193,6 +194,8 @@ void LightMapper::refresh_process_state() {
 		default: {
 		} break;
 	}
+
+	// logic.rasterize_mini_lists = logic.process_AO;
 }
 
 bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_root, Image &out_image_lightmap, Image &out_image_ao, Image &out_image_combined) {
@@ -236,7 +239,7 @@ bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_ro
 		_image_ID_p1.create(_width, _height);
 		//m_Image_ID2_p1.Create(m_iWidth, m_iHeight);
 
-		if (logic.process_AO) {
+		if (logic.rasterize_mini_lists) {
 			_image_tri_ids.create(_width, _height);
 			_tri_ids.clear(true);
 		}
@@ -1549,6 +1552,12 @@ bool LightMapper::load_texel_data(int32_t p_x, int32_t p_y, uint32_t &r_tri_id, 
 	_scene._tri_normals[r_tri_id].interpolate_barycentric(r_normal, bary.x, bary.y, bary.z);
 
 	return true;
+}
+
+void LightMapper::AA_BF_process_texel(int p_tx, int p_ty) {
+	const MiniList &ml = _image_tri_ids.get_item(p_tx, p_ty);
+	if (!ml.num)
+		return; // no triangles in this UV
 }
 
 void LightMapper::BF_process_texel(int tx, int ty) {
