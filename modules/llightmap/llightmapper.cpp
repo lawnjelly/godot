@@ -1689,7 +1689,8 @@ void LightMapper::AA_BF_process_texel(int p_tx, int p_ty) {
 		debug = true;
 
 	int aa_size = adjusted_settings.antialias_samples_width;
-	float step = 1.0f / (aa_size + 2);
+	//float step = 1.0f / (aa_size + 2);
+	float step = 1.0f / (aa_size);
 
 	Color col;
 	int samples_inside = 0;
@@ -1812,7 +1813,7 @@ void LightMapper::BF_process_texel(int tx, int ty) {
 	//	Color emission_tex_color;
 	//	Color emission_color;
 	//	if (m_Scene.FindEmissionColor(tri_id, bary, emission_tex_color, emission_color))
-	if (cols.is_emitter) {
+	if (cols.is_emitter && (data.params[PARAM_EMISSION_ENABLED] == Variant(true))) {
 		// Glow determines how much the surface itself is lighted (and thus the ratio between glow and emission)
 		// emission density determines the number of rays and lighting effect
 		FColor femm;
