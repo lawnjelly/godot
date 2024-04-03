@@ -17,6 +17,7 @@ public:
 		Vector3 pos[2];
 		Vector3 normal[2];
 		Vector2 uv[2];
+		Vector3 face_normal;
 
 		_FORCE_INLINE_ bool operator<(const SeamEdge &p_edge) const {
 			return pos[0].x < p_edge.pos[0].x;

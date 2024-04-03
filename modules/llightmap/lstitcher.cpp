@@ -108,6 +108,9 @@ void Stitcher::_compute_seams(const Vector<Vector3> &points, const Vector<Vector
 		Vector2 triangle_uvs[3] = { uv2s[i + 0], uv2s[i + 1], uv2s[i + 2] };
 		Vector3 triangle_normals[3] = { normals[i + 0], normals[i + 1], normals[i + 2] };
 
+		Vector3 face_normal = (triangle_vtxs[0] - triangle_vtxs[2]).cross(triangle_vtxs[0] - triangle_vtxs[1]);
+		face_normal.normalize();
+
 		for (int k = 0; k < 3; k++) {
 			int idx[2];
 			idx[0] = k;
@@ -118,6 +121,7 @@ void Stitcher::_compute_seams(const Vector<Vector3> &points, const Vector<Vector
 			}
 
 			SeamEdge e;
+			e.face_normal = face_normal;
 			for (int l = 0; l < 2; ++l) {
 				e.pos[l] = triangle_vtxs[idx[l]];
 				e.uv[l] = triangle_uvs[idx[l]];
@@ -181,6 +185,12 @@ void Stitcher::_compute_seams(const Vector<Vector3> &points, const Vector<Vector
 			float dot1 = edge0.normal[1].dot(edge1.normal[1]);
 
 			if ((dot0 < min_dot_threshold) || (dot1 < min_dot_threshold)) {
+				continue;
+			}
+
+			// face normal check (could use different threshold?)
+			float face_dot = edge0.face_normal.dot(edge1.face_normal);
+			if (face_dot < min_dot_threshold) {
 				continue;
 			}
 
