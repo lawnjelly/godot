@@ -865,6 +865,15 @@ void LightMapper_Base::write_output_image_lightmap(Image &image) {
 	if (data.params[PARAM_DILATE_ENABLED] == Variant(true)) {
 		Dilate<FColor> dilate;
 		dilate.dilate_image(_image_L, _image_ID_p1, 256);
+	} else {
+		// mark magenta
+		for (uint32_t y = 0; y < _height; y++) {
+			for (uint32_t x = 0; x < _width; x++) {
+				if (_image_ID_p1.get_item(x, y) == 0) {
+					_image_L.get_item(x, y).set(1, 0, 1);
+				}
+			}
+		}
 	}
 
 	////
