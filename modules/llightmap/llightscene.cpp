@@ -1133,6 +1133,15 @@ bool LightScene::rasterize_triangles_ids(LightMapper_Base &base, LightImage<uint
 				if (vec.size()) {
 					debug_valid_pixels++;
 					debug_overlapped_pixels += vec.size();
+
+					// NEW 2024: Deal with no triangle ID being registered on this texel.
+					// For instance, if an edge of a triangle glances the texel, but is not covering the centre.
+#define LLIGHTMAP_SPREAD_AT_EDGES
+#ifdef LLIGHTMAP_SPREAD_AT_EDGES
+					if (im_p1.get_item(x, y) == 0) {
+						im_p1.get_item(x, y) = vec[0] + 1;
+					}
+#endif
 				}
 
 				for (int n = 0; n < vec.size(); n++) {
