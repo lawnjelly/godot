@@ -7,7 +7,7 @@ void AmbientOcclusion::process_AO_texel(int tx, int ty, int qmc_variation) {
 	//	if ((tx == 77) && (ty == 221))
 	//		print_line("test");
 
-	const MiniList &ml = _image_tri_ids.get_item(tx, ty);
+	const MiniList &ml = _image_tri_minilists.get_item(tx, ty);
 	if (!ml.num)
 		return; // no triangles in this UV
 
@@ -161,7 +161,7 @@ float AmbientOcclusion::calculate_AO_complex(int tx, int ty, int qmc_variation, 
 	// if no good samples locs found
 	if (!nSampleLocs) {
 		// set to dilate
-		_image_ID_p1.get_item(tx, ty) = 0;
+		_image_tri_ids_p1.get_item(tx, ty) = 0;
 		return 0.5f; // 0.5 could use an intermediate value for texture filtering to look better?
 	}
 

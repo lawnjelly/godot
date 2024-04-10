@@ -126,10 +126,10 @@ void LightMapper_Base::base_reset() {
 	_image_L_mirror.reset();
 
 	_image_AO.reset();
-	_image_ID_p1.reset();
-	_image_tri_ids.reset();
+	_image_tri_ids_p1.reset();
+	_image_tri_minilists.reset();
 
-	_tri_ids.clear(true);
+	_minilist_tri_ids.clear(true);
 
 	_image_barycentric.reset();
 	_scene._image_emission_done.reset();
@@ -481,12 +481,12 @@ void LightMapper_Base::light_to_plane(LLight &light) {
 }
 
 bool LightMapper_Base::prepare_image_maps() {
-	_image_ID_p1.blank();
+	_image_tri_ids_p1.blank();
 	//m_Image_ID2_p1.Blank();
 
 	// rasterize each triangle in turn
 	//m_Scene.RasterizeTriangleIDs(*this, m_Image_ID_p1, m_Image_ID2_p1, m_Image_Barycentric);
-	if (!_scene.rasterize_triangles_ids(*this, _image_ID_p1, _image_barycentric))
+	if (!_scene.rasterize_triangles_ids(*this, _image_tri_ids_p1, _image_barycentric))
 		return false;
 
 	/*
@@ -814,7 +814,7 @@ void LightMapper_Base::write_output_image_AO(Image &image) {
 
 	if (data.params[PARAM_DILATE_ENABLED] == Variant(true)) {
 		Dilate<float> dilate;
-		dilate.dilate_image(_image_AO, _image_ID_p1, 256);
+		dilate.dilate_image(_image_AO, _image_tri_ids_p1, 256);
 	}
 
 	// final version
@@ -864,12 +864,12 @@ void LightMapper_Base::show_warning(String sz, bool bAlert) {
 void LightMapper_Base::write_output_image_lightmap(Image &image) {
 	if (data.params[PARAM_DILATE_ENABLED] == Variant(true)) {
 		Dilate<FColor> dilate;
-		dilate.dilate_image(_image_L, _image_ID_p1, 256);
+		dilate.dilate_image(_image_L, _image_tri_ids_p1, 256);
 	} else {
 		// mark magenta
 		for (uint32_t y = 0; y < _height; y++) {
 			for (uint32_t x = 0; x < _width; x++) {
-				if (_image_ID_p1.get_item(x, y) == 0) {
+				if (_image_tri_ids_p1.get_item(x, y) == 0) {
 					_image_L.get_item(x, y).set(1, 0, 1);
 				}
 			}

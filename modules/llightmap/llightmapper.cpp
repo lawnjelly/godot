@@ -236,12 +236,12 @@ bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_ro
 		find_lights_recursive(&light_root);
 		print_line("Found " + itos(_lights.size()) + " lights.");
 
-		_image_ID_p1.create(_width, _height);
+		_image_tri_ids_p1.create(_width, _height);
 		//m_Image_ID2_p1.Create(m_iWidth, m_iHeight);
 
 		if (logic.rasterize_mini_lists) {
-			_image_tri_ids.create(_width, _height);
-			_tri_ids.clear(true);
+			_image_tri_minilists.create(_width, _height);
+			_minilist_tri_ids.clear(true);
 		}
 
 		if (bake_step_function) {
@@ -371,7 +371,7 @@ void LightMapper::process_texels_ambient_bounce_line_MT(uint32_t offset_y, int s
 
 	for (int x = 0; x < _width; x++) {
 		// find triangle
-		uint32_t tri_source = *_image_ID_p1.get(x, y);
+		uint32_t tri_source = *_image_tri_ids_p1.get(x, y);
 		if (tri_source) {
 			tri_source--; // plus one based
 			FColor power = process_texel_ambient_bounce(x, y, tri_source);
@@ -1589,7 +1589,7 @@ void LightMapper::_load_texel_data(uint32_t p_tri_id, const Vector3 &p_bary, Vec
 
 bool LightMapper::load_texel_data(int32_t p_x, int32_t p_y, uint32_t &r_tri_id, const Vector3 **r_bary, Vector3 &r_pos_pushed, Vector3 &r_normal, const Vector3 **r_plane_normal) const {
 	// find triangle
-	r_tri_id = *_image_ID_p1.get(p_x, p_y);
+	r_tri_id = *_image_tri_ids_p1.get(p_x, p_y);
 	if (!r_tri_id)
 		return false;
 	r_tri_id--; // plus one based
@@ -1638,8 +1638,16 @@ bool LightMapper::AA_BF_process_sub_texel_for_light(const Vector2 &p_st, const M
 	uint32_t tri_id;
 	Vector3 bary;
 
-	if (!AO_find_texel_triangle_facing_position(p_ml, p_st, tri_id, bary, light.pos, p_debug))
-		return false;
+	bool backfacing_hits = false;
+	if (!AO_find_texel_triangle_facing_position(p_ml, p_st, tri_id, bary, backfacing_hits, light.pos, p_debug)) {
+		// Only report failure to hit anything if no hits OR backfacing hits (even if color added is zero)
+		if (!backfacing_hits) {
+			return false;
+		}
+
+		r_col.set(0);
+		return true;
+	}
 
 	Vector3 pos;
 	Vector3 normal;
@@ -1766,7 +1774,7 @@ bool LightMapper::AA_BF_process_sub_texel(float p_fx, float p_fy, const MiniList
 }
 
 void LightMapper::AA_BF_process_texel(int p_tx, int p_ty) {
-	const MiniList &ml = _image_tri_ids.get_item(p_tx, p_ty);
+	const MiniList &ml = _image_tri_minilists.get_item(p_tx, p_ty);
 	if (!ml.num)
 		return; // no triangles in this UV
 
@@ -1775,17 +1783,26 @@ void LightMapper::AA_BF_process_texel(int p_tx, int p_ty) {
 		debug = true;
 
 	int aa_size = adjusted_settings.antialias_samples_width;
+
 	//float step = 1.0f / (aa_size + 2);
-	float step = 1.0f / (aa_size);
+
+	float step = 0;
+	float centre_offset = 0.5f;
+	if (aa_size > 1) {
+		step = 1.0f / (aa_size - 1);
+		centre_offset = 0;
+	}
 
 	Color col;
 	int samples_inside = 0;
 
 	for (int y = 0; y < aa_size; y++) {
-		float fy = p_ty + ((y + 0.5f) * step);
+		//float fy = p_ty + ((y + 0.5f) * step);
+		float fy = p_ty + (y * step) + centre_offset;
 
 		for (int x = 0; x < aa_size; x++) {
-			float fx = p_tx + ((x + 0.5f) * step);
+			//float fx = p_tx + ((x + 0.5f) * step);
+			float fx = p_tx + (x * step) + centre_offset;
 
 			if (AA_BF_process_sub_texel(fx, fy, ml, col))
 				samples_inside++;
@@ -1796,8 +1813,13 @@ void LightMapper::AA_BF_process_texel(int p_tx, int p_ty) {
 		//print_line("samples inside " + itos(samples_inside) + ", col " + String(Variant(col)));
 	}
 
-	if (!samples_inside)
+	if (!samples_inside) {
+		//print_line("No AA samples inside a tri for " + itos(p_tx) + ", " + itos(p_ty));
+		// NEW : Re-mark as unused, dilate to this texel, to prevent it being black.
+		_image_tri_ids_p1.get_item(p_tx, p_ty) = 0;
+
 		return;
+	}
 
 	col /= (float)samples_inside;
 
@@ -2018,7 +2040,7 @@ void LightMapper::process_emission_pixel_backward(int32_t p_x, int32_t p_y, cons
 	for (int y = 0; y < _height; y++) {
 		for (int x = 0; x < _width; x++) {
 			// find triangle
-			uint32_t tri_source = *_image_ID_p1.get(x, y);
+			uint32_t tri_source = *_image_tri_ids_p1.get(x, y);
 			if (tri_source) {
 				tri_source--; // plus one based
 

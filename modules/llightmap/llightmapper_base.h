@@ -140,12 +140,12 @@ protected:
 	LightImage<float> _image_AO;
 
 	// just in case of overlapping triangles, for anti aliasing we will maintain 2 lists of triangles per pixel
-	LightImage<uint32_t> _image_ID_p1;
+	LightImage<uint32_t> _image_tri_ids_p1;
 	//LightImage<uint32_t> m_Image_ID2_p1;
 
 	// store multiple triangles per texel
-	LightImage<MiniList> _image_tri_ids;
-	LVector<uint32_t> _tri_ids;
+	LightImage<MiniList> _image_tri_minilists;
+	LVector<uint32_t> _minilist_tri_ids;
 
 	LightImage<Vector3> _image_barycentric;
 

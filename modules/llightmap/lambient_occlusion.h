@@ -29,7 +29,7 @@ protected:
 		// This needs to check face normals, because there can be a large number of tris
 		// intersecting a single texel.
 		for (uint32_t i = 0; i < p_mini_list.num; i++) {
-			r_tri_inside = _tri_ids[p_mini_list.first + i];
+			r_tri_inside = _minilist_tri_ids[p_mini_list.first + i];
 			pUVTri = &_scene._uv_tris[r_tri_inside];
 
 			// within?
@@ -43,12 +43,13 @@ protected:
 		return false;
 	}
 
-	bool AO_find_texel_triangle_facing_position(const MiniList &p_mini_list, const Vector2 &p_st, uint32_t &r_tri_inside, Vector3 &r_bary, const Vector3 &p_facing_position, bool p_debug) const {
+	bool AO_find_texel_triangle_facing_position(const MiniList &p_mini_list, const Vector2 &p_st, uint32_t &r_tri_inside, Vector3 &r_bary, bool &r_backfacing_hits, const Vector3 &p_facing_position, bool p_debug) const {
 		// barycentric coords.
 		const UVTri *pUVTri;
 
 		uint32_t best = UINT32_MAX;
-		float best_insideness = FLT_MAX;
+		float best_insideness = 0.6f;
+		r_backfacing_hits = false;
 
 		//if (p_mini_list.num > 1)
 		//	p_debug = true;
@@ -56,7 +57,7 @@ protected:
 		// This needs to check face normals, because there can be a large number of tris
 		// intersecting a single texel.
 		for (uint32_t i = 0; i < p_mini_list.num; i++) {
-			uint32_t tri_inside = _tri_ids[p_mini_list.first + i];
+			uint32_t tri_inside = _minilist_tri_ids[p_mini_list.first + i];
 			pUVTri = &_scene._uv_tris[tri_inside];
 
 			// Within?
@@ -87,11 +88,14 @@ protected:
 					best = i;
 					r_bary = bary;
 					r_tri_inside = tri_inside;
+				} else {
+					r_backfacing_hits = true;
 				}
 			}
 		}
 
-		if ((best != -1) && (best_insideness < 0.6f)) {
+		//		if ((best != -1) && (best_insideness < 0.6f)) {
+		if (best != -1) {
 			return true;
 		}
 
