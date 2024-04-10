@@ -89,26 +89,6 @@ protected:
 					r_tri_inside = tri_inside;
 				}
 			}
-
-			//			if (barycentric_inside(r_bary)) {
-			//				Vector3 tri_pos;
-			//				_scene._tris[r_tri_inside].interpolate_barycentric(tri_pos, r_bary);
-
-			//				Vector3 tri_to_light = p_facing_position - tri_pos;
-
-			//				// Check whether facing the position.
-			//				const Vector3 &face_normal = _scene._tri_planes[r_tri_inside].normal;
-
-			//				float dot = face_normal.dot(tri_to_light);
-
-			//				if (p_debug)
-			//				{
-			//					print_line("\tface normal: " + String(Variant(face_normal)) + "\tdot: " + String(Variant(dot)));
-			//				}
-			//				if (dot > 0) {
-			//					return true;
-			//				}
-			//			}
 		}
 
 		if ((best != -1) && (best_insideness < 0.6f)) {

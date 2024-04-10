@@ -1015,7 +1015,7 @@ void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id,
 		bool keep_tracing = true;
 
 		// quick reject triangle
-#if 0
+#if 1
 		if (quick_reject_tri_id != -1) {
 			if (_scene.test_intersect_ray_triangle(r, ray_length, quick_reject_tri_id)) {
 				keep_tracing = false;
@@ -1657,9 +1657,9 @@ bool LightMapper::AA_BF_process_sub_texel_for_light(const Vector2 &p_st, const M
 
 bool LightMapper::AA_BF_process_sub_texel(float p_fx, float p_fy, const MiniList &p_ml, Color &r_col) {
 	bool debug = false;
-	if (((int)p_fx == 205) && ((int)p_fy == 82)) {
-		debug = true;
-	}
+	//	if (((int)p_fx == 205) && ((int)p_fy == 82)) {
+	//		debug = true;
+	//	}
 
 	// find which triangle on the minilist we are inside (if any)
 	uint32_t tri_id;
@@ -1694,14 +1694,20 @@ bool LightMapper::AA_BF_process_sub_texel(float p_fx, float p_fy, const MiniList
 	texel_add.set(0);
 	FColor temp;
 
+	bool subtexel_hits_tri = false;
+
 	for (int l = 0; l < _lights.size(); l++) {
 		if (AA_BF_process_sub_texel_for_light(st, p_ml, temp, l, num_samples, debug)) {
 			texel_add += temp;
+			subtexel_hits_tri = true;
 		}
 
 		//BF_process_texel_light(cols.albedo, l, pos, *plane_normal, normal, temp, num_samples, debug);
 		//texel_add += temp;
 	}
+
+	if (!subtexel_hits_tri)
+		return false;
 
 #if 0
 	// sky (if present)
