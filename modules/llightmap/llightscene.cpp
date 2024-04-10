@@ -925,6 +925,9 @@ void LightScene::thread_rasterize_triangle_ids(uint32_t p_tile, uint32_t *p_dumm
 
 		//const Rect2 &aabb = m_TriUVaabbs[n];
 		const UVTri &tri = _uv_tris[n];
+		if (tri.is_degenerate())
+			continue;
+
 		bool is_emission_tri = _emission_tri_bitfield.GetBit(n);
 
 		const Rect2i &bound = _tri_uv_bounds[n];
@@ -1136,7 +1139,7 @@ bool LightScene::rasterize_triangles_ids(LightMapper_Base &base, LightImage<uint
 
 					// NEW 2024: Deal with no triangle ID being registered on this texel.
 					// For instance, if an edge of a triangle glances the texel, but is not covering the centre.
-#define LLIGHTMAP_SPREAD_AT_EDGES
+//#define LLIGHTMAP_SPREAD_AT_EDGES
 #ifdef LLIGHTMAP_SPREAD_AT_EDGES
 					if (im_p1.get_item(x, y) == 0) {
 						im_p1.get_item(x, y) = vec[0] + 1;

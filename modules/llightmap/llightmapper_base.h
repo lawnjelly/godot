@@ -9,7 +9,7 @@
 #include "scene/3d/mesh_instance.h"
 #include "scene/3d/spatial.h"
 
-#define LLIGHTMAP_MULTITHREADED
+//#define LLIGHTMAP_MULTITHREADED
 
 #ifdef LLIGHTMAP_MULTITHREADED
 #define RAYBANK_USE_THREADING

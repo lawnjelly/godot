@@ -818,7 +818,7 @@ bool LightMapper::BF_process_texel_sky(const Color &orig_albedo, const Vector3 &
 }
 
 // trace from the poly TO the light, not the other way round, to avoid precision errors
-void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id, const Vector3 &ptSource, const Vector3 &orig_face_normal, const Vector3 &orig_vertex_normal, FColor &color, int nSamples) //, uint32_t tri_ignore)
+void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id, const Vector3 &ptSource, const Vector3 &orig_face_normal, const Vector3 &orig_vertex_normal, FColor &color, int nSamples, bool debug) //, uint32_t tri_ignore)
 {
 	const LLight &light = _lights[light_id];
 
@@ -893,6 +893,14 @@ void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id,
 
 	// for quick primary test on the last blocking triangle
 	int quick_reject_tri_id = -1;
+
+	// Point lights can be greatly simplified.
+	bool point_light = true;
+	int point_light_multiplier = nSamples;
+
+	if (point_light) {
+		nSamples = 1;
+	}
 
 	// each ray
 	for (int n = 0; n < nSamples; n++) {
@@ -969,10 +977,12 @@ void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id,
 				multiplier *= multiplier;
 			} break;
 			default: {
-				Vector3 offset;
-				generate_random_unit_dir(offset);
-				offset *= light.scale;
-				ptDest += offset;
+				if (!point_light) {
+					Vector3 offset;
+					generate_random_unit_dir(offset);
+					offset *= light.scale;
+					ptDest += offset;
+				}
 
 				// offset from origin to destination texel
 				r.o = ptSource;
@@ -987,10 +997,13 @@ void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id,
 			} break;
 		}
 
-		// only bother tracing if the light is in front of the surface normal
+			// only bother tracing if the light is in front of the surface normal
+			// FOR SOME REASON THIS IS CAUSING ARTIFACTS.
+#if 0
 		float dot_light_surf = orig_vertex_normal.dot(r.d);
 		if (dot_light_surf <= 0.0f)
 			continue;
+#endif
 
 		//Vector3 ray_origin = r.o;
 		FColor sample_color = light.color;
@@ -1002,11 +1015,13 @@ void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id,
 		bool keep_tracing = true;
 
 		// quick reject triangle
+#if 0
 		if (quick_reject_tri_id != -1) {
 			if (_scene.test_intersect_ray_triangle(r, ray_length, quick_reject_tri_id)) {
 				keep_tracing = false;
 			}
 		}
+#endif
 
 		while (keep_tracing) {
 			keep_tracing = false;
@@ -1016,6 +1031,13 @@ void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id,
 
 			_scene._tracer._use_SDF = true;
 			int tri = _scene.find_intersect_ray(r, u, v, w, t);
+
+			if (debug && tri != -1) {
+				Vector3 hit_point = r.o + (r.d * t);
+				print_line("debug tri hit: " + itos(tri));
+				print_line("at position: " + String(Variant(hit_point)));
+			}
+
 			//		m_Scene.m_Tracer.m_bUseSDF = false;
 			//		int tri2 = m_Scene.IntersectRay(r, u, v, w, t, m_iNumTests);
 			//		if (tri != tri2)
@@ -1027,14 +1049,23 @@ void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id,
 
 			// further away than the destination?
 			if (tri != -1) {
-				if (t > ray_length)
+				if (t > ray_length) {
 					tri = -1;
+				}
 				//				else
 				//				{
 				//					// we hit something, move the ray origin to the thing hit
 				//					r.o += r.d * t;
 				//				}
 			}
+
+#if 0
+#ifdef DEV_ENABLED
+			if (tri != -1) {
+				DEV_ASSERT(_scene.test_intersect_ray(r, ray_length) == true);
+			}
+#endif
+#endif
 
 			// nothing hit
 			if (tri == -1)
@@ -1048,16 +1079,29 @@ void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id,
 				// no drop off for directional lights
 				//float dist = (ptDest - ray_origin).length();
 				float dist = ray_length;
+
+#if 0
 				local_power = light_distance_drop_off(dist, light, power);
+#else
+				local_power = power;
+#endif
 
 				// take into account normal
 				float dot = r.d.dot(orig_vertex_normal);
+#if 0
 				dot = fabs(dot);
+#else
+				dot = MAX(0.0f, dot);
+#endif
 
 				//local_power *= dot;
 
 				// cone falloff
 				local_power *= multiplier;
+
+				if (point_light) {
+					local_power *= point_light_multiplier;
+				}
 
 				// total color // this was incorrect because it also reduced the bounce power.
 				sample_color *= local_power;
@@ -1587,7 +1631,36 @@ bool LightMapper::load_texel_data(int32_t p_x, int32_t p_y, uint32_t &r_tri_id, 
 	*/
 }
 
+bool LightMapper::AA_BF_process_sub_texel_for_light(const Vector2 &p_st, const MiniList &p_ml, FColor &r_col, int p_light_id, int32_t p_num_samples, bool p_debug) {
+	const LLight &light = _lights[p_light_id];
+
+	// Find which triangle on the minilist we are inside (if any).
+	uint32_t tri_id;
+	Vector3 bary;
+
+	if (!AO_find_texel_triangle_facing_position(p_ml, p_st, tri_id, bary, light.pos, p_debug))
+		return false;
+
+	Vector3 pos;
+	Vector3 normal;
+	const Vector3 *plane_normal = nullptr;
+	_load_texel_data(tri_id, bary, pos, normal, &plane_normal);
+
+	// find the colors of this texel
+	ColorSample cols;
+	_scene.take_triangle_color_sample(tri_id, bary, cols);
+
+	BF_process_texel_light(cols.albedo, p_light_id, pos, *plane_normal, normal, r_col, p_num_samples);
+
+	return true;
+}
+
 bool LightMapper::AA_BF_process_sub_texel(float p_fx, float p_fy, const MiniList &p_ml, Color &r_col) {
+	bool debug = false;
+	if (((int)p_fx == 205) && ((int)p_fy == 82)) {
+		debug = true;
+	}
+
 	// find which triangle on the minilist we are inside (if any)
 	uint32_t tri_id;
 	Vector3 bary;
@@ -1597,6 +1670,7 @@ bool LightMapper::AA_BF_process_sub_texel(float p_fx, float p_fy, const MiniList
 	st.x /= _width;
 	st.y /= _height;
 
+#if 0
 	if (!AO_find_texel_triangle(p_ml, st, tri_id, bary))
 		return false;
 
@@ -1609,6 +1683,7 @@ bool LightMapper::AA_BF_process_sub_texel(float p_fx, float p_fy, const MiniList
 	// find the colors of this texel
 	ColorSample cols;
 	_scene.take_triangle_color_sample(tri_id, bary, cols);
+#endif
 
 	//r_col.r += 1.0f;
 
@@ -1620,10 +1695,15 @@ bool LightMapper::AA_BF_process_sub_texel(float p_fx, float p_fy, const MiniList
 	FColor temp;
 
 	for (int l = 0; l < _lights.size(); l++) {
-		BF_process_texel_light(cols.albedo, l, pos, *plane_normal, normal, temp, num_samples);
-		texel_add += temp;
+		if (AA_BF_process_sub_texel_for_light(st, p_ml, temp, l, num_samples, debug)) {
+			texel_add += temp;
+		}
+
+		//BF_process_texel_light(cols.albedo, l, pos, *plane_normal, normal, temp, num_samples, debug);
+		//texel_add += temp;
 	}
 
+#if 0
 	// sky (if present)
 	if (BF_process_texel_sky(cols.albedo, pos, *plane_normal, normal, temp)) {
 		// scale sky by number of samples in the normal lights
@@ -1667,7 +1747,7 @@ bool LightMapper::AA_BF_process_sub_texel(float p_fx, float p_fy, const MiniList
 				BF_process_texel_light_bounce(adjusted_settings.num_directional_bounces, r, femm); // always at least 1 emission ray
 			}
 		}
-	}
+#endif
 
 	Color ctemp;
 	texel_add.to(ctemp);
@@ -1685,7 +1765,7 @@ void LightMapper::AA_BF_process_texel(int p_tx, int p_ty) {
 		return; // no triangles in this UV
 
 	bool debug = false;
-	if ((p_tx == 305) && (p_ty == 248))
+	if ((p_tx == 328) && (p_ty == 317))
 		debug = true;
 
 	int aa_size = adjusted_settings.antialias_samples_width;

@@ -22,19 +22,97 @@ protected:
 	float calculate_AO(int tx, int ty, int qmc_variation, const MiniList &ml);
 	float calculate_AO_complex(int tx, int ty, int qmc_variation, const MiniList &ml);
 
-	bool AO_find_texel_triangle(const MiniList &ml, const Vector2 &st, uint32_t &tri_inside, Vector3 &bary) const {
+	bool AO_find_texel_triangle(const MiniList &p_mini_list, const Vector2 &p_st, uint32_t &r_tri_inside, Vector3 &r_bary) const {
 		// barycentric coords.
 		const UVTri *pUVTri;
 
-		for (uint32_t i = 0; i < ml.num; i++) {
-			tri_inside = _tri_ids[ml.first + i];
-			pUVTri = &_scene._uv_tris[tri_inside];
+		// This needs to check face normals, because there can be a large number of tris
+		// intersecting a single texel.
+		for (uint32_t i = 0; i < p_mini_list.num; i++) {
+			r_tri_inside = _tri_ids[p_mini_list.first + i];
+			pUVTri = &_scene._uv_tris[r_tri_inside];
 
 			// within?
-			pUVTri->find_barycentric_coords(st, bary);
-			if (barycentric_inside(bary)) {
+			pUVTri->find_barycentric_coords(p_st, r_bary);
+			if (barycentric_inside(r_bary)) {
 				return true;
 			}
+		}
+
+		// not inside any triangles
+		return false;
+	}
+
+	bool AO_find_texel_triangle_facing_position(const MiniList &p_mini_list, const Vector2 &p_st, uint32_t &r_tri_inside, Vector3 &r_bary, const Vector3 &p_facing_position, bool p_debug) const {
+		// barycentric coords.
+		const UVTri *pUVTri;
+
+		uint32_t best = UINT32_MAX;
+		float best_insideness = FLT_MAX;
+
+		//if (p_mini_list.num > 1)
+		//	p_debug = true;
+
+		// This needs to check face normals, because there can be a large number of tris
+		// intersecting a single texel.
+		for (uint32_t i = 0; i < p_mini_list.num; i++) {
+			uint32_t tri_inside = _tri_ids[p_mini_list.first + i];
+			pUVTri = &_scene._uv_tris[tri_inside];
+
+			// Within?
+			Vector3 bary;
+			pUVTri->find_barycentric_coords(p_st, bary);
+
+			float insideness = barycentric_insideness(bary);
+			if (p_debug) {
+				print_line("Tri " + itos(i) + " (" + itos(tri_inside) + ")\tbary : " + String(Variant(bary)) + "\tinsideness: " + String(Variant(insideness)));
+			}
+
+			if (insideness < best_insideness) {
+				Vector3 tri_pos;
+				_scene._tris[tri_inside].interpolate_barycentric(tri_pos, bary);
+				Vector3 tri_to_light = p_facing_position - tri_pos;
+
+				// Check whether facing the position.
+				const Vector3 &face_normal = _scene._tri_planes[tri_inside].normal;
+
+				float dot = face_normal.dot(tri_to_light);
+
+				//				if (p_debug)
+				//				{
+				//					print_line("\tface normal: " + String(Variant(face_normal)) + "\tdot: " + String(Variant(dot)));
+				//				}
+				if (dot > 0) {
+					best_insideness = insideness;
+					best = i;
+					r_bary = bary;
+					r_tri_inside = tri_inside;
+				}
+			}
+
+			//			if (barycentric_inside(r_bary)) {
+			//				Vector3 tri_pos;
+			//				_scene._tris[r_tri_inside].interpolate_barycentric(tri_pos, r_bary);
+
+			//				Vector3 tri_to_light = p_facing_position - tri_pos;
+
+			//				// Check whether facing the position.
+			//				const Vector3 &face_normal = _scene._tri_planes[r_tri_inside].normal;
+
+			//				float dot = face_normal.dot(tri_to_light);
+
+			//				if (p_debug)
+			//				{
+			//					print_line("\tface normal: " + String(Variant(face_normal)) + "\tdot: " + String(Variant(dot)));
+			//				}
+			//				if (dot > 0) {
+			//					return true;
+			//				}
+			//			}
+		}
+
+		if ((best != -1) && (best_insideness < 0.6f)) {
+			return true;
 		}
 
 		// not inside any triangles

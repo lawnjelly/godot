@@ -297,6 +297,10 @@ public:
 		const Vector2 &c = uv[2];
 		return (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y);
 	}
+
+	bool is_degenerate() const {
+		return Math::absf(calculate_twice_area()) < 0.000001f;
+	}
 };
 
 void generate_random_unit_dir(Vector3 &dir) {
@@ -358,6 +362,16 @@ bool barycentric_inside(float u, float v, float w) {
 		return false;
 
 	return true;
+}
+
+float barycentric_insideness(const Vector3 &bary) {
+	float d = 0;
+	for (uint32_t n = 0; n < 3; n++) {
+		float offset = Math::absf(bary.coord[n] - 0.5f);
+		d = MAX(d, offset);
+	}
+
+	return d;
 }
 
 bool barycentric_inside(const Vector3 &bary) {
