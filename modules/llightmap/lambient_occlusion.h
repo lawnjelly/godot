@@ -33,7 +33,9 @@ protected:
 			pUVTri = &_scene._uv_tris[r_tri_inside];
 
 			// within?
-			pUVTri->find_barycentric_coords(p_st, r_bary);
+			if (!pUVTri->find_barycentric_coords(p_st, r_bary))
+				continue;
+
 			if (barycentric_inside(r_bary)) {
 				return true;
 			}
@@ -48,7 +50,7 @@ protected:
 		const UVTri *pUVTri;
 
 		uint32_t best = UINT32_MAX;
-		float best_insideness = 0.6f;
+		float best_insideness = 0.51f; // 0.6
 		r_backfacing_hits = false;
 
 		//if (p_mini_list.num > 1)
@@ -62,7 +64,9 @@ protected:
 
 			// Within?
 			Vector3 bary;
-			pUVTri->find_barycentric_coords(p_st, bary);
+
+			if (!pUVTri->find_barycentric_coords(p_st, bary))
+				continue;
 
 			float insideness = barycentric_insideness(bary);
 			if (p_debug) {

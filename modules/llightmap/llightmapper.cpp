@@ -237,7 +237,10 @@ bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_ro
 		print_line("Found " + itos(_lights.size()) + " lights.");
 
 		_image_tri_ids_p1.create(_width, _height);
-		//m_Image_ID2_p1.Create(m_iWidth, m_iHeight);
+
+#ifdef LLIGHTMAP_DEBUG_RECLAIMED_TEXELS
+		_image_reclaimed_texels.create(_width, _height);
+#endif
 
 		if (logic.rasterize_mini_lists) {
 			_image_tri_minilists.create(_width, _height);
@@ -1076,11 +1079,11 @@ void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id,
 				// of the likelihood of 'catching' a ray. In forward tracing this happens by magic.
 				float local_power;
 
+#if 0
 				// no drop off for directional lights
 				//float dist = (ptDest - ray_origin).length();
 				float dist = ray_length;
 
-#if 0
 				local_power = light_distance_drop_off(dist, light, power);
 #else
 				local_power = power;
@@ -1665,13 +1668,11 @@ bool LightMapper::AA_BF_process_sub_texel_for_light(const Vector2 &p_st, const M
 
 bool LightMapper::AA_BF_process_sub_texel(float p_fx, float p_fy, const MiniList &p_ml, Color &r_col) {
 	bool debug = false;
-	//	if (((int)p_fx == 205) && ((int)p_fy == 82)) {
-	//		debug = true;
-	//	}
-
-	// find which triangle on the minilist we are inside (if any)
-	uint32_t tri_id;
-	Vector3 bary;
+#ifdef LLIGHTMAP_DEBUG_SPECIFIC_TEXEL
+	if (((int)p_fx == 461) && ((int)p_fy == 470)) {
+		debug = true;
+	}
+#endif
 
 	// has to be ranged 0 to 1
 	Vector2 st(p_fx, p_fy);
@@ -1679,6 +1680,10 @@ bool LightMapper::AA_BF_process_sub_texel(float p_fx, float p_fy, const MiniList
 	st.y /= _height;
 
 #if 0
+	// find which triangle on the minilist we are inside (if any)
+	uint32_t tri_id;
+	Vector3 bary;
+
 	if (!AO_find_texel_triangle(p_ml, st, tri_id, bary))
 		return false;
 
@@ -1696,6 +1701,7 @@ bool LightMapper::AA_BF_process_sub_texel(float p_fx, float p_fy, const MiniList
 	//r_col.r += 1.0f;
 
 	int num_samples = adjusted_settings.backward_num_rays / adjusted_settings.antialias_samples_per_texel;
+	num_samples = MAX(num_samples, 1);
 	//	int num_samples = 1;
 
 	FColor texel_add;
@@ -1774,13 +1780,31 @@ bool LightMapper::AA_BF_process_sub_texel(float p_fx, float p_fy, const MiniList
 }
 
 void LightMapper::AA_BF_process_texel(int p_tx, int p_ty) {
+#ifdef LLIGHTMAP_DEBUG_SPECIFIC_TEXEL
+	// for testing only centre around the debug area
+	int debug_x = 461;
+	int debug_y = 470;
+
+	// 461, 470
+#ifdef DEV_ENABLED
+	if (Math::abs(p_tx - debug_x) > 10)
+		return;
+	if (Math::abs(p_ty - debug_y) > 10)
+		return;
+#endif
+#endif
+
 	const MiniList &ml = _image_tri_minilists.get_item(p_tx, p_ty);
+
+#ifdef LLIGHTMAP_DEBUG_SPECIFIC_TEXEL
+	bool debug = false;
+
+	if ((p_tx == debug_x) && (p_ty == debug_y))
+		debug = true;
+#endif
+
 	if (!ml.num)
 		return; // no triangles in this UV
-
-	bool debug = false;
-	if ((p_tx == 328) && (p_ty == 317))
-		debug = true;
 
 	int aa_size = adjusted_settings.antialias_samples_width;
 
@@ -1809,14 +1833,31 @@ void LightMapper::AA_BF_process_texel(int p_tx, int p_ty) {
 		}
 	}
 
+#ifdef LLIGHTMAP_DEBUG_SPECIFIC_TEXEL
 	if (debug) {
-		//print_line("samples inside " + itos(samples_inside) + ", col " + String(Variant(col)));
+		print_line("samples inside " + itos(samples_inside) + ", col " + String(Variant(col)));
+
+		for (uint32_t i = 0; i < ml.num; i++) {
+			uint32_t tri_inside = _minilist_tri_ids[ml.first + i];
+			const UVTri &uv_tri = _scene._uv_tris[tri_inside];
+
+			String sz = "tri_id " + itos(tri_inside);
+
+			for (uint32_t c = 0; c < 3; c++) {
+				sz += "\t" + String(Variant(uv_tri.uv[c] * Vector2(_width, _height)));
+			}
+			print_line(sz);
+		}
 	}
+#endif
 
 	if (!samples_inside) {
 		//print_line("No AA samples inside a tri for " + itos(p_tx) + ", " + itos(p_ty));
 		// NEW : Re-mark as unused, dilate to this texel, to prevent it being black.
 		_image_tri_ids_p1.get_item(p_tx, p_ty) = 0;
+#ifdef LLIGHTMAP_DEBUG_RECLAIMED_TEXELS
+		_image_reclaimed_texels.get_item(p_tx, p_ty) = 255;
+#endif
 
 		return;
 	}

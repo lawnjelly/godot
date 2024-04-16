@@ -214,7 +214,7 @@ void LightScene::process_voxel_hits_old(const Ray &ray, const Voxel &voxel, floa
 		for (int q = 0; q < quads; q++) {
 			// get pointers to 4 triangles
 			const Tri *pTris[4];
-#if LLIGHTMAPPED_DEBUG_COMPARE_SIMD
+#ifdef LLIGHTMAPPED_DEBUG_COMPARE_SIMD
 			float nearest_ref_dist = FLT_MAX;
 			int ref_winner_tri_id = -1;
 			int ref_winner_n = -1;
@@ -223,7 +223,7 @@ void LightScene::process_voxel_hits_old(const Ray &ray, const Voxel &voxel, floa
 			for (int n = 0; n < 4; n++) {
 				unsigned int tri_id = _tracer._tri_hits[nStart++];
 
-#if LLIGHTMAPPED_DEBUG_COMPARE_SIMD
+#ifdef LLIGHTMAPPED_DEBUG_COMPARE_SIMD
 				float t = 0.0f;
 				print_line("ref input triangle" + itos(n));
 				const Tri &ref_input_tri = m_Tris_EdgeForm[tri_id];
@@ -925,6 +925,7 @@ void LightScene::thread_rasterize_triangle_ids(uint32_t p_tile, uint32_t *p_dumm
 
 		//const Rect2 &aabb = m_TriUVaabbs[n];
 		const UVTri &tri = _uv_tris[n];
+
 		if (tri.is_degenerate())
 			continue;
 
@@ -952,12 +953,30 @@ void LightScene::thread_rasterize_triangle_ids(uint32_t p_tile, uint32_t *p_dumm
 				float s = (x + 0.5f) / (float)width;
 				float t = (y + 0.5f) / (float)height;
 
-				//				if ((x == 26) && (y == 25))
-				//				{
-				//					print_line("testing");
-				//				}
+				int debug_x = 462;
+				int debug_y = 471;
 
+				bool debug_texel = ((x == debug_x) && (y == debug_y));
+				if (debug_texel) {
+					// For debugging lets get these tri coords in standard space.
+					UVTri temp_tri = tri;
+
+					for (int c = 0; c < 3; c++) {
+						temp_tri.uv[c] *= Vector2(width, height);
+						temp_tri.uv[c] -= Vector2(debug_x, debug_y);
+
+						print_line("\t" + itos(c) + " : " + String(Variant(temp_tri.uv[c])));
+					}
+
+					print_line("rasterize triangle ids testing");
+				}
+
+				// NOTE: can make this always true for debugging purposes.
 				if (tri.contains_texel(x, y, width, height)) {
+					if (debug_texel) {
+						print_line("rasterize triangle ids within triangle");
+					}
+
 					if (rtip.base->logic.rasterize_mini_lists)
 						rtip.temp_image_tris.get_item(x, y).push_back(n);
 					if (tri.contains_point(Vector2(s, t))) {
@@ -977,38 +996,39 @@ void LightScene::thread_rasterize_triangle_ids(uint32_t p_tile, uint32_t *p_dumm
 						}
 #endif
 
-						// save new id
-						id_p1 = n + 1;
-
 						// find barycentric coords
 						float u, v, w;
 
 						// note this returns NAN for degenerate triangles!
-						tri.find_barycentric_coords(Vector2(s, t), u, v, w);
+						if (tri.find_barycentric_coords(Vector2(s, t), u, v, w)) {
+							// save new id AFTER making sure not degenerate.
+							id_p1 = n + 1;
 
-						//					assert (!isnan(u));
-						//					assert (!isnan(v));
-						//					assert (!isnan(w));
+							//					assert (!isnan(u));
+							//					assert (!isnan(v));
+							//					assert (!isnan(w));
 
-						Vector3 &bary = rtip.im_bary->get_item(x, y);
-						bary = Vector3(u, v, w);
+							Vector3 &bary = rtip.im_bary->get_item(x, y);
+							bary = Vector3(u, v, w);
 
-						if (is_emission_tri) {
-							Color &em_col = _image_emission_done.get_item(x, y);
+							if (is_emission_tri) {
+								Color &em_col = _image_emission_done.get_item(x, y);
 
-							if (_image_emission_done.get_item(x, y).a < 2) {
-								_emission_pixels.push_back(Vec2_i16(x, y));
-								em_col.a = 4;
-							}
+								if (_image_emission_done.get_item(x, y).a < 2) {
+									_emission_pixels.push_back(Vec2_i16(x, y));
+									em_col.a = 4;
+								}
 
-							// store the highest emission color
-							ColorSample cols;
-							take_triangle_color_sample(n, bary, cols);
+								// store the highest emission color
+								ColorSample cols;
+								take_triangle_color_sample(n, bary, cols);
 
-							em_col.r = MAX(em_col.r, cols.emission.r);
-							em_col.g = MAX(em_col.g, cols.emission.g);
-							em_col.b = MAX(em_col.b, cols.emission.b);
-						}
+								em_col.r = MAX(em_col.r, cols.emission.r);
+								em_col.g = MAX(em_col.g, cols.emission.g);
+								em_col.b = MAX(em_col.b, cols.emission.b);
+							} // emission
+						} // is not degenerate
+
 					} // contains point
 				} // contains texel
 
@@ -1067,6 +1087,9 @@ bool LightScene::rasterize_triangles_ids(LightMapper_Base &base, LightImage<uint
 
 	for (int n = 0; n < _uv_tris.size(); n++) {
 		const Rect2 &aabb = _tri_uv_aabbs[n];
+
+		DEV_ASSERT(aabb.size.x >= 0);
+		DEV_ASSERT(aabb.size.y >= 0);
 
 		int min_x = aabb.position.x * width;
 		int min_y = aabb.position.y * height;

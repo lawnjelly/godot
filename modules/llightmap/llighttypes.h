@@ -288,8 +288,8 @@ public:
 	bool contains_point(const Vector2 &pt, float epsilon = 0.0f) const;
 	bool contains_texel(int tx, int ty, int width, int height) const;
 
-	void find_barycentric_coords(const Vector2 &pt, float &u, float &v, float &w) const;
-	void find_barycentric_coords(const Vector2 &pt, Vector3 &bary) const { find_barycentric_coords(pt, bary.x, bary.y, bary.z); }
+	bool find_barycentric_coords(const Vector2 &pt, float &u, float &v, float &w) const;
+	bool find_barycentric_coords(const Vector2 &pt, Vector3 &bary) const { return find_barycentric_coords(pt, bary.x, bary.y, bary.z); }
 	bool is_winding_CW() const { return calculate_twice_area() < 0.0f; }
 	float calculate_twice_area() const {
 		const Vector2 &a = uv[0];
@@ -299,7 +299,7 @@ public:
 	}
 
 	bool is_degenerate() const {
-		return Math::absf(calculate_twice_area()) < 0.000001f;
+		return Math::absf(calculate_twice_area()) == 0; // 0.000001f;
 	}
 };
 
@@ -674,7 +674,7 @@ inline bool UVTri::contains_point(const Vector2 &pt, float epsilon) const {
 	return true;
 }
 
-inline void UVTri::find_barycentric_coords(const Vector2 &pt, float &u, float &v, float &w) const {
+inline bool UVTri::find_barycentric_coords(const Vector2 &pt, float &u, float &v, float &w) const {
 	const Vector2 &a = uv[0];
 	const Vector2 &b = uv[1];
 	const Vector2 &c = uv[2];
@@ -692,10 +692,11 @@ inline void UVTri::find_barycentric_coords(const Vector2 &pt, float &u, float &v
 	if (denom == 0.0f) {
 		// panic mode, return something reasonable.
 		// THIS DOES HAPPEN
+		WARN_PRINT("UVTri::find_barycentric_coords - Degenerate triangle detected.");
 		u = 0.0f;
 		v = 0.0f;
 		w = 0.0f;
-		return;
+		return false;
 	}
 
 	float invDenom = 1.0f / denom;
@@ -703,6 +704,7 @@ inline void UVTri::find_barycentric_coords(const Vector2 &pt, float &u, float &v
 	v = (d11 * d20 - d01 * d21) * invDenom;
 	w = (d00 * d21 - d01 * d20) * invDenom;
 	u = 1.0f - v - w;
+	return true;
 }
 
 inline void UVTri::find_uv_barycentric(Vector2 &res, float u, float v, float w) const {

@@ -127,6 +127,9 @@ void LightMapper_Base::base_reset() {
 
 	_image_AO.reset();
 	_image_tri_ids_p1.reset();
+#ifdef LLIGHTMAP_DEBUG_RECLAIMED_TEXELS
+	_image_reclaimed_texels.reset();
+#endif
 	_image_tri_minilists.reset();
 
 	_minilist_tri_ids.clear(true);
@@ -176,7 +179,7 @@ void LightMapper_Base::calculate_quality_adjusted_settings() {
 	as.sky_brightness = data.params[PARAM_SKY_BRIGHTNESS];
 	as.sky_brightness *= as.sky_brightness;
 
-	as.antialias_samples_width = 8; // 8
+	as.antialias_samples_width = 16; // 8
 	as.antialias_samples_per_texel = as.antialias_samples_width * as.antialias_samples_width;
 
 	// overrides
@@ -482,7 +485,9 @@ void LightMapper_Base::light_to_plane(LLight &light) {
 
 bool LightMapper_Base::prepare_image_maps() {
 	_image_tri_ids_p1.blank();
-	//m_Image_ID2_p1.Blank();
+#ifdef LLIGHTMAP_DEBUG_RECLAIMED_TEXELS
+	_image_reclaimed_texels.blank();
+#endif
 
 	// rasterize each triangle in turn
 	//m_Scene.RasterizeTriangleIDs(*this, m_Image_ID_p1, m_Image_ID2_p1, m_Image_Barycentric);
@@ -751,6 +756,28 @@ void LightMapper_Base::merge_and_write_output_image_combined(Image &image) {
 		}
 	}
 
+	// mark magenta
+	//	if (settings.bake_mode == LMBAKEMODE_LIGHTMAP || settings.bake_mode == LMBAKEMODE_AO) {
+	if (_image_tri_ids_p1.get_num_pixels()) {
+		if (data.params[PARAM_DILATE_ENABLED] != Variant(true)) {
+			for (uint32_t y = 0; y < _height; y++) {
+				for (uint32_t x = 0; x < _width; x++) {
+					if (_image_tri_ids_p1.get_item(x, y) == 0) {
+#ifdef LLIGHTMAP_DEBUG_RECLAIMED_TEXELS
+						if (_image_reclaimed_texels.get_item(x, y) == 0) {
+							image.set_pixel(x, y, Color(1, 0, 1));
+						} else {
+							image.set_pixel(x, y, Color(1, 0, 0));
+						}
+#else
+						image.set_pixel(x, y, Color(1, 0, 1));
+#endif
+					}
+				}
+			}
+		}
+	}
+
 	/*
 	float gamma = 1.0f / settings.Gamma;
 
@@ -838,8 +865,8 @@ void LightMapper_Base::write_output_image_AO(Image &image) {
 			// debug mark the dilated pixels
 //#define MARK_AO_DILATED
 #ifdef MARK_AO_DILATED
-			if (!m_Image_ID_p1.GetItem(x, y)) {
-				col = Color(1.0f, 0.33f, 0.66f, 1);
+			if (!dilate && !_image_tri_ids_p1.get_item(x, y)) {
+				col = Color(1, 0, 1);
 			}
 #endif
 			image.set_pixel(x, y, col);
@@ -865,15 +892,15 @@ void LightMapper_Base::write_output_image_lightmap(Image &image) {
 	if (data.params[PARAM_DILATE_ENABLED] == Variant(true)) {
 		Dilate<FColor> dilate;
 		dilate.dilate_image(_image_L, _image_tri_ids_p1, 256);
-	} else {
-		// mark magenta
-		for (uint32_t y = 0; y < _height; y++) {
-			for (uint32_t x = 0; x < _width; x++) {
-				if (_image_tri_ids_p1.get_item(x, y) == 0) {
-					_image_L.get_item(x, y).set(1, 0, 1);
-				}
-			}
-		}
+		//	} else {
+		//		// mark magenta
+		//		for (uint32_t y = 0; y < _height; y++) {
+		//			for (uint32_t x = 0; x < _width; x++) {
+		//				if (_image_tri_ids_p1.get_item(x, y) == 0) {
+		//					_image_L.get_item(x, y).set(1, 0, 1);
+		//				}
+		//			}
+		//		}
 	}
 
 	////
