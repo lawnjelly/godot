@@ -866,6 +866,9 @@ void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id,
 
 	// omni cull by distance?
 
+	// Point lights can be greatly simplified.
+	bool point_light = false;
+
 	// cull by surface normal .. anything facing away gets no light (plus a bit for wraparound)
 	// about 5% faster with this cull with a lot of omnis
 	if (light.type == LLight::LT_OMNI) {
@@ -897,13 +900,14 @@ void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id,
 			if (dot_light_surf < dot_threshold)
 				return;
 		}
+
+		if (radius == 0) {
+			point_light = true;
+		}
 	}
 
 	// for quick primary test on the last blocking triangle
 	int quick_reject_tri_id = -1;
-
-	// Point lights can be greatly simplified.
-	bool point_light = false;
 
 	if (point_light) {
 		r_sub_texel_sample.num_samples = 1;
