@@ -20,6 +20,13 @@ struct ColorSample {
 	bool is_emitter = false;
 };
 
+struct SubTexelSample {
+	uint32_t num_samples = 0;
+	uint32_t num_clear_samples = 0;
+	uint32_t num_opaque_hits = 0;
+	uint32_t num_transparent_hits = 0;
+};
+
 class Vec3i {
 public:
 	Vec3i() {}
@@ -158,6 +165,20 @@ struct FHit {
 
 struct FColor {
 	float r, g, b;
+	static FColor from_color(const Color &p_col) {
+		FColor c;
+		c.r = p_col.r;
+		c.g = p_col.g;
+		c.b = p_col.b;
+		return c;
+	}
+	Color to_color() const {
+		Color c;
+		c.r = r;
+		c.g = g;
+		c.b = b;
+		return c;
+	}
 	void set(float v) {
 		r = v;
 		g = v;

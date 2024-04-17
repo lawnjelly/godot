@@ -455,6 +455,7 @@ void LightMapper::process_texels_ambient_bounce(int section_size, int num_sectio
 	}
 }
 
+#if 0
 void LightMapper::backward_trace_triangles() {
 	int nTris = _scene._tris.size();
 
@@ -482,6 +483,7 @@ void LightMapper::backward_trace_triangles() {
 		bake_end_function();
 	}
 }
+
 
 void LightMapper::backward_trace_triangle(int tri_id) {
 	const UVTri &tri = _scene._uv_tris[tri_id];
@@ -561,10 +563,13 @@ void LightMapper::backward_trace_sample(int tri_id) {
 		*pTexel += femm * power;
 	}
 }
+#endif
 
 void LightMapper::backward_process_texels() {
 	//Backward_TraceTriangles();
 	//return;
+
+	_AA_create_kernel();
 
 	//int nCores = OS::get_singleton()->get_processor_count();
 
@@ -821,7 +826,7 @@ bool LightMapper::BF_process_texel_sky(const Color &orig_albedo, const Vector3 &
 }
 
 // trace from the poly TO the light, not the other way round, to avoid precision errors
-void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id, const Vector3 &ptSource, const Vector3 &orig_face_normal, const Vector3 &orig_vertex_normal, FColor &color, int nSamples, bool debug) //, uint32_t tri_ignore)
+void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id, const Vector3 &ptSource, const Vector3 &orig_face_normal, const Vector3 &orig_vertex_normal, Color &r_color, SubTexelSample &r_sub_texel_sample, bool debug) //, uint32_t tri_ignore)
 {
 	const LLight &light = _lights[light_id];
 
@@ -833,7 +838,7 @@ void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id,
 	//int nSamples = m_AdjustedSettings.m_Backward_NumRays;
 
 	// total light hitting texel
-	color.set(0.0f);
+	r_color = Color();
 
 	// for a spotlight, we can cull completely in a lot of cases.
 	if (light.type == LLight::LT_SPOT) {
@@ -899,11 +904,13 @@ void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id,
 
 	// Point lights can be greatly simplified.
 	bool point_light = true;
-	int point_light_multiplier = nSamples;
 
 	if (point_light) {
-		nSamples = 1;
+		r_sub_texel_sample.num_samples = 1;
 	}
+
+	int nSamples = r_sub_texel_sample.num_samples;
+	int point_light_multiplier = nSamples;
 
 	// each ray
 	for (int n = 0; n < nSamples; n++) {
@@ -1009,7 +1016,7 @@ void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id,
 #endif
 
 		//Vector3 ray_origin = r.o;
-		FColor sample_color = light.color;
+		Color sample_color = light.color;
 		int panic_count = 32;
 
 		// for bounces
@@ -1022,6 +1029,7 @@ void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id,
 		if (quick_reject_tri_id != -1) {
 			if (_scene.test_intersect_ray_triangle(r, ray_length, quick_reject_tri_id)) {
 				keep_tracing = false;
+				r_sub_texel_sample.num_opaque_hits += 1;
 			}
 		}
 #endif
@@ -1074,6 +1082,8 @@ void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id,
 			if (tri == -1)
 			//if ((tri == -1) || (tri == (int) tri_ignore))
 			{
+				r_sub_texel_sample.num_clear_samples += 1;
+
 				// for backward tracing, first pass, this is a special case, because we DO
 				// take account of distance to the light, and normal, in order to simulate the effects
 				// of the likelihood of 'catching' a ray. In forward tracing this happens by magic.
@@ -1108,7 +1118,7 @@ void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id,
 
 				// total color // this was incorrect because it also reduced the bounce power.
 				sample_color *= local_power;
-				color += (sample_color * dot);
+				r_color += (sample_color * dot);
 
 				// new .. only apply the local power for the first hit, not for the bounces
 				//				color += sample_color * (local_power * dot);
@@ -1153,6 +1163,7 @@ void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id,
 
 				if (!cols.is_opaque) {
 					bool opaque = cols.albedo.a > 0.999f;
+					r_sub_texel_sample.num_transparent_hits += 1;
 
 					// push ray past the surface
 					if (!opaque) {
@@ -1183,6 +1194,7 @@ void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id,
 					}
 				} else {
 					quick_reject_tri_id = tri;
+					r_sub_texel_sample.num_opaque_hits += 1;
 				}
 			}
 
@@ -1219,7 +1231,7 @@ bool LightMapper::bounce_ray(Ray &r, const Vector3 &face_normal, bool apply_epsi
 	return true;
 }
 
-void LightMapper::BF_process_texel_light_bounce(int bounces_left, Ray r, FColor ray_color) {
+void LightMapper::BF_process_texel_light_bounce(int bounces_left, Ray r, Color ray_color) {
 	// apply bounce power
 	ray_color *= adjusted_settings.directional_bounce_power;
 
@@ -1336,8 +1348,8 @@ void LightMapper::BF_process_texel_light_bounce(int bounces_left, Ray r, FColor 
 	r.o = pos;
 
 	// bounce and lower power
-	FColor falbedo;
-	falbedo.set(cols.albedo);
+	Color falbedo;
+	falbedo = cols.albedo;
 
 	// bounce color
 	ray_color = ray_color * falbedo;
@@ -1634,7 +1646,8 @@ bool LightMapper::load_texel_data(int32_t p_x, int32_t p_y, uint32_t &r_tri_id, 
 	*/
 }
 
-bool LightMapper::AA_BF_process_sub_texel_for_light(const Vector2 &p_st, const MiniList &p_ml, FColor &r_col, int p_light_id, int32_t p_num_samples, bool p_debug) {
+// Returns false if no UV triangle covers this subtexel.
+bool LightMapper::_AA_BF_process_sub_texel_for_light(const Vector2 &p_st, const MiniList &p_ml, Color &r_col, int p_light_id, SubTexelSample &r_sub_texel_sample, bool p_debug) {
 	const LLight &light = _lights[p_light_id];
 
 	// Find which triangle on the minilist we are inside (if any).
@@ -1648,7 +1661,7 @@ bool LightMapper::AA_BF_process_sub_texel_for_light(const Vector2 &p_st, const M
 			return false;
 		}
 
-		r_col.set(0);
+		r_col = Color();
 		return true;
 	}
 
@@ -1661,14 +1674,35 @@ bool LightMapper::AA_BF_process_sub_texel_for_light(const Vector2 &p_st, const M
 	ColorSample cols;
 	_scene.take_triangle_color_sample(tri_id, bary, cols);
 
-	BF_process_texel_light(cols.albedo, p_light_id, pos, *plane_normal, normal, r_col, p_num_samples);
+	BF_process_texel_light(cols.albedo, p_light_id, pos, *plane_normal, normal, r_col, r_sub_texel_sample);
 
 	return true;
 }
 
+bool LightMapper::AA_BF_process_sub_texel_for_light(float p_fx, float p_fy, const MiniList &p_ml, Color &r_col, int p_light_id, SubTexelSample &r_sub_texel_sample, bool p_debug) {
+	// has to be ranged 0 to 1
+	Vector2 st(p_fx, p_fy);
+	st.x /= _width;
+	st.y /= _height;
+
+	Color col;
+
+	bool res = _AA_BF_process_sub_texel_for_light(st, p_ml, col, p_light_id, r_sub_texel_sample, p_debug);
+
+	if (res) {
+		r_col += col * adjusted_settings.antialias_samples_per_texel;
+
+		if (p_debug) {
+			print_line("col is now " + String(Variant(r_col)));
+		}
+	}
+
+	return res;
+}
+
 bool LightMapper::AA_BF_process_sub_texel(float p_fx, float p_fy, const MiniList &p_ml, Color &r_col) {
-	bool debug = false;
 #ifdef LLIGHTMAP_DEBUG_SPECIFIC_TEXEL
+	bool debug = false;
 	if (((int)p_fx == 461) && ((int)p_fy == 470)) {
 		debug = true;
 	}
@@ -1706,12 +1740,16 @@ bool LightMapper::AA_BF_process_sub_texel(float p_fx, float p_fy, const MiniList
 
 	FColor texel_add;
 	texel_add.set(0);
+#if 0
 	FColor temp;
 
 	bool subtexel_hits_tri = false;
 
+	SubTexelSample sts;
+	sts.num_samples = num_samples;
+
 	for (int l = 0; l < _lights.size(); l++) {
-		if (AA_BF_process_sub_texel_for_light(st, p_ml, temp, l, num_samples, debug)) {
+		if (AA_BF_process_sub_texel_for_light(st, p_ml, temp, l, sts, debug)) {
 			texel_add += temp;
 			subtexel_hits_tri = true;
 		}
@@ -1722,6 +1760,7 @@ bool LightMapper::AA_BF_process_sub_texel(float p_fx, float p_fy, const MiniList
 
 	if (!subtexel_hits_tri)
 		return false;
+#endif
 
 #if 0
 	// sky (if present)
@@ -1779,11 +1818,66 @@ bool LightMapper::AA_BF_process_sub_texel(float p_fx, float p_fy, const MiniList
 	return true;
 }
 
+void LightMapper::_AA_create_kernel() {
+	int aa_size = adjusted_settings.antialias_samples_width;
+
+	LocalVector<Vector2i> &k = _aa_kernel;
+	k.resize(aa_size * aa_size);
+
+	if (aa_size > 2) {
+		k[0] = Vector2i(0, 0);
+		k[1] = Vector2i(aa_size - 1, 0);
+		k[2] = Vector2i(0, aa_size - 1);
+		k[3] = Vector2i(aa_size - 1, aa_size - 1);
+
+		int fill = 4;
+		for (int y = 0; y < aa_size; y++) {
+			for (int x = 0; x < aa_size; x++) {
+				Vector2i pos = Vector2i(x, y);
+				if (pos == k[0])
+					continue;
+				if (pos == k[1])
+					continue;
+				if (pos == k[2])
+					continue;
+				if (pos == k[3])
+					continue;
+				k[fill++] = pos;
+			}
+		}
+
+	} else {
+		// Default
+		int fill = 0;
+
+		for (int y = 0; y < aa_size; y++) {
+			for (int x = 0; x < aa_size; x++) {
+				_aa_kernel[fill++] = Vector2i(x, y);
+			}
+		}
+	}
+
+	_aa_kernel_f.resize(aa_size * aa_size);
+
+	float step = 0;
+	float centre_offset = 0.5f;
+	if (aa_size > 1) {
+		step = 1.0f / (aa_size - 1);
+		centre_offset = 0;
+	}
+
+	for (int n = 0; n < k.size(); n++) {
+		float fx = (k[n].x * step) + centre_offset;
+		float fy = (k[n].y * step) + centre_offset;
+		_aa_kernel_f[n] = Vector2(fx, fy);
+	}
+}
+
 void LightMapper::AA_BF_process_texel(int p_tx, int p_ty) {
 #ifdef LLIGHTMAP_DEBUG_SPECIFIC_TEXEL
 	// for testing only centre around the debug area
-	int debug_x = 461;
-	int debug_y = 470;
+	int debug_x = 50;
+	int debug_y = 5; //6
 
 	// 461, 470
 #ifdef DEV_ENABLED
@@ -1796,40 +1890,91 @@ void LightMapper::AA_BF_process_texel(int p_tx, int p_ty) {
 
 	const MiniList &ml = _image_tri_minilists.get_item(p_tx, p_ty);
 
-#ifdef LLIGHTMAP_DEBUG_SPECIFIC_TEXEL
 	bool debug = false;
+#ifdef LLIGHTMAP_DEBUG_SPECIFIC_TEXEL
 
-	if ((p_tx == debug_x) && (p_ty == debug_y))
-		debug = true;
+	if (p_tx == debug_x) {
+		if ((p_ty == debug_y) || (p_ty == debug_y))
+			debug = true;
+	}
 #endif
 
 	if (!ml.num)
 		return; // no triangles in this UV
 
 	int aa_size = adjusted_settings.antialias_samples_width;
-
-	//float step = 1.0f / (aa_size + 2);
-
-	float step = 0;
-	float centre_offset = 0.5f;
-	if (aa_size > 1) {
-		step = 1.0f / (aa_size - 1);
-		centre_offset = 0;
-	}
+	//	float step = 0;
+	//	float centre_offset = 0.5f;
+	//	if (aa_size > 1) {
+	//		step = 1.0f / (aa_size - 1);
+	//		centre_offset = 0;
+	//	}
 
 	Color col;
 	int samples_inside = 0;
 
-	for (int y = 0; y < aa_size; y++) {
-		//float fy = p_ty + ((y + 0.5f) * step);
-		float fy = p_ty + (y * step) + centre_offset;
+	for (int light_id = 0; light_id < _lights.size(); light_id++) {
+		SubTexelSample sts;
+		sts.num_samples = MAX(adjusted_settings.backward_num_rays / adjusted_settings.antialias_samples_per_texel, 1);
 
-		for (int x = 0; x < aa_size; x++) {
-			//float fx = p_tx + ((x + 0.5f) * step);
-			float fx = p_tx + (x * step) + centre_offset;
+		// Optimization for single triangles.
+		//if (false) {
+		if (ml.num == 1 && aa_size > 2) {
+			for (int n = 0; n < 4; n++) {
+				float fx = p_tx + _aa_kernel_f[n].x;
+				float fy = p_ty + _aa_kernel_f[n].y;
 
-			if (AA_BF_process_sub_texel(fx, fy, ml, col))
-				samples_inside++;
+				if (AA_BF_process_sub_texel_for_light(fx, fy, ml, col, light_id, sts, debug))
+					samples_inside++;
+			}
+			//			if (false) {
+			if (samples_inside == 4 && ((sts.num_clear_samples == (4 * sts.num_samples)) || (sts.num_opaque_hits == (4 * sts.num_samples)))) {
+#ifdef LLIGHTMAP_DEBUG_SPECIFIC_TEXEL
+				if (debug) {
+					print_line("samples inside " + itos(samples_inside) + ", col " + String(Variant(col)));
+
+					sts = SubTexelSample();
+					col = Color();
+					for (int n = 0; n < _aa_kernel_f.size(); n++) {
+						float fx = p_tx + _aa_kernel_f[n].x;
+						float fy = p_ty + _aa_kernel_f[n].y;
+
+						if (AA_BF_process_sub_texel_for_light(fx, fy, ml, col, light_id, sts, debug))
+							samples_inside++;
+					}
+				}
+#endif
+
+				;
+			} else {
+				// Do the rest of the samples.
+				for (int n = 4; n < _aa_kernel_f.size(); n++) {
+					float fx = p_tx + _aa_kernel_f[n].x;
+					float fy = p_ty + _aa_kernel_f[n].y;
+
+					if (AA_BF_process_sub_texel_for_light(fx, fy, ml, col, light_id, sts, debug))
+						samples_inside++;
+				}
+			}
+		} else {
+			for (int n = 0; n < _aa_kernel_f.size(); n++) {
+				float fx = p_tx + _aa_kernel_f[n].x;
+				float fy = p_ty + _aa_kernel_f[n].y;
+
+				if (AA_BF_process_sub_texel_for_light(fx, fy, ml, col, light_id, sts, debug))
+					samples_inside++;
+			}
+		} // regular texel
+	}
+
+	// Non light processing.
+	for (int n = 0; n < _aa_kernel_f.size(); n++) {
+		float fx = p_tx + _aa_kernel_f[n].x;
+		float fy = p_ty + _aa_kernel_f[n].y;
+
+		//if (AA_BF_process_sub_texel(fx, fy, ml, col))
+		{
+			//samples_inside++;
 		}
 	}
 
@@ -1873,6 +2018,7 @@ void LightMapper::AA_BF_process_texel(int p_tx, int p_ty) {
 void LightMapper::BF_process_texel(int tx, int ty) {
 	AA_BF_process_texel(tx, ty);
 	return;
+#if 0
 
 	//		if ((tx == 13) && (ty == 284))
 	//			print_line("testing");
@@ -1998,6 +2144,7 @@ void LightMapper::BF_process_texel(int tx, int ty) {
 
 	// safe write
 	MT_safe_add_to_texel(tx, ty, texel_add);
+#endif
 }
 
 void LightMapper::process_emission_pixels() {
@@ -2382,7 +2529,7 @@ void LightMapper::process_light(int light_id, int num_rays) {
 			return; // not supported
 	}
 
-	FColor light_color = light.color * power;
+	Color light_color = light.color * power;
 
 	for (int n = 0; n < num_rays; n++) {
 		//		if ((n % 10000) == 0)
@@ -2539,7 +2686,9 @@ void LightMapper::process_light(int light_id, int num_rays) {
 		}
 		//r.d.normalize();
 
-		ray_bank_request_new_ray(r, adjusted_settings.num_directional_bounces + 1, light_color, 0);
+		FColor ray_color;
+		ray_color.set(light_color);
+		ray_bank_request_new_ray(r, adjusted_settings.num_directional_bounces + 1, ray_color, 0);
 
 		//		ProcessRay(r, 0, power);
 	}

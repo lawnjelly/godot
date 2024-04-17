@@ -43,8 +43,8 @@ private:
 
 	// backward forward tracing
 	void BF_process_texel(int tx, int ty);
-	void BF_process_texel_light(const Color &orig_albedo, int light_id, const Vector3 &ptSource, const Vector3 &orig_face_normal, const Vector3 &orig_vertex_normal, FColor &color, int nSamples, bool debug = false); //, uint32_t tri_ignore);
-	void BF_process_texel_light_bounce(int bounces_left, Ray r, FColor ray_color);
+	void BF_process_texel_light(const Color &orig_albedo, int light_id, const Vector3 &ptSource, const Vector3 &orig_face_normal, const Vector3 &orig_vertex_normal, Color &r_color, SubTexelSample &r_sub_texel_sample, bool debug = false); //, uint32_t tri_ignore);
+	void BF_process_texel_light_bounce(int bounces_left, Ray r, Color ray_color);
 
 	bool BF_process_texel_sky(const Color &orig_albedo, const Vector3 &ptSource, const Vector3 &orig_face_normal, const Vector3 &orig_vertex_normal, FColor &color);
 
@@ -53,12 +53,16 @@ private:
 	// Backward tracing with antialiasing.
 	void AA_BF_process_texel(int p_tx, int p_ty);
 	bool AA_BF_process_sub_texel(float p_fx, float p_fy, const MiniList &p_ml, Color &r_col);
-	bool AA_BF_process_sub_texel_for_light(const Vector2 &p_st, const MiniList &p_ml, FColor &r_col, int p_light_id, int32_t p_num_samples, bool p_debug);
+	bool AA_BF_process_sub_texel_for_light(float p_fx, float p_fy, const MiniList &p_ml, Color &r_col, int p_light_id, SubTexelSample &r_sub_texel_sample, bool p_debug);
+	bool _AA_BF_process_sub_texel_for_light(const Vector2 &p_st, const MiniList &p_ml, Color &r_col, int p_light_id, SubTexelSample &r_sub_texel_sample, bool p_debug);
+	void _AA_create_kernel();
 
 	// new backward tracing experiment, by triangle
+#if 0
 	void backward_trace_triangles();
 	void backward_trace_triangle(int tri_id);
 	void backward_trace_sample(int tri_id);
+#endif
 
 	void MT_safe_add_to_texel(int32_t p_x, int32_t p_y, const Color &p_col) {
 		FColor fcol;

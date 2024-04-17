@@ -39,7 +39,7 @@ protected:
 		Vector3 pos;
 		Vector3 dir;
 		Vector3 scale;
-		FColor color;
+		Color color;
 		float energy;
 		float indirect_energy;
 		float range;
@@ -153,6 +153,9 @@ protected:
 	LVector<uint32_t> _minilist_tri_ids;
 
 	LightImage<Vector3> _image_barycentric;
+
+	LocalVector<Vector2i> _aa_kernel;
+	LocalVector<Vector2> _aa_kernel_f;
 
 	int _width;
 	int _height;

@@ -179,7 +179,7 @@ void LightMapper_Base::calculate_quality_adjusted_settings() {
 	as.sky_brightness = data.params[PARAM_SKY_BRIGHTNESS];
 	as.sky_brightness *= as.sky_brightness;
 
-	as.antialias_samples_width = 16; // 8
+	as.antialias_samples_width = 3; // 16
 	as.antialias_samples_per_texel = as.antialias_samples_width * as.antialias_samples_width;
 
 	// overrides
@@ -269,7 +269,7 @@ void LightMapper_Base::find_light(const Node *pNode) {
 	l->spot_emanation_point = l->pos - (l->dir * radius);
 
 	// pre apply intensity
-	l->color.set(pLight->get_color() * l->energy);
+	l->color = pLight->get_color() * l->energy;
 
 	const DirectionalLight *pDLight = Object::cast_to<DirectionalLight>(pLight);
 	if (pDLight)

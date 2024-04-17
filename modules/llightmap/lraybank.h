@@ -71,17 +71,17 @@ protected:
 		return false;
 	}
 
-	void calculate_transmittance(const Color &albedo, FColor &ray_color) {
+	void calculate_transmittance(const Color &albedo, Color &ray_color) {
 		// rapidly converge to the surface color
 		float surf_fraction = albedo.a * 2.0f;
 		if (surf_fraction > 1.0f)
 			surf_fraction = 1.0f;
 
-		FColor mixed_color;
-		mixed_color.set(albedo);
+		Color mixed_color;
+		mixed_color = albedo;
 		mixed_color = mixed_color * ray_color;
 
-		ray_color.lerp(mixed_color, surf_fraction);
+		ray_color = ray_color.linear_interpolate(mixed_color, surf_fraction);
 
 		// darken
 		float dark_fraction = albedo.a;

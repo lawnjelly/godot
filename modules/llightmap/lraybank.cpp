@@ -482,8 +482,11 @@ void RayBank::ray_bank_process_ray_MT(uint32_t ray_id, int start_ray) {
 		}
 
 		// if the ray is passing through, we want to calculate the color modified by the surface
-		if (pass_through)
-			calculate_transmittance(cols.albedo, fray.color);
+		if (pass_through) {
+			Color c = fray.color.to_color();
+			calculate_transmittance(cols.albedo, c);
+			fray.color.set(c);
+		}
 
 		// if pass through
 		if (is_backface || pass_through) {
