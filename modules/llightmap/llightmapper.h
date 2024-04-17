@@ -56,6 +56,7 @@ private:
 	bool AA_BF_process_sub_texel_for_light(float p_fx, float p_fy, const MiniList &p_ml, Color &r_col, int p_light_id, SubTexelSample &r_sub_texel_sample, bool p_debug);
 	bool _AA_BF_process_sub_texel_for_light(const Vector2 &p_st, const MiniList &p_ml, Color &r_col, int p_light_id, SubTexelSample &r_sub_texel_sample, bool p_debug);
 	void _AA_create_kernel();
+	void _AA_reclaim_texels();
 
 	// new backward tracing experiment, by triangle
 #if 0

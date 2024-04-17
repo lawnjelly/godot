@@ -292,6 +292,10 @@ bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_ro
 		if (_pressed_cancel)
 			return false;
 
+		// Reclaim texels.
+		_AA_create_kernel();
+		_AA_reclaim_texels();
+
 		if (logic.process_AO) {
 			print_line("ProcessAO");
 			before = OS::get_singleton()->get_ticks_msec();
@@ -569,7 +573,8 @@ void LightMapper::backward_process_texels() {
 	//Backward_TraceTriangles();
 	//return;
 
-	_AA_create_kernel();
+	//_AA_create_kernel();
+	//_AA_reclaim_texels();
 
 	//int nCores = OS::get_singleton()->get_processor_count();
 
@@ -1877,6 +1882,50 @@ void LightMapper::_AA_create_kernel() {
 	}
 }
 
+void LightMapper::_AA_reclaim_texels() {
+	// Go through each texel and check that any with an entry
+	// intersect with the AA kernel.
+	// If not, reclaim that pixel.
+	// This is done as a pre-process so it can be used in merging for dilation.
+	// Alternatively we could save it to disk.
+
+	for (int y = 0; y < _height; y++) {
+		for (int x = 0; x < _width; x++) {
+			const MiniList &ml = _image_tri_minilists.get_item(x, y);
+			if (!ml.num)
+				continue;
+
+			bool found = false;
+
+			for (int n = 0; n < _aa_kernel_f.size(); n++) {
+				Vector2 st = _aa_kernel_f[n] + Vector2(x, y);
+				st.x /= _width;
+				st.y /= _height;
+
+				// Find which triangle on the minilist we are inside (if any).
+				uint32_t tri_id;
+				Vector3 bary;
+
+				if (AO_find_texel_triangle(ml, st, tri_id, bary)) {
+					found = true;
+					break;
+				}
+			} // For n through kernel.
+
+			if (!found) {
+				// Reclaim!
+				//print_line("Reclaiming texel " + itos(x) + ", " + itos(y));
+
+				// NEW : Re-mark as unused, dilate to this texel, to prevent it being black.
+				_image_tri_ids_p1.get_item(x, y) = 0;
+#ifdef LLIGHTMAP_DEBUG_RECLAIMED_TEXELS
+				_image_reclaimed_texels.get_item(x, y) = 255;
+#endif
+			}
+		}
+	}
+}
+
 void LightMapper::AA_BF_process_texel(int p_tx, int p_ty) {
 #ifdef LLIGHTMAP_DEBUG_SPECIFIC_TEXEL
 	// for testing only centre around the debug area
@@ -1905,6 +1954,10 @@ void LightMapper::AA_BF_process_texel(int p_tx, int p_ty) {
 
 	if (!ml.num)
 		return; // no triangles in this UV
+
+	// Reclaimed already?
+	if (_image_tri_ids_p1.get_item(p_tx, p_ty) == 0)
+		return; // No triangles intersect the AA kernel.
 
 	int aa_size = adjusted_settings.antialias_samples_width;
 	//	float step = 0;
@@ -1973,16 +2026,18 @@ void LightMapper::AA_BF_process_texel(int p_tx, int p_ty) {
 		} // regular texel
 	}
 
+#if 0
 	// Non light processing.
 	for (int n = 0; n < _aa_kernel_f.size(); n++) {
 		float fx = p_tx + _aa_kernel_f[n].x;
 		float fy = p_ty + _aa_kernel_f[n].y;
 
-		//if (AA_BF_process_sub_texel(fx, fy, ml, col))
+		if (AA_BF_process_sub_texel(fx, fy, ml, col))
 		{
 			//samples_inside++;
 		}
 	}
+#endif
 
 #ifdef LLIGHTMAP_DEBUG_SPECIFIC_TEXEL
 	if (debug) {
@@ -2003,13 +2058,14 @@ void LightMapper::AA_BF_process_texel(int p_tx, int p_ty) {
 #endif
 
 	if (!samples_inside) {
+#if 1
 		//print_line("No AA samples inside a tri for " + itos(p_tx) + ", " + itos(p_ty));
 		// NEW : Re-mark as unused, dilate to this texel, to prevent it being black.
 		_image_tri_ids_p1.get_item(p_tx, p_ty) = 0;
 #ifdef LLIGHTMAP_DEBUG_RECLAIMED_TEXELS
 		_image_reclaimed_texels.get_item(p_tx, p_ty) = 255;
 #endif
-
+#endif
 		return;
 	}
 
