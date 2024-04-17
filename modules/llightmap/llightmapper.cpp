@@ -903,7 +903,7 @@ void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id,
 	int quick_reject_tri_id = -1;
 
 	// Point lights can be greatly simplified.
-	bool point_light = true;
+	bool point_light = false;
 
 	if (point_light) {
 		r_sub_texel_sample.num_samples = 1;
@@ -1913,13 +1913,15 @@ void LightMapper::AA_BF_process_texel(int p_tx, int p_ty) {
 	Color col;
 	int samples_inside = 0;
 
+	bool cheap_shadows = data.params[PARAM_HIGH_SHADOW_QUALITY] != Variant(true);
+
 	for (int light_id = 0; light_id < _lights.size(); light_id++) {
 		SubTexelSample sts;
 		sts.num_samples = MAX(adjusted_settings.backward_num_rays / adjusted_settings.antialias_samples_per_texel, 1);
 
 		// Optimization for single triangles.
 		//if (false) {
-		if (ml.num == 1 && aa_size > 2) {
+		if (ml.num == 1 && aa_size > 2 && cheap_shadows) {
 			for (int n = 0; n < 4; n++) {
 				float fx = p_tx + _aa_kernel_f[n].x;
 				float fy = p_ty + _aa_kernel_f[n].y;

@@ -23,6 +23,8 @@ void LLightmap::_bind_methods() {
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_TEX_WIDTH);
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_TEX_HEIGHT);
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_MAX_LIGHT_DISTANCE);
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_AA_KERNEL_SIZE);
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_HIGH_SHADOW_QUALITY);
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_SURFACE_BIAS);
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_MATERIAL_SIZE);
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_VOXEL_DENSITY);
@@ -116,6 +118,8 @@ void LLightmap::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "mode", PROPERTY_HINT_ENUM, "Forward,Backward"), "set_mode", "get_mode");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "quality", PROPERTY_HINT_ENUM, "Low,Medium,High,Final"), "set_quality", "get_quality");
 	LIMPL_PROPERTY_PARAM_RANGE(Variant::INT, max_light_distance, "0,999999,1", LM::LightMapper::PARAM_MAX_LIGHT_DISTANCE);
+	LIMPL_PROPERTY_PARAM_RANGE(Variant::INT, aa_kernel_size, "1,64,1", LM::LightMapper::PARAM_AA_KERNEL_SIZE);
+	LIMPL_PROPERTY_PARAM(Variant::BOOL, high_shadow_quality, LM::LightMapper::PARAM_HIGH_SHADOW_QUALITY);
 
 	ADD_GROUP("Paths", "");
 	LIMPL_PROPERTY(Variant::NODE_PATH, meshes, set_mesh_path, get_mesh_path);

@@ -46,6 +46,8 @@ LightMapper_Base::LightMapper_Base() {
 
 	// 0 is infinite
 	data.params[PARAM_MAX_LIGHT_DISTANCE] = 0;
+	data.params[PARAM_HIGH_SHADOW_QUALITY] = true;
+	data.params[PARAM_AA_KERNEL_SIZE] = 16;
 
 	data.params[PARAM_VOXEL_DENSITY] = 20;
 	data.params[PARAM_SURFACE_BIAS] = 0.005f;
@@ -179,7 +181,7 @@ void LightMapper_Base::calculate_quality_adjusted_settings() {
 	as.sky_brightness = data.params[PARAM_SKY_BRIGHTNESS];
 	as.sky_brightness *= as.sky_brightness;
 
-	as.antialias_samples_width = 3; // 16
+	as.antialias_samples_width = data.params[PARAM_AA_KERNEL_SIZE]; // 16
 	as.antialias_samples_per_texel = as.antialias_samples_width * as.antialias_samples_width;
 
 	// overrides
