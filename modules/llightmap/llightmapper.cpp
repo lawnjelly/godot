@@ -224,6 +224,55 @@ bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_ro
 	if (logic.reserve_AO)
 		_image_AO.create(_width, _height);
 
+	// Now we always create these, as needed for dilation,
+	// even when merging.
+	{
+		uint32_t before, after;
+
+		_image_tri_ids_p1.create(_width, _height);
+#ifdef LLIGHTMAP_DEBUG_RECLAIMED_TEXELS
+		_image_reclaimed_texels.create(_width, _height);
+#endif
+		if (logic.rasterize_mini_lists) {
+			_image_tri_minilists.create(_width, _height);
+			_minilist_tri_ids.clear(true);
+		}
+		if (bake_step_function) {
+			bake_step_function(0, String("Barycentric Create"));
+		}
+		_image_barycentric.create(_width, _height);
+
+		//		if (bake_end_function) {
+		//			bake_end_function();
+		//		}
+
+		//m_Image_Cuts.Create(m_iWidth, m_iHeight);
+		//m_CuttingTris.clear(true);
+
+		if (bake_step_function) {
+			bake_step_function(0, String("Scene Create"));
+		}
+		print_line("Scene Create");
+		before = OS::get_singleton()->get_ticks_msec();
+		if (!_scene.create(pMeshesRoot, _width, _height, data.params[PARAM_VOXEL_DENSITY], adjusted_settings.max_material_size, adjusted_settings.emission_density))
+			return false;
+
+		print_line("PrepareImageMaps");
+		before = OS::get_singleton()->get_ticks_msec();
+		if (!prepare_image_maps()) {
+			_pressed_cancel = true;
+		}
+		after = OS::get_singleton()->get_ticks_msec();
+		print_line("PrepareImageMaps took " + itos(after - before) + " ms");
+
+		if (_pressed_cancel)
+			return false;
+
+		// Reclaim texels.
+		_AA_create_kernel();
+		_AA_reclaim_texels();
+	}
+
 	if (settings.bake_mode != LMBAKEMODE_MERGE) {
 		if (logic.process_AO) {
 			if (bake_step_function) {
@@ -232,12 +281,14 @@ bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_ro
 			_QMC.create(adjusted_settings.num_AO_samples);
 		}
 
-		uint32_t before, after;
+		uint32_t before = 0;
+		uint32_t after = 0;
+
 		find_lights_recursive(&light_root);
 		print_line("Found " + itos(_lights.size()) + " lights.");
 
+#if 0
 		_image_tri_ids_p1.create(_width, _height);
-
 #ifdef LLIGHTMAP_DEBUG_RECLAIMED_TEXELS
 		_image_reclaimed_texels.create(_width, _height);
 #endif
@@ -266,6 +317,7 @@ bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_ro
 		before = OS::get_singleton()->get_ticks_msec();
 		if (!_scene.create(pMeshesRoot, _width, _height, data.params[PARAM_VOXEL_DENSITY], adjusted_settings.max_material_size, adjusted_settings.emission_density))
 			return false;
+#endif
 
 		if (bake_step_function) {
 			bake_step_function(0, String("Prepare Lights"));
@@ -281,6 +333,7 @@ bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_ro
 		if (_pressed_cancel)
 			return false;
 
+#if 0
 		print_line("PrepareImageMaps");
 		before = OS::get_singleton()->get_ticks_msec();
 		if (!prepare_image_maps()) {
@@ -295,6 +348,7 @@ bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_ro
 		// Reclaim texels.
 		_AA_create_kernel();
 		_AA_reclaim_texels();
+#endif
 
 		if (logic.process_AO) {
 			print_line("ProcessAO");
@@ -2058,7 +2112,7 @@ void LightMapper::AA_BF_process_texel(int p_tx, int p_ty) {
 #endif
 
 	if (!samples_inside) {
-#if 1
+#if 0
 		//print_line("No AA samples inside a tri for " + itos(p_tx) + ", " + itos(p_ty));
 		// NEW : Re-mark as unused, dilate to this texel, to prevent it being black.
 		_image_tri_ids_p1.get_item(p_tx, p_ty) = 0;

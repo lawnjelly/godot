@@ -645,6 +645,12 @@ bool LightMapper_Base::load_lightmap(Image &image) {
 	}
 	image.unlock();
 
+	// Dilate after loading to allow merging.
+	if (data.params[PARAM_DILATE_ENABLED] == Variant(true)) {
+		Dilate<FColor> dilate;
+		dilate.dilate_image(_image_L, _image_tri_ids_p1, 256);
+	}
+
 	return true;
 }
 
@@ -670,6 +676,12 @@ bool LightMapper_Base::load_AO(Image &image) {
 		}
 	}
 	image.unlock();
+
+	// Dilate after loading to allow merging.
+	if (data.params[PARAM_DILATE_ENABLED] == Variant(true)) {
+		Dilate<float> dilate;
+		dilate.dilate_image(_image_AO, _image_tri_ids_p1, 256);
+	}
 
 	return true;
 }
