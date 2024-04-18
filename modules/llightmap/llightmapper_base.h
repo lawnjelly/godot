@@ -184,6 +184,7 @@ public:
 		PARAM_TEX_HEIGHT,
 		PARAM_MAX_LIGHT_DISTANCE,
 		PARAM_AA_KERNEL_SIZE,
+		PARAM_AA_NUM_LIGHT_SAMPLES,
 		PARAM_HIGH_SHADOW_QUALITY,
 		PARAM_SURFACE_BIAS,
 		PARAM_MATERIAL_SIZE,
@@ -353,6 +354,8 @@ public:
 
 		int antialias_samples_width = 1;
 		int antialias_samples_per_texel = 1;
+
+		int antialias_num_light_samples = 1;
 	} adjusted_settings;
 
 	struct Logic {

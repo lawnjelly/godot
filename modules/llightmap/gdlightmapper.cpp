@@ -24,6 +24,7 @@ void LLightmap::_bind_methods() {
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_TEX_HEIGHT);
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_MAX_LIGHT_DISTANCE);
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_AA_KERNEL_SIZE);
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_AA_NUM_LIGHT_SAMPLES);
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_HIGH_SHADOW_QUALITY);
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_SURFACE_BIAS);
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_MATERIAL_SIZE);
@@ -117,40 +118,54 @@ void LLightmap::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "bake_mode", PROPERTY_HINT_ENUM, "UVMap,Lightmap,AO,Merge,LightProbes,Combined"), "set_bake_mode", "get_bake_mode");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "mode", PROPERTY_HINT_ENUM, "Forward,Backward"), "set_mode", "get_mode");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "quality", PROPERTY_HINT_ENUM, "Low,Medium,High,Final"), "set_quality", "get_quality");
-	LIMPL_PROPERTY_PARAM_RANGE(Variant::INT, max_light_distance, "0,999999,1", LM::LightMapper::PARAM_MAX_LIGHT_DISTANCE);
-	LIMPL_PROPERTY_PARAM_RANGE(Variant::INT, aa_kernel_size, "1,64,1", LM::LightMapper::PARAM_AA_KERNEL_SIZE);
-	LIMPL_PROPERTY_PARAM(Variant::BOOL, high_shadow_quality, LM::LightMapper::PARAM_HIGH_SHADOW_QUALITY);
-
-	ADD_GROUP("Paths", "");
-	LIMPL_PROPERTY(Variant::NODE_PATH, meshes, set_mesh_path, get_mesh_path);
-	LIMPL_PROPERTY(Variant::NODE_PATH, lights, set_lights_path, get_lights_path);
-	ADD_PROPERTY(PropertyInfo(Variant::STRING, "lightmap_filename", PROPERTY_HINT_SAVE_FILE, "*.exr"), "set_lightmap_filename", "get_lightmap_filename");
-	ADD_PROPERTY(PropertyInfo(Variant::STRING, "ao_filename", PROPERTY_HINT_SAVE_FILE, "*.exr"), "set_ao_filename", "get_ao_filename");
-	ADD_PROPERTY(PropertyInfo(Variant::STRING, "combined_filename", PROPERTY_HINT_SAVE_FILE, "*.png,*.exr"), "set_combined_filename", "get_combined_filename");
-	ADD_PROPERTY(PropertyInfo(Variant::STRING, "uv_filename", PROPERTY_HINT_SAVE_FILE, "*.tscn"), "set_uv_filename", "get_uv_filename");
+	LIMPL_PROPERTY_PARAM(Variant::BOOL, dilate, LM::LightMapper::PARAM_DILATE_ENABLED);
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "noise method", PROPERTY_HINT_ENUM, "Disabled,Simple,Advanced"), "set_noise_reduction_method", "get_noise_reduction_method");
+	LIMPL_PROPERTY_PARAM(Variant::BOOL, seam_stitching, LM::LightMapper::PARAM_SEAM_STITCHING_ENABLED);
 
 	ADD_GROUP("Size", "");
 
 	LIMPL_PROPERTY_PARAM_RANGE(Variant::INT, tex_width, "128,8192,128", LM::LightMapper::PARAM_TEX_WIDTH);
 	LIMPL_PROPERTY_PARAM_RANGE(Variant::INT, tex_height, "128,8192,128", LM::LightMapper::PARAM_TEX_HEIGHT);
 
-	//	LIMPL_PROPERTY(Variant::VECTOR3, voxel_grid, set_voxel_dims, get_voxel_dims);
-	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, surface_bias, "0.0,1.0", LM::LightMapper::PARAM_SURFACE_BIAS);
-	LIMPL_PROPERTY_PARAM_RANGE(Variant::INT, material_size, "128,2048,128", LM::LightMapper::PARAM_MATERIAL_SIZE);
-	LIMPL_PROPERTY_PARAM_RANGE(Variant::INT, voxel_density, "1,512,1", LM::LightMapper::PARAM_VOXEL_DENSITY);
+	ADD_GROUP("Dynamic Range", "");
+	//	LIMPL_PROPERTY(Variant::BOOL, normalize, set_normalize, get_normalize);
+	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, normalize_multiplier, "0.0,16.0", LM::LightMapper::PARAM_NORMALIZE_MULTIPLIER);
+	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, ao_light_ratio, "0.0,1.0,0.01", LM::LightMapper::PARAM_AO_LIGHT_RATIO);
+	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, gamma, "0.01,10.0,0.01", LM::LightMapper::PARAM_GAMMA);
+
+	ADD_GROUP("Post Processing", "");
+	//LIMPL_PROPERTY(Variant::BOOL, dilate, set_dilate, get_dilate);
+	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, noise_reduction, "0.0,1.0,0.01", LM::LightMapper::PARAM_NOISE_REDUCTION);
+	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, noise_threshold, "0.0,1.0,0.01", LM::LightMapper::PARAM_NOISE_THRESHOLD);
+	LIMPL_PROPERTY_PARAM(Variant::BOOL, visualize_seams, LM::LightMapper::PARAM_VISUALIZE_SEAMS_ENABLED);
+
+	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, seam_distance_threshold, "0.0,0.01,0.0001", LM::LightMapper::PARAM_SEAM_DISTANCE_THRESHOLD);
+	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, seam_normal_threshold, "0.0,180.0,1.0", LM::LightMapper::PARAM_SEAM_NORMAL_THRESHOLD);
+
+	ADD_GROUP("Backward", "");
+	LIMPL_PROPERTY_PARAM_RANGE(Variant::INT, aa_kernel_size, "1,64,1", LM::LightMapper::PARAM_AA_KERNEL_SIZE);
+	LIMPL_PROPERTY_PARAM_RANGE(Variant::INT, aa_num_light_samples, "1,64,1", LM::LightMapper::PARAM_AA_NUM_LIGHT_SAMPLES);
+	LIMPL_PROPERTY_PARAM(Variant::BOOL, high_shadow_quality, LM::LightMapper::PARAM_HIGH_SHADOW_QUALITY);
+
+	ADD_GROUP("Forward", "");
+	LIMPL_PROPERTY_PARAM_RANGE(Variant::INT, num_bounces, "0,16,1", LM::LightMapper::PARAM_NUM_BOUNCES);
+	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, bounce_power, "0.0,8.0,0.05", LM::LightMapper::PARAM_BOUNCE_POWER);
 
 	ADD_GROUP("Common", "");
 	LIMPL_PROPERTY_PARAM_RANGE(Variant::INT, primary_rays, "1,4096,1", LM::LightMapper::PARAM_NUM_PRIMARY_RAYS);
-
-	LIMPL_PROPERTY_PARAM_RANGE(Variant::INT, num_bounces, "0,16,1", LM::LightMapper::PARAM_NUM_BOUNCES);
-	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, bounce_power, "0.0,8.0,0.05", LM::LightMapper::PARAM_BOUNCE_POWER);
-	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, roughness, "0.0,1.0,0.05", LM::LightMapper::PARAM_ROUGHNESS);
+	LIMPL_PROPERTY_PARAM_RANGE(Variant::INT, max_light_distance, "0,999999,1", LM::LightMapper::PARAM_MAX_LIGHT_DISTANCE);
+	LIMPL_PROPERTY_PARAM_RANGE(Variant::INT, voxel_density, "1,512,1", LM::LightMapper::PARAM_VOXEL_DENSITY);
 
 	ADD_GROUP("Ambient", "");
 
 	LIMPL_PROPERTY_PARAM_RANGE(Variant::INT, a_bounces, "0,16,1", LM::LightMapper::PARAM_NUM_AMBIENT_BOUNCES);
 	LIMPL_PROPERTY_PARAM_RANGE(Variant::INT, a_bounce_samples, "0, 1024, 1", LM::LightMapper::PARAM_NUM_AMBIENT_BOUNCE_RAYS);
 	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, a_bounce_power, "0.0, 1.0", LM::LightMapper::PARAM_AMBIENT_BOUNCE_POWER);
+
+	ADD_GROUP("Miscellaneous", "");
+	LIMPL_PROPERTY_PARAM_RANGE(Variant::INT, material_size, "128,2048,128", LM::LightMapper::PARAM_MATERIAL_SIZE);
+	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, roughness, "0.0,1.0,0.05", LM::LightMapper::PARAM_ROUGHNESS);
+	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, surface_bias, "0.0,1.0", LM::LightMapper::PARAM_SURFACE_BIAS);
 
 	ADD_GROUP("Emission", "");
 	LIMPL_PROPERTY_PARAM(Variant::BOOL, emission_enabled, LM::LightMapper::PARAM_EMISSION_ENABLED);
@@ -178,25 +193,6 @@ void LLightmap::_bind_methods() {
 	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, sky_blur, "0.0,0.5,0.01", LM::LightMapper::PARAM_SKY_BLUR);
 	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, sky_brightness, "0.0,4.0,0.01", LM::LightMapper::PARAM_SKY_BRIGHTNESS);
 
-	ADD_GROUP("Dynamic Range", "");
-	//	LIMPL_PROPERTY(Variant::BOOL, normalize, set_normalize, get_normalize);
-	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, normalize_multiplier, "0.0,16.0", LM::LightMapper::PARAM_NORMALIZE_MULTIPLIER);
-	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, ao_light_ratio, "0.0,1.0,0.01", LM::LightMapper::PARAM_AO_LIGHT_RATIO);
-	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, gamma, "0.01,10.0,0.01", LM::LightMapper::PARAM_GAMMA);
-
-	ADD_GROUP("Post Processing", "");
-	LIMPL_PROPERTY_PARAM(Variant::BOOL, dilate, LM::LightMapper::PARAM_DILATE_ENABLED);
-	//LIMPL_PROPERTY(Variant::BOOL, dilate, set_dilate, get_dilate);
-
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "noise method", PROPERTY_HINT_ENUM, "Disabled,Simple,Advanced"), "set_noise_reduction_method", "get_noise_reduction_method");
-	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, noise_reduction, "0.0,1.0,0.01", LM::LightMapper::PARAM_NOISE_REDUCTION);
-	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, noise_threshold, "0.0,1.0,0.01", LM::LightMapper::PARAM_NOISE_THRESHOLD);
-	LIMPL_PROPERTY_PARAM(Variant::BOOL, seam_stitching, LM::LightMapper::PARAM_SEAM_STITCHING_ENABLED);
-	LIMPL_PROPERTY_PARAM(Variant::BOOL, visualize_seams, LM::LightMapper::PARAM_VISUALIZE_SEAMS_ENABLED);
-
-	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, seam_distance_threshold, "0.0,0.01,0.0001", LM::LightMapper::PARAM_SEAM_DISTANCE_THRESHOLD);
-	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, seam_normal_threshold, "0.0,180.0,1.0", LM::LightMapper::PARAM_SEAM_NORMAL_THRESHOLD);
-
 	ADD_GROUP("Light Probes", "");
 	LIMPL_PROPERTY_PARAM_RANGE(Variant::INT, probe_density, "1,512,1", LM::LightMapper::PARAM_PROBE_DENSITY);
 	LIMPL_PROPERTY_PARAM_RANGE(Variant::INT, probe_samples, "512,4096*8,512", LM::LightMapper::PARAM_PROBE_SAMPLES);
@@ -204,6 +200,14 @@ void LLightmap::_bind_methods() {
 
 	ADD_GROUP("UV Unwrap", "");
 	LIMPL_PROPERTY_PARAM_RANGE(Variant::INT, uv_padding, "0,256,1", LM::LightMapper::PARAM_UV_PADDING);
+
+	ADD_GROUP("Paths", "");
+	LIMPL_PROPERTY(Variant::NODE_PATH, meshes, set_mesh_path, get_mesh_path);
+	LIMPL_PROPERTY(Variant::NODE_PATH, lights, set_lights_path, get_lights_path);
+	ADD_PROPERTY(PropertyInfo(Variant::STRING, "lightmap_filename", PROPERTY_HINT_SAVE_FILE, "*.exr"), "set_lightmap_filename", "get_lightmap_filename");
+	ADD_PROPERTY(PropertyInfo(Variant::STRING, "ao_filename", PROPERTY_HINT_SAVE_FILE, "*.exr"), "set_ao_filename", "get_ao_filename");
+	ADD_PROPERTY(PropertyInfo(Variant::STRING, "combined_filename", PROPERTY_HINT_SAVE_FILE, "*.png,*.exr"), "set_combined_filename", "get_combined_filename");
+	ADD_PROPERTY(PropertyInfo(Variant::STRING, "uv_filename", PROPERTY_HINT_SAVE_FILE, "*.tscn"), "set_uv_filename", "get_uv_filename");
 
 #undef LIMPL_PROPERTY
 #undef LIMPL_PROPERTY_RANGE

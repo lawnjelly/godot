@@ -48,6 +48,7 @@ LightMapper_Base::LightMapper_Base() {
 	data.params[PARAM_MAX_LIGHT_DISTANCE] = 0;
 	data.params[PARAM_HIGH_SHADOW_QUALITY] = true;
 	data.params[PARAM_AA_KERNEL_SIZE] = 16;
+	data.params[PARAM_AA_NUM_LIGHT_SAMPLES] = 1;
 
 	data.params[PARAM_VOXEL_DENSITY] = 20;
 	data.params[PARAM_SURFACE_BIAS] = 0.005f;
@@ -183,6 +184,7 @@ void LightMapper_Base::calculate_quality_adjusted_settings() {
 
 	as.antialias_samples_width = data.params[PARAM_AA_KERNEL_SIZE]; // 16
 	as.antialias_samples_per_texel = as.antialias_samples_width * as.antialias_samples_width;
+	as.antialias_num_light_samples = data.params[PARAM_AA_NUM_LIGHT_SAMPLES];
 
 	// overrides
 	switch (settings.quality) {
@@ -195,6 +197,7 @@ void LightMapper_Base::calculate_quality_adjusted_settings() {
 			as.num_ambient_bounces = 0;
 			as.num_directional_bounces = 0;
 			as.num_sky_samples = 64;
+			as.antialias_num_light_samples = 1;
 		} break;
 		case LM_QUALITY_MEDIUM: {
 			as.num_primary_rays /= 2;
@@ -211,6 +214,7 @@ void LightMapper_Base::calculate_quality_adjusted_settings() {
 			as.num_AO_samples *= 2;
 			as.num_ambient_bounce_rays *= 2;
 			as.num_sky_samples *= 2;
+			as.antialias_num_light_samples *= 2;
 			break;
 	}
 

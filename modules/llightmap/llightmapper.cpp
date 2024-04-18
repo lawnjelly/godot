@@ -973,7 +973,7 @@ void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id,
 	}
 
 	int nSamples = r_sub_texel_sample.num_samples;
-	int point_light_multiplier = nSamples;
+	//	int point_light_multiplier = nSamples;
 
 	// each ray
 	for (int n = 0; n < nSamples; n++) {
@@ -1175,9 +1175,9 @@ void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id,
 				// cone falloff
 				local_power *= multiplier;
 
-				if (point_light) {
-					local_power *= point_light_multiplier;
-				}
+				//				if (point_light) {
+				//					local_power *= point_light_multiplier;
+				//				}
 
 				// total color // this was incorrect because it also reduced the bounce power.
 				sample_color *= local_power;
@@ -1753,7 +1753,8 @@ bool LightMapper::AA_BF_process_sub_texel_for_light(float p_fx, float p_fy, cons
 	bool res = _AA_BF_process_sub_texel_for_light(st, p_ml, col, p_light_id, r_sub_texel_sample, p_debug);
 
 	if (res) {
-		r_col += col * adjusted_settings.antialias_samples_per_texel;
+		//r_col += col * adjusted_settings.antialias_samples_per_texel;
+		r_col += col;
 
 		if (p_debug) {
 			print_line("col is now " + String(Variant(r_col)));
@@ -2021,14 +2022,17 @@ void LightMapper::AA_BF_process_texel(int p_tx, int p_ty) {
 	//		centre_offset = 0;
 	//	}
 
-	Color col;
-	int samples_inside = 0;
+	Color total_col;
+	int total_samples_inside = 0;
 
 	bool cheap_shadows = data.params[PARAM_HIGH_SHADOW_QUALITY] != Variant(true);
 
 	for (int light_id = 0; light_id < _lights.size(); light_id++) {
+		Color col_from_light;
 		SubTexelSample sts;
-		sts.num_samples = MAX(adjusted_settings.backward_num_rays / adjusted_settings.antialias_samples_per_texel, 1);
+		//sts.num_samples = MAX(adjusted_settings.backward_num_rays / adjusted_settings.antialias_samples_per_texel, 1);
+		sts.num_samples = adjusted_settings.antialias_num_light_samples;
+		int light_samples_inside = 0;
 
 		// Optimization for single triangles.
 		//if (false) {
@@ -2037,11 +2041,11 @@ void LightMapper::AA_BF_process_texel(int p_tx, int p_ty) {
 				float fx = p_tx + _aa_kernel_f[n].x;
 				float fy = p_ty + _aa_kernel_f[n].y;
 
-				if (AA_BF_process_sub_texel_for_light(fx, fy, ml, col, light_id, sts, debug))
-					samples_inside++;
+				if (AA_BF_process_sub_texel_for_light(fx, fy, ml, col_from_light, light_id, sts, debug))
+					light_samples_inside++;
 			}
 			//			if (false) {
-			if (samples_inside == 4 && ((sts.num_clear_samples == (4 * sts.num_samples)) || (sts.num_opaque_hits == (4 * sts.num_samples)))) {
+			if (light_samples_inside == 4 && ((sts.num_clear_samples == (4 * sts.num_samples)) || (sts.num_opaque_hits == (4 * sts.num_samples)))) {
 #ifdef LLIGHTMAP_DEBUG_SPECIFIC_TEXEL
 				if (debug) {
 					print_line("samples inside " + itos(samples_inside) + ", col " + String(Variant(col)));
@@ -2065,8 +2069,8 @@ void LightMapper::AA_BF_process_texel(int p_tx, int p_ty) {
 					float fx = p_tx + _aa_kernel_f[n].x;
 					float fy = p_ty + _aa_kernel_f[n].y;
 
-					if (AA_BF_process_sub_texel_for_light(fx, fy, ml, col, light_id, sts, debug))
-						samples_inside++;
+					if (AA_BF_process_sub_texel_for_light(fx, fy, ml, col_from_light, light_id, sts, debug))
+						light_samples_inside++;
 				}
 			}
 		} else {
@@ -2074,10 +2078,18 @@ void LightMapper::AA_BF_process_texel(int p_tx, int p_ty) {
 				float fx = p_tx + _aa_kernel_f[n].x;
 				float fy = p_ty + _aa_kernel_f[n].y;
 
-				if (AA_BF_process_sub_texel_for_light(fx, fy, ml, col, light_id, sts, debug))
-					samples_inside++;
+				if (AA_BF_process_sub_texel_for_light(fx, fy, ml, col_from_light, light_id, sts, debug))
+					light_samples_inside++;
 			}
 		} // regular texel
+
+		// Add the color from this light to total color.
+		if (light_samples_inside) {
+			col_from_light /= light_samples_inside * sts.num_samples;
+			total_col += col_from_light;
+
+			total_samples_inside += light_samples_inside;
+		}
 	}
 
 #if 0
@@ -2086,7 +2098,7 @@ void LightMapper::AA_BF_process_texel(int p_tx, int p_ty) {
 		float fx = p_tx + _aa_kernel_f[n].x;
 		float fy = p_ty + _aa_kernel_f[n].y;
 
-		if (AA_BF_process_sub_texel(fx, fy, ml, col))
+		if (AA_BF_process_sub_texel(fx, fy, ml, total_col))
 		{
 			//samples_inside++;
 		}
@@ -2095,7 +2107,7 @@ void LightMapper::AA_BF_process_texel(int p_tx, int p_ty) {
 
 #ifdef LLIGHTMAP_DEBUG_SPECIFIC_TEXEL
 	if (debug) {
-		print_line("samples inside " + itos(samples_inside) + ", col " + String(Variant(col)));
+		print_line("samples inside " + itos(total_samples_inside) + ", col " + String(Variant(col)));
 
 		for (uint32_t i = 0; i < ml.num; i++) {
 			uint32_t tri_inside = _minilist_tri_ids[ml.first + i];
@@ -2111,7 +2123,7 @@ void LightMapper::AA_BF_process_texel(int p_tx, int p_ty) {
 	}
 #endif
 
-	if (!samples_inside) {
+	if (!total_samples_inside) {
 #if 0
 		//print_line("No AA samples inside a tri for " + itos(p_tx) + ", " + itos(p_ty));
 		// NEW : Re-mark as unused, dilate to this texel, to prevent it being black.
@@ -2123,11 +2135,11 @@ void LightMapper::AA_BF_process_texel(int p_tx, int p_ty) {
 		return;
 	}
 
-	col /= (float)samples_inside;
+	//	total_col /= (float)samples_inside;
 
 	// safe write
 	FColor texel_add;
-	texel_add.set(col);
+	texel_add.set(total_col);
 	MT_safe_add_to_texel(p_tx, p_ty, texel_add);
 }
 
