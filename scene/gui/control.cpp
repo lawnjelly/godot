@@ -593,22 +593,6 @@ void Control::_notification(int p_notification) {
 			*/
 
 		} break;
-		case NOTIFICATION_MOVED_IN_PARENT: {
-			// some parents need to know the order of the children to draw (like TabContainer)
-			// update if necessary
-			if (data.parent) {
-				data.parent->update();
-			}
-			update();
-
-			if (data.SI) {
-				get_viewport()->_gui_set_subwindow_order_dirty();
-			}
-			if (data.RI) {
-				get_viewport()->_gui_set_root_order_dirty();
-			}
-
-		} break;
 		case NOTIFICATION_RESIZED: {
 			emit_signal(SceneStringNames::get_singleton()->resized);
 		} break;
@@ -617,7 +601,6 @@ void Control::_notification(int p_notification) {
 			VisualServer::get_singleton()->canvas_item_set_custom_rect(get_canvas_item(), !data.disable_visibility_clip, Rect2(Point2(), get_size()));
 			VisualServer::get_singleton()->canvas_item_set_clip(get_canvas_item(), data.clip_contents);
 			//emit_signal(SceneStringNames::get_singleton()->draw);
-
 		} break;
 		case NOTIFICATION_MOUSE_ENTER: {
 			emit_signal(SceneStringNames::get_singleton()->mouse_entered);
@@ -2663,6 +2646,15 @@ void Control::set_v_grow_direction(GrowDirection p_direction) {
 
 Control::GrowDirection Control::get_v_grow_direction() const {
 	return data.v_grow;
+}
+
+void Control::_query_order_update(bool &r_subwindow_order_dirty, bool &r_root_order_dirty) const {
+	if (data.SI) {
+		r_subwindow_order_dirty = true;
+	}
+	if (data.RI) {
+		r_root_order_dirty = true;
+	}
 }
 
 void Control::_bind_methods() {
