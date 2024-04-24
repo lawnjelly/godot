@@ -381,6 +381,8 @@ bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_ro
 			print_line("ProcessTexels took " + itos(after - before) + " ms");
 		}
 
+		process_orig_material();
+
 		if (logic.process_probes) {
 			// calculate probes
 			print_line("ProcessProbes");
@@ -2273,6 +2275,60 @@ void LightMapper::BF_process_texel(int tx, int ty) {
 	// safe write
 	MT_safe_add_to_texel(tx, ty, texel_add);
 #endif
+}
+
+void LightMapper::process_orig_material() {
+	// Only use this RAM if needed.
+	_image_orig_material.create(_width, _height);
+
+	for (int32_t y = 0; y < _height; y++) {
+		for (int32_t x = 0; x < _width; x++) {
+			//bool debug = (x == 175) && (y == 134);
+
+			uint32_t tri_id = 0;
+			Vector3 pos;
+			Vector3 normal;
+			const Vector3 *bary = nullptr;
+			const Vector3 *plane_normal = nullptr;
+			if (!load_texel_data(x, y, tri_id, &bary, pos, normal, &plane_normal)) {
+				_image_orig_material.get_item(x, y) = Color(0, 0, 1, 1);
+				continue;
+			}
+
+			//			if (debug)
+			//			{
+			//				print_line("bary " + String(Variant(*bary)));
+
+			//				Vector2 uvs;
+			//				_scene._uv_tris_primary[tri_id].find_uv_barycentric(uvs, bary->x, bary->y, bary->z);
+
+			//				print_line("uv before " + String(Variant(uvs)));
+			//			}
+
+			// find the colors of this texel
+			ColorSample cols;
+			if (!_scene.take_triangle_color_sample(tri_id, *bary, cols)) {
+				_image_orig_material.get_item(x, y) = Color(0, 1, 1, 1);
+				continue;
+			}
+
+			//			if (debug)
+			//			{
+			//				const UVTri &uvtri = _scene._uv_tris_primary[tri_id];
+			//				for (int c=0; c<3; c++)
+			//				{
+			//					print_line("\tuvtri c " + itos(c) + " : " + String(Variant(uvtri.uv[c])));
+			//				}
+
+			//				print_line("uv tiled " + String(Variant(Vector2(cols.albedo.r, cols.albedo.g))));
+			//			}
+
+			_image_orig_material.get_item(x, y) = cols.albedo;
+			//			_image_orig_material.get_item(x, y) = Color(bary->x, bary->y, bary->z);
+			//			}
+
+		} // for x
+	} // for y
 }
 
 void LightMapper::process_emission_pixels() {

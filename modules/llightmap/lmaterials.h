@@ -108,8 +108,8 @@ inline bool LMaterials::find_colors(int mat_id, const Vector2 &uv, ColorSample &
 
 inline void LTexture::sample(const Vector2 &uv, Color &col) const {
 	// mod to surface (tiling)
-	float x = fmodf(uv.x, 1.0f);
-	float y = fmodf(uv.y, 1.0f);
+	float x = Math::fmod(uv.x, 1.0f);
+	float y = Math::fmod(uv.y, 1.0f);
 
 	// we need these because fmod can produce negative results
 	if (x < 0.0f)
@@ -117,12 +117,23 @@ inline void LTexture::sample(const Vector2 &uv, Color &col) const {
 	if (y < 0.0f)
 		y = 1.0f + y;
 
+#if 0
+	col.r = x;
+	col.g = y;
+	col.b = 0;
+	col.a = 1;
+	return;
+#endif
+
 	x *= width;
 	y *= height;
 
 	// no filtering as yet
 	int tx = x;
 	int ty = y;
+
+	DEV_ASSERT(tx >= 0);
+	DEV_ASSERT(ty >= 0);
 
 	tx = MIN(tx, width - 1);
 	ty = MIN(ty, height - 1);

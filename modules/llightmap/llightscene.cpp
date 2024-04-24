@@ -636,18 +636,18 @@ bool LightScene::create_from_mesh_surface(int mesh_id, int surf_id, Ref<Mesh> rm
 		// adjusted n
 		int an = n + num_old_tris;
 
-		Tri &t = _tris[an];
+		Tri &tri = _tris[an];
 		Tri &tri_norm = _tri_normals[an];
 		Tri &tri_edge = _tris_edge_form[an];
 		Plane &tri_plane = _tri_planes[an];
 		UVTri &uvt = _uv_tris[an];
+		UVTri &uvt_primary = _uv_tris_primary[an];
 		Rect2 &uv_rect = _tri_uv_aabbs[an];
 		AABB &aabb = _tri_pos_aabbs[an];
 
 		//		m_Tri_MeshIDs[an] = mesh_id;
 		//		m_Tri_SurfIDs[an] = surf_id;
 		_tri_lmaterial_ids[an] = lmat_id;
-		UVTri &uvt_primary = _uv_tris_primary[an];
 
 		int ind = inds[i];
 		uv_rect = Rect2(uvs[ind], Vector2(0, 0));
@@ -657,13 +657,13 @@ bool LightScene::create_from_mesh_surface(int mesh_id, int surf_id, Ref<Mesh> rm
 		for (int c = 0; c < 3; c++) {
 			ind = inds[i++];
 
-			t.pos[c] = positions_world[ind];
+			tri.pos[c] = positions_world[ind];
 			tri_norm.pos[c] = normals_world[ind];
 			uvt.uv[c] = uvs[ind];
 			//rect = Rect2(uvt.uv[0], Vector2(0, 0));
 			uv_rect.expand_to(uvt.uv[c]);
 			//aabb.position = t.pos[0];
-			aabb.expand_to(t.pos[c]);
+			aabb.expand_to(tri.pos[c]);
 
 			// store primary uvs if present
 			if (uvs_primary.size()) {
@@ -675,7 +675,7 @@ bool LightScene::create_from_mesh_surface(int mesh_id, int surf_id, Ref<Mesh> rm
 
 		// plane - calculate normal BEFORE changing winding into UV space
 		// because the normal is determined by the winding in world space
-		tri_plane = Plane(t.pos[0], t.pos[1], t.pos[2], CLOCKWISE);
+		tri_plane = Plane(tri.pos[0], tri.pos[1], tri.pos[2], CLOCKWISE);
 
 		// sanity check for bad normals
 		Vector3 average_normal = (tri_norm.pos[0] + tri_norm.pos[1] + tri_norm.pos[2]) * (1.0f / 3.0f);
@@ -686,28 +686,30 @@ bool LightScene::create_from_mesh_surface(int mesh_id, int surf_id, Ref<Mesh> rm
 			tri_plane = -tri_plane;
 		}
 
+		// FIXME: Do this AFTER flipping?
 		// calculate edge form
 		{
 			// b - a
-			tri_edge.pos[0] = t.pos[1] - t.pos[0];
+			tri_edge.pos[0] = tri.pos[1] - tri.pos[0];
 			// c - a
-			tri_edge.pos[1] = t.pos[2] - t.pos[0];
+			tri_edge.pos[1] = tri.pos[2] - tri.pos[0];
 			// a
-			tri_edge.pos[2] = t.pos[0];
+			tri_edge.pos[2] = tri.pos[0];
 		}
 
 		// ALWAYS DO THE UV WINDING LAST!!
 		// make sure winding is standard in UV space
 		if (uvt.is_winding_CW()) {
 			uvt.flip_winding();
-			t.flip_winding();
+			uvt_primary.flip_winding();
+			tri.flip_winding();
 			tri_norm.flip_winding();
 		}
 
 		if (bEmit) {
 			EmissionTri et;
 			et.tri_id = an;
-			et.area = t.calculate_area();
+			et.area = tri.calculate_area();
 			_emission_tris.push_back(et);
 		}
 

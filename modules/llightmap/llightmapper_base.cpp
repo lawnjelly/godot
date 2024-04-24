@@ -128,6 +128,7 @@ void LightMapper_Base::base_reset() {
 	_image_L.reset();
 	_image_L_mirror.reset();
 
+	_image_orig_material.reset();
 	_image_AO.reset();
 	_image_tri_ids_p1.reset();
 #ifdef LLIGHTMAP_DEBUG_RECLAIMED_TEXELS
@@ -769,6 +770,10 @@ void LightMapper_Base::merge_and_write_output_image_combined(Image &image) {
 
 			// new... RGBM .. use a multiplier in the alpha to get increased dynamic range!
 			//ColorToRGBM(col);
+
+			// Apply orig material TEST
+			//col = _image_orig_material.get_item(x, y);
+			col *= _image_orig_material.get_item(x, y);
 
 			image.set_pixel(x, y, col);
 		}

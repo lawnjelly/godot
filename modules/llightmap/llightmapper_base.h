@@ -9,7 +9,7 @@
 #include "scene/3d/mesh_instance.h"
 #include "scene/3d/spatial.h"
 
-#define LLIGHTMAP_MULTITHREADED
+//#define LLIGHTMAP_MULTITHREADED
 //#define LLIGHTMAP_DEBUG_RECLAIMED_TEXELS
 //#define LLIGHTMAP_DEBUG_SPECIFIC_TEXEL
 
@@ -137,6 +137,9 @@ protected:
 
 	// for bounces
 	LightImage<FColor> _image_L_mirror;
+
+	// If we desire to merge the original material with the lightmap.
+	LightImage<Color> _image_orig_material;
 
 	// ambient occlusion
 	LightImage<float> _image_AO;

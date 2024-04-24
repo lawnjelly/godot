@@ -58,6 +58,9 @@ private:
 	void _AA_create_kernel();
 	void _AA_reclaim_texels();
 
+	// Modulate original material with the lightmap (if we want to merge them).
+	void process_orig_material();
+
 	// new backward tracing experiment, by triangle
 #if 0
 	void backward_trace_triangles();
