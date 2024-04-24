@@ -74,6 +74,7 @@ LightMapper_Base::LightMapper_Base() {
 	settings.noise_reduction_method = NR_ADVANCED;
 
 	data.params[PARAM_DILATE_ENABLED] = true;
+	data.params[PARAM_COMBINE_ORIG_MATERIAL_ENABLED] = false;
 
 	data.params[PARAM_SEAM_STITCHING_ENABLED] = true;
 	data.params[PARAM_SEAM_DISTANCE_THRESHOLD] = 0.001f;
@@ -761,6 +762,8 @@ void LightMapper_Base::merge_and_write_output_image_combined(Image &image) {
 	// final version
 	image.lock();
 
+	bool combine_orig_material = (data.params[PARAM_COMBINE_ORIG_MATERIAL_ENABLED] == Variant(true)) && _image_orig_material.get_num_pixels();
+
 	for (int y = 0; y < _height; y++) {
 		for (int x = 0; x < _width; x++) {
 			FColor f = _image_L.get_item(x, y);
@@ -771,9 +774,9 @@ void LightMapper_Base::merge_and_write_output_image_combined(Image &image) {
 			// new... RGBM .. use a multiplier in the alpha to get increased dynamic range!
 			//ColorToRGBM(col);
 
-			// Apply orig material TEST
-			//col = _image_orig_material.get_item(x, y);
-			col *= _image_orig_material.get_item(x, y);
+			if (combine_orig_material) {
+				col *= _image_orig_material.get_item(x, y);
+			}
 
 			image.set_pixel(x, y, col);
 		}

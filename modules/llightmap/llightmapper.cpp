@@ -273,6 +273,8 @@ bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_ro
 		_AA_reclaim_texels();
 	}
 
+	process_orig_material();
+
 	if (settings.bake_mode != LMBAKEMODE_MERGE) {
 		if (logic.process_AO) {
 			if (bake_step_function) {
@@ -380,8 +382,6 @@ bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_ro
 			after = OS::get_singleton()->get_ticks_msec();
 			print_line("ProcessTexels took " + itos(after - before) + " ms");
 		}
-
-		process_orig_material();
 
 		if (logic.process_probes) {
 			// calculate probes
@@ -2278,8 +2278,13 @@ void LightMapper::BF_process_texel(int tx, int ty) {
 }
 
 void LightMapper::process_orig_material() {
+	if (data.params[PARAM_COMBINE_ORIG_MATERIAL_ENABLED] != Variant(true)) {
+		return;
+	}
+
 	// Only use this RAM if needed.
 	_image_orig_material.create(_width, _height);
+	_image_orig_material.fill(Color(1, 1, 1, 1));
 
 	for (int32_t y = 0; y < _height; y++) {
 		for (int32_t x = 0; x < _width; x++) {
@@ -2291,7 +2296,7 @@ void LightMapper::process_orig_material() {
 			const Vector3 *bary = nullptr;
 			const Vector3 *plane_normal = nullptr;
 			if (!load_texel_data(x, y, tri_id, &bary, pos, normal, &plane_normal)) {
-				_image_orig_material.get_item(x, y) = Color(0, 0, 1, 1);
+				//_image_orig_material.get_item(x, y) = Color(0, 0, 1, 1);
 				continue;
 			}
 
@@ -2308,7 +2313,7 @@ void LightMapper::process_orig_material() {
 			// find the colors of this texel
 			ColorSample cols;
 			if (!_scene.take_triangle_color_sample(tri_id, *bary, cols)) {
-				_image_orig_material.get_item(x, y) = Color(0, 1, 1, 1);
+				//_image_orig_material.get_item(x, y) = Color(0, 1, 1, 1);
 				continue;
 			}
 
