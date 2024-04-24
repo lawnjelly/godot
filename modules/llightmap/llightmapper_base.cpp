@@ -700,6 +700,8 @@ void LightMapper_Base::merge_and_write_output_image_combined(Image &image) {
 	float gamma = 1.0f / (float)data.params[PARAM_GAMMA];
 	float light_AO_ratio = data.params[PARAM_AO_LIGHT_RATIO];
 
+	bool combine_orig_material = (data.params[PARAM_COMBINE_ORIG_MATERIAL_ENABLED] == Variant(true)) && _image_orig_material.get_num_pixels();
+
 	for (int y = 0; y < _height; y++) {
 		for (int x = 0; x < _width; x++) {
 			float ao = 0.0f;
@@ -749,6 +751,16 @@ void LightMapper_Base::merge_and_write_output_image_combined(Image &image) {
 
 			image.set_pixel(x, y, col);
 			*/
+
+			if (combine_orig_material) {
+				//col *= _image_orig_material.get_item(x, y);
+				const Color &alb = _image_orig_material.get_item(x, y);
+				f.set(alb);
+				//				f.r *= alb.r;
+				//				f.g *= alb.g;
+				//				f.b *= alb.b;
+			}
+
 			// write back to L
 			*_image_L.get(x, y) = f;
 		}
@@ -756,13 +768,17 @@ void LightMapper_Base::merge_and_write_output_image_combined(Image &image) {
 
 	apply_noise_reduction();
 
+	// One more dilate?
+	if (data.params[PARAM_DILATE_ENABLED] == Variant(true)) {
+		Dilate<FColor> dilate;
+		dilate.dilate_image(_image_L, _image_tri_ids_p1, 256);
+	}
+
 	stitch_seams();
 
 	// assuming both lightmap and AO are already dilated
 	// final version
 	image.lock();
-
-	bool combine_orig_material = (data.params[PARAM_COMBINE_ORIG_MATERIAL_ENABLED] == Variant(true)) && _image_orig_material.get_num_pixels();
 
 	for (int y = 0; y < _height; y++) {
 		for (int x = 0; x < _width; x++) {
@@ -773,10 +789,6 @@ void LightMapper_Base::merge_and_write_output_image_combined(Image &image) {
 
 			// new... RGBM .. use a multiplier in the alpha to get increased dynamic range!
 			//ColorToRGBM(col);
-
-			if (combine_orig_material) {
-				col *= _image_orig_material.get_item(x, y);
-			}
 
 			image.set_pixel(x, y, col);
 		}
