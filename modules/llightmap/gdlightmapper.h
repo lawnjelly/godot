@@ -57,11 +57,11 @@ public:
 
 	////////////////////////////
 
-	void set_lightmap_filename(const String &p_filename);
-	String get_lightmap_filename() const;
+	//	void set_lightmap_filename(const String &p_filename);
+	//	String get_lightmap_filename() const;
 
-	void set_ao_filename(const String &p_filename);
-	String get_ao_filename() const;
+	//	void set_ao_filename(const String &p_filename);
+	//	String get_ao_filename() const;
 
 	void set_combined_filename(const String &p_filename);
 	String get_combined_filename() const;

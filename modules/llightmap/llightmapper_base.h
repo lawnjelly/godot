@@ -132,17 +132,17 @@ protected:
 	}
 
 protected:
-	// luminosity
+	// Composite image.
 	LightImage<FColor> _image_main;
-
-	// for bounces
 	LightImage<FColor> _image_main_mirror;
 
-	// If we desire to merge the original material with the lightmap.
-	LightImage<Color> _image_orig_material;
-
-	// ambient occlusion
+	// Component image maps.
+	// These will be combined to form the final main image.
+	LightImage<FColor> _image_lightmap;
+	LightImage<FColor> _image_emission;
+	LightImage<FColor> _image_glow;
 	LightImage<float> _image_AO;
+	LightImage<Color> _image_orig_material;
 
 	// just in case of overlapping triangles, for anti aliasing we will maintain 2 lists of triangles per pixel
 	LightImage<uint32_t> _image_tri_ids_p1;
@@ -242,6 +242,8 @@ public:
 	//float settings.Forward_BounceDirectionality;
 
 	struct Settings {
+		void set_images_filename(String p_filename);
+
 		int backward_num_rays;
 		float backward_ray_power;
 		//float settings.Backward_BouncePower;
@@ -288,14 +290,22 @@ public:
 		NodePath path_mesh;
 		NodePath path_lights;
 
-		String lightmap_filename;
-		bool lightmap_is_HDR;
+		//		String lightmap_filename;
+		//		bool lightmap_is_HDR;
 
-		String ambient_filename;
-		bool ambient_is_HDR;
+		//		String ambient_filename;
+		//		bool ambient_is_HDR;
+
+		String image_filename_base;
 
 		String combined_filename;
 		bool combined_is_HDR;
+
+		String lightmap_filename;
+		String AO_filename;
+		String emission_filename;
+		String glow_filename;
+		String orig_material_filename;
 
 		String UV_filename;
 		//int UV_padding;

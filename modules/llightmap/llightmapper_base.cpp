@@ -61,8 +61,8 @@ LightMapper_Base::LightMapper_Base() {
 	data.params[PARAM_AO_LIGHT_RATIO] = 0.5f;
 	data.params[PARAM_GAMMA] = 2.2f;
 
-	settings.lightmap_is_HDR = false;
-	settings.ambient_is_HDR = false;
+	//	settings.lightmap_is_HDR = false;
+	//	settings.ambient_is_HDR = false;
 	settings.combined_is_HDR = false;
 
 	data.params[PARAM_UV_PADDING] = 4;
@@ -130,8 +130,12 @@ void LightMapper_Base::base_reset() {
 	_image_main.reset();
 	_image_main_mirror.reset();
 
+	_image_lightmap.reset();
 	_image_orig_material.reset();
 	_image_AO.reset();
+	_image_emission.reset();
+	_image_glow.reset();
+
 	_image_tri_ids_p1.reset();
 #ifdef LLIGHTMAP_DEBUG_RECLAIMED_TEXELS
 	_image_reclaimed_texels.reset();
@@ -655,6 +659,24 @@ void LightMapper_Base::normalize() {
 	}
 }
 
+void LightMapper_Base::Settings::set_images_filename(String p_filename) {
+	String ext = p_filename.get_extension();
+
+	combined_filename = p_filename;
+	combined_is_HDR = ext == "exr";
+
+	int l = ext.length();
+	image_filename_base = p_filename.substr(0, p_filename.length() - l);
+
+	print_line("Base image filename: " + image_filename_base);
+
+	lightmap_filename = image_filename_base + ".lightmap.exr";
+	AO_filename = image_filename_base + ".ao.exr";
+	emission_filename = image_filename_base + ".emission.exr";
+	glow_filename = image_filename_base + ".glow.exr";
+	orig_material_filename = image_filename_base + ".material.exr";
+}
+
 bool LightMapper_Base::load_lightmap(Image &image) {
 	//	assert (image.get_width() == m_iWidth);
 	//	assert (image.get_height() == m_iHeight);
@@ -691,9 +713,9 @@ bool LightMapper_Base::load_AO(Image &image) {
 	//	assert (image.get_width() == m_iWidth);
 	//	assert (image.get_height() == m_iHeight);
 
-	Error res = image.load(settings.ambient_filename);
+	Error res = image.load(settings.AO_filename);
 	if (res != OK) {
-		show_warning("Loading AO EXR failed.\n\n" + settings.ambient_filename);
+		show_warning("Loading AO EXR failed.\n\n" + settings.AO_filename);
 		return false;
 	}
 
@@ -922,7 +944,8 @@ void LightMapper_Base::write_output_image_AO(Image &image) {
 			float f = *pf;
 
 			// gamma correction
-			if (!settings.ambient_is_HDR) {
+			if (false) {
+				//			if (!settings.ambient_is_HDR) {
 				float gamma = 1.0f / 2.2f;
 				f = powf(f, gamma);
 			}
@@ -1005,7 +1028,8 @@ void LightMapper_Base::write_output_image_lightmap(Image &image) {
 			FColor f = *_image_main.get(x, y);
 
 			// gamma correction
-			if (!settings.lightmap_is_HDR) {
+			if (false) {
+				//			if (!settings.lightmap_is_HDR) {
 				float gamma = 1.0f / 2.2f;
 				f.r = powf(f.r, gamma);
 				f.g = powf(f.g, gamma);

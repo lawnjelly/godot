@@ -218,6 +218,10 @@ bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_ro
 	_image_main.create(_width, _height);
 	_image_main_mirror.create(_width, _height);
 
+	_image_lightmap.create(_width, _height);
+	_image_emission.create(_width, _height);
+	_image_glow.create(_width, _height);
+
 	_scene._image_emission_done.create(_width, _height);
 
 	// whether we need storage
@@ -289,38 +293,6 @@ bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_ro
 		find_lights_recursive(&light_root);
 		print_line("Found " + itos(_lights.size()) + " lights.");
 
-#if 0
-		_image_tri_ids_p1.create(_width, _height);
-#ifdef LLIGHTMAP_DEBUG_RECLAIMED_TEXELS
-		_image_reclaimed_texels.create(_width, _height);
-#endif
-
-		if (logic.rasterize_mini_lists) {
-			_image_tri_minilists.create(_width, _height);
-			_minilist_tri_ids.clear(true);
-		}
-
-		if (bake_step_function) {
-			bake_step_function(0, String("Barycentric Create"));
-		}
-		_image_barycentric.create(_width, _height);
-
-		//		if (bake_end_function) {
-		//			bake_end_function();
-		//		}
-
-		//m_Image_Cuts.Create(m_iWidth, m_iHeight);
-		//m_CuttingTris.clear(true);
-
-		if (bake_step_function) {
-			bake_step_function(0, String("Scene Create"));
-		}
-		print_line("Scene Create");
-		before = OS::get_singleton()->get_ticks_msec();
-		if (!_scene.create(pMeshesRoot, _width, _height, data.params[PARAM_VOXEL_DENSITY], adjusted_settings.max_material_size, adjusted_settings.emission_density))
-			return false;
-#endif
-
 		if (bake_step_function) {
 			bake_step_function(0, String("Prepare Lights"));
 		}
@@ -334,23 +306,6 @@ bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_ro
 
 		if (_pressed_cancel)
 			return false;
-
-#if 0
-		print_line("PrepareImageMaps");
-		before = OS::get_singleton()->get_ticks_msec();
-		if (!prepare_image_maps()) {
-			_pressed_cancel = true;
-		}
-		after = OS::get_singleton()->get_ticks_msec();
-		print_line("PrepareImageMaps took " + itos(after - before) + " ms");
-
-		if (_pressed_cancel)
-			return false;
-
-		// Reclaim texels.
-		_AA_create_kernel();
-		_AA_reclaim_texels();
-#endif
 
 		if (logic.process_AO) {
 			print_line("ProcessAO");
@@ -629,6 +584,8 @@ void LightMapper::backward_process_texels() {
 	//Backward_TraceTriangles();
 	//return;
 
+	_image_main.blank();
+
 	//_AA_create_kernel();
 	//_AA_reclaim_texels();
 
@@ -702,6 +659,8 @@ void LightMapper::backward_process_texels() {
 	print_line("num tests : " + itos(_num_tests));
 
 	_sky.unload_sky();
+
+	_image_main.copy_to(_image_lightmap);
 
 	if (bake_end_function) {
 		bake_end_function();
@@ -2426,6 +2385,8 @@ void LightMapper::process_orig_material() {
 }
 
 void LightMapper::process_emission_pixels() {
+	_image_main.blank();
+
 	for (int n = 0; n < _scene._emission_pixels.size(); n++) {
 		const Vec2_i16 &coord = _scene._emission_pixels[n];
 		process_emission_pixel(coord.x, coord.y);
@@ -2435,6 +2396,8 @@ void LightMapper::process_emission_pixels() {
 		ray_bank_process();
 		ray_bank_flush();
 	}
+
+	_image_main.copy_to(_image_emission);
 }
 
 void LightMapper::process_emission_pixel(int32_t p_x, int32_t p_y) {
@@ -2466,8 +2429,8 @@ void LightMapper::process_emission_pixel(int32_t p_x, int32_t p_y) {
 	Color emission = _scene._image_emission_done.get_item(p_x, p_y);
 
 	// Glow before reducing emission by emission power.
-	Color glow = emission * adjusted_settings.glow;
-	MT_safe_add_color_to_texel(p_x, p_y, glow);
+	Color glow = emission; // * adjusted_settings.glow;
+	_image_glow.get_item(p_x, p_y) = FColor::from_color(glow);
 
 	float luminosity = 0;
 	for (int c = 0; c < 3; c++) {
@@ -2478,9 +2441,9 @@ void LightMapper::process_emission_pixel(int32_t p_x, int32_t p_y) {
 	if (luminosity < 0.01f)
 		return;
 
-	emission *= adjusted_settings.emission_power;
+		//emission *= adjusted_settings.emission_power;
 
-	//	print_line("process_emission_pixel : color " + String(Variant(emission)) + " coords " +  itos(p_x) + ", " + itos(p_y) + " ... tri_id " + itos(tri_id) + " bary " + String(Variant(*bary)));
+		//	print_line("process_emission_pixel : color " + String(Variant(emission)) + " coords " +  itos(p_x) + ", " + itos(p_y) + " ... tri_id " + itos(tri_id) + " bary " + String(Variant(*bary)));
 
 //#define LLIGHTMAP_FORWARD_EMISSION_PIXELS
 #ifdef LLIGHTMAP_FORWARD_EMISSION_PIXELS

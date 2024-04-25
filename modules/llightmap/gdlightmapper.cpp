@@ -79,10 +79,11 @@ void LLightmap::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_quality", "quality"), &LLightmap::set_quality);
 	ClassDB::bind_method(D_METHOD("get_quality"), &LLightmap::get_quality);
 
-	ClassDB::bind_method(D_METHOD("set_lightmap_filename", "lightmap_filename"), &LLightmap::set_lightmap_filename);
-	ClassDB::bind_method(D_METHOD("get_lightmap_filename"), &LLightmap::get_lightmap_filename);
-	ClassDB::bind_method(D_METHOD("set_ao_filename", "ao_filename"), &LLightmap::set_ao_filename);
-	ClassDB::bind_method(D_METHOD("get_ao_filename"), &LLightmap::get_ao_filename);
+	//	ClassDB::bind_method(D_METHOD("set_lightmap_filename", "lightmap_filename"), &LLightmap::set_lightmap_filename);
+	//	ClassDB::bind_method(D_METHOD("get_lightmap_filename"), &LLightmap::get_lightmap_filename);
+	//	ClassDB::bind_method(D_METHOD("set_ao_filename", "ao_filename"), &LLightmap::set_ao_filename);
+	//	ClassDB::bind_method(D_METHOD("get_ao_filename"), &LLightmap::get_ao_filename);
+
 	ClassDB::bind_method(D_METHOD("set_combined_filename", "combined_filename"), &LLightmap::set_combined_filename);
 	ClassDB::bind_method(D_METHOD("get_combined_filename"), &LLightmap::get_combined_filename);
 
@@ -208,8 +209,8 @@ void LLightmap::_bind_methods() {
 	ADD_GROUP("Paths", "");
 	LIMPL_PROPERTY(Variant::NODE_PATH, meshes, set_mesh_path, get_mesh_path);
 	LIMPL_PROPERTY(Variant::NODE_PATH, lights, set_lights_path, get_lights_path);
-	ADD_PROPERTY(PropertyInfo(Variant::STRING, "lightmap_filename", PROPERTY_HINT_SAVE_FILE, "*.exr"), "set_lightmap_filename", "get_lightmap_filename");
-	ADD_PROPERTY(PropertyInfo(Variant::STRING, "ao_filename", PROPERTY_HINT_SAVE_FILE, "*.exr"), "set_ao_filename", "get_ao_filename");
+	//	ADD_PROPERTY(PropertyInfo(Variant::STRING, "lightmap_filename", PROPERTY_HINT_SAVE_FILE, "*.exr"), "set_lightmap_filename", "get_lightmap_filename");
+	//	ADD_PROPERTY(PropertyInfo(Variant::STRING, "ao_filename", PROPERTY_HINT_SAVE_FILE, "*.exr"), "set_ao_filename", "get_ao_filename");
 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "combined_filename", PROPERTY_HINT_SAVE_FILE, "*.png,*.exr"), "set_combined_filename", "get_combined_filename");
 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "uv_filename", PROPERTY_HINT_SAVE_FILE, "*.tscn"), "set_uv_filename", "get_uv_filename");
 
@@ -303,8 +304,8 @@ Variant LLightmap::get_param(LM::LightMapper::Param p_param) {
 	}                                                                                           \
 	String LLightmap::GET_FUNC_NAME() const { return m_LM.SETTING; }
 
-LLIGHTMAP_IMPLEMENT_SETGET_FILENAME(set_lightmap_filename, get_lightmap_filename, settings.lightmap_filename, settings.lightmap_is_HDR)
-LLIGHTMAP_IMPLEMENT_SETGET_FILENAME(set_ao_filename, get_ao_filename, settings.ambient_filename, settings.ambient_is_HDR)
+//LLIGHTMAP_IMPLEMENT_SETGET_FILENAME(set_lightmap_filename, get_lightmap_filename, settings.lightmap_filename, settings.lightmap_is_HDR)
+//LLIGHTMAP_IMPLEMENT_SETGET_FILENAME(set_ao_filename, get_ao_filename, settings.ambient_filename, settings.ambient_is_HDR)
 //LLIGHTMAP_IMPLEMENT_SETGET_FILENAME(set_combined_filename, get_combined_filename, settings.CombinedFilename, settings.CombinedIsHDR)
 
 void LLightmap::set_combined_filename(const String &p_filename) {
@@ -315,6 +316,8 @@ void LLightmap::set_combined_filename(const String &p_filename) {
 	if (ext == "")
 		new_filename += ".png";
 
+	m_LM.settings.set_images_filename(new_filename);
+	/*
 	m_LM.settings.combined_filename = new_filename;
 
 	if (ext == "exr") {
@@ -322,6 +325,7 @@ void LLightmap::set_combined_filename(const String &p_filename) {
 	} else {
 		m_LM.settings.combined_is_HDR = false;
 	}
+*/
 }
 
 String LLightmap::get_combined_filename() const {
@@ -377,29 +381,31 @@ bool LLightmap::lightmap_bake() {
 		return false;
 
 	// bake to a file
-	Ref<Image> image_lightmap;
-	Ref<Image> image_ao;
+	//Ref<Image> image_lightmap;
+	//Ref<Image> image_ao;
 	Ref<Image> image_combined;
 
 	int w = m_LM.adjusted_settings.tex_width;
 	int h = m_LM.adjusted_settings.tex_height;
 
 	// create either low or HDR images
-	if (m_LM.settings.lightmap_is_HDR) {
-		Ref<Image> image = memnew(Image(w, h, false, Image::FORMAT_RGBAF));
-		image_lightmap = image;
-	} else {
-		Ref<Image> image = memnew(Image(w, h, false, Image::FORMAT_RGBA8));
-		image_lightmap = image;
-	}
+	Ref<Image> image_lightmap = memnew(Image(w, h, false, Image::FORMAT_RGBAF));
+	Ref<Image> image_ao = memnew(Image(w, h, false, Image::FORMAT_RGBAF));
+	//	if (m_LM.settings.lightmap_is_HDR) {
+	//		Ref<Image> image = memnew(Image(w, h, false, Image::FORMAT_RGBAF));
+	//		image_lightmap = image;
+	//	} else {
+	//		Ref<Image> image = memnew(Image(w, h, false, Image::FORMAT_RGBA8));
+	//		image_lightmap = image;
+	//	}
 
-	if (m_LM.settings.ambient_is_HDR) {
-		Ref<Image> image = memnew(Image(w, h, false, Image::FORMAT_RF));
-		image_ao = image;
-	} else {
-		Ref<Image> image = memnew(Image(w, h, false, Image::FORMAT_L8));
-		image_ao = image;
-	}
+	//	if (m_LM.settings.ambient_is_HDR) {
+	//		Ref<Image> image = memnew(Image(w, h, false, Image::FORMAT_RF));
+	//		image_ao = image;
+	//	} else {
+	//		Ref<Image> image = memnew(Image(w, h, false, Image::FORMAT_L8));
+	//		image_ao = image;
+	//	}
 
 	if (m_LM.settings.combined_is_HDR) {
 		Ref<Image> image = memnew(Image(w, h, false, Image::FORMAT_RGBAF));
@@ -413,7 +419,8 @@ bool LLightmap::lightmap_bake() {
 
 	// save the images, png or exr
 	if (m_LM.logic.process_lightmap) {
-		if (m_LM.settings.lightmap_is_HDR) {
+		if (true) {
+			//		if (m_LM.settings.lightmap_is_HDR) {
 			String szGlobalPath = ProjectSettings::get_singleton()->globalize_path(m_LM.settings.lightmap_filename);
 			print_line("saving lights EXR .. global path : " + szGlobalPath);
 			Error err = image_lightmap->save_exr(szGlobalPath, false);
@@ -426,15 +433,16 @@ bool LLightmap::lightmap_bake() {
 	}
 
 	if (m_LM.logic.process_AO) {
-		if (m_LM.settings.ambient_is_HDR) {
-			String szGlobalPath = ProjectSettings::get_singleton()->globalize_path(m_LM.settings.ambient_filename);
+		if (true) {
+			//		if (m_LM.settings.ambient_is_HDR) {
+			String szGlobalPath = ProjectSettings::get_singleton()->globalize_path(m_LM.settings.AO_filename);
 			print_line("saving ao EXR .. global path : " + szGlobalPath);
 			Error err = image_ao->save_exr(szGlobalPath, false);
 
 			if (err != OK)
-				OS::get_singleton()->alert("Error writing EXR file. Does this folder exist?\n\n" + m_LM.settings.ambient_filename, "WARNING");
+				OS::get_singleton()->alert("Error writing EXR file. Does this folder exist?\n\n" + m_LM.settings.AO_filename, "WARNING");
 		} else {
-			image_ao->save_png(m_LM.settings.ambient_filename);
+			image_ao->save_png(m_LM.settings.AO_filename);
 		}
 	}
 
