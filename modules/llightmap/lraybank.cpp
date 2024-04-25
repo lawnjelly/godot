@@ -207,7 +207,7 @@ void RayBank::ray_bank_flush_ray(RB_Voxel &vox, int ray_id) {
 	if (hit.is_no_hit())
 		return;
 
-	FColor *pf = _image_L.get(hit.tx, hit.ty);
+	FColor *pf = _image_main.get(hit.tx, hit.ty);
 #ifdef DEBUG_ENABLED
 	assert(pf);
 #endif
@@ -464,7 +464,7 @@ void RayBank::ray_bank_process_ray_MT(uint32_t ray_id, int start_ray) {
 	int ty = uv.y * _height;
 
 	// could be off the image
-	if (!_image_L.is_within(tx, ty)) {
+	if (!_image_main.is_within(tx, ty)) {
 		fray.num_rays_left = 0;
 		return;
 	}

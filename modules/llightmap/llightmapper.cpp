@@ -215,8 +215,8 @@ bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_ro
 		return false;
 
 	// create stuff used by everything
-	_image_L.create(_width, _height);
-	_image_L_mirror.create(_width, _height);
+	_image_main.create(_width, _height);
+	_image_main_mirror.create(_width, _height);
 
 	_scene._image_emission_done.create(_width, _height);
 
@@ -440,13 +440,13 @@ void LightMapper::process_texels_ambient_bounce_line_MT(uint32_t offset_y, int s
 			FColor power = process_texel_ambient_bounce(x, y, tri_source);
 
 			// save the incoming light power in the mirror image (as the source is still being used)
-			_image_L_mirror.get_item(x, y) = power;
+			_image_main_mirror.get_item(x, y) = power;
 		}
 	}
 }
 
 void LightMapper::process_texels_ambient_bounce(int section_size, int num_sections) {
-	_image_L_mirror.blank();
+	_image_main_mirror.blank();
 
 	// disable multithread
 	//num_sections = 0;
@@ -500,9 +500,9 @@ void LightMapper::process_texels_ambient_bounce(int section_size, int num_sectio
 
 	for (int y = 0; y < _height; y++) {
 		for (int x = 0; x < _width; x++) {
-			FColor col = _image_L.get_item(x, y);
+			FColor col = _image_main.get_item(x, y);
 
-			FColor col_add = _image_L_mirror.get_item(x, y) * ambient_bounce_power;
+			FColor col_add = _image_main_mirror.get_item(x, y) * ambient_bounce_power;
 
 			//			assert (col_add.r >= 0.0f);
 			//			assert (col_add.g >= 0.0f);
@@ -510,7 +510,7 @@ void LightMapper::process_texels_ambient_bounce(int section_size, int num_sectio
 
 			col += col_add;
 
-			_image_L.get_item(x, y) = col;
+			_image_main.get_item(x, y) = col;
 		}
 	}
 }
@@ -1356,7 +1356,7 @@ void LightMapper::BF_process_texel_light_bounce(int bounces_left, Ray r, Color r
 	int ty = uv.y * _height;
 
 	// could be off the image
-	if (!_image_L.is_within(tx, ty))
+	if (!_image_main.is_within(tx, ty))
 		return;
 
 	// position of potential hit
@@ -1400,7 +1400,7 @@ void LightMapper::BF_process_texel_light_bounce(int bounces_left, Ray r, Color r
 	ray_color *= lambert;
 
 	// apply
-	MT_safe_add_to_texel(tx, ty, ray_color);
+	MT_safe_add_fcolor_to_texel(tx, ty, ray_color);
 
 	// any more bounces to go?
 	bounces_left--;
@@ -1550,7 +1550,7 @@ bool LightMapper::process_texel_ambient_bounce_sample(const Vector3 &plane_norm,
 			int dy = (uvs.y * _height);
 
 			// texel not on the UV map
-			if (!_image_L.is_within(dx, dy))
+			if (!_image_main.is_within(dx, dy))
 				return true;
 
 			// back face?
@@ -1581,7 +1581,7 @@ bool LightMapper::process_texel_ambient_bounce_sample(const Vector3 &plane_norm,
 				// if it is front facing, still apply the 'haze' from the colour
 				// (this all counts as 1 sample, so could get super light in theory, if passing through several hazes...)
 				if (!is_backface)
-					total_col += (_image_L.get_item(dx, dy) * falbedo);
+					total_col += (_image_main.get_item(dx, dy) * falbedo);
 
 				// move the ray origin and do again
 				// position of potential hit
@@ -1597,7 +1597,7 @@ bool LightMapper::process_texel_ambient_bounce_sample(const Vector3 &plane_norm,
 
 				// and repeat the loop
 			} else {
-				total_col += (_image_L.get_item(dx, dy) * falbedo);
+				total_col += (_image_main.get_item(dx, dy) * falbedo);
 
 				// If we want emission on ambient bounces.
 				// FColor femission;
@@ -2142,7 +2142,7 @@ void LightMapper::AA_BF_process_texel(int p_tx, int p_ty) {
 	// safe write
 	FColor texel_add;
 	texel_add.set(total_col);
-	MT_safe_add_to_texel(p_tx, p_ty, texel_add);
+	MT_safe_add_fcolor_to_texel(p_tx, p_ty, texel_add);
 }
 
 void LightMapper::BF_process_texel(int tx, int ty) {
@@ -2438,7 +2438,7 @@ void LightMapper::process_emission_pixels() {
 }
 
 void LightMapper::process_emission_pixel(int32_t p_x, int32_t p_y) {
-	DEV_ASSERT(_image_L.is_within(p_x, p_y));
+	DEV_ASSERT(_image_main.is_within(p_x, p_y));
 
 	// find triangle
 	/*
@@ -2465,17 +2465,22 @@ void LightMapper::process_emission_pixel(int32_t p_x, int32_t p_y) {
 
 	Color emission = _scene._image_emission_done.get_item(p_x, p_y);
 
-	emission *= adjusted_settings.emission_power;
+	// Glow before reducing emission by emission power.
+	Color glow = emission * adjusted_settings.glow;
+	MT_safe_add_color_to_texel(p_x, p_y, glow);
 
 	float luminosity = 0;
 	for (int c = 0; c < 3; c++) {
 		luminosity += emission.components[c];
 	}
+
 	// Not emitting enough to be worth it.
-	if (luminosity < 0.1f)
+	if (luminosity < 0.01f)
 		return;
 
-		//	print_line("process_emission_pixel : color " + String(Variant(emission)) + " coords " +  itos(p_x) + ", " + itos(p_y) + " ... tri_id " + itos(tri_id) + " bary " + String(Variant(*bary)));
+	emission *= adjusted_settings.emission_power;
+
+	//	print_line("process_emission_pixel : color " + String(Variant(emission)) + " coords " +  itos(p_x) + ", " + itos(p_y) + " ... tri_id " + itos(tri_id) + " bary " + String(Variant(*bary)));
 
 //#define LLIGHTMAP_FORWARD_EMISSION_PIXELS
 #ifdef LLIGHTMAP_FORWARD_EMISSION_PIXELS
@@ -2569,7 +2574,7 @@ void LightMapper::process_emission_pixel_backward(int32_t p_x, int32_t p_y, cons
 				//////////////////////////////
 
 				// Test directly add the emission.
-				MT_safe_add_to_texel(x, y, p_emission * power);
+				MT_safe_add_fcolor_to_texel(x, y, p_emission * power);
 			}
 		}
 	}
@@ -2690,10 +2695,10 @@ void LightMapper::process_emission_tri(int etri_id, float fraction_of_total) {
 		int ty = uv.y * _height;
 
 		// could be off the image
-		if (!_image_L.is_within(tx, ty))
+		if (!_image_main.is_within(tx, ty))
 			continue;
 
-		FColor *pTexelCol = _image_L.get(tx, ty);
+		FColor *pTexelCol = _image_main.get(tx, ty);
 
 		//		fcol.Set(emission_color * 0.5f);
 		*pTexelCol += fcol * adjusted_settings.glow;

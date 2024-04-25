@@ -133,10 +133,10 @@ protected:
 
 protected:
 	// luminosity
-	LightImage<FColor> _image_L;
+	LightImage<FColor> _image_main;
 
 	// for bounces
-	LightImage<FColor> _image_L_mirror;
+	LightImage<FColor> _image_main_mirror;
 
 	// If we desire to merge the original material with the lightmap.
 	LightImage<Color> _image_orig_material;

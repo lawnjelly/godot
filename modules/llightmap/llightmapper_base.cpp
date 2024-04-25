@@ -127,8 +127,8 @@ void LightMapper_Base::debug_save(LightImage<uint32_t> &p_im, String p_filename)
 }
 
 void LightMapper_Base::base_reset() {
-	_image_L.reset();
-	_image_L_mirror.reset();
+	_image_main.reset();
+	_image_main_mirror.reset();
 
 	_image_orig_material.reset();
 	_image_AO.reset();
@@ -163,6 +163,18 @@ void LightMapper_Base::calculate_quality_adjusted_settings() {
 	//as.m_Forward_NumRays = settings.Forward_NumRays;
 	as.emission_density = data.params[PARAM_EMISSION_DENSITY];
 	as.emission_power = data.params[PARAM_EMISSION_POWER];
+
+	// New .. Scale emission power by the final lightmap size.
+	// This is because emission is more per texel that emits, and the number of texels
+	// scales with overall lightmap size.
+	uint32_t num_texels = _width * _height;
+	float overall_lightmap_size_scaling = num_texels / (float)(512 * 512);
+
+	if (overall_lightmap_size_scaling) {
+		as.emission_power *= 1.0 / overall_lightmap_size_scaling;
+	} else {
+		WARN_PRINT("overall_lightmap_size_scaling is zero.");
+	}
 
 	as.glow = data.params[PARAM_GLOW];
 	as.glow *= as.glow;
@@ -582,7 +594,7 @@ void LightMapper_Base::stitch_seams() {
 	for (int n = 0; n < _scene.get_num_meshes(); n++) {
 		MeshInstance *mi = _scene.get_mesh(n);
 
-		stitcher.stitch_object_seams(*mi, _image_L, data.params[PARAM_SEAM_DISTANCE_THRESHOLD], data.params[PARAM_SEAM_NORMAL_THRESHOLD], data.params[PARAM_VISUALIZE_SEAMS_ENABLED]);
+		stitcher.stitch_object_seams(*mi, _image_main, data.params[PARAM_SEAM_DISTANCE_THRESHOLD], data.params[PARAM_SEAM_NORMAL_THRESHOLD], data.params[PARAM_VISUALIZE_SEAMS_ENABLED]);
 	}
 }
 
@@ -593,7 +605,7 @@ void LightMapper_Base::apply_noise_reduction() {
 		case NR_SIMPLE: {
 			// simple
 			Convolution<FColor> conv;
-			conv.run(_image_L, data.params[PARAM_NOISE_THRESHOLD], data.params[PARAM_NOISE_REDUCTION]);
+			conv.run(_image_main, data.params[PARAM_NOISE_THRESHOLD], data.params[PARAM_NOISE_REDUCTION]);
 
 			//	Convolution<float> conv_ao;
 			//	conv_ao.Run(m_Image_AO, settings.NoiseThreshold, settings.NoiseReduction);
@@ -602,7 +614,7 @@ void LightMapper_Base::apply_noise_reduction() {
 			// use open image denoise
 			void *device = oidn_denoiser_init();
 
-			if (!oidn_denoise(device, (float *)_image_L.get(0), _image_L.get_width(), _image_L.get_height())) {
+			if (!oidn_denoise(device, (float *)_image_main.get(0), _image_main.get_width(), _image_main.get_height())) {
 				WARN_PRINT("open image denoise error");
 			}
 
@@ -615,12 +627,12 @@ void LightMapper_Base::normalize() {
 	if (data.params[PARAM_NORMALIZE] != Variant(true))
 		return;
 
-	int nPixels = _image_L.get_num_pixels();
+	int nPixels = _image_main.get_num_pixels();
 	float fmax = 0.0f;
 
 	// first find the max
 	for (int n = 0; n < nPixels; n++) {
-		float f = _image_L.get(n)->max();
+		float f = _image_main.get(n)->max();
 		if (f > fmax)
 			fmax = f;
 	}
@@ -638,7 +650,7 @@ void LightMapper_Base::normalize() {
 
 	// apply multiplier
 	for (int n = 0; n < nPixels; n++) {
-		FColor &col = *_image_L.get(n);
+		FColor &col = *_image_main.get(n);
 		col = col * mult;
 	}
 }
@@ -661,7 +673,7 @@ bool LightMapper_Base::load_lightmap(Image &image) {
 	image.lock();
 	for (int y = 0; y < _height; y++) {
 		for (int x = 0; x < _width; x++) {
-			_image_L.get_item(x, y).set(image.get_pixel(x, y));
+			_image_main.get_item(x, y).set(image.get_pixel(x, y));
 		}
 	}
 	image.unlock();
@@ -669,7 +681,7 @@ bool LightMapper_Base::load_lightmap(Image &image) {
 	// Dilate after loading to allow merging.
 	if (data.params[PARAM_DILATE_ENABLED] == Variant(true)) {
 		Dilate<FColor> dilate;
-		dilate.dilate_image(_image_L, _image_tri_ids_p1, 256);
+		dilate.dilate_image(_image_main, _image_tri_ids_p1, 256);
 	}
 
 	return true;
@@ -724,7 +736,7 @@ void LightMapper_Base::merge_and_write_output_image_combined(Image &image) {
 			if (_image_AO.get_num_pixels())
 				ao = _image_AO.get_item(x, y);
 
-			FColor lum = _image_L.get_item(x, y);
+			FColor lum = _image_main.get_item(x, y);
 
 			// combined
 			FColor f;
@@ -780,7 +792,7 @@ void LightMapper_Base::merge_and_write_output_image_combined(Image &image) {
 			}
 
 			// write back to L
-			*_image_L.get(x, y) = f;
+			*_image_main.get(x, y) = f;
 		}
 	}
 
@@ -789,7 +801,7 @@ void LightMapper_Base::merge_and_write_output_image_combined(Image &image) {
 	// One more dilate?
 	if (data.params[PARAM_DILATE_ENABLED] == Variant(true)) {
 		Dilate<FColor> dilate;
-		dilate.dilate_image(_image_L, _image_tri_ids_p1, 256);
+		dilate.dilate_image(_image_main, _image_tri_ids_p1, 256);
 	}
 
 	stitch_seams();
@@ -800,7 +812,7 @@ void LightMapper_Base::merge_and_write_output_image_combined(Image &image) {
 
 	for (int y = 0; y < _height; y++) {
 		for (int x = 0; x < _width; x++) {
-			FColor f = _image_L.get_item(x, y);
+			FColor f = _image_main.get_item(x, y);
 
 			Color col;
 			col = Color(f.r, f.g, f.b, 1);
@@ -947,7 +959,7 @@ void LightMapper_Base::show_warning(String sz, bool bAlert) {
 void LightMapper_Base::write_output_image_lightmap(Image &image) {
 	if (data.params[PARAM_DILATE_ENABLED] == Variant(true)) {
 		Dilate<FColor> dilate;
-		dilate.dilate_image(_image_L, _image_tri_ids_p1, 256);
+		dilate.dilate_image(_image_main, _image_tri_ids_p1, 256);
 		//	} else {
 		//		// mark magenta
 		//		for (uint32_t y = 0; y < _height; y++) {
@@ -990,7 +1002,7 @@ void LightMapper_Base::write_output_image_lightmap(Image &image) {
 
 	for (int y = 0; y < _height; y++) {
 		for (int x = 0; x < _width; x++) {
-			FColor f = *_image_L.get(x, y);
+			FColor f = *_image_main.get(x, y);
 
 			// gamma correction
 			if (!settings.lightmap_is_HDR) {
