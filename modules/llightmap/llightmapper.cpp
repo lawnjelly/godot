@@ -1154,7 +1154,7 @@ void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id,
 				// of the likelihood of 'catching' a ray. In forward tracing this happens by magic.
 				float local_power;
 
-#if 0
+#if 1
 				// no drop off for directional lights
 				//float dist = (ptDest - ray_origin).length();
 				float dist = ray_length;
@@ -2285,7 +2285,7 @@ void LightMapper::_process_orig_material_texel(int32_t p_tx, int32_t p_ty) {
 	if (!ml.num)
 		return;
 
-	int aa_size = data.params[PARAM_MATERIAL_KERNEL_SIZE];
+	int aa_size = adjusted_settings.material_kernel_size;
 
 //#define LLIGHTMAP_ORIG_MATERIAL_REGULAR_KERNEL
 #ifdef LLIGHTMAP_ORIG_MATERIAL_REGULAR_KERNEL

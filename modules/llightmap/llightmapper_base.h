@@ -9,7 +9,7 @@
 #include "scene/3d/mesh_instance.h"
 #include "scene/3d/spatial.h"
 
-//#define LLIGHTMAP_MULTITHREADED
+#define LLIGHTMAP_MULTITHREADED
 //#define LLIGHTMAP_DEBUG_RECLAIMED_TEXELS
 //#define LLIGHTMAP_DEBUG_SPECIFIC_TEXEL
 
@@ -352,6 +352,8 @@ public:
 		float AO_range;
 
 		int max_material_size;
+		int material_kernel_size;
+
 		float normalize_multiplier;
 
 		int num_sky_samples;

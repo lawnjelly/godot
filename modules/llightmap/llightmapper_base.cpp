@@ -189,6 +189,8 @@ void LightMapper_Base::calculate_quality_adjusted_settings() {
 	as.antialias_samples_per_texel = as.antialias_samples_width * as.antialias_samples_width;
 	as.antialias_num_light_samples = data.params[PARAM_AA_NUM_LIGHT_SAMPLES];
 
+	as.material_kernel_size = data.params[PARAM_MATERIAL_KERNEL_SIZE];
+
 	// overrides
 	switch (settings.quality) {
 		case LM_QUALITY_LOW: {
@@ -200,7 +202,9 @@ void LightMapper_Base::calculate_quality_adjusted_settings() {
 			as.num_ambient_bounces = 0;
 			as.num_directional_bounces = 0;
 			as.num_sky_samples = 64;
+			as.antialias_samples_per_texel = 1;
 			as.antialias_num_light_samples = 1;
+			as.material_kernel_size = 1;
 		} break;
 		case LM_QUALITY_MEDIUM: {
 			as.num_primary_rays /= 2;
@@ -208,6 +212,9 @@ void LightMapper_Base::calculate_quality_adjusted_settings() {
 			as.max_material_size /= 4;
 			as.num_ambient_bounce_rays /= 2;
 			as.num_sky_samples /= 2;
+			as.antialias_samples_width /= 2;
+			as.antialias_samples_per_texel /= 2;
+			as.material_kernel_size /= 2;
 		} break;
 		default:
 			// high is default
@@ -218,6 +225,9 @@ void LightMapper_Base::calculate_quality_adjusted_settings() {
 			as.num_ambient_bounce_rays *= 2;
 			as.num_sky_samples *= 2;
 			as.antialias_num_light_samples *= 2;
+
+			as.antialias_samples_per_texel *= 2;
+			as.material_kernel_size += 2;
 			break;
 	}
 
@@ -233,6 +243,10 @@ void LightMapper_Base::calculate_quality_adjusted_settings() {
 	as.num_AO_samples = MAX(as.num_AO_samples, 1);
 	as.max_material_size = MAX(as.max_material_size, 32);
 	as.emission_density = MAX(as.emission_density, 1);
+
+	as.antialias_samples_per_texel = MAX(as.antialias_samples_per_texel, 1);
+	as.antialias_samples_width = MAX(as.antialias_samples_width, 1);
+	as.material_kernel_size = MAX(as.material_kernel_size, 1);
 }
 
 void LightMapper_Base::find_light(const Node *pNode) {
@@ -756,10 +770,13 @@ void LightMapper_Base::merge_and_write_output_image_combined(Image &image) {
 			if (combine_orig_material) {
 				//col *= _image_orig_material.get_item(x, y);
 				const Color &alb = _image_orig_material.get_item(x, y);
+#if 0
 				f.set(alb);
-				//				f.r *= alb.r;
-				//				f.g *= alb.g;
-				//				f.b *= alb.b;
+#else
+				f.r *= alb.r;
+				f.g *= alb.g;
+				f.b *= alb.b;
+#endif
 			}
 
 			// write back to L
