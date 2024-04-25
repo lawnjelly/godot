@@ -115,11 +115,11 @@ protected:
 	void apply_noise_reduction();
 	void stitch_seams();
 
-	void write_output_image_lightmap(Image &image);
-	void write_output_image_AO(Image &image);
+	//void write_output_image_lightmap(Image &image);
+	//void write_output_image_AO(Image &image);
 
-	bool load_lightmap(Image &image);
-	bool load_AO(Image &image);
+	//bool load_lightmap(Image &image);
+	//bool load_AO(Image &image);
 
 	void merge_and_write_output_image_combined(Image &image);
 
@@ -377,6 +377,8 @@ public:
 
 	struct Logic {
 		// some internal logic based on the bake state
+		bool process_emission = true;
+		bool process_glow = true;
 		bool process_lightmap = true;
 		bool process_AO = true;
 		bool process_probes = true;
@@ -390,6 +392,22 @@ public:
 
 protected:
 	//	static void _bind_methods();
+
+	Color _to_color(FColor fc) const {
+		return Color(fc.r, fc.g, fc.b, 1);
+	}
+
+	Color _to_color(float f) const {
+		return Color(f, f, f, 1);
+	}
+
+	void _fill_from_color(float &r_f, const Color &p_col) const {
+		r_f = p_col.r;
+	}
+
+	void _fill_from_color(FColor &r_f, const Color &p_col) const {
+		r_f = FColor::from_color(p_col);
+	}
 
 	float light_distance_drop_off(float dist, const LLight &light, float power) const {
 		float local_power;

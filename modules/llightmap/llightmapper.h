@@ -13,8 +13,14 @@ public:
 private:
 	bool _lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_root, Image &out_image_lightmap, Image &out_image_ao, Image &out_image_combined);
 	void reset();
+	void save_intermediates();
 
 private:
+	template <class T>
+	void save_intermediate(bool p_save, const String &p_filename, const LightImage<T> &p_lightimage);
+	template <class T>
+	bool load_intermediate(const String &p_filename, LightImage<T> &r_lightimage);
+
 	// forward tracing
 	void process_lights();
 	void process_light(int light_id, int num_rays);

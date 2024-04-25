@@ -1,5 +1,6 @@
 #include "llightmapper.h"
 #include "core/os/threaded_array_processor.h"
+#include "ldilate.h"
 #include "llightprobe.h"
 #include "llightscene.h"
 #include "lmerger.h"
@@ -150,6 +151,98 @@ bool LightMapper::lightmap_meshes(Spatial *pMeshesRoot, Spatial *pLR, Image *pIm
 	return res;
 }
 
+template <class T>
+bool LightMapper::load_intermediate(const String &p_filename, LightImage<T> &r_lightimage) {
+	Image image;
+
+	Error res = image.load(p_filename);
+	if (res != OK) {
+		show_warning("Loading EXR failed.\n\n" + p_filename);
+		return false;
+	}
+
+	if ((image.get_width() != _width) || (image.get_height() != _height)) {
+		show_warning("Loaded file dimensions do not match project, ignoring.\n\n" + p_filename);
+		return false;
+	}
+
+	image.lock();
+	for (int y = 0; y < _height; y++) {
+		for (int x = 0; x < _width; x++) {
+			_fill_from_color(r_lightimage.get_item(x, y), image.get_pixel(x, y));
+		}
+	}
+	image.unlock();
+
+	// Dilate after loading to allow merging.
+	if (data.params[PARAM_DILATE_ENABLED] == Variant(true)) {
+		LM::Dilate<T> dilate;
+		dilate.dilate_image(r_lightimage, _image_tri_ids_p1, 256);
+	}
+
+	return true;
+}
+
+template <class T>
+void LightMapper::save_intermediate(bool p_save, const String &p_filename, const LightImage<T> &p_lightimage) {
+	if (!p_save)
+		return;
+
+	Ref<Image> image = memnew(Image(_width, _height, false, Image::FORMAT_RGBAF));
+
+	//	if (data.params[PARAM_DILATE_ENABLED] == Variant(true)) {
+	//		Dilate<T> dilate;
+	//		dilate.dilate_image(p_lightimage, _image_tri_ids_p1, 256);
+	//	}
+
+	// final version
+	image->lock();
+
+	for (int y = 0; y < _height; y++) {
+		for (int x = 0; x < _width; x++) {
+			T f = *p_lightimage.get(x, y);
+
+			Color col = _to_color(f);
+
+#if 0			
+			// gamma correction
+			if (false) {
+				//			if (!settings.lightmap_is_HDR) {
+				float gamma = 1.0f / 2.2f;
+				f.r = powf(f.r, gamma);
+				f.g = powf(f.g, gamma);
+				f.b = powf(f.b, gamma);
+			}
+#endif
+
+			// debug mark the dilated pixels
+#if 0
+			if (!m_Image_ID_p1.GetItem(x, y)) {
+				col = Color(1.0f, 0.33f, 0.66f, 1);
+			}
+#endif
+
+			image->set_pixel(x, y, col);
+		}
+	}
+
+	image->unlock();
+
+	String global_path = ProjectSettings::get_singleton()->globalize_path(p_filename);
+	print_line("saving EXR .. global path : " + global_path);
+	Error err = image->save_exr(global_path, false);
+	if (err != OK)
+		OS::get_singleton()->alert("Error writing EXR file. Does this folder exist?\n\n" + global_path, "WARNING");
+}
+
+void LightMapper::save_intermediates() {
+	// save the images, png or exr
+	save_intermediate(logic.process_lightmap, settings.lightmap_filename, _image_lightmap);
+	save_intermediate(logic.process_AO, settings.AO_filename, _image_AO);
+	save_intermediate(logic.process_emission, settings.emission_filename, _image_emission);
+	save_intermediate(logic.process_glow, settings.glow_filename, _image_glow);
+}
+
 void LightMapper::reset() {
 	_lights.clear(true);
 	_scene.reset();
@@ -162,6 +255,9 @@ void LightMapper::refresh_process_state() {
 	logic.process_lightmap = true;
 	logic.process_AO = true;
 	logic.reserve_AO = true;
+	logic.process_emission = data.params[PARAM_EMISSION_ENABLED] == Variant(true);
+	logic.process_glow = logic.process_emission;
+
 	logic.process_probes = false;
 	logic.output_final = true;
 	logic.rasterize_mini_lists = true;
@@ -180,14 +276,20 @@ void LightMapper::refresh_process_state() {
 		} break;
 		case LMBAKEMODE_AO: {
 			logic.process_lightmap = false;
+			logic.process_emission = false;
+			logic.process_glow = false;
 		} break;
 		case LMBAKEMODE_MERGE: {
 			logic.process_lightmap = false;
 			logic.process_AO = false;
+			logic.process_emission = false;
+			logic.process_glow = false;
 		} break;
 		case LMBAKEMODE_UVMAP: {
 			logic.process_lightmap = false;
 			logic.process_AO = false;
+			logic.process_emission = false;
+			logic.process_glow = false;
 			logic.reserve_AO = false;
 			logic.output_final = false;
 		} break;
@@ -325,7 +427,7 @@ bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_ro
 			else {
 				process_lights();
 			}
-			if (data.params[PARAM_EMISSION_ENABLED] == Variant(true)) {
+			if (logic.process_emission) {
 #define LLIGHTMAP_EMISSION_USE_PIXELS
 #ifdef LLIGHTMAP_EMISSION_USE_PIXELS
 				process_emission_pixels();
@@ -341,7 +443,8 @@ bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_ro
 		if (logic.process_probes) {
 			// calculate probes
 			print_line("ProcessProbes");
-			if (load_lightmap(out_image_lightmap)) {
+			if (load_intermediate(settings.lightmap_filename, _image_lightmap)) {
+				//if (load_lightmap(out_image_lightmap)) {
 				process_light_probes();
 			}
 		}
@@ -350,9 +453,10 @@ bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_ro
 			return false;
 
 		if (!logic.process_probes) {
-			write_output_image_lightmap(out_image_lightmap);
-			write_output_image_AO(out_image_ao);
+			//write_output_image_lightmap(out_image_lightmap);
+			//write_output_image_AO(out_image_ao);
 
+			save_intermediates();
 			// test convolution
 			//			Merge_AndWriteOutputImage_Combined(out_image_combined);
 			//			out_image_combined.save_png("before_convolve.png");
@@ -367,8 +471,14 @@ bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_ro
 		_scene.find_meshes(pMeshesRoot);
 
 		// load the lightmap and ao from disk
-		load_lightmap(out_image_lightmap);
-		load_AO(out_image_ao);
+
+		load_intermediate(settings.lightmap_filename, _image_lightmap);
+		load_intermediate(settings.AO_filename, _image_AO);
+		load_intermediate(settings.emission_filename, _image_emission);
+		load_intermediate(settings.glow_filename, _image_glow);
+
+		//load_lightmap(out_image_lightmap);
+		//load_AO(out_image_ao);
 	}
 
 	//	print_line("WriteOutputImage");

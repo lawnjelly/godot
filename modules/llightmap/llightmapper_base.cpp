@@ -677,6 +677,7 @@ void LightMapper_Base::Settings::set_images_filename(String p_filename) {
 	orig_material_filename = image_filename_base + ".material.exr";
 }
 
+#if 0
 bool LightMapper_Base::load_lightmap(Image &image) {
 	//	assert (image.get_width() == m_iWidth);
 	//	assert (image.get_height() == m_iHeight);
@@ -740,6 +741,7 @@ bool LightMapper_Base::load_AO(Image &image) {
 
 	return true;
 }
+#endif
 
 void LightMapper_Base::merge_and_write_output_image_combined(Image &image) {
 	// normalize lightmap on combine
@@ -925,6 +927,19 @@ void LightMapper_Base::merge_and_write_output_image_combined(Image &image) {
 	image.unlock();
 }
 
+void LightMapper_Base::show_warning(String sz, bool bAlert) {
+#ifdef TOOLS_ENABLED
+	EditorNode::get_singleton()->show_warning(TTR(sz));
+	WARN_PRINT(sz);
+
+//	if (bAlert)
+//		OS::get_singleton()->alert(sz, "WARNING");
+#else
+	WARN_PRINT(sz);
+#endif
+}
+
+#if 0
 void LightMapper_Base::write_output_image_AO(Image &image) {
 	if (!_image_AO.get_num_pixels())
 		return;
@@ -966,19 +981,9 @@ void LightMapper_Base::write_output_image_AO(Image &image) {
 
 	image.unlock();
 }
-
-void LightMapper_Base::show_warning(String sz, bool bAlert) {
-#ifdef TOOLS_ENABLED
-	EditorNode::get_singleton()->show_warning(TTR(sz));
-	WARN_PRINT(sz);
-
-//	if (bAlert)
-//		OS::get_singleton()->alert(sz, "WARNING");
-#else
-	WARN_PRINT(sz);
 #endif
-}
 
+#if 0
 void LightMapper_Base::write_output_image_lightmap(Image &image) {
 	if (data.params[PARAM_DILATE_ENABLED] == Variant(true)) {
 		Dilate<FColor> dilate;
@@ -1085,3 +1090,4 @@ void LightMapper_Base::write_output_image_lightmap(Image &image) {
 
 	image.unlock();
 }
+#endif

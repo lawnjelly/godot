@@ -417,34 +417,50 @@ bool LLightmap::lightmap_bake() {
 
 	lightmap_bake_to_image(image_lightmap.ptr(), image_ao.ptr(), image_combined.ptr());
 
-	// save the images, png or exr
-	if (m_LM.logic.process_lightmap) {
-		if (true) {
-			//		if (m_LM.settings.lightmap_is_HDR) {
-			String szGlobalPath = ProjectSettings::get_singleton()->globalize_path(m_LM.settings.lightmap_filename);
-			print_line("saving lights EXR .. global path : " + szGlobalPath);
-			Error err = image_lightmap->save_exr(szGlobalPath, false);
-
-			if (err != OK)
-				OS::get_singleton()->alert("Error writing EXR file. Does this folder exist?\n\n" + m_LM.settings.lightmap_filename, "WARNING");
-		} else {
-			image_lightmap->save_png(m_LM.settings.lightmap_filename);
-		}
+#if 0
+	   // save the images, png or exr
+#define LLIGHTMAP_DEFINE_SAVE_IMAGE_MAP(PROCESS_BOOL, LM_FILENAME, LIGHTIMAGE)                                          \
+	if (m_LM.logic.PROCESS_BOOL) {                                                                                      \
+		String global_path = ProjectSettings::get_singleton()->globalize_path(m_LM.settings.LM_FILENAME);               \
+		print_line("saving EXR .. global path : " + global_path);                                                       \
+		Error err = LIGHTIMAGE->save_exr(global_path, false);                                                           \
+		if (err != OK)                                                                                                  \
+			OS::get_singleton()->alert("Error writing EXR file. Does this folder exist?\n\n" + global_path, "WARNING"); \
 	}
+	
+	LLIGHTMAP_DEFINE_SAVE_IMAGE_MAP(process_lightmap, lightmap_filename, image_lightmap)
+	LLIGHTMAP_DEFINE_SAVE_IMAGE_MAP(process_AO, AO_filename, image_ao)
+	LLIGHTMAP_DEFINE_SAVE_IMAGE_MAP(process_emission, emission_filename, image_emission)
+	LLIGHTMAP_DEFINE_SAVE_IMAGE_MAP(process_glow, glow_filename, image_glow)
+	
+//	if (m_LM.logic.process_lightmap) {
+//		if (true) {
+//			//		if (m_LM.settings.lightmap_is_HDR) {
+//			String szGlobalPath = ProjectSettings::get_singleton()->globalize_path(m_LM.settings.lightmap_filename);
+//			print_line("saving lights EXR .. global path : " + szGlobalPath);
+//			Error err = image_lightmap->save_exr(szGlobalPath, false);
+			
+//			if (err != OK)
+//				OS::get_singleton()->alert("Error writing EXR file. Does this folder exist?\n\n" + m_LM.settings.lightmap_filename, "WARNING");
+//		} else {
+//			image_lightmap->save_png(m_LM.settings.lightmap_filename);
+//		}
+//	}
+	
+	
+//	if (m_LM.logic.process_AO) {
+//		if (true) {
+//			//		if (m_LM.settings.ambient_is_HDR) {
+//			String szGlobalPath = ProjectSettings::get_singleton()->globalize_path(m_LM.settings.AO_filename);
+//			print_line("saving ao EXR .. global path : " + szGlobalPath);
+//			Error err = image_ao->save_exr(szGlobalPath, false);
 
-	if (m_LM.logic.process_AO) {
-		if (true) {
-			//		if (m_LM.settings.ambient_is_HDR) {
-			String szGlobalPath = ProjectSettings::get_singleton()->globalize_path(m_LM.settings.AO_filename);
-			print_line("saving ao EXR .. global path : " + szGlobalPath);
-			Error err = image_ao->save_exr(szGlobalPath, false);
-
-			if (err != OK)
-				OS::get_singleton()->alert("Error writing EXR file. Does this folder exist?\n\n" + m_LM.settings.AO_filename, "WARNING");
-		} else {
-			image_ao->save_png(m_LM.settings.AO_filename);
-		}
-	}
+//			if (err != OK)
+//				OS::get_singleton()->alert("Error writing EXR file. Does this folder exist?\n\n" + m_LM.settings.AO_filename, "WARNING");
+//		} else {
+//			image_ao->save_png(m_LM.settings.AO_filename);
+//		}
+//	}
 
 	// only if making final output
 	if (m_LM.logic.output_final) {
@@ -462,6 +478,7 @@ bool LLightmap::lightmap_bake() {
 		else
 			OS::get_singleton()->alert("Error writing combined file. Does this folder exist?\n\n" + m_LM.settings.combined_filename, "WARNING");
 	}
+#endif
 
 	return true;
 }
