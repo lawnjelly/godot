@@ -54,6 +54,7 @@ LightMapper_Base::LightMapper_Base() {
 	data.params[PARAM_SURFACE_BIAS] = 0.005f;
 
 	data.params[PARAM_MATERIAL_SIZE] = 256;
+	data.params[PARAM_MATERIAL_KERNEL_SIZE] = 8;
 
 	data.params[PARAM_NORMALIZE] = true;
 	data.params[PARAM_NORMALIZE_MULTIPLIER] = 4.0f;

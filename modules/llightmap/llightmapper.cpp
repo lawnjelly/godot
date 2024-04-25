@@ -2277,6 +2277,91 @@ void LightMapper::BF_process_texel(int tx, int ty) {
 #endif
 }
 
+void LightMapper::_process_orig_material_texel(int32_t p_tx, int32_t p_ty) {
+	Color total_color;
+	int32_t samples = 0;
+
+	const MiniList &ml = _image_tri_minilists.get_item(p_tx, p_ty);
+	if (!ml.num)
+		return;
+
+	int aa_size = data.params[PARAM_MATERIAL_KERNEL_SIZE];
+
+//#define LLIGHTMAP_ORIG_MATERIAL_REGULAR_KERNEL
+#ifdef LLIGHTMAP_ORIG_MATERIAL_REGULAR_KERNEL
+
+	float step = 0;
+	float centre_offset = 0.5f;
+	if (aa_size > 1) {
+		step = 1.0f / (aa_size - 1);
+		centre_offset = 0;
+	}
+
+	for (int32_t y = 0; y < aa_size; y++) {
+		for (int32_t x = 0; x < aa_size; x++) {
+			float fx = (x * step) + centre_offset + p_tx;
+			float fy = (y * step) + centre_offset + p_ty;
+
+			if (_process_orig_material_sub_texel(fx, fy, ml, total_color))
+				samples++;
+		}
+	}
+
+#else
+	aa_size *= aa_size;
+
+	for (int32_t s = 0; s < aa_size; s++) {
+		float fx = Math::randf() + p_tx;
+		float fy = Math::randf() + p_ty;
+
+		if (_process_orig_material_sub_texel(fx, fy, ml, total_color))
+			samples++;
+	}
+
+#endif
+
+	//	for (int n = 0; n < _aa_kernel_f.size(); n++) {
+	//		float fx = p_tx + _aa_kernel_f[n].x;
+	//		float fy = p_ty + _aa_kernel_f[n].y;
+
+	//		if (_process_orig_material_sub_texel(fx, fy, ml, total_color))
+	//			samples++;
+	//	}
+
+	if (samples) {
+		total_color /= samples;
+		_image_orig_material.get_item(p_tx, p_ty) = total_color;
+	}
+}
+
+bool LightMapper::_process_orig_material_sub_texel(float p_fx, float p_fy, const MiniList &p_ml, Color &r_total_color) {
+	// Find which triangle on the minilist we are inside (if any).
+	uint32_t tri_id;
+	Vector3 bary;
+
+	// has to be ranged 0 to 1
+	Vector2 st(p_fx, p_fy);
+	st.x /= _width;
+	st.y /= _height;
+
+	if (!AO_find_texel_triangle(p_ml, st, tri_id, bary)) {
+		return false;
+	}
+
+	Vector3 pos;
+	Vector3 normal;
+	const Vector3 *plane_normal = nullptr;
+	_load_texel_data(tri_id, bary, pos, normal, &plane_normal);
+
+	// find the colors of this texel
+	ColorSample cols;
+	_scene.take_triangle_color_sample(tri_id, bary, cols);
+
+	r_total_color += cols.albedo;
+
+	return true;
+}
+
 void LightMapper::process_orig_material() {
 	if (data.params[PARAM_COMBINE_ORIG_MATERIAL_ENABLED] != Variant(true)) {
 		return;
@@ -2290,6 +2375,9 @@ void LightMapper::process_orig_material() {
 		for (int32_t x = 0; x < _width; x++) {
 			//bool debug = (x == 175) && (y == 134);
 
+			_process_orig_material_texel(x, y);
+
+#if 0
 			uint32_t tri_id = 0;
 			Vector3 pos;
 			Vector3 normal;
@@ -2331,6 +2419,7 @@ void LightMapper::process_orig_material() {
 			_image_orig_material.get_item(x, y) = cols.albedo;
 			//			_image_orig_material.get_item(x, y) = Color(bary->x, bary->y, bary->z);
 			//			}
+#endif
 
 		} // for x
 	} // for y

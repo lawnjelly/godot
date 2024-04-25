@@ -60,6 +60,8 @@ private:
 
 	// Modulate original material with the lightmap (if we want to merge them).
 	void process_orig_material();
+	void _process_orig_material_texel(int32_t p_tx, int32_t p_ty);
+	bool _process_orig_material_sub_texel(float p_fx, float p_fy, const MiniList &p_ml, Color &r_total_color);
 
 	// new backward tracing experiment, by triangle
 #if 0
