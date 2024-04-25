@@ -171,6 +171,7 @@ void LightMapper_Base::calculate_quality_adjusted_settings() {
 	// New .. Scale emission power by the final lightmap size.
 	// This is because emission is more per texel that emits, and the number of texels
 	// scales with overall lightmap size.
+#if 0
 	uint32_t num_texels = _width * _height;
 	float overall_lightmap_size_scaling = num_texels / (float)(512 * 512);
 
@@ -179,6 +180,7 @@ void LightMapper_Base::calculate_quality_adjusted_settings() {
 	} else {
 		WARN_PRINT("overall_lightmap_size_scaling is zero.");
 	}
+#endif
 
 	as.glow = data.params[PARAM_GLOW];
 	as.glow *= as.glow;
@@ -627,16 +629,13 @@ void LightMapper_Base::apply_noise_reduction() {
 	}
 }
 
-void LightMapper_Base::normalize() {
-	if (data.params[PARAM_NORMALIZE] != Variant(true))
-		return;
-
+void LightMapper_Base::_normalize(LightImage<FColor> &r_image, float p_normalize_multiplier) {
 	int nPixels = _image_main.get_num_pixels();
 	float fmax = 0.0f;
 
 	// first find the max
 	for (int n = 0; n < nPixels; n++) {
-		float f = _image_main.get(n)->max();
+		float f = r_image.get(n)->max();
 		if (f > fmax)
 			fmax = f;
 	}
@@ -650,11 +649,11 @@ void LightMapper_Base::normalize() {
 	float mult = 1.0f / fmax;
 
 	// apply bias
-	mult *= adjusted_settings.normalize_multiplier;
+	mult *= p_normalize_multiplier;
 
 	// apply multiplier
 	for (int n = 0; n < nPixels; n++) {
-		FColor &col = *_image_main.get(n);
+		FColor &col = *r_image.get(n);
 		col = col * mult;
 	}
 }
@@ -670,11 +669,11 @@ void LightMapper_Base::Settings::set_images_filename(String p_filename) {
 
 	print_line("Base image filename: " + image_filename_base);
 
-	lightmap_filename = image_filename_base + ".lightmap.exr";
-	AO_filename = image_filename_base + ".ao.exr";
-	emission_filename = image_filename_base + ".emission.exr";
-	glow_filename = image_filename_base + ".glow.exr";
-	orig_material_filename = image_filename_base + ".material.exr";
+	lightmap_filename = image_filename_base + "lightmap.exr";
+	AO_filename = image_filename_base + "ao.exr";
+	emission_filename = image_filename_base + "emission.exr";
+	glow_filename = image_filename_base + "glow.exr";
+	orig_material_filename = image_filename_base + "material.exr";
 }
 
 #if 0
@@ -743,15 +742,49 @@ bool LightMapper_Base::load_AO(Image &image) {
 }
 #endif
 
-void LightMapper_Base::merge_and_write_output_image_combined(Image &image) {
+void LightMapper_Base::merge_to_combined() {
+	bool combine_orig_material = (data.params[PARAM_COMBINE_ORIG_MATERIAL_ENABLED] == Variant(true)) && _image_orig_material.get_num_pixels();
+
+	// First combine light and emission.
+	if (settings.bake_mode != LMBAKEMODE_AO) {
+		float mult_emission = data.params[PARAM_EMISSION_POWER];
+		float mult_glow = data.params[PARAM_GLOW];
+
+		for (int y = 0; y < _height; y++) {
+			for (int x = 0; x < _width; x++) {
+				const FColor &light = _image_lightmap.get_item(x, y);
+				const FColor &emission = _image_emission.get_item(x, y);
+				const FColor &glow = _image_glow.get_item(x, y);
+
+				FColor total = light;
+				total += emission * mult_emission;
+
+				if (combine_orig_material) {
+					const Color &alb = _image_orig_material.get_item(x, y);
+#if 0
+				f.set(alb);
+#else
+					total.r *= alb.r;
+					total.g *= alb.g;
+					total.b *= alb.b;
+#endif
+				}
+
+				total += glow * mult_glow;
+
+				_image_main.get_item(x, y) = total;
+			}
+		}
+	}
+
 	// normalize lightmap on combine
-	normalize();
+	if (data.params[PARAM_NORMALIZE] == Variant(true)) {
+		_normalize(_image_main, adjusted_settings.normalize_multiplier);
+	}
 
 	// merge them both before applying noise reduction and seams
 	float gamma = 1.0f / (float)data.params[PARAM_GAMMA];
 	float light_AO_ratio = data.params[PARAM_AO_LIGHT_RATIO];
-
-	bool combine_orig_material = (data.params[PARAM_COMBINE_ORIG_MATERIAL_ENABLED] == Variant(true)) && _image_orig_material.get_num_pixels();
 
 	for (int y = 0; y < _height; y++) {
 		for (int x = 0; x < _width; x++) {
@@ -760,37 +793,43 @@ void LightMapper_Base::merge_and_write_output_image_combined(Image &image) {
 			if (_image_AO.get_num_pixels())
 				ao = _image_AO.get_item(x, y);
 
-			FColor lum = _image_main.get_item(x, y);
+			const FColor &light = _image_main.get_item(x, y);
 
 			// combined
-			FColor f;
+			FColor total;
 			switch (settings.bake_mode) {
 				case LMBAKEMODE_LIGHTMAP: {
-					f = lum;
+					total = light;
 				} break;
 				case LMBAKEMODE_AO: {
-					f.set(ao);
+					total.set(ao);
 				} break;
 				default: {
-					FColor mid = lum * ao;
+					FColor applied = light * ao;
+					total = light;
+					total.lerp(applied, light_AO_ratio);
+
+#if 0					
+					FColor mid = light * ao;
 
 					if (light_AO_ratio < 0.5f) {
 						float r = light_AO_ratio / 0.5f;
-						f.set((1.0f - r) * ao);
-						f += mid * r;
+						total.set((1.0f - r) * ao);
+						total += mid * r;
 					} else {
 						float r = (light_AO_ratio - 0.5f) / 0.5f;
-						f = mid * (1.0f - r);
-						f += lum * r;
+						total = mid * (1.0f - r);
+						total += light * r;
 					}
+#endif
 				} break;
 			}
 
 			// gamma correction
 			if (!settings.combined_is_HDR) {
-				f.r = powf(f.r, gamma);
-				f.g = powf(f.g, gamma);
-				f.b = powf(f.b, gamma);
+				total.r = powf(total.r, gamma);
+				total.g = powf(total.g, gamma);
+				total.b = powf(total.b, gamma);
 			}
 
 			/*
@@ -803,20 +842,21 @@ void LightMapper_Base::merge_and_write_output_image_combined(Image &image) {
 			image.set_pixel(x, y, col);
 			*/
 
+			/*
 			if (combine_orig_material) {
-				//col *= _image_orig_material.get_item(x, y);
 				const Color &alb = _image_orig_material.get_item(x, y);
 #if 0
 				f.set(alb);
 #else
-				f.r *= alb.r;
-				f.g *= alb.g;
-				f.b *= alb.b;
+				total.r *= alb.r;
+				total.g *= alb.g;
+				total.b *= alb.b;
 #endif
 			}
+*/
 
-			// write back to L
-			*_image_main.get(x, y) = f;
+			// Write back to main image.
+			*_image_main.get(x, y) = total;
 		}
 	}
 
@@ -830,6 +870,30 @@ void LightMapper_Base::merge_and_write_output_image_combined(Image &image) {
 
 	stitch_seams();
 
+	// mark magenta
+	//	if (settings.bake_mode == LMBAKEMODE_LIGHTMAP || settings.bake_mode == LMBAKEMODE_AO) {
+	if (_image_tri_ids_p1.get_num_pixels()) {
+		if (data.params[PARAM_DILATE_ENABLED] != Variant(true)) {
+			for (uint32_t y = 0; y < _height; y++) {
+				for (uint32_t x = 0; x < _width; x++) {
+					if (_image_tri_ids_p1.get_item(x, y) == 0) {
+						FColor &fcol = _image_main.get_item(x, y);
+#ifdef LLIGHTMAP_DEBUG_RECLAIMED_TEXELS
+						if (_image_reclaimed_texels.get_item(x, y) == 0) {
+							fcol.set(1, 0, 1);
+						} else {
+							fcol.set(1, 0, 0);
+						}
+#else
+						fcol.set(1, 0, 1);
+#endif
+					}
+				}
+			}
+		}
+	}
+
+#if 0
 	// assuming both lightmap and AO are already dilated
 	// final version
 	image.lock();
@@ -848,83 +912,8 @@ void LightMapper_Base::merge_and_write_output_image_combined(Image &image) {
 		}
 	}
 
-	// mark magenta
-	//	if (settings.bake_mode == LMBAKEMODE_LIGHTMAP || settings.bake_mode == LMBAKEMODE_AO) {
-	if (_image_tri_ids_p1.get_num_pixels()) {
-		if (data.params[PARAM_DILATE_ENABLED] != Variant(true)) {
-			for (uint32_t y = 0; y < _height; y++) {
-				for (uint32_t x = 0; x < _width; x++) {
-					if (_image_tri_ids_p1.get_item(x, y) == 0) {
-#ifdef LLIGHTMAP_DEBUG_RECLAIMED_TEXELS
-						if (_image_reclaimed_texels.get_item(x, y) == 0) {
-							image.set_pixel(x, y, Color(1, 0, 1));
-						} else {
-							image.set_pixel(x, y, Color(1, 0, 0));
-						}
-#else
-						image.set_pixel(x, y, Color(1, 0, 1));
-#endif
-					}
-				}
-			}
-		}
-	}
-
-	/*
-	float gamma = 1.0f / settings.Gamma;
-
-	for (int y = 0; y < m_iHeight; y++) {
-		for (int x = 0; x < m_iWidth; x++) {
-			float ao = 0.0f;
-
-			if (m_Image_AO.GetNumPixels())
-				ao = m_Image_AO.GetItem(x, y);
-
-			FColor lum = m_Image_L.GetItem(x, y);
-
-			// combined
-			FColor f;
-			switch (settings.BakeMode) {
-				case LMBAKEMODE_LIGHTMAP: {
-					f = lum;
-				} break;
-				case LMBAKEMODE_AO: {
-					f.Set(ao);
-				} break;
-				default: {
-					FColor mid = lum * ao;
-
-					if (settings.Light_AO_Ratio < 0.5f) {
-						float r = settings.Light_AO_Ratio / 0.5f;
-						f.Set((1.0f - r) * ao);
-						f += mid * r;
-					} else {
-						float r = (settings.Light_AO_Ratio - 0.5f) / 0.5f;
-						f = mid * (1.0f - r);
-						f += lum * r;
-					}
-				} break;
-			}
-
-			// gamma correction
-			if (!settings.CombinedIsHDR) {
-				f.r = powf(f.r, gamma);
-				f.g = powf(f.g, gamma);
-				f.b = powf(f.b, gamma);
-			}
-
-			Color col;
-			col = Color(f.r, f.g, f.b, 1);
-
-			// new... RGBM .. use a multiplier in the alpha to get increased dynamic range!
-			//ColorToRGBM(col);
-
-			image.set_pixel(x, y, col);
-		}
-	}
-	*/
-
 	image.unlock();
+#endif
 }
 
 void LightMapper_Base::show_warning(String sz, bool bAlert) {
@@ -938,156 +927,3 @@ void LightMapper_Base::show_warning(String sz, bool bAlert) {
 	WARN_PRINT(sz);
 #endif
 }
-
-#if 0
-void LightMapper_Base::write_output_image_AO(Image &image) {
-	if (!_image_AO.get_num_pixels())
-		return;
-
-	if (data.params[PARAM_DILATE_ENABLED] == Variant(true)) {
-		Dilate<float> dilate;
-		dilate.dilate_image(_image_AO, _image_tri_ids_p1, 256);
-	}
-
-	// final version
-	image.lock();
-
-	for (int y = 0; y < _height; y++) {
-		for (int x = 0; x < _width; x++) {
-			const float *pf = _image_AO.get(x, y);
-			assert(pf);
-			float f = *pf;
-
-			// gamma correction
-			if (false) {
-				//			if (!settings.ambient_is_HDR) {
-				float gamma = 1.0f / 2.2f;
-				f = powf(f, gamma);
-			}
-
-			Color col;
-			col = Color(f, f, f, 1);
-
-			// debug mark the dilated pixels
-//#define MARK_AO_DILATED
-#ifdef MARK_AO_DILATED
-			if (!dilate && !_image_tri_ids_p1.get_item(x, y)) {
-				col = Color(1, 0, 1);
-			}
-#endif
-			image.set_pixel(x, y, col);
-		}
-	}
-
-	image.unlock();
-}
-#endif
-
-#if 0
-void LightMapper_Base::write_output_image_lightmap(Image &image) {
-	if (data.params[PARAM_DILATE_ENABLED] == Variant(true)) {
-		Dilate<FColor> dilate;
-		dilate.dilate_image(_image_main, _image_tri_ids_p1, 256);
-		//	} else {
-		//		// mark magenta
-		//		for (uint32_t y = 0; y < _height; y++) {
-		//			for (uint32_t x = 0; x < _width; x++) {
-		//				if (_image_tri_ids_p1.get_item(x, y) == 0) {
-		//					_image_L.get_item(x, y).set(1, 0, 1);
-		//				}
-		//			}
-		//		}
-	}
-
-	////
-	// write some debug
-//#define LLIGHTMAPPER_OUTPUT_TRIIDS
-#ifdef LLIGHTMAPPER_OUTPUT_TRIIDS
-	output_image.lock();
-	Color cols[1024];
-	for (int n = 0; n < m_Scene.GetNumTris(); n++) {
-		if (n == 1024)
-			break;
-
-		cols[n] = Color(Math::randf(), Math::randf(), Math::randf(), 1.0f);
-	}
-	cols[0] = Color(0, 0, 0, 1.0f);
-
-	for (int y = 0; y < m_iHeight; y++) {
-		for (int x = 0; x < m_iWidth; x++) {
-			int coln = m_Image_ID_p1.GetItem(x, y) % 1024;
-
-			output_image.set_pixel(x, y, cols[coln]);
-		}
-	}
-
-	output_image.unlock();
-	output_image.save_png("tri_ids.png");
-#endif
-
-	// final version
-	image.lock();
-
-	for (int y = 0; y < _height; y++) {
-		for (int x = 0; x < _width; x++) {
-			FColor f = *_image_main.get(x, y);
-
-			// gamma correction
-			if (false) {
-				//			if (!settings.lightmap_is_HDR) {
-				float gamma = 1.0f / 2.2f;
-				f.r = powf(f.r, gamma);
-				f.g = powf(f.g, gamma);
-				f.b = powf(f.b, gamma);
-			}
-
-			Color col;
-			col = Color(f.r, f.g, f.b, 1);
-
-			// debug mark the dilated pixels
-//#define MARK_DILATED
-#ifdef MARK_DILATED
-			if (!m_Image_ID_p1.GetItem(x, y)) {
-				col = Color(1.0f, 0.33f, 0.66f, 1);
-			}
-#endif
-			//			if (m_Image_ID_p1.GetItem(x, y))
-			//			{
-			//				output_image.set_pixel(x, y, Color(f, f, f, 255));
-			//			}
-			//			else
-			//			{
-			//				output_image.set_pixel(x, y, Color(0, 0, 0, 255));
-			//			}
-
-			// visual cuts
-			//			if (m_Image_Cuts.GetItem(x, y).num)
-			//			{
-			//				col = Color(1.0f, 0.33f, 0.66f, 1);
-			//			}
-			//			else
-			//			{
-			//				col = Color(0, 0, 0, 1);
-			//			}
-
-			// visualize concave
-			//			const MiniList_Cuts &cuts = m_Image_Cuts.GetItem(x, y);
-			//			if (cuts.num == 2)
-			//			{
-			//				if (cuts.convex)
-			//				{
-			//					col = Color(1.0f, 0, 0, 1);
-			//				}
-			//				else
-			//				{
-			//					col = Color(0, 0, 1, 1);
-			//				}
-			//			}
-
-			image.set_pixel(x, y, col);
-		}
-	}
-
-	image.unlock();
-}
-#endif

@@ -153,26 +153,27 @@ bool LightMapper::lightmap_meshes(Spatial *pMeshesRoot, Spatial *pLR, Image *pIm
 
 template <class T>
 bool LightMapper::load_intermediate(const String &p_filename, LightImage<T> &r_lightimage) {
-	Image image;
+	//Image image;
+	Ref<Image> image = memnew(Image());
 
-	Error res = image.load(p_filename);
+	Error res = image->load(p_filename);
 	if (res != OK) {
 		show_warning("Loading EXR failed.\n\n" + p_filename);
 		return false;
 	}
 
-	if ((image.get_width() != _width) || (image.get_height() != _height)) {
+	if ((image->get_width() != _width) || (image->get_height() != _height)) {
 		show_warning("Loaded file dimensions do not match project, ignoring.\n\n" + p_filename);
 		return false;
 	}
 
-	image.lock();
+	image->lock();
 	for (int y = 0; y < _height; y++) {
 		for (int x = 0; x < _width; x++) {
-			_fill_from_color(r_lightimage.get_item(x, y), image.get_pixel(x, y));
+			_fill_from_color(r_lightimage.get_item(x, y), image->get_pixel(x, y));
 		}
 	}
-	image.unlock();
+	image->unlock();
 
 	// Dilate after loading to allow merging.
 	if (data.params[PARAM_DILATE_ENABLED] == Variant(true)) {
@@ -230,17 +231,16 @@ void LightMapper::save_intermediate(bool p_save, const String &p_filename, const
 
 	String global_path = ProjectSettings::get_singleton()->globalize_path(p_filename);
 	print_line("saving EXR .. global path : " + global_path);
-	Error err = image->save_exr(global_path, false);
+
+	Error err;
+	if (p_filename.get_extension() == "exr") {
+		//err = image->save_exr(global_path, sizeof(T) == sizeof(float));
+		err = image->save_exr(global_path, false);
+	} else {
+		err = image->save_png(global_path);
+	}
 	if (err != OK)
 		OS::get_singleton()->alert("Error writing EXR file. Does this folder exist?\n\n" + global_path, "WARNING");
-}
-
-void LightMapper::save_intermediates() {
-	// save the images, png or exr
-	save_intermediate(logic.process_lightmap, settings.lightmap_filename, _image_lightmap);
-	save_intermediate(logic.process_AO, settings.AO_filename, _image_AO);
-	save_intermediate(logic.process_emission, settings.emission_filename, _image_emission);
-	save_intermediate(logic.process_glow, settings.glow_filename, _image_glow);
 }
 
 void LightMapper::reset() {
@@ -456,7 +456,12 @@ bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_ro
 			//write_output_image_lightmap(out_image_lightmap);
 			//write_output_image_AO(out_image_ao);
 
-			save_intermediates();
+			// save the images, png or exr
+			save_intermediate(logic.process_lightmap, settings.lightmap_filename, _image_lightmap);
+			save_intermediate(logic.process_AO, settings.AO_filename, _image_AO);
+			save_intermediate(logic.process_emission, settings.emission_filename, _image_emission);
+			save_intermediate(logic.process_glow, settings.glow_filename, _image_glow);
+
 			// test convolution
 			//			Merge_AndWriteOutputImage_Combined(out_image_combined);
 			//			out_image_combined.save_png("before_convolve.png");
@@ -483,8 +488,10 @@ bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_ro
 
 	//	print_line("WriteOutputImage");
 	//	before = OS::get_singleton()->get_ticks_msec();
-	if (logic.output_final)
-		merge_and_write_output_image_combined(out_image_combined);
+	if (logic.output_final) {
+		merge_to_combined();
+		save_intermediate(true, settings.combined_filename, _image_main);
+	}
 	//	after = OS::get_singleton()->get_ticks_msec();
 	//	print_line("WriteOutputImage took " + itos(after -before) + " ms");
 
@@ -771,6 +778,7 @@ void LightMapper::backward_process_texels() {
 	_sky.unload_sky();
 
 	_image_main.copy_to(_image_lightmap);
+	_normalize(_image_lightmap);
 
 	if (bake_end_function) {
 		bake_end_function();
@@ -2508,6 +2516,8 @@ void LightMapper::process_emission_pixels() {
 	}
 
 	_image_main.copy_to(_image_emission);
+	_normalize(_image_emission);
+	_normalize(_image_glow);
 }
 
 void LightMapper::process_emission_pixel(int32_t p_x, int32_t p_y) {

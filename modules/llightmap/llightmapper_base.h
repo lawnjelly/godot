@@ -110,18 +110,12 @@ protected:
 	void prepare_lights();
 
 	bool prepare_image_maps();
-	void normalize();
+	void _normalize(LightImage<FColor> &r_image, float p_normalize_multiplier = 1.0f);
 	void normalize_AO();
 	void apply_noise_reduction();
 	void stitch_seams();
 
-	//void write_output_image_lightmap(Image &image);
-	//void write_output_image_AO(Image &image);
-
-	//bool load_lightmap(Image &image);
-	//bool load_AO(Image &image);
-
-	void merge_and_write_output_image_combined(Image &image);
+	void merge_to_combined();
 
 	void light_to_plane(LLight &light);
 	Plane find_containment_plane(const Vector3 &dir, Vector3 pts[8], float &range, float padding);
