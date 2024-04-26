@@ -203,6 +203,77 @@ bool LightMapper::load_intermediate(const String &p_filename, LightImage<T> &r_l
 	return true;
 }
 
+bool LightMapper::load_tri_ids(const String &p_filename) {
+	if (!_image_tri_ids_p1.get_num_pixels()) {
+		_image_tri_ids_p1.create(_width, _height);
+	}
+
+	Ref<Image> image = memnew(Image());
+
+	Error res = image->load(p_filename);
+	if (res != OK) {
+		show_warning("Loading PNG failed.\n\n" + p_filename);
+		return false;
+	}
+
+	image->decompress();
+
+	while (true) {
+		int iw = image->get_width();
+		int ih = image->get_height();
+
+		if ((iw == _width) && (ih == _height)) {
+			// Correct dimensions.
+			break;
+		}
+		if ((iw < _width) || (ih < _height)) {
+			show_warning("Loaded file dimensions are smaller than project, ignoring.\n\n" + p_filename);
+			return false;
+		}
+
+		print_line(p_filename + " is too large. Attempting to shrink to project dimensions.");
+		// Image is too big, try resizing.
+		image->shrink_x2();
+	}
+
+	image->lock();
+	for (int y = 0; y < _height; y++) {
+		for (int x = 0; x < _width; x++) {
+			Color col = image->get_pixel(x, y);
+			uint32_t tri_id = 0;
+			if (col.r > 0.5f) {
+				// The exact ID is unnecessary, just the pattern for dilation.
+				tri_id = 1;
+			}
+			_image_tri_ids_p1.get_item(x, y) = tri_id;
+		}
+	}
+	image->unlock();
+
+	return true;
+}
+
+void LightMapper::save_tri_ids(const String &p_filename) {
+	DEV_ASSERT(_image_tri_ids_p1.get_num_pixels());
+	Ref<Image> image = memnew(Image(_width, _height, false, Image::FORMAT_L8));
+
+	image->lock();
+	for (int y = 0; y < _height; y++) {
+		for (int x = 0; x < _width; x++) {
+			uint32_t tri_id = _image_tri_ids_p1.get_item(x, y);
+			Color col = tri_id ? Color(1, 1, 1, 1) : Color(0, 0, 0, 0);
+			image->set_pixel(x, y, col);
+		}
+	}
+	image->unlock();
+
+	String global_path = ProjectSettings::get_singleton()->globalize_path(p_filename);
+	Error err = image->save_png(global_path);
+	if (err != OK) {
+		OS::get_singleton()->alert("Error writing tri_ids PNG file. Does this folder exist?\n\n" + global_path, "WARNING");
+	}
+}
+
 template <class T>
 void LightMapper::save_intermediate(bool p_save, const String &p_filename, const LightImage<T> &p_lightimage) {
 	if (!p_save)
@@ -345,7 +416,7 @@ bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_ro
 
 	// Now we always create these, as needed for dilation,
 	// even when merging.
-	{
+	if (settings.bake_mode != LMBAKEMODE_MERGE) {
 		uint32_t before, after;
 
 		_image_tri_ids_p1.create(_width, _height);
@@ -390,6 +461,10 @@ bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_ro
 		// Reclaim texels.
 		_AA_create_kernel();
 		_AA_reclaim_texels();
+
+		save_tri_ids(settings.tri_ids_filename);
+	} else {
+		load_tri_ids(settings.tri_ids_filename);
 	}
 
 	if (logic.process_orig_material) {

@@ -35,7 +35,7 @@ void LLightmap::_bind_methods() {
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_NUM_PRIMARY_RAYS);
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_NUM_BOUNCES);
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_BOUNCE_POWER);
-	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_BOUNCE_MIX);
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_AMBIENT_BOUNCE_MIX);
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_ROUGHNESS);
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_NUM_AMBIENT_BOUNCES);
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_NUM_AMBIENT_BOUNCE_RAYS);
@@ -156,18 +156,18 @@ void LLightmap::_bind_methods() {
 	ADD_GROUP("Forward", "");
 	LIMPL_PROPERTY_PARAM_RANGE(Variant::INT, num_bounces, "0,16,1", LM::LightMapper::PARAM_NUM_BOUNCES);
 	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, bounce_power, "0.0,8.0,0.05", LM::LightMapper::PARAM_BOUNCE_POWER);
-	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, bounce_mix, "0.0,4.0", LM::LightMapper::PARAM_BOUNCE_MIX);
 
 	ADD_GROUP("Common", "");
 	LIMPL_PROPERTY_PARAM_RANGE(Variant::INT, primary_rays, "1,4096,1", LM::LightMapper::PARAM_NUM_PRIMARY_RAYS);
 	LIMPL_PROPERTY_PARAM_RANGE(Variant::INT, max_light_distance, "0,999999,1", LM::LightMapper::PARAM_MAX_LIGHT_DISTANCE);
 	LIMPL_PROPERTY_PARAM_RANGE(Variant::INT, voxel_density, "1,512,1", LM::LightMapper::PARAM_VOXEL_DENSITY);
 
-	ADD_GROUP("Ambient", "");
+	ADD_GROUP("Ambient", "ambient");
 
-	LIMPL_PROPERTY_PARAM_RANGE(Variant::INT, a_bounces, "0,16,1", LM::LightMapper::PARAM_NUM_AMBIENT_BOUNCES);
-	LIMPL_PROPERTY_PARAM_RANGE(Variant::INT, a_bounce_samples, "0, 1024, 1", LM::LightMapper::PARAM_NUM_AMBIENT_BOUNCE_RAYS);
-	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, a_bounce_power, "0.0, 1.0", LM::LightMapper::PARAM_AMBIENT_BOUNCE_POWER);
+	LIMPL_PROPERTY_PARAM_RANGE(Variant::INT, ambient_bounces, "0,16,1", LM::LightMapper::PARAM_NUM_AMBIENT_BOUNCES);
+	LIMPL_PROPERTY_PARAM_RANGE(Variant::INT, ambient_bounce_samples, "0, 1024, 1", LM::LightMapper::PARAM_NUM_AMBIENT_BOUNCE_RAYS);
+	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, ambient_bounce_power, "0.0, 1.0", LM::LightMapper::PARAM_AMBIENT_BOUNCE_POWER);
+	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, ambient_bounce_mix, "0.0,4.0", LM::LightMapper::PARAM_AMBIENT_BOUNCE_MIX);
 
 	ADD_GROUP("Miscellaneous", "");
 	LIMPL_PROPERTY_PARAM_RANGE(Variant::INT, material_size, "128,2048,128", LM::LightMapper::PARAM_MATERIAL_SIZE);

@@ -21,7 +21,7 @@ LightMapper_Base::LightMapper_Base() {
 	settings.backward_ray_power = 1.0f;
 
 	data.params[PARAM_BOUNCE_POWER] = 1.0f;
-	data.params[PARAM_BOUNCE_MIX] = 1.0f;
+	data.params[PARAM_AMBIENT_BOUNCE_MIX] = 1.0f;
 	//settings.directional_bounce_power = 1.0f;
 
 	data.params[PARAM_TEX_WIDTH] = 512;
@@ -677,6 +677,7 @@ void LightMapper_Base::Settings::set_images_filename(String p_filename) {
 	glow_filename = image_filename_base + "glow.exr";
 	orig_material_filename = image_filename_base + "material.exr";
 	bounce_filename = image_filename_base + "bounce.exr";
+	tri_ids_filename = image_filename_base + "coverage.png";
 }
 
 #if 0
@@ -774,7 +775,7 @@ void LightMapper_Base::merge_to_combined() {
 		//	if (settings.bake_mode != LMBAKEMODE_AO) {
 		float mult_emission = data.params[PARAM_EMISSION_POWER];
 		float mult_glow = data.params[PARAM_GLOW];
-		float mult_bounce = data.params[PARAM_BOUNCE_MIX];
+		float mult_bounce = data.params[PARAM_AMBIENT_BOUNCE_MIX];
 
 		for (int y = 0; y < _height; y++) {
 			for (int x = 0; x < _width; x++) {
@@ -914,24 +915,16 @@ void LightMapper_Base::merge_to_combined() {
 
 			image.set_pixel(x, y, col);
 			*/
-
-			/*
-			if (combine_orig_material) {
-				const Color &alb = _image_orig_material.get_item(x, y);
-#if 0
-				f.set(alb);
-#else
-				total.r *= alb.r;
-				total.g *= alb.g;
-				total.b *= alb.b;
-#endif
-			}
-*/
-
-			// Write back to main image.
-			//			*_image_main.get(x, y) = total;
 		}
 	}
+
+#if 0
+	// Test fill with random colors.
+	for (int n=0; n<_image_main.get_num_pixels(); n++)
+	{
+		_image_main.get(n)->set(Math::randf(), Math::randf(), Math::randf());
+	}
+#endif
 
 	// One more dilate?
 	if (data.params[PARAM_DILATE_ENABLED] == Variant(true)) {

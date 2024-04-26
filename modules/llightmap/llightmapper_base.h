@@ -196,11 +196,11 @@ public:
 		PARAM_NUM_PRIMARY_RAYS,
 		PARAM_NUM_BOUNCES,
 		PARAM_BOUNCE_POWER,
-		PARAM_BOUNCE_MIX,
 		PARAM_ROUGHNESS,
 		PARAM_NUM_AMBIENT_BOUNCES,
 		PARAM_NUM_AMBIENT_BOUNCE_RAYS,
 		PARAM_AMBIENT_BOUNCE_POWER,
+		PARAM_AMBIENT_BOUNCE_MIX,
 		PARAM_EMISSION_ENABLED,
 		PARAM_EMISSION_DENSITY,
 		PARAM_EMISSION_POWER,
@@ -308,6 +308,7 @@ public:
 		String glow_filename;
 		String bounce_filename;
 		String orig_material_filename;
+		String tri_ids_filename;
 
 		String UV_filename;
 		//int UV_padding;
