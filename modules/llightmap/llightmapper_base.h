@@ -71,6 +71,7 @@ public:
 		LMBAKEMODE_AO,
 		LMBAKEMODE_MERGE,
 		LMBAKEMODE_PROBES,
+		LMBAKEMODE_ORIG_MATERIAL,
 		LMBAKEMODE_COMBINED,
 	};
 
@@ -375,10 +376,10 @@ public:
 		bool process_glow = true;
 		bool process_lightmap = true;
 		bool process_AO = true;
+		bool process_orig_material = true;
 		bool process_probes = true;
 		bool rasterize_mini_lists = true;
 
-		bool reserve_AO = true;
 		bool output_final = true;
 	} logic;
 
@@ -387,6 +388,8 @@ public:
 protected:
 	//	static void _bind_methods();
 
+	//////////////////////////////////////////////////
+	// These functions are used from templated load / save image routines
 	Color _to_color(FColor fc) const {
 		return Color(fc.r, fc.g, fc.b, 1);
 	}
@@ -395,6 +398,8 @@ protected:
 		return Color(f, f, f, 1);
 	}
 
+	Color _to_color(Color c) const { return c; }
+
 	void _fill_from_color(float &r_f, const Color &p_col) const {
 		r_f = p_col.r;
 	}
@@ -402,6 +407,9 @@ protected:
 	void _fill_from_color(FColor &r_f, const Color &p_col) const {
 		r_f = FColor::from_color(p_col);
 	}
+
+	void _fill_from_color(Color &r_col, const Color &p_col) const { r_col = p_col; }
+	//////////////////////////////////////////////////
 
 	float light_distance_drop_off(float dist, const LLight &light, float power) const {
 		float local_power;

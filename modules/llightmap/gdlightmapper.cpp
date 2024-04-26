@@ -13,6 +13,7 @@ void LLightmap::_bind_methods() {
 	BIND_ENUM_CONSTANT(LLightmap::BAKEMODE_AO);
 	BIND_ENUM_CONSTANT(LLightmap::BAKEMODE_MERGE);
 	BIND_ENUM_CONSTANT(LLightmap::BAKEMODE_PROBES);
+	BIND_ENUM_CONSTANT(LLightmap::BAKEMODE_MATERIAL);
 	BIND_ENUM_CONSTANT(LLightmap::BAKEMODE_COMBINED);
 
 	BIND_ENUM_CONSTANT(LLightmap::QUALITY_LOW);
@@ -118,7 +119,7 @@ void LLightmap::_bind_methods() {
 	//	ADD_PROPERTYI(PropertyInfo(Variant::REAL, "light_specular", PROPERTY_HINT_RANGE, "0,1,0.01"), "set_param", "get_param", PARAM_SPECULAR);
 
 	ADD_GROUP("Main", "");
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "bake_mode", PROPERTY_HINT_ENUM, "UVMap,Lightmap,AO,Merge,LightProbes,Combined"), "set_bake_mode", "get_bake_mode");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "bake_mode", PROPERTY_HINT_ENUM, "UVMap,Lightmap,AO,Merge,LightProbes,Material,Combined"), "set_bake_mode", "get_bake_mode");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "mode", PROPERTY_HINT_ENUM, "Forward,Backward"), "set_mode", "get_mode");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "quality", PROPERTY_HINT_ENUM, "Low,Medium,High,Final"), "set_quality", "get_quality");
 	LIMPL_PROPERTY_PARAM(Variant::BOOL, dilate, LM::LightMapper::PARAM_DILATE_ENABLED);

@@ -153,6 +153,10 @@ bool LightMapper::lightmap_meshes(Spatial *pMeshesRoot, Spatial *pLR, Image *pIm
 
 template <class T>
 bool LightMapper::load_intermediate(const String &p_filename, LightImage<T> &r_lightimage) {
+	if (!r_lightimage.get_num_pixels()) {
+		r_lightimage.create(_width, _height);
+	}
+
 	//Image image;
 	Ref<Image> image = memnew(Image());
 
@@ -162,9 +166,24 @@ bool LightMapper::load_intermediate(const String &p_filename, LightImage<T> &r_l
 		return false;
 	}
 
-	if ((image->get_width() != _width) || (image->get_height() != _height)) {
-		show_warning("Loaded file dimensions do not match project, ignoring.\n\n" + p_filename);
-		return false;
+	image->decompress();
+
+	while (true) {
+		int iw = image->get_width();
+		int ih = image->get_height();
+
+		if ((iw == _width) && (ih == _height)) {
+			// Correct dimensions.
+			break;
+		}
+		if ((iw < _width) || (ih < _height)) {
+			show_warning("Loaded file dimensions are smaller than project, ignoring.\n\n" + p_filename);
+			return false;
+		}
+
+		print_line(p_filename + " is too large. Attempting to shrink to project dimensions.");
+		// Image is too big, try resizing.
+		image->shrink_x2();
 	}
 
 	image->lock();
@@ -252,11 +271,12 @@ void LightMapper::reset() {
 
 void LightMapper::refresh_process_state() {
 	// defaults
-	logic.process_lightmap = true;
-	logic.process_AO = true;
-	logic.reserve_AO = true;
-	logic.process_emission = data.params[PARAM_EMISSION_ENABLED] == Variant(true);
-	logic.process_glow = logic.process_emission;
+	logic.process_lightmap = false;
+	logic.process_emission = false;
+	logic.process_glow = false;
+	logic.process_orig_material = false;
+
+	logic.process_AO = false;
 
 	logic.process_probes = false;
 	logic.output_final = true;
@@ -266,31 +286,24 @@ void LightMapper::refresh_process_state() {
 	switch (settings.bake_mode) {
 		case LMBAKEMODE_PROBES: {
 			logic.process_probes = true;
-			logic.process_lightmap = false;
-			logic.process_AO = false;
 			logic.output_final = false;
 		} break;
 		case LMBAKEMODE_LIGHTMAP: {
-			logic.process_AO = false;
-			logic.reserve_AO = false;
+			logic.process_lightmap = true;
+			logic.process_AO = true;
+			logic.process_emission = data.params[PARAM_EMISSION_ENABLED] == Variant(true);
+			logic.process_glow = logic.process_emission;
 		} break;
 		case LMBAKEMODE_AO: {
-			logic.process_lightmap = false;
-			logic.process_emission = false;
-			logic.process_glow = false;
+			logic.process_AO = true;
 		} break;
 		case LMBAKEMODE_MERGE: {
-			logic.process_lightmap = false;
-			logic.process_AO = false;
-			logic.process_emission = false;
-			logic.process_glow = false;
 		} break;
 		case LMBAKEMODE_UVMAP: {
-			logic.process_lightmap = false;
-			logic.process_AO = false;
-			logic.process_emission = false;
-			logic.process_glow = false;
-			logic.reserve_AO = false;
+			logic.output_final = false;
+		} break;
+		case LMBAKEMODE_ORIG_MATERIAL: {
+			logic.process_orig_material = true;
 			logic.output_final = false;
 		} break;
 		default: {
@@ -325,10 +338,6 @@ bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_ro
 	_image_glow.create(_width, _height);
 
 	_scene._image_emission_done.create(_width, _height);
-
-	// whether we need storage
-	if (logic.reserve_AO)
-		_image_AO.create(_width, _height);
 
 	// Now we always create these, as needed for dilation,
 	// even when merging.
@@ -379,9 +388,26 @@ bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_ro
 		_AA_reclaim_texels();
 	}
 
-	process_orig_material();
+	if (logic.process_orig_material) {
+		uint32_t before = 0;
+		uint32_t after = 0;
 
-	if (settings.bake_mode != LMBAKEMODE_MERGE) {
+		print_line("process_orig_material");
+		before = OS::get_singleton()->get_ticks_msec();
+		if (bake_step_function) {
+			bake_step_function(0, String("Creating Original Material"));
+		}
+		process_orig_material();
+		after = OS::get_singleton()->get_ticks_msec();
+		print_line("process_orig_material took " + itos(after - before) + " ms");
+		save_intermediate(true, settings.orig_material_filename, _image_orig_material);
+
+		if (bake_end_function) {
+			bake_end_function();
+		}
+	}
+
+	if ((settings.bake_mode != LMBAKEMODE_MERGE) && !logic.process_orig_material) {
 		if (logic.process_AO) {
 			if (bake_step_function) {
 				bake_step_function(0, String("QMC Create"));
@@ -471,19 +497,22 @@ bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_ro
 
 	} // if not just merging
 	else {
-		// merging
-		// need the meshes list for seam stitching
-		_scene.find_meshes(pMeshesRoot);
+		if (logic.output_final) {
+			// merging
+			// need the meshes list for seam stitching
+			_scene.find_meshes(pMeshesRoot);
 
-		// load the lightmap and ao from disk
+			// load the lightmap and ao from disk
 
-		load_intermediate(settings.lightmap_filename, _image_lightmap);
-		load_intermediate(settings.AO_filename, _image_AO);
-		load_intermediate(settings.emission_filename, _image_emission);
-		load_intermediate(settings.glow_filename, _image_glow);
+			load_intermediate(settings.lightmap_filename, _image_lightmap);
+			load_intermediate(settings.AO_filename, _image_AO);
+			load_intermediate(settings.emission_filename, _image_emission);
+			load_intermediate(settings.glow_filename, _image_glow);
+			load_intermediate(settings.orig_material_filename, _image_orig_material);
 
-		//load_lightmap(out_image_lightmap);
-		//load_AO(out_image_ao);
+			//load_lightmap(out_image_lightmap);
+			//load_AO(out_image_ao);
+		}
 	}
 
 	//	print_line("WriteOutputImage");
@@ -2440,10 +2469,6 @@ bool LightMapper::_process_orig_material_sub_texel(float p_fx, float p_fy, const
 }
 
 void LightMapper::process_orig_material() {
-	if (data.params[PARAM_COMBINE_ORIG_MATERIAL_ENABLED] != Variant(true)) {
-		return;
-	}
-
 	// Only use this RAM if needed.
 	_image_orig_material.create(_width, _height);
 	_image_orig_material.fill(Color(1, 1, 1, 1));
