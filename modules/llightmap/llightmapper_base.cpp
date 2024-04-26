@@ -21,6 +21,7 @@ LightMapper_Base::LightMapper_Base() {
 	settings.backward_ray_power = 1.0f;
 
 	data.params[PARAM_BOUNCE_POWER] = 1.0f;
+	data.params[PARAM_BOUNCE_MIX] = 1.0f;
 	//settings.directional_bounce_power = 1.0f;
 
 	data.params[PARAM_TEX_WIDTH] = 512;
@@ -135,6 +136,7 @@ void LightMapper_Base::base_reset() {
 	_image_AO.reset();
 	_image_emission.reset();
 	_image_glow.reset();
+	_image_bounce.reset();
 
 	_image_tri_ids_p1.reset();
 #ifdef LLIGHTMAP_DEBUG_RECLAIMED_TEXELS
@@ -674,6 +676,7 @@ void LightMapper_Base::Settings::set_images_filename(String p_filename) {
 	emission_filename = image_filename_base + "emission.exr";
 	glow_filename = image_filename_base + "glow.exr";
 	orig_material_filename = image_filename_base + "material.exr";
+	bounce_filename = image_filename_base + "bounce.exr";
 }
 
 #if 0
@@ -742,6 +745,26 @@ bool LightMapper_Base::load_AO(Image &image) {
 }
 #endif
 
+void LightMapper_Base::merge_for_ambient_bounces() {
+	float mult_emission = data.params[PARAM_EMISSION_POWER];
+	float mult_glow = data.params[PARAM_GLOW];
+
+	for (int y = 0; y < _height; y++) {
+		for (int x = 0; x < _width; x++) {
+			FColor total;
+			const FColor &light = _image_lightmap.get_item(x, y);
+			const FColor &emission = _image_emission.get_item(x, y);
+			const FColor &glow = _image_glow.get_item(x, y);
+
+			total = light;
+			total += emission * mult_emission;
+			total += glow * mult_glow;
+
+			_image_main.get_item(x, y) = total;
+		}
+	}
+}
+
 void LightMapper_Base::merge_to_combined() {
 	bool combine_orig_material = (data.params[PARAM_COMBINE_ORIG_MATERIAL_ENABLED] == Variant(true)) && _image_orig_material.get_num_pixels();
 	float light_AO_ratio = data.params[PARAM_AO_LIGHT_RATIO];
@@ -751,6 +774,7 @@ void LightMapper_Base::merge_to_combined() {
 		//	if (settings.bake_mode != LMBAKEMODE_AO) {
 		float mult_emission = data.params[PARAM_EMISSION_POWER];
 		float mult_glow = data.params[PARAM_GLOW];
+		float mult_bounce = data.params[PARAM_BOUNCE_MIX];
 
 		for (int y = 0; y < _height; y++) {
 			for (int x = 0; x < _width; x++) {
@@ -761,6 +785,10 @@ void LightMapper_Base::merge_to_combined() {
 
 					total = light;
 					total += emission * mult_emission;
+				}
+
+				if (_image_bounce.get_num_pixels()) {
+					total += _image_bounce.get_item(x, y) * mult_bounce;
 				}
 
 				float ao = 0.0f;

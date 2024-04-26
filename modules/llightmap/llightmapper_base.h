@@ -66,13 +66,14 @@ public:
 	};
 
 	enum eLMBakeMode {
-		LMBAKEMODE_UVMAP,
 		LMBAKEMODE_LIGHTMAP,
 		LMBAKEMODE_AO,
-		LMBAKEMODE_MERGE,
-		LMBAKEMODE_PROBES,
 		LMBAKEMODE_ORIG_MATERIAL,
+		LMBAKEMODE_BOUNCE,
+		LMBAKEMODE_PROBES,
+		LMBAKEMODE_UVMAP,
 		LMBAKEMODE_COMBINED,
+		LMBAKEMODE_MERGE,
 	};
 
 	enum eLMBakeQuality {
@@ -117,6 +118,7 @@ protected:
 	void apply_noise_reduction();
 	void stitch_seams();
 
+	void merge_for_ambient_bounces();
 	void merge_to_combined();
 
 	void light_to_plane(LLight &light);
@@ -137,6 +139,8 @@ protected:
 	LightImage<FColor> _image_lightmap;
 	LightImage<FColor> _image_emission;
 	LightImage<FColor> _image_glow;
+	LightImage<FColor> _image_bounce;
+
 	LightImage<float> _image_AO;
 	LightImage<Color> _image_orig_material;
 
@@ -192,6 +196,7 @@ public:
 		PARAM_NUM_PRIMARY_RAYS,
 		PARAM_NUM_BOUNCES,
 		PARAM_BOUNCE_POWER,
+		PARAM_BOUNCE_MIX,
 		PARAM_ROUGHNESS,
 		PARAM_NUM_AMBIENT_BOUNCES,
 		PARAM_NUM_AMBIENT_BOUNCE_RAYS,
@@ -301,6 +306,7 @@ public:
 		String AO_filename;
 		String emission_filename;
 		String glow_filename;
+		String bounce_filename;
 		String orig_material_filename;
 
 		String UV_filename;
@@ -377,6 +383,7 @@ public:
 		bool process_glow = true;
 		bool process_lightmap = true;
 		bool process_AO = true;
+		bool process_bounce = true;
 		bool process_orig_material = true;
 		bool process_probes = true;
 		bool rasterize_mini_lists = true;

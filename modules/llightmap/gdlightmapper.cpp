@@ -10,6 +10,7 @@ void LLightmap::_bind_methods() {
 
 	BIND_ENUM_CONSTANT(LLightmap::BAKEMODE_UVMAP);
 	BIND_ENUM_CONSTANT(LLightmap::BAKEMODE_LIGHTMAP);
+	BIND_ENUM_CONSTANT(LLightmap::BAKEMODE_BOUNCE);
 	BIND_ENUM_CONSTANT(LLightmap::BAKEMODE_AO);
 	BIND_ENUM_CONSTANT(LLightmap::BAKEMODE_MERGE);
 	BIND_ENUM_CONSTANT(LLightmap::BAKEMODE_PROBES);
@@ -34,6 +35,7 @@ void LLightmap::_bind_methods() {
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_NUM_PRIMARY_RAYS);
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_NUM_BOUNCES);
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_BOUNCE_POWER);
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_BOUNCE_MIX);
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_ROUGHNESS);
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_NUM_AMBIENT_BOUNCES);
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_NUM_AMBIENT_BOUNCE_RAYS);
@@ -119,7 +121,7 @@ void LLightmap::_bind_methods() {
 	//	ADD_PROPERTYI(PropertyInfo(Variant::REAL, "light_specular", PROPERTY_HINT_RANGE, "0,1,0.01"), "set_param", "get_param", PARAM_SPECULAR);
 
 	ADD_GROUP("Main", "");
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "bake_mode", PROPERTY_HINT_ENUM, "UVMap,Lightmap,AO,Merge,LightProbes,Material,Combined"), "set_bake_mode", "get_bake_mode");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "bake_mode", PROPERTY_HINT_ENUM, "Lightmap,AO,Material,Bounce,LightProbes,UVMap,Combined,Merge"), "set_bake_mode", "get_bake_mode");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "mode", PROPERTY_HINT_ENUM, "Forward,Backward"), "set_mode", "get_mode");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "quality", PROPERTY_HINT_ENUM, "Low,Medium,High,Final"), "set_quality", "get_quality");
 	LIMPL_PROPERTY_PARAM(Variant::BOOL, dilate, LM::LightMapper::PARAM_DILATE_ENABLED);
@@ -154,6 +156,7 @@ void LLightmap::_bind_methods() {
 	ADD_GROUP("Forward", "");
 	LIMPL_PROPERTY_PARAM_RANGE(Variant::INT, num_bounces, "0,16,1", LM::LightMapper::PARAM_NUM_BOUNCES);
 	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, bounce_power, "0.0,8.0,0.05", LM::LightMapper::PARAM_BOUNCE_POWER);
+	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, bounce_mix, "0.0,4.0", LM::LightMapper::PARAM_BOUNCE_MIX);
 
 	ADD_GROUP("Common", "");
 	LIMPL_PROPERTY_PARAM_RANGE(Variant::INT, primary_rays, "1,4096,1", LM::LightMapper::PARAM_NUM_PRIMARY_RAYS);

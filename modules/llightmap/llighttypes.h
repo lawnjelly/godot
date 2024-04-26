@@ -221,6 +221,7 @@ struct FColor {
 		b -= v.b;
 		return *this;
 	}
+
 	FColor &operator*=(float v) {
 		r *= v;
 		g *= v;

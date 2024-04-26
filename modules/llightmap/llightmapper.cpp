@@ -277,6 +277,7 @@ void LightMapper::refresh_process_state() {
 	logic.process_orig_material = false;
 
 	logic.process_AO = false;
+	logic.process_bounce = false;
 
 	logic.process_probes = false;
 	logic.output_final = true;
@@ -296,6 +297,9 @@ void LightMapper::refresh_process_state() {
 		} break;
 		case LMBAKEMODE_AO: {
 			logic.process_AO = true;
+		} break;
+		case LMBAKEMODE_BOUNCE: {
+			logic.process_bounce = true;
 		} break;
 		case LMBAKEMODE_MERGE: {
 		} break;
@@ -442,6 +446,7 @@ bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_ro
 			after = OS::get_singleton()->get_ticks_msec();
 			print_line("ProcessAO took " + itos(after - before) + " ms");
 
+			save_intermediate(logic.process_AO, settings.AO_filename, _image_AO);
 			//Convolve_AO();
 		}
 
@@ -461,9 +466,39 @@ bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_ro
 				process_emission_tris();
 #endif
 			}
-			do_ambient_bounces();
+			//do_ambient_bounces();
 			after = OS::get_singleton()->get_ticks_msec();
 			print_line("ProcessTexels took " + itos(after - before) + " ms");
+		}
+
+		if (logic.process_bounce && adjusted_settings.num_ambient_bounces) {
+			print_line("ProcessBounce");
+			before = OS::get_singleton()->get_ticks_msec();
+
+			// We need to load the lightmap, emission and glow into memory.
+			load_intermediate(settings.lightmap_filename, _image_lightmap);
+			load_intermediate(settings.emission_filename, _image_emission);
+			load_intermediate(settings.glow_filename, _image_glow);
+
+			merge_for_ambient_bounces();
+
+			// Make a record of the image before bounces, so we can subtract it
+			// to get a final image of JUST the bounced light, ready for later merging.
+			_image_bounce.create(_width, _height);
+			_image_main.copy_to(_image_bounce);
+
+			do_ambient_bounces();
+
+			_image_bounce.subtract_from_image(_image_main);
+
+			after = OS::get_singleton()->get_ticks_msec();
+			print_line("ProcessBounce took " + itos(after - before) + " ms");
+
+			save_intermediate(logic.process_bounce, settings.bounce_filename, _image_bounce);
+
+			if (bake_end_function) {
+				bake_end_function();
+			}
 		}
 
 		if (logic.process_probes) {
@@ -484,7 +519,6 @@ bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_ro
 
 			// save the images, png or exr
 			save_intermediate(logic.process_lightmap, settings.lightmap_filename, _image_lightmap);
-			save_intermediate(logic.process_AO, settings.AO_filename, _image_AO);
 			save_intermediate(logic.process_emission, settings.emission_filename, _image_emission);
 			save_intermediate(logic.process_glow, settings.glow_filename, _image_glow);
 
@@ -509,6 +543,7 @@ bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_ro
 			load_intermediate(settings.emission_filename, _image_emission);
 			load_intermediate(settings.glow_filename, _image_glow);
 			load_intermediate(settings.orig_material_filename, _image_orig_material);
+			load_intermediate(settings.bounce_filename, _image_bounce);
 
 			//load_lightmap(out_image_lightmap);
 			//load_AO(out_image_ao);

@@ -81,10 +81,20 @@ public:
 	}
 
 	void copy_to(LightImage<T> &dest) const {
-		assert(dest.get_num_pixels() == get_num_pixels());
+		DEV_ASSERT(dest.get_num_pixels() == get_num_pixels());
 
 		for (unsigned int n = 0; n < _num_pixels; n++) {
 			dest._pixels[n] = _pixels[n];
+		}
+	}
+
+	void subtract_from_image(const LightImage<T> &p_other) {
+		DEV_ASSERT(p_other.get_num_pixels() == get_num_pixels());
+
+		for (unsigned int n = 0; n < _num_pixels; n++) {
+			T temp = p_other._pixels[n];
+			temp -= _pixels[n];
+			_pixels[n] = temp;
 		}
 	}
 
