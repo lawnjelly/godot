@@ -744,20 +744,63 @@ bool LightMapper_Base::load_AO(Image &image) {
 
 void LightMapper_Base::merge_to_combined() {
 	bool combine_orig_material = (data.params[PARAM_COMBINE_ORIG_MATERIAL_ENABLED] == Variant(true)) && _image_orig_material.get_num_pixels();
+	float light_AO_ratio = data.params[PARAM_AO_LIGHT_RATIO];
 
-	// First combine light and emission.
-	if (settings.bake_mode != LMBAKEMODE_AO) {
+	// First light and emission, so noise reduction can be applied.
+	if (true) {
+		//	if (settings.bake_mode != LMBAKEMODE_AO) {
 		float mult_emission = data.params[PARAM_EMISSION_POWER];
 		float mult_glow = data.params[PARAM_GLOW];
 
 		for (int y = 0; y < _height; y++) {
 			for (int x = 0; x < _width; x++) {
-				const FColor &light = _image_lightmap.get_item(x, y);
-				const FColor &emission = _image_emission.get_item(x, y);
-				const FColor &glow = _image_glow.get_item(x, y);
+				FColor total;
+				if (settings.bake_mode != LMBAKEMODE_AO) {
+					const FColor &light = _image_lightmap.get_item(x, y);
+					const FColor &emission = _image_emission.get_item(x, y);
 
-				FColor total = light;
-				total += emission * mult_emission;
+					total = light;
+					total += emission * mult_emission;
+				}
+
+				float ao = 0.0f;
+
+				if (_image_AO.get_num_pixels())
+					ao = _image_AO.get_item(x, y);
+
+				switch (settings.bake_mode) {
+					case LMBAKEMODE_LIGHTMAP: {
+					} break;
+					case LMBAKEMODE_AO: {
+						total.set(ao);
+					} break;
+					default: {
+						FColor applied = total * ao;
+						total.lerp(applied, light_AO_ratio);
+					} break;
+				}
+
+				_image_main.get_item(x, y) = total;
+			}
+		}
+
+		if (settings.noise_reduction_method != NR_DISABLE) {
+			// Normalize before noise reduction?
+			_normalize(_image_main);
+
+			// Dilate to make sure noise reduction has good stuff to work with.
+			Dilate<FColor> dilate;
+			dilate.dilate_image(_image_main, _image_tri_ids_p1, 256);
+
+			// Noise Reduction.
+			apply_noise_reduction();
+		}
+
+		// Glow and orig material.
+		for (int y = 0; y < _height; y++) {
+			for (int x = 0; x < _width; x++) {
+				FColor &total = _image_main.get_item(x, y);
+				const FColor &glow = _image_glow.get_item(x, y);
 
 				if (combine_orig_material) {
 					const Color &alb = _image_orig_material.get_item(x, y);
@@ -771,8 +814,6 @@ void LightMapper_Base::merge_to_combined() {
 				}
 
 				total += glow * mult_glow;
-
-				_image_main.get_item(x, y) = total;
 			}
 		}
 	}
@@ -784,10 +825,10 @@ void LightMapper_Base::merge_to_combined() {
 
 	// merge them both before applying noise reduction and seams
 	float gamma = 1.0f / (float)data.params[PARAM_GAMMA];
-	float light_AO_ratio = data.params[PARAM_AO_LIGHT_RATIO];
 
 	for (int y = 0; y < _height; y++) {
 		for (int x = 0; x < _width; x++) {
+#if 0
 			float ao = 0.0f;
 
 			if (_image_AO.get_num_pixels())
@@ -825,6 +866,10 @@ void LightMapper_Base::merge_to_combined() {
 				} break;
 			}
 
+#endif
+
+			FColor &total = _image_main.get_item(x, y);
+
 			// gamma correction
 			if (!settings.combined_is_HDR) {
 				total.r = powf(total.r, gamma);
@@ -856,11 +901,9 @@ void LightMapper_Base::merge_to_combined() {
 */
 
 			// Write back to main image.
-			*_image_main.get(x, y) = total;
+			//			*_image_main.get(x, y) = total;
 		}
 	}
-
-	apply_noise_reduction();
 
 	// One more dilate?
 	if (data.params[PARAM_DILATE_ENABLED] == Variant(true)) {
@@ -871,49 +914,31 @@ void LightMapper_Base::merge_to_combined() {
 	stitch_seams();
 
 	// mark magenta
-	//	if (settings.bake_mode == LMBAKEMODE_LIGHTMAP || settings.bake_mode == LMBAKEMODE_AO) {
-	if (_image_tri_ids_p1.get_num_pixels()) {
-		if (data.params[PARAM_DILATE_ENABLED] != Variant(true)) {
-			for (uint32_t y = 0; y < _height; y++) {
-				for (uint32_t x = 0; x < _width; x++) {
-					if (_image_tri_ids_p1.get_item(x, y) == 0) {
-						FColor &fcol = _image_main.get_item(x, y);
+	if (data.params[PARAM_DILATE_ENABLED] != Variant(true)) {
+		_mark_dilated_area(_image_main);
+	}
+}
+
+void LightMapper_Base::_mark_dilated_area(LightImage<FColor> &r_image) {
+	if (!_image_tri_ids_p1.get_num_pixels()) {
+		return;
+	}
+	for (uint32_t y = 0; y < _height; y++) {
+		for (uint32_t x = 0; x < _width; x++) {
+			if (_image_tri_ids_p1.get_item(x, y) == 0) {
+				FColor &fcol = r_image.get_item(x, y);
 #ifdef LLIGHTMAP_DEBUG_RECLAIMED_TEXELS
-						if (_image_reclaimed_texels.get_item(x, y) == 0) {
-							fcol.set(1, 0, 1);
-						} else {
-							fcol.set(1, 0, 0);
-						}
-#else
-						fcol.set(1, 0, 1);
-#endif
-					}
+				if (_image_reclaimed_texels.get_item(x, y) == 0) {
+					fcol.set(1, 0, 1);
+				} else {
+					fcol.set(1, 0, 0);
 				}
-			}
-		}
-	}
-
-#if 0
-	// assuming both lightmap and AO are already dilated
-	// final version
-	image.lock();
-
-	for (int y = 0; y < _height; y++) {
-		for (int x = 0; x < _width; x++) {
-			FColor f = _image_main.get_item(x, y);
-
-			Color col;
-			col = Color(f.r, f.g, f.b, 1);
-
-			// new... RGBM .. use a multiplier in the alpha to get increased dynamic range!
-			//ColorToRGBM(col);
-
-			image.set_pixel(x, y, col);
-		}
-	}
-
-	image.unlock();
+#else
+				fcol.set(1, 0, 1);
 #endif
+			}
+		} // for x
+	} // for y
 }
 
 void LightMapper_Base::show_warning(String sz, bool bAlert) {

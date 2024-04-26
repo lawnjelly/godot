@@ -112,6 +112,7 @@ protected:
 
 	bool prepare_image_maps();
 	void _normalize(LightImage<FColor> &r_image, float p_normalize_multiplier = 1.0f);
+	void _mark_dilated_area(LightImage<FColor> &r_image);
 	void normalize_AO();
 	void apply_noise_reduction();
 	void stitch_seams();
