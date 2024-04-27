@@ -45,7 +45,7 @@ void AmbientOcclusion::process_AO() {
 #define LAMBIENT_OCCLUSION_USE_THREADS
 #ifdef LAMBIENT_OCCLUSION_USE_THREADS
 	//	int nCores = OS::get_singleton()->get_processor_count();
-	int nSections = _height / 64;
+	int nSections = _height / 16; // 64
 	if (!nSections)
 		nSections = 1;
 	int y_section_size = _height / nSections;
@@ -111,21 +111,21 @@ void AmbientOcclusion::process_AO_line_MT(uint32_t y_offset, int y_section_start
 float AmbientOcclusion::calculate_AO(int tx, int ty, int qmc_variation, const MiniList &ml) {
 	Ray r;
 	int num_samples = adjusted_settings.num_AO_samples;
+	int num_samples_per_repeat = num_samples;
 
 	// find the max range in voxels. This can be used to speed up the ray trace
 	Vec3i voxel_range = _scene._voxel_range;
 
 	int num_hits = 0;
 	int num_samples_inside = 0;
+	float previous_metric = 0;
 
 	int attempts = -1;
 
+	//#define LLIGHTMAP_AO_USE_RESULT_METRIC
+
 	while (true) {
 		attempts++;
-		if (attempts >= (num_samples * 8)) {
-			//			print_line("AO texel aborting after " + itos(attempts) + " attempts, with " + itos(num_hits) + " hits, ml contained " + itos(ml.num) + " tris, " + itos(num_samples_inside) + " were inside, coverage was " + itos(ml.kernel_coverage));
-			break;
-		}
 		//	for (int n = 0; n < num_samples; n++) {
 
 		// pick a float position within the texel
@@ -159,8 +159,31 @@ float AmbientOcclusion::calculate_AO(int tx, int ty, int qmc_variation, const Mi
 		if (_scene.test_intersect_ray(r, adjusted_settings.AO_range, voxel_range))
 			num_hits++;
 
-		if (num_samples_inside >= num_samples)
+		if (num_samples_inside >= num_samples) {
+#ifdef LLIGHTMAP_AO_USE_RESULT_METRIC
+			// Has it hit error metric?
+			float metric = (float)num_hits / num_samples_inside;
+			float metric_diff = Math::abs(metric - previous_metric);
+			if (metric_diff < 0.003f)
+				break;
+
+			// Not enough samples, keep going.
+			num_samples += num_samples_per_repeat;
+			previous_metric = metric;
+#else
 			break;
+#endif
+		}
+#ifdef LLIGHTMAP_AO_USE_RESULT_METRIC
+		if (attempts >= (num_samples_per_repeat * 16)) {
+			//			print_line("AO texel aborting after " + itos(attempts) + " attempts, with " + itos(num_hits) + " hits, ml contained " + itos(ml.num) + " tris, " + itos(num_samples_inside) + " were inside, coverage was " + itos(ml.kernel_coverage));
+			break;
+		}
+#else
+		if (attempts >= (num_samples_per_repeat * 8)) {
+			break;
+		}
+#endif
 
 	} // for samples
 
