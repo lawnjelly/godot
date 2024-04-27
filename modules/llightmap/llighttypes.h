@@ -11,6 +11,7 @@ namespace LM {
 struct MiniList {
 	uint32_t first;
 	uint32_t num;
+	uint32_t kernel_coverage;
 };
 
 struct ColorSample {

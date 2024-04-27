@@ -2182,13 +2182,15 @@ void LightMapper::_AA_reclaim_texels() {
 	// This is done as a pre-process so it can be used in merging for dilation.
 	// Alternatively we could save it to disk.
 
+	int threshold = MAX(_aa_kernel_f.size() / 4, 1);
+
 	for (int y = 0; y < _height; y++) {
 		for (int x = 0; x < _width; x++) {
-			const MiniList &ml = _image_tri_minilists.get_item(x, y);
+			MiniList &ml = _image_tri_minilists.get_item(x, y);
 			if (!ml.num)
 				continue;
 
-			bool found = false;
+			int found = 0;
 
 			for (int n = 0; n < _aa_kernel_f.size(); n++) {
 				Vector2 st = _aa_kernel_f[n] + Vector2(x, y);
@@ -2200,12 +2202,14 @@ void LightMapper::_AA_reclaim_texels() {
 				Vector3 bary;
 
 				if (AO_find_texel_triangle(ml, st, tri_id, bary)) {
-					found = true;
-					break;
+					found++;
+					//break;
 				}
 			} // For n through kernel.
 
-			if (!found) {
+			ml.kernel_coverage = found;
+
+			if (found < threshold) {
 				// Reclaim!
 				//print_line("Reclaiming texel " + itos(x) + ", " + itos(y));
 

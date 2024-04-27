@@ -24,16 +24,16 @@ protected:
 
 	bool AO_find_texel_triangle(const MiniList &p_mini_list, const Vector2 &p_st, uint32_t &r_tri_inside, Vector3 &r_bary) const {
 		// barycentric coords.
-		const UVTri *pUVTri;
+		const UVTri *uv_tri;
 
 		// This needs to check face normals, because there can be a large number of tris
 		// intersecting a single texel.
 		for (uint32_t i = 0; i < p_mini_list.num; i++) {
 			r_tri_inside = _minilist_tri_ids[p_mini_list.first + i];
-			pUVTri = &_scene._uv_tris[r_tri_inside];
+			uv_tri = &_scene._uv_tris[r_tri_inside];
 
 			// within?
-			if (!pUVTri->find_barycentric_coords(p_st, r_bary))
+			if (!uv_tri->find_barycentric_coords(p_st, r_bary))
 				continue;
 
 			if (barycentric_inside(r_bary)) {

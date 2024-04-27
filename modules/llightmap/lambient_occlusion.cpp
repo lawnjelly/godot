@@ -7,9 +7,13 @@ void AmbientOcclusion::process_AO_texel(int tx, int ty, int qmc_variation) {
 	//	if ((tx == 77) && (ty == 221))
 	//		print_line("test");
 
+	// Reclaimed?
+	if (!_image_tri_ids_p1.get_item(tx, ty))
+		return;
+
 	const MiniList &ml = _image_tri_minilists.get_item(tx, ty);
-	if (!ml.num)
-		return; // no triangles in this UV
+	//	if (!ml.num)
+	//		return; // no triangles in this UV
 
 	// could be off the image
 	float *pfTexel = _image_AO.get(tx, ty);
@@ -106,18 +110,27 @@ void AmbientOcclusion::process_AO_line_MT(uint32_t y_offset, int y_section_start
 
 float AmbientOcclusion::calculate_AO(int tx, int ty, int qmc_variation, const MiniList &ml) {
 	Ray r;
-	int nSamples = adjusted_settings.num_AO_samples;
+	int num_samples = adjusted_settings.num_AO_samples;
 
 	// find the max range in voxels. This can be used to speed up the ray trace
 	Vec3i voxel_range = _scene._voxel_range;
 
-	int nHits = 0;
-	int nSamplesInside = 0;
+	int num_hits = 0;
+	int num_samples_inside = 0;
 
-	for (int n = 0; n < nSamples; n++) {
+	int attempts = -1;
+
+	while (true) {
+		attempts++;
+		if (attempts >= (num_samples * 8)) {
+			//			print_line("AO texel aborting after " + itos(attempts) + " attempts, with " + itos(num_hits) + " hits, ml contained " + itos(ml.num) + " tris, " + itos(num_samples_inside) + " were inside, coverage was " + itos(ml.kernel_coverage));
+			break;
+		}
+		//	for (int n = 0; n < num_samples; n++) {
+
 		// pick a float position within the texel
 		Vector2 st;
-		AO_random_texel_sample(st, tx, ty, n);
+		AO_random_texel_sample(st, tx, ty, attempts);
 
 		// find which triangle on the minilist we are inside (if any)
 		uint32_t tri_inside_id;
@@ -125,33 +138,39 @@ float AmbientOcclusion::calculate_AO(int tx, int ty, int qmc_variation, const Mi
 		if (!AO_find_texel_triangle(ml, st, tri_inside_id, bary))
 			continue;
 
-		nSamplesInside++;
+		num_samples_inside++;
 
 		// calculate world position ray origin from barycentric
 		_scene._tris[tri_inside_id].interpolate_barycentric(r.o, bary);
 
+		// Add a bias along the tri plane.
+		const Plane &tri_plane = _scene._tri_planes[tri_inside_id];
+		r.o += tri_plane.normal * adjusted_settings.surface_bias;
+
 		// calculate surface normal (should be use plane?)
-		Vector3 ptNormal;
-		_scene._tri_normals[tri_inside_id].interpolate_barycentric(ptNormal, bary);
-		//const Vector3 &ptNormal = m_Scene.m_TriPlanes[tri_inside_id].normal;
+		Vector3 normal = tri_plane.normal;
+		//_scene._tri_normals[tri_inside_id].interpolate_barycentric(normal = tri_plane.normal, bary);
 
 		// construct a random ray to test
-		AO_random_QMC_ray(r, ptNormal, n, qmc_variation);
+		//AO_random_QMC_ray(r, normal = tri_plane.normal, attempts, qmc_variation);
+		generate_random_hemi_unit_dir(r.d, normal);
 
 		// test ray
-		if (_scene.test_intersect_ray(r, adjusted_settings.AO_range, voxel_range)) {
-			nHits++;
-		}
+		if (_scene.test_intersect_ray(r, adjusted_settings.AO_range, voxel_range))
+			num_hits++;
+
+		if (num_samples_inside >= num_samples)
+			break;
 
 	} // for samples
 
-	float fTotal = (float)nHits / nSamplesInside;
-	fTotal = 1.0f - (fTotal * 1.0f);
+	float total = (float)num_hits / num_samples_inside;
+	total = 1.0f - (total * 1.0f);
 
-	if (fTotal < 0.0f)
-		fTotal = 0.0f;
+	if (total < 0)
+		total = 0;
 
-	return fTotal;
+	return total;
 }
 
 float AmbientOcclusion::calculate_AO_complex(int tx, int ty, int qmc_variation, const MiniList &ml) {

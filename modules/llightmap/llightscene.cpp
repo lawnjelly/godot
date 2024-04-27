@@ -1155,6 +1155,7 @@ bool LightScene::rasterize_triangles_ids(LightMapper_Base &base, LightImage<uint
 				MiniList &ml = base._image_tri_minilists.get_item(x, y);
 				ml.first = base._minilist_tri_ids.size();
 				ml.num = 0;
+				ml.kernel_coverage = 0;
 
 				const LocalVector<uint32_t> &vec = _rasterize_triangle_id_params.temp_image_tris.get_item(x, y);
 

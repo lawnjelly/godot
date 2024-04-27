@@ -783,6 +783,8 @@ void LightMapper_Base::merge_to_combined() {
 	bool flag_glow = data.params[PARAM_MERGE_FLAG_GLOW] == Variant(true);
 	bool flag_material = (data.params[PARAM_MERGE_FLAG_MATERIAL] == Variant(true)) && _image_orig_material.get_num_pixels();
 
+	bool material_only = flag_material && (!(flag_ao || flag_bounce || flag_emission || flag_lights));
+
 	// merge them both before applying noise reduction and seams
 	float gamma = 1.0f / (float)data.params[PARAM_GAMMA];
 
@@ -831,7 +833,7 @@ void LightMapper_Base::merge_to_combined() {
 					} break;
 					default: {
 						if (flag_ao) {
-							if (flag_lights || flag_emission || flag_glow || flag_bounce) {
+							if (flag_lights || flag_emission || flag_bounce) {
 								FColor applied = total * ao;
 								total.lerp(applied, light_AO_ratio);
 							} else {
@@ -874,13 +876,14 @@ void LightMapper_Base::merge_to_combined() {
 
 					if (flag_material) {
 						const Color &alb = _image_orig_material.get_item(x, y);
-#if 0
-				f.set(alb);
-#else
-						total.r *= alb.r;
-						total.g *= alb.g;
-						total.b *= alb.b;
-#endif
+
+						if (!material_only) {
+							total.r *= alb.r;
+							total.g *= alb.g;
+							total.b *= alb.b;
+						} else {
+							total.set(alb);
+						}
 					}
 
 					if (flag_glow) {
@@ -893,7 +896,7 @@ void LightMapper_Base::merge_to_combined() {
 	}
 
 	// normalize lightmap on combine
-	if (data.params[PARAM_NORMALIZE] == Variant(true)) {
+	if (data.params[PARAM_NORMALIZE] == Variant(true) && !material_only) {
 		_normalize(_image_main, adjusted_settings.normalize_multiplier);
 	}
 
@@ -901,8 +904,9 @@ void LightMapper_Base::merge_to_combined() {
 		bake_step_function(0, String("Applying Gamma"));
 	}
 
-	for (int y = 0; y < _height; y++) {
-		for (int x = 0; x < _width; x++) {
+	if (!material_only) {
+		for (int y = 0; y < _height; y++) {
+			for (int x = 0; x < _width; x++) {
 #if 0
 			float ao = 0.0f;
 
@@ -942,26 +946,27 @@ void LightMapper_Base::merge_to_combined() {
 			}
 
 #endif
-			FColor &total = _image_main.get_item(x, y);
+				FColor &total = _image_main.get_item(x, y);
 
-			// gamma correction
-			if (!settings.combined_is_HDR) {
-				total.r = Math::pow((double)total.r, (double)gamma);
-				total.g = Math::pow((double)total.g, (double)gamma);
-				total.b = Math::pow((double)total.b, (double)gamma);
-			}
+				// gamma correction
+				if (!settings.combined_is_HDR) {
+					total.r = Math::pow((double)total.r, (double)gamma);
+					total.g = Math::pow((double)total.g, (double)gamma);
+					total.b = Math::pow((double)total.b, (double)gamma);
+				}
 
-			/*
-			Color col;
-			col = Color(f.r, f.g, f.b, 1);
+				/*
+				Color col;
+				col = Color(f.r, f.g, f.b, 1);
 
-			// new... RGBM .. use a multiplier in the alpha to get increased dynamic range!
-			//ColorToRGBM(col);
+				// new... RGBM .. use a multiplier in the alpha to get increased dynamic range!
+				//ColorToRGBM(col);
 
-			image.set_pixel(x, y, col);
-			*/
-		}
-	}
+				image.set_pixel(x, y, col);
+				*/
+			} // for x
+		} // for y
+	} // if not material only
 
 #if 0
 	// Test fill with random colors.
