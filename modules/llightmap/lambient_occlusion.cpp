@@ -32,7 +32,7 @@ void AmbientOcclusion::process_AO() {
 	//	if (bake_begin_function) {
 	//		bake_begin_function(m_iHeight);
 	//	}
-	_image_AO.create(_width, _height);
+	_image_AO.create(_width, _height, 1);
 
 	// find the max range in voxels. This can be used to speed up the ray trace
 	const float range = adjusted_settings.AO_range;

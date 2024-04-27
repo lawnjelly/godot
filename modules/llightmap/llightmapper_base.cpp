@@ -76,7 +76,7 @@ LightMapper_Base::LightMapper_Base() {
 	settings.noise_reduction_method = NR_ADVANCED;
 
 	data.params[PARAM_DILATE_ENABLED] = true;
-	data.params[PARAM_COMBINE_ORIG_MATERIAL_ENABLED] = false;
+	// data.params[PARAM_COMBINE_ORIG_MATERIAL_ENABLED] = false;
 
 	data.params[PARAM_SEAM_STITCHING_ENABLED] = true;
 	data.params[PARAM_SEAM_DISTANCE_THRESHOLD] = 0.001f;
@@ -92,7 +92,14 @@ LightMapper_Base::LightMapper_Base() {
 	//	settings.sky_num_samples = 512;
 	//	settings.sky_brightness = 1.0f;
 
-	data.params[PARAM_EMISSION_ENABLED] = true;
+	//data.params[PARAM_EMISSION_ENABLED] = true;
+
+	data.params[PARAM_MERGE_FLAG_LIGHTS] = true;
+	data.params[PARAM_MERGE_FLAG_AO] = true;
+	data.params[PARAM_MERGE_FLAG_BOUNCE] = true;
+	data.params[PARAM_MERGE_FLAG_EMISSION] = true;
+	data.params[PARAM_MERGE_FLAG_GLOW] = true;
+	data.params[PARAM_MERGE_FLAG_MATERIAL] = false;
 
 	calculate_quality_adjusted_settings();
 }
@@ -767,9 +774,18 @@ void LightMapper_Base::merge_for_ambient_bounces() {
 }
 
 void LightMapper_Base::merge_to_combined() {
-	bool combine_orig_material = (data.params[PARAM_COMBINE_ORIG_MATERIAL_ENABLED] == Variant(true)) && _image_orig_material.get_num_pixels();
 	float light_AO_ratio = data.params[PARAM_AO_LIGHT_RATIO];
 
+	bool flag_lights = data.params[PARAM_MERGE_FLAG_LIGHTS] == Variant(true);
+	bool flag_ao = data.params[PARAM_MERGE_FLAG_AO] == Variant(true);
+	bool flag_bounce = data.params[PARAM_MERGE_FLAG_BOUNCE] == Variant(true);
+	bool flag_emission = data.params[PARAM_MERGE_FLAG_EMISSION] == Variant(true);
+	bool flag_glow = data.params[PARAM_MERGE_FLAG_GLOW] == Variant(true);
+	bool flag_material = (data.params[PARAM_MERGE_FLAG_MATERIAL] == Variant(true)) && _image_orig_material.get_num_pixels();
+	
+	// merge them both before applying noise reduction and seams
+	float gamma = 1.0f / (float)data.params[PARAM_GAMMA];
+	
 	// First light and emission, so noise reduction can be applied.
 	if (true) {
 		//	if (settings.bake_mode != LMBAKEMODE_AO) {
@@ -778,24 +794,34 @@ void LightMapper_Base::merge_to_combined() {
 		float mult_bounce = data.params[PARAM_AMBIENT_BOUNCE_MIX];
 
 		for (int y = 0; y < _height; y++) {
+			if ((y % 256 == 0) && bake_step_function) {
+				bake_step_function(y / (float)_height, String("Merging Light Texels"));
+			}
+
 			for (int x = 0; x < _width; x++) {
 				FColor total;
 				if (settings.bake_mode != LMBAKEMODE_AO) {
 					const FColor &light = _image_lightmap.get_item(x, y);
 					const FColor &emission = _image_emission.get_item(x, y);
 
-					total = light;
-					total += emission * mult_emission;
+					total = flag_lights ? light : FColor::create(0);
+					if (flag_emission) {
+						total += emission * mult_emission;
+					}
 				}
 
-				if (_image_bounce.get_num_pixels()) {
+				if (_image_bounce.get_num_pixels() && flag_bounce) {
 					total += _image_bounce.get_item(x, y) * mult_bounce;
 				}
 
 				float ao = 0.0f;
 
-				if (_image_AO.get_num_pixels())
+				if (_image_AO.get_num_pixels()) {
 					ao = _image_AO.get_item(x, y);
+					if (!settings.combined_is_HDR) {
+						ao = Math::pow((double) ao, 1.0 / gamma);
+					}
+				}
 
 				switch (settings.bake_mode) {
 					case LMBAKEMODE_LIGHTMAP: {
@@ -804,8 +830,14 @@ void LightMapper_Base::merge_to_combined() {
 						total.set(ao);
 					} break;
 					default: {
-						FColor applied = total * ao;
-						total.lerp(applied, light_AO_ratio);
+						if (flag_ao) {
+							if (flag_lights || flag_emission || flag_glow || flag_bounce) {
+								FColor applied = total * ao;
+								total.lerp(applied, light_AO_ratio);
+							} else {
+								total.set(ao);
+							}
+						}
 					} break;
 				}
 
@@ -814,6 +846,10 @@ void LightMapper_Base::merge_to_combined() {
 		}
 
 		if (settings.noise_reduction_method != NR_DISABLE) {
+			if (bake_step_function) {
+				bake_step_function(0, String("Applying Noise Reduction"));
+			}
+
 			// Normalize before noise reduction?
 			_normalize(_image_main);
 
@@ -826,25 +862,34 @@ void LightMapper_Base::merge_to_combined() {
 		}
 
 		// Glow and orig material.
-		for (int y = 0; y < _height; y++) {
-			for (int x = 0; x < _width; x++) {
-				FColor &total = _image_main.get_item(x, y);
-				const FColor &glow = _image_glow.get_item(x, y);
+		if (flag_glow || flag_material) {
+			for (int y = 0; y < _height; y++) {
+				if ((y % 256 == 0) && bake_step_function) {
+					bake_step_function(y / (float)_height, String("Merging Glow and Material"));
+				}
 
-				if (combine_orig_material) {
-					const Color &alb = _image_orig_material.get_item(x, y);
+				for (int x = 0; x < _width; x++) {
+					FColor &total = _image_main.get_item(x, y);
+					const FColor &glow = _image_glow.get_item(x, y);
+
+					if (flag_material) {
+						const Color &alb = _image_orig_material.get_item(x, y);
 #if 0
 				f.set(alb);
 #else
-					total.r *= alb.r;
-					total.g *= alb.g;
-					total.b *= alb.b;
+						total.r *= alb.r;
+						total.g *= alb.g;
+						total.b *= alb.b;
 #endif
-				}
+					}
 
-				total += glow * mult_glow;
-			}
-		}
+					if (flag_glow) {
+						total += glow * mult_glow;
+					}
+				}
+			} // for y
+
+		} // if glow or material
 	}
 
 	// normalize lightmap on combine
@@ -852,8 +897,9 @@ void LightMapper_Base::merge_to_combined() {
 		_normalize(_image_main, adjusted_settings.normalize_multiplier);
 	}
 
-	// merge them both before applying noise reduction and seams
-	float gamma = 1.0f / (float)data.params[PARAM_GAMMA];
+	if (bake_step_function) {
+		bake_step_function(0, String("Applying Gamma"));
+	}
 
 	for (int y = 0; y < _height; y++) {
 		for (int x = 0; x < _width; x++) {
@@ -896,14 +942,13 @@ void LightMapper_Base::merge_to_combined() {
 			}
 
 #endif
-
 			FColor &total = _image_main.get_item(x, y);
 
 			// gamma correction
 			if (!settings.combined_is_HDR) {
-				total.r = powf(total.r, gamma);
-				total.g = powf(total.g, gamma);
-				total.b = powf(total.b, gamma);
+				total.r = Math::pow((double)total.r, (double)gamma);
+				total.g = Math::pow((double)total.g, (double)gamma);
+				total.b = Math::pow((double)total.b, (double)gamma);
 			}
 
 			/*
@@ -928,11 +973,20 @@ void LightMapper_Base::merge_to_combined() {
 
 	// One more dilate?
 	if (data.params[PARAM_DILATE_ENABLED] == Variant(true)) {
+		if (bake_step_function) {
+			bake_step_function(0, String("Dilate"));
+		}
+
 		Dilate<FColor> dilate;
 		dilate.dilate_image(_image_main, _image_tri_ids_p1, 256);
 	}
 
-	stitch_seams();
+	if (data.params[PARAM_SEAM_STITCHING_ENABLED]) {
+		if (bake_step_function) {
+			bake_step_function(0, String("Stitch Seams"));
+		}
+		stitch_seams();
+	}
 
 	// mark magenta
 	if (data.params[PARAM_DILATE_ENABLED] != Variant(true)) {

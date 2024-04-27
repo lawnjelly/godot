@@ -1082,7 +1082,7 @@ bool LightScene::rasterize_triangles_ids(LightMapper_Base &base, LightImage<uint
 
 	// create a temporary image of vectors to store the triangles per texel
 	if (base.logic.rasterize_mini_lists)
-		_rasterize_triangle_id_params.temp_image_tris.create(width, height, false);
+		_rasterize_triangle_id_params.temp_image_tris.create(width, height);
 
 	// First find tri min maxes in texture space.
 	_tri_uv_bounds.resize(_uv_tris.size());

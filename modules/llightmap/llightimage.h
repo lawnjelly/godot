@@ -17,13 +17,20 @@ public:
 		create(0, 0);
 	}
 
-	void create(uint32_t width, uint32_t height, bool p_blank = true) {
+	void create(uint32_t width, uint32_t height) {
 		_width = width;
 		_height = height;
 		_num_pixels = width * height;
 		_pixels.resize(_num_pixels);
-		if (p_blank)
-			blank();
+		blank();
+	}
+
+	void create(uint32_t width, uint32_t height, T p_fill) {
+		_width = width;
+		_height = height;
+		_num_pixels = width * height;
+		_pixels.resize(_num_pixels);
+		fill(p_fill);
 	}
 
 	T *get(uint32_t p) {

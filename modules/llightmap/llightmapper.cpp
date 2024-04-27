@@ -157,6 +157,10 @@ bool LightMapper::load_intermediate(const String &p_filename, LightImage<T> &r_l
 		r_lightimage.create(_width, _height);
 	}
 
+	if (bake_step_function) {
+		bake_step_function(0, String("Loading intermediate : ") + p_filename);
+	}
+
 	//Image image;
 	Ref<Image> image = memnew(Image());
 
@@ -279,6 +283,10 @@ void LightMapper::save_intermediate(bool p_save, const String &p_filename, const
 	if (!p_save)
 		return;
 
+	if (bake_step_function) {
+		bake_step_function(0, String("Saving ") + p_filename);
+	}
+
 	Ref<Image> image = memnew(Image(_width, _height, false, Image::FORMAT_RGBAF));
 
 	//	if (data.params[PARAM_DILATE_ENABLED] == Variant(true)) {
@@ -363,7 +371,7 @@ void LightMapper::refresh_process_state() {
 		case LMBAKEMODE_LIGHTMAP: {
 			logic.process_lightmap = true;
 			logic.process_AO = true;
-			logic.process_emission = data.params[PARAM_EMISSION_ENABLED] == Variant(true);
+			logic.process_emission = data.params[PARAM_MERGE_FLAG_EMISSION] == Variant(true);
 			logic.process_glow = logic.process_emission;
 		} break;
 		case LMBAKEMODE_AO: {
@@ -405,18 +413,27 @@ bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_ro
 		return false;
 
 	// create stuff used by everything
-	_image_main.create(_width, _height);
-	_image_main_mirror.create(_width, _height);
+	_image_main.create(_width, _height, FColor::create(1));
+	_image_main_mirror.create(_width, _height, FColor::create(1));
 
-	_image_lightmap.create(_width, _height);
+	_image_lightmap.create(_width, _height, FColor::create(1));
 	_image_emission.create(_width, _height);
 	_image_glow.create(_width, _height);
 
 	_scene._image_emission_done.create(_width, _height);
 
+	bool create_scene = settings.bake_mode != LMBAKEMODE_MERGE;
+
+	if (!create_scene) {
+		// If tri ids file is missing, recreate from scratch.
+		if (!load_tri_ids(settings.tri_ids_filename)) {
+			create_scene = true;
+		}
+	}
+
 	// Now we always create these, as needed for dilation,
 	// even when merging.
-	if (settings.bake_mode != LMBAKEMODE_MERGE) {
+	if (create_scene) {
 		uint32_t before, after;
 
 		_image_tri_ids_p1.create(_width, _height);
@@ -463,8 +480,6 @@ bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_ro
 		_AA_reclaim_texels();
 
 		save_tri_ids(settings.tri_ids_filename);
-	} else {
-		load_tri_ids(settings.tri_ids_filename);
 	}
 
 	if (logic.process_orig_material) {
@@ -612,24 +627,29 @@ bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_ro
 			_scene.find_meshes(pMeshesRoot);
 
 			// load the lightmap and ao from disk
-
 			load_intermediate(settings.lightmap_filename, _image_lightmap);
-			load_intermediate(settings.AO_filename, _image_AO);
 			load_intermediate(settings.emission_filename, _image_emission);
 			load_intermediate(settings.glow_filename, _image_glow);
 			load_intermediate(settings.orig_material_filename, _image_orig_material);
 			load_intermediate(settings.bounce_filename, _image_bounce);
 
-			//load_lightmap(out_image_lightmap);
-			//load_AO(out_image_ao);
+			// Ensure AO is filled with 1 if not found.
+			_image_AO.create(_width, _height, 1);
+			load_intermediate(settings.AO_filename, _image_AO);
 		}
 	}
 
 	//	print_line("WriteOutputImage");
 	//	before = OS::get_singleton()->get_ticks_msec();
 	if (logic.output_final) {
+		if (bake_step_function) {
+			bake_step_function(0, String("Merge to Combined"));
+		}
 		merge_to_combined();
 		save_intermediate(true, settings.combined_filename, _image_main);
+		if (bake_end_function) {
+			bake_end_function();
+		}
 	}
 	//	after = OS::get_singleton()->get_ticks_msec();
 	//	print_line("WriteOutputImage took " + itos(after -before) + " ms");

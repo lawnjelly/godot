@@ -40,7 +40,7 @@ void LLightmap::_bind_methods() {
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_NUM_AMBIENT_BOUNCES);
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_NUM_AMBIENT_BOUNCE_RAYS);
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_AMBIENT_BOUNCE_POWER);
-	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_EMISSION_ENABLED);
+	//BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_EMISSION_ENABLED);
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_EMISSION_DENSITY);
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_EMISSION_POWER);
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_GLOW);
@@ -55,7 +55,7 @@ void LLightmap::_bind_methods() {
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_AO_LIGHT_RATIO);
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_GAMMA);
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_DILATE_ENABLED);
-	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_COMBINE_ORIG_MATERIAL_ENABLED);
+	//BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_COMBINE_ORIG_MATERIAL_ENABLED);
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_NOISE_REDUCTION);
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_NOISE_THRESHOLD);
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_SEAM_STITCHING_ENABLED);
@@ -65,6 +65,12 @@ void LLightmap::_bind_methods() {
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_PROBE_DENSITY);
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_PROBE_SAMPLES);
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_UV_PADDING);
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_MERGE_FLAG_LIGHTS);
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_MERGE_FLAG_AO);
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_MERGE_FLAG_BOUNCE);
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_MERGE_FLAG_EMISSION);
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_MERGE_FLAG_GLOW);
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_MERGE_FLAG_MATERIAL);
 
 	ClassDB::bind_method(D_METHOD("set_param", "param", "value"), &LLightmap::set_param);
 	ClassDB::bind_method(D_METHOD("get_param", "param"), &LLightmap::get_param);
@@ -124,10 +130,22 @@ void LLightmap::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "bake_mode", PROPERTY_HINT_ENUM, "Lightmap,AO,Material,Bounce,LightProbes,UVMap,Combined,Merge"), "set_bake_mode", "get_bake_mode");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "mode", PROPERTY_HINT_ENUM, "Forward,Backward"), "set_mode", "get_mode");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "quality", PROPERTY_HINT_ENUM, "Low,Medium,High,Final"), "set_quality", "get_quality");
-	LIMPL_PROPERTY_PARAM(Variant::BOOL, dilate, LM::LightMapper::PARAM_DILATE_ENABLED);
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "noise method", PROPERTY_HINT_ENUM, "Disabled,Simple,Advanced"), "set_noise_reduction_method", "get_noise_reduction_method");
+	
+	ADD_GROUP("Options", "");
+	LIMPL_PROPERTY_PARAM(Variant::BOOL, dilate, LM::LightMapper::PARAM_DILATE_ENABLED);
 	LIMPL_PROPERTY_PARAM(Variant::BOOL, seam_stitching, LM::LightMapper::PARAM_SEAM_STITCHING_ENABLED);
-
+	LIMPL_PROPERTY_PARAM(Variant::BOOL, visualize_seams, LM::LightMapper::PARAM_VISUALIZE_SEAMS_ENABLED);
+	
+	
+	ADD_GROUP("Merge Flags", "merge_flag");
+	LIMPL_PROPERTY_PARAM(Variant::BOOL, merge_flag_lights, LM::LightMapper::PARAM_MERGE_FLAG_LIGHTS);
+	LIMPL_PROPERTY_PARAM(Variant::BOOL, merge_flag_ambient_occlusion, LM::LightMapper::PARAM_MERGE_FLAG_AO);
+	LIMPL_PROPERTY_PARAM(Variant::BOOL, merge_flag_ambient_bounce, LM::LightMapper::PARAM_MERGE_FLAG_BOUNCE);
+	LIMPL_PROPERTY_PARAM(Variant::BOOL, merge_flag_emission, LM::LightMapper::PARAM_MERGE_FLAG_EMISSION);
+	LIMPL_PROPERTY_PARAM(Variant::BOOL, merge_flag_glow, LM::LightMapper::PARAM_MERGE_FLAG_GLOW);
+	LIMPL_PROPERTY_PARAM(Variant::BOOL, merge_flag_material, LM::LightMapper::PARAM_MERGE_FLAG_MATERIAL);
+	
 	ADD_GROUP("Size", "");
 
 	LIMPL_PROPERTY_PARAM_RANGE(Variant::INT, tex_width, "128,8192,128", LM::LightMapper::PARAM_TEX_WIDTH);
@@ -143,7 +161,6 @@ void LLightmap::_bind_methods() {
 	//LIMPL_PROPERTY(Variant::BOOL, dilate, set_dilate, get_dilate);
 	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, noise_reduction, "0.0,1.0,0.01", LM::LightMapper::PARAM_NOISE_REDUCTION);
 	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, noise_threshold, "0.0,1.0,0.01", LM::LightMapper::PARAM_NOISE_THRESHOLD);
-	LIMPL_PROPERTY_PARAM(Variant::BOOL, visualize_seams, LM::LightMapper::PARAM_VISUALIZE_SEAMS_ENABLED);
 
 	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, seam_distance_threshold, "0.0,0.01,0.0001", LM::LightMapper::PARAM_SEAM_DISTANCE_THRESHOLD);
 	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, seam_normal_threshold, "0.0,180.0,1.0", LM::LightMapper::PARAM_SEAM_NORMAL_THRESHOLD);
@@ -172,12 +189,13 @@ void LLightmap::_bind_methods() {
 	ADD_GROUP("Miscellaneous", "");
 	LIMPL_PROPERTY_PARAM_RANGE(Variant::INT, material_size, "128,2048,128", LM::LightMapper::PARAM_MATERIAL_SIZE);
 	LIMPL_PROPERTY_PARAM_RANGE(Variant::INT, material_kernel_size, "1,64,1", LM::LightMapper::PARAM_MATERIAL_KERNEL_SIZE);
-	LIMPL_PROPERTY_PARAM(Variant::BOOL, combine_original_material, LM::LightMapper::PARAM_COMBINE_ORIG_MATERIAL_ENABLED);
+	//LIMPL_PROPERTY_PARAM(Variant::BOOL, combine_original_material, LM::LightMapper::PARAM_COMBINE_ORIG_MATERIAL_ENABLED);
 	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, roughness, "0.0,1.0,0.05", LM::LightMapper::PARAM_ROUGHNESS);
 	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, surface_bias, "0.0,1.0", LM::LightMapper::PARAM_SURFACE_BIAS);
 
+
 	ADD_GROUP("Emission", "");
-	LIMPL_PROPERTY_PARAM(Variant::BOOL, emission_enabled, LM::LightMapper::PARAM_EMISSION_ENABLED);
+	//LIMPL_PROPERTY_PARAM(Variant::BOOL, emission_enabled, LM::LightMapper::PARAM_EMISSION_ENABLED);
 
 	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, emission_density, "0.0,8.0,0.05", LM::LightMapper::PARAM_EMISSION_DENSITY);
 	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, emission_power, "0.0,100.0", LM::LightMapper::PARAM_EMISSION_POWER);

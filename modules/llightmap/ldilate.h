@@ -20,7 +20,7 @@ public:
 
 		// construct mask
 		LightImage<uint8_t> mask;
-		mask.create(w, h);
+		mask.create(w, h, 0);
 		for (int y = 0; y < h; y++) {
 			for (int x = 0; x < w; x++) {
 				if (*orig_mask.get(x, y))
@@ -53,7 +53,6 @@ public:
 
 		// note which pixels have been done (activated)
 		_done.create(w, h);
-		_done.blank();
 
 		// source coordinates for best source
 		_source_pts = pSource_pts;

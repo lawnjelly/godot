@@ -165,6 +165,13 @@ struct FHit {
 
 struct FColor {
 	float r, g, b;
+	static FColor create(float p_val) {
+		FColor c;
+		c.r = p_val;
+		c.g = p_val;
+		c.b = p_val;
+		return c;
+	}
 	static FColor from_color(const Color &p_col) {
 		FColor c;
 		c.r = p_col.r;
