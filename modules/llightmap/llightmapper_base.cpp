@@ -782,10 +782,10 @@ void LightMapper_Base::merge_to_combined() {
 	bool flag_emission = data.params[PARAM_MERGE_FLAG_EMISSION] == Variant(true);
 	bool flag_glow = data.params[PARAM_MERGE_FLAG_GLOW] == Variant(true);
 	bool flag_material = (data.params[PARAM_MERGE_FLAG_MATERIAL] == Variant(true)) && _image_orig_material.get_num_pixels();
-	
+
 	// merge them both before applying noise reduction and seams
 	float gamma = 1.0f / (float)data.params[PARAM_GAMMA];
-	
+
 	// First light and emission, so noise reduction can be applied.
 	if (true) {
 		//	if (settings.bake_mode != LMBAKEMODE_AO) {
@@ -819,7 +819,7 @@ void LightMapper_Base::merge_to_combined() {
 				if (_image_AO.get_num_pixels()) {
 					ao = _image_AO.get_item(x, y);
 					if (!settings.combined_is_HDR) {
-						ao = Math::pow((double) ao, 1.0 / gamma);
+						ao = Math::pow((double)ao, 1.0 / gamma);
 					}
 				}
 

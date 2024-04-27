@@ -131,13 +131,12 @@ void LLightmap::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "mode", PROPERTY_HINT_ENUM, "Forward,Backward"), "set_mode", "get_mode");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "quality", PROPERTY_HINT_ENUM, "Low,Medium,High,Final"), "set_quality", "get_quality");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "noise method", PROPERTY_HINT_ENUM, "Disabled,Simple,Advanced"), "set_noise_reduction_method", "get_noise_reduction_method");
-	
+
 	ADD_GROUP("Options", "");
 	LIMPL_PROPERTY_PARAM(Variant::BOOL, dilate, LM::LightMapper::PARAM_DILATE_ENABLED);
 	LIMPL_PROPERTY_PARAM(Variant::BOOL, seam_stitching, LM::LightMapper::PARAM_SEAM_STITCHING_ENABLED);
 	LIMPL_PROPERTY_PARAM(Variant::BOOL, visualize_seams, LM::LightMapper::PARAM_VISUALIZE_SEAMS_ENABLED);
-	
-	
+
 	ADD_GROUP("Merge Flags", "merge_flag");
 	LIMPL_PROPERTY_PARAM(Variant::BOOL, merge_flag_lights, LM::LightMapper::PARAM_MERGE_FLAG_LIGHTS);
 	LIMPL_PROPERTY_PARAM(Variant::BOOL, merge_flag_ambient_occlusion, LM::LightMapper::PARAM_MERGE_FLAG_AO);
@@ -145,7 +144,7 @@ void LLightmap::_bind_methods() {
 	LIMPL_PROPERTY_PARAM(Variant::BOOL, merge_flag_emission, LM::LightMapper::PARAM_MERGE_FLAG_EMISSION);
 	LIMPL_PROPERTY_PARAM(Variant::BOOL, merge_flag_glow, LM::LightMapper::PARAM_MERGE_FLAG_GLOW);
 	LIMPL_PROPERTY_PARAM(Variant::BOOL, merge_flag_material, LM::LightMapper::PARAM_MERGE_FLAG_MATERIAL);
-	
+
 	ADD_GROUP("Size", "");
 
 	LIMPL_PROPERTY_PARAM_RANGE(Variant::INT, tex_width, "128,8192,128", LM::LightMapper::PARAM_TEX_WIDTH);
@@ -192,7 +191,6 @@ void LLightmap::_bind_methods() {
 	//LIMPL_PROPERTY_PARAM(Variant::BOOL, combine_original_material, LM::LightMapper::PARAM_COMBINE_ORIG_MATERIAL_ENABLED);
 	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, roughness, "0.0,1.0,0.05", LM::LightMapper::PARAM_ROUGHNESS);
 	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, surface_bias, "0.0,1.0", LM::LightMapper::PARAM_SURFACE_BIAS);
-
 
 	ADD_GROUP("Emission", "");
 	//LIMPL_PROPERTY_PARAM(Variant::BOOL, emission_enabled, LM::LightMapper::PARAM_EMISSION_ENABLED);
