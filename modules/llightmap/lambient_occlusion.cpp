@@ -137,7 +137,7 @@ float AmbientOcclusion::calculate_AO(int tx, int ty, int qmc_variation, const Mi
 
 #define LLIGHTMAP_AO_USE_RESULT_METRIC
 
-	bool fast_approx_test = true;
+	bool fast_approx_test = false;
 
 	while (true) {
 		attempts++;

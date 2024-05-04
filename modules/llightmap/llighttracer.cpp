@@ -387,9 +387,32 @@ void LightTracer::fill_voxels() {
 	print_line("FillVoxels : Num AABBs " + itos(_p_scene->_tri_pos_aabbs.size()));
 	print_line("\tnum tris : " + itos(_num_tris));
 
+	// First order the triangles by size, so we trace larger triangles
+	// first in any voxel. This is because the larger tris are more likely to
+	// be hits.
+	struct OrderedTri {
+		uint32_t tri_id;
+		float size;
+		bool operator<(const OrderedTri &o) const {
+			return size > o.size;
+		}
+	};
+	LocalVector<OrderedTri> size_ordered_tri_ids;
+	size_ordered_tri_ids.resize(_num_tris);
+	for (uint32_t n = 0; n < _num_tris; n++) {
+		OrderedTri &ot = size_ordered_tri_ids[n];
+		ot.tri_id = n;
+		ot.size = Math::abs(_p_scene->_tris[n].calculate_twice_area_squared());
+	}
+	size_ordered_tri_ids.sort();
+	///////////////////////////////////////
+
 	uint32_t tris_added = 0;
 
-	for (int t = 0; t < _num_tris; t++) {
+	for (uint32_t n = 0; n < _num_tris; n++) {
+		//for (int t = 0; t < _num_tris; t++) {
+		int t = size_ordered_tri_ids[n].tri_id;
+
 		AABB tri_aabb = _p_scene->_tri_pos_aabbs[t];
 
 		// expand a little for float error
