@@ -113,6 +113,15 @@ void AmbientOcclusion::process_AO_line_MT(uint32_t y_offset, int y_section_start
 }
 
 float AmbientOcclusion::calculate_AO(int tx, int ty, int qmc_variation, const MiniList &ml) {
+	// Debugging, fast version.
+	//	Vector2i diff(500, 100);
+	//	diff.x -= tx;
+	//	diff.y -= ty;
+	//	int64_t sl = (diff.x * diff.x) + (diff.y * diff.y);
+	//	if (Math::sqrt((double)sl) > 200) {
+	//		return 0;
+	//	}
+
 	Ray r;
 	int num_samples = adjusted_settings.AO_num_samples;
 	int num_samples_per_repeat = num_samples;
@@ -122,11 +131,13 @@ float AmbientOcclusion::calculate_AO(int tx, int ty, int qmc_variation, const Mi
 
 	int num_hits = 0;
 	int num_samples_inside = 0;
-	float previous_metric = 0;
+	float previous_metric = 0.0; // ensure always two repeats by setting to 2.0, or make it quicker by making zero hits case faster.
 
 	int attempts = -1;
 
 #define LLIGHTMAP_AO_USE_RESULT_METRIC
+
+	bool fast_approx_test = true;
 
 	while (true) {
 		attempts++;
@@ -162,6 +173,17 @@ float AmbientOcclusion::calculate_AO(int tx, int ty, int qmc_variation, const Mi
 		// test ray
 		if (_scene.test_intersect_ray(r, adjusted_settings.AO_range, voxel_range))
 			num_hits++;
+
+		// fast zero hits
+		if (fast_approx_test && (num_samples_inside == 64)) {
+			fast_approx_test = false;
+
+			if (!num_hits)
+				return 1;
+
+			if (num_hits >= (num_samples_inside - 8))
+				return 0;
+		}
 
 		if (num_samples_inside >= num_samples) {
 #ifdef LLIGHTMAP_AO_USE_RESULT_METRIC
