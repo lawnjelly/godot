@@ -5,6 +5,10 @@
 namespace LM {
 
 class AmbientOcclusion : public RayBank {
+	struct Data {
+		uint32_t aborts = 0;
+	} data_ao;
+
 public:
 protected:
 	struct AOSample {

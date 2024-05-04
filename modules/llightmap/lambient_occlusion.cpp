@@ -42,6 +42,8 @@ void AmbientOcclusion::process_AO() {
 	const float range = adjusted_settings.AO_range;
 	_scene._tracer.get_distance_in_voxels(range, _scene._voxel_range);
 
+	data_ao.aborts = 0;
+
 #define LAMBIENT_OCCLUSION_USE_THREADS
 #ifdef LAMBIENT_OCCLUSION_USE_THREADS
 	//	int nCores = OS::get_singleton()->get_processor_count();
@@ -91,6 +93,8 @@ void AmbientOcclusion::process_AO() {
 	}
 #endif
 
+	print_line("AO aborts " + itos(data_ao.aborts) + " out of " + itos(_width * _height) + " pixels.");
+
 	if (bake_end_function) {
 		bake_end_function();
 	}
@@ -110,7 +114,7 @@ void AmbientOcclusion::process_AO_line_MT(uint32_t y_offset, int y_section_start
 
 float AmbientOcclusion::calculate_AO(int tx, int ty, int qmc_variation, const MiniList &ml) {
 	Ray r;
-	int num_samples = adjusted_settings.num_AO_samples;
+	int num_samples = adjusted_settings.AO_num_samples;
 	int num_samples_per_repeat = num_samples;
 
 	// find the max range in voxels. This can be used to speed up the ray trace
@@ -122,7 +126,7 @@ float AmbientOcclusion::calculate_AO(int tx, int ty, int qmc_variation, const Mi
 
 	int attempts = -1;
 
-	//#define LLIGHTMAP_AO_USE_RESULT_METRIC
+#define LLIGHTMAP_AO_USE_RESULT_METRIC
 
 	while (true) {
 		attempts++;
@@ -164,7 +168,7 @@ float AmbientOcclusion::calculate_AO(int tx, int ty, int qmc_variation, const Mi
 			// Has it hit error metric?
 			float metric = (float)num_hits / num_samples_inside;
 			float metric_diff = Math::abs(metric - previous_metric);
-			if (metric_diff < 0.003f)
+			if (metric_diff <= adjusted_settings.AO_error_metric)
 				break;
 
 			// Not enough samples, keep going.
@@ -175,8 +179,9 @@ float AmbientOcclusion::calculate_AO(int tx, int ty, int qmc_variation, const Mi
 #endif
 		}
 #ifdef LLIGHTMAP_AO_USE_RESULT_METRIC
-		if (attempts >= (num_samples_per_repeat * 16)) {
+		if (attempts >= (num_samples_per_repeat * adjusted_settings.AO_abort_timeout)) {
 			//			print_line("AO texel aborting after " + itos(attempts) + " attempts, with " + itos(num_hits) + " hits, ml contained " + itos(ml.num) + " tris, " + itos(num_samples_inside) + " were inside, coverage was " + itos(ml.kernel_coverage));
+			data_ao.aborts++;
 			break;
 		}
 #else
@@ -212,7 +217,7 @@ float AmbientOcclusion::calculate_AO_complex(int tx, int ty, int qmc_variation, 
 	int nHits = 0;
 	Ray r;
 
-	for (int n = 0; n < adjusted_settings.num_AO_samples; n++) {
+	for (int n = 0; n < adjusted_settings.AO_num_samples; n++) {
 		// get the sample to look from
 		const AOSample &sample = samples[sample_counter++];
 
@@ -231,7 +236,7 @@ float AmbientOcclusion::calculate_AO_complex(int tx, int ty, int qmc_variation, 
 		}
 	} // for n
 
-	float fTotal = (float)nHits / adjusted_settings.num_AO_samples;
+	float fTotal = (float)nHits / adjusted_settings.AO_num_samples;
 	fTotal = 1.0f - (fTotal * 1.0f);
 
 	if (fTotal < 0.0f)
@@ -242,10 +247,10 @@ float AmbientOcclusion::calculate_AO_complex(int tx, int ty, int qmc_variation, 
 
 int AmbientOcclusion::AO_find_sample_points(int tx, int ty, const MiniList &ml, AOSample samples[MAX_COMPLEX_AO_TEXEL_SAMPLES]) {
 	int samples_found = 0;
-	int attempts = adjusted_settings.num_AO_samples + 64;
+	int attempts = adjusted_settings.AO_num_samples + 64;
 
 	// scale number of sample points roughly to the user interface quality
-	int num_desired_samples = adjusted_settings.num_AO_samples;
+	int num_desired_samples = adjusted_settings.AO_num_samples;
 	if (num_desired_samples > MAX_COMPLEX_AO_TEXEL_SAMPLES)
 		num_desired_samples = MAX_COMPLEX_AO_TEXEL_SAMPLES;
 

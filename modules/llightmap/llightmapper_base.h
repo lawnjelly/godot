@@ -207,6 +207,8 @@ public:
 		PARAM_GLOW,
 		PARAM_AO_NUM_SAMPLES,
 		PARAM_AO_RANGE,
+		PARAM_AO_ERROR_METRIC,
+		PARAM_AO_ABORT_TIMEOUT,
 		PARAM_SKY_SIZE,
 		PARAM_SKY_SAMPLES,
 		PARAM_SKY_BLUR,
@@ -366,9 +368,11 @@ public:
 
 		float glow;
 		float smoothness;
-		int num_AO_samples;
+		int AO_num_samples;
 
 		float AO_range;
+		float AO_error_metric;
+		int AO_abort_timeout;
 
 		int max_material_size;
 		int material_kernel_size;

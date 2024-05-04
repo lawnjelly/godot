@@ -506,7 +506,7 @@ bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_ro
 			if (bake_step_function) {
 				bake_step_function(0, String("QMC Create"));
 			}
-			_QMC.create(adjusted_settings.num_AO_samples);
+			_QMC.create(adjusted_settings.AO_num_samples);
 		}
 
 		uint32_t before = 0;

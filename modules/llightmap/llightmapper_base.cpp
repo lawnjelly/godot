@@ -40,6 +40,8 @@ LightMapper_Base::LightMapper_Base() {
 
 	data.params[PARAM_AO_RANGE] = 2.0f;
 	data.params[PARAM_AO_NUM_SAMPLES] = 256;
+	data.params[PARAM_AO_ERROR_METRIC] = 1.0f;
+	data.params[PARAM_AO_ABORT_TIMEOUT] = 8;
 
 	settings.mode = LMMODE_BACKWARD;
 	settings.bake_mode = LMBAKEMODE_LIGHTMAP;
@@ -202,8 +204,10 @@ void LightMapper_Base::calculate_quality_adjusted_settings() {
 	as.num_directional_bounces = data.params[PARAM_NUM_BOUNCES];
 	as.directional_bounce_power = data.params[PARAM_BOUNCE_POWER];
 
-	as.num_AO_samples = data.params[PARAM_AO_NUM_SAMPLES];
+	as.AO_num_samples = data.params[PARAM_AO_NUM_SAMPLES];
 	as.AO_range = data.params[PARAM_AO_RANGE];
+	as.AO_error_metric = (float)data.params[PARAM_AO_ERROR_METRIC] * 0.002f;
+	as.AO_abort_timeout = (int)data.params[PARAM_AO_ABORT_TIMEOUT] * 8;
 
 	as.max_material_size = data.params[PARAM_MATERIAL_SIZE];
 	as.normalize_multiplier = data.params[PARAM_NORMALIZE_MULTIPLIER];
@@ -224,7 +228,7 @@ void LightMapper_Base::calculate_quality_adjusted_settings() {
 			as.num_primary_rays = 1;
 			as.forward_num_rays = 1;
 			as.backward_num_rays = 4;
-			as.num_AO_samples = 1;
+			as.AO_num_samples = 1;
 			as.max_material_size = 32;
 			as.num_ambient_bounces = 0;
 			as.num_directional_bounces = 0;
@@ -235,7 +239,7 @@ void LightMapper_Base::calculate_quality_adjusted_settings() {
 		} break;
 		case LM_QUALITY_MEDIUM: {
 			as.num_primary_rays /= 2;
-			as.num_AO_samples /= 2;
+			as.AO_num_samples /= 2;
 			as.max_material_size /= 4;
 			as.num_ambient_bounce_rays /= 2;
 			as.num_sky_samples /= 2;
@@ -248,7 +252,8 @@ void LightMapper_Base::calculate_quality_adjusted_settings() {
 			break;
 		case LM_QUALITY_FINAL:
 			as.num_primary_rays *= 2;
-			as.num_AO_samples *= 2;
+			as.AO_num_samples *= 2;
+			as.AO_error_metric *= 0.5f;
 			as.num_ambient_bounce_rays *= 2;
 			as.num_sky_samples *= 2;
 			as.antialias_num_light_samples *= 2;
@@ -267,7 +272,7 @@ void LightMapper_Base::calculate_quality_adjusted_settings() {
 	as.forward_num_rays = MAX(as.forward_num_rays, 1);
 
 	as.num_ambient_bounce_rays = MAX(as.num_ambient_bounce_rays, 1);
-	as.num_AO_samples = MAX(as.num_AO_samples, 1);
+	as.AO_num_samples = MAX(as.AO_num_samples, 1);
 	as.max_material_size = MAX(as.max_material_size, 32);
 	as.emission_density = MAX(as.emission_density, 1);
 

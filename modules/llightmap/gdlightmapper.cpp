@@ -46,6 +46,8 @@ void LLightmap::_bind_methods() {
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_GLOW);
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_AO_NUM_SAMPLES);
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_AO_RANGE);
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_AO_ERROR_METRIC);
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_AO_ABORT_TIMEOUT);
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_SKY_SIZE);
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_SKY_SAMPLES);
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_SKY_BLUR);
@@ -209,6 +211,8 @@ void LLightmap::_bind_methods() {
 	ADD_GROUP("Ambient Occlusion", "");
 	LIMPL_PROPERTY_PARAM_RANGE(Variant::INT, ao_samples, "1,2048,1", LM::LightMapper::PARAM_AO_NUM_SAMPLES);
 	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, ao_range, "0.0,1000.0", LM::LightMapper::PARAM_AO_RANGE);
+	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, ao_error_metric, "0.0,1.0", LM::LightMapper::PARAM_AO_ERROR_METRIC);
+	LIMPL_PROPERTY_PARAM_RANGE(Variant::INT, ao_abort_timeout, "1,64,1", LM::LightMapper::PARAM_AO_ABORT_TIMEOUT);
 	//	LIMPL_PROPERTY(Variant::REAL, ao_cut_range, set_ao_cut_range, get_ao_cut_range);
 
 	ADD_GROUP("Sky", "");
