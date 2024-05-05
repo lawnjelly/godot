@@ -374,7 +374,12 @@ void LightMapper::refresh_process_state() {
 		} break;
 		case LMBAKEMODE_LIGHTMAP: {
 			logic.process_lightmap = true;
-			logic.process_emission = data.params[PARAM_MERGE_FLAG_EMISSION] == Variant(true);
+			//logic.process_emission = data.params[PARAM_MERGE_FLAG_EMISSION] == Variant(true);
+			//logic.process_glow = logic.process_emission;
+		} break;
+		case LMBAKEMODE_EMISSION: {
+			//logic.process_emission = data.params[PARAM_MERGE_FLAG_EMISSION] == Variant(true);
+			logic.process_emission = true;
 			logic.process_glow = logic.process_emission;
 		} break;
 		case LMBAKEMODE_AO: {

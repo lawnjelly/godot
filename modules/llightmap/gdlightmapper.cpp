@@ -10,6 +10,7 @@ void LLightmap::_bind_methods() {
 
 	BIND_ENUM_CONSTANT(LLightmap::BAKEMODE_UVMAP);
 	BIND_ENUM_CONSTANT(LLightmap::BAKEMODE_LIGHTMAP);
+	BIND_ENUM_CONSTANT(LLightmap::BAKEMODE_EMISSION);
 	BIND_ENUM_CONSTANT(LLightmap::BAKEMODE_BOUNCE);
 	BIND_ENUM_CONSTANT(LLightmap::BAKEMODE_AO);
 	BIND_ENUM_CONSTANT(LLightmap::BAKEMODE_MERGE);
@@ -130,7 +131,7 @@ void LLightmap::_bind_methods() {
 	//	ADD_PROPERTYI(PropertyInfo(Variant::REAL, "light_specular", PROPERTY_HINT_RANGE, "0,1,0.01"), "set_param", "get_param", PARAM_SPECULAR);
 
 	ADD_GROUP("Main", "");
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "bake_mode", PROPERTY_HINT_ENUM, "Lightmap,AO,Material,Bounce,LightProbes,UVMap,Combined,Merge"), "set_bake_mode", "get_bake_mode");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "bake_mode", PROPERTY_HINT_ENUM, "Lightmap,Emission,AO,Material,Bounce,LightProbes,UVMap,Combined,Merge"), "set_bake_mode", "get_bake_mode");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "mode", PROPERTY_HINT_ENUM, "Forward,Backward"), "set_mode", "get_mode");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "quality", PROPERTY_HINT_ENUM, "Low,Medium,High,Final"), "set_quality", "get_quality");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "noise method", PROPERTY_HINT_ENUM, "Disabled,Simple,Advanced"), "set_noise_reduction_method", "get_noise_reduction_method");

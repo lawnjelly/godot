@@ -843,6 +843,7 @@ void LightMapper_Base::merge_to_combined() {
 				}
 
 				switch (settings.bake_mode) {
+					case LMBAKEMODE_EMISSION:
 					case LMBAKEMODE_LIGHTMAP: {
 					} break;
 					case LMBAKEMODE_AO: {
