@@ -32,6 +32,7 @@ private:
 	void process_emission_tri(int etri_id, float fraction_of_total);
 
 	void process_emission_pixels();
+	void process_emission_pixel_MT(uint32_t p_pixel_id, int p_dummy);
 	void process_emission_pixel(int32_t p_x, int32_t p_y);
 	void process_emission_pixel_backward(int32_t p_x, int32_t p_y, const Color &p_emission, const Vector3 &p_emission_pos, const Vector3 &p_emission_normal);
 

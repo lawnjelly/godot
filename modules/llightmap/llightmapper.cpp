@@ -2618,17 +2618,50 @@ void LightMapper::process_orig_material() {
 	} // for y
 }
 
+void LightMapper::process_emission_pixel_MT(uint32_t p_pixel_id, int p_dummy) {
+	const Vec2_i16 &coord = _scene._emission_pixels[p_pixel_id];
+	process_emission_pixel(coord.x, coord.y);
+}
+
 void LightMapper::process_emission_pixels() {
 	_image_main.blank();
 
+	if (bake_step_function) {
+		_pressed_cancel = bake_step_function(0, String("Processing Emission Pixels.") + " (" + itos(0) + ")");
+		if (_pressed_cancel) {
+			if (bake_end_function) {
+				bake_end_function();
+			}
+			return;
+		}
+	}
+
+#ifdef EMISSION_USE_THREADS
+	thread_process_array(_scene._emission_pixels.size(), this, &LightMapper::process_emission_pixel_MT, 0);
+#else
 	for (int n = 0; n < _scene._emission_pixels.size(); n++) {
 		const Vec2_i16 &coord = _scene._emission_pixels[n];
 		process_emission_pixel(coord.x, coord.y);
+	}
+#endif
 
-		while (!ray_bank_are_voxels_clear()) {
-			ray_bank_process();
-			ray_bank_flush();
+	int count = 0;
+	while (!ray_bank_are_voxels_clear()) {
+		if (bake_step_function) {
+			_pressed_cancel = bake_step_function(count / (float)16, String("Emission Pixels processing RayBank: ") + " (" + itos(count) + ")");
+			if (_pressed_cancel) {
+				if (bake_end_function) {
+					bake_end_function();
+				}
+				return;
+			}
 		}
+
+		ray_bank_process();
+		ray_bank_flush();
+	}
+	if (bake_end_function) {
+		bake_end_function();
 	}
 
 	_image_main.copy_to(_image_emission);
@@ -2788,27 +2821,28 @@ void LightMapper::process_emission_pixel_backward(int32_t p_x, int32_t p_y, cons
 					//r.o = pt_source_pushed;
 					r.d = -r.d;
 
-					// we need to apply the color from the original target surface
-					// TODO
-					//					light_color.r *= p_tri_color_sample.albedo.r;
-					//					light_color.g *= p_tri_color_sample.albedo.g;
-					//					light_color.b *= p_tri_color_sample.albedo.b;
-
 					power *= adjusted_settings.directional_bounce_power;
 
 					// The number of samples depends on the bounce power.
 					// Lots of light needs more samples.
 					int num_bounce_samples = (int)((float)adjusted_settings.emission_forward_bounce_samples * power);
 
-					// Recalculate the bounced light power, based on the bounce power variable.
-					final_emission_color = p_emission * power;
-
 					if (num_bounce_samples) {
+						// find the colors of this texel
+						ColorSample cols;
+						_scene.take_triangle_color_sample(tri_id, *bary, cols);
+
+						// Recalculate the bounced light power, based on the bounce power variable.
+						final_emission_color = p_emission * (power * (1.0 / num_bounce_samples));
+
+						// We need to apply the color from the original target surface.
+						final_emission_color *= cols.albedo;
+
 						//						if (num_bounce_samples > 16) {
 						//							print_line("num bounce samples " + itos(num_bounce_samples));
 						//						}
 
-						final_emission_color /= num_bounce_samples;
+						//final_emission_color /= num_bounce_samples;
 
 						for (int n = 0; n < num_bounce_samples; n++) {
 							Ray bray = r;
