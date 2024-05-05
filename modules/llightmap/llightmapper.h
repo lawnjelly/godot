@@ -27,9 +27,9 @@ private:
 	void process_lights();
 	void process_light(int light_id, int num_rays);
 
-	void process_emission_tris();
-	void process_emission_tris_section(float fraction_of_total);
-	void process_emission_tri(int etri_id, float fraction_of_total);
+	// void process_emission_tris();
+	// void process_emission_tris_section(float fraction_of_total);
+	// void process_emission_tri(int etri_id, float fraction_of_total);
 
 	void process_emission_pixels();
 	void process_emission_pixel_MT(uint32_t p_pixel_id, int p_dummy);

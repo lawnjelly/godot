@@ -2859,6 +2859,7 @@ void LightMapper::process_emission_pixel_backward(int32_t p_x, int32_t p_y, cons
 	} // for y
 }
 
+#if 0
 void LightMapper::process_emission_tris() {
 	int num_sections = _num_rays_forward / RAYS_PER_SECTION;
 
@@ -2983,6 +2984,7 @@ void LightMapper::process_emission_tri(int etri_id, float fraction_of_total) {
 		*pTexelCol += fcol * adjusted_settings.glow;
 	}
 }
+#endif
 
 void LightMapper::process_lights() {
 	//	const int rays_per_section = 1024 * 16;
