@@ -388,7 +388,8 @@ public:
 		int antialias_samples_width = 1;
 		int antialias_samples_per_texel = 1;
 
-		int antialias_num_light_samples = 1;
+		int antialias_num_light_samples_per_subtexel = 1;
+		int antialias_total_light_samples_per_texel = 1;
 	} adjusted_settings;
 
 	struct Logic {

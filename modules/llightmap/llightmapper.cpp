@@ -1150,7 +1150,7 @@ bool LightMapper::BF_process_texel_sky(const Color &orig_albedo, const Vector3 &
 }
 
 // trace from the poly TO the light, not the other way round, to avoid precision errors
-void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id, const Vector3 &pt_source_pushed, const Vector3 &orig_face_normal, const Vector3 &orig_vertex_normal, Color &r_color, SubTexelSample &r_sub_texel_sample, bool debug) //, uint32_t tri_ignore)
+void LightMapper::BF_process_texel_light(const ColorSample &p_tri_color_sample, int light_id, const Vector3 &pt_source_pushed, const Vector3 &orig_face_normal, const Vector3 &orig_vertex_normal, Color &r_color, SubTexelSample &r_sub_texel_sample, bool debug) //, uint32_t tri_ignore)
 {
 	const LLight &light = _lights[light_id];
 
@@ -1242,10 +1242,10 @@ void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id,
 
 	// each ray
 	for (int n = 0; n < nSamples; n++) {
-		Vector3 ptDest = light.pos;
+		Vector3 pt_dest = light.pos;
 
 		// allow falloff for cones
-		float multiplier = 1.0f;
+		float cone_light_multiplier = 1.0f;
 
 		// if the hit point is further that the distance to the light, then it doesn't count
 		// must be set by the light type
@@ -1311,20 +1311,20 @@ void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id,
 				r.o = pt_source_pushed;
 
 				dot *= 1.0f / (1.0f - light.spot_dot_max);
-				multiplier = dot * dot;
-				multiplier *= multiplier;
+				cone_light_multiplier = dot * dot;
+				cone_light_multiplier *= cone_light_multiplier;
 			} break;
 			default: {
 				if (!point_light) {
 					Vector3 offset;
 					generate_random_unit_dir(offset);
 					offset *= light.scale;
-					ptDest += offset;
+					pt_dest += offset;
 				}
 
 				// offset from origin to destination texel
 				r.o = pt_source_pushed;
-				r.d = ptDest - r.o;
+				r.d = pt_dest - r.o;
 
 				// normalize and find length
 				ray_length = normalize_and_find_length(r.d);
@@ -1345,10 +1345,6 @@ void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id,
 
 		//Vector3 ray_origin = r.o;
 		Color light_color = light.color;
-		int panic_count = 32;
-
-		// for bounces
-		Vector3 hit_face_normal = orig_face_normal;
 
 		bool keep_tracing = true;
 
@@ -1358,9 +1354,12 @@ void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id,
 			if (_scene.test_intersect_ray_triangle(r, ray_length, quick_reject_tri_id)) {
 				keep_tracing = false;
 				r_sub_texel_sample.num_opaque_hits += 1;
+				continue;
 			}
 		}
 #endif
+
+		int panic_count = 32;
 
 		while (keep_tracing) {
 			keep_tracing = false;
@@ -1407,9 +1406,7 @@ void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id,
 #endif
 
 			// nothing hit
-			if (tri == -1)
-			//if ((tri == -1) || (tri == (int) tri_ignore))
-			{
+			if (tri == -1) {
 				r_sub_texel_sample.num_clear_samples += 1;
 
 				// for backward tracing, first pass, this is a special case, because we DO
@@ -1438,7 +1435,7 @@ void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id,
 				//local_power *= dot;
 
 				// cone falloff
-				local_power *= multiplier;
+				local_power *= cone_light_multiplier;
 
 				//				if (point_light) {
 				//					local_power *= point_light_multiplier;
@@ -1464,21 +1461,24 @@ void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id,
 					r.d = -r.d;
 
 					// we need to apply the color from the original target surface
-					light_color.r *= orig_albedo.r;
-					light_color.g *= orig_albedo.g;
-					light_color.b *= orig_albedo.b;
+					light_color.r *= p_tri_color_sample.albedo.r;
+					light_color.g *= p_tri_color_sample.albedo.g;
+					light_color.b *= p_tri_color_sample.albedo.b;
 
 					// bounce ray direction
 					if (bounce_ray(r, orig_face_normal, false)) {
 						// should this normal be plane normal or vertex normal?
-						BF_process_texel_light_bounce(adjusted_settings.num_directional_bounces, r, light_color);
+						BF_process_texel_light_bounce(adjusted_settings.num_directional_bounces, r, light_color / adjusted_settings.antialias_total_light_samples_per_texel);
+						//BF_process_texel_light_bounce(adjusted_settings.num_directional_bounces, r, light_color);
 					}
 				}
 			} else {
 				// hit something, could be transparent
 
 				// back face?
-				bool bBackFace = hit_back_face(r, tri, Vector3(u, v, w), hit_face_normal);
+				//Vector3 transparent_face_normal = orig_face_normal;
+				Vector3 transparent_face_normal;
+				bool bBackFace = hit_back_face(r, tri, Vector3(u, v, w), transparent_face_normal);
 
 				// first get the texture details
 				/*
@@ -1509,7 +1509,7 @@ void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id,
 						if (bBackFace)
 							push = -push;
 
-						r.o = pos + (hit_face_normal * push);
+						r.o = pos + (transparent_face_normal * push);
 
 						// apply the color to the ray
 						calculate_transmittance(cols.albedo, light_color);
@@ -1932,7 +1932,7 @@ bool LightMapper::_AA_BF_process_sub_texel_for_light(const Vector2 &p_st, const 
 	ColorSample cols;
 	_scene.take_triangle_color_sample(tri_id, bary, cols);
 
-	BF_process_texel_light(cols.albedo, p_light_id, pos_pushed, *plane_normal, normal, r_col, r_sub_texel_sample);
+	BF_process_texel_light(cols, p_light_id, pos_pushed, *plane_normal, normal, r_col, r_sub_texel_sample);
 
 	return true;
 }
@@ -2230,7 +2230,7 @@ void LightMapper::AA_BF_process_texel(int p_tx, int p_ty) {
 		Color col_from_light;
 		SubTexelSample sts;
 		//sts.num_samples = MAX(adjusted_settings.backward_num_rays / adjusted_settings.antialias_samples_per_texel, 1);
-		sts.num_samples = adjusted_settings.antialias_num_light_samples;
+		sts.num_samples = adjusted_settings.antialias_num_light_samples_per_subtexel;
 		int light_samples_inside = 0;
 
 		// Optimization for single triangles.

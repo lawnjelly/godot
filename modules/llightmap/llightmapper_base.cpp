@@ -218,7 +218,7 @@ void LightMapper_Base::calculate_quality_adjusted_settings() {
 
 	as.antialias_samples_width = data.params[PARAM_AA_KERNEL_SIZE]; // 16
 	as.antialias_samples_per_texel = as.antialias_samples_width * as.antialias_samples_width;
-	as.antialias_num_light_samples = data.params[PARAM_AA_NUM_LIGHT_SAMPLES];
+	as.antialias_num_light_samples_per_subtexel = data.params[PARAM_AA_NUM_LIGHT_SAMPLES];
 
 	as.material_kernel_size = data.params[PARAM_MATERIAL_KERNEL_SIZE];
 
@@ -234,7 +234,7 @@ void LightMapper_Base::calculate_quality_adjusted_settings() {
 			as.num_directional_bounces = 0;
 			as.num_sky_samples = 64;
 			as.antialias_samples_per_texel = 1;
-			as.antialias_num_light_samples = 1;
+			as.antialias_num_light_samples_per_subtexel = 1;
 			as.material_kernel_size = 1;
 		} break;
 		case LM_QUALITY_MEDIUM: {
@@ -256,7 +256,7 @@ void LightMapper_Base::calculate_quality_adjusted_settings() {
 			as.AO_error_metric *= 0.5f;
 			as.num_ambient_bounce_rays *= 2;
 			as.num_sky_samples *= 2;
-			as.antialias_num_light_samples *= 2;
+			as.antialias_num_light_samples_per_subtexel *= 2;
 
 			as.antialias_samples_per_texel *= 2;
 			as.material_kernel_size += 2;
@@ -278,6 +278,9 @@ void LightMapper_Base::calculate_quality_adjusted_settings() {
 
 	as.antialias_samples_per_texel = MAX(as.antialias_samples_per_texel, 1);
 	as.antialias_samples_width = MAX(as.antialias_samples_width, 1);
+
+	as.antialias_total_light_samples_per_texel = as.antialias_samples_per_texel * as.antialias_num_light_samples_per_subtexel;
+
 	as.material_kernel_size = MAX(as.material_kernel_size, 1);
 }
 
