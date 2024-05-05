@@ -374,7 +374,6 @@ void LightMapper::refresh_process_state() {
 		} break;
 		case LMBAKEMODE_LIGHTMAP: {
 			logic.process_lightmap = true;
-			logic.process_AO = true;
 			logic.process_emission = data.params[PARAM_MERGE_FLAG_EMISSION] == Variant(true);
 			logic.process_glow = logic.process_emission;
 		} break;
@@ -1151,7 +1150,7 @@ bool LightMapper::BF_process_texel_sky(const Color &orig_albedo, const Vector3 &
 }
 
 // trace from the poly TO the light, not the other way round, to avoid precision errors
-void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id, const Vector3 &ptSource, const Vector3 &orig_face_normal, const Vector3 &orig_vertex_normal, Color &r_color, SubTexelSample &r_sub_texel_sample, bool debug) //, uint32_t tri_ignore)
+void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id, const Vector3 &pt_source_pushed, const Vector3 &orig_face_normal, const Vector3 &orig_vertex_normal, Color &r_color, SubTexelSample &r_sub_texel_sample, bool debug) //, uint32_t tri_ignore)
 {
 	const LLight &light = _lights[light_id];
 
@@ -1168,7 +1167,7 @@ void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id,
 	// for a spotlight, we can cull completely in a lot of cases.
 	if (light.type == LLight::LT_SPOT) {
 		r.o = light.spot_emanation_point;
-		r.d = ptSource - r.o;
+		r.d = pt_source_pushed - r.o;
 		r.d.normalize();
 		float dot = r.d.dot(light.dir);
 		//float angle = safe_acosf(dot);
@@ -1197,7 +1196,7 @@ void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id,
 	// cull by surface normal .. anything facing away gets no light (plus a bit for wraparound)
 	// about 5% faster with this cull with a lot of omnis
 	if (light.type == LLight::LT_OMNI) {
-		Vector3 light_vec = light.pos - ptSource;
+		Vector3 light_vec = light.pos - pt_source_pushed;
 		float light_dist = light_vec.length();
 
 		// cull by dist test
@@ -1257,7 +1256,7 @@ void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id,
 				// we set this to maximum, better not to check at all but makes code simpler
 				ray_length = FLT_MAX;
 
-				r.o = ptSource;
+				r.o = pt_source_pushed;
 				//r.d = -light.dir;
 
 				// perturb direction depending on light scale
@@ -1291,7 +1290,7 @@ void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id,
 					r.o += offset;
 
 					// offset from origin to destination texel
-					r.d = ptSource - r.o;
+					r.d = pt_source_pushed - r.o;
 
 					// normalize and find length
 					ray_length = normalize_and_find_length(r.d);
@@ -1309,7 +1308,7 @@ void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id,
 
 				// reverse ray for precision reasons
 				r.d = -r.d;
-				r.o = ptSource;
+				r.o = pt_source_pushed;
 
 				dot *= 1.0f / (1.0f - light.spot_dot_max);
 				multiplier = dot * dot;
@@ -1324,7 +1323,7 @@ void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id,
 				}
 
 				// offset from origin to destination texel
-				r.o = ptSource;
+				r.o = pt_source_pushed;
 				r.d = ptDest - r.o;
 
 				// normalize and find length
@@ -1345,7 +1344,7 @@ void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id,
 #endif
 
 		//Vector3 ray_origin = r.o;
-		Color sample_color = light.color;
+		Color light_color = light.color;
 		int panic_count = 32;
 
 		// for bounces
@@ -1446,8 +1445,9 @@ void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id,
 				//				}
 
 				// total color // this was incorrect because it also reduced the bounce power.
-				sample_color *= local_power;
-				r_color += (sample_color * dot);
+				light_color *= local_power;
+				light_color *= dot;
+				r_color += light_color;
 
 				// new .. only apply the local power for the first hit, not for the bounces
 				//				color += sample_color * (local_power * dot);
@@ -1460,18 +1460,18 @@ void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id,
 					// pass the direction as incoming (i.e. from the light to the surface, not the other way around)
 
 					// the source ray is always the target surface (no matter whether we hit transparent or blockers)
-					r.o = ptSource;
+					r.o = pt_source_pushed;
 					r.d = -r.d;
 
 					// we need to apply the color from the original target surface
-					sample_color.r *= orig_albedo.r;
-					sample_color.g *= orig_albedo.g;
-					sample_color.b *= orig_albedo.b;
+					light_color.r *= orig_albedo.r;
+					light_color.g *= orig_albedo.g;
+					light_color.b *= orig_albedo.b;
 
 					// bounce ray direction
 					if (bounce_ray(r, orig_face_normal, false)) {
 						// should this normal be plane normal or vertex normal?
-						BF_process_texel_light_bounce(adjusted_settings.num_directional_bounces, r, sample_color);
+						BF_process_texel_light_bounce(adjusted_settings.num_directional_bounces, r, light_color);
 					}
 				}
 			} else {
@@ -1512,7 +1512,7 @@ void LightMapper::BF_process_texel_light(const Color &orig_albedo, int light_id,
 						r.o = pos + (hit_face_normal * push);
 
 						// apply the color to the ray
-						calculate_transmittance(cols.albedo, sample_color);
+						calculate_transmittance(cols.albedo, light_color);
 
 						// this shouldn't happen, but if it did we'd get an infinite loop if we didn't break out
 						panic_count--;
@@ -1923,16 +1923,16 @@ bool LightMapper::_AA_BF_process_sub_texel_for_light(const Vector2 &p_st, const 
 		return true;
 	}
 
-	Vector3 pos;
+	Vector3 pos_pushed;
 	Vector3 normal;
 	const Vector3 *plane_normal = nullptr;
-	_load_texel_data(tri_id, bary, pos, normal, &plane_normal);
+	_load_texel_data(tri_id, bary, pos_pushed, normal, &plane_normal);
 
 	// find the colors of this texel
 	ColorSample cols;
 	_scene.take_triangle_color_sample(tri_id, bary, cols);
 
-	BF_process_texel_light(cols.albedo, p_light_id, pos, *plane_normal, normal, r_col, r_sub_texel_sample);
+	BF_process_texel_light(cols.albedo, p_light_id, pos_pushed, *plane_normal, normal, r_col, r_sub_texel_sample);
 
 	return true;
 }
