@@ -511,6 +511,9 @@ protected:
 		//	  rgbm.rgb = color / rgbm.a;
 		//	  return rgbm;
 	}
+
+	bool load_texel_data(int32_t p_x, int32_t p_y, uint32_t &r_tri_id, const Vector3 **r_bary, Vector3 &r_pos_pushed, Vector3 &r_normal, const Vector3 **r_plane_normal) const;
+	void _load_texel_data(uint32_t p_tri_id, const Vector3 &p_bary, Vector3 &r_pos_pushed, Vector3 &r_normal, const Vector3 **r_plane_normal) const;
 };
 
 } // namespace LM

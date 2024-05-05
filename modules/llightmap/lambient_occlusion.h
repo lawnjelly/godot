@@ -7,7 +7,21 @@ namespace LM {
 class AmbientOcclusion : public RayBank {
 	struct Data {
 		uint32_t aborts = 0;
+		uint32_t clear = 0;
+		uint32_t processed = 0;
+		void reset() {
+			aborts = 0;
+			clear = 0;
+			processed = 0;
+		}
 	} data_ao;
+
+	struct AONearestResult {
+		bool valid = false;
+		Vector3 pos;
+		uint32_t tri_id = 0;
+		float nearest_tri_distance = FLT_MAX;
+	};
 
 public:
 protected:
@@ -22,8 +36,8 @@ protected:
 
 	void process_AO();
 	void process_AO_line_MT(uint32_t y_offset, int y_section_start);
-	void process_AO_texel(int tx, int ty, int qmc_variation);
-	float calculate_AO(int tx, int ty, int qmc_variation, const MiniList &ml);
+	void process_AO_texel(int tx, int ty, int qmc_variation, AONearestResult &r_nearest);
+	float calculate_AO(int tx, int ty, int qmc_variation, const MiniList &ml, AONearestResult &r_nearest);
 	float calculate_AO_complex(int tx, int ty, int qmc_variation, const MiniList &ml);
 
 	bool AO_find_texel_triangle(const MiniList &p_mini_list, const Vector2 &p_st, uint32_t &r_tri_inside, Vector3 &r_bary) const {
@@ -112,6 +126,8 @@ protected:
 	}
 
 private:
+	bool AO_are_triangles_out_of_range(int p_tx, int p_ty, const MiniList &ml, float p_threshold_dist, AONearestResult &r_nearest) const;
+
 	int AO_find_sample_points(int tx, int ty, const MiniList &ml, AOSample samples[MAX_COMPLEX_AO_TEXEL_SAMPLES]);
 
 	void AO_random_texel_sample(Vector2 &st, int tx, int ty, int n) const {
@@ -188,6 +204,52 @@ private:
 
 		// collision detect
 		r.d.normalize();
+	}
+
+	Vector3 closest_point_in_triangle(const Vector3 &p, const Vector3 &a, const Vector3 &b, const Vector3 &c) const {
+		const Vector3 ab = b - a;
+		const Vector3 ac = c - a;
+		const Vector3 ap = p - a;
+
+		const float d1 = ab.dot(ap);
+		const float d2 = ac.dot(ap);
+		if (d1 <= 0.f && d2 <= 0.f)
+			return a; //#1
+
+		const Vector3 bp = p - b;
+		const float d3 = ab.dot(bp);
+		const float d4 = ac.dot(bp);
+		if (d3 >= 0.f && d4 <= d3)
+			return b; //#2
+
+		const Vector3 cp = p - c;
+		const float d5 = ab.dot(cp);
+		const float d6 = ac.dot(cp);
+		if (d6 >= 0.f && d5 <= d6)
+			return c; //#3
+
+		const float vc = d1 * d4 - d3 * d2;
+		if (vc <= 0.f && d1 >= 0.f && d3 <= 0.f) {
+			const float v = d1 / (d1 - d3);
+			return a + v * ab; //#4
+		}
+
+		const float vb = d5 * d2 - d1 * d6;
+		if (vb <= 0.f && d2 >= 0.f && d6 <= 0.f) {
+			const float v = d2 / (d2 - d6);
+			return a + v * ac; //#5
+		}
+
+		const float va = d3 * d6 - d5 * d4;
+		if (va <= 0.f && (d4 - d3) >= 0.f && (d5 - d6) >= 0.f) {
+			const float v = (d4 - d3) / ((d4 - d3) + (d5 - d6));
+			return b + v * (c - b); //#6
+		}
+
+		const float denom = 1.f / (va + vb + vc);
+		const float v = vb * denom;
+		const float w = vc * denom;
+		return a + v * ab + w * ac; //#0
 	}
 };
 

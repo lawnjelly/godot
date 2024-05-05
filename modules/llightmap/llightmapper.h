@@ -46,9 +46,6 @@ private:
 	void backward_process_texels();
 	void backward_process_texel_line_MT(uint32_t offset_y, int start_y);
 
-	bool load_texel_data(int32_t p_x, int32_t p_y, uint32_t &r_tri_id, const Vector3 **r_bary, Vector3 &r_pos_pushed, Vector3 &r_normal, const Vector3 **r_plane_normal) const;
-	void _load_texel_data(uint32_t p_tri_id, const Vector3 &p_bary, Vector3 &r_pos_pushed, Vector3 &r_normal, const Vector3 **r_plane_normal) const;
-
 	// backward forward tracing
 	void BF_process_texel(int tx, int ty);
 	void BF_process_texel_light(const Color &orig_albedo, int light_id, const Vector3 &ptSource, const Vector3 &orig_face_normal, const Vector3 &orig_vertex_normal, Color &r_color, SubTexelSample &r_sub_texel_sample, bool debug = false); //, uint32_t tri_ignore);

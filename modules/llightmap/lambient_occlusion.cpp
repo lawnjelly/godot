@@ -3,7 +3,7 @@
 
 namespace LM {
 
-void AmbientOcclusion::process_AO_texel(int tx, int ty, int qmc_variation) {
+void AmbientOcclusion::process_AO_texel(int tx, int ty, int qmc_variation, AONearestResult &r_nearest) {
 	//	if ((tx == 77) && (ty == 221))
 	//		print_line("test");
 
@@ -24,7 +24,7 @@ void AmbientOcclusion::process_AO_texel(int tx, int ty, int qmc_variation) {
 	if (1)
 	//	if (!m_Image_Cuts.GetItem(tx, ty))
 	{
-		power = calculate_AO(tx, ty, qmc_variation, ml);
+		power = calculate_AO(tx, ty, qmc_variation, ml, r_nearest);
 	} else {
 		power = calculate_AO_complex(tx, ty, qmc_variation, ml);
 	}
@@ -42,7 +42,7 @@ void AmbientOcclusion::process_AO() {
 	const float range = adjusted_settings.AO_range;
 	_scene._tracer.get_distance_in_voxels(range, _scene._voxel_range);
 
-	data_ao.aborts = 0;
+	data_ao.reset();
 
 #define LAMBIENT_OCCLUSION_USE_THREADS
 #ifdef LAMBIENT_OCCLUSION_USE_THREADS
@@ -94,6 +94,7 @@ void AmbientOcclusion::process_AO() {
 #endif
 
 	print_line("AO aborts " + itos(data_ao.aborts) + " out of " + itos(_width * _height) + " pixels.");
+	print_line("AO clear " + itos(data_ao.clear) + ", processed " + itos(data_ao.processed) + ".");
 
 	if (bake_end_function) {
 		bake_end_function();
@@ -105,14 +106,109 @@ void AmbientOcclusion::process_AO_line_MT(uint32_t y_offset, int y_section_start
 
 	// seed based on the line
 	int qmc_variation = _QMC.random_variation();
+	AONearestResult nearest_result;
 
 	for (int x = 0; x < _width; x++) {
 		qmc_variation = _QMC.get_next_variation(qmc_variation);
-		process_AO_texel(x, ty, qmc_variation);
+		process_AO_texel(x, ty, qmc_variation, nearest_result);
 	}
 }
 
-float AmbientOcclusion::calculate_AO(int tx, int ty, int qmc_variation, const MiniList &ml) {
+bool AmbientOcclusion::AO_are_triangles_out_of_range(int p_tx, int p_ty, const MiniList &ml, float p_threshold_dist, AONearestResult &r_nearest) const {
+	bool nearest_was_valid = r_nearest.valid;
+	r_nearest.valid = false;
+
+	if (ml.num != 1) {
+		return false;
+	}
+
+	uint32_t tri_id = 0;
+	Vector3 pos;
+	Vector3 normal;
+	const Vector3 *bary = nullptr;
+	const Vector3 *plane_normal = nullptr;
+	if (!load_texel_data(p_tx, p_ty, tri_id, &bary, pos, normal, &plane_normal)) {
+		return false;
+	}
+
+	// Can we reuse the nearest?
+	if (nearest_was_valid && (tri_id == r_nearest.tri_id)) {
+		// Get the distance between this texel and the previous.
+		// This is the maximum change in distance that could have occurred.
+		float dist_change = (pos - r_nearest.pos).length();
+
+		// If we are still way out of range, then no need to recalculate anything.
+		if ((r_nearest.nearest_tri_distance - dist_change) > p_threshold_dist) {
+			// This is the major win path, we are still out of range of already calculated tris.
+			r_nearest.valid = true;
+			return true;
+		}
+
+		// If we are still way within range, no need to recalculate, but we return false.
+		if ((r_nearest.nearest_tri_distance + dist_change) < p_threshold_dist) {
+			r_nearest.valid = true;
+			return false;
+		}
+
+		// Else recalculate everything.
+	}
+
+	float threshold_dist_sq = p_threshold_dist * p_threshold_dist;
+
+	Plane plane(pos + (*plane_normal * adjusted_settings.surface_bias), *plane_normal);
+
+	int num_tris = _scene._tris.size();
+
+	float closest_dist = FLT_MAX;
+
+	for (int n = 0; n < num_tris; n++) {
+		const Tri &tri = _scene._tris[n];
+
+		int front_count = 0;
+
+		float plane_dist = FLT_MAX;
+
+		for (int c = 0; c < 3; c++) {
+			float dist = plane.distance_to(tri.pos[c]);
+			plane_dist = MIN(plane_dist, dist);
+
+			if (dist >= 0)
+				front_count++;
+		}
+
+		if (front_count == 0) {
+			continue;
+		}
+
+		// If plane dist is more than the threshold, ignore.
+		if (plane_dist > p_threshold_dist) {
+			continue;
+		}
+
+		Vector3 closest_pt = closest_point_in_triangle(pos, tri.pos[0], tri.pos[1], tri.pos[2]);
+		float dist = pos.distance_squared_to(closest_pt);
+		closest_dist = MIN(closest_dist, dist);
+
+		if (closest_dist < threshold_dist_sq) {
+			r_nearest.valid = true;
+			r_nearest.nearest_tri_distance = Math::sqrt(closest_dist);
+			r_nearest.tri_id = tri_id;
+			r_nearest.pos = pos;
+			return false;
+		}
+	}
+
+	// If we got to here, the nearest is again valid.
+	r_nearest.valid = true;
+	r_nearest.nearest_tri_distance = Math::sqrt(closest_dist);
+	r_nearest.tri_id = tri_id;
+	r_nearest.pos = pos;
+
+	return true;
+	//return Math::sqrt(closest_dist);
+}
+
+float AmbientOcclusion::calculate_AO(int tx, int ty, int qmc_variation, const MiniList &ml, AONearestResult &r_nearest) {
 	// Debugging, fast version.
 	//	Vector2i diff(500, 100);
 	//	diff.x -= tx;
@@ -121,6 +217,12 @@ float AmbientOcclusion::calculate_AO(int tx, int ty, int qmc_variation, const Mi
 	//	if (Math::sqrt((double)sl) > 200) {
 	//		return 0;
 	//	}
+
+	if (AO_are_triangles_out_of_range(tx, ty, ml, adjusted_settings.AO_range, r_nearest)) {
+		data_ao.clear++;
+		return 1;
+	}
+	data_ao.processed++;
 
 	Ray r;
 	int num_samples = adjusted_settings.AO_num_samples;
