@@ -4,6 +4,7 @@
 #include "gdlightmapper.cpp"
 #include "lambient_occlusion.cpp"
 #include "lbitfield_dynamic.cpp"
+#include "lbitimage.cpp"
 #include "llightmapper.cpp"
 #include "llightmapper_base.cpp"
 #include "llightmapper_editor_plugin.cpp"
