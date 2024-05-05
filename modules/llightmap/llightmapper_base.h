@@ -16,6 +16,7 @@
 #ifdef LLIGHTMAP_MULTITHREADED
 #define RAYBANK_USE_THREADING
 #define BACKWARD_TRACE_MULTITHEADED
+#define LAMBIENT_OCCLUSION_USE_THREADS
 #endif
 
 namespace LM {
@@ -312,6 +313,8 @@ public:
 
 		String lightmap_filename;
 		String AO_filename;
+		String AO_bitimage_clear_filename;
+		String AO_bitimage_black_filename;
 		String emission_filename;
 		String glow_filename;
 		String bounce_filename;

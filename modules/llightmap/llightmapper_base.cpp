@@ -685,6 +685,8 @@ void LightMapper_Base::Settings::set_images_filename(String p_filename) {
 
 	lightmap_filename = image_filename_base + "lightmap.exr";
 	AO_filename = image_filename_base + "ao.exr";
+	AO_bitimage_clear_filename = image_filename_base + "ao_clear.biti";
+	AO_bitimage_black_filename = image_filename_base + "ao_black.biti";
 	emission_filename = image_filename_base + "emission.exr";
 	glow_filename = image_filename_base + "glow.exr";
 	orig_material_filename = image_filename_base + "material.exr";

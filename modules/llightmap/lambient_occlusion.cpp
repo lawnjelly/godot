@@ -3,7 +3,18 @@
 
 namespace LM {
 
-void AmbientOcclusion::process_AO_texel(int tx, int ty, int qmc_variation, AONearestResult &r_nearest) {
+void AmbientOcclusion::process_AO_clear_texel(int tx, int ty, AONearestResult &r_nearest) {
+	if (!_image_tri_ids_p1.get_item(tx, ty))
+		return;
+
+	const MiniList &ml = _image_tri_minilists.get_item(tx, ty);
+
+	if (AO_are_triangles_out_of_range(tx, ty, ml, adjusted_settings.AO_range, r_nearest)) {
+		data_ao.bitimage_clear.set_pixel(tx, ty, true);
+	}
+}
+
+void AmbientOcclusion::process_AO_texel(int tx, int ty, int qmc_variation) {
 	//	if ((tx == 77) && (ty == 221))
 	//		print_line("test");
 
@@ -24,12 +35,95 @@ void AmbientOcclusion::process_AO_texel(int tx, int ty, int qmc_variation, AONea
 	if (1)
 	//	if (!m_Image_Cuts.GetItem(tx, ty))
 	{
-		power = calculate_AO(tx, ty, qmc_variation, ml, r_nearest);
+		power = calculate_AO(tx, ty, qmc_variation, ml);
 	} else {
 		power = calculate_AO_complex(tx, ty, qmc_variation, ml);
 	}
 
 	*pfTexel = power;
+}
+
+void AmbientOcclusion::AO_load_or_calculate_bitimage_clear() {
+	float loaded_range = 0;
+	uint32_t loaded_bytes = 0;
+
+	data_ao.black_image_valid = false;
+	Error err = data_ao.bitimage_black.load(settings.AO_bitimage_black_filename, (uint8_t *)&loaded_range, &loaded_bytes, sizeof(float));
+	if ((err == OK) && (loaded_range == adjusted_settings.AO_range)) {
+		if ((data_ao.bitimage_black.get_width() == _width) && (data_ao.bitimage_black.get_height() == _height)) {
+			data_ao.black_image_valid = true;
+		}
+	}
+	if (!data_ao.black_image_valid) {
+		data_ao.bitimage_black.create(_width, _height);
+	}
+
+	err = data_ao.bitimage_clear.load(settings.AO_bitimage_clear_filename, (uint8_t *)&loaded_range, &loaded_bytes, sizeof(float));
+	if ((err == OK) && (loaded_range == adjusted_settings.AO_range)) {
+		if ((data_ao.bitimage_clear.get_width() == _width) && (data_ao.bitimage_clear.get_height() == _height)) {
+			// All done!
+			return;
+		}
+	}
+
+	// File didn't exist or was out of date etc.
+	data_ao.bitimage_clear.create(_width, _height);
+
+#ifdef LAMBIENT_OCCLUSION_USE_THREADS
+	//	int nCores = OS::get_singleton()->get_processor_count();
+	int nSections = _height / 16; // 64
+	if (!nSections)
+		nSections = 1;
+	int y_section_size = _height / nSections;
+	int leftover_start = y_section_size * nSections;
+
+	for (int s = 0; s < nSections; s++) {
+		int y_section_start = s * y_section_size;
+
+		if (bake_step_function) {
+			_pressed_cancel = bake_step_function(y_section_start / (float)_height, String("Building Clear BitImage for Texels: ") + " (" + itos(y_section_start) + ")");
+			if (_pressed_cancel) {
+				if (bake_end_function) {
+					bake_end_function();
+				}
+				return;
+			}
+		}
+
+		thread_process_array(y_section_size, this, &AmbientOcclusion::process_AO_clear_line_MT, y_section_start);
+	}
+
+	// leftovers
+	int nLeftover = _height - leftover_start;
+
+	if (nLeftover)
+		thread_process_array(nLeftover, this, &AmbientOcclusion::process_AO_clear_line_MT, leftover_start);
+#else
+
+	for (int y = 0; y < m_iHeight; y++) {
+		if ((y % 10) == 0) {
+			if (bake_step_function) {
+				m_bCancel = bake_step_function(y, String("Building Clear BitImage for Texels: ") + " (" + itos(y) + ")");
+				if (m_bCancel) {
+					if (bake_end_function) {
+						bake_end_function();
+					}
+					return;
+				}
+			}
+		}
+
+		ProcessAO_clear_LineMT(0, y);
+	}
+#endif
+
+	// Save
+	// Ensure 32 bit.
+	float saved_range = adjusted_settings.AO_range;
+
+	// Save clear
+	err = data_ao.bitimage_clear.save(settings.AO_bitimage_clear_filename, (uint8_t *)&saved_range, sizeof(float));
+	ERR_FAIL_COND_MSG(err != OK, "Error saving AO clear BitImage.");
 }
 
 void AmbientOcclusion::process_AO() {
@@ -44,7 +138,8 @@ void AmbientOcclusion::process_AO() {
 
 	data_ao.reset();
 
-#define LAMBIENT_OCCLUSION_USE_THREADS
+	AO_load_or_calculate_bitimage_clear();
+
 #ifdef LAMBIENT_OCCLUSION_USE_THREADS
 	//	int nCores = OS::get_singleton()->get_processor_count();
 	int nSections = _height / 16; // 64
@@ -93,11 +188,31 @@ void AmbientOcclusion::process_AO() {
 	}
 #endif
 
+	// Save black
+	if (!data_ao.black_image_valid) {
+		float saved_range = adjusted_settings.AO_range;
+		Error err = data_ao.bitimage_black.save(settings.AO_bitimage_black_filename, (uint8_t *)&saved_range, sizeof(float));
+		if (err != OK) {
+			ERR_PRINT("Error saving AO black BitImage.");
+		}
+	}
+
 	print_line("AO aborts " + itos(data_ao.aborts) + " out of " + itos(_width * _height) + " pixels.");
-	print_line("AO clear " + itos(data_ao.clear) + ", processed " + itos(data_ao.processed) + ".");
+	print_line("AO clear " + itos(data_ao.clear) + ", black " + itos(data_ao.black) + ", processed " + itos(data_ao.processed) + ".");
 
 	if (bake_end_function) {
 		bake_end_function();
+	}
+}
+
+void AmbientOcclusion::process_AO_clear_line_MT(uint32_t y_offset, int y_section_start) {
+	int ty = y_section_start + y_offset;
+
+	// seed based on the line
+	AONearestResult nearest_result;
+
+	for (int x = 0; x < _width; x++) {
+		process_AO_clear_texel(x, ty, nearest_result);
 	}
 }
 
@@ -106,11 +221,10 @@ void AmbientOcclusion::process_AO_line_MT(uint32_t y_offset, int y_section_start
 
 	// seed based on the line
 	int qmc_variation = _QMC.random_variation();
-	AONearestResult nearest_result;
 
 	for (int x = 0; x < _width; x++) {
 		qmc_variation = _QMC.get_next_variation(qmc_variation);
-		process_AO_texel(x, ty, qmc_variation, nearest_result);
+		process_AO_texel(x, ty, qmc_variation);
 	}
 }
 
@@ -208,7 +322,7 @@ bool AmbientOcclusion::AO_are_triangles_out_of_range(int p_tx, int p_ty, const M
 	//return Math::sqrt(closest_dist);
 }
 
-float AmbientOcclusion::calculate_AO(int tx, int ty, int qmc_variation, const MiniList &ml, AONearestResult &r_nearest) {
+float AmbientOcclusion::calculate_AO(int tx, int ty, int qmc_variation, const MiniList &ml) {
 	// Debugging, fast version.
 	//	Vector2i diff(500, 100);
 	//	diff.x -= tx;
@@ -218,10 +332,17 @@ float AmbientOcclusion::calculate_AO(int tx, int ty, int qmc_variation, const Mi
 	//		return 0;
 	//	}
 
-	if (AO_are_triangles_out_of_range(tx, ty, ml, adjusted_settings.AO_range, r_nearest)) {
+	if (data_ao.bitimage_clear.get_pixel(tx, ty)) {
+		//	if (AO_are_triangles_out_of_range(tx, ty, ml, adjusted_settings.AO_range, r_nearest)) {
 		data_ao.clear++;
 		return 1;
 	}
+
+	if (data_ao.black_image_valid && data_ao.bitimage_black.get_pixel(tx, ty)) {
+		data_ao.black++;
+		return 0;
+	}
+
 	data_ao.processed++;
 
 	Ray r;
@@ -321,6 +442,10 @@ float AmbientOcclusion::calculate_AO(int tx, int ty, int qmc_variation, const Mi
 
 	if (total < 0)
 		total = 0;
+
+	if (!data_ao.black_image_valid && (num_hits == num_samples_inside)) {
+		data_ao.bitimage_black.set_pixel(tx, ty, true);
+	}
 
 	return total;
 }

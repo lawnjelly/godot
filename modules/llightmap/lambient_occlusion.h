@@ -1,5 +1,6 @@
 #pragma once
 
+#include "lbitimage.h"
 #include "lraybank.h"
 
 namespace LM {
@@ -8,12 +9,19 @@ class AmbientOcclusion : public RayBank {
 	struct Data {
 		uint32_t aborts = 0;
 		uint32_t clear = 0;
+		uint32_t black = 0;
 		uint32_t processed = 0;
 		void reset() {
 			aborts = 0;
 			clear = 0;
+			black = 0;
 			processed = 0;
+			black_image_valid = false;
 		}
+		LBitImage bitimage_clear;
+
+		bool black_image_valid = false;
+		LBitImage bitimage_black;
 	} data_ao;
 
 	struct AONearestResult {
@@ -34,10 +42,14 @@ protected:
 
 	enum { MAX_COMPLEX_AO_TEXEL_SAMPLES = 16 };
 
+	void AO_load_or_calculate_bitimage_clear();
+	void process_AO_clear_line_MT(uint32_t y_offset, int y_section_start);
+	void process_AO_clear_texel(int tx, int ty, AONearestResult &r_nearest);
+
 	void process_AO();
 	void process_AO_line_MT(uint32_t y_offset, int y_section_start);
-	void process_AO_texel(int tx, int ty, int qmc_variation, AONearestResult &r_nearest);
-	float calculate_AO(int tx, int ty, int qmc_variation, const MiniList &ml, AONearestResult &r_nearest);
+	void process_AO_texel(int tx, int ty, int qmc_variation);
+	float calculate_AO(int tx, int ty, int qmc_variation, const MiniList &ml);
 	float calculate_AO_complex(int tx, int ty, int qmc_variation, const MiniList &ml);
 
 	bool AO_find_texel_triangle(const MiniList &p_mini_list, const Vector2 &p_st, uint32_t &r_tri_inside, Vector3 &r_bary) const {

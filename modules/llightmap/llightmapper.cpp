@@ -145,6 +145,10 @@ bool LightMapper::lightmap_meshes(Spatial *pMeshesRoot, Spatial *pLR, Image *pIm
 
 	bool res = _lightmap_meshes(pMeshesRoot, *pLR, *pIm_Lightmap, *pIm_AO, *pIm_Combined);
 
+	if (bake_end_function) {
+		bake_end_function();
+	}
+
 	uint32_t afterA = OS::get_singleton()->get_ticks_msec();
 	print_line("Overall took : " + itos(afterA - beforeA));
 
@@ -540,6 +544,9 @@ bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_ro
 			//Convolve_AO();
 		}
 
+		if (_pressed_cancel)
+			return false;
+
 		if (logic.process_lightmap) {
 			print_line("ProcessTexels");
 			before = OS::get_singleton()->get_ticks_msec();
@@ -548,6 +555,9 @@ bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_ro
 			else {
 				process_lights();
 			}
+			if (_pressed_cancel)
+				return false;
+
 			if (logic.process_emission) {
 #define LLIGHTMAP_EMISSION_USE_PIXELS
 #ifdef LLIGHTMAP_EMISSION_USE_PIXELS
@@ -556,10 +566,16 @@ bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_ro
 				process_emission_tris();
 #endif
 			}
+			if (_pressed_cancel)
+				return false;
+
 			//do_ambient_bounces();
 			after = OS::get_singleton()->get_ticks_msec();
 			print_line("ProcessTexels took " + itos(after - before) + " ms");
 		}
+
+		if (_pressed_cancel)
+			return false;
 
 		if (logic.process_bounce && adjusted_settings.num_ambient_bounces) {
 			print_line("ProcessBounce");
@@ -579,6 +595,9 @@ bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_ro
 
 			do_ambient_bounces();
 
+			if (_pressed_cancel)
+				return false;
+
 			_image_bounce.subtract_from_image(_image_main);
 
 			after = OS::get_singleton()->get_ticks_msec();
@@ -590,6 +609,9 @@ bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_ro
 				bake_end_function();
 			}
 		}
+
+		if (_pressed_cancel)
+			return false;
 
 		if (logic.process_probes) {
 			// calculate probes
@@ -638,6 +660,9 @@ bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_ro
 			load_intermediate(settings.AO_filename, _image_AO);
 		}
 	}
+
+	if (_pressed_cancel)
+		return false;
 
 	//	print_line("WriteOutputImage");
 	//	before = OS::get_singleton()->get_ticks_msec();
@@ -967,6 +992,9 @@ void LightMapper::do_ambient_bounces() {
 }
 
 void LightMapper::backward_process_texel_line_MT(uint32_t offset_y, int start_y) {
+	if (_pressed_cancel)
+		return;
+
 	int y = offset_y + start_y;
 
 	for (int x = 0; x < _width; x++) {
