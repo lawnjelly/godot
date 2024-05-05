@@ -43,6 +43,7 @@ void LLightmap::_bind_methods() {
 	//BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_EMISSION_ENABLED);
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_EMISSION_DENSITY);
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_EMISSION_POWER);
+	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_EMISSION_FORWARD_BOUNCE_SAMPLES);
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_GLOW);
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_AO_NUM_SAMPLES);
 	BIND_ENUM_CONSTANT(LM::LightMapper::PARAM_AO_RANGE);
@@ -194,12 +195,13 @@ void LLightmap::_bind_methods() {
 	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, roughness, "0.0,1.0,0.05", LM::LightMapper::PARAM_ROUGHNESS);
 	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, surface_bias, "0.0,1.0", LM::LightMapper::PARAM_SURFACE_BIAS);
 
-	ADD_GROUP("Emission", "");
+	ADD_GROUP("Emission", "emission");
 	//LIMPL_PROPERTY_PARAM(Variant::BOOL, emission_enabled, LM::LightMapper::PARAM_EMISSION_ENABLED);
 
 	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, emission_density, "0.0,8.0,0.05", LM::LightMapper::PARAM_EMISSION_DENSITY);
 	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, emission_power, "0.0,100.0", LM::LightMapper::PARAM_EMISSION_POWER);
-	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, glow, "0.0,4.0", LM::LightMapper::PARAM_GLOW);
+	LIMPL_PROPERTY_PARAM_RANGE(Variant::INT, emission_bounce_samples, "0,1024,32", LM::LightMapper::PARAM_EMISSION_FORWARD_BOUNCE_SAMPLES);
+	LIMPL_PROPERTY_PARAM_RANGE(Variant::REAL, emission_glow, "0.0,4.0", LM::LightMapper::PARAM_GLOW);
 
 	//	ADD_GROUP("Forward Parameters", "");
 	//LIMPL_PROPERTY_RANGE(Variant::REAL, f_ray_power, set_forward_ray_power, get_forward_ray_power, "0.0,0.1,0.01");

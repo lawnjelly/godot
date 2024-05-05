@@ -36,6 +36,7 @@ LightMapper_Base::LightMapper_Base() {
 
 	data.params[PARAM_EMISSION_DENSITY] = 1.0f;
 	data.params[PARAM_EMISSION_POWER] = 1.0f;
+	data.params[PARAM_EMISSION_FORWARD_BOUNCE_SAMPLES] = 128;
 	data.params[PARAM_GLOW] = 1.0f;
 
 	data.params[PARAM_AO_RANGE] = 2.0f;
@@ -178,6 +179,7 @@ void LightMapper_Base::calculate_quality_adjusted_settings() {
 	//as.m_Forward_NumRays = settings.Forward_NumRays;
 	as.emission_density = data.params[PARAM_EMISSION_DENSITY];
 	as.emission_power = data.params[PARAM_EMISSION_POWER];
+	as.emission_forward_bounce_samples = (int)data.params[PARAM_EMISSION_FORWARD_BOUNCE_SAMPLES] * 8 * 8;
 
 	// New .. Scale emission power by the final lightmap size.
 	// This is because emission is more per texel that emits, and the number of texels
@@ -236,6 +238,7 @@ void LightMapper_Base::calculate_quality_adjusted_settings() {
 			as.antialias_samples_per_texel = 1;
 			as.antialias_num_light_samples_per_subtexel = 1;
 			as.material_kernel_size = 1;
+			as.emission_forward_bounce_samples = 1;
 		} break;
 		case LM_QUALITY_MEDIUM: {
 			as.num_primary_rays /= 2;
@@ -246,6 +249,7 @@ void LightMapper_Base::calculate_quality_adjusted_settings() {
 			as.antialias_samples_width /= 2;
 			as.antialias_samples_per_texel /= 2;
 			as.material_kernel_size /= 2;
+			as.emission_forward_bounce_samples /= 2;
 		} break;
 		default:
 			// high is default
@@ -259,6 +263,7 @@ void LightMapper_Base::calculate_quality_adjusted_settings() {
 			as.antialias_num_light_samples_per_subtexel *= 2;
 
 			as.antialias_samples_per_texel *= 2;
+			as.emission_forward_bounce_samples *= 2;
 			as.material_kernel_size += 2;
 			break;
 	}
@@ -274,7 +279,9 @@ void LightMapper_Base::calculate_quality_adjusted_settings() {
 	as.num_ambient_bounce_rays = MAX(as.num_ambient_bounce_rays, 1);
 	as.AO_num_samples = MAX(as.AO_num_samples, 1);
 	as.max_material_size = MAX(as.max_material_size, 32);
+
 	as.emission_density = MAX(as.emission_density, 1);
+	as.emission_forward_bounce_samples = MAX(as.emission_forward_bounce_samples, 1);
 
 	as.antialias_samples_per_texel = MAX(as.antialias_samples_per_texel, 1);
 	as.antialias_samples_width = MAX(as.antialias_samples_width, 1);

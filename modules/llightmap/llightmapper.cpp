@@ -2624,11 +2624,11 @@ void LightMapper::process_emission_pixels() {
 	for (int n = 0; n < _scene._emission_pixels.size(); n++) {
 		const Vec2_i16 &coord = _scene._emission_pixels[n];
 		process_emission_pixel(coord.x, coord.y);
-	}
 
-	while (!ray_bank_are_voxels_clear()) {
-		ray_bank_process();
-		ray_bank_flush();
+		while (!ray_bank_are_voxels_clear()) {
+			ray_bank_process();
+			ray_bank_flush();
+		}
 	}
 
 	_image_main.copy_to(_image_emission);
@@ -2754,6 +2754,14 @@ void LightMapper::process_emission_pixel_backward(int32_t p_x, int32_t p_y, cons
 				// Normalize direction.
 				r.d = offset_from_emission / dist_from_emission;
 
+				// take into account normal
+				float dot = r.d.dot(vertex_normal);
+				dot = fabs(dot);
+
+				// FIXME: Is this done above already with the tri_plane distance check?
+				if (dot <= 0)
+					continue;
+
 				// Test ray. If it hits, no light arrives.
 				if (_scene.test_intersect_ray(r, dist_from_emission, true))
 					continue;
@@ -2765,18 +2773,56 @@ void LightMapper::process_emission_pixel_backward(int32_t p_x, int32_t p_y, cons
 				// of the likelihood of 'catching' a ray. In forward tracing this happens by magic.
 				float power = inverse_square_drop_off(dist_from_emission);
 
-				// take into account normal
-				float dot = r.d.dot(vertex_normal);
-				dot = fabs(dot);
-
 				power *= dot;
 				//////////////////////////////
 
 				// Test directly add the emission.
-				MT_safe_add_fcolor_to_texel(x, y, p_emission * power);
-			}
-		}
-	}
+				Color final_emission_color = p_emission * power;
+				MT_safe_add_fcolor_to_texel(x, y, final_emission_color);
+
+				// Bounces.
+				if (adjusted_settings.num_directional_bounces) {
+					// pass the direction as incoming (i.e. from the light to the surface, not the other way around)
+
+					// the source ray is always the target surface (no matter whether we hit transparent or blockers)
+					//r.o = pt_source_pushed;
+					r.d = -r.d;
+
+					// we need to apply the color from the original target surface
+					// TODO
+					//					light_color.r *= p_tri_color_sample.albedo.r;
+					//					light_color.g *= p_tri_color_sample.albedo.g;
+					//					light_color.b *= p_tri_color_sample.albedo.b;
+
+					power *= adjusted_settings.directional_bounce_power;
+
+					// The number of samples depends on the bounce power.
+					// Lots of light needs more samples.
+					int num_bounce_samples = (int)((float)adjusted_settings.emission_forward_bounce_samples * power);
+
+					// Recalculate the bounced light power, based on the bounce power variable.
+					final_emission_color = p_emission * power;
+
+					if (num_bounce_samples) {
+						//						if (num_bounce_samples > 16) {
+						//							print_line("num bounce samples " + itos(num_bounce_samples));
+						//						}
+
+						final_emission_color /= num_bounce_samples;
+
+						for (int n = 0; n < num_bounce_samples; n++) {
+							Ray bray = r;
+
+							if (bounce_ray(bray, *plane_normal, false)) {
+								BF_process_texel_light_bounce(adjusted_settings.num_directional_bounces, bray, final_emission_color);
+							}
+						} // for n
+					} // if any samples to make
+				}
+
+			} // if tri exists to receive on this texel.
+		} // for x
+	} // for y
 }
 
 void LightMapper::process_emission_tris() {

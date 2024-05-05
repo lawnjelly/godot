@@ -205,6 +205,7 @@ public:
 		//PARAM_EMISSION_ENABLED,
 		PARAM_EMISSION_DENSITY,
 		PARAM_EMISSION_POWER,
+		PARAM_EMISSION_FORWARD_BOUNCE_SAMPLES,
 		PARAM_GLOW,
 		PARAM_AO_NUM_SAMPLES,
 		PARAM_AO_RANGE,
@@ -368,6 +369,7 @@ public:
 
 		float emission_density;
 		float emission_power;
+		int emission_forward_bounce_samples;
 
 		float glow;
 		float smoothness;
