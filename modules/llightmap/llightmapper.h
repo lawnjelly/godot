@@ -54,7 +54,10 @@ private:
 
 	bool BF_process_texel_sky(const Color &orig_albedo, const Vector3 &ptSource, const Vector3 &orig_face_normal, const Vector3 &orig_vertex_normal, FColor &color);
 
-	bool bounce_ray(Ray &r, const Vector3 &face_normal, bool apply_epsilon = true);
+	bool bounce_ray(Ray &r, const Vector3 &face_normal, bool apply_epsilon = true) {
+		return bounce_ray_with_smoothness(r, face_normal, adjusted_settings.smoothness, apply_epsilon);
+	}
+	bool bounce_ray_with_smoothness(Ray &r, const Vector3 &face_normal, float p_smoothness, bool apply_epsilon = true);
 
 	// Backward tracing with antialiasing.
 	void AA_BF_process_texel(int p_tx, int p_ty);

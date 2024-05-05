@@ -4,6 +4,16 @@
 
 namespace LM {
 
+void LTexture::max_rgbs() {
+	for (int n = 0; n < colors.size(); n++) {
+		Color &c = colors[n];
+		float f = c.r;
+		f = MAX(f, c.g);
+		f = MAX(f, c.b);
+		c = Color(f, f, f, 1);
+	}
+}
+
 void LMaterial::destroy() {
 	if (tex_albedo) {
 		memdelete(tex_albedo);
@@ -12,6 +22,10 @@ void LMaterial::destroy() {
 	if (tex_emission) {
 		memdelete(tex_emission);
 		tex_emission = nullptr;
+	}
+	if (tex_orm) {
+		memdelete(tex_orm);
+		tex_orm = nullptr;
 	}
 }
 
@@ -81,12 +95,17 @@ int LMaterials::find_or_create_material(const MeshInstance &mi, Ref<Mesh> rmesh,
 
 	// spatial material?
 	Ref<SpatialMaterial> spatial_mat = src_material;
+
 	Ref<Texture> albedo_tex;
 	Ref<Texture> emission_tex;
-	Color albedo = Color(1, 1, 1, 1);
+	Ref<Texture> occlusion_tex;
+	Ref<Texture> roughness_tex;
+	Ref<Texture> metallic_tex;
 
-	float emission = 0.0f;
+	Color albedo = Color(1, 1, 1, 1);
+	float emission = 0;
 	Color emission_color(1, 1, 1, 1);
+	float roughness = 1;
 
 	if (spatial_mat.is_valid()) {
 		print_line("Adding Spatial Material: " + spatial_mat->get_name());
@@ -107,6 +126,21 @@ int LMaterials::find_or_create_material(const MeshInstance &mi, Ref<Mesh> rmesh,
 				//				}
 			}
 		}
+
+		{
+			roughness = spatial_mat->get_roughness();
+			roughness_tex = spatial_mat->get_texture(SpatialMaterial::TEXTURE_ROUGHNESS);
+			if (roughness_tex.is_valid()) {
+				print_line("\troughness_texture " + roughness_tex->get_name());
+#if 0
+				Ref<Image> img = roughness_tex->get_data();
+				if (img.is_valid()) {
+					img->save_png("res://Lightmap/roughness_" + roughness_tex->get_name() + ".png");
+				}
+#endif
+			}
+		}
+
 	} else {
 		// shader material?
 		print_line("Adding Shader Material: " + pSrcMaterial->get_name());
@@ -140,11 +174,26 @@ int LMaterials::find_or_create_material(const MeshInstance &mi, Ref<Mesh> rmesh,
 	}
 
 	pMat->tex_albedo = _load_bake_texture(albedo_tex, albedo);
-	//pMat->tex_emission = _load_bake_texture(emission_tex, Color(1, 1, 1, 1), Color(0, 0, 0, 0), 4);
 	pMat->tex_emission = _load_emission_texture(emission_tex);
+	pMat->tex_orm = _load_separate_orm_texture(occlusion_tex, roughness_tex, metallic_tex);
+
+	pMat->power_roughness = roughness;
+	if (roughness != 1) {
+		print_line("\tpower_roughness " + String(Variant(roughness)));
+	}
 
 	// returns the new material ID plus 1
 	return _materials.size();
+}
+
+LTexture *LMaterials::_load_separate_orm_texture(Ref<Texture> p_tex_occlusion, Ref<Texture> p_tex_roughness, Ref<Texture> p_tex_metallic) const {
+	LTexture *roughness = _load_bake_texture(p_tex_roughness);
+
+	if (roughness) {
+		roughness->max_rgbs();
+	}
+
+	return roughness;
 }
 
 LTexture *LMaterials::_load_emission_texture(Ref<Texture> p_texture) const {
@@ -308,7 +357,7 @@ Variant LMaterials::find_custom_albedo_tex(Ref<Material> src_material) {
 
 LTexture *LMaterials::_make_dummy_texture(LTexture *pLTexture, Color col) const {
 	pLTexture->colors.resize(1);
-	pLTexture->colors.set(0, col);
+	pLTexture->colors[0] = col;
 	pLTexture->width = 1;
 	pLTexture->height = 1;
 	return pLTexture;
@@ -381,7 +430,7 @@ LTexture *LMaterials::_get_bake_texture(Ref<Image> p_image, const Color &p_color
 
 		c.a = r[i * 4 + 3] / 255.0;
 
-		lt->colors.set(i, c);
+		lt->colors[i] = c;
 	}
 
 	return lt;

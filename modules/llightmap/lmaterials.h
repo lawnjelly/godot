@@ -8,11 +8,12 @@ namespace LM {
 struct ColorSample;
 
 struct LTexture {
-	Vector<Color> colors;
+	LocalVector<Color> colors;
 	int width;
 	int height;
 
 	void sample(const Vector2 &uv, Color &col) const;
+	void max_rgbs();
 };
 
 struct LMaterial {
@@ -21,7 +22,8 @@ struct LMaterial {
 		tex_emission = nullptr;
 		godot_material = 0;
 		is_emitter = false;
-		power_emission = 0.0f;
+		power_emission = 0;
+		power_roughness = 1;
 		is_transparent = false;
 	}
 	void destroy();
@@ -29,12 +31,15 @@ struct LMaterial {
 	const Material *godot_material = nullptr;
 	LTexture *tex_albedo = nullptr;
 	LTexture *tex_emission = nullptr;
+	LTexture *tex_orm = nullptr;
 
 	bool is_transparent = false;
 	bool is_emitter = false;
 
 	float power_emission = 0;
 	Color color_emission; // color multiplied by emission power
+
+	float power_roughness = 1;
 };
 
 class LMaterials {
@@ -60,6 +65,7 @@ private:
 
 	LTexture *_load_bake_texture(Ref<Texture> p_texture, Color p_color_mul = Color(1, 1, 1, 1), Color p_color_add = Color(0, 0, 0, 0), int p_shrink = 0) const;
 	LTexture *_load_emission_texture(Ref<Texture> p_texture) const;
+	LTexture *_load_separate_orm_texture(Ref<Texture> p_tex_occlusion, Ref<Texture> p_tex_roughness, Ref<Texture> p_tex_metallic) const;
 	LTexture *_get_bake_texture(Ref<Image> p_image, const Color &p_color_mul, const Color &p_color_add, int p_shrink) const;
 	LTexture *_make_dummy_texture(LTexture *pLTexture, Color col) const;
 
@@ -98,9 +104,14 @@ inline bool LMaterials::find_colors(int mat_id, const Vector2 &uv, ColorSample &
 	if (mat.tex_emission) {
 		const LTexture &tex = *mat.tex_emission;
 		tex.sample(uv, r_sample.emission);
-		//r_sample.emission *= _emission_power;
 		r_sample.is_emitter = true;
 		found_any = true;
+	}
+
+	if (mat.tex_orm) {
+		const LTexture &tex = *mat.tex_orm;
+		tex.sample(uv, r_sample.orm);
+		r_sample.has_orm = true;
 	}
 
 	return found_any;

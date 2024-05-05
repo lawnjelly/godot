@@ -17,8 +17,10 @@ struct MiniList {
 struct ColorSample {
 	Color albedo;
 	Color emission;
+	Color orm;
 	bool is_opaque = true;
 	bool is_emitter = false;
+	bool has_orm = false;
 };
 
 struct SubTexelSample {

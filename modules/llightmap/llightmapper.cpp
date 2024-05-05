@@ -1237,11 +1237,11 @@ void LightMapper::BF_process_texel_light(const ColorSample &p_tri_color_sample, 
 		r_sub_texel_sample.num_samples = 1;
 	}
 
-	int nSamples = r_sub_texel_sample.num_samples;
+	int num_samples = r_sub_texel_sample.num_samples;
 	//	int point_light_multiplier = nSamples;
 
 	// each ray
-	for (int n = 0; n < nSamples; n++) {
+	for (int n = 0; n < num_samples; n++) {
 		Vector3 pt_dest = light.pos;
 
 		// allow falloff for cones
@@ -1376,16 +1376,7 @@ void LightMapper::BF_process_texel_light(const ColorSample &p_tri_color_sample, 
 				print_line("at position: " + String(Variant(hit_point)));
 			}
 
-			//		m_Scene.m_Tracer.m_bUseSDF = false;
-			//		int tri2 = m_Scene.IntersectRay(r, u, v, w, t, m_iNumTests);
-			//		if (tri != tri2)
-			//		{
-			//			// repeat SDF version
-			//			m_Scene.m_Tracer.m_bUseSDF = true;
-			//			int tri = m_Scene.IntersectRay(r, u, v, w, t, m_iNumTests);
-			//		}
-
-			// further away than the destination?
+			// Further away than the destination?
 			if (tri != -1) {
 				if (t > ray_length) {
 					tri = -1;
@@ -1405,26 +1396,24 @@ void LightMapper::BF_process_texel_light(const ColorSample &p_tri_color_sample, 
 #endif
 #endif
 
-			// nothing hit
+			// If nothing hit...
 			if (tri == -1) {
 				r_sub_texel_sample.num_clear_samples += 1;
 
-				// for backward tracing, first pass, this is a special case, because we DO
+				// For backward tracing, first pass, this is a special case, because we DO
 				// take account of distance to the light, and normal, in order to simulate the effects
 				// of the likelihood of 'catching' a ray. In forward tracing this happens by magic.
 				float local_power;
 
 #if 1
-				// no drop off for directional lights
-				//float dist = (ptDest - ray_origin).length();
+				// No drop off for directional lights.
 				float dist = ray_length;
-
 				local_power = light_distance_drop_off(dist, light, power);
 #else
 				local_power = power;
 #endif
 
-				// take into account normal
+				// Take into account normal.
 				float dot = r.d.dot(orig_vertex_normal);
 #if 0
 				dot = fabs(dot);
@@ -1432,14 +1421,8 @@ void LightMapper::BF_process_texel_light(const ColorSample &p_tri_color_sample, 
 				dot = MAX(0.0f, dot);
 #endif
 
-				//local_power *= dot;
-
-				// cone falloff
+				// Cone falloff.
 				local_power *= cone_light_multiplier;
-
-				//				if (point_light) {
-				//					local_power *= point_light_multiplier;
-				//				}
 
 				// total color // this was incorrect because it also reduced the bounce power.
 				light_color *= local_power;
@@ -1461,12 +1444,10 @@ void LightMapper::BF_process_texel_light(const ColorSample &p_tri_color_sample, 
 					r.d = -r.d;
 
 					// we need to apply the color from the original target surface
-					light_color.r *= p_tri_color_sample.albedo.r;
-					light_color.g *= p_tri_color_sample.albedo.g;
-					light_color.b *= p_tri_color_sample.albedo.b;
+					light_color *= p_tri_color_sample.albedo;
 
 					// bounce ray direction
-					if (bounce_ray(r, orig_face_normal, false)) {
+					if (bounce_ray_with_smoothness(r, orig_face_normal, 1.0f - p_tri_color_sample.orm.g, false)) {
 						// should this normal be plane normal or vertex normal?
 						BF_process_texel_light_bounce(adjusted_settings.num_directional_bounces, r, light_color / adjusted_settings.antialias_total_light_samples_per_texel);
 						//BF_process_texel_light_bounce(adjusted_settings.num_directional_bounces, r, light_color);
@@ -1537,21 +1518,21 @@ void LightMapper::BF_process_texel_light(const ColorSample &p_tri_color_sample, 
 	//	color *= 1024.0 / nSamples;
 }
 
-bool LightMapper::bounce_ray(Ray &r, const Vector3 &face_normal, bool apply_epsilon) {
+bool LightMapper::bounce_ray_with_smoothness(Ray &r, const Vector3 &face_normal, float p_smoothness, bool apply_epsilon) {
 	float face_dot = face_normal.dot(r.d);
 
 	// back face, don't bounce
-	if (face_dot >= 0.0f)
+	if (face_dot >= 0)
 		return false;
 
-	// BOUNCING - mirror
-	Vector3 mirror_dir = r.d - (2.0f * (face_dot * face_normal));
+	// BOUNCING - perfect mirror
+	Vector3 mirror_dir = r.d - (2 * (face_dot * face_normal));
 
 	// random hemisphere
 	Vector3 hemi_dir;
 	generate_random_hemi_unit_dir(hemi_dir, face_normal);
 
-	r.d = hemi_dir.linear_interpolate(mirror_dir, adjusted_settings.smoothness);
+	r.d = hemi_dir.linear_interpolate(mirror_dir, p_smoothness);
 
 	// standard epsilon? NYI
 	if (apply_epsilon)
