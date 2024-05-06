@@ -552,7 +552,7 @@ bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_ro
 			return false;
 
 		if (logic.process_lightmap) {
-			print_line("ProcessTexels");
+			print_line("ProcessLights");
 			before = OS::get_singleton()->get_ticks_msec();
 			if (settings.mode == LMMODE_BACKWARD)
 				backward_process_texels();
@@ -562,22 +562,23 @@ bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_ro
 			if (_pressed_cancel)
 				return false;
 
-			if (logic.process_emission) {
-#define LLIGHTMAP_EMISSION_USE_PIXELS
-#ifdef LLIGHTMAP_EMISSION_USE_PIXELS
-				process_emission_pixels();
-#else
-				process_emission_tris();
-#endif
-			}
-			if (_pressed_cancel)
-				return false;
-
 			//do_ambient_bounces();
 			after = OS::get_singleton()->get_ticks_msec();
-			print_line("ProcessTexels took " + itos(after - before) + " ms");
+			print_line("ProcessLights took " + itos(after - before) + " ms");
 		}
 
+		if (logic.process_emission) {
+			print_line("ProcessEmission");
+			before = OS::get_singleton()->get_ticks_msec();
+#define LLIGHTMAP_EMISSION_USE_PIXELS
+#ifdef LLIGHTMAP_EMISSION_USE_PIXELS
+			process_emission_pixels();
+#else
+			process_emission_tris();
+#endif
+			after = OS::get_singleton()->get_ticks_msec();
+			print_line("ProcessEmission took " + itos(after - before) + " ms");
+		}
 		if (_pressed_cancel)
 			return false;
 
