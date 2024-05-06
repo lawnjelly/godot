@@ -29,8 +29,9 @@ public:
 	// a COPY of the triangles in SIMD format, edge form
 	// contiguous in memory for faster testing
 	LVector<PackedTriangles> packed_triangles;
-	int num_tris;
-	unsigned int SDF; // measured in voxels
+	int32_t num_tris;
+	uint32_t SDF; // measured in voxels
+	uint32_t voxel_id;
 
 	void add_triangle(const Tri &tri, uint32_t tri_id) {
 		tri_ids.push_back(tri_id);
@@ -91,10 +92,6 @@ public:
 	//	}
 
 	Vec3i estimate_voxel_dims(int voxel_density);
-
-	int get_voxel_num(const Vec3i &pos) const {
-		return get_voxel_num(pos.x, pos.y, pos.z);
-	}
 
 	Voxel &get_voxel(int v) {
 		DEV_ASSERT(v < _num_voxels);
@@ -165,6 +162,10 @@ private:
 		r_pt.y /= _voxel_size.y;
 		r_pt.z -= _scene_world_bound_expanded.position.z;
 		r_pt.z /= _voxel_size.z;
+	}
+
+	int get_voxel_num(const Vec3i &pos) const {
+		return get_voxel_num(pos.x, pos.y, pos.z);
 	}
 
 	int get_voxel_num(int x, int y, int z) const {

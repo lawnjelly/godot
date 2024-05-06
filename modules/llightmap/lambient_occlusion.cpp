@@ -396,8 +396,15 @@ float AmbientOcclusion::calculate_AO(int tx, int ty, int qmc_variation, const Mi
 		generate_random_hemi_unit_dir(r.d, normal);
 
 		// test ray
-		if (_scene.test_intersect_ray(r, adjusted_settings.AO_range, voxel_range, test_hit))
+		if (_scene.test_intersect_ray_single(r, adjusted_settings.AO_range, test_hit)) {
 			num_hits++;
+		} else {
+			if (_scene.test_intersect_ray(r, adjusted_settings.AO_range, voxel_range, test_hit)) {
+				num_hits++;
+			} else {
+				test_hit.voxel_id = UINT32_MAX;
+			}
+		}
 
 		// fast zero hits
 		if (fast_approx_test && (num_samples_inside == 64)) {

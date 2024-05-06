@@ -24,6 +24,10 @@ void LightTracer::create(const LightScene &scene, int voxel_density) {
 	_dims_x_times_y = _dims.x * _dims.y;
 
 	_voxels.resize(_num_voxels);
+	for (uint32_t n = 0; n < _num_voxels; n++) {
+		_voxels[n].voxel_id = n;
+	}
+
 	_voxel_bounds.resize(_num_voxels);
 	_BF_tris_hit.Create(_num_tris);
 

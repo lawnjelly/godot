@@ -346,6 +346,9 @@ bool LightScene::test_intersect_ray(const Ray &p_ray, float p_max_dist, bool p_c
 }
 
 bool LightScene::test_intersect_ray_single(const Ray &p_ray, float p_max_dist, const LightScene::RayTestHit &p_test_hit, bool p_cull_back_faces) {
+	if (p_test_hit.voxel_id == UINT32_MAX)
+		return false;
+
 	PackedRay pray;
 	pray.Create(p_ray);
 
@@ -387,7 +390,7 @@ bool LightScene::test_intersect_ray(const Ray &p_ray, float p_max_dist, const Ve
 			break;
 
 		if (test_voxel_hits(pray, *pVoxel, p_max_dist, p_cull_back_faces, r_hit.quad_hit)) {
-			r_hit.voxel_id = _tracer.get_voxel_num(pt_voxel);
+			r_hit.voxel_id = pVoxel->voxel_id;
 			return true;
 		}
 
