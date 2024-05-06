@@ -4,8 +4,8 @@
 
 namespace LM { // namespace start
 
-void LBitField_Dynamic::Initialize() { assert(0 && "LBitField_Dynamic : Does not support Initialize, use IT version"); }
-void LBitField_Dynamic::Terminate() { assert(0 && "LBitField_Dynamic : Does not support Terminate, use IT version"); }
+void LBitField_Dynamic::Initialize() { DEV_ASSERT(0 && "LBitField_Dynamic : Does not support Initialize, use IT version"); }
+void LBitField_Dynamic::Terminate() { DEV_ASSERT(0 && "LBitField_Dynamic : Does not support Terminate, use IT version"); }
 
 void LBitField_Dynamic_IT::Initialize() {
 	Initialize_Do();

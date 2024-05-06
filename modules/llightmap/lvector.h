@@ -22,7 +22,6 @@
 
 // just a light wrapper around a vector until we get the Godot vector allocation issues sorted
 #include "core/vector.h"
-#include <assert.h>
 #include <vector>
 
 template <class T>
@@ -32,14 +31,14 @@ public:
 	// note this is not available in Godot Vector
 	T &operator[](unsigned int ui) {
 #ifdef DEBUG_ENABLED
-		assert(ui < (unsigned int)m_iSize);
+		DEV_ASSERT(ui < (unsigned int)m_iSize);
 #endif
 		return m_Vec[ui];
 	}
 
 	const T &operator[](unsigned int ui) const {
 #ifdef DEBUG_ENABLED
-		assert(ui < (unsigned int)m_iSize);
+		DEV_ASSERT(ui < (unsigned int)m_iSize);
 #endif
 		return m_Vec[ui];
 	}
@@ -81,7 +80,7 @@ public:
 
 	void set(unsigned int ui, const T &t) {
 #ifdef DEBUG_ENABLED
-		assert(ui < (unsigned int)m_iSize);
+		DEV_ASSERT(ui < (unsigned int)m_iSize);
 #endif
 		m_Vec[ui] = t;
 	}
@@ -186,7 +185,7 @@ public:
 			if (uiNumItems == (unsigned int)size()) {
 				clear();
 			} else {
-				assert(0 && "delete_items_first : Not enough items");
+				DEV_ASSERT(0 && "delete_items_first : Not enough items");
 			}
 		}
 	}

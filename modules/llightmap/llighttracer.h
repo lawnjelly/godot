@@ -92,6 +92,15 @@ public:
 
 	Vec3i estimate_voxel_dims(int voxel_density);
 
+	int get_voxel_num(const Vec3i &pos) const {
+		return get_voxel_num(pos.x, pos.y, pos.z);
+	}
+
+	Voxel &get_voxel(int v) {
+		DEV_ASSERT(v < _num_voxels);
+		return _voxels[v];
+	}
+
 private:
 	void calculate_world_bound();
 	void calculate_voxel_dims(int voxel_density);
@@ -118,9 +127,9 @@ private:
 	}
 	void debug_check_world_point_in_voxel(Vector3 pt, const Vec3i &ptVoxel);
 	void debug_check_local_point_in_voxel(Vector3 pt, const Vec3i &ptVoxel) {
-		//		assert ((int) (pt.x+0.5f) == ptVoxel.x);
-		//		assert ((int) (pt.y+0.5f) == ptVoxel.y);
-		//		assert ((int) (pt.z+0.5f) == ptVoxel.z);
+		//		DEV_ASSERT ((int) (pt.x+0.5f) == ptVoxel.x);
+		//		DEV_ASSERT ((int) (pt.y+0.5f) == ptVoxel.y);
+		//		DEV_ASSERT ((int) (pt.z+0.5f) == ptVoxel.z);
 	}
 
 	LVector<Voxel> _voxels;
@@ -165,22 +174,14 @@ private:
 		return v;
 	}
 
-	int get_voxel_num(const Vec3i &pos) const {
-		return get_voxel_num(pos.x, pos.y, pos.z);
-	}
-
 	const Voxel &get_voxel(const Vec3i &pos) const {
 		int v = get_voxel_num(pos);
-		assert(v < _num_voxels);
+		DEV_ASSERT(v < _num_voxels);
 		return _voxels[v];
 	}
 	Voxel &get_voxel(const Vec3i &pos) {
 		int v = get_voxel_num(pos);
-		assert(v < _num_voxels);
-		return _voxels[v];
-	}
-	Voxel &get_voxel(int v) {
-		assert(v < _num_voxels);
+		DEV_ASSERT(v < _num_voxels);
 		return _voxels[v];
 	}
 

@@ -25,6 +25,11 @@ public:
 		uint32_t num_tris;
 	};
 
+	struct RayTestHit {
+		uint32_t voxel_id = UINT32_MAX;
+		uint32_t quad_hit = UINT32_MAX;
+	};
+
 	void reset();
 	bool create(Spatial *pMeshesRoot, int width, int height, int voxel_density, int max_material_size, float emission_density);
 
@@ -35,9 +40,11 @@ public:
 	}
 
 	// simple test returns true if any collision
-	bool test_intersect_ray(const Ray &ray, float max_dist, const Vec3i &voxel_range, bool bCullBackFaces = false);
-	bool test_intersect_ray(const Ray &ray, float max_dist, bool bCullBackFaces = false);
+	bool test_intersect_ray(const Ray &p_ray, float p_max_dist, const Vec3i &p_voxel_range, LightScene::RayTestHit &r_hit, bool p_cull_back_faces = false);
+	bool test_intersect_ray(const Ray &p_ray, float p_max_dist, bool p_cull_back_faces = false);
 	bool test_intersect_line(const Vector3 &a, const Vector3 &b, bool bCullBackFaces = false);
+
+	bool test_intersect_ray_single(const Ray &p_ray, float p_max_dist, const LightScene::RayTestHit &p_test_hit, bool p_cull_back_faces = false);
 
 	// single triangle
 	bool test_intersect_ray_triangle(const Ray &ray, float max_dist, int tri_id) const {
@@ -98,7 +105,7 @@ private:
 	void process_voxel_hits(const Ray &ray, const PackedRay &pray, const Voxel &voxel, float &r_nearest_t, int &r_nearest_tri); // int ignore_triangle_id_p1);
 	void process_voxel_hits_old(const Ray &ray, const Voxel &voxel, float &r_nearest_t, int &r_nearest_tri);
 
-	bool test_voxel_hits(const Ray &ray, const PackedRay &pray, const Voxel &voxel, float max_dist, bool bCullBackFaces);
+	bool test_voxel_hits(const PackedRay &p_pray, const Voxel &p_voxel, float p_max_dist, bool p_cull_back_faces, uint32_t &r_quad_hit);
 
 	//	PoolVector<Vector3> m_ptPositions;
 	//	PoolVector<Vector3> m_ptNormals;

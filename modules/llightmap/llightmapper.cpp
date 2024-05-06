@@ -781,9 +781,9 @@ void LightMapper::process_texels_ambient_bounce(int section_size, int num_sectio
 
 			FColor col_add = _image_main_mirror.get_item(x, y) * ambient_bounce_power;
 
-			//			assert (col_add.r >= 0.0f);
-			//			assert (col_add.g >= 0.0f);
-			//			assert (col_add.b >= 0.0f);
+			//			DEV_ASSERT (col_add.r >= 0.0f);
+			//			DEV_ASSERT (col_add.g >= 0.0f);
+			//			DEV_ASSERT (col_add.b >= 0.0f);
 
 			col += col_add;
 
@@ -1127,7 +1127,7 @@ bool LightMapper::light_random_sample(const LLight &light, const Vector3 &ptSurf
 			ray_length = normalize_and_find_length(ray.d);
 
 			// safety
-			//assert (r.d.length() > 0.0f);
+			//DEV_ASSERT (r.d.length() > 0.0f);
 
 		} break;
 	}
@@ -1352,7 +1352,7 @@ void LightMapper::BF_process_texel_light(const ColorSample &p_tri_color_sample, 
 				ray_length = normalize_and_find_length(r.d);
 
 				// safety
-				//assert (r.d.length() > 0.0f);
+				//DEV_ASSERT (r.d.length() > 0.0f);
 
 			} break;
 		}
@@ -1871,7 +1871,7 @@ bool LightMapper::process_texel_ambient_bounce_sample(const Vector3 &plane_norm,
 				// femission.set(cols.emission);
 				// total_col += femission;
 
-				//assert (total_col.r >= 0.0f);
+				//DEV_ASSERT (total_col.r >= 0.0f);
 				break;
 			}
 		} else {

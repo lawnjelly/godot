@@ -209,7 +209,7 @@ void RayBank::ray_bank_flush_ray(RB_Voxel &vox, int ray_id) {
 
 	FColor *pf = _image_main.get(hit.tx, hit.ty);
 #ifdef DEBUG_ENABLED
-	assert(pf);
+	DEV_ASSERT(pf);
 #endif
 	//	if (!pf)
 	//		return; // should never happen

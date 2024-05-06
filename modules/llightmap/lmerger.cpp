@@ -143,7 +143,7 @@ void Merger::merge_mesh_instance_surface(const MeshInstance &mi, PoolVector<Vect
 
 	// no normals, can't do
 	if (!p_normals.size()) {
-		//assert (0);
+		//DEV_ASSERT (0);
 		WARN_PRINT_ONCE("Merge_MI : mesh with no normals, ignoring");
 		return;
 	}
@@ -189,9 +189,9 @@ void Merger::merge_mesh_instance_surface(const MeshInstance &mi, PoolVector<Vect
 	//		float l2 = (v0 - v2).length();
 
 	//		const float epsilon = 0.0001f;
-	//		assert (l0 > epsilon);
-	//		assert (l1 > epsilon);
-	//		assert (l2 > epsilon);
+	//		DEV_ASSERT (l0 > epsilon);
+	//		DEV_ASSERT (l1 > epsilon);
+	//		DEV_ASSERT (l2 > epsilon);
 	//	}
 }
 

@@ -10,15 +10,18 @@
 
 using namespace LM;
 
-bool LightScene::test_voxel_hits(const Ray &ray, const PackedRay &pray, const Voxel &voxel, float max_dist, bool bCullBackFaces) {
-	int quads = voxel.packed_triangles.size();
+//bool LightScene::test_voxel_hits(const Ray &ray, const PackedRay &pray, const Voxel &voxel, float max_dist, bool bCullBackFaces) {
+bool LightScene::test_voxel_hits(const PackedRay &p_pray, const Voxel &p_voxel, float p_max_dist, bool p_cull_back_faces, uint32_t &r_quad_hit) {
+	int quads = p_voxel.packed_triangles.size();
 
-	if (!bCullBackFaces) {
+	if (!p_cull_back_faces) {
 		for (int q = 0; q < quads; q++) {
 			// get pointers to 4 triangles
-			const PackedTriangles &ptris = voxel.packed_triangles[q];
-			if (pray.IntersectTest(ptris, max_dist))
+			const PackedTriangles &ptris = p_voxel.packed_triangles[q];
+			if (p_pray.IntersectTest(ptris, p_max_dist)) {
+				r_quad_hit = q;
 				return true;
+			}
 		}
 	} else {
 		/*
@@ -47,9 +50,11 @@ bool LightScene::test_voxel_hits(const Ray &ray, const PackedRay &pray, const Vo
 
 		for (int q = 0; q < quads; q++) {
 			// get pointers to 4 triangles
-			const PackedTriangles &ptris = voxel.packed_triangles[q];
-			if (pray.IntersectTest_CullBackFaces(ptris, max_dist))
+			const PackedTriangles &ptris = p_voxel.packed_triangles[q];
+			if (p_pray.IntersectTest_CullBackFaces(ptris, p_max_dist)) {
+				r_quad_hit = q;
 				return true;
+			}
 		}
 	}
 
@@ -133,7 +138,7 @@ void LightScene::process_voxel_hits(const Ray &ray, const PackedRay &pray, const
 #endif
 
 				/*
-			// test assert condition
+			// test DEV_ASSERT condition
 			if (winner_tri != ref_winner_tri_id)
 			{
 				// do again to debug
@@ -156,7 +161,7 @@ void LightScene::process_voxel_hits(const Ray &ray, const PackedRay &pray, const
 				r_nearest_tri = winner_tri;
 			}
 
-			//		assert (r_nearest_t <= (nearest_ref_dist+0.001f));
+			//		DEV_ASSERT (r_nearest_t <= (nearest_ref_dist+0.001f));
 		}
 
 		// print result
@@ -194,7 +199,7 @@ void LightScene::process_voxel_hits(const Ray &ray, const PackedRay &pray, const
 	//	if (r_nearest_tri != -1)
 	//		print_line("REF\tr_nearest_tri " + itos (r_nearest_tri) + " dist " + String(Variant(r_nearest_t)));
 
-	//	assert (r_nearest_tri == simd_nearest_tri);
+	//	DEV_ASSERT (r_nearest_tri == simd_nearest_tri);
 }
 
 void LightScene::process_voxel_hits_old(const Ray &ray, const Voxel &voxel, float &r_nearest_t, int &r_nearest_tri) {
@@ -255,7 +260,7 @@ void LightScene::process_voxel_hits_old(const Ray &ray, const Voxel &voxel, floa
 				int winner_tri = _tracer._tri_hits[winner_tri_index];
 
 				/*
-			// test assert condition
+			// test DEV_ASSERT condition
 			if (winner_tri != ref_winner_tri_id)
 			{
 				// do again to debug
@@ -278,7 +283,7 @@ void LightScene::process_voxel_hits_old(const Ray &ray, const Voxel &voxel, floa
 				r_nearest_tri = winner_tri;
 			}
 
-			//		assert (r_nearest_t <= (nearest_ref_dist+0.001f));
+			//		DEV_ASSERT (r_nearest_t <= (nearest_ref_dist+0.001f));
 		}
 
 	} // if use SIMD
@@ -316,14 +321,14 @@ bool LightScene::test_intersect_line(const Vector3 &a, const Vector3 &b, bool bC
 
 		if (res)
 		{
-			assert (tri != -1);
-			assert (t <= dist);
+			DEV_ASSERT (tri != -1);
+			DEV_ASSERT (t <= dist);
 		}
 		else
 		{
 			if (tri != -1)
 			{
-				assert (t > dist);
+				DEV_ASSERT (t > dist);
 			}
 		}
 */
@@ -333,46 +338,65 @@ bool LightScene::test_intersect_line(const Vector3 &a, const Vector3 &b, bool bC
 	return false;
 }
 
-bool LightScene::test_intersect_ray(const Ray &ray, float max_dist, bool bCullBackFaces) {
+bool LightScene::test_intersect_ray(const Ray &p_ray, float p_max_dist, bool p_cull_back_faces) {
 	Vec3i voxel_range;
-	_tracer.get_distance_in_voxels(max_dist, voxel_range);
-	return test_intersect_ray(ray, max_dist, voxel_range, bCullBackFaces);
+	_tracer.get_distance_in_voxels(p_max_dist, voxel_range);
+	LightScene::RayTestHit test_hit;
+	return test_intersect_ray(p_ray, p_max_dist, voxel_range, test_hit, p_cull_back_faces);
 }
 
-bool LightScene::test_intersect_ray(const Ray &ray, float max_dist, const Vec3i &voxel_range, bool bCullBackFaces) {
+bool LightScene::test_intersect_ray_single(const Ray &p_ray, float p_max_dist, const LightScene::RayTestHit &p_test_hit, bool p_cull_back_faces) {
+	PackedRay pray;
+	pray.Create(p_ray);
+
+	DEV_ASSERT(p_test_hit.voxel_id != UINT32_MAX);
+	DEV_ASSERT(p_test_hit.quad_hit != UINT32_MAX);
+
+	const Voxel &voxel = _tracer.get_voxel(p_test_hit.voxel_id);
+
+	uint32_t quad_hit_dummy;
+	if (test_voxel_hits(pray, voxel, p_max_dist, p_cull_back_faces, quad_hit_dummy)) {
+		return true;
+	}
+	return false;
+}
+
+bool LightScene::test_intersect_ray(const Ray &p_ray, float p_max_dist, const Vec3i &p_voxel_range, LightScene::RayTestHit &r_hit, bool p_cull_back_faces) {
 	Ray voxel_ray;
-	Vec3i ptVoxel;
+	Vec3i pt_voxel;
 
 	// prepare voxel trace
-	if (!_tracer.ray_trace_start(ray, voxel_ray, ptVoxel))
+	if (!_tracer.ray_trace_start(p_ray, voxel_ray, pt_voxel))
 		return false;
 
 	//bool bFirstHit = false;
 	//	Vec3i ptVoxelFirstHit;
 
 	// if we have specified a (optional) maximum range for the trace in voxels
-	Vec3i ptVoxelStart = ptVoxel;
+	Vec3i pt_voxel_start = pt_voxel;
 
 	// create the packed ray as a once off and reuse it for each voxel
 	PackedRay pray;
-	pray.Create(ray);
+	pray.Create(p_ray);
 
 	while (true) {
 		//Vec3i ptVoxelBefore = ptVoxel;
 
-		const Voxel *pVoxel = _tracer.ray_trace(voxel_ray, voxel_ray, ptVoxel);
+		const Voxel *pVoxel = _tracer.ray_trace(voxel_ray, voxel_ray, pt_voxel);
 		if (!pVoxel)
 			break;
 
-		if (test_voxel_hits(ray, pray, *pVoxel, max_dist, bCullBackFaces))
+		if (test_voxel_hits(pray, *pVoxel, p_max_dist, p_cull_back_faces, r_hit.quad_hit)) {
+			r_hit.voxel_id = _tracer.get_voxel_num(pt_voxel);
 			return true;
+		}
 
 		// check for voxel range
-		if (abs(ptVoxel.x - ptVoxelStart.x) > voxel_range.x)
+		if (abs(pt_voxel.x - pt_voxel_start.x) > p_voxel_range.x)
 			break;
-		if (abs(ptVoxel.y - ptVoxelStart.y) > voxel_range.y)
+		if (abs(pt_voxel.y - pt_voxel_start.y) > p_voxel_range.y)
 			break;
-		if (abs(ptVoxel.z - ptVoxelStart.z) > voxel_range.z)
+		if (abs(pt_voxel.z - pt_voxel_start.z) > p_voxel_range.z)
 			break;
 
 	} // while
@@ -1006,9 +1030,9 @@ void LightScene::thread_rasterize_triangle_ids(uint32_t p_tile, uint32_t *p_dumm
 							// save new id AFTER making sure not degenerate.
 							id_p1 = n + 1;
 
-							//					assert (!isnan(u));
-							//					assert (!isnan(v));
-							//					assert (!isnan(w));
+							//					DEV_ASSERT (!isnan(u));
+							//					DEV_ASSERT (!isnan(v));
+							//					DEV_ASSERT (!isnan(w));
 
 							Vector3 &bary = rtip.im_bary->get_item(x, y);
 							bary = Vector3(u, v, w);

@@ -144,8 +144,8 @@ public:
 			}
 		}
 
-		// assert that we have found a coord
-		assert(sl_best < UINT_MAX);
+		// DEV_ASSERT that we have found a coord
+		DEV_ASSERT(sl_best < UINT_MAX);
 		*_source_pts->get(loc.x, loc.y) = bestcoord;
 
 		// add suitable neighbours to active list

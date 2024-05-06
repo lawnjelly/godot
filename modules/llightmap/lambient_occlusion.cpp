@@ -362,6 +362,8 @@ float AmbientOcclusion::calculate_AO(int tx, int ty, int qmc_variation, const Mi
 
 	bool fast_approx_test = false;
 
+	LightScene::RayTestHit test_hit;
+
 	while (true) {
 		attempts++;
 		//	for (int n = 0; n < num_samples; n++) {
@@ -394,7 +396,7 @@ float AmbientOcclusion::calculate_AO(int tx, int ty, int qmc_variation, const Mi
 		generate_random_hemi_unit_dir(r.d, normal);
 
 		// test ray
-		if (_scene.test_intersect_ray(r, adjusted_settings.AO_range, voxel_range))
+		if (_scene.test_intersect_ray(r, adjusted_settings.AO_range, voxel_range, test_hit))
 			num_hits++;
 
 		// fast zero hits
@@ -466,6 +468,8 @@ float AmbientOcclusion::calculate_AO_complex(int tx, int ty, int qmc_variation, 
 	int nHits = 0;
 	Ray r;
 
+	LightScene::RayTestHit test_hit;
+
 	for (int n = 0; n < adjusted_settings.AO_num_samples; n++) {
 		// get the sample to look from
 		const AOSample &sample = samples[sample_counter++];
@@ -480,7 +484,7 @@ float AmbientOcclusion::calculate_AO_complex(int tx, int ty, int qmc_variation, 
 		AO_random_QMC_direction(r.d, sample.normal, n, qmc_variation);
 
 		// test ray
-		if (_scene.test_intersect_ray(r, adjusted_settings.AO_range, _scene._voxel_range)) {
+		if (_scene.test_intersect_ray(r, adjusted_settings.AO_range, _scene._voxel_range, test_hit)) {
 			nHits++;
 		}
 	} // for n
@@ -505,6 +509,8 @@ int AmbientOcclusion::AO_find_sample_points(int tx, int ty, const MiniList &ml, 
 
 	Ray r;
 
+	LightScene::RayTestHit test_hit;
+
 	for (int n = 0; n < attempts; n++) {
 		Vector2 st;
 		AO_random_texel_sample(st, tx, ty, 10);
@@ -528,7 +534,7 @@ int AmbientOcclusion::AO_find_sample_points(int tx, int ty, const MiniList &ml, 
 		AO_find_samples_random_ray(r, ptNormal);
 
 		// test ray
-		if (_scene.test_intersect_ray(r, adjusted_settings.AO_range, _scene._voxel_range, true))
+		if (_scene.test_intersect_ray(r, adjusted_settings.AO_range, _scene._voxel_range, test_hit, true))
 			continue; // hit, not interested
 
 		// no hit .. we can use this sample!

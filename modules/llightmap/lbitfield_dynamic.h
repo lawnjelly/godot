@@ -1,7 +1,5 @@
 #pragma once
 
-#include <assert.h>
-
 namespace LM { // namespace start
 
 class LBitField_Dynamic_IT {
@@ -62,18 +60,18 @@ public:
 
 //////////////////////////////////////////////////////////
 inline unsigned int LBitField_Dynamic_IT::GetBit(unsigned int uiBit) const {
-	assert(m_pucData);
+	DEV_ASSERT(m_pucData);
 	unsigned int uiByteNumber = uiBit >> 3; // divide by 8
-	assert(uiByteNumber < m_uiNumBytes);
+	DEV_ASSERT(uiByteNumber < m_uiNumBytes);
 	unsigned char uc = m_pucData[uiByteNumber];
 	unsigned int uiBitSet = uc & (1 << (uiBit & 7));
 	return uiBitSet;
 }
 
 inline bool LBitField_Dynamic_IT::CheckAndSet(unsigned int uiBit) {
-	assert(m_pucData);
+	DEV_ASSERT(m_pucData);
 	unsigned int uiByteNumber = uiBit >> 3; // divide by 8
-	assert(uiByteNumber < m_uiNumBytes);
+	DEV_ASSERT(uiByteNumber < m_uiNumBytes);
 	unsigned char &uc = m_pucData[uiByteNumber];
 	unsigned int uiMask = (1 << (uiBit & 7));
 	unsigned int uiBitSet = uc & uiMask;
@@ -86,9 +84,9 @@ inline bool LBitField_Dynamic_IT::CheckAndSet(unsigned int uiBit) {
 }
 
 inline void LBitField_Dynamic_IT::SetBit(unsigned int uiBit, unsigned int bSet) {
-	assert(m_pucData);
+	DEV_ASSERT(m_pucData);
 	unsigned int uiByteNumber = uiBit >> 3; // divide by 8
-	assert(uiByteNumber < m_uiNumBytes);
+	DEV_ASSERT(uiByteNumber < m_uiNumBytes);
 	unsigned char uc = m_pucData[uiByteNumber];
 	unsigned int uiMask = 1 << (uiBit & 7);
 	if (bSet) {

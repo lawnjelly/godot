@@ -706,8 +706,8 @@ void LightMapper_Base::Settings::set_images_filename(String p_filename) {
 
 #if 0
 bool LightMapper_Base::load_lightmap(Image &image) {
-	//	assert (image.get_width() == m_iWidth);
-	//	assert (image.get_height() == m_iHeight);
+	//	DEV_ASSERT (image.get_width() == m_iWidth);
+	//	DEV_ASSERT (image.get_height() == m_iHeight);
 
 	Error res = image.load(settings.lightmap_filename);
 	if (res != OK) {
@@ -738,8 +738,8 @@ bool LightMapper_Base::load_lightmap(Image &image) {
 }
 
 bool LightMapper_Base::load_AO(Image &image) {
-	//	assert (image.get_width() == m_iWidth);
-	//	assert (image.get_height() == m_iHeight);
+	//	DEV_ASSERT (image.get_width() == m_iWidth);
+	//	DEV_ASSERT (image.get_height() == m_iHeight);
 
 	Error res = image.load(settings.AO_filename);
 	if (res != OK) {

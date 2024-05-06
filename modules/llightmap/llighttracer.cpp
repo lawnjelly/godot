@@ -131,7 +131,7 @@ void LightTracer::debug_check_world_point_in_voxel(Vector3 pt, const Vec3i &ptVo
 	int iVoxelNum = get_voxel_num(ptVoxel);
 	AABB bb = _voxel_bounds[iVoxelNum];
 	bb.grow_by(0.01f);
-	assert(bb.has_point(pt));
+	DEV_ASSERT(bb.has_point(pt));
 }
 
 //bool LightTracer::RayTrace(const Ray &ray_orig, Ray &ray_out, Vec3i &ptVoxel)
@@ -286,7 +286,7 @@ const Voxel *LightTracer::ray_trace(const Ray &ray_orig, Ray &ray_out, Vec3i &pt
 			ptVoxel.z -= 1;
 			break;
 		default:
-			assert(0 && "LightTracer::RayTrace");
+			DEV_ASSERT(0 && "LightTracer::RayTrace");
 			break;
 	}
 

@@ -64,7 +64,7 @@ void LightProbes::calculate_probe_old(const Vec3i &pt) {
 	get_probe_position(pt, pos);
 
 	LightProbe *pProbe = get_probe(pt);
-	assert(pProbe);
+	DEV_ASSERT(pProbe);
 
 	// do multiple tests per light
 	const int nLightTests = 9;
@@ -145,7 +145,7 @@ void LightProbes::calculate_probe(const Vec3i &pt) {
 	get_probe_position(pt, pos);
 
 	LightProbe *pProbe = get_probe(pt);
-	assert(pProbe);
+	DEV_ASSERT(pProbe);
 
 	// do multiple tests per light
 	const int nSamples = (int)data.light_mapper->data.params[LightMapper::PARAM_PROBE_SAMPLES] / 8;
@@ -227,7 +227,7 @@ void LightProbes::calculate_probe(const Vec3i &pt) {
 
 			// calculate power based on distance
 			//pCont->power = CalculatePower(light, dist_to_light, pos);
-			assert(sample_count);
+			DEV_ASSERT(sample_count);
 			pCont->power = (float)fClear / (float)(sample_count);
 
 			//print_line("\tprobe " + pt.ToString() + " light " + itos (l) + " power " + String(Variant(pCont->power)));
