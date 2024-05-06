@@ -793,14 +793,14 @@ void LightMapper_Base::merge_for_ambient_bounces() {
 void LightMapper_Base::merge_to_combined() {
 	float light_AO_ratio = data.params[PARAM_AO_LIGHT_RATIO];
 
-	bool flag_lights = data.params[PARAM_MERGE_FLAG_LIGHTS] == Variant(true);
-	bool flag_ao = data.params[PARAM_MERGE_FLAG_AO] == Variant(true);
-	bool flag_bounce = data.params[PARAM_MERGE_FLAG_BOUNCE] == Variant(true);
-	bool flag_emission = data.params[PARAM_MERGE_FLAG_EMISSION] == Variant(true);
-	bool flag_glow = data.params[PARAM_MERGE_FLAG_GLOW] == Variant(true);
-	bool flag_material = (data.params[PARAM_MERGE_FLAG_MATERIAL] == Variant(true)) && _image_orig_material.get_num_pixels();
+	//	bool flag_lights = data.params[PARAM_MERGE_FLAG_LIGHTS] == Variant(true);
+	//	bool flag_ao = data.params[PARAM_MERGE_FLAG_AO] == Variant(true);
+	//	bool flag_bounce = data.params[PARAM_MERGE_FLAG_BOUNCE] == Variant(true);
+	//	bool flag_emission = data.params[PARAM_MERGE_FLAG_EMISSION] == Variant(true);
+	//	bool flag_glow = data.params[PARAM_MERGE_FLAG_GLOW] == Variant(true);
+	//	bool flag_material = (data.params[PARAM_MERGE_FLAG_MATERIAL] == Variant(true)) && _image_orig_material.get_num_pixels();
 
-	bool material_only = flag_material && (!(flag_ao || flag_bounce || flag_emission || flag_lights));
+	bool material_only = logic.merge_material && (!(logic.merge_ao || logic.merge_bounce || logic.merge_emission || logic.merge_lights));
 
 	// merge them both before applying noise reduction and seams
 	float gamma = 1.0f / (float)data.params[PARAM_GAMMA];
@@ -823,13 +823,13 @@ void LightMapper_Base::merge_to_combined() {
 					const FColor &light = _image_lightmap.get_item(x, y);
 					const FColor &emission = _image_emission.get_item(x, y);
 
-					total = flag_lights ? light : FColor::create(0);
-					if (flag_emission) {
+					total = logic.merge_lights ? light : FColor::create(0);
+					if (logic.merge_emission) {
 						total += emission * mult_emission;
 					}
 				}
 
-				if (_image_bounce.get_num_pixels() && flag_bounce) {
+				if (_image_bounce.get_num_pixels() && logic.merge_bounce) {
 					total += _image_bounce.get_item(x, y) * mult_bounce;
 				}
 
@@ -850,8 +850,8 @@ void LightMapper_Base::merge_to_combined() {
 						total.set(ao);
 					} break;
 					default: {
-						if (flag_ao) {
-							if (flag_lights || flag_emission || flag_bounce) {
+						if (logic.merge_ao) {
+							if (logic.merge_lights || logic.merge_emission || logic.merge_bounce) {
 								FColor applied = total * ao;
 								total.lerp(applied, light_AO_ratio);
 							} else {
@@ -882,7 +882,7 @@ void LightMapper_Base::merge_to_combined() {
 		}
 
 		// Glow and orig material.
-		if (flag_glow || flag_material) {
+		if (logic.merge_glow || logic.merge_material) {
 			for (int y = 0; y < _height; y++) {
 				if ((y % 256 == 0) && bake_step_function) {
 					bake_step_function(y / (float)_height, String("Merging Glow and Material"));
@@ -892,7 +892,7 @@ void LightMapper_Base::merge_to_combined() {
 					FColor &total = _image_main.get_item(x, y);
 					const FColor &glow = _image_glow.get_item(x, y);
 
-					if (flag_material) {
+					if (logic.merge_material) {
 						const Color &alb = _image_orig_material.get_item(x, y);
 
 						if (!material_only) {
@@ -904,7 +904,7 @@ void LightMapper_Base::merge_to_combined() {
 						}
 					}
 
-					if (flag_glow) {
+					if (logic.merge_glow) {
 						total += glow * mult_glow;
 					}
 				}

@@ -366,6 +366,13 @@ void LightMapper::refresh_process_state() {
 	logic.output_final = true;
 	logic.rasterize_mini_lists = true;
 
+	logic.merge_lights = data.params[PARAM_MERGE_FLAG_LIGHTS] == Variant(true);
+	logic.merge_ao = data.params[PARAM_MERGE_FLAG_AO] == Variant(true);
+	logic.merge_bounce = data.params[PARAM_MERGE_FLAG_BOUNCE] == Variant(true);
+	logic.merge_emission = data.params[PARAM_MERGE_FLAG_EMISSION] == Variant(true);
+	logic.merge_glow = data.params[PARAM_MERGE_FLAG_GLOW] == Variant(true);
+	logic.merge_material = (data.params[PARAM_MERGE_FLAG_MATERIAL] == Variant(true)) && _image_orig_material.get_num_pixels();
+
 	// process states
 	switch (settings.bake_mode) {
 		case LMBAKEMODE_PROBES: {
@@ -635,9 +642,12 @@ bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_ro
 			//write_output_image_AO(out_image_ao);
 
 			// save the images, png or exr
-			save_intermediate(logic.process_lightmap, settings.lightmap_filename, _image_lightmap);
-			save_intermediate(logic.process_emission, settings.emission_filename, _image_emission);
-			save_intermediate(logic.process_glow, settings.glow_filename, _image_glow);
+			if (logic.process_lightmap)
+				save_intermediate(logic.process_lightmap, settings.lightmap_filename, _image_lightmap);
+			if (logic.process_emission)
+				save_intermediate(logic.process_emission, settings.emission_filename, _image_emission);
+			if (logic.process_glow)
+				save_intermediate(logic.process_glow, settings.glow_filename, _image_glow);
 
 			// test convolution
 			//			Merge_AndWriteOutputImage_Combined(out_image_combined);
@@ -654,15 +664,21 @@ bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_ro
 			_scene.find_meshes(pMeshesRoot);
 
 			// load the lightmap and ao from disk
-			load_intermediate(settings.lightmap_filename, _image_lightmap);
-			load_intermediate(settings.emission_filename, _image_emission);
-			load_intermediate(settings.glow_filename, _image_glow);
-			load_intermediate(settings.orig_material_filename, _image_orig_material);
-			load_intermediate(settings.bounce_filename, _image_bounce);
+			if (logic.merge_lights)
+				load_intermediate(settings.lightmap_filename, _image_lightmap);
+			if (logic.merge_emission)
+				load_intermediate(settings.emission_filename, _image_emission);
+			if (logic.merge_glow)
+				load_intermediate(settings.glow_filename, _image_glow);
+			if (logic.merge_material)
+				load_intermediate(settings.orig_material_filename, _image_orig_material);
+			if (logic.merge_bounce)
+				load_intermediate(settings.bounce_filename, _image_bounce);
 
 			// Ensure AO is filled with 1 if not found.
 			_image_AO.create(_width, _height, 1);
-			load_intermediate(settings.AO_filename, _image_AO);
+			if (logic.merge_ao)
+				load_intermediate(settings.AO_filename, _image_AO);
 		}
 	}
 

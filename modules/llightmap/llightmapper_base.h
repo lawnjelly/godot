@@ -407,6 +407,13 @@ public:
 		bool process_probes = true;
 		bool rasterize_mini_lists = true;
 
+		bool merge_lights = true;
+		bool merge_ao = true;
+		bool merge_bounce = true;
+		bool merge_emission = true;
+		bool merge_glow = true;
+		bool merge_material = true;
+
 		bool output_final = true;
 	} logic;
 
