@@ -17,6 +17,16 @@ void LBitImage::destroy() {
 	_height = 0;
 }
 
+uint32_t LBitImage::count(bool p_count_set) const {
+	uint32_t count = 0;
+	for (uint32_t n = 0; n < get_num_pixels(); n++) {
+		if (_bf.get_bit(n))
+			count++;
+	}
+
+	return p_count_set ? count : get_num_pixels() - count;
+}
+
 Error LBitImage::load(String p_filename, uint8_t *r_extra_data, uint32_t *r_extra_data_size, uint32_t p_max_extra_data_size) {
 	print_line("Loading : " + p_filename);
 

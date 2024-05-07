@@ -799,9 +799,8 @@ void LightMapper_Base::merge_to_combined() {
 	//	bool flag_bounce = data.params[PARAM_MERGE_FLAG_BOUNCE] == Variant(true);
 	//	bool flag_emission = data.params[PARAM_MERGE_FLAG_EMISSION] == Variant(true);
 	//	bool flag_glow = data.params[PARAM_MERGE_FLAG_GLOW] == Variant(true);
-	//	bool flag_material = (data.params[PARAM_MERGE_FLAG_MATERIAL] == Variant(true)) && _image_orig_material.get_num_pixels();
-
-	bool material_only = logic.merge_material && (!(logic.merge_ao || logic.merge_bounce || logic.merge_emission || logic.merge_lights));
+	bool flag_material = logic.merge_material && _image_orig_material.get_num_pixels();
+	bool material_only = flag_material && (!(logic.merge_ao || logic.merge_bounce || logic.merge_emission || logic.merge_lights));
 
 	// merge them both before applying noise reduction and seams
 	float gamma = 1.0f / (float)data.params[PARAM_GAMMA];
@@ -883,7 +882,7 @@ void LightMapper_Base::merge_to_combined() {
 		}
 
 		// Glow and orig material.
-		if (logic.merge_glow || logic.merge_material) {
+		if (logic.merge_glow || flag_material) {
 			for (int y = 0; y < _height; y++) {
 				if ((y % 256 == 0) && bake_step_function) {
 					bake_step_function(y / (float)_height, String("Merging Glow and Material"));
@@ -893,7 +892,7 @@ void LightMapper_Base::merge_to_combined() {
 					FColor &total = _image_main.get_item(x, y);
 					const FColor &glow = _image_glow.get_item(x, y);
 
-					if (logic.merge_material) {
+					if (flag_material) {
 						const Color &alb = _image_orig_material.get_item(x, y);
 
 						if (!material_only) {

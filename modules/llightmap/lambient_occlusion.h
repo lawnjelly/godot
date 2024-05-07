@@ -11,12 +11,19 @@ class AmbientOcclusion : public RayBank {
 		uint32_t clear = 0;
 		uint32_t black = 0;
 		uint32_t processed = 0;
+
+		uint32_t middle = 0;
+		uint32_t non_middle = 0;
+
 		void reset() {
 			aborts = 0;
 			clear = 0;
 			black = 0;
 			processed = 0;
 			black_image_valid = false;
+
+			middle = 0;
+			non_middle = 0;
 		}
 		// Pixels that have no chance of intersections with ambient range.
 		LBitImage bitimage_clear;
@@ -144,7 +151,8 @@ protected:
 	}
 
 private:
-	bool AO_are_triangles_out_of_range(int p_tx, int p_ty, const MiniList &ml, float p_threshold_dist, AONearestResult &r_nearest) const;
+	bool AO_are_triangles_out_of_range(int p_tx, int p_ty, const MiniList &ml, float p_threshold_dist, AONearestResult &r_nearest);
+	bool _is_minilist_coplanar(const MiniList &p_ml) const;
 
 	int AO_find_sample_points(int tx, int ty, const MiniList &ml, AOSample samples[MAX_COMPLEX_AO_TEXEL_SAMPLES]);
 

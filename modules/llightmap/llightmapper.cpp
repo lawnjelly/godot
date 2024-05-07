@@ -371,7 +371,7 @@ void LightMapper::refresh_process_state() {
 	logic.merge_bounce = data.params[PARAM_MERGE_FLAG_BOUNCE] == Variant(true);
 	logic.merge_emission = data.params[PARAM_MERGE_FLAG_EMISSION] == Variant(true);
 	logic.merge_glow = data.params[PARAM_MERGE_FLAG_GLOW] == Variant(true);
-	logic.merge_material = (data.params[PARAM_MERGE_FLAG_MATERIAL] == Variant(true)) && _image_orig_material.get_num_pixels();
+	logic.merge_material = data.params[PARAM_MERGE_FLAG_MATERIAL] == Variant(true);
 
 	// process states
 	switch (settings.bake_mode) {

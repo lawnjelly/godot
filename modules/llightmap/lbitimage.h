@@ -47,6 +47,8 @@ public:
 
 	Error load(String p_filename, uint8_t *r_extra_data = nullptr, uint32_t *r_extra_data_size = nullptr, uint32_t p_max_extra_data_size = 0);
 	Error save(String p_filename, const uint8_t *p_extra_data = nullptr, uint32_t p_extra_data_size = 0);
+
+	uint32_t count(bool p_count_set = true) const;
 };
 
 } //namespace LM
