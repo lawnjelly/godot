@@ -364,9 +364,35 @@ float AmbientOcclusion::calculate_AO(int tx, int ty, int qmc_variation, const Mi
 
 	LightScene::RayTestHit test_hit;
 
+//#define LLIGHTMAP_AO_TEST_ONLY_MIDDLE
+#ifdef LLIGHTMAP_AO_TEST_ONLY_MIDDLE
+	Vector2 st;
+	AO_random_texel_sample(st, tx, ty, 0);
+
+	uint32_t tri_inside_id;
+	Vector3 bary;
+	if (!AO_find_texel_triangle(ml, st, tri_inside_id, bary)) {
+		// Doesn't matter, we are bodging here.
+		return 0;
+	}
+
+	// calculate world position ray origin from barycentric
+	_scene._tris[tri_inside_id].interpolate_barycentric(r.o, bary);
+
+	// Add a bias along the tri plane.
+	const Plane &tri_plane = _scene._tri_planes[tri_inside_id];
+	r.o += tri_plane.normal * adjusted_settings.surface_bias;
+
+	// calculate surface normal (should be use plane?)
+	Vector3 normal = tri_plane.normal;
+
+#endif
+
 	while (true) {
 		attempts++;
 		//	for (int n = 0; n < num_samples; n++) {
+
+#ifndef LLIGHTMAP_AO_TEST_ONLY_MIDDLE
 
 		// pick a float position within the texel
 		Vector2 st;
@@ -390,6 +416,9 @@ float AmbientOcclusion::calculate_AO(int tx, int ty, int qmc_variation, const Mi
 		// calculate surface normal (should be use plane?)
 		Vector3 normal = tri_plane.normal;
 		//_scene._tri_normals[tri_inside_id].interpolate_barycentric(normal = tri_plane.normal, bary);
+#else
+		num_samples_inside++;
+#endif
 
 		// construct a random ray to test
 		//AO_random_QMC_ray(r, normal = tri_plane.normal, attempts, qmc_variation);
