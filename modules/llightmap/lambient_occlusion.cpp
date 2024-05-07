@@ -59,15 +59,22 @@ void AmbientOcclusion::AO_load_or_calculate_bitimage_clear() {
 	}
 
 	err = data_ao.bitimage_clear.load(settings.AO_bitimage_clear_filename, (uint8_t *)&loaded_range, &loaded_bytes, sizeof(float));
-	if ((err == OK) && (loaded_range == adjusted_settings.AO_range)) {
-		if ((data_ao.bitimage_clear.get_width() == _width) && (data_ao.bitimage_clear.get_height() == _height)) {
-			// All done!
-			return;
-		}
+	Error err_middle = data_ao.bitimage_middle_only.load(settings.AO_bitimage_clear_filename);
+
+	// If the middle file doesn't exist, abort and recalculate all.
+	// Usually the clear file and the middle file will both be in sync.
+	if (err_middle != OK || !data_ao.bitimage_middle_only.dimensions_match(_width, _height)) {
+		err = ERR_BUG;
+	}
+
+	if ((err == OK) && (loaded_range == adjusted_settings.AO_range) && data_ao.bitimage_clear.dimensions_match(_width, _height)) {
+		// All done!
+		return;
 	}
 
 	// File didn't exist or was out of date etc.
 	data_ao.bitimage_clear.create(_width, _height);
+	data_ao.bitimage_middle_only.create(_width, _height);
 
 #ifdef LAMBIENT_OCCLUSION_USE_THREADS
 	//	int nCores = OS::get_singleton()->get_processor_count();
@@ -386,6 +393,8 @@ float AmbientOcclusion::calculate_AO(int tx, int ty, int qmc_variation, const Mi
 	// calculate surface normal (should be use plane?)
 	Vector3 normal = tri_plane.normal;
 
+	bool middle_only = data_ao.bitimage_middle_only.get_pixel(tx, ty);
+
 #endif
 
 	while (true) {
@@ -417,7 +426,27 @@ float AmbientOcclusion::calculate_AO(int tx, int ty, int qmc_variation, const Mi
 		Vector3 normal = tri_plane.normal;
 		//_scene._tri_normals[tri_inside_id].interpolate_barycentric(normal = tri_plane.normal, bary);
 #else
-		num_samples_inside++;
+		if (!middle_only) {
+			AO_random_texel_sample(st, tx, ty, attempts);
+
+			// find which triangle on the minilist we are inside (if any)
+			if (!AO_find_texel_triangle(ml, st, tri_inside_id, bary))
+				continue;
+
+			num_samples_inside++;
+
+			// calculate world position ray origin from barycentric
+			_scene._tris[tri_inside_id].interpolate_barycentric(r.o, bary);
+
+			// Add a bias along the tri plane.
+			const Plane &tri_plane = _scene._tri_planes[tri_inside_id];
+			r.o += tri_plane.normal * adjusted_settings.surface_bias;
+
+			// calculate surface normal (should be use plane?)
+			Vector3 normal = tri_plane.normal;
+		} else {
+			num_samples_inside++;
+		}
 #endif
 
 		// construct a random ray to test

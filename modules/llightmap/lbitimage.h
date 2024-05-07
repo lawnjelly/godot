@@ -16,6 +16,7 @@ public:
 	uint32_t get_num_pixels() const { return _bf.get_num_bits(); }
 	uint32_t get_width() const { return _width; }
 	uint32_t get_height() const { return _height; }
+	bool dimensions_match(uint32_t p_width, uint32_t p_height) const { return (_width == p_width) && (_height == p_height); }
 
 	uint32_t get_pixel_num(uint32_t p_x, uint32_t p_y) const { return (p_y * _width) + p_x; }
 	void blank(bool p_set_or_zero = false) { _bf.blank(p_set_or_zero); }

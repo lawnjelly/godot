@@ -18,8 +18,14 @@ class AmbientOcclusion : public RayBank {
 			processed = 0;
 			black_image_valid = false;
 		}
+		// Pixels that have no chance of intersections with ambient range.
 		LBitImage bitimage_clear;
 
+		// Pixels that can be simplified to sampling from the centre only (faster).
+		LBitImage bitimage_middle_only;
+
+		// Black image is pixels that have hits for every sample, aren't worth
+		// recalculating in subsequent renders.
 		bool black_image_valid = false;
 		LBitImage bitimage_black;
 	} data_ao;

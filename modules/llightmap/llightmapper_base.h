@@ -317,6 +317,7 @@ public:
 		String lightmap_filename;
 		String AO_filename;
 		String AO_bitimage_clear_filename;
+		String AO_bitimage_middle_filename;
 		String AO_bitimage_black_filename;
 		String emission_filename;
 		String glow_filename;
