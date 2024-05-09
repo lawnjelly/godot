@@ -23,6 +23,7 @@ void AmbientOcclusion::process_AO_texel(int tx, int ty, int qmc_variation) {
 		return;
 
 	const MiniList &ml = _image_tri_minilists.get_item(tx, ty);
+	DEV_ASSERT(ml.num);
 	//	if (!ml.num)
 	//		return; // no triangles in this UV
 
@@ -450,6 +451,9 @@ float AmbientOcclusion::calculate_AO(int tx, int ty, int qmc_variation, const Mi
 
 	LightScene::RayTestHit test_hit;
 
+	//	bool middle_only = data_ao.bitimage_middle_only.get_pixel(tx, ty);
+	bool middle_only = false;
+
 #define LLIGHTMAP_AO_TEST_ONLY_MIDDLE
 #ifdef LLIGHTMAP_AO_TEST_ONLY_MIDDLE
 	Vector2 st;
@@ -457,24 +461,21 @@ float AmbientOcclusion::calculate_AO(int tx, int ty, int qmc_variation, const Mi
 
 	uint32_t tri_inside_id;
 	Vector3 bary;
+	Vector3 normal;
 	if (!AO_find_texel_triangle(ml, st, tri_inside_id, bary)) {
-		// Doesn't matter, we are bodging here.
-		return 0;
+		middle_only = false;
+	} else {
+		// calculate world position ray origin from barycentric
+		_scene._tris[tri_inside_id].interpolate_barycentric(r.o, bary);
+
+		// Add a bias along the tri plane.
+		const Plane &tri_plane = _scene._tri_planes[tri_inside_id];
+		r.o += tri_plane.normal * adjusted_settings.surface_bias;
+
+		// calculate surface normal (should be use plane?)
+		normal = tri_plane.normal;
 	}
-
-	// calculate world position ray origin from barycentric
-	_scene._tris[tri_inside_id].interpolate_barycentric(r.o, bary);
-
-	// Add a bias along the tri plane.
-	const Plane &tri_plane = _scene._tri_planes[tri_inside_id];
-	r.o += tri_plane.normal * adjusted_settings.surface_bias;
-
-	// calculate surface normal (should be use plane?)
-	Vector3 normal = tri_plane.normal;
 #endif
-
-	//	bool middle_only = data_ao.bitimage_middle_only.get_pixel(tx, ty);
-	bool middle_only = false;
 
 	while (true) {
 		attempts++;
@@ -534,15 +535,19 @@ float AmbientOcclusion::calculate_AO(int tx, int ty, int qmc_variation, const Mi
 		generate_random_hemi_unit_dir(r.d, normal);
 
 		// test ray
+#if 0
 		if (_scene.test_intersect_ray_single(r, adjusted_settings.AO_range, test_hit)) {
 			num_hits++;
 		} else {
-			if (_scene.test_intersect_ray(r, adjusted_settings.AO_range, voxel_range, test_hit)) {
-				num_hits++;
-			} else {
-				test_hit.voxel_id = UINT32_MAX;
-			}
+#endif
+		if (_scene.test_intersect_ray(r, adjusted_settings.AO_range, voxel_range, test_hit)) {
+			num_hits++;
+		} else {
+			test_hit.voxel_id = UINT32_MAX;
 		}
+#if 0
+		}
+#endif
 
 		// fast zero hits
 		if (fast_approx_test && (num_samples_inside == 64)) {
