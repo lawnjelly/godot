@@ -13,6 +13,7 @@ public:
 	void create(uint32_t p_width, uint32_t p_height, bool p_blank = true);
 	void destroy();
 	void reset() { destroy(); }
+	void copy_from(const LBitImage &p_source);
 
 	uint32_t get_num_pixels() const { return _bf.get_num_bits(); }
 	uint32_t get_width() const { return _width; }
@@ -52,6 +53,7 @@ public:
 	Error save_png(String p_filename);
 
 	uint32_t count(bool p_count_set = true) const;
+	bool shrink_x2();
 };
 
 } //namespace LM

@@ -4,7 +4,7 @@
 namespace LM {
 
 void AmbientOcclusion::process_AO_clear_texel(int tx, int ty, AONearestResult &r_nearest) {
-	if (!_image_tri_ids_p1.get_item(tx, ty))
+	if (!_bitimages.coverage_partial.get_pixel(tx, ty))
 		return;
 
 	const MiniList &ml = _image_tri_minilists.get_item(tx, ty);
@@ -19,7 +19,7 @@ void AmbientOcclusion::process_AO_texel(int tx, int ty, int qmc_variation) {
 	//		print_line("test");
 
 	// Reclaimed?
-	if (!_image_tri_ids_p1.get_item(tx, ty))
+	if (!_bitimages.coverage_partial.get_pixel(tx, ty))
 		return;
 
 	const MiniList &ml = _image_tri_minilists.get_item(tx, ty);
@@ -615,7 +615,8 @@ float AmbientOcclusion::calculate_AO_complex(int tx, int ty, int qmc_variation, 
 	// if no good samples locs found
 	if (!nSampleLocs) {
 		// set to dilate
-		_image_tri_ids_p1.get_item(tx, ty) = 0;
+		_bitimages.coverage_partial.set_pixel(tx, ty, false);
+		_bitimages.coverage_reclaimed.set_pixel(tx, ty);
 		return 0.5f; // 0.5 could use an intermediate value for texture filtering to look better?
 	}
 

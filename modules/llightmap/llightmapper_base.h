@@ -152,32 +152,31 @@ protected:
 		void create(uint32_t p_width, uint32_t p_height) {
 			coverage_full.create(p_width, p_height);
 			coverage_partial.create(p_width, p_height);
-			coverage_dilate.create(p_width, p_height);
+			//coverage_dilate.create(p_width, p_height);
 			coverage_reclaimed.create(p_width, p_height);
 		}
 		void blank() {
 			coverage_full.blank();
 			coverage_partial.blank();
-			coverage_dilate.blank();
+			//coverage_dilate.blank();
 			coverage_reclaimed.blank();
 		}
 		void reset() {
 			coverage_full.reset();
 			coverage_partial.reset();
-			coverage_dilate.reset();
+			//coverage_dilate.reset();
 			coverage_reclaimed.reset();
 		}
 		LBitImage coverage_full;
 		LBitImage coverage_partial;
-		LBitImage coverage_dilate;
+		//LBitImage coverage_dilate;
 		LBitImage coverage_reclaimed;
 	} _bitimages;
 
+	// These are only set for full pixels.
+	// Check the bitimage partial, or the ml
+	// for partial coverage.
 	LightImage<uint32_t> _image_tri_ids_p1;
-
-#ifdef LLIGHTMAP_DEBUG_RECLAIMED_TEXELS
-	LightImage<uint8_t> _image_reclaimed_texels;
-#endif
 
 	// store multiple triangles per texel
 	LightImage<MiniList> _image_tri_minilists;
@@ -353,7 +352,9 @@ public:
 		String glow_filename;
 		String bounce_filename;
 		String orig_material_filename;
-		String tri_ids_filename;
+
+		String bitimage_tri_ids_filename;
+		String bitimage_tri_ids_filename_png;
 
 		String UV_filename;
 		//int UV_padding;

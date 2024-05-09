@@ -1,5 +1,6 @@
 #pragma once
 
+#include "lbitimage.h"
 #include "llightimage.h"
 #include "llighttypes.h"
 #include "lvector.h"
@@ -12,6 +13,7 @@ namespace LM {
 template <class T>
 class Dilate {
 public:
+#if 0
 	bool dilate_image(LightImage<T> &im, const LightImage<uint32_t> &orig_mask, unsigned int uiMaxDist) {
 		print_line("Dilating image");
 
@@ -24,6 +26,30 @@ public:
 		for (int y = 0; y < h; y++) {
 			for (int x = 0; x < w; x++) {
 				if (*orig_mask.get(x, y))
+					*mask.get(x, y) = 255;
+			}
+		}
+
+		LightImage<Vec2_i16> source_pts;
+		run(mask, &source_pts, uiMaxDist);
+
+		convert_final_image(im);
+		return true;
+	}
+#endif
+
+	bool dilate_image(LightImage<T> &im, const LBitImage &orig_mask, unsigned int uiMaxDist) {
+		print_line("Dilating image");
+
+		int w = im.get_width();
+		int h = im.get_height();
+
+		// construct mask
+		LightImage<uint8_t> mask;
+		mask.create(w, h, 0);
+		for (int y = 0; y < h; y++) {
+			for (int x = 0; x < w; x++) {
+				if (orig_mask.get_pixel(x, y))
 					*mask.get(x, y) = 255;
 			}
 		}

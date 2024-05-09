@@ -16,8 +16,8 @@ private:
 	void save_intermediates();
 
 private:
-	void save_tri_ids(const String &p_filename);
-	bool load_tri_ids(const String &p_filename);
+	void save_tri_ids();
+	bool load_tri_ids();
 	template <class T>
 	void save_intermediate(bool p_save, const String &p_filename, const LightImage<T> &p_lightimage);
 	template <class T>

@@ -1008,57 +1008,48 @@ void LightScene::thread_rasterize_triangle_ids(uint32_t p_tile, uint32_t *p_dumm
 
 					if (rtip.base->logic.rasterize_mini_lists)
 						rtip.temp_image_tris.get_item(x, y).push_back(n);
-					if (tri.contains_point(Vector2(s, t))) {
+
+					// BUG FIX.
+					// Add a small epsilon to catch border texels just outside triangle, but replace with
+					// a "better" triangle if there is one.
+					if (tri.contains_point(Vector2(s, t), 0.001f)) {
+						bool contains_absolutely = tri.contains_point(Vector2(s, t));
+
 						uint32_t &id_p1 = rtip.im_p1->get_item(x, y);
+						bool rasterize = (id_p1 == 0) || contains_absolutely;
 
-#ifdef LLIGHTMAP_DEBUG_RASTERIZE_OVERLAP
-						// hopefully this was 0 before
-						if (id_p1) {
-							debug_overlap_count++;
-							//						if (debug_overlap_count == 64)
-							//						{
-							//							print_line("overlap detected");
-							//						}
+						if (rasterize) {
+							// find barycentric coords
+							float u, v, w;
 
-							// store the overlapped ID in a second map
-							//im2_p1.GetItem(x, y) = id_p1;
-						}
-#endif
+							// note this returns NAN for degenerate triangles!
+							if (tri.find_barycentric_coords(Vector2(s, t), u, v, w)) {
+								// save new id AFTER making sure not degenerate.
+								id_p1 = n + 1;
 
-						// find barycentric coords
-						float u, v, w;
+								Vector3 &bary = rtip.im_bary->get_item(x, y);
+								bary = Vector3(u, v, w);
 
-						// note this returns NAN for degenerate triangles!
-						if (tri.find_barycentric_coords(Vector2(s, t), u, v, w)) {
-							// save new id AFTER making sure not degenerate.
-							id_p1 = n + 1;
+								if (is_emission_tri) {
+									Color &em_col = _image_emission_done.get_item(x, y);
 
-							//					DEV_ASSERT (!isnan(u));
-							//					DEV_ASSERT (!isnan(v));
-							//					DEV_ASSERT (!isnan(w));
+									if (_image_emission_done.get_item(x, y).a < 2) {
+										_emission_pixels.push_back(Vec2_i16(x, y));
+										em_col.a = 4;
+									}
 
-							Vector3 &bary = rtip.im_bary->get_item(x, y);
-							bary = Vector3(u, v, w);
+									// store the highest emission color
+									ColorSample cols;
+									take_triangle_color_sample(n, bary, cols);
 
-							if (is_emission_tri) {
-								Color &em_col = _image_emission_done.get_item(x, y);
+									em_col.r = MAX(em_col.r, cols.emission.r);
+									em_col.g = MAX(em_col.g, cols.emission.g);
+									em_col.b = MAX(em_col.b, cols.emission.b);
+								} // emission
+							} // is not degenerate
 
-								if (_image_emission_done.get_item(x, y).a < 2) {
-									_emission_pixels.push_back(Vec2_i16(x, y));
-									em_col.a = 4;
-								}
-
-								// store the highest emission color
-								ColorSample cols;
-								take_triangle_color_sample(n, bary, cols);
-
-								em_col.r = MAX(em_col.r, cols.emission.r);
-								em_col.g = MAX(em_col.g, cols.emission.g);
-								em_col.b = MAX(em_col.b, cols.emission.b);
-							} // emission
-						} // is not degenerate
-
-					} // contains point
+						} // rasterize
+					} // contains point with epsilon
 				} // contains texel
 
 			} // for x
@@ -1192,7 +1183,7 @@ bool LightScene::rasterize_triangles_ids(LightMapper_Base &base, LightImage<uint
 
 					// NEW 2024: Deal with no triangle ID being registered on this texel.
 					// For instance, if an edge of a triangle glances the texel, but is not covering the centre.
-#define LLIGHTMAP_SPREAD_AT_EDGES
+//#define LLIGHTMAP_SPREAD_AT_EDGES
 #ifdef LLIGHTMAP_SPREAD_AT_EDGES
 					if (im_p1.get_item(x, y) == 0) {
 						im_p1.get_item(x, y) = vec[0] + 1;

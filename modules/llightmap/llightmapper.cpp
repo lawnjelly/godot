@@ -205,17 +205,54 @@ bool LightMapper::load_intermediate(const String &p_filename, LightImage<T> &r_l
 	// Dilate after loading to allow merging.
 	if (data.params[PARAM_DILATE_ENABLED] == Variant(true)) {
 		LM::Dilate<T> dilate;
-		dilate.dilate_image(r_lightimage, _image_tri_ids_p1, 256);
+		dilate.dilate_image(r_lightimage, _bitimages.coverage_partial, 256);
 	}
 
 	return true;
 }
 
-bool LightMapper::load_tri_ids(const String &p_filename) {
-	if (!_image_tri_ids_p1.get_num_pixels()) {
-		_image_tri_ids_p1.create(_width, _height);
+bool LightMapper::load_tri_ids() {
+	// Not sure necessary now we are using bitimages instead for dilation.
+	// TODO.
+	//	if (!_image_tri_ids_p1.get_num_pixels()) {
+	//		_image_tri_ids_p1.create(_width, _height);
+	//	}
+
+	LBitImage &image = _bitimages.coverage_partial;
+	const String &filename = settings.bitimage_tri_ids_filename;
+
+	Error res = image.load(filename);
+	if (res != OK) {
+		show_warning("Loading tri_ids failed.\n\n" + filename);
+		image.create(_width, _height);
+		return false;
 	}
 
+	while (true) {
+		int iw = image.get_width();
+		int ih = image.get_height();
+
+		if ((iw == _width) && (ih == _height)) {
+			// Correct dimensions.
+			break;
+		}
+		if ((iw < _width) || (ih < _height)) {
+			show_warning("Loaded file dimensions are smaller than project, ignoring.\n\n" + filename);
+			image.create(_width, _height);
+			return false;
+		}
+
+		print_line(filename + " is too large. Attempting to shrink to project dimensions.");
+		// Image is too big, try resizing.
+		if (!image.shrink_x2())
+			return false;
+	}
+
+	return true;
+}
+
+#if 0
+	
 	Ref<Image> image = memnew(Image());
 
 	Error res = image->load(p_filename);
@@ -260,8 +297,13 @@ bool LightMapper::load_tri_ids(const String &p_filename) {
 
 	return true;
 }
+#endif
 
-void LightMapper::save_tri_ids(const String &p_filename) {
+void LightMapper::save_tri_ids() {
+	_bitimages.coverage_partial.save(settings.bitimage_tri_ids_filename);
+	_bitimages.coverage_partial.save_png(settings.bitimage_tri_ids_filename_png);
+
+#if 0	
 	DEV_ASSERT(_image_tri_ids_p1.get_num_pixels());
 	Ref<Image> image = memnew(Image(_width, _height, false, Image::FORMAT_L8));
 
@@ -280,6 +322,7 @@ void LightMapper::save_tri_ids(const String &p_filename) {
 	if (err != OK) {
 		OS::get_singleton()->alert("Error writing tri_ids PNG file. Does this folder exist?\n\n" + global_path, "WARNING");
 	}
+#endif
 }
 
 template <class T>
@@ -441,7 +484,7 @@ bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_ro
 
 	if (!create_scene) {
 		// If tri ids file is missing, recreate from scratch.
-		if (!load_tri_ids(settings.tri_ids_filename)) {
+		if (!load_tri_ids()) {
 			create_scene = true;
 		}
 	}
@@ -493,7 +536,7 @@ bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_ro
 		_AA_create_kernel();
 		_AA_reclaim_texels();
 
-		save_tri_ids(settings.tri_ids_filename);
+		save_tri_ids();
 	}
 
 	if (logic.process_orig_material) {
@@ -2168,6 +2211,10 @@ void LightMapper::_AA_reclaim_texels() {
 
 			ml.kernel_coverage = found;
 
+			if (ml.kernel_coverage == _aa_kernel_f.size()) {
+				_bitimages.coverage_full.set_pixel(x, y);
+			}
+
 			if (found < threshold) {
 				// Reclaim!
 				//print_line("Reclaiming texel " + itos(x) + ", " + itos(y));
@@ -2175,6 +2222,8 @@ void LightMapper::_AA_reclaim_texels() {
 				// NEW : Re-mark as unused, dilate to this texel, to prevent it being black.
 				_image_tri_ids_p1.get_item(x, y) = 0;
 				_bitimages.coverage_reclaimed.set_pixel(x, y);
+			} else {
+				_bitimages.coverage_partial.set_pixel(x, y);
 			}
 		}
 	}
@@ -2210,7 +2259,8 @@ void LightMapper::AA_BF_process_texel(int p_tx, int p_ty) {
 		return; // no triangles in this UV
 
 	// Reclaimed already?
-	if (_image_tri_ids_p1.get_item(p_tx, p_ty) == 0)
+	if (!_bitimages.coverage_partial.get_pixel(p_tx, p_ty))
+		//if (_image_tri_ids_p1.get_item(p_tx, p_ty) == 0)
 		return; // No triangles intersect the AA kernel.
 
 	int aa_size = adjusted_settings.antialias_samples_width;

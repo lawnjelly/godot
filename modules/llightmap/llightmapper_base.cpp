@@ -704,7 +704,9 @@ void LightMapper_Base::Settings::set_images_filename(String p_filename) {
 	glow_filename = image_filename_base + "glow.exr";
 	orig_material_filename = image_filename_base + "material.exr";
 	bounce_filename = image_filename_base + "bounce.exr";
-	tri_ids_filename = image_filename_base + "coverage.png";
+
+	bitimage_tri_ids_filename = image_filename_base + "coverage.biti";
+	bitimage_tri_ids_filename_png = image_filename_base + "coverage.png";
 }
 
 #if 0
@@ -877,7 +879,7 @@ void LightMapper_Base::merge_to_combined() {
 
 			// Dilate to make sure noise reduction has good stuff to work with.
 			Dilate<FColor> dilate;
-			dilate.dilate_image(_image_main, _image_tri_ids_p1, 256);
+			dilate.dilate_image(_image_main, _bitimages.coverage_partial, 256);
 
 			// Noise Reduction.
 			apply_noise_reduction();
@@ -1003,7 +1005,7 @@ void LightMapper_Base::merge_to_combined() {
 		}
 
 		Dilate<FColor> dilate;
-		dilate.dilate_image(_image_main, _image_tri_ids_p1, 256);
+		dilate.dilate_image(_image_main, _bitimages.coverage_partial, 256);
 	}
 
 	if (data.params[PARAM_SEAM_STITCHING_ENABLED]) {
@@ -1020,12 +1022,12 @@ void LightMapper_Base::merge_to_combined() {
 }
 
 void LightMapper_Base::_mark_dilated_area(LightImage<FColor> &r_image) {
-	if (!_image_tri_ids_p1.get_num_pixels()) {
+	if (!_bitimages.coverage_partial.get_num_pixels()) {
 		return;
 	}
 	for (uint32_t y = 0; y < _height; y++) {
 		for (uint32_t x = 0; x < _width; x++) {
-			if (_image_tri_ids_p1.get_item(x, y) == 0) {
+			if (_bitimages.coverage_partial.get_pixel(x, y)) {
 				FColor &fcol = r_image.get_item(x, y);
 #ifdef LLIGHTMAP_DEBUG_RECLAIMED_TEXELS
 				if (_bitimages.coverage_reclaimed.get_pixel(x, y)) {
@@ -1080,12 +1082,13 @@ bool LightMapper_Base::load_texel_data(int32_t p_x, int32_t p_y, uint32_t &r_tri
 
 	// barycentric
 	const Vector3 &bary = _image_barycentric.get_item(p_x, p_y);
+	DEV_ASSERT(bary != Vector3(0, 0, 0));
 
 	// zero barycentric is invalid, and it may have been set incorrectly
 	// if the triangle id is only covering e.g. a corner.
-	if (bary == Vector3(0, 0, 0)) {
-		return false;
-	}
+	//	if (bary == Vector3(0, 0, 0)) {
+	//		return false;
+	//	}
 
 	*r_bary = &bary;
 

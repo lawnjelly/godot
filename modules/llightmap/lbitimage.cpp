@@ -18,6 +18,40 @@ void LBitImage::destroy() {
 	_height = 0;
 }
 
+void LBitImage::copy_from(const LBitImage &p_source) {
+	_bf.copy_from(p_source._bf);
+	_width = p_source.get_width();
+	_height = p_source.get_height();
+}
+
+bool LBitImage::shrink_x2() {
+	if (!get_num_pixels())
+		return false;
+	if ((_width % 2) != 0)
+		return false;
+	if ((_height % 2) != 0)
+		return false;
+
+	LBitImage temp;
+	temp.copy_from(*this);
+
+	create(_width / 2, _height / 2);
+
+	for (uint32_t y = 0; y < _height; y++) {
+		uint32_t yy = y * 2;
+
+		for (uint32_t x = 0; x < _width; x++) {
+			uint32_t xx = x * 2;
+
+			if (temp.get_pixel(xx, yy, false)) {
+				set_pixel(x, y);
+			}
+		}
+	}
+
+	return true;
+}
+
 uint32_t LBitImage::count(bool p_count_set) const {
 	uint32_t count = 0;
 	for (uint32_t n = 0; n < get_num_pixels(); n++) {
