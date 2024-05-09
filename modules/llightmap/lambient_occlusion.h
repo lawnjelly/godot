@@ -1,6 +1,5 @@
 #pragma once
 
-#include "lbitimage.h"
 #include "lraybank.h"
 
 namespace LM {

@@ -12,6 +12,7 @@ class LBitImage {
 public:
 	void create(uint32_t p_width, uint32_t p_height, bool p_blank = true);
 	void destroy();
+	void reset() { destroy(); }
 
 	uint32_t get_num_pixels() const { return _bf.get_num_bits(); }
 	uint32_t get_width() const { return _width; }
@@ -37,7 +38,7 @@ public:
 		uint32_t p = get_pixel_num(p_x, p_y);
 		return _bf.get_bit(p) != 0;
 	}
-	void set_pixel(int32_t p_x, int32_t p_y, bool p_set, bool p_checked = true) {
+	void set_pixel(int32_t p_x, int32_t p_y, bool p_set = true, bool p_checked = true) {
 		if (p_checked) {
 			ERR_FAIL_COND(!is_within(p_x, p_y));
 		}
@@ -47,6 +48,8 @@ public:
 
 	Error load(String p_filename, uint8_t *r_extra_data = nullptr, uint32_t *r_extra_data_size = nullptr, uint32_t p_max_extra_data_size = 0);
 	Error save(String p_filename, const uint8_t *p_extra_data = nullptr, uint32_t p_extra_data_size = 0);
+
+	Error save_png(String p_filename);
 
 	uint32_t count(bool p_count_set = true) const;
 };

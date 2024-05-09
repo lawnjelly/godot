@@ -452,9 +452,8 @@ bool LightMapper::_lightmap_meshes(Spatial *pMeshesRoot, const Spatial &light_ro
 		uint32_t before, after;
 
 		_image_tri_ids_p1.create(_width, _height);
-#ifdef LLIGHTMAP_DEBUG_RECLAIMED_TEXELS
-		_image_reclaimed_texels.create(_width, _height);
-#endif
+		_bitimages.create(_width, _height);
+
 		if (logic.rasterize_mini_lists) {
 			_image_tri_minilists.create(_width, _height);
 			_minilist_tri_ids.clear(true);
@@ -2175,9 +2174,7 @@ void LightMapper::_AA_reclaim_texels() {
 
 				// NEW : Re-mark as unused, dilate to this texel, to prevent it being black.
 				_image_tri_ids_p1.get_item(x, y) = 0;
-#ifdef LLIGHTMAP_DEBUG_RECLAIMED_TEXELS
-				_image_reclaimed_texels.get_item(x, y) = 255;
-#endif
+				_bitimages.coverage_reclaimed.set_pixel(x, y);
 			}
 		}
 	}
@@ -2330,9 +2327,7 @@ void LightMapper::AA_BF_process_texel(int p_tx, int p_ty) {
 		//print_line("No AA samples inside a tri for " + itos(p_tx) + ", " + itos(p_ty));
 		// NEW : Re-mark as unused, dilate to this texel, to prevent it being black.
 		_image_tri_ids_p1.get_item(p_tx, p_ty) = 0;
-#ifdef LLIGHTMAP_DEBUG_RECLAIMED_TEXELS
-		_image_reclaimed_texels.get_item(p_tx, p_ty) = 255;
-#endif
+		_bitimages.coverage_reclaimed.set_pixel(p_tx, p_ty);
 #endif
 		return;
 	}

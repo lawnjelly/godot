@@ -4,6 +4,8 @@
 namespace LM {
 
 void QMC::create(int num_samples) {
+	return;
+
 	_current_variation = 0;
 	_group.samples.resize(num_samples);
 

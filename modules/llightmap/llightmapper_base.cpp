@@ -148,10 +148,9 @@ void LightMapper_Base::base_reset() {
 	_image_glow.reset();
 	_image_bounce.reset();
 
+	_bitimages.reset();
+
 	_image_tri_ids_p1.reset();
-#ifdef LLIGHTMAP_DEBUG_RECLAIMED_TEXELS
-	_image_reclaimed_texels.reset();
-#endif
 	_image_tri_minilists.reset();
 
 	_minilist_tri_ids.clear(true);
@@ -550,9 +549,7 @@ void LightMapper_Base::light_to_plane(LLight &light) {
 
 bool LightMapper_Base::prepare_image_maps() {
 	_image_tri_ids_p1.blank();
-#ifdef LLIGHTMAP_DEBUG_RECLAIMED_TEXELS
-	_image_reclaimed_texels.blank();
-#endif
+	_bitimages.blank();
 
 	// rasterize each triangle in turn
 	//m_Scene.RasterizeTriangleIDs(*this, m_Image_ID_p1, m_Image_ID2_p1, m_Image_Barycentric);
@@ -695,9 +692,14 @@ void LightMapper_Base::Settings::set_images_filename(String p_filename) {
 
 	lightmap_filename = image_filename_base + "lightmap.exr";
 	AO_filename = image_filename_base + "ao.exr";
+
 	AO_bitimage_clear_filename = image_filename_base + "ao_clear.biti";
 	AO_bitimage_middle_filename = image_filename_base + "ao_middle.biti";
 	AO_bitimage_black_filename = image_filename_base + "ao_black.biti";
+	AO_bitimage_clear_filename_png = image_filename_base + "ao_clear.png";
+	AO_bitimage_middle_filename_png = image_filename_base + "ao_middle.png";
+	AO_bitimage_black_filename_png = image_filename_base + "ao_black.png";
+
 	emission_filename = image_filename_base + "emission.exr";
 	glow_filename = image_filename_base + "glow.exr";
 	orig_material_filename = image_filename_base + "material.exr";
@@ -1026,7 +1028,7 @@ void LightMapper_Base::_mark_dilated_area(LightImage<FColor> &r_image) {
 			if (_image_tri_ids_p1.get_item(x, y) == 0) {
 				FColor &fcol = r_image.get_item(x, y);
 #ifdef LLIGHTMAP_DEBUG_RECLAIMED_TEXELS
-				if (_image_reclaimed_texels.get_item(x, y) == 0) {
+				if (_bitimages.coverage_reclaimed.get_pixel(x, y)) {
 					fcol.set(1, 0, 1);
 				} else {
 					fcol.set(1, 0, 0);
@@ -1040,6 +1042,9 @@ void LightMapper_Base::_mark_dilated_area(LightImage<FColor> &r_image) {
 }
 
 void LightMapper_Base::_load_texel_data(uint32_t p_tri_id, const Vector3 &p_bary, Vector3 &r_pos_pushed, Vector3 &r_normal, const Vector3 **r_plane_normal) const {
+	// This is invalid bary, and should never happen.
+	DEV_ASSERT(p_bary != Vector3(0, 0, 0));
+
 	// new .. cap the barycentric to prevent edge artifacts
 	const float clamp_margin = 0.0001f;
 	const float clamp_margin_high = 1.0f - clamp_margin;
@@ -1075,6 +1080,13 @@ bool LightMapper_Base::load_texel_data(int32_t p_x, int32_t p_y, uint32_t &r_tri
 
 	// barycentric
 	const Vector3 &bary = _image_barycentric.get_item(p_x, p_y);
+
+	// zero barycentric is invalid, and it may have been set incorrectly
+	// if the triangle id is only covering e.g. a corner.
+	if (bary == Vector3(0, 0, 0)) {
+		return false;
+	}
+
 	*r_bary = &bary;
 
 	_load_texel_data(r_tri_id, bary, r_pos_pushed, r_normal, r_plane_normal);

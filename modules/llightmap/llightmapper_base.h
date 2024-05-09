@@ -1,6 +1,7 @@
 #pragma once
 
 #include "latomic.h"
+#include "lbitimage.h"
 #include "llightimage.h"
 #include "llightscene.h"
 #include "lqmc.h"
@@ -147,7 +148,31 @@ protected:
 	LightImage<float> _image_AO;
 	LightImage<Color> _image_orig_material;
 
-	// just in case of overlapping triangles, for anti aliasing we will maintain 2 lists of triangles per pixel
+	struct BitImages {
+		void create(uint32_t p_width, uint32_t p_height) {
+			coverage_full.create(p_width, p_height);
+			coverage_partial.create(p_width, p_height);
+			coverage_dilate.create(p_width, p_height);
+			coverage_reclaimed.create(p_width, p_height);
+		}
+		void blank() {
+			coverage_full.blank();
+			coverage_partial.blank();
+			coverage_dilate.blank();
+			coverage_reclaimed.blank();
+		}
+		void reset() {
+			coverage_full.reset();
+			coverage_partial.reset();
+			coverage_dilate.reset();
+			coverage_reclaimed.reset();
+		}
+		LBitImage coverage_full;
+		LBitImage coverage_partial;
+		LBitImage coverage_dilate;
+		LBitImage coverage_reclaimed;
+	} _bitimages;
+
 	LightImage<uint32_t> _image_tri_ids_p1;
 
 #ifdef LLIGHTMAP_DEBUG_RECLAIMED_TEXELS
@@ -319,6 +344,11 @@ public:
 		String AO_bitimage_clear_filename;
 		String AO_bitimage_middle_filename;
 		String AO_bitimage_black_filename;
+
+		String AO_bitimage_clear_filename_png;
+		String AO_bitimage_middle_filename_png;
+		String AO_bitimage_black_filename_png;
+
 		String emission_filename;
 		String glow_filename;
 		String bounce_filename;

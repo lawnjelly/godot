@@ -1,4 +1,5 @@
 #include "lbitimage.h"
+#include "core/image.h"
 #include "core/os/file_access.h"
 #include "core/project_settings.h"
 
@@ -102,6 +103,34 @@ Error LBitImage::load(String p_filename, uint8_t *r_extra_data, uint32_t *r_extr
 
 cleanup:
 	memdelete(f);
+	return err;
+}
+
+Error LBitImage::save_png(String p_filename) {
+	if (p_filename.get_extension() != "png") {
+		return ERR_FILE_BAD_PATH;
+	}
+
+	Ref<Image> image = memnew(Image(get_width(), get_height(), false, Image::FORMAT_L8));
+
+	image->lock();
+
+	for (uint32_t y = 0; y < _height; y++) {
+		for (uint32_t x = 0; x < _width; x++) {
+			bool set = get_pixel(x, y);
+			image->set_pixel(x, y, set ? Color(1, 1, 1, 1) : Color(0, 0, 0, 0));
+		}
+	}
+	image->unlock();
+
+	String global_path = ProjectSettings::get_singleton()->globalize_path(p_filename);
+	print_line("saving BitImage .. global path : " + global_path);
+
+	Error err = image->save_png(global_path);
+
+	if (err != OK)
+		OS::get_singleton()->alert("Error writing PNG file. Does this folder exist?\n\n" + global_path, "WARNING");
+
 	return err;
 }
 

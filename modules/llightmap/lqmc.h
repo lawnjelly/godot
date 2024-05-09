@@ -21,6 +21,7 @@ class QMC {
 public:
 	void create(int num_samples);
 	void QMC_random_unit_dir(Vector3 &dir, int count, int variation) const {
+		DEV_ASSERT(0); // compiled out at the moment
 		dir = _group.samples[count].dir[variation];
 	}
 	int get_next_variation(int previous) const;
@@ -29,7 +30,7 @@ public:
 private:
 	void generate_variation(Group &group, int var);
 
-	int _current_variation;
+	int _current_variation = 0;
 	Group _group;
 };
 

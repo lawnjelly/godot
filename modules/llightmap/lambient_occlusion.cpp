@@ -77,7 +77,8 @@ void AmbientOcclusion::AO_load_or_calculate_bitimage_clear() {
 	data_ao.bitimage_clear.create(_width, _height);
 	data_ao.bitimage_middle_only.create(_width, _height);
 
-#ifdef LAMBIENT_OCCLUSION_USE_THREADS
+#if 0
+//#ifdef LAMBIENT_OCCLUSION_USE_THREADS
 	//	int nCores = OS::get_singleton()->get_processor_count();
 	int nSections = _height / 16; // 64
 	if (!nSections)
@@ -108,11 +109,11 @@ void AmbientOcclusion::AO_load_or_calculate_bitimage_clear() {
 		thread_process_array(nLeftover, this, &AmbientOcclusion::process_AO_clear_line_MT, leftover_start);
 #else
 
-	for (int y = 0; y < m_iHeight; y++) {
+	for (int y = 0; y < _height; y++) {
 		if ((y % 10) == 0) {
 			if (bake_step_function) {
-				m_bCancel = bake_step_function(y, String("Building Clear BitImage for Texels: ") + " (" + itos(y) + ")");
-				if (m_bCancel) {
+				_pressed_cancel = bake_step_function(y, String("Building Clear BitImage for Texels: ") + " (" + itos(y) + ")");
+				if (_pressed_cancel) {
 					if (bake_end_function) {
 						bake_end_function();
 					}
@@ -121,7 +122,7 @@ void AmbientOcclusion::AO_load_or_calculate_bitimage_clear() {
 			}
 		}
 
-		ProcessAO_clear_LineMT(0, y);
+		process_AO_clear_line_MT(0, y);
 	}
 #endif
 
@@ -132,9 +133,11 @@ void AmbientOcclusion::AO_load_or_calculate_bitimage_clear() {
 	// Save clear
 	err = data_ao.bitimage_clear.save(settings.AO_bitimage_clear_filename, (uint8_t *)&saved_range, sizeof(float));
 	ERR_FAIL_COND_MSG(err != OK, "Error saving AO clear BitImage.");
+	err = data_ao.bitimage_clear.save_png(settings.AO_bitimage_clear_filename_png);
 
 	err = data_ao.bitimage_middle_only.save(settings.AO_bitimage_middle_filename);
 	ERR_FAIL_COND_MSG(err != OK, "Error saving AO middle BitImage.");
+	err = data_ao.bitimage_middle_only.save_png(settings.AO_bitimage_middle_filename_png);
 }
 
 void AmbientOcclusion::process_AO() {
@@ -264,6 +267,12 @@ bool AmbientOcclusion::_is_minilist_coplanar(const MiniList &p_ml) const {
 }
 
 bool AmbientOcclusion::AO_are_triangles_out_of_range(int p_tx, int p_ty, const MiniList &ml, float p_threshold_dist, AONearestResult &r_nearest) {
+	if ((p_tx != 275) || (p_ty != 359))
+	//	if ((p_tx != 274) || (p_ty != 359))
+	{
+		return false;
+	}
+
 	bool nearest_was_valid = r_nearest.valid;
 	r_nearest.valid = false;
 
@@ -281,11 +290,11 @@ bool AmbientOcclusion::AO_are_triangles_out_of_range(int p_tx, int p_ty, const M
 	}
 
 	uint32_t tri_id = 0;
-	Vector3 pos;
+	Vector3 pos_pushed;
 	Vector3 normal;
 	const Vector3 *bary = nullptr;
 	const Vector3 *plane_normal = nullptr;
-	if (!load_texel_data(p_tx, p_ty, tri_id, &bary, pos, normal, &plane_normal)) {
+	if (!load_texel_data(p_tx, p_ty, tri_id, &bary, pos_pushed, normal, &plane_normal)) {
 		return false;
 	}
 
@@ -313,17 +322,34 @@ bool AmbientOcclusion::AO_are_triangles_out_of_range(int p_tx, int p_ty, const M
 		// Else recalculate everything.
 	}
 
-	float threshold_dist_sq = p_threshold_dist * p_threshold_dist;
 #endif
+	float threshold_dist_sq = p_threshold_dist * p_threshold_dist;
 
-	Plane plane(pos + (*plane_normal * adjusted_settings.surface_bias), *plane_normal);
+	//Plane plane(pos_pushed + (*plane_normal * adjusted_settings.surface_bias), *plane_normal);
+	Plane plane(pos_pushed, *plane_normal);
+
+	// Debug check the plane is matching up to the triangle, we were getting some bugs due to this.
+#ifdef DEV_ENABLED
+	const Tri &orig_tri = _scene._tris[tri_id];
+	Plane test_plane = orig_tri.calculate_plane();
+	DEV_ASSERT(test_plane.is_equal_approx(plane));
+#endif
 
 	int num_tris = _scene._tris.size();
 
-	r_nearest.nearest_tri_distance = FLT_MAX;
+	r_nearest.nearest_tri_distance = threshold_dist_sq;
 	r_nearest.tri_id = UINT32_MAX;
 
 	for (int n = 0; n < num_tris; n++) {
+		if (n != 73234)
+			continue;
+		// 73234
+
+		print_line("orig tri " + itos(tri_id) + " " + _scene._tris[tri_id].to_string());
+		print_line("against triangle " + itos(n));
+		print_line("against plane " + String(Variant(plane)));
+		print_line("ml num is " + itos(ml.num));
+
 		if (n == tri_id)
 			continue;
 
@@ -342,9 +368,13 @@ bool AmbientOcclusion::AO_are_triangles_out_of_range(int p_tx, int p_ty, const M
 				front_count++;
 		}
 
+		print_line("front_count " + itos(front_count));
+
 		if (front_count == 0) {
 			continue;
 		}
+
+		print_line("plane_dist " + String(Variant(plane_dist)));
 
 		// Anything further than the ambient threshold distance can be ignored.
 		if (plane_dist > p_threshold_dist) {
@@ -352,8 +382,10 @@ bool AmbientOcclusion::AO_are_triangles_out_of_range(int p_tx, int p_ty, const M
 		}
 
 		// Anything in the goldilocks zone, we must calculate the distance to the closest point on the triangle (expensive).
-		Vector3 closest_pt = closest_point_in_triangle(pos, tri.pos[0], tri.pos[1], tri.pos[2]);
-		float dist = pos.distance_squared_to(closest_pt);
+		Vector3 closest_pt = closest_point_in_triangle(pos_pushed, tri.pos[0], tri.pos[1], tri.pos[2]);
+		float dist = pos_pushed.distance_squared_to(closest_pt);
+		DEV_ASSERT(!Math::is_nan(dist));
+		DEV_ASSERT(!Math::is_inf(dist));
 
 		if (dist < r_nearest.nearest_tri_distance) {
 			r_nearest.nearest_tri_distance = dist;
@@ -380,7 +412,7 @@ bool AmbientOcclusion::AO_are_triangles_out_of_range(int p_tx, int p_ty, const M
 
 #ifdef LLIGHTMAP_AO_CALCULATE_MIDDLE_IMAGE
 	// Within middle distance?
-	if (r_nearest.nearest_tri_distance > 0.01f) {
+	if (r_nearest.nearest_tri_distance > 0.1f) {
 		data_ao.bitimage_middle_only.set_pixel(p_tx, p_ty, true);
 		data_ao.middle++;
 	} else {
@@ -393,7 +425,7 @@ bool AmbientOcclusion::AO_are_triangles_out_of_range(int p_tx, int p_ty, const M
 		r_nearest.valid = true;
 		//r_nearest.nearest_tri_distance = closest_dist;
 		//r_nearest.tri_id = tri_id;
-		r_nearest.pos = pos;
+		r_nearest.pos = pos_pushed;
 		return false;
 	}
 #endif
@@ -408,6 +440,8 @@ bool AmbientOcclusion::AO_are_triangles_out_of_range(int p_tx, int p_ty, const M
 }
 
 float AmbientOcclusion::calculate_AO(int tx, int ty, int qmc_variation, const MiniList &ml) {
+	return 0;
+
 	// Debugging, fast version.
 	//	Vector2i diff(500, 100);
 	//	diff.x -= tx;
@@ -452,26 +486,30 @@ float AmbientOcclusion::calculate_AO(int tx, int ty, int qmc_variation, const Mi
 	LightScene::RayTestHit test_hit;
 
 	/////////////////////////////////////////////////////////////
-	bool middle_only = data_ao.bitimage_middle_only.get_pixel(tx, ty);
+	//bool middle_only = data_ao.bitimage_middle_only.get_pixel(tx, ty);
+	bool middle_only = false;
 
 	Vector2 st;
-	AO_random_texel_sample(st, tx, ty, 0);
-
 	uint32_t tri_inside_id;
 	Vector3 bary;
 	Vector3 normal;
-	if (!AO_find_texel_triangle(ml, st, tri_inside_id, bary)) {
-		middle_only = false;
-	} else {
-		// calculate world position ray origin from barycentric
-		_scene._tris[tri_inside_id].interpolate_barycentric(r.o, bary);
 
-		// Add a bias along the tri plane.
-		const Plane &tri_plane = _scene._tri_planes[tri_inside_id];
-		r.o += tri_plane.normal * adjusted_settings.surface_bias;
+	if (middle_only) {
+		AO_random_texel_sample(st, tx, ty, 0);
 
-		// calculate surface normal (should be use plane?)
-		normal = tri_plane.normal;
+		if (!AO_find_texel_triangle(ml, st, tri_inside_id, bary)) {
+			middle_only = false;
+		} else {
+			// calculate world position ray origin from barycentric
+			_scene._tris[tri_inside_id].interpolate_barycentric(r.o, bary);
+
+			// Add a bias along the tri plane.
+			const Plane &tri_plane = _scene._tri_planes[tri_inside_id];
+			r.o += tri_plane.normal * adjusted_settings.surface_bias;
+
+			// calculate surface normal (should be use plane?)
+			normal = tri_plane.normal;
+		}
 	}
 
 	/////////////////////////////////////////////////////////////

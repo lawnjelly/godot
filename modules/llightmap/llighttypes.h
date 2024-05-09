@@ -122,6 +122,9 @@ public:
 		norm = -e0.cross(e1);
 		norm.normalize();
 	}
+	Plane calculate_plane() const {
+		return Plane(pos[0], pos[1], pos[2]);
+	}
 	void convert_to_edge_form() {
 		Tri t = *this;
 		// b - a
@@ -143,6 +146,10 @@ public:
 
 		Vector3 vec = edge1.cross(edge2);
 		return vec.length_squared();
+	}
+
+	String to_string() {
+		return ("( " + String(Variant(pos[0])) + ", " + String(Variant(pos[1])) + ", " + String(Variant(pos[2])) + " )");
 	}
 };
 
