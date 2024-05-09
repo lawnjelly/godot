@@ -417,7 +417,7 @@ float AmbientOcclusion::calculate_AO(int tx, int ty, int qmc_variation, const Mi
 	//		return 0;
 	//	}
 
-#if 0
+#if 1
 	if (data_ao.bitimage_clear.get_pixel(tx, ty)) {
 		//	if (AO_are_triangles_out_of_range(tx, ty, ml, adjusted_settings.AO_range, r_nearest)) {
 		data_ao.clear++;
@@ -451,11 +451,9 @@ float AmbientOcclusion::calculate_AO(int tx, int ty, int qmc_variation, const Mi
 
 	LightScene::RayTestHit test_hit;
 
-	//	bool middle_only = data_ao.bitimage_middle_only.get_pixel(tx, ty);
-	bool middle_only = false;
+	/////////////////////////////////////////////////////////////
+	bool middle_only = data_ao.bitimage_middle_only.get_pixel(tx, ty);
 
-#define LLIGHTMAP_AO_TEST_ONLY_MIDDLE
-#ifdef LLIGHTMAP_AO_TEST_ONLY_MIDDLE
 	Vector2 st;
 	AO_random_texel_sample(st, tx, ty, 0);
 
@@ -475,38 +473,12 @@ float AmbientOcclusion::calculate_AO(int tx, int ty, int qmc_variation, const Mi
 		// calculate surface normal (should be use plane?)
 		normal = tri_plane.normal;
 	}
-#endif
 
+	/////////////////////////////////////////////////////////////
 	while (true) {
 		attempts++;
 		//	for (int n = 0; n < num_samples; n++) {
 
-#if 0
-//#ifndef LLIGHTMAP_AO_TEST_ONLY_MIDDLE
-
-		// pick a float position within the texel
-		Vector2 st;
-		AO_random_texel_sample(st, tx, ty, attempts);
-
-		// find which triangle on the minilist we are inside (if any)
-		uint32_t tri_inside_id;
-		Vector3 bary;
-		if (!AO_find_texel_triangle(ml, st, tri_inside_id, bary))
-			continue;
-
-		num_samples_inside++;
-
-		// calculate world position ray origin from barycentric
-		_scene._tris[tri_inside_id].interpolate_barycentric(r.o, bary);
-
-		// Add a bias along the tri plane.
-		const Plane &tri_plane = _scene._tri_planes[tri_inside_id];
-		r.o += tri_plane.normal * adjusted_settings.surface_bias;
-
-		// calculate surface normal (should be use plane?)
-		Vector3 normal = tri_plane.normal;
-		//_scene._tri_normals[tri_inside_id].interpolate_barycentric(normal = tri_plane.normal, bary);
-#else
 		if (!middle_only) {
 			AO_random_texel_sample(st, tx, ty, attempts);
 
@@ -528,26 +500,21 @@ float AmbientOcclusion::calculate_AO(int tx, int ty, int qmc_variation, const Mi
 		} else {
 			num_samples_inside++;
 		}
-#endif
 
 		// construct a random ray to test
 		//AO_random_QMC_ray(r, normal = tri_plane.normal, attempts, qmc_variation);
 		generate_random_hemi_unit_dir(r.d, normal);
 
 		// test ray
-#if 0
 		if (_scene.test_intersect_ray_single(r, adjusted_settings.AO_range, test_hit)) {
 			num_hits++;
 		} else {
-#endif
-		if (_scene.test_intersect_ray(r, adjusted_settings.AO_range, voxel_range, test_hit)) {
-			num_hits++;
-		} else {
-			test_hit.voxel_id = UINT32_MAX;
+			if (_scene.test_intersect_ray(r, adjusted_settings.AO_range, voxel_range, test_hit)) {
+				num_hits++;
+			} else {
+				test_hit.voxel_id = UINT32_MAX;
+			}
 		}
-#if 0
-		}
-#endif
 
 		// fast zero hits
 		if (fast_approx_test && (num_samples_inside == 64)) {
