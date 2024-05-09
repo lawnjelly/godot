@@ -219,7 +219,7 @@ bool LightMapper::load_tri_ids() {
 	//	}
 
 	LBitImage &image = _bitimages.coverage_partial;
-	const String &filename = settings.bitimage_tri_ids_filename;
+	const String &filename = settings.bitimage_coverage_filename;
 
 	Error res = image.load(filename);
 	if (res != OK) {
@@ -300,8 +300,8 @@ bool LightMapper::load_tri_ids() {
 #endif
 
 void LightMapper::save_tri_ids() {
-	_bitimages.coverage_partial.save(settings.bitimage_tri_ids_filename);
-	_bitimages.coverage_partial.save_png(settings.bitimage_tri_ids_filename_png);
+	_bitimages.coverage_partial.save(settings.bitimage_coverage_filename);
+	_bitimages.coverage_partial.save_png(settings.bitimage_coverage_filename_png);
 
 #if 0	
 	DEV_ASSERT(_image_tri_ids_p1.get_num_pixels());

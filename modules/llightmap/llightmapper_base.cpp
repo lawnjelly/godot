@@ -705,8 +705,8 @@ void LightMapper_Base::Settings::set_images_filename(String p_filename) {
 	orig_material_filename = image_filename_base + "material.exr";
 	bounce_filename = image_filename_base + "bounce.exr";
 
-	bitimage_tri_ids_filename = image_filename_base + "coverage.biti";
-	bitimage_tri_ids_filename_png = image_filename_base + "coverage.png";
+	bitimage_coverage_filename = image_filename_base + "coverage.biti";
+	bitimage_coverage_filename_png = image_filename_base + "coverage.png";
 }
 
 #if 0
@@ -1027,7 +1027,7 @@ void LightMapper_Base::_mark_dilated_area(LightImage<FColor> &r_image) {
 	}
 	for (uint32_t y = 0; y < _height; y++) {
 		for (uint32_t x = 0; x < _width; x++) {
-			if (_bitimages.coverage_partial.get_pixel(x, y)) {
+			if (!_bitimages.coverage_partial.get_pixel(x, y)) {
 				FColor &fcol = r_image.get_item(x, y);
 #ifdef LLIGHTMAP_DEBUG_RECLAIMED_TEXELS
 				if (_bitimages.coverage_reclaimed.get_pixel(x, y)) {

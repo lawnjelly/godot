@@ -353,8 +353,8 @@ public:
 		String bounce_filename;
 		String orig_material_filename;
 
-		String bitimage_tri_ids_filename;
-		String bitimage_tri_ids_filename_png;
+		String bitimage_coverage_filename;
+		String bitimage_coverage_filename_png;
 
 		String UV_filename;
 		//int UV_padding;

@@ -695,19 +695,19 @@ inline bool UVTri::contains_point(const Vector2 &pt, float epsilon) const {
 	edge.a = b;
 	edge.b = a;
 
-	if (edge.distance(pt) < epsilon)
+	if (edge.distance(pt) < -epsilon)
 		return false;
 
 	edge.a = c;
 	edge.b = b;
 
-	if (edge.distance(pt) < epsilon)
+	if (edge.distance(pt) < -epsilon)
 		return false;
 
 	edge.a = a;
 	edge.b = c;
 
-	if (edge.distance(pt) < epsilon)
+	if (edge.distance(pt) < -epsilon)
 		return false;
 
 	return true;

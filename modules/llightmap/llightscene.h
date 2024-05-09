@@ -124,13 +124,14 @@ private:
 	LVector<AABB> _tri_pos_aabbs;
 	LVector<MeshInstance *> _meshes;
 
-	// precalculate these .. useful for finding cutting tris.
-	LVector<float> _tri_texel_size_world_space;
-
 	LMaterials _materials;
 
 protected:
 public:
+	// precalculate these .. useful for finding cutting tris.
+	// Used for Ambient occlusion
+	LVector<float> _tri_texel_size_world_space;
+
 	LightImage<Color> _image_emission_done;
 	LVector<UVTri> _uv_tris;
 

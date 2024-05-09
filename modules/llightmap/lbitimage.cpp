@@ -64,6 +64,7 @@ uint32_t LBitImage::count(bool p_count_set) const {
 
 Error LBitImage::load(String p_filename, uint8_t *r_extra_data, uint32_t *r_extra_data_size, uint32_t p_max_extra_data_size) {
 	print_line("Loading : " + p_filename);
+	//return ERR_SKIP;
 
 	String path = ProjectSettings::get_singleton()->globalize_path(p_filename);
 

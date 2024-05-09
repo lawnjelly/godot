@@ -77,8 +77,8 @@ void AmbientOcclusion::AO_load_or_calculate_bitimage_clear() {
 	data_ao.bitimage_clear.create(_width, _height);
 	data_ao.bitimage_middle_only.create(_width, _height);
 
-#if 0
-//#ifdef LAMBIENT_OCCLUSION_USE_THREADS
+//#if 0
+#ifdef LAMBIENT_OCCLUSION_USE_THREADS
 	//	int nCores = OS::get_singleton()->get_processor_count();
 	int nSections = _height / 16; // 64
 	if (!nSections)
@@ -267,13 +267,14 @@ bool AmbientOcclusion::_is_minilist_coplanar(const MiniList &p_ml) const {
 }
 
 bool AmbientOcclusion::AO_are_triangles_out_of_range(int p_tx, int p_ty, const MiniList &ml, float p_threshold_dist, AONearestResult &r_nearest) {
-	if ((p_tx != 275) || (p_ty != 359))
-	//	if ((p_tx != 274) || (p_ty != 359))
+#if 0
+	if ((p_tx != 107) || (p_ty != 94))
 	{
 		return false;
 	}
+#endif
 
-	bool nearest_was_valid = r_nearest.valid;
+	//bool nearest_was_valid = r_nearest.valid;
 	r_nearest.valid = false;
 
 	if (!ml.num) {
@@ -289,14 +290,18 @@ bool AmbientOcclusion::AO_are_triangles_out_of_range(int p_tx, int p_ty, const M
 		}
 	}
 
-	uint32_t tri_id = 0;
+	uint32_t orig_tri_id = 0;
 	Vector3 pos_pushed;
 	Vector3 normal;
 	const Vector3 *bary = nullptr;
 	const Vector3 *plane_normal = nullptr;
-	if (!load_texel_data(p_tx, p_ty, tri_id, &bary, pos_pushed, normal, &plane_normal)) {
+	if (!load_texel_data(p_tx, p_ty, orig_tri_id, &bary, pos_pushed, normal, &plane_normal)) {
 		return false;
 	}
+
+	// Add a bit for luck.
+	float texel_size = _scene._tri_texel_size_world_space[orig_tri_id] * 2;
+	float texel_size_squared = texel_size * texel_size;
 
 #define LLIGHTMAP_AO_CALCULATE_MIDDLE_IMAGE
 #ifndef LLIGHTMAP_AO_CALCULATE_MIDDLE_IMAGE
@@ -330,9 +335,9 @@ bool AmbientOcclusion::AO_are_triangles_out_of_range(int p_tx, int p_ty, const M
 
 	// Debug check the plane is matching up to the triangle, we were getting some bugs due to this.
 #ifdef DEV_ENABLED
-	const Tri &orig_tri = _scene._tris[tri_id];
-	Plane test_plane = orig_tri.calculate_plane();
-	DEV_ASSERT(test_plane.is_equal_approx(plane));
+//	const Tri &orig_tri = _scene._tris[tri_id];
+//	Plane test_plane = orig_tri.calculate_plane();
+//	DEV_ASSERT(test_plane.is_equal_approx(plane));
 #endif
 
 	int num_tris = _scene._tris.size();
@@ -341,16 +346,16 @@ bool AmbientOcclusion::AO_are_triangles_out_of_range(int p_tx, int p_ty, const M
 	r_nearest.tri_id = UINT32_MAX;
 
 	for (int n = 0; n < num_tris; n++) {
-		if (n != 73234)
-			continue;
+		//		if (n != 73234)
+		//			continue;
 		// 73234
 
-		print_line("orig tri " + itos(tri_id) + " " + _scene._tris[tri_id].to_string());
-		print_line("against triangle " + itos(n));
-		print_line("against plane " + String(Variant(plane)));
-		print_line("ml num is " + itos(ml.num));
+		//		print_line("orig tri " + itos(tri_id) + " " + _scene._tris[tri_id].to_string());
+		//		print_line("against triangle " + itos(n));
+		//		print_line("against plane " + String(Variant(plane)));
+		//		print_line("ml num is " + itos(ml.num));
 
-		if (n == tri_id)
+		if (n == orig_tri_id)
 			continue;
 
 		const Tri &tri = _scene._tris[n];
@@ -368,13 +373,13 @@ bool AmbientOcclusion::AO_are_triangles_out_of_range(int p_tx, int p_ty, const M
 				front_count++;
 		}
 
-		print_line("front_count " + itos(front_count));
+		//		print_line("front_count " + itos(front_count));
 
 		if (front_count == 0) {
 			continue;
 		}
 
-		print_line("plane_dist " + String(Variant(plane_dist)));
+		//		print_line("plane_dist " + String(Variant(plane_dist)));
 
 		// Anything further than the ambient threshold distance can be ignored.
 		if (plane_dist > p_threshold_dist) {
@@ -391,6 +396,12 @@ bool AmbientOcclusion::AO_are_triangles_out_of_range(int p_tx, int p_ty, const M
 			r_nearest.nearest_tri_distance = dist;
 			r_nearest.tri_id = n;
 
+			if (dist < texel_size_squared) {
+				// Early out.
+				data_ao.non_middle++;
+				break;
+			}
+
 #ifndef LLIGHTMAP_AO_CALCULATE_MIDDLE_IMAGE
 			if (r_nearest.nearest_tri_distance < threshold_dist_sq) {
 				r_nearest.valid = true;
@@ -403,16 +414,24 @@ bool AmbientOcclusion::AO_are_triangles_out_of_range(int p_tx, int p_ty, const M
 		}
 	}
 
+	//	if (p_tx == 64) {
+	//		print_line("texel " + itos(p_ty) + ", nearest tri dist " + String(Variant(r_nearest.nearest_tri_distance)));
+
+	//	}
+
+	// If no nearest registered, it is clear.
+	if (r_nearest.tri_id == UINT32_MAX) {
+		r_nearest.valid = false;
+		return true;
+	}
+
 	// Change distance from square to regular.
 	r_nearest.nearest_tri_distance = Math::sqrt(r_nearest.nearest_tri_distance);
 
-	//	if (p_tx == 64) {
-	//		print_line("texel " + itos(p_ty) + ", nearest tri dist " + String(Variant(r_nearest.nearest_tri_distance)));
-	//	}
-
 #ifdef LLIGHTMAP_AO_CALCULATE_MIDDLE_IMAGE
+
 	// Within middle distance?
-	if (r_nearest.nearest_tri_distance > 0.1f) {
+	if (r_nearest.nearest_tri_distance > texel_size) { // 0.1
 		data_ao.bitimage_middle_only.set_pixel(p_tx, p_ty, true);
 		data_ao.middle++;
 	} else {
@@ -440,7 +459,7 @@ bool AmbientOcclusion::AO_are_triangles_out_of_range(int p_tx, int p_ty, const M
 }
 
 float AmbientOcclusion::calculate_AO(int tx, int ty, int qmc_variation, const MiniList &ml) {
-	return 0;
+	//return 0;
 
 	// Debugging, fast version.
 	//	Vector2i diff(500, 100);
@@ -451,7 +470,7 @@ float AmbientOcclusion::calculate_AO(int tx, int ty, int qmc_variation, const Mi
 	//		return 0;
 	//	}
 
-#if 1
+#if 0
 	if (data_ao.bitimage_clear.get_pixel(tx, ty)) {
 		//	if (AO_are_triangles_out_of_range(tx, ty, ml, adjusted_settings.AO_range, r_nearest)) {
 		data_ao.clear++;
