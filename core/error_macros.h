@@ -31,6 +31,7 @@
 #ifndef ERROR_MACROS_H
 #define ERROR_MACROS_H
 
+#include "core/object_id.h"
 #include "core/safe_refcount.h"
 #include "core/typedefs.h"
 
@@ -85,6 +86,9 @@ void _err_print_error(const char *p_function, const char *p_file, int p_line, co
 void _err_print_index_error(const char *p_function, const char *p_file, int p_line, int64_t p_index, int64_t p_size, const char *p_index_str, const char *p_size_str, const char *p_message = "", bool fatal = false);
 void _err_print_index_error(const char *p_function, const char *p_file, int p_line, int64_t p_index, int64_t p_size, const char *p_index_str, const char *p_size_str, const String &p_message, bool fatal = false);
 void _err_flush_stdout();
+
+void _physics_interpolation_node_warning(ObjectID p_id, const char *p_warn_string);
+void _physics_interpolation_warning(const char *p_warn_string);
 
 #ifndef _STR
 #define _STR(m_x) #m_x

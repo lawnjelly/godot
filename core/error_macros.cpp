@@ -34,6 +34,10 @@
 #include "core/ustring.h"
 #include "os/os.h"
 
+#if defined(DEBUG_ENABLED) && defined(TOOLS_ENABLED)
+#include "scene/main/node.h"
+#endif
+
 static ErrorHandlerList *error_handler_list = nullptr;
 
 void add_error_handler(ErrorHandlerList *p_handler) {
@@ -116,4 +120,48 @@ void _err_print_index_error(const char *p_function, const char *p_file, int p_li
 
 void _err_flush_stdout() {
 	fflush(stdout);
+}
+
+// Prevent error spam by limiting the warnings to a certain frequency.
+void _physics_interpolation_warning(const char *p_warn_string) {
+#if defined(DEBUG_ENABLED) && defined(TOOLS_ENABLED)
+	const uint32_t warn_max = 2048;
+	static uint32_t warn_count = warn_max;
+
+	warn_count--;
+
+	if ((warn_count == 0) && GLOBAL_GET("debug/settings/physics_interpolation/enable_warnings")) {
+		warn_count = warn_max;
+		WARN_PRINT("[Physics interpolation] " + String(p_warn_string) + ", this might lead to issues (possibly benign).");
+	}
+#endif
+}
+
+// Prevent error spam by limiting the warnings to a certain frequency.
+void _physics_interpolation_node_warning(ObjectID p_id, const char *p_warn_string) {
+#if defined(DEBUG_ENABLED) && defined(TOOLS_ENABLED)
+	const uint32_t warn_max = 2048;
+	static uint32_t warn_count = warn_max;
+
+	warn_count--;
+
+	// Cycle every warn_max warnings.
+	if ((warn_count == 0) && GLOBAL_GET("debug/settings/physics_interpolation/enable_warnings")) {
+		warn_count = warn_max;
+
+		String node_name;
+		if (p_id != 0) {
+			if (ObjectDB::get_instance(p_id)) {
+				Node *node = Object::cast_to<Node>(ObjectDB::get_instance(p_id));
+				if (node && node->is_inside_tree()) {
+					node_name = "\"" + String(node->get_path()) + "\"";
+				} else {
+					node_name = "\"unknown\"";
+				}
+			}
+		}
+
+		WARN_PRINT("[Physics interpolation] " + String(p_warn_string) + ", this might lead to issues: " + node_name + " (possibly benign).");
+	}
+#endif
 }
