@@ -121,7 +121,16 @@ void VisualInstance::_notification(int p_what) {
 					VisualServer::get_singleton()->instance_set_transform(instance, get_global_transform());
 				}
 
+				//				if (_is_physics_interpolation_reset_requested())
+				//				{
 				VisualServer::get_singleton()->instance_reset_physics_interpolation(instance);
+				//					_set_physics_interpolation_reset_requested(false);
+				//				}
+				//				else
+				//				{
+				//					_set_physics_interpolation_reset_requested(true);
+
+				//				}
 			}
 		} break;
 		case NOTIFICATION_EXIT_WORLD: {

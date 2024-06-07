@@ -770,7 +770,11 @@ void VisualServerScene::instance_reset_physics_interpolation(RID p_instance) {
 	ERR_FAIL_COND(!instance);
 
 	if (_interpolation_data.interpolation_enabled && instance->interpolated) {
-		_interpolation_data.instance_teleport_list.push_back(p_instance);
+		print_line("instance_reset_physics_interpolation .. tick " + itos(Engine::get_singleton()->get_physics_frames()));
+		//_interpolation_data.instance_teleport_list.push_back(p_instance);
+
+		instance->transform_prev = instance->transform_curr;
+		print_line("\tprev " + String(Variant(instance->transform_prev.origin.x)) + ", curr " + String(Variant(instance->transform_curr.origin.x)));
 	}
 }
 
@@ -783,6 +787,8 @@ void VisualServerScene::instance_set_interpolated(RID p_instance, bool p_interpo
 void VisualServerScene::instance_set_transform(RID p_instance, const Transform &p_transform) {
 	Instance *instance = instance_owner.get(p_instance);
 	ERR_FAIL_COND(!instance);
+
+	print_line("instance_set_transform " + String(Variant(p_transform.origin.x)) + " .. tick " + itos(Engine::get_singleton()->get_physics_frames()));
 
 	if (!(_interpolation_data.interpolation_enabled && instance->interpolated) || !instance->scenario) {
 		if (instance->transform == p_transform) {
@@ -842,6 +848,8 @@ void VisualServerScene::instance_set_transform(RID p_instance, const Transform &
 #endif
 
 	instance->transform_curr = p_transform;
+
+	print_line("\tprev " + String(Variant(instance->transform_prev.origin.x)) + ", curr " + String(Variant(instance->transform_curr.origin.x)));
 
 	// keep checksums up to date
 	instance->transform_checksum_curr = new_checksum;
@@ -963,6 +971,7 @@ void VisualServerScene::update_interpolation_frame(bool p_process) {
 		const RID &rid = _interpolation_data.instance_teleport_list[n];
 		Instance *instance = instance_owner.getornull(rid);
 		if (instance) {
+			print_line("TELEPORT");
 			instance->transform_prev = instance->transform_curr;
 			instance->transform_checksum_prev = instance->transform_checksum_curr;
 		}
@@ -978,6 +987,7 @@ void VisualServerScene::update_interpolation_frame(bool p_process) {
 			Instance *instance = instance_owner.getornull(rid);
 			if (instance) {
 				TransformInterpolator::interpolate_transform_via_method(instance->transform_prev, instance->transform_curr, instance->transform, f, instance->interpolation_method);
+				print_line("\t\tinterpolated: " + String(Variant(instance->transform.origin.x)) + "\t( prev " + String(Variant(instance->transform_prev.origin.x)) + ", curr " + String(Variant(instance->transform_curr.origin.x)) + " )");
 
 				// make sure AABBs are constantly up to date through the interpolation
 				_instance_queue_update(instance, true);
