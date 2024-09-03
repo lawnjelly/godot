@@ -9,6 +9,7 @@ NPRegion::~NPRegion() {
 void NPRegion::_notification(int p_what) {
 }
 
+/*
 void NPRegion::set_meshes(const Array &p_meshes) {
 	//	_meshes = p_meshes;
 	for (int n = 0; n < _meshes.size(); n++) {
@@ -44,11 +45,13 @@ Array NPRegion::get_meshes() const {
 	return ret;
 	//	return _meshes;
 }
+*/
 
-/*
-void NPRegion::set_meshes(Vector<Ref<NPMesh>> &p_meshes)
+void NPRegion::set_meshes(Vector<Variant> &p_meshes)
+//void NPRegion::set_meshes(Vector<NPMesh> &p_meshes)
 //void NPRegion::set_mesh(const Ref<NPMesh> &p_mesh)
 {
+	/*
 	for (int n=0; n<_meshes.size(); n++)
 	{
 		if (!_meshes[n].is_null())
@@ -82,16 +85,15 @@ void NPRegion::set_meshes(Vector<Ref<NPMesh>> &p_meshes)
 //			}
 //		}
 	}
-
+*/
 	update_gizmo();
 	update_configuration_warning();
 }
 
-Ref<NPMesh> NPRegion::get_meshes() const
-{
+//Vector<NPMesh> NPRegion::get_meshes() const
+Vector<Variant> NPRegion::get_meshes() const {
 	return _meshes;
 }
-*/
 
 void NPRegion::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_meshes", "meshes"), &NPRegion::set_meshes);
@@ -99,5 +101,5 @@ void NPRegion::_bind_methods() {
 
 	//	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "meshes", PROPERTY_HINT_RESOURCE_TYPE, "NPMesh"), "set_meshes", "get_meshes");
 	//	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "meshes", PROPERTY_HINT_RESOURCE_TYPE, "NPMesh"), "set_meshes", "get_meshes");
-	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "meshes", PROPERTY_HINT_NONE, "NPMesh"), "set_meshes", "get_meshes");
+	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "meshes", PROPERTY_HINT_RESOURCE_TYPE, "NPMesh"), "set_meshes", "get_meshes");
 }
