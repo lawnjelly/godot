@@ -1,22 +1,35 @@
 #include "np_region.h"
 
+#include "../source/navphysics_loader.h"
+#include "../source/navphysics_log.h"
+#include "../source/navphysics_map.h"
+#include "../source/navphysics_pointf.h"
+#include "../source/navphysics_pointi.h"
+#include "../source/navphysics_vector.h"
+
 NPRegion::NPRegion() {
+	data.h_region = NavPhysics::g_world.safe_region_create();
 }
 
 NPRegion::~NPRegion() {
+	if (data.h_region) {
+		NavPhysics::g_world.safe_region_free(data.h_region);
+		data.h_region = 0;
+	}
 }
 
 void NPRegion::_notification(int p_what) {
 }
 
-/*
 void NPRegion::set_meshes(const Array &p_meshes) {
 	//	_meshes = p_meshes;
 	for (int n = 0; n < _meshes.size(); n++) {
 		//		if (!_meshes[n].is_null())
 		{
 			Ref<NPMesh> rmesh = _meshes[n];
-			rmesh->unregister_owner(this);
+			if (rmesh.is_valid()) {
+				rmesh->unregister_owner(this);
+			}
 		}
 	}
 
@@ -25,8 +38,14 @@ void NPRegion::set_meshes(const Array &p_meshes) {
 	for (int n = 0; n < _meshes.size(); n++) {
 		if (p_meshes[n]) {
 			Ref<NPMesh> rmesh = p_meshes[n];
-			_meshes.set(n, rmesh);
-			rmesh->register_owner(this);
+
+			if (rmesh.is_valid()) {
+				_meshes.set(n, rmesh);
+				rmesh->register_owner(this);
+			}
+			//NPMesh *mesh = Object::cast_to<NPMesh>(p_meshes[n]);
+
+			//_meshes[n] = *mesh;
 		}
 	}
 }
@@ -38,20 +57,19 @@ Array NPRegion::get_meshes() const {
 	for (int n = 0; n < _meshes.size(); n++) {
 		//		if (_meshes[n].is_valid())
 		{
-			ret[n] = _meshes[n];
+			ret[n] = Variant(_meshes[n]);
 		}
 	}
 
 	return ret;
 	//	return _meshes;
 }
-*/
 
+/*
 void NPRegion::set_meshes(Vector<Variant> &p_meshes)
 //void NPRegion::set_meshes(Vector<NPMesh> &p_meshes)
 //void NPRegion::set_mesh(const Ref<NPMesh> &p_mesh)
 {
-	/*
 	for (int n=0; n<_meshes.size(); n++)
 	{
 		if (!_meshes[n].is_null())
@@ -85,7 +103,6 @@ void NPRegion::set_meshes(Vector<Variant> &p_meshes)
 //			}
 //		}
 	}
-*/
 	update_gizmo();
 	update_configuration_warning();
 }
@@ -94,6 +111,7 @@ void NPRegion::set_meshes(Vector<Variant> &p_meshes)
 Vector<Variant> NPRegion::get_meshes() const {
 	return _meshes;
 }
+*/
 
 void NPRegion::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_meshes", "meshes"), &NPRegion::set_meshes);

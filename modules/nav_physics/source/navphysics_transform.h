@@ -92,7 +92,7 @@ struct [[nodiscard]] Basis {
 	// only be used in cases of single normals, or when the basis changes each time.
 	FPoint3 xform_normal(const FPoint3 &p_vector) const { return get_normal_xform_basis().xform_normal_fast(p_vector); }
 
-	bool is_equal_approx(const Basis &p_o, f32 p_tolerance = Math::CMP_EPSILON) const;
+	bool is_equal_approx(const Basis &p_o, f32 p_tolerance = Math::NP_CMP_EPSILON) const;
 };
 
 struct [[nodiscard]] Transform {
@@ -111,7 +111,7 @@ struct [[nodiscard]] Transform {
 				basis[2].dot(p_vector) + origin.z);
 	}
 
-	bool is_equal_approx(const Transform &p_o, f32 p_tolerance = Math::CMP_EPSILON) const { return basis.is_equal_approx(p_o.basis, p_tolerance) && origin.is_equal_approx(p_o.origin, p_tolerance); }
+	bool is_equal_approx(const Transform &p_o, f32 p_tolerance = Math::NP_CMP_EPSILON) const { return basis.is_equal_approx(p_o.basis, p_tolerance) && origin.is_equal_approx(p_o.origin, p_tolerance); }
 
 	void affine_invert() {
 		basis.invert();

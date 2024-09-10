@@ -12,7 +12,7 @@ bool Plane::intersects_ray(const FPoint3 &p_from, const FPoint3 &p_dir, FPoint3 
 
 	freal dist = (normal.dot(p_from) - d) / den;
 
-	if (dist > (freal)Math::CMP_EPSILON) { //this is a ray, before the emitting pos (p_from) doesn't exist
+	if (dist > (freal)Math::NP_CMP_EPSILON) { //this is a ray, before the emitting pos (p_from) doesn't exist
 
 		return false;
 	}

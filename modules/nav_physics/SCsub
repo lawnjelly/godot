@@ -2,8 +2,8 @@
 Import("env")
 
 sources = [
-    "navphysics_all.cpp",
-    "navphysics_godot_classes.cpp",
+    "source/navphysics_all.cpp",
+    "source/navphysics_godot_classes.cpp",
 ]
 
 module_env = env.Clone()

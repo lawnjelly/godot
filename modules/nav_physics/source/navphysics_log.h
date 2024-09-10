@@ -5,22 +5,10 @@
 
 namespace NavPhysics {
 void loga(String p_sz, u32 p_priority = 0);
-void log(String p_sz, u32 p_depth = 0, u32 p_priority = 0) {
-	String sz;
-	for (u32 n = 0; n < p_depth; n++) {
-		sz += "\t";
-	}
+void log(String p_sz, u32 p_depth = 0, u32 p_priority = 0);
 
-	loga(sz + p_sz + "\n", p_priority);
-}
-
-// Compatibility .. remove later.
-void print_line(String p_sz) {
-	log(p_sz);
-}
-String itos(i32 p_val) {
-	return String(p_val);
-}
+void print_line(String p_sz);
+String itos(i32 p_val);
 
 struct IPoint2;
 struct IPoint3;

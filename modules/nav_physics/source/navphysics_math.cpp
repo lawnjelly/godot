@@ -38,7 +38,7 @@ bool Math::is_equal_approx(f32 a, f32 b, f32 tolerance) {
 }
 
 bool Math::is_zero_approx(f32 s, f32 tolerance) {
-	return abs(s) < CMP_EPSILON;
+	return abs(s) < NP_CMP_EPSILON;
 }
 
 } // namespace NavPhysics
