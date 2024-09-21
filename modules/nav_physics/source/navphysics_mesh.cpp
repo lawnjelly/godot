@@ -15,12 +15,12 @@ void Mesh::_log(const String &p_string, int p_depth) const {
 	//print_line(p_string);
 }
 
-freal Mesh::find_agent_fit(Agent &r_agent) const {
+freal MeshInstance::find_agent_fit(Agent &r_agent) const {
 	// multiple meshs NYI
 	return 1.0;
 }
 
-void Mesh::teleport_agent(Agent &r_agent) {
+void MeshInstance::teleport_agent(Agent &r_agent) {
 	r_agent.pos = float_to_fixed_point_2(r_agent.fpos);
 	//r_agent.pos.set(7906, 41409);
 
@@ -65,7 +65,7 @@ PoolVector<Face3> Mesh::mesh_get_faces() const {
 }
 */
 
-void Mesh::agent_get_info(const Agent &p_agent, BodyInfo &r_body_info) const {
+void MeshInstance::agent_get_info(const Agent &p_agent, BodyInfo &r_body_info) const {
 	r_body_info.poly_id = p_agent.poly_id;
 	r_body_info.blocking_narrowing_id = p_agent.blocking_narrowing_id;
 
@@ -86,7 +86,7 @@ void Mesh::agent_get_info(const Agent &p_agent, BodyInfo &r_body_info) const {
 	}
 }
 
-void Mesh::iterate_agent(Agent &r_agent) {
+void MeshInstance::iterate_agent(Agent &r_agent) {
 	//print_line("c++ agent at pos " + String(Variant(r_agent.fpos)));
 
 	// has the f32 position moved significantly? if not, retain
@@ -118,7 +118,7 @@ void Mesh::iterate_agent(Agent &r_agent) {
 	r_agent.fvel = fixed_point_vel_to_float(r_agent.vel);
 }
 
-bool Mesh::_agent_enter_poly(Agent &r_agent, u32 p_new_poly_id, bool p_force_allow) {
+bool MeshInstance::_agent_enter_poly(Agent &r_agent, u32 p_new_poly_id, bool p_force_allow) {
 	if (r_agent.ignore_narrowings) {
 		r_agent.poly_id = p_new_poly_id;
 		return true;
@@ -255,7 +255,7 @@ bool Mesh::_agent_enter_poly(u32 p_old_poly_id, u32 p_new_poly_id, bool p_force_
 }
 */
 
-void Mesh::_iterate_agent(Agent &r_agent) {
+void MeshInstance::_iterate_agent(Agent &r_agent) {
 	Agent &ag = r_agent;
 
 	if (ag.poly_id == UINT32_MAX) {
@@ -460,7 +460,7 @@ Mesh::MoveResult Mesh::recursive_move(i32 p_depth, IPoint2 p_from, IPoint2 p_vel
 	return recursive_move(p_depth + 1, pt_intersect, p_vel, p_poly_id, p_poly_from_id, p_hug_wall_id, r_info);
 }
 
-FPoint3 Mesh::choose_random_location() const {
+FPoint3 MeshInstance::choose_random_location() const {
 	NP_NP_ERR_FAIL_COND_V(!get_num_polys(), FPoint3());
 
 	f32 total = 0;
@@ -485,7 +485,7 @@ FPoint3 Mesh::choose_random_location() const {
 	return get_transform().xform(get_poly(poly_id).center3);
 }
 
-void Mesh::body_dual_trace(const Agent &p_agent, FPoint3 p_intermediate_destination, NavPhysics::TraceResult &r_result) const {
+void MeshInstance::body_dual_trace(const Agent &p_agent, FPoint3 p_intermediate_destination, NavPhysics::TraceResult &r_result) const {
 	TraceInfo trace_info;
 
 	FPoint3 final_dest = r_result.mesh.hit_point;
@@ -526,7 +526,7 @@ void Mesh::body_dual_trace(const Agent &p_agent, FPoint3 p_intermediate_destinat
 	}
 }
 
-void Mesh::body_trace(const Agent &p_agent, NavPhysics::TraceResult &r_result) const {
+void MeshInstance::body_trace(const Agent &p_agent, NavPhysics::TraceResult &r_result) const {
 	TraceInfo trace_info;
 
 	// transform destination to mesh space

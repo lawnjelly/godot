@@ -307,6 +307,18 @@ NavPhysics::Mesh *World::safe_get_mesh(np_handle p_mesh, u32 *r_id) {
 	return mesh.mesh;
 }
 
+NavPhysics::MeshInstance *World::safe_get_mesh_instance(np_handle p_mesh_instance, u32 *r_id) {
+	NP_NP_ERR_FAIL_COND_V(!p_mesh_instance, nullptr);
+	u32 revision;
+	u32 id = handle_to_id(p_mesh_instance, revision);
+	if (r_id) {
+		*r_id = id;
+	}
+	MeshInstanceContainer &mesh_instance = _mesh_instances[id];
+	NP_NP_ERR_FAIL_COND_V(mesh_instance.revision != revision, nullptr);
+	return mesh_instance.mesh_instance;
+}
+
 NavPhysics::Region *World::safe_get_region(np_handle p_region, u32 *r_id) {
 	NP_NP_ERR_FAIL_COND_V(!p_region, nullptr);
 	u32 revision;
@@ -367,6 +379,21 @@ np_handle World::safe_mesh_create() {
 	return 0;
 }
 
+np_handle World::safe_mesh_instance_create() {
+	u32 id = UINT32_MAX;
+	MeshInstanceContainer *mesh_instance = _mesh_instances.request(id);
+	if (mesh) {
+		NP_DEV_CHECK(!mesh_instance->mesh_instance);
+		mesh_instance->mesh_instance = new (MeshInstance);
+		if (!mesh_instance->revision) {
+			// special case, zero is reserved
+			mesh_instance->revision = 1;
+		}
+		return id_to_handle(id, mesh_instance->revision);
+	}
+	return 0;
+}
+
 np_handle World::safe_region_create() {
 	u32 id = UINT32_MAX;
 	RegionContainer *region = _regions.request(id);
@@ -419,6 +446,20 @@ void World::safe_mesh_free(np_handle p_mesh) {
 		mesh.mesh = nullptr;
 	}
 	_meshes.free(id);
+}
+
+void World::safe_mesh_instance_free(np_handle p_mesh_instance) {
+	NP_NP_ERR_FAIL_COND(!p_mesh_instance);
+	u32 revision;
+	u32 id = handle_to_id(p_mesh_instance, revision);
+	MeshInstanceContainer &mesh_instance = _mesh_instances[id];
+	NP_NP_ERR_FAIL_COND(mesh_instance.revision != revision);
+	wrapped_increment_revision(mesh_instance.revision);
+	if (mesh_instance.mesh_instance) {
+		ALLOCATOR::free(mesh_instance.mesh_instance);
+		mesh_instance.mesh_instance = nullptr;
+	}
+	_mesh_instances.free(id);
 }
 
 void World::safe_region_free(np_handle p_region) {
@@ -502,6 +543,15 @@ void World::tick_update(freal p_delta) {
 void World::clear() {
 	_agents.clear();
 
+	for (u32 n = 0; n < _mesh_instances.active_size(); n++) {
+		MeshInstanceContainer &mesh_instance = _mesh_instances.get_active(n);
+		if (mesh_instance.mesh_instance) {
+			delete (mesh_instance.mesh_instance);
+			mesh_instance.mesh_instance = nullptr;
+		}
+	}
+	_mesh_instances.clear();
+
 	for (u32 n = 0; n < _meshes.active_size(); n++) {
 		MeshContainer &mesh = _meshes.get_active(n);
 		if (mesh.mesh) {
@@ -510,6 +560,15 @@ void World::clear() {
 		}
 	}
 	_meshes.clear();
+
+	for (u32 n = 0; n < _regions.active_size(); n++) {
+		RegionContainer &region = _regions.get_active(n);
+		if (region.region) {
+			delete (region.region);
+			region.region = nullptr;
+		}
+	}
+	_regions.clear();
 
 	for (u32 n = 0; n < _maps.active_size(); n++) {
 		MapContainer &map = _maps.get_active(n);

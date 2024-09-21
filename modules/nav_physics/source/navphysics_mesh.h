@@ -8,6 +8,23 @@
 
 namespace NavPhysics {
 
+class MeshInstance {
+	void _iterate_agent(Agent &r_agent);
+	bool _agent_enter_poly(Agent &r_agent, u32 p_new_poly_id, bool p_force_allow = false);
+
+public:
+	// less is better fit
+	freal find_agent_fit(Agent &r_agent) const;
+	void iterate_agent(Agent &r_agent);
+	void teleport_agent(Agent &r_agent);
+	void agent_get_info(const Agent &p_agent, BodyInfo &r_body_info) const;
+
+	void body_trace(const Agent &p_agent, NavPhysics::TraceResult &r_result) const;
+	void body_dual_trace(const Agent &p_agent, FPoint3 p_intermediate_destination, NavPhysics::TraceResult &r_result) const;
+
+	FPoint3 choose_random_location() const;
+};
+
 class Mesh {
 	friend class Loader;
 	Vector<u32> _inds;
@@ -34,7 +51,7 @@ class Mesh {
 	u32 _region_id = UINT32_MAX;
 
 	u32 _mesh_id_map_slot = UINT32_MAX;
-	u32 _mesh_id_region_slot = UINT32_MAX;
+	//u32 _mesh_id_region_slot = UINT32_MAX;
 
 	Transform _transform;
 	Transform _transform_inverse;
@@ -58,14 +75,9 @@ class Mesh {
 	// Pointer from the main navigation, used for unloading.
 	//const NavMesh *_source_nav_mesh = nullptr;
 
-	void _iterate_agent(Agent &r_agent);
 	//bool _agent_enter_poly(u32 p_old_poly_id, u32 p_new_poly_id, bool p_force_allow = false);
-	bool _agent_enter_poly(Agent &r_agent, u32 p_new_poly_id, bool p_force_allow = false);
 
 public:
-	// less is better fit
-	freal find_agent_fit(Agent &r_agent) const;
-
 	u32 get_mesh_id() const { return _mesh_id; }
 
 	void set_map_id(u32 p_id, u32 p_slot_id) {
@@ -77,28 +89,19 @@ public:
 		return _map_id;
 	}
 
-	void set_region_id(u32 p_id, u32 p_slot_id) {
-		_region_id = p_id;
-		_mesh_id_region_slot = p_slot_id;
-	}
-	u32 get_region_id(u32 &r_slot_id) const {
-		r_slot_id = _mesh_id_region_slot;
-		return _region_id;
-	}
+	//	void set_region_id(u32 p_id, u32 p_slot_id) {
+	//		_region_id = p_id;
+	//		_mesh_id_region_slot = p_slot_id;
+	//	}
+	//	u32 get_region_id(u32 &r_slot_id) const {
+	//		r_slot_id = _mesh_id_region_slot;
+	//		return _region_id;
+	//	}
 
-	void iterate_agent(Agent &r_agent);
-	void teleport_agent(Agent &r_agent);
 	void set_transform(const Transform &p_xform, const Transform &p_xform_inv, bool p_is_identity);
 	const Transform &get_transform() const { return _transform; }
 	const Transform &get_transform_inverse() const { return _transform_inverse; }
 	bool is_transform_identity() const { return _transform_identity; }
-
-	void agent_get_info(const Agent &p_agent, BodyInfo &r_body_info) const;
-
-	void body_trace(const Agent &p_agent, NavPhysics::TraceResult &r_result) const;
-	void body_dual_trace(const Agent &p_agent, FPoint3 p_intermediate_destination, NavPhysics::TraceResult &r_result) const;
-
-	FPoint3 choose_random_location() const;
 
 	//PoolVector<Face3> mesh_get_faces() const;
 
