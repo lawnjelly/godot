@@ -36,16 +36,27 @@ void NPRegion::set_meshes(const Array &p_meshes) {
 	_meshes.resize(0);
 	_meshes.resize(p_meshes.size());
 	for (int n = 0; n < _meshes.size(); n++) {
+		bool valid = false;
+
 		if (p_meshes[n]) {
 			Ref<NPMesh> rmesh = p_meshes[n];
 
 			if (rmesh.is_valid()) {
+				valid = true;
 				_meshes.set(n, rmesh);
 				rmesh->register_owner(this);
 			}
 			//NPMesh *mesh = Object::cast_to<NPMesh>(p_meshes[n]);
 
 			//_meshes[n] = *mesh;
+		}
+
+		if (!valid) {
+			// If there isn't one, create by default.
+			Ref<NPMesh> rmesh;
+			rmesh.instance();
+			_meshes.set(n, rmesh);
+			rmesh->register_owner(this);
 		}
 	}
 }

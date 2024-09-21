@@ -324,7 +324,7 @@ int NavigationMesh::get_polygon_count() const {
 	return polygons.size();
 }
 
-Vector<int> NavigationMesh::get_polygon(int p_idx) {
+Vector<int> NavigationMesh::get_polygon(int p_idx) const {
 	ERR_FAIL_INDEX_V(p_idx, polygons.size(), Vector<int>());
 	return polygons[p_idx].indices;
 }

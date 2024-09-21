@@ -6,6 +6,8 @@
 #include "../source/navphysics_pointi.h"
 #include "../source/navphysics_vector.h"
 
+#include "scene/3d/navigation_mesh_instance.h"
+
 NPMesh::NPMesh() {
 	data.h_mesh = NavPhysics::g_world.safe_mesh_create();
 }
@@ -15,6 +17,42 @@ NPMesh::~NPMesh() {
 		NavPhysics::g_world.safe_mesh_free(data.h_mesh);
 		data.h_mesh = 0;
 	}
+}
+
+bool NPMesh::load(const NavigationMeshInstance &p_nav_mesh_instance) {
+	const Ref<NavigationMesh> nmesh = p_nav_mesh_instance.get_navigation_mesh();
+	if (!nmesh.is_valid()) {
+		return false;
+	}
+
+	int num_verts = nmesh->get_vertices().size();
+	if (!num_verts) {
+		return false;
+	}
+	int num_polys = nmesh->get_polygon_count();
+	if (!num_polys) {
+		return false;
+	}
+
+	PoolVector<Vector3>::Read verts_read = nmesh->get_vertices().read();
+	const Vector3 *pverts = verts_read.ptr();
+
+	LocalVector<uint32_t> inds;
+
+	for (int n = 0; n < num_polys; n++) {
+		Vector<int> poly = nmesh->get_polygon(n);
+		if (poly.size() == 3) {
+			inds.push_back(poly[0]);
+			inds.push_back(poly[1]);
+			inds.push_back(poly[2]);
+		}
+	}
+
+	if (!inds.size()) {
+		return false;
+	}
+
+	return load(pverts, num_verts, inds.ptr(), inds.size());
 }
 
 bool NPMesh::load(const Vector3 *p_verts, uint32_t p_num_verts, const uint32_t *p_indices, uint32_t p_num_indices) {
