@@ -8,25 +8,9 @@
 
 namespace NavPhysics {
 
-class MeshInstance {
-	void _iterate_agent(Agent &r_agent);
-	bool _agent_enter_poly(Agent &r_agent, u32 p_new_poly_id, bool p_force_allow = false);
-
-public:
-	// less is better fit
-	freal find_agent_fit(Agent &r_agent) const;
-	void iterate_agent(Agent &r_agent);
-	void teleport_agent(Agent &r_agent);
-	void agent_get_info(const Agent &p_agent, BodyInfo &r_body_info) const;
-
-	void body_trace(const Agent &p_agent, NavPhysics::TraceResult &r_result) const;
-	void body_dual_trace(const Agent &p_agent, FPoint3 p_intermediate_destination, NavPhysics::TraceResult &r_result) const;
-
-	FPoint3 choose_random_location() const;
-};
-
 class Mesh {
 	friend class Loader;
+	friend class MeshInstance;
 	Vector<u32> _inds;
 	Vector<u32> _inds_next;
 
@@ -123,14 +107,15 @@ protected:
 	const Wall &get_wall(u32 p_idx) const { return _walls[p_idx]; }
 	u32 get_num_walls() const { return _walls.size(); }
 
+	u32 get_num_polys() const { return _polys.size(); }
 	const Poly &get_poly(u32 p_idx) const { return _polys[p_idx]; }
 	Poly &get_poly(u32 p_idx) { return _polys[p_idx]; }
 	const PolyExtra &get_poly_extra(u32 p_idx) const { return _polys_extra[p_idx]; }
-	u32 get_num_polys() const { return _polys.size(); }
 
 	void debug_poly(u32 p_poly_id) const;
 
 	const Narrowing &get_narrowing(u32 p_idx) const { return _narrowings[p_idx]; }
+	u32 get_num_narrowings() const { return _narrowings.size(); }
 
 	IPoint2 float_to_fixed_point_vel(const FPoint2 &p_vel) const {
 		return IPoint2::make(p_vel * _f32_to_fp_scale);
@@ -185,7 +170,6 @@ private:
 	TraceResult recursive_trace(i32 p_depth, IPoint2 p_from, IPoint2 p_to, u32 p_poly_id, TraceInfo &r_info) const;
 
 	// utility funcs
-	u32 find_poly_within(const IPoint2 &p_pt) const;
 	bool wall_find_intersect(u32 p_wall_id, const IPoint2 &p_from, const IPoint2 &p_to, IPoint2 &r_hit) const;
 	bool find_lines_intersect_integer(const IPoint2 &p_from_a, const IPoint2 &p_to_a, const IPoint2 &p_from_b, const IPoint2 &p_to_b, IPoint2 &r_hit) const;
 
@@ -205,6 +189,45 @@ private:
 		// check this for bugs, there was an error in the precedence in the gdscript
 		return (p_a ^ p_b) >= 0;
 	}
+
+public:
+	u32 find_poly_within(const IPoint2 &p_pt) const;
+};
+
+class MeshInstance {
+	void _iterate_agent(Agent &r_agent);
+	bool _agent_enter_poly(Agent &r_agent, u32 p_new_poly_id, bool p_force_allow = false);
+
+	Transform _transform;
+	Transform _transform_inverse;
+	bool _transform_identity = true;
+
+	u32 _mesh_id = UINT32_MAX;
+
+	const Mesh &get_mesh() const;
+
+	Vector<NarrowingInstance> _narrowing_instances;
+
+	const NarrowingInstance &get_narrowing_instance(u32 p_idx) const { return _narrowing_instances[p_idx]; }
+
+public:
+	// less is better fit
+	freal find_agent_fit(Agent &r_agent) const;
+	void iterate_agent(Agent &r_agent);
+	void teleport_agent(Agent &r_agent);
+	void agent_get_info(const Agent &p_agent, BodyInfo &r_body_info) const;
+
+	void body_trace(const Agent &p_agent, NavPhysics::TraceResult &r_result) const;
+	void body_dual_trace(const Agent &p_agent, FPoint3 p_intermediate_destination, NavPhysics::TraceResult &r_result) const;
+
+	FPoint3 choose_random_location() const;
+
+	void set_transform(const Transform &p_xform, const Transform &p_xform_inv, bool p_is_identity);
+	const Transform &get_transform() const { return _transform; }
+	const Transform &get_transform_inverse() const { return _transform_inverse; }
+	bool is_transform_identity() const { return _transform_identity; }
+
+	void link_mesh(u32 p_mesh_id);
 };
 
 } // namespace NavPhysics

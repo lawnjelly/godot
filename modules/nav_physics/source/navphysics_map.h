@@ -9,7 +9,7 @@ class MeshInstance;
 class Region;
 
 class Map {
-	TrackedPooledList<u32> _meshes;
+	TrackedPooledList<u32> _mesh_instances;
 	SAP _sap;
 	bool update_agent_mesh(Agent &r_agent, u32 p_agent_id);
 
@@ -20,8 +20,8 @@ public:
 	void body_teleport(Agent &r_agent, u32 p_agent_id, const FPoint3 &p_pos);
 	void iterate_agent(u32 p_agent_id);
 
-	u32 register_mesh(u32 p_mesh_id);
-	void unregister_mesh(u32 p_mesh_id, u32 p_mesh_slot_id);
+	u32 register_mesh_instance(u32 p_mesh_instance_id);
+	void unregister_mesh_instance(u32 p_mesh_instance_id, u32 p_mesh_slot_id);
 
 	void register_body(u32 p_body_id);
 	void unregister_body(u32 p_body_id);
@@ -99,6 +99,8 @@ public:
 	NavPhysics::MeshInstance &get_mesh_instance(u32 p_id) { return *_mesh_instances[p_id].mesh_instance; }
 	NavPhysics::Region &get_region(u32 p_id) { return *_regions[p_id].region; }
 	NavPhysics::Map &get_map(u32 p_id) { return *_maps[p_id].map; }
+
+	const NavPhysics::Mesh &get_mesh(u32 p_id) const { return *_meshes[p_id].mesh; }
 
 	np_handle safe_body_create();
 	np_handle safe_mesh_create();

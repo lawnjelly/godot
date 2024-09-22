@@ -11,16 +11,16 @@ NavPhysics::Map::~Map() {
 	clear();
 }
 
-u32 NavPhysics::Map::register_mesh(u32 p_mesh_id) {
+u32 NavPhysics::Map::register_mesh_instance(u32 p_mesh_instance_id) {
 	u32 slot_id;
-	u32 *pid = _meshes.request(slot_id);
-	*pid = p_mesh_id;
+	u32 *pid = _mesh_instances.request(slot_id);
+	*pid = p_mesh_instance_id;
 	return slot_id;
 }
 
-void NavPhysics::Map::unregister_mesh(u32 p_mesh_id, u32 p_mesh_slot_id) {
-	NP_NP_ERR_FAIL_COND(_meshes[p_mesh_slot_id] != p_mesh_id);
-	_meshes.free(p_mesh_slot_id);
+void NavPhysics::Map::unregister_mesh_instance(u32 p_mesh_instance_id, u32 p_mesh_slot_id) {
+	NP_NP_ERR_FAIL_COND(_mesh_instances[p_mesh_slot_id] != p_mesh_instance_id);
+	_mesh_instances.free(p_mesh_slot_id);
 }
 
 void NavPhysics::Map::register_body(u32 p_body_id) {
@@ -95,38 +95,38 @@ bool NavPhysics::Map::update_agent_mesh(Agent &r_agent, u32 p_agent_id) {
 	//Agent &agent = _agents[p_agent_id];
 
 	// no mesh yet?
-	if (r_agent.get_mesh_id() == UINT32_MAX) {
+	if (r_agent.get_mesh_instance_id() == UINT32_MAX) {
 		// find one (SLOW)
 
 		freal best_fit = FLT_MAX;
-		u32 best_mesh_id = UINT32_MAX;
+		u32 best_mesh_instance_id = UINT32_MAX;
 
-		if (!_meshes.active_size()) {
-			log("teleport before meshs loaded");
+		if (!_mesh_instances.active_size()) {
+			log("teleport before mesh instances loaded");
 		}
 
-		for (u32 n = 0; n < _meshes.active_size(); n++) {
-			u32 mesh_id = _meshes.get_active(n);
+		for (u32 n = 0; n < _mesh_instances.active_size(); n++) {
+			u32 mi_id = _mesh_instances.get_active(n);
 
-			Mesh &mesh = g_world.get_mesh(mesh_id);
+			MeshInstance &mesh = g_world.get_mesh_instance(mi_id);
 
 			//if (mesh) {
 			freal fit = mesh.find_agent_fit(r_agent);
 			if (fit < best_fit) {
 				best_fit = fit;
-				best_mesh_id = mesh_id;
+				best_mesh_instance_id = mi_id;
 			}
 			//}
 		}
 
-		if (best_mesh_id == UINT32_MAX) {
+		if (best_mesh_instance_id == UINT32_MAX) {
 			// Can't iterate, no decent meshs for this agent.
 			// Could ERR here, but it may happen in normal circumstances sometimes
 			// and not be an error.
 			return false;
 		}
-		log(String("Agent ") + String(p_agent_id) + " is on mesh " + String(best_mesh_id) + ".");
-		r_agent.set_mesh_id(best_mesh_id);
+		log(String("Agent ") + String(p_agent_id) + " is on mesh " + String(best_mesh_instance_id) + ".");
+		r_agent.set_mesh_instance_id(best_mesh_instance_id);
 
 		// teleport
 		body_teleport(r_agent, p_agent_id, r_agent.fpos3_teleport);
@@ -151,8 +151,8 @@ void NavPhysics::Map::iterate_agent(u32 p_agent_id) {
 		return;
 	}
 
-	NP_DEV_ASSERT(agent.get_mesh_id() != UINT32_MAX);
-	Mesh &mesh = g_world.get_mesh(agent.get_mesh_id());
+	NP_DEV_ASSERT(agent.get_mesh_instance_id() != UINT32_MAX);
+	MeshInstance &mesh_instance = g_world.get_mesh_instance(agent.get_mesh_instance_id());
 
 	// We will do all the transforming necessary to enter and exit mesh space here
 	// in the map, to keep the mesh code as clean and simple as possible.
@@ -161,7 +161,7 @@ void NavPhysics::Map::iterate_agent(u32 p_agent_id) {
 		// If using identity transform, we can save some calculations
 		agent.fpos = FPoint2::make(agent.fpos3.x, agent.fpos3.z);
 		agent.fvel = FPoint2::make(agent.fvel3.x, agent.fvel3.z);
-		mesh.iterate_agent(agent);
+		mesh_instance.iterate_agent(agent);
 		agent.fpos3 = FPoint3::make(agent.fpos.x, agent.height, agent.fpos.y);
 	} else {
 		//		agent.fpos3 = FPoint3(agent.fpos.x, agent.height, agent.fpos.y);
@@ -172,11 +172,11 @@ void NavPhysics::Map::iterate_agent(u32 p_agent_id) {
 
 		// apply avoidance
 		agent.fvel3 += agent.avoidance_fvel3;
-		agent.fvel3 = mesh.get_transform_inverse().xform(agent.fvel3);
+		agent.fvel3 = mesh_instance.get_transform_inverse().xform(agent.fvel3);
 		//agent.fvel3 = mesh->get_transform().xform(agent.fvel3);
 		//agent.fpos = FPoint2(agent.fpos3.x, agent.fpos3.z);
 		agent.fvel = FPoint2::make(agent.fvel3.x, agent.fvel3.z);
-		mesh.iterate_agent(agent);
+		mesh_instance.iterate_agent(agent);
 		agent.fpos3 = FPoint3::make(agent.fpos.x, agent.height, agent.fpos.y);
 
 		//		if (Engine::get_singleton()->get_physics_frames() %2)
@@ -185,7 +185,7 @@ void NavPhysics::Map::iterate_agent(u32 p_agent_id) {
 		//		}
 		//		else
 		//		{
-		agent.fpos3 = mesh.get_transform().xform(agent.fpos3);
+		agent.fpos3 = mesh_instance.get_transform().xform(agent.fpos3);
 		//		}
 
 		//agent.fvel3 = agent.fpos3 - pos_before;
@@ -213,7 +213,7 @@ void NavPhysics::Map::clear() {
 	//		}
 	//	}
 
-	_meshes.clear();
+	_mesh_instances.clear();
 }
 
 //void NavPhysics::Map::navphysics_set_params(u32 p_agent_id, freal p_friction) {
@@ -231,15 +231,15 @@ void NavPhysics::Map::body_teleport(Agent &r_agent, u32 p_agent_id, const FPoint
 	r_agent.fpos3_teleport = p_pos;
 
 	if (update_agent_mesh(r_agent, p_agent_id)) {
-		Mesh &mesh = g_world.get_mesh(r_agent.get_mesh_id());
+		MeshInstance &meshi = g_world.get_mesh_instance(r_agent.get_mesh_instance_id());
 
 		// transform
-		FPoint3 pos_local = mesh.get_transform().xform(r_agent.fpos3_teleport);
+		FPoint3 pos_local = meshi.get_transform().xform(r_agent.fpos3_teleport);
 		r_agent.fpos = FPoint2::make(pos_local.x, pos_local.z);
 		r_agent.fpos3 = r_agent.fpos3_teleport;
 
 		//NP_NP_ERR_FAIL_NULL(mesh);
-		mesh.teleport_agent(r_agent);
+		meshi.teleport_agent(r_agent);
 	} else {
 		NP_NP_ERR_FAIL_MSG("Agent mesh not found.");
 	}
@@ -382,7 +382,7 @@ np_handle World::safe_mesh_create() {
 np_handle World::safe_mesh_instance_create() {
 	u32 id = UINT32_MAX;
 	MeshInstanceContainer *mesh_instance = _mesh_instances.request(id);
-	if (mesh) {
+	if (mesh_instance) {
 		NP_DEV_CHECK(!mesh_instance->mesh_instance);
 		mesh_instance->mesh_instance = new (MeshInstance);
 		if (!mesh_instance->revision) {

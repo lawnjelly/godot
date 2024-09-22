@@ -9,15 +9,15 @@ namespace NavPhysics {
 // Must be POD.
 struct Agent {
 private:
-	u32 mesh_id = UINT32_MAX;
+	u32 mesh_instance_id = UINT32_MAX;
 
 public:
 	struct CallbackData {
 		// Object *receiver = nullptr;
 	} callback;
 
-	u32 get_mesh_id() const { return mesh_id; }
-	void set_mesh_id(u32 p_mesh_id);
+	u32 get_mesh_instance_id() const { return mesh_instance_id; }
+	void set_mesh_instance_id(u32 p_mesh_id);
 
 	np_handle map = 0;
 	u32 revision = 0;
@@ -61,7 +61,7 @@ public:
 		agent_id = 0;
 #endif
 		map = 0;
-		mesh_id = UINT32_MAX;
+		mesh_instance_id = UINT32_MAX;
 		pos.zero();
 		vel.zero();
 		height = 0;
@@ -115,6 +115,9 @@ struct Wall {
 
 struct Narrowing {
 	u32 available = 0;
+};
+
+struct NarrowingInstance {
 	u32 used = 0;
 
 #ifdef NP_DEV_ENABLED
