@@ -7,26 +7,22 @@
 class NPRegion : public Spatial {
 	GDCLASS(NPRegion, Spatial);
 
-	Vector<Ref<NPMesh>> _meshes;
-	//Vector<Variant> _meshes;
-
 	struct Data {
-		np_handle h_region = 0;
+		np_handle h_mesh_instance = 0;
+		Ref<NPMesh> mesh;
 	} data;
+
+	void resource_changed(RES res);
 
 protected:
 	void _notification(int p_what);
 	static void _bind_methods();
 
 public:
-	//	void set_meshes(Vector<NPMesh> &p_meshes);
-	//	Vector<NPMesh> get_meshes() const;
+	void set_mesh(const Ref<NPMesh> &p_mesh);
+	Ref<NPMesh> get_mesh() const;
 
-	//void set_meshes(Vector<Variant> &p_meshes);
-	//Vector<Variant> get_meshes() const;
-
-	void set_meshes(const Array &p_meshes);
-	Array get_meshes() const;
+	String get_configuration_warning() const;
 
 	NPRegion();
 	~NPRegion();

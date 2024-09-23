@@ -1,6 +1,7 @@
 #include "navphysics_map.h"
 
 #include "navphysics_mesh.h"
+#include "navphysics_mesh_instance.h"
 #include "navphysics_region.h"
 
 namespace NavPhysics {
@@ -305,6 +306,22 @@ NavPhysics::Mesh *World::safe_get_mesh(np_handle p_mesh, u32 *r_id) {
 	MeshContainer &mesh = _meshes[id];
 	NP_NP_ERR_FAIL_COND_V(mesh.revision != revision, nullptr);
 	return mesh.mesh;
+}
+
+bool World::safe_link_mesh(np_handle p_mesh_instance, np_handle p_mesh) {
+	MeshInstance *mi = safe_get_mesh_instance(p_mesh_instance);
+	NP_NP_ERR_FAIL_NULL_V(mi, false);
+
+	if (!p_mesh) {
+		mi->link_mesh(UINT32_MAX);
+		return true;
+	}
+
+	u32 mesh_id;
+	safe_get_mesh(p_mesh, &mesh_id);
+	mi->link_mesh(mesh_id);
+
+	return true;
 }
 
 NavPhysics::MeshInstance *World::safe_get_mesh_instance(np_handle p_mesh_instance, u32 *r_id) {

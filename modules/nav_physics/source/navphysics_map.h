@@ -114,6 +114,8 @@ public:
 	void safe_region_free(np_handle p_region);
 	void safe_map_free(np_handle p_map);
 
+	bool safe_link_mesh(np_handle p_mesh_instance, np_handle p_mesh);
+
 	World();
 	~World();
 };

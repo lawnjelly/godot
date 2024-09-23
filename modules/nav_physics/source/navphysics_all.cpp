@@ -6,6 +6,7 @@
 #include "navphysics_map.cpp"
 #include "navphysics_math.cpp"
 #include "navphysics_mesh.cpp"
+#include "navphysics_mesh_instance.cpp"
 #include "navphysics_plane.cpp"
 #include "navphysics_pointf.cpp"
 #include "navphysics_pointi.cpp"

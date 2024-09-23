@@ -22,4 +22,6 @@ public:
 
 	bool load(const Vector3 *p_verts, uint32_t p_num_verts, const uint32_t *p_indices, uint32_t p_num_indices);
 	bool load(const NavigationMeshInstance &p_nav_mesh_instance);
+
+	np_handle get_mesh_handle() { return data.h_mesh; }
 };
