@@ -77,7 +77,10 @@ void NavigationMeshGenerator::_add_mesh(const Ref<Mesh> &p_mesh, const Transform
 	for (int i = 0; i < p_mesh->get_surface_count(); i++) {
 		current_vertex_count = p_vertices.size() / 3;
 
+		print_line("\t_add_mesh surface " + itos(i));
+
 		if (p_mesh->surface_get_primitive_type(i) != Mesh::PRIMITIVE_TRIANGLES) {
+			print_line("\t\tignoring, not triangles.");
 			continue;
 		}
 
@@ -88,6 +91,7 @@ void NavigationMeshGenerator::_add_mesh(const Ref<Mesh> &p_mesh, const Transform
 			index_count = p_mesh->surface_get_array_len(i);
 		}
 
+		print_line("\t\tindex count " + itos(index_count));
 		ERR_CONTINUE((index_count == 0 || (index_count % 3) != 0));
 
 		int face_count = index_count / 3;
@@ -164,6 +168,8 @@ void NavigationMeshGenerator::_add_faces(const PoolVector3Array &p_faces, const 
 }
 
 void NavigationMeshGenerator::_parse_geometry(const Transform &p_navmesh_xform, Node *p_node, Vector<float> &p_vertices, Vector<int> &p_indices, int p_generate_from, uint32_t p_collision_mask, bool p_recurse_children) {
+	print_line("_parse_geometry " + p_node->get_name());
+
 	if (Object::cast_to<MeshInstance>(p_node) && p_generate_from != NavigationMesh::PARSED_GEOMETRY_STATIC_COLLIDERS) {
 		MeshInstance *mesh_instance = Object::cast_to<MeshInstance>(p_node);
 		Ref<Mesh> mesh = mesh_instance->get_mesh();

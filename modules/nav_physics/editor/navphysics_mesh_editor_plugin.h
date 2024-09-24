@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*  navigation_mesh_generator.h                                           */
+/*  navigation_mesh_editor_plugin.h                                       */
 /**************************************************************************/
 /*                         This file is part of:                          */
 /*                             GODOT ENGINE                               */
@@ -28,58 +28,58 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
-#ifndef NAVIGATION_MESH_GENERATOR_H
-#define NAVIGATION_MESH_GENERATOR_H
+#pragma once
 
-#ifndef _3D_DISABLED
+//#ifdef TOOLS_ENABLED
 
-#include "scene/3d/navigation_mesh_instance.h"
+#include "editor/editor_node.h"
+#include "editor/editor_plugin.h"
 
-#include <Recast.h>
+class NPRegion;
 
-#ifdef TOOLS_ENABLED
-struct EditorProgress;
-#endif
+class NPMeshEditor : public Control {
+	friend class NPMeshEditorPlugin;
 
-class NavigationMeshGenerator : public Object {
-	GDCLASS(NavigationMeshGenerator, Object);
+	GDCLASS(NPMeshEditor, Control);
 
-	static NavigationMeshGenerator *singleton;
+	AcceptDialog *err_dialog;
+
+	HBoxContainer *bake_hbox;
+	ToolButton *button_bake;
+	ToolButton *button_reset;
+	Label *bake_info;
+
+	NPRegion *node;
+
+	void _bake_pressed();
+	void _clear_pressed();
 
 protected:
+	void _node_removed(Node *p_node);
 	static void _bind_methods();
-
-	static void _add_vertex(const Vector3 &p_vec3, Vector<float> &p_vertices);
-	static void _add_mesh(const Ref<Mesh> &p_mesh, const Transform &p_xform, Vector<float> &p_vertices, Vector<int> &p_indices);
-	static void _add_mesh_array(const Array &p_array, const Transform &p_xform, Vector<float> &p_vertices, Vector<int> &p_indices);
-	static void _add_faces(const PoolVector3Array &p_faces, const Transform &p_xform, Vector<float> &p_vertices, Vector<int> &p_indices);
-
-	static void _convert_detail_mesh_to_native_navigation_mesh(const rcPolyMeshDetail *p_detail_mesh, Ref<NavigationMesh> p_nav_mesh);
-	static void _build_recast_navigation_mesh(
-			Ref<NavigationMesh> p_nav_mesh,
-#ifdef TOOLS_ENABLED
-			EditorProgress *ep,
-#endif
-			rcHeightfield *hf,
-			rcCompactHeightfield *chf,
-			rcContourSet *cset,
-			rcPolyMesh *poly_mesh,
-			rcPolyMeshDetail *detail_mesh,
-			Vector<float> &vertices,
-			Vector<int> &indices);
+	void _notification(int p_option);
 
 public:
-	static NavigationMeshGenerator *get_singleton();
-
-	NavigationMeshGenerator();
-	~NavigationMeshGenerator();
-
-	void bake(Ref<NavigationMesh> p_nav_mesh, Node *p_node);
-	void clear(Ref<NavigationMesh> p_nav_mesh);
-
-	static void _parse_geometry(const Transform &p_navmesh_xform, Node *p_node, Vector<float> &p_vertices, Vector<int> &p_indices, int p_generate_from, uint32_t p_collision_mask, bool p_recurse_children);
+	void edit(NPRegion *p_nav_mesh_instance);
+	NPMeshEditor();
+	~NPMeshEditor();
 };
 
-#endif
+class NPMeshEditorPlugin : public EditorPlugin {
+	GDCLASS(NPMeshEditorPlugin, EditorPlugin);
 
-#endif // NAVIGATION_MESH_GENERATOR_H
+	NPMeshEditor *navigation_mesh_editor;
+	EditorNode *editor;
+
+public:
+	virtual String get_name() const { return "NavigationMesh"; }
+	bool has_main_screen() const { return false; }
+	virtual void edit(Object *p_object);
+	virtual bool handles(Object *p_object) const;
+	virtual void make_visible(bool p_visible);
+
+	NPMeshEditorPlugin(EditorNode *p_node);
+	~NPMeshEditorPlugin();
+};
+
+//#endif

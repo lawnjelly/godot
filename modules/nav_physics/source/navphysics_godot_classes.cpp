@@ -1,5 +1,6 @@
 #pragma clang diagnostic ignored "-Wmissing-braces"
 
+#include "../editor/navphysics_mesh_editor_plugin.cpp"
 #include "../godot/np_agent.cpp"
 #include "../godot/np_mesh.cpp"
 #include "../godot/np_region.cpp"

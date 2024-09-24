@@ -14,11 +14,11 @@ class Region {
 	// For agent to agent collision detection, we maintain a scaling
 	// for an AABB formed by all the registered meshes.
 	// This enables us to maintain a simple orientated grid to quickly find agent neighbours.
-	FPoint2 _f32_to_fp_scale;
-	FPoint2 _f32_to_fp_offset;
+	//	FPoint2 _f32_to_fp_scale;
+	//	FPoint2 _f32_to_fp_offset;
 
-	FPoint2 _fp_to_f32_scale;
-	FPoint2 _fp_to_f32_offset;
+	//	FPoint2 _fp_to_f32_scale;
+	//	FPoint2 _fp_to_f32_offset;
 
 public:
 	void set_transform(const Transform &p_xform);
