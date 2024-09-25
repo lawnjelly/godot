@@ -20,12 +20,11 @@ public:
 	void body_teleport(Agent &r_agent, u32 p_agent_id, const FPoint3 &p_pos);
 	void iterate_agent(u32 p_agent_id);
 
-	u32 register_mesh_instance(u32 p_mesh_instance_id);
-	void unregister_mesh_instance(u32 p_mesh_instance_id, u32 p_mesh_slot_id);
-
 	void register_body(u32 p_body_id);
 	void unregister_body(u32 p_body_id);
 
+	u32 register_mesh_instance(u32 p_mesh_instance_id);
+	void unregister_mesh_instance(u32 p_mesh_instance_id, u32 p_mesh_slot_id);
 	~Map();
 };
 
@@ -60,6 +59,10 @@ class World {
 	TrackedPooledList<MeshContainer, u32, true, true> _meshes;
 	TrackedPooledList<MeshInstanceContainer, u32, true, true> _mesh_instances;
 	TrackedPooledList<Agent, u32, true, true> _agents;
+
+	// Create a default map for the world, to make use simpler
+	// for some uses of the library.
+	np_handle _default_map = 0;
 
 	// 24 bit ID, 8 bit revision
 	u32 handle_to_id(np_handle p_handle, u32 &r_revision) const {
@@ -115,6 +118,11 @@ public:
 	void safe_map_free(np_handle p_map);
 
 	bool safe_link_mesh(np_handle p_mesh_instance, np_handle p_mesh);
+	bool safe_link_mesh_instance(np_handle p_mesh_instance, np_handle p_map);
+	bool safe_unlink_mesh_instance(np_handle p_mesh_instance, np_handle p_map);
+
+	NavPhysics::Map *safe_get_default_map() { return safe_get_map(_default_map); }
+	np_handle get_handle_default_map() { return _default_map; }
 
 	World();
 	~World();

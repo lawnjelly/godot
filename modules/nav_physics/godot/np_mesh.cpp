@@ -5,7 +5,7 @@
 #include "../source/navphysics_pointf.h"
 #include "../source/navphysics_pointi.h"
 #include "../source/navphysics_vector.h"
-#include "np_agent.h"
+#include "np_bake_params.h"
 
 #include "modules/navigation/navigation_mesh_generator.h"
 #include "scene/3d/navigation_mesh_instance.h"
@@ -24,6 +24,38 @@ NPMesh::~NPMesh() {
 		NavPhysics::g_world.safe_mesh_free(data.h_mesh);
 		data.h_mesh = 0;
 	}
+}
+
+void NPMesh::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("set_vertices", "vertices"), &NPMesh::set_vertices);
+	ClassDB::bind_method(D_METHOD("get_vertices"), &NPMesh::get_vertices);
+
+	ADD_PROPERTY(PropertyInfo(Variant::POOL_VECTOR3_ARRAY, "vertices"), "set_vertices", "get_vertices");
+
+	ClassDB::bind_method(D_METHOD("set_indices", "indices"), &NPMesh::set_indices);
+	ClassDB::bind_method(D_METHOD("get_indices"), &NPMesh::get_indices);
+
+	ADD_PROPERTY(PropertyInfo(Variant::POOL_INT_ARRAY, "indices"), "set_indices", "get_indices");
+}
+
+void NPMesh::_update_mesh() {
+	if (data.verts.size() && data.indices.size()) {
+		load(data.verts.ptr(), data.verts.size(), (const uint32_t *)data.indices.ptr(), data.indices.size());
+	} else {
+		NavPhysics::Mesh *mesh = NavPhysics::g_world.safe_get_mesh(data.h_mesh);
+		NP_DEV_ASSERT(mesh);
+		mesh->clear();
+	}
+}
+
+void NPMesh::set_vertices(const Vector<Vector3> &p_verts) {
+	data.verts = p_verts;
+	_update_mesh();
+}
+
+void NPMesh::set_indices(const Vector<int> &p_indices) {
+	data.indices = p_indices;
+	_update_mesh();
 }
 
 bool NPMesh::bake(Node *p_node) {
@@ -318,7 +350,7 @@ void NPMesh::_convert_detail_mesh_to_native_navigation_mesh(const rcPolyMeshDeta
 	}
 	//p_nav_mesh->set_vertices(nav_vertices);
 
-	LocalVector<u32> inds;
+	LocalVector<i32> inds;
 
 	for (int i = 0; i < p_detail_mesh->nmeshes; i++) {
 		const unsigned int *m = &p_detail_mesh->meshes[i * 4];
@@ -342,7 +374,10 @@ void NPMesh::_convert_detail_mesh_to_native_navigation_mesh(const rcPolyMeshDeta
 		}
 	}
 
-	load(nav_vertices.ptr(), nav_vertices.size(), inds.ptr(), inds.size());
+	load(nav_vertices.ptr(), nav_vertices.size(), (const u32 *)inds.ptr(), inds.size());
+
+	data.verts = nav_vertices;
+	data.indices = inds;
 }
 
 bool NPMesh::clear() {

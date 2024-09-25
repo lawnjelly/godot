@@ -8,9 +8,19 @@
 
 namespace NavPhysics {
 
+//class MeshSourceData {
+//public:
+//	Vector<FPoint3> verts;
+//	Vector<u32> inds;
+//	Vector<u32> poly_num_indices;
+//};
+
 class Mesh {
 	friend class Loader;
 	friend class MeshInstance;
+
+	//	MeshSourceData _source_data;
+
 	Vector<u32> _inds;
 	Vector<u32> _inds_next;
 
@@ -41,6 +51,12 @@ class Mesh {
 	Transform _transform_inverse;
 	bool _transform_identity = true;
 
+	// Pointer from the main navigation, used for unloading.
+	//const NavMesh *_source_nav_mesh = nullptr;
+
+	//bool _agent_enter_poly(u32 p_old_poly_id, u32 p_new_poly_id, bool p_force_allow = false);
+
+public:
 	void clear() {
 		_inds.clear();
 		_inds_next.clear();
@@ -56,12 +72,6 @@ class Mesh {
 		_narrowings.clear();
 	}
 
-	// Pointer from the main navigation, used for unloading.
-	//const NavMesh *_source_nav_mesh = nullptr;
-
-	//bool _agent_enter_poly(u32 p_old_poly_id, u32 p_new_poly_id, bool p_force_allow = false);
-
-public:
 	u32 get_mesh_id() const { return _mesh_id; }
 
 	void set_map_id(u32 p_id, u32 p_slot_id) {

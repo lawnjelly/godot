@@ -308,6 +308,29 @@ NavPhysics::Mesh *World::safe_get_mesh(np_handle p_mesh, u32 *r_id) {
 	return mesh.mesh;
 }
 
+bool World::safe_link_mesh_instance(np_handle p_mesh_instance, np_handle p_map) {
+	u32 mi_id;
+	MeshInstance *mi = safe_get_mesh_instance(p_mesh_instance, &mi_id);
+	NP_NP_ERR_FAIL_NULL_V(mi, false);
+
+	Map *map = safe_get_map(p_map);
+	u32 slot = map->register_mesh_instance(mi_id);
+	mi->link_map(slot);
+	return true;
+}
+
+bool World::safe_unlink_mesh_instance(np_handle p_mesh_instance, np_handle p_map) {
+	u32 mi_id;
+	MeshInstance *mi = safe_get_mesh_instance(p_mesh_instance, &mi_id);
+	NP_NP_ERR_FAIL_NULL_V(mi, false);
+
+	Map *map = safe_get_map(p_map);
+	map->unregister_mesh_instance(mi_id, mi->get_map_slot());
+
+	mi->link_map(UINT32_MAX);
+	return true;
+}
+
 bool World::safe_link_mesh(np_handle p_mesh_instance, np_handle p_mesh) {
 	MeshInstance *mi = safe_get_mesh_instance(p_mesh_instance);
 	NP_NP_ERR_FAIL_NULL_V(mi, false);
@@ -598,9 +621,15 @@ void World::clear() {
 }
 
 World::World() {
+	_default_map = safe_map_create();
 }
 
 World::~World() {
+	if (_default_map) {
+		safe_map_free(_default_map);
+		_default_map = 0;
+	}
+
 	clear();
 }
 

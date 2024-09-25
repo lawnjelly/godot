@@ -9,10 +9,14 @@
 
 NPRegion::NPRegion() {
 	data.h_mesh_instance = NavPhysics::g_world.safe_mesh_instance_create();
+
+	NavPhysics::g_world.safe_link_mesh_instance(data.h_mesh_instance, NavPhysics::g_world.get_handle_default_map());
 }
 
 NPRegion::~NPRegion() {
 	if (data.h_mesh_instance) {
+		NavPhysics::g_world.safe_unlink_mesh_instance(data.h_mesh_instance, NavPhysics::g_world.get_handle_default_map());
+
 		NavPhysics::g_world.safe_mesh_instance_free(data.h_mesh_instance);
 		data.h_mesh_instance = 0;
 	}

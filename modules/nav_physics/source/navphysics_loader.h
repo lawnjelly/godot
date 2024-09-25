@@ -18,6 +18,7 @@ public:
 	};
 
 	bool load_mesh(const SourceMeshData &p_source_mesh, Mesh &r_mesh);
+	//	SourceMeshData save_mesh(const Mesh &p_mesh);
 
 private:
 	bool load_polys(const SourceMeshData &p_mesh, Mesh &r_dest);

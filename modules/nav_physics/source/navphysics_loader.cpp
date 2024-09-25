@@ -1,6 +1,8 @@
 #include "navphysics_loader.h"
 #include "navphysics_rect.h"
 
+#include <cstring>
+
 namespace NavPhysics {
 
 void Loader::find_index_nexts(Mesh &r_dest) {
@@ -167,8 +169,27 @@ void Loader::find_walls(Mesh &r_dest) {
 void Loader::find_bottlenecks(Mesh &r_dest) {
 }
 
+//Loader::SourceMeshData Loader::save_mesh(const Mesh &p_mesh) {
+//	SourceMeshData d;
+//	const MeshSourceData &s = p_mesh._source_data;
+
+//	d.num_verts = s.verts.size();
+//	d.verts = s.verts.ptr();
+
+//	d.num_indices = s.inds.size();
+//	d.indices = s.inds.ptr();
+
+//	d.num_polys = s.poly_num_indices.size();
+//	d.poly_num_indices = s.poly_num_indices.ptr();
+
+//	return d;
+//}
+
 bool Loader::load_mesh(const SourceMeshData &p_source_mesh, Mesh &r_mesh) {
 	r_mesh.clear();
+
+	//	MeshSourceData &d = r_mesh._source_data;
+	//	const SourceMeshData &s = p_source_mesh;
 
 	if (!p_source_mesh.verts)
 		return false;
@@ -189,6 +210,16 @@ bool Loader::load_mesh(const SourceMeshData &p_source_mesh, Mesh &r_mesh) {
 	log(String("\tpolys: ") + r_mesh.get_num_polys());
 	log(String("\tverts: ") + r_mesh.get_num_verts());
 	log(String("\tinds: ") + r_mesh.get_num_inds());
+
+	// Backup source data
+	//	d.verts.resize(s.num_verts);
+	//	memcpy(d.verts.ptr(), s.verts, s.num_verts * sizeof(FPoint3));
+
+	//	d.inds.resize(s.num_indices);
+	//	memcpy(d.inds.ptr(), s.indices, s.num_indices * sizeof(u32));
+
+	//	d.poly_num_indices.resize(s.num_polys);
+	//	memcpy(d.poly_num_indices.ptr(), s.poly_num_indices, s.num_polys * sizeof(u32));
 
 	return true;
 

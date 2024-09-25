@@ -16,6 +16,7 @@ class MeshInstance {
 	bool _transform_identity = true;
 
 	u32 _mesh_id = UINT32_MAX;
+	u32 _map_slot = UINT32_MAX;
 
 	const Mesh &get_mesh() const;
 
@@ -41,6 +42,9 @@ public:
 	bool is_transform_identity() const { return _transform_identity; }
 
 	void link_mesh(u32 p_mesh_id);
+
+	void link_map(u32 p_map_slot) { _map_slot = p_map_slot; }
+	u32 get_map_slot() const { return _map_slot; }
 };
 
 } //namespace NavPhysics
