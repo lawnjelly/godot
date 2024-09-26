@@ -164,7 +164,8 @@ private:
 	struct TraceInfo {
 		u32 poly_id = UINT32_MAX;
 		u32 slide_wall = UINT32_MAX;
-		IPoint2 hit_point{ 0, 0 };
+		//IPoint2 hit_point{ 0, 0 };
+		IPoint2 hit_point;
 	};
 	enum MoveResult {
 		MR_OK,
@@ -173,7 +174,8 @@ private:
 	struct MoveInfo {
 		u32 poly_id = UINT32_MAX;
 		u32 wall_id = UINT32_MAX;
-		IPoint2 pos_reached{ 0, 0 };
+		//IPoint2 pos_reached{ 0, 0 };
+		IPoint2 pos_reached;
 	};
 
 	MoveResult recursive_move(i32 p_depth, IPoint2 p_from, IPoint2 p_vel, u32 p_poly_id, u32 p_poly_from_id, u32 p_hug_wall_id, MoveInfo &r_info) const;
@@ -202,6 +204,10 @@ private:
 
 public:
 	u32 find_poly_within(const IPoint2 &p_pt) const;
+	void init() {
+		_transform.init();
+		_transform_inverse.init();
+	}
 };
 
 } // namespace NavPhysics

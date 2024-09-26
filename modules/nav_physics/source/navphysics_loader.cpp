@@ -87,6 +87,7 @@ bool Loader::load_polys(const SourceMeshData &p_mesh, Mesh &r_dest) {
 
 	for (u32 n = 0; n < num_polys; n++) {
 		Poly &dpoly = r_dest._polys[n];
+		dpoly.init();
 
 		dpoly.first_ind = r_dest._inds.size();
 		dpoly.center3.zero();

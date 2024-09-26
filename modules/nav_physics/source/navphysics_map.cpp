@@ -92,7 +92,7 @@ void NavPhysics::Map::unload_mesh_callback(u32 p_mesh_id) {
 }
 */
 
-bool NavPhysics::Map::update_agent_mesh(Agent &r_agent, u32 p_agent_id) {
+bool NavPhysics::Map::update_agent_mesh(Agent &r_agent, u32 p_agent_id, bool p_teleport_if_changed) {
 	//Agent &agent = _agents[p_agent_id];
 
 	// no mesh yet?
@@ -130,13 +130,15 @@ bool NavPhysics::Map::update_agent_mesh(Agent &r_agent, u32 p_agent_id) {
 		r_agent.set_mesh_instance_id(best_mesh_instance_id);
 
 		// teleport
-		body_teleport(r_agent, p_agent_id, r_agent.fpos3_teleport);
-		//g_world.body_teleport(p_agent_id, r_agent.fpos3_teleport);
-		//navphysics_teleport(p_agent_id, agent.fpos3_teleport);
-		//		Mesh *mesh = _meshes[agent.mesh_id];
-		//		FPoint3 pos_local = mesh->get_transform().xform(agent.fpos3);
-		//		agent.fpos = FPoint2(pos_local.x, pos_local.z);
-		//		mesh->teleport_agent(agent);
+		if (p_teleport_if_changed) {
+			body_teleport(r_agent, p_agent_id, r_agent.fpos3_teleport);
+			//g_world.body_teleport(p_agent_id, r_agent.fpos3_teleport);
+			//navphysics_teleport(p_agent_id, agent.fpos3_teleport);
+			//		Mesh *mesh = _meshes[agent.mesh_id];
+			//		FPoint3 pos_local = mesh->get_transform().xform(agent.fpos3);
+			//		agent.fpos = FPoint2(pos_local.x, pos_local.z);
+			//		mesh->teleport_agent(agent);
+		}
 	}
 	return true;
 }
@@ -148,7 +150,7 @@ void NavPhysics::Map::iterate_agent(u32 p_agent_id) {
 	// which happens before iterate_agent().
 	agent.state = (agent.state != AGENT_STATE_PENDING_COLLIDING) ? AGENT_STATE_CLEAR : AGENT_STATE_COLLIDING;
 
-	if (!update_agent_mesh(agent, p_agent_id)) {
+	if (!update_agent_mesh(agent, p_agent_id, true)) {
 		return;
 	}
 
@@ -231,7 +233,7 @@ void NavPhysics::Map::body_teleport(Agent &r_agent, u32 p_agent_id, const FPoint
 	//Agent &agent = _agents[p_agent_id];
 	r_agent.fpos3_teleport = p_pos;
 
-	if (update_agent_mesh(r_agent, p_agent_id)) {
+	if (update_agent_mesh(r_agent, p_agent_id, false)) {
 		MeshInstance &meshi = g_world.get_mesh_instance(r_agent.get_mesh_instance_id());
 
 		// transform
@@ -306,6 +308,26 @@ NavPhysics::Mesh *World::safe_get_mesh(np_handle p_mesh, u32 *r_id) {
 	MeshContainer &mesh = _meshes[id];
 	NP_NP_ERR_FAIL_COND_V(mesh.revision != revision, nullptr);
 	return mesh.mesh;
+}
+
+bool World::safe_link_body(np_handle p_body, np_handle p_map) {
+	u32 agent_id;
+	Agent *agent = safe_get_body(p_body, &agent_id);
+	NP_NP_ERR_FAIL_NULL_V(agent, false);
+
+	Map *map = safe_get_map(p_map);
+	map->register_body(agent_id);
+	return true;
+}
+
+bool World::safe_unlink_body(np_handle p_body, np_handle p_map) {
+	u32 agent_id;
+	Agent *agent = safe_get_body(p_body, &agent_id);
+	NP_NP_ERR_FAIL_NULL_V(agent, false);
+
+	Map *map = safe_get_map(p_map);
+	map->unregister_body(agent_id);
+	return true;
 }
 
 bool World::safe_link_mesh_instance(np_handle p_mesh_instance, np_handle p_map) {
@@ -410,6 +432,7 @@ np_handle World::safe_mesh_create() {
 	if (mesh) {
 		NP_DEV_CHECK(!mesh->mesh);
 		mesh->mesh = new (Mesh);
+		mesh->mesh->init();
 		if (!mesh->revision) {
 			// special case, zero is reserved
 			mesh->revision = 1;
@@ -425,6 +448,7 @@ np_handle World::safe_mesh_instance_create() {
 	if (mesh_instance) {
 		NP_DEV_CHECK(!mesh_instance->mesh_instance);
 		mesh_instance->mesh_instance = new (MeshInstance);
+		mesh_instance->mesh_instance->init();
 		if (!mesh_instance->revision) {
 			// special case, zero is reserved
 			mesh_instance->revision = 1;

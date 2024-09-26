@@ -6,7 +6,7 @@ namespace NavPhysics {
 
 struct [[nodiscard]] Plane {
 	FPoint3 normal;
-	freal d;
+	freal d = 0;
 
 	bool intersects_ray(const FPoint3 &p_from, const FPoint3 &p_dir, FPoint3 *p_intersection) const;
 	void zero() {

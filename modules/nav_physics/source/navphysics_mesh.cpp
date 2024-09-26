@@ -216,7 +216,8 @@ Mesh::TraceResult Mesh::recursive_trace(i32 p_depth, IPoint2 p_from, IPoint2 p_t
 	const Poly &poly = get_poly(p_poly_id);
 	freal smallest_dist = FLT_MAX;
 	u32 best_wall_id = UINT32_MAX;
-	IPoint2 best_intersect{ 0, 0 };
+	//IPoint2 best_intersect{ 0, 0 };
+	IPoint2 best_intersect;
 
 	for (u32 w = 0; w < poly.num_inds; w++) {
 		u32 wall_id = poly.first_ind + w;

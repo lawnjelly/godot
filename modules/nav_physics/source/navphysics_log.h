@@ -4,6 +4,10 @@
 #include "navphysics_typedefs.h"
 
 namespace NavPhysics {
+typedef void (*np_log_callback)(const char *userdata);
+
+void set_log_callback(np_log_callback p_callback);
+
 void loga(String p_sz, u32 p_priority = 0);
 void log(String p_sz, u32 p_depth = 0, u32 p_priority = 0);
 

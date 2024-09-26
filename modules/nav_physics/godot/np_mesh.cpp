@@ -16,6 +16,7 @@
 #endif
 
 NPMesh::NPMesh() {
+	NavPhysics::set_log_callback(_nav_physics_log_callback);
 	data.h_mesh = NavPhysics::g_world.safe_mesh_create();
 }
 
@@ -24,6 +25,10 @@ NPMesh::~NPMesh() {
 		NavPhysics::g_world.safe_mesh_free(data.h_mesh);
 		data.h_mesh = 0;
 	}
+}
+
+void NPMesh::_nav_physics_log_callback(const char *p_string) {
+	print_line(p_string);
 }
 
 void NPMesh::_bind_methods() {

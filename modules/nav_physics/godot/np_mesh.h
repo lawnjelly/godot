@@ -25,6 +25,8 @@ class NPMesh : public Resource {
 		Vector<int> indices;
 	} data;
 
+	static void _nav_physics_log_callback(const char *p_string);
+
 	void _build_recast_navigation_mesh(
 			const NPBakeParams &p_params,
 #ifdef TOOLS_ENABLED

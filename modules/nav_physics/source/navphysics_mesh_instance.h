@@ -45,6 +45,11 @@ public:
 
 	void link_map(u32 p_map_slot) { _map_slot = p_map_slot; }
 	u32 get_map_slot() const { return _map_slot; }
+
+	void init() {
+		_transform.init();
+		_transform_inverse.init();
+	}
 };
 
 } //namespace NavPhysics

@@ -25,8 +25,10 @@ public:
 	u32 agent_id = 0;
 #endif
 
-	IPoint2 pos = { 0, 0 };
-	IPoint2 vel = { 0, 0 };
+	//	IPoint2 pos = { 0, 0 };
+	//	IPoint2 vel = { 0, 0 };
+	IPoint2 pos;
+	IPoint2 vel;
 	FPoint2 fpos;
 	FPoint2 fvel;
 	freal height = 0;
@@ -82,10 +84,22 @@ public:
 };
 
 struct Poly {
+	void init() {
+		first_ind = 0;
+		num_inds = 0;
+		plane.zero();
+		center.zero();
+		center3.zero();
+		narrowing_id = UINT32_MAX;
+		narrowing_width = 0;
+		flood_fill_counter = 0;
+	}
+
 	u32 first_ind = 0;
 	u32 num_inds = 0;
 	Plane plane;
-	IPoint2 center = { 0, 0 };
+	//IPoint2 center = { 0, 0 };
+	IPoint2 center;
 	FPoint3 center3;
 
 	// bottlenecks
@@ -105,8 +119,10 @@ struct Wall {
 	u32 vert_b = UINT32_MAX;
 	u32 prev_wall = UINT32_MAX;
 	u32 next_wall = UINT32_MAX;
-	IPoint2 wall_vec = { 0, 0 };
-	IPoint2 normal = { 0, 0 };
+	//	IPoint2 wall_vec = { 0, 0 };
+	//	IPoint2 normal = { 0, 0 };
+	IPoint2 wall_vec;
+	IPoint2 normal;
 	u32 poly_id = UINT32_MAX;
 	bool has_vert(u32 p_vert_id) const {
 		return (vert_a == p_vert_id) || (vert_b == p_vert_id);

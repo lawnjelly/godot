@@ -3,15 +3,18 @@
 #include "navphysics_pooled_list.h"
 #include "navphysics_sap.h"
 
+#define NPWORLD NavPhysics::g_world
+
 namespace NavPhysics {
 class Mesh;
 class MeshInstance;
 class Region;
+struct Agent;
 
 class Map {
 	TrackedPooledList<u32> _mesh_instances;
 	SAP _sap;
-	bool update_agent_mesh(Agent &r_agent, u32 p_agent_id);
+	bool update_agent_mesh(Agent &r_agent, u32 p_agent_id, bool p_teleport_if_changed);
 
 public:
 	void clear();
@@ -118,8 +121,12 @@ public:
 	void safe_map_free(np_handle p_map);
 
 	bool safe_link_mesh(np_handle p_mesh_instance, np_handle p_mesh);
+
 	bool safe_link_mesh_instance(np_handle p_mesh_instance, np_handle p_map);
 	bool safe_unlink_mesh_instance(np_handle p_mesh_instance, np_handle p_map);
+
+	bool safe_link_body(np_handle p_body, np_handle p_map);
+	bool safe_unlink_body(np_handle p_body, np_handle p_map);
 
 	NavPhysics::Map *safe_get_default_map() { return safe_get_map(_default_map); }
 	np_handle get_handle_default_map() { return _default_map; }

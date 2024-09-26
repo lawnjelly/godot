@@ -48,6 +48,10 @@ struct [[nodiscard]] IPoint2 {
 		v1.normalize();
 		return v0.dot(v1);
 	}
+
+	IPoint2() {
+		zero();
+	}
 };
 
 struct [[nodiscard]] IPoint3 {
@@ -79,6 +83,9 @@ struct [[nodiscard]] IPoint3 {
 		from_f32(temp);
 	}
 	void normalize() { normalize_to_scale(IPoint2::FP_RANGE); }
+	IPoint3() {
+		zero();
+	}
 };
 
 } // namespace NavPhysics

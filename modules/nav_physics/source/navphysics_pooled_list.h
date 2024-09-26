@@ -6,8 +6,8 @@ namespace NavPhysics {
 
 template <class T, class U = u32, bool force_trivial = false, bool zero_on_first_request = false>
 class PooledList {
-	Vector<T, U, force_trivial> list;
-	Vector<U, U, true> freelist;
+	NavPhysics::Vector<T, U, force_trivial> list;
+	NavPhysics::Vector<U, U, true> freelist;
 
 	// not all list members are necessarily used
 	U _used_size;
@@ -149,12 +149,12 @@ public:
 		}
 	}
 
-	const Vector<U, U> &get_active_list() const { return _active_list; }
+	const NavPhysics::Vector<U, U> &get_active_list() const { return _active_list; }
 
 private:
-	PooledList<T, U, force_trivial, zero_on_first_request> _pool;
-	Vector<U, U> _active_map;
-	Vector<U, U> _active_list;
+	NavPhysics::PooledList<T, U, force_trivial, zero_on_first_request> _pool;
+	NavPhysics::Vector<U, U> _active_map;
+	NavPhysics::Vector<U, U> _active_list;
 };
 
 } //namespace NavPhysics

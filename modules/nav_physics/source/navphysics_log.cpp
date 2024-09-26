@@ -5,8 +5,18 @@
 
 namespace NavPhysics {
 
+np_log_callback g_log_callback = nullptr;
+
+void set_log_callback(np_log_callback p_callback) {
+	g_log_callback = p_callback;
+}
+
 void loga(String p_sz, u32 p_priority) {
-	std::cout << p_sz.get_cstring();
+	if (g_log_callback) {
+		g_log_callback(p_sz.get_cstring());
+	} else {
+		std::cout << p_sz.get_cstring();
+	}
 }
 
 void log(String p_sz, u32 p_depth, u32 p_priority) {
@@ -15,7 +25,11 @@ void log(String p_sz, u32 p_depth, u32 p_priority) {
 		sz += "\t";
 	}
 
-	loga(sz + p_sz + "\n", p_priority);
+	if (!g_log_callback) {
+		loga(sz + p_sz + "\n", p_priority);
+	} else {
+		loga(sz + p_sz, p_priority);
+	}
 }
 
 // Compatibility .. remove later.

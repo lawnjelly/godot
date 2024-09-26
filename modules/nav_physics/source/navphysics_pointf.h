@@ -41,6 +41,10 @@ struct [[nodiscard]] FPoint2 {
 	freal angle() const { return Math::atan2_real(y, x); }
 	freal angle_to_point(const FPoint2 &p_v) const { return (p_v - (*this)).angle(); }
 	bool is_equal_approx(const FPoint2 &p_v, f32 p_tolerance = Math::NP_CMP_EPSILON) const { return Math::is_equal_approx(x, p_v.x, p_tolerance) && Math::is_equal_approx(y, p_v.y, p_tolerance); }
+
+	FPoint2() {
+		zero();
+	}
 };
 
 struct [[nodiscard]] FPoint3 {
@@ -73,6 +77,10 @@ struct [[nodiscard]] FPoint3 {
 	}
 	freal dot(const FPoint3 &p_v) const { return (x * p_v.x) + (y * p_v.y) + (z * p_v.z); }
 	bool is_equal_approx(const FPoint3 &p_v, f32 p_tolerance = Math::NP_CMP_EPSILON) const { return Math::is_equal_approx(x, p_v.x, p_tolerance) && Math::is_equal_approx(y, p_v.y, p_tolerance) && Math::is_equal_approx(z, p_v.z, p_tolerance); }
+
+	FPoint3() {
+		zero();
+	}
 };
 
 } // namespace NavPhysics
