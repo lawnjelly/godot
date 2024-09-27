@@ -110,6 +110,44 @@ bool InputDefault::is_action_pressed(const StringName &p_action, bool p_exact) c
 	return action_state.has(p_action) && action_state[p_action].pressed && (p_exact ? action_state[p_action].exact : true);
 }
 
+bool InputDefault::retire_action_just_pressed(const StringName &p_action, bool p_exact) {
+	ERR_FAIL_COND_V_MSG(!InputMap::get_singleton()->has_action(p_action), false, InputMap::get_singleton()->suggest_actions(p_action));
+	Map<StringName, Action>::Element *E = action_state.find(p_action);
+	if (!E) {
+		return false;
+	}
+
+	Action &action = E->get();
+
+	if (p_exact && action.exact == false) {
+		return false;
+	}
+
+	if (Engine::get_singleton()->is_in_physics_frame()) {
+		if (!legacy_just_pressed_behavior) {
+			bool pressed = action.pressed_physics_frame == Engine::get_singleton()->get_physics_frames();
+			if (pressed) {
+				// Special case for 0th frame, we don't want to wraparound.
+				action.pressed_physics_frame = action.pressed_physics_frame ? (action.pressed_physics_frame - 1) : 0;
+			}
+			return pressed;
+		} else {
+			return action.pressed && (action.pressed_physics_frame == Engine::get_singleton()->get_physics_frames());
+		}
+	} else {
+		if (!legacy_just_pressed_behavior) {
+			bool pressed = action.pressed_idle_frame == Engine::get_singleton()->get_idle_frames();
+			if (pressed) {
+				// Special case for 0th tick, we don't want to wraparound.
+				action.pressed_idle_frame = action.pressed_idle_frame ? (action.pressed_idle_frame - 1) : 0;
+			}
+			return pressed;
+		} else {
+			return action.pressed && (action.pressed_idle_frame == Engine::get_singleton()->get_idle_frames());
+		}
+	}
+}
+
 bool InputDefault::is_action_just_pressed(const StringName &p_action, bool p_exact) const {
 	ERR_FAIL_COND_V_MSG(!InputMap::get_singleton()->has_action(p_action), false, InputMap::get_singleton()->suggest_actions(p_action));
 	const Map<StringName, Action>::Element *E = action_state.find(p_action);

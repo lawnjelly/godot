@@ -305,6 +305,17 @@
 				Removes all mappings from the internal database that match the given GUID.
 			</description>
 		</method>
+		<method name="retire_action_just_pressed">
+			<return type="bool" />
+			<argument index="0" name="action" type="String" />
+			<argument index="1" name="exact" type="bool" default="false" />
+			<description>
+				This function retires an action that has been just pressed.
+				The action will return [code]false[/code] for any further calls to [method is_action_just_pressed] on the same frame / physics tick (unless it is pressed again).
+				This allows users to ensure that an action is only responded to once within the current frame / tick.
+				If [code]exact[/code] is [code]false[/code], it ignores additional input modifiers for [InputEventKey] and [InputEventMouseButton] events, and the direction for [InputEventJoypadMotion] events.
+			</description>
+		</method>
 		<method name="set_accelerometer">
 			<return type="void" />
 			<argument index="0" name="value" type="Vector3" />

@@ -86,6 +86,7 @@ public:
 	virtual bool is_action_pressed(const StringName &p_action, bool p_exact = false) const = 0;
 	virtual bool is_action_just_pressed(const StringName &p_action, bool p_exact = false) const = 0;
 	virtual bool is_action_just_released(const StringName &p_action, bool p_exact = false) const = 0;
+	virtual bool retire_action_just_pressed(const StringName &p_action, bool p_exact = false) = 0;
 	virtual float get_action_strength(const StringName &p_action, bool p_exact = false) const = 0;
 	virtual float get_action_raw_strength(const StringName &p_action, bool p_exact = false) const = 0;
 

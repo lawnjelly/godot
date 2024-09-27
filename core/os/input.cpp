@@ -61,6 +61,7 @@ void Input::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("is_action_pressed", "action", "exact"), &Input::is_action_pressed, DEFVAL(false));
 	ClassDB::bind_method(D_METHOD("is_action_just_pressed", "action", "exact"), &Input::is_action_just_pressed, DEFVAL(false));
 	ClassDB::bind_method(D_METHOD("is_action_just_released", "action", "exact"), &Input::is_action_just_released, DEFVAL(false));
+	ClassDB::bind_method(D_METHOD("retire_action_just_pressed", "action", "exact"), &Input::retire_action_just_pressed, DEFVAL(false));
 	ClassDB::bind_method(D_METHOD("get_action_strength", "action", "exact"), &Input::get_action_strength, DEFVAL(false));
 	ClassDB::bind_method(D_METHOD("get_action_raw_strength", "action", "exact"), &Input::get_action_raw_strength, DEFVAL(false));
 	ClassDB::bind_method(D_METHOD("get_axis", "negative_action", "positive_action"), &Input::get_axis);
