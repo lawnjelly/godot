@@ -1,5 +1,12 @@
 #include "np_agent.h"
+//#include "../source/navphysics_vector.h"
+//#include "../source/navphysics_map.h"
+#include "../source/navphysics_loader.h"
+#include "../source/navphysics_log.h"
 #include "../source/navphysics_map.h"
+#include "../source/navphysics_pointf.h"
+#include "../source/navphysics_pointi.h"
+#include "../source/navphysics_vector.h"
 
 void NPAgent::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("nav_teleport", "position"), &NPAgent::nav_teleport);
