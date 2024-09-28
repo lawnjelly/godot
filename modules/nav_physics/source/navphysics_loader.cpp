@@ -161,7 +161,73 @@ void Loader::load_fixed_point_verts(Mesh &r_dest) {
 	}
 }
 
+// returns linked wall or -1
+u32 Loader::find_linked_poly(Mesh &r_dest, u32 p_poly_from, u32 p_ind_a, u32 p_ind_b, u32 &r_linked_poly) const
+{
+	for (u32 pb = p_poly_from + 1; pb < r_dest.get_num_polys(); pb++) {
+		const Poly &poly_b = r_dest.get_poly(pb);
+		if (poly_b.num_inds < 3) {
+			continue;
+		}
+		for (u32 wb = 0; wb < poly_b.num_inds; wb++) {
+			u32 wall_id_c = poly_b.first_ind + wb;
+			u32 wall_id_d = poly_b.first_ind + ((wb + 1) % poly_b.num_inds);
+			u32 ind_c = r_dest.get_ind(wall_id_c);
+			u32 ind_d = r_dest.get_ind(wall_id_d);
+			// find links with a and b
+			//var link_poly_id : int = -1
+			bool is_link = false;
+			if ((p_ind_a == ind_c) && (p_ind_b == ind_d)) {
+				is_link = true;
+			}
+			if ((p_ind_a == ind_d) && (p_ind_b == ind_c)) {
+				is_link = true;
+			}
+			if (is_link) {
+				//_dmap._links.set(wall_id, poly_from)
+				// we have found a link poly!
+				//print("link from " + str(poly_from) + " to " + str(pb))
+				//return [wall_id_c, pb]
+				r_linked_poly = pb;
+				return wall_id_c;
+			}
+			// swap
+			//ind_c = ind_d
+		} // for wb
+	} // for pb
+	// not found, no link poly, edge of navmesh
+	return UINT32_MAX;
+}
+
 void Loader::find_links(Mesh &r_dest) {
+	Vector<uint32_t> &links = r_dest._links;
+	links.resize(r_dest.get_num_inds());
+	links.fill(UINT32_MAX);
+	for (uint32_t pa = 0; pa < r_dest.get_num_polys(); pa++) {
+		const Poly &poly_a = r_dest.get_poly(pa);
+		if (poly_a.num_inds < 3) {
+			// This isn't really a poly, and we can't find links
+			continue;
+		}
+		for (uint32_t wa = 0; wa < poly_a.num_inds; wa++) {
+			uint32_t wall_id_a = poly_a.first_ind + wa;
+			uint32_t wall_id_b = poly_a.first_ind + ((wa + 1) % poly_a.num_inds);
+			uint32_t ind_a = r_dest.get_ind(wall_id_a);
+			uint32_t ind_b = r_dest.get_ind(wall_id_b);
+			// find links with a and b
+			uint32_t linked_poly = 0;
+			uint32_t linked_wall = find_linked_poly(r_dest, pa, ind_a, ind_b, linked_poly);
+			//var link_poly_id : int = find_linked_poly(pa, ind_a, ind_b)
+			if (linked_wall != UINT32_MAX) {
+				links[wall_id_a] = linked_poly;
+				links[linked_wall] = pa;
+				// links.set(wall_id_a, ret[1])
+				// links.set(ret[0], pa)
+			}
+			// swap
+			//ind_a = ind_b
+		}
+	}
 }
 
 void Loader::find_walls(Mesh &r_dest) {
@@ -211,6 +277,8 @@ bool Loader::load_mesh(const SourceMeshData &p_source_mesh, Mesh &r_mesh) {
 	log(String("\tpolys: ") + r_mesh.get_num_polys());
 	log(String("\tverts: ") + r_mesh.get_num_verts());
 	log(String("\tinds: ") + r_mesh.get_num_inds());
+	
+	log(String("\tlinks: ") + r_mesh.get_num_links());
 
 	// Backup source data
 	//	d.verts.resize(s.num_verts);

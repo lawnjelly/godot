@@ -23,7 +23,8 @@ class MeshInstance {
 	Vector<NarrowingInstance> _narrowing_instances;
 
 	const NarrowingInstance &get_narrowing_instance(u32 p_idx) const { return _narrowing_instances[p_idx]; }
-
+	
+	void _set_transform(const Transform &p_xform, const Transform &p_xform_inv, bool p_is_identity);
 public:
 	// less is better fit
 	freal find_agent_fit(Agent &r_agent) const;
@@ -35,8 +36,9 @@ public:
 	void body_dual_trace(const Agent &p_agent, FPoint3 p_intermediate_destination, NavPhysics::TraceResult &r_result) const;
 
 	FPoint3 choose_random_location() const;
-
-	void set_transform(const Transform &p_xform, const Transform &p_xform_inv, bool p_is_identity);
+	
+	void set_transform(const Transform &p_xform);
+	
 	const Transform &get_transform() const { return _transform; }
 	const Transform &get_transform_inverse() const { return _transform_inverse; }
 	bool is_transform_identity() const { return _transform_identity; }

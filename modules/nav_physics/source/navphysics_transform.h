@@ -113,6 +113,10 @@ struct [[nodiscard]] Transform {
 
 	bool is_equal_approx(const Transform &p_o, f32 p_tolerance = Math::NP_CMP_EPSILON) const { return basis.is_equal_approx(p_o.basis, p_tolerance) && origin.is_equal_approx(p_o.origin, p_tolerance); }
 
+	bool is_identity() const {
+		return is_equal_approx(Transform());
+	}
+
 	void affine_invert() {
 		basis.invert();
 		origin = basis.xform(-origin);

@@ -6,11 +6,15 @@
 #include "../source/navphysics_pointf.h"
 #include "../source/navphysics_pointi.h"
 #include "../source/navphysics_vector.h"
+#include "../source/navphysics_transform.h"
+#include "../source/navphysics_mesh_instance.h"
 
 NPRegion::NPRegion() {
 	data.h_mesh_instance = NavPhysics::g_world.safe_mesh_instance_create();
 
 	NavPhysics::g_world.safe_link_mesh_instance(data.h_mesh_instance, NavPhysics::g_world.get_handle_default_map());
+	
+	set_notify_transform(true);
 }
 
 NPRegion::~NPRegion() {
@@ -23,6 +27,18 @@ NPRegion::~NPRegion() {
 }
 
 void NPRegion::_notification(int p_what) {
+	switch (p_what) {
+	case NOTIFICATION_TRANSFORM_CHANGED: {
+		if (data.h_mesh_instance) {
+			NavPhysics::MeshInstance * mi = NavPhysics::g_world.safe_get_mesh_instance(data.h_mesh_instance);
+			if (mi)
+			{
+				Transform tr = get_global_transform();
+				mi->set_transform(*(NavPhysics::Transform *) &tr);
+			}
+		}
+	} break;
+	}
 }
 
 void NPRegion::resource_changed(RES res) {
