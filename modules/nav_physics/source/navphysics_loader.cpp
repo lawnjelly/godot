@@ -162,8 +162,7 @@ void Loader::load_fixed_point_verts(Mesh &r_dest) {
 }
 
 // returns linked wall or -1
-u32 Loader::find_linked_poly(Mesh &r_dest, u32 p_poly_from, u32 p_ind_a, u32 p_ind_b, u32 &r_linked_poly) const
-{
+u32 Loader::find_linked_poly(Mesh &r_dest, u32 p_poly_from, u32 p_ind_a, u32 p_ind_b, u32 &r_linked_poly) const {
 	for (u32 pb = p_poly_from + 1; pb < r_dest.get_num_polys(); pb++) {
 		const Poly &poly_b = r_dest.get_poly(pb);
 		if (poly_b.num_inds < 3) {
@@ -231,6 +230,112 @@ void Loader::find_links(Mesh &r_dest) {
 }
 
 void Loader::find_walls(Mesh &r_dest) {
+	u32 num_walls = r_dest.get_num_links();
+	r_dest._walls.resize(num_walls);
+	r_dest._walls.fill(Wall());
+	for (u32 w = 0; w < num_walls; w++) {
+		// if (!r_dest.is_hard_wall(w)) {
+		// continue;
+		// }
+		u32 ind_a = r_dest.get_ind(w);
+		u32 ind_b = r_dest.get_ind_next(w);
+		Wall &wall = r_dest._walls[w];
+		wall.vert_a = ind_a;
+		wall.vert_b = ind_b;
+		IPoint2 wa = r_dest.get_vert(ind_a);
+		IPoint2 wb = r_dest.get_vert(ind_b);
+		wall.wall_vec = wb - wa;
+		wall.normal.x = -wall.wall_vec.y;
+		wall.normal.y = wall.wall_vec.x;
+		wall.normal.normalize();
+		// swap but NOT the normal
+		if (ind_a > ind_b) {
+			SWAP(wall.vert_a, wall.vert_b);
+			wall.wall_vec = -wall.wall_vec;
+		}
+	}
+	// Now assign a poly to each wall
+	for (u32 p = 0; p < r_dest.get_num_polys(); p++) {
+		const Poly &poly = r_dest.get_poly(p);
+		NP_ERR_CONTINUE(poly.num_inds < 3);
+		for (u32 i = 0; i < poly.num_inds; i++) {
+			u32 wall_id = poly.first_ind + i;
+			if (!r_dest.is_hard_wall(wall_id)) {
+				continue;
+			}
+			r_dest._walls[wall_id].poly_id = p;
+		}
+	}
+	// Now find previous and next walls
+	for (u32 wa = 0; wa < num_walls; wa++) {
+		if (!r_dest.is_hard_wall(wa)) {
+			continue;
+		}
+		const Wall &wall_a = r_dest.get_wall(wa);
+		for (u32 wb = wa + 1; wb < num_walls; wb++) {
+			if (!r_dest.is_hard_wall(wb)) {
+				continue;
+			}
+			if (wa == wb) {
+				continue;
+			}
+			const Wall &wall_b = r_dest.get_wall(wb);
+			if (wall_b.has_vert(wall_a.vert_a) || wall_b.has_vert(wall_a.vert_b)) {
+				wall_add_neighbour_wall(r_dest, wa, wb);
+			}
+		} // for wb
+	} // for wa
+}
+
+void Loader::wall_add_neighbour_wall(Mesh &r_dest, u32 p_a, u32 p_b) {
+	Wall &wall_a = r_dest._walls[p_a];
+	Wall &wall_b = r_dest._walls[p_b];
+	// Special case to take care of.
+	// If two sections are joining on a single vertex,
+	// we need to either always prevent movement across,
+	// or always allow movement across.
+	if (wall_a.vert_b == wall_b.vert_a) {
+		if ((wall_a.next_wall != UINT32_MAX) || (wall_b.prev_wall != UINT32_MAX)) {
+			if (wall_a.poly_id == wall_b.poly_id) {
+				return;
+			}
+		}
+		wall_a.next_wall = p_b;
+		wall_b.prev_wall = p_a;
+		return;
+	}
+	if (wall_a.vert_b == wall_b.vert_b) {
+		if ((wall_a.next_wall != UINT32_MAX) || (wall_b.next_wall != UINT32_MAX)) {
+			if (wall_a.poly_id == wall_b.poly_id) {
+				return;
+			}
+		}
+		wall_a.next_wall = p_b;
+		wall_b.next_wall = p_a;
+		return;
+	}
+	if (wall_a.vert_a == wall_b.vert_a) {
+		if ((wall_a.prev_wall != UINT32_MAX) || (wall_b.prev_wall != UINT32_MAX)) {
+			if (wall_a.poly_id == wall_b.poly_id) {
+				return;
+			}
+		}
+		wall_a.prev_wall = p_b;
+		wall_b.prev_wall = p_a;
+		return;
+	}
+	if (wall_a.vert_a == wall_b.vert_b) {
+		if ((wall_a.prev_wall != UINT32_MAX) || (wall_b.next_wall != UINT32_MAX)) {
+			if (wall_a.poly_id == wall_b.poly_id) {
+				return;
+			}
+		}
+		wall_a.prev_wall = p_b;
+		wall_b.next_wall = p_a;
+		return;
+	}
+	// this should never happen
+	NP_DEV_ASSERT(false);
 }
 
 void Loader::find_bottlenecks(Mesh &r_dest) {
@@ -277,8 +382,9 @@ bool Loader::load_mesh(const SourceMeshData &p_source_mesh, Mesh &r_mesh) {
 	log(String("\tpolys: ") + r_mesh.get_num_polys());
 	log(String("\tverts: ") + r_mesh.get_num_verts());
 	log(String("\tinds: ") + r_mesh.get_num_inds());
-	
+
 	log(String("\tlinks: ") + r_mesh.get_num_links());
+	log(String("\twalls: ") + r_mesh.get_num_walls());
 
 	// Backup source data
 	//	d.verts.resize(s.num_verts);

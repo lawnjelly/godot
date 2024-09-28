@@ -45,6 +45,8 @@ void NPAgent::_nav_update() {
 	print_line(String(Variant(tr.origin)));
 	set_transform(tr);
 
+	data.vel = *(Vector3 *)&agent->fvel3;
+
 	data.vel *= 0.95f;
 }
 

@@ -33,6 +33,7 @@ private:
 
 	void find_index_nexts(Mesh &r_dest);
 	u32 find_linked_poly(Mesh &r_dest, u32 p_poly_from, u32 p_ind_a, u32 p_ind_b, u32 &r_linked_poly) const;
+	void wall_add_neighbour_wall(Mesh &r_dest, u32 p_a, u32 p_b);
 };
 
 } // namespace NavPhysics

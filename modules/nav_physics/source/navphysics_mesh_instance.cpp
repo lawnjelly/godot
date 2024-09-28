@@ -7,8 +7,7 @@ const Mesh &MeshInstance::get_mesh() const {
 	return g_world.get_mesh(_mesh_id);
 }
 
-void MeshInstance::set_transform(const Transform &p_xform)
-{
+void MeshInstance::set_transform(const Transform &p_xform) {
 	_set_transform(p_xform, p_xform.affine_inverse(), p_xform.is_identity());
 }
 
