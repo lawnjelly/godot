@@ -80,7 +80,12 @@ String::String(u64 p_value) {
 
 String::String(u32 p_value) {
 	char buffer[64];
-	snprintf(buffer, 64, "%u", p_value);
+	if (p_value != UINT32_MAX) {
+		snprintf(buffer, 64, "%u", p_value);
+	} else {
+		set("*");
+		return;
+	}
 	set(buffer);
 }
 

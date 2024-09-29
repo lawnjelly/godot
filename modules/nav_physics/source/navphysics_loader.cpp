@@ -5,6 +5,10 @@
 
 namespace NavPhysics {
 
+void Loader::llog(String p_sz) {
+	log(p_sz);
+}
+
 void Loader::find_index_nexts(Mesh &r_dest) {
 	for (u32 p = 0; p < r_dest.get_num_polys(); p++) {
 		const Poly &poly = r_dest.get_poly(p);
@@ -94,13 +98,17 @@ bool Loader::load_polys(const SourceMeshData &p_mesh, Mesh &r_dest) {
 
 		u32 num_inds = p_mesh.poly_num_indices[n];
 
+		llog(String("Poly ") + n);
+
 		for (u32 v = 0; v < num_inds; v++) {
 			u32 ind = p_mesh.indices[index_count++];
 
 			NP_DEV_ASSERT(ind < p_mesh.num_verts);
 			const FPoint3 &pt = p_mesh.verts[ind];
 
-			r_dest._inds.push_back(find_or_create_vert(r_dest, pt));
+			u32 new_ind = find_or_create_vert(r_dest, pt);
+			llog(String("\told_ind ") + ind + ",\tnew_ind " + new_ind + ", :\t" + pt);
+			r_dest._inds.push_back(new_ind);
 			dpoly.center3 += pt;
 		}
 
@@ -133,7 +141,7 @@ void Loader::load_fixed_point_verts(Mesh &r_dest) {
 		rect.expand_to(sverts[i]);
 	}
 
-	log(String("Internal Map AABB is ") + String(rect.position) + ", " + String(rect.size));
+	llog(String("Internal Map AABB is ") + String(rect.position) + ", " + String(rect.size));
 
 	r_dest._f32_to_fp_scale = FPoint2::make(FPoint2::FP_RANGE / rect.size.x, FPoint2::FP_RANGE / rect.size.y);
 	r_dest._f32_to_fp_offset = rect.position;
@@ -158,6 +166,12 @@ void Loader::load_fixed_point_verts(Mesh &r_dest) {
 	for (u32 n = 0; n < dpolys.size(); n++) {
 		Poly &dpoly = dpolys[n];
 		dpoly.center = r_dest.float_to_fixed_point_2(FPoint2::make(dpoly.center3.x, dpoly.center3.z));
+	}
+
+	// Print verts
+	llog("Verts:");
+	for (u32 n = 0; n < r_dest._verts.size(); n++) {
+		llog(String("\t") + n + String(" :\t") + r_dest._verts[n]);
 	}
 }
 
@@ -227,6 +241,12 @@ void Loader::find_links(Mesh &r_dest) {
 			//ind_a = ind_b
 		}
 	}
+
+	// Print links
+	llog("Links:");
+	for (u32 n = 0; n < links.size(); n++) {
+		llog(String("\t") + links[n]);
+	}
 }
 
 void Loader::find_walls(Mesh &r_dest) {
@@ -285,6 +305,20 @@ void Loader::find_walls(Mesh &r_dest) {
 			}
 		} // for wb
 	} // for wa
+
+	// Print links
+	llog("Walls:");
+	for (u32 n = 0; n < r_dest._walls.size(); n++) {
+		const Wall &wall = r_dest._walls[n];
+		llog(String("\twall ") + n);
+		llog(String("\t\tprev_wall ") + wall.prev_wall);
+		llog(String("\t\tnext_wall ") + wall.next_wall);
+		llog(String("\t\tnormal ") + wall.normal);
+		llog(String("\t\tpoly_id ") + wall.poly_id);
+		llog(String("\t\tvert_a ") + wall.vert_a);
+		llog(String("\t\tvert_b ") + wall.vert_b);
+		llog(String("\t\twall_vec ") + wall.wall_vec);
+	}
 }
 
 void Loader::wall_add_neighbour_wall(Mesh &r_dest, u32 p_a, u32 p_b) {
