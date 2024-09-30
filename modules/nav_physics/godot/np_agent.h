@@ -13,10 +13,12 @@ class NPAgent : public Spatial {
 	struct Data {
 		np_handle h_agent = 0;
 		Vector3 vel;
+		float friction = 0.4;
 	} data;
 
 	void _update_process_mode();
 	void _nav_update();
+	void _update_params();
 
 protected:
 	static void _bind_methods();
@@ -24,7 +26,10 @@ protected:
 
 public:
 	void nav_teleport(const Vector3 &p_pos);
-	void nav_apply_force(const Vector3 &p_force);
+	void apply_impulse(const Vector3 &p_impulse);
+
+	void set_friction(float p_friction);
+	float get_friction() const { return data.friction; }
 
 	NPAgent();
 	~NPAgent();
