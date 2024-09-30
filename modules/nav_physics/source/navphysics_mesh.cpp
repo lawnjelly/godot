@@ -3,11 +3,11 @@
 
 namespace NavPhysics {
 
-void Mesh::set_transform(const Transform &p_xform, const Transform &p_xform_inv, bool p_is_identity) {
-	_transform = p_xform;
-	_transform_inverse = p_xform_inv;
-	_transform_identity = p_is_identity;
-}
+//void Mesh::set_transform(const Transform &p_xform, const Transform &p_xform_inv, bool p_is_identity) {
+//	_transform = p_xform;
+//	_transform_inverse = p_xform_inv;
+//	_transform_identity = p_is_identity;
+//}
 
 void Mesh::debug_poly(u32 p_poly_id) const {
 }
@@ -128,7 +128,7 @@ Mesh::MoveResult Mesh::recursive_move(i32 p_depth, IPoint2 p_from, IPoint2 p_vel
 			freal dist = dist_along_wall + vel_length;
 			freal fract = dist / wall_length;
 			IPoint2 to = wall_start + (wall.wall_vec * fract);
-			log(String("\t\twall dot: ") + String(wall_dot));
+			_log(String("\t\twall dot: ") + String(wall_dot));
 
 			// goes along wall forwards or backwards?
 			if (wall_dot >= 0.0f) {
@@ -172,7 +172,7 @@ Mesh::MoveResult Mesh::recursive_move(i32 p_depth, IPoint2 p_from, IPoint2 p_vel
 	// new destination
 	IPoint2 to = p_from + p_vel;
 
-	log(String("\trecursive_move [") + itos(p_depth) + "] poly " + itos(p_poly_id) + " to " + str(to) + " ... vel " + str(p_vel), p_depth);
+	_log(String("\trecursive_move [") + itos(p_depth) + "] poly " + itos(p_poly_id) + " to " + str(to) + " ... vel " + str(p_vel), p_depth);
 
 	TraceInfo trace_info;
 	TraceResult res = recursive_trace(0, p_from, to, p_poly_id, trace_info);
@@ -339,14 +339,15 @@ bool Mesh::find_lines_intersect_integer(const IPoint2 &p_from_a, const IPoint2 &
 	// First line coefficients where "a1 x  +  b1 y  +  c1  =  0"
 	i32 a1 = y2 - y1;
 	i32 b1 = x1 - x2;
-	i64 c1 = x2 * y1 - x1 * y2;
+	// These calcs need to be 64 bit to prevent overflow crossing 65535.
+	i64 c1 = (i64)x2 * y1 - (i64)x1 * y2;
 
 	// Second line coefficients
 	i32 a2 = y4 - y3;
 	i32 b2 = x3 - x4;
-	i64 c2 = x4 * y3 - x3 * y4;
+	i64 c2 = (i64)x4 * y3 - (i64)x3 * y4;
 
-	i64 denom = a1 * b2 - a2 * b1;
+	i64 denom = (i64)a1 * b2 - (i64)a2 * b1;
 
 	// Lines are colinear
 	if (denom == 0) {
@@ -389,7 +390,7 @@ bool Mesh::find_lines_intersect_integer(const IPoint2 &p_from_a, const IPoint2 &
 	i64 y;
 
 	{
-		i64 num = b1 * c2 - b2 * c1;
+		i64 num = (i64)b1 * c2 - (i64)b2 * c1;
 		if (num < 0) {
 			x = num - offset;
 		} else {
@@ -399,7 +400,7 @@ bool Mesh::find_lines_intersect_integer(const IPoint2 &p_from_a, const IPoint2 &
 	}
 
 	{
-		i64 num = a2 * c1 - a1 * c2;
+		i64 num = (i64)a2 * c1 - (i64)a1 * c2;
 		if (num < 0) {
 			y = num - offset;
 		} else {

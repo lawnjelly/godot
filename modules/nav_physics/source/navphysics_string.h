@@ -10,6 +10,8 @@ struct FPoint2;
 struct FPoint3;
 struct IPoint2;
 struct IPoint3;
+struct Basis;
+struct Transform;
 
 class String {
 	Vector<char> _chars;
@@ -28,6 +30,8 @@ public:
 	String(FPoint3 p_value);
 	String(IPoint2 p_value);
 	String(IPoint3 p_value);
+	String(Basis p_value);
+	String(Transform p_value);
 	String();
 	~String();
 

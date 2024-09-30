@@ -25,6 +25,8 @@ void MeshInstance::teleport_agent(Agent &r_agent) {
 	const Mesh &mesh = get_mesh();
 
 	r_agent.pos = mesh.float_to_fixed_point_2(r_agent.fpos);
+
+	log(String("\tr_agent.pos is ") + r_agent.pos);
 	//r_agent.pos.set(7906, 41409);
 
 	u32 new_poly_id = mesh.find_poly_within(r_agent.pos);
@@ -322,6 +324,10 @@ void MeshInstance::link_mesh(u32 p_mesh_id) {
 	}
 }
 
+void MeshInstance::llog(String p_sz) {
+	//log(p_sz);
+}
+
 void MeshInstance::_iterate_agent(Agent &r_agent) {
 	Agent &ag = r_agent;
 
@@ -350,7 +356,7 @@ void MeshInstance::_iterate_agent(Agent &r_agent) {
 	IPoint2 dir = ag.vel;
 	//var dir = agent._vel
 	dir.normalize();
-	log(String("iterate pos ") + str(ag.pos) + ", vel " + str(ag.vel) + ", poly " + itos(ag.poly_id));
+	llog(String("iterate pos ") + str(ag.pos) + ", vel " + str(ag.vel) + ", poly " + itos(ag.poly_id));
 
 	if (ag.wall_id == UINT32_MAX) {
 		NP_DEV_ASSERT(poly_contains_point(ag.poly_id, ag.pos));
@@ -382,7 +388,7 @@ void MeshInstance::_iterate_agent(Agent &r_agent) {
 		// print_line("narrowing blocked agent at poly " + itos(minfo.poly_id));
 	}
 
-	log(String("\tagent FINAL pos ") + str(ag.pos) + ", vel " + str(ag.vel) + ", poly " + itos(ag.poly_id));
+	llog(String("\tagent FINAL pos ") + str(ag.pos) + ", vel " + str(ag.vel) + ", poly " + itos(ag.poly_id));
 
 	// limit the magnitude to the ingoing magnitude
 	//	freal new_mag = minfo.vel_mag_final;

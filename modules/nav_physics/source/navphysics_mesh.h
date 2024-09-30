@@ -47,9 +47,9 @@ class Mesh {
 	u32 _mesh_id_map_slot = UINT32_MAX;
 	//u32 _mesh_id_region_slot = UINT32_MAX;
 
-	Transform _transform;
-	Transform _transform_inverse;
-	bool _transform_identity = true;
+	//	Transform _transform;
+	//	Transform _transform_inverse;
+	//	bool _transform_identity = true;
 
 	// Pointer from the main navigation, used for unloading.
 	//const NavMesh *_source_nav_mesh = nullptr;
@@ -92,10 +92,10 @@ public:
 	//		return _region_id;
 	//	}
 
-	void set_transform(const Transform &p_xform, const Transform &p_xform_inv, bool p_is_identity);
-	const Transform &get_transform() const { return _transform; }
-	const Transform &get_transform_inverse() const { return _transform_inverse; }
-	bool is_transform_identity() const { return _transform_identity; }
+	//	void set_transform(const Transform &p_xform, const Transform &p_xform_inv, bool p_is_identity);
+	//	const Transform &get_transform() const { return _transform; }
+	//	const Transform &get_transform_inverse() const { return _transform_inverse; }
+	//	bool is_transform_identity() const { return _transform_identity; }
 
 	//PoolVector<Face3> mesh_get_faces() const;
 
@@ -137,8 +137,8 @@ protected:
 
 	IPoint2 float_to_fixed_point_2(const FPoint2 p_pt) const {
 		IPoint2 res;
-		res.x = (p_pt.x - _f32_to_fp_offset.x) * _f32_to_fp_scale.x;
-		res.y = (p_pt.y - _f32_to_fp_offset.y) * _f32_to_fp_scale.y;
+		res.x = (p_pt.x + _f32_to_fp_offset.x) * _f32_to_fp_scale.x;
+		res.y = (p_pt.y + _f32_to_fp_offset.y) * _f32_to_fp_scale.y;
 		return res;
 	}
 
@@ -205,8 +205,8 @@ private:
 public:
 	u32 find_poly_within(const IPoint2 &p_pt) const;
 	void init() {
-		_transform.init();
-		_transform_inverse.init();
+		//		_transform.init();
+		//		_transform_inverse.init();
 	}
 };
 

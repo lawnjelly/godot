@@ -233,13 +233,23 @@ void NavPhysics::Map::body_teleport(Agent &r_agent, u32 p_agent_id, const FPoint
 	//Agent &agent = _agents[p_agent_id];
 	r_agent.fpos3_teleport = p_pos;
 
+	log(String("teleporting to ") + p_pos);
+
 	if (update_agent_mesh(r_agent, p_agent_id, false)) {
 		MeshInstance &meshi = g_world.get_mesh_instance(r_agent.get_mesh_instance_id());
 
 		// transform
-		FPoint3 pos_local = meshi.get_transform().xform(r_agent.fpos3_teleport);
+		//FPoint3 pos_local = meshi.get_transform().xform(r_agent.fpos3_teleport);
+		const Transform &tr = meshi.get_transform_inverse();
+		log(String("\tmeshi xform ") + tr);
+
+		FPoint3 pos_local = tr.xform(r_agent.fpos3_teleport);
+
+		log(String("\tpos_local is ") + pos_local);
+
 		r_agent.fpos = FPoint2::make(pos_local.x, pos_local.z);
-		r_agent.fpos3 = r_agent.fpos3_teleport;
+		//r_agent.fpos3 = r_agent.fpos3_teleport;
+		r_agent.fpos3 = pos_local;
 
 		//NP_NP_ERR_FAIL_NULL(mesh);
 		meshi.teleport_agent(r_agent);

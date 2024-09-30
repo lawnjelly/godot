@@ -8,6 +8,8 @@
 #include "../source/navphysics_pointi.h"
 #include "../source/navphysics_vector.h"
 
+//#define GODOT_DEBUG_NP_AGENT
+
 void NPAgent::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("nav_teleport", "position"), &NPAgent::nav_teleport);
 	ClassDB::bind_method(D_METHOD("nav_apply_force"), &NPAgent::nav_apply_force);
@@ -42,7 +44,9 @@ void NPAgent::_nav_update() {
 	Transform tr = get_transform();
 	tr.origin = *(Vector3 *)&agent->fpos3;
 
+#ifdef GODOT_DEBUG_NP_AGENT
 	print_line(String(Variant(tr.origin)));
+#endif
 	set_transform(tr);
 
 	data.vel = *(Vector3 *)&agent->fvel3;

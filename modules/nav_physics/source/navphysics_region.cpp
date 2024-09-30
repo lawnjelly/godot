@@ -13,10 +13,10 @@ void Region::set_transform(const Transform &p_xform) {
 
 	// send transform on to child meshes
 	for (u32 n = 0; n < _meshes.active_size(); n++) {
-		u32 mesh_id = _meshes.get_active(n);
+		//u32 mesh_id = _meshes.get_active(n);
 
-		Mesh &mesh = g_world.get_mesh(mesh_id);
-		mesh.set_transform(p_xform, _transform_inverse, _transform_identity);
+		//Mesh &mesh = g_world.get_mesh(mesh_id);
+		//mesh.set_transform(p_xform, _transform_inverse, _transform_identity);
 	}
 }
 
@@ -27,8 +27,8 @@ u32 Region::register_mesh(u32 p_mesh_id) {
 
 	// send the current region transform to the new mesh
 	if (!is_transform_identity()) {
-		Mesh &mesh = g_world.get_mesh(p_mesh_id);
-		mesh.set_transform(_transform, _transform_inverse, _transform_identity);
+		//Mesh &mesh = g_world.get_mesh(p_mesh_id);
+		//mesh.set_transform(_transform, _transform_inverse, _transform_identity);
 	}
 
 	return slot_id;

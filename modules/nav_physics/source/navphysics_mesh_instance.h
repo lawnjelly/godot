@@ -26,6 +26,8 @@ class MeshInstance {
 
 	void _set_transform(const Transform &p_xform, const Transform &p_xform_inv, bool p_is_identity);
 
+	void llog(String p_sz);
+
 public:
 	// less is better fit
 	freal find_agent_fit(Agent &r_agent) const;

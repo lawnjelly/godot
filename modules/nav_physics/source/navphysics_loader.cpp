@@ -144,10 +144,16 @@ void Loader::load_fixed_point_verts(Mesh &r_dest) {
 	llog(String("Internal Map AABB is ") + String(rect.position) + ", " + String(rect.size));
 
 	r_dest._f32_to_fp_scale = FPoint2::make(FPoint2::FP_RANGE / rect.size.x, FPoint2::FP_RANGE / rect.size.y);
-	r_dest._f32_to_fp_offset = rect.position;
+	r_dest._f32_to_fp_offset = -rect.position;
 
 	r_dest._fp_to_f32_offset = rect.position;
 	r_dest._fp_to_f32_scale = FPoint2::make(rect.size.x / FPoint2::FP_RANGE, rect.size.y / FPoint2::FP_RANGE);
+
+	llog(String("_f32_to_fp_scale ") + r_dest._f32_to_fp_scale);
+	llog(String("_f32_to_fp_offset ") + r_dest._f32_to_fp_offset);
+
+	llog(String("_fp_to_f32_offset ") + r_dest._fp_to_f32_offset);
+	llog(String("_fp_to_f32_scale ") + r_dest._fp_to_f32_scale);
 
 	for (u32 i = 0; i < num_verts; i++) {
 		const FPoint2 &v = sverts[i];

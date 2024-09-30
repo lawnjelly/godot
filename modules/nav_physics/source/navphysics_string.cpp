@@ -123,6 +123,14 @@ String::String(FPoint3 p_value) {
 	*this = String(p_value.x) + ", " + String(p_value.y) + ", " + String(p_value.z);
 }
 
+String::String(Basis p_value) {
+	*this = String("[ ( ") + String(p_value[0]) + " ), ( " + String(p_value[1]) + " ), ( " + String(p_value[2]) + " )";
+}
+
+String::String(Transform p_value) {
+	*this = String(p_value.basis) + " [ " + String(p_value.origin) + " ] ";
+}
+
 String::String(IPoint2 p_value) {
 	*this = String(p_value.x) + ", " + String(p_value.y);
 }
