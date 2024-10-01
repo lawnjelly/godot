@@ -35,6 +35,7 @@
 #include "core/io/resource_saver.h"
 //#include "navigation_mesh_generator.h"
 #include "../godot/np_region.h"
+#include "navphysics_gizmos.h"
 #include "scene/3d/mesh_instance.h"
 #include "scene/gui/box_container.h"
 
@@ -151,6 +152,9 @@ NPMeshEditorPlugin::NPMeshEditorPlugin(EditorNode *p_node) {
 	add_control_to_container(CONTAINER_SPATIAL_EDITOR_MENU, navigation_mesh_editor->bake_hbox);
 	navigation_mesh_editor->hide();
 	navigation_mesh_editor->bake_hbox->hide();
+
+	Ref<NavPhysicsMeshSpatialGizmoPlugin> gizmo_plugin = Ref<NavPhysicsMeshSpatialGizmoPlugin>(memnew(NavPhysicsMeshSpatialGizmoPlugin));
+	SpatialEditor::get_singleton()->add_gizmo_plugin(gizmo_plugin);
 }
 
 NPMeshEditorPlugin::~NPMeshEditorPlugin() {
