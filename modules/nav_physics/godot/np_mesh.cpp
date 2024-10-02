@@ -60,6 +60,15 @@ void NPMesh::set_vertices(const Vector<Vector3> &p_verts) {
 
 void NPMesh::set_indices(const Vector<int> &p_indices) {
 	data.indices = p_indices;
+
+	data.polys.resize(p_indices.size() / 3);
+	for (uint32_t n = 0; n < data.polys.size(); n++) {
+		Poly p;
+		p.first_index = n * 3;
+		p.num_indices = 3;
+		data.polys.set(n, p);
+	}
+
 	_update_mesh();
 }
 

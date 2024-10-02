@@ -6,7 +6,7 @@
 namespace NavPhysics {
 
 void Loader::llog(String p_sz) {
-	log(p_sz);
+	//log(p_sz);
 }
 
 void Loader::find_index_nexts(Mesh &r_dest) {

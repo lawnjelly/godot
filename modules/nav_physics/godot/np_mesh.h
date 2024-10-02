@@ -18,11 +18,19 @@ class NPMesh : public Resource {
 	OBJ_SAVE_TYPE(NPMesh);
 	RES_BASE_EXTENSION("npmesh");
 
+public:
+	struct Poly {
+		uint32_t first_index = 0;
+		uint32_t num_indices = 0;
+	};
+
+private:
 	struct Data {
 		np_handle h_mesh = 0;
 
 		Vector<Vector3> verts;
 		Vector<int> indices;
+		Vector<Poly> polys;
 	} data;
 
 	static void _nav_physics_log_callback(const char *p_string);
@@ -58,6 +66,7 @@ public:
 
 	Vector<Vector3> get_vertices() const { return data.verts; }
 	Vector<int> get_indices() const { return data.indices; }
+	Vector<Poly> get_polys() const { return data.polys; }
 
 	bool bake(Node *p_node);
 	bool clear();

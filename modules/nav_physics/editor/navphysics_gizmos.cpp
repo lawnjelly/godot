@@ -23,14 +23,69 @@ int NavPhysicsMeshSpatialGizmoPlugin::get_priority() const {
 
 void NavPhysicsMeshSpatialGizmoPlugin::redraw(EditorSpatialGizmo *p_gizmo) {
 	p_gizmo->clear();
+	NPRegion *region = Object::cast_to<NPRegion>(p_gizmo->get_spatial_node());
+
+	Ref<NPMesh> mesh = region->get_mesh();
+	if (mesh.is_null()) {
+		return;
+	}
+
+	Vector<Vector3> verts = mesh->get_vertices();
+	Vector<int> inds = mesh->get_indices();
+	Vector<NPMesh::Poly> polys = mesh->get_polys();
+
+	PoolVector<Vector3> tmeshfaces;
+	tmeshfaces.resize(inds.size());
+
+	{
+		PoolVector<Vector3>::Write tw = tmeshfaces.write();
+		for (int n = 0; n < inds.size(); n++) {
+			tw[n] = verts[inds[n]];
+		}
+	}
+
+	Vector<Vector3> lines;
+	for (int n = 0; n < polys.size(); n++) {
+		const NPMesh::Poly &p = polys[n];
+		for (int e = 0; e < p.num_indices; e++) {
+			int e2 = (e + 1) % p.num_indices;
+
+			int i0 = e + p.first_index;
+			int i1 = e2 + p.first_index;
+
+			lines.push_back(verts[inds[i0]]);
+			lines.push_back(verts[inds[i1]]);
+		}
+	}
+
+	Ref<TriangleMesh> tmesh = memnew(TriangleMesh);
+	tmesh->create(tmeshfaces);
+
+	Ref<Material> edge_material = get_material("navigation_edge_material", p_gizmo);
+	Ref<Material> solid_material = get_material("navigation_solid_material", p_gizmo);
+	//Ref<Material> solid_material_disabled = get_material("navigation_solid_material_disabled", p_gizmo);
+
+	p_gizmo->add_collision_triangles(tmesh);
+	Ref<ArrayMesh> m = memnew(ArrayMesh);
+	Array a;
+	a.resize(Mesh::ARRAY_MAX);
+	a[0] = tmeshfaces;
+	m->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, a);
+	//m->surface_set_material(0, navmesh->is_enabled() ? solid_material : solid_material_disabled);
+	m->surface_set_material(0, solid_material);
+	p_gizmo->add_mesh(m);
+
+	if (lines.size()) {
+		//p_gizmo->add_lines(lines, navmesh->is_enabled() ? edge_material : edge_material_disabled);
+		p_gizmo->add_lines(lines, edge_material);
+	}
+
 #if 0
 	
 	NavigationMeshInstance *navmesh = Object::cast_to<NavigationMeshInstance>(p_gizmo->get_spatial_node());
 	
 	Ref<Material> edge_material = get_material("navigation_edge_material", p_gizmo);
 	Ref<Material> edge_material_disabled = get_material("navigation_edge_material_disabled", p_gizmo);
-	Ref<Material> solid_material = get_material("navigation_solid_material", p_gizmo);
-	Ref<Material> solid_material_disabled = get_material("navigation_solid_material_disabled", p_gizmo);
 	
 	p_gizmo->clear();
 	Ref<NavigationMesh> navmeshie = navmesh->get_navigation_mesh();
