@@ -75,7 +75,89 @@ void Loader::plane_from_poly_newell(Mesh &r_dest, Poly &r_poly) const {
 	r_poly.plane.set(center, normal);
 }
 
+bool Loader::_load_polys(u32 p_num_polys, const u32 *p_num_poly_inds, Mesh &r_mesh) {
+	if (!p_num_polys)
+		return false;
+	if (!p_num_poly_inds)
+		return false;
+	if (!r_mesh._fverts3.size())
+		return false;
+
+	r_mesh._polys.resize(p_num_polys);
+	r_mesh._polys_extra.resize(p_num_polys);
+
+	u32 index_count = 0;
+
+	for (u32 n = 0; n < p_num_polys; n++) {
+		Poly &dpoly = r_mesh._polys[n];
+		dpoly.init();
+
+		dpoly.first_ind = index_count;
+		dpoly.center3.zero();
+
+		u32 num_inds = p_num_poly_inds[n];
+
+		llog(String("Poly ") + n);
+
+		for (u32 v = 0; v < num_inds; v++) {
+			u32 ind = r_mesh._inds[index_count++];
+
+			NP_DEV_ASSERT(ind < r_mesh._fverts3.size());
+			const FPoint3 &pt = r_mesh.get_fvert3(ind);
+
+			//u32 new_ind = find_or_create_vert(r_dest, pt);
+			//llog(String("\told_ind ") + ind + ",\tnew_ind " + new_ind + ", :\t" + pt);
+			//r_dest._inds.push_back(new_ind);
+			dpoly.center3 += pt;
+		}
+
+		dpoly.num_inds = num_inds;
+		if (num_inds) {
+			dpoly.center3 /= (float)num_inds;
+		}
+
+		// Clockwise flag not yet dealt with...
+		plane_from_poly_newell(r_mesh, dpoly);
+
+		//index_count += num_inds;
+	}
+
+	return true;
+}
+
 bool Loader::load_polys(const SourceMeshData &p_mesh, Mesh &r_dest) {
+	if (!p_mesh.num_verts)
+		return false;
+	if (!p_mesh.num_indices)
+		return false;
+
+	// Assuming polys are tris.
+	//	u32 num_polys = p_mesh.num_indices / 3;
+	u32 num_polys = p_mesh.num_polys;
+
+	u32 index_count = 0;
+	for (u32 n = 0; n < num_polys; n++) {
+		u32 num_inds = p_mesh.poly_num_indices[n];
+
+		llog(String("Poly ") + n);
+
+		for (u32 v = 0; v < num_inds; v++) {
+			u32 ind = p_mesh.indices[index_count++];
+
+			NP_DEV_ASSERT(ind < p_mesh.num_verts);
+			const FPoint3 &pt = p_mesh.verts[ind];
+
+			u32 new_ind = find_or_create_vert(r_dest, pt);
+			llog(String("\told_ind ") + ind + ",\tnew_ind " + new_ind + ", :\t" + pt);
+			r_dest._inds.push_back(new_ind);
+			//dpoly.center3 += pt;
+		}
+	}
+
+	return _load_polys(p_mesh.num_polys, p_mesh.poly_num_indices, r_dest);
+}
+
+bool Loader::_load_polys_old(const SourceMeshData &p_mesh, Mesh &r_dest) {
 	if (!p_mesh.num_verts)
 		return false;
 	if (!p_mesh.num_indices)
@@ -397,6 +479,65 @@ void Loader::find_bottlenecks(Mesh &r_dest) {
 //	return d;
 //}
 
+bool Loader::extract_working_data(WorkingMeshData &r_data, const Mesh &p_mesh) {
+	r_data.num_verts = p_mesh.get_num_verts();
+	r_data.verts = p_mesh._fverts3.ptr();
+	r_data.iverts = p_mesh._verts.ptr();
+
+	r_data.num_indices = p_mesh.get_num_inds();
+	r_data.indices = p_mesh._inds.ptr();
+
+	r_data.fixed_point_to_float_offset = p_mesh._fp_to_f32_offset;
+	r_data.fixed_point_to_float_scale = p_mesh._fp_to_f32_scale;
+	r_data.float_to_fixed_point_offset = p_mesh._f32_to_fp_offset;
+	r_data.float_to_fixed_point_scale = p_mesh._f32_to_fp_scale;
+
+	return true;
+}
+
+bool Loader::load_working_data(const WorkingMeshData &p_data, Mesh &r_mesh) {
+	r_mesh.clear();
+
+	if (!p_data.verts)
+		return false;
+	if (!p_data.indices)
+		return false;
+	if (!p_data.poly_num_indices)
+		return false;
+	if (!p_data.num_verts)
+		return false;
+	if (!p_data.num_indices)
+		return false;
+	if (!p_data.num_polys)
+		return false;
+
+	// Verts
+	r_mesh._fverts3.resize(p_data.num_verts);
+	r_mesh._verts.resize(p_data.num_verts);
+
+	for (u32 n = 0; n < p_data.num_verts; n++) {
+		r_mesh._fverts3[n] = p_data.verts[n];
+		r_mesh._verts[n] = p_data.iverts[n];
+	}
+
+	// Inds
+	r_mesh._inds.resize(p_data.num_indices);
+
+	for (u32 n = 0; n < p_data.num_indices; n++) {
+		r_mesh._inds[n] = p_data.indices[n];
+	}
+
+	// Polys
+	r_mesh._polys.resize(p_data.num_polys);
+	r_mesh._polys_extra.resize(p_data.num_polys);
+
+	if (!_load_polys(p_data.num_polys, p_data.poly_num_indices, r_mesh))
+		return false;
+
+	_load(r_mesh);
+	return true;
+}
+
 bool Loader::load_mesh(const SourceMeshData &p_source_mesh, Mesh &r_mesh) {
 	r_mesh.clear();
 
@@ -412,8 +553,19 @@ bool Loader::load_mesh(const SourceMeshData &p_source_mesh, Mesh &r_mesh) {
 		goto failed;
 	}
 
-	find_index_nexts(r_mesh);
 	load_fixed_point_verts(r_mesh);
+
+	_load(r_mesh);
+
+	return true;
+
+failed:
+	r_mesh.clear();
+	return false;
+}
+
+void Loader::_load(Mesh &r_mesh) {
+	find_index_nexts(r_mesh);
 	find_links(r_mesh);
 	find_walls(r_mesh);
 	find_bottlenecks(r_mesh);
@@ -435,12 +587,6 @@ bool Loader::load_mesh(const SourceMeshData &p_source_mesh, Mesh &r_mesh) {
 
 	//	d.poly_num_indices.resize(s.num_polys);
 	//	memcpy(d.poly_num_indices.ptr(), s.poly_num_indices, s.num_polys * sizeof(u32));
-
-	return true;
-
-failed:
-	r_mesh.clear();
-	return false;
 }
 
 } // namespace NavPhysics

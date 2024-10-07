@@ -17,12 +17,35 @@ public:
 		u32 num_polys = 0;
 	};
 
+	struct WorkingMeshData {
+		const FPoint3 *verts = nullptr;
+		const IPoint2 *iverts = nullptr;
+		const u32 *indices = nullptr;
+		const u32 *poly_num_indices = nullptr;
+
+		u32 num_verts = 0;
+		u32 num_indices = 0;
+		u32 num_polys = 0;
+
+		FPoint2 float_to_fixed_point_scale;
+		FPoint2 float_to_fixed_point_offset;
+
+		FPoint2 fixed_point_to_float_scale;
+		FPoint2 fixed_point_to_float_offset;
+	};
+
 	bool load_mesh(const SourceMeshData &p_source_mesh, Mesh &r_mesh);
 	//	SourceMeshData save_mesh(const Mesh &p_mesh);
 	void llog(String p_sz);
 
+	bool load_working_data(const WorkingMeshData &p_data, Mesh &r_mesh);
+	bool extract_working_data(WorkingMeshData &r_data, const Mesh &p_mesh);
+
 private:
+	void _load(Mesh &r_mesh);
 	bool load_polys(const SourceMeshData &p_mesh, Mesh &r_dest);
+	bool _load_polys(u32 p_num_polys, const u32 *p_num_poly_inds, Mesh &r_mesh);
+	bool _load_polys_old(const SourceMeshData &p_mesh, Mesh &r_dest);
 
 	u32 find_or_create_vert(Mesh &r_dest, const FPoint3 &p_pt);
 	void plane_from_poly_newell(Mesh &r_dest, Poly &r_poly) const;
