@@ -37,7 +37,7 @@ u32 Loader::find_or_create_vert(Mesh &r_dest, const FPoint3 &p_pt) {
 
 	// Not found .. add.
 	dverts.push_back(p_pt);
-	r_dest._fverts.push_back(FPoint2::make(p_pt.x, p_pt.z));
+	//r_dest._fverts.push_back(FPoint2::make(p_pt.x, p_pt.z));
 	return dverts.size() - 1;
 }
 
@@ -125,20 +125,20 @@ bool Loader::load_polys(const SourceMeshData &p_mesh, Mesh &r_dest) {
 }
 
 void Loader::load_fixed_point_verts(Mesh &r_dest) {
-	const Vector<FPoint2> &sverts = r_dest._fverts;
+	//const Vector<FPoint2> &sverts = r_dest._fverts;
 
 	// first find the offset and scale
-	u32 num_verts = sverts.size();
+	u32 num_verts = r_dest._fverts3.size();
 
 	if (!num_verts) {
 		return;
 	}
 
 	Rect2 rect;
-	rect.position = sverts[0];
+	rect.position = r_dest.get_fvert(0);
 
 	for (u32 i = 1; i < num_verts; i++) {
-		rect.expand_to(sverts[i]);
+		rect.expand_to(r_dest.get_fvert(i));
 	}
 
 	llog(String("Internal Map AABB is ") + String(rect.position) + ", " + String(rect.size));
@@ -156,7 +156,7 @@ void Loader::load_fixed_point_verts(Mesh &r_dest) {
 	llog(String("_fp_to_f32_scale ") + r_dest._fp_to_f32_scale);
 
 	for (u32 i = 0; i < num_verts; i++) {
-		const FPoint2 &v = sverts[i];
+		FPoint2 v = r_dest.get_fvert(i);
 		IPoint2 vfp = r_dest.float_to_fixed_point_2(v);
 		// print("vert " + str(i) + " : " + vfp.sz())
 		r_dest._verts.push_back(vfp);
