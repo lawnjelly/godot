@@ -5,6 +5,107 @@
 
 namespace NavPhysics {
 
+bool RawLoader::read_u32(const u8 **pp_data, u32 &r_bytes_left, u32 &r_value) {
+	if (r_bytes_left < 4)
+		return false;
+
+	const u32 *pval = (const u32 *)*pp_data;
+	// Big / little endian?
+	r_value = *pval;
+	*pp_data += 4;
+	return true;
+}
+
+bool RawLoader::read_i32(const u8 **pp_data, u32 &r_bytes_left, i32 &r_value) {
+	if (r_bytes_left < 4)
+		return false;
+
+	const i32 *pval = (const i32 *)*pp_data;
+	// Big / little endian?
+	r_value = *pval;
+	*pp_data += 4;
+	return true;
+}
+
+bool RawLoader::read_f32(const u8 **pp_data, u32 &r_bytes_left, f32 &r_value) {
+	if (r_bytes_left < 4)
+		return false;
+
+	const f32 *pval = (const f32 *)*pp_data;
+	// Big / little endian?
+	r_value = *pval;
+	*pp_data += 4;
+	return true;
+}
+
+bool RawLoader::read_ipoint2(const u8 **pp_data, u32 &r_bytes_left, IPoint2 &r_point) {
+	if (!read_i32(pp_data, r_bytes_left, r_point.x))
+		return false;
+	if (!read_i32(pp_data, r_bytes_left, r_point.y))
+		return false;
+	return true;
+}
+
+bool RawLoader::read_fpoint3(const u8 **pp_data, u32 &r_bytes_left, FPoint3 &r_point) {
+	if (!read_f32(pp_data, r_bytes_left, r_point.x))
+		return false;
+	if (!read_f32(pp_data, r_bytes_left, r_point.y))
+		return false;
+	if (!read_f32(pp_data, r_bytes_left, r_point.z))
+		return false;
+	return true;
+}
+
+bool RawLoader::read_fpoint2(const u8 **pp_data, u32 &r_bytes_left, FPoint2 &r_point) {
+	if (!read_f32(pp_data, r_bytes_left, r_point.x))
+		return false;
+	if (!read_f32(pp_data, r_bytes_left, r_point.y))
+		return false;
+	return true;
+}
+
+void RawLoader::write_u32(Vector<uint8_t> &r_data, u32 p_val) {
+	uint8_t *p = (uint8_t *)&p_val;
+	r_data.push_back(*p++);
+	r_data.push_back(*p++);
+	r_data.push_back(*p++);
+	r_data.push_back(*p);
+}
+
+void RawLoader::write_i32(Vector<uint8_t> &r_data, i32 p_val) {
+	uint8_t *p = (uint8_t *)&p_val;
+	r_data.push_back(*p++);
+	r_data.push_back(*p++);
+	r_data.push_back(*p++);
+	r_data.push_back(*p);
+}
+
+void RawLoader::write_f32(Vector<uint8_t> &r_data, f32 p_val) {
+	uint8_t *p = (uint8_t *)&p_val;
+	r_data.push_back(*p++);
+	r_data.push_back(*p++);
+	r_data.push_back(*p++);
+	r_data.push_back(*p);
+}
+
+void RawLoader::write_ipoint2(Vector<uint8_t> &r_data, const IPoint2 &p_point) {
+	write_i32(r_data, p_point.x);
+	write_i32(r_data, p_point.y);
+}
+
+void RawLoader::write_fpoint3(Vector<uint8_t> &r_data, const FPoint3 &p_point) {
+	write_f32(r_data, p_point.x);
+	write_f32(r_data, p_point.y);
+	write_f32(r_data, p_point.z);
+}
+
+void RawLoader::write_fpoint2(Vector<uint8_t> &r_data, const FPoint2 &p_point) {
+	write_f32(r_data, p_point.x);
+	write_f32(r_data, p_point.y);
+}
+
+////////////////////////////////////////////////////////
+
 void Loader::llog(String p_sz) {
 	//log(p_sz);
 }
@@ -495,6 +596,127 @@ bool Loader::extract_working_data(WorkingMeshData &r_data, const Mesh &p_mesh) {
 	return true;
 }
 
+bool Loader::load_raw_data(const uint8_t *p_data, uint32_t p_num_bytes, Mesh &r_mesh) {
+	// FOURCC?
+
+	// Version
+	u32 version;
+	if (RawLoader::read_u32(&p_data, p_num_bytes, version))
+		return false;
+
+	if (version != 100)
+		return false;
+
+	WorkingMeshData md;
+	if (!RawLoader::read_u32(&p_data, p_num_bytes, md.num_verts))
+		return false;
+
+	if (!RawLoader::read_u32(&p_data, p_num_bytes, md.num_indices))
+		return false;
+
+	if (!RawLoader::read_u32(&p_data, p_num_bytes, md.num_polys))
+		return false;
+
+	if (!md.num_verts)
+		return false;
+	if (!md.num_indices)
+		return false;
+	if (!md.num_polys)
+		return false;
+
+	Vector<FPoint3> verts;
+	verts.resize(md.num_verts);
+
+	Vector<IPoint2> iverts;
+	iverts.resize(md.num_verts);
+
+	Vector<u32> inds;
+	inds.resize(md.num_indices);
+
+	Vector<u32> poly_num_inds;
+	poly_num_inds.resize(md.num_polys);
+
+	for (u32 n = 0; n < md.num_verts; n++) {
+		if (!RawLoader::read_fpoint3(&p_data, p_num_bytes, verts[n]))
+			return false;
+	}
+	for (u32 n = 0; n < md.num_verts; n++) {
+		if (!RawLoader::read_ipoint2(&p_data, p_num_bytes, iverts[n]))
+			return false;
+	}
+	for (u32 n = 0; n < md.num_indices; n++) {
+		if (!RawLoader::read_u32(&p_data, p_num_bytes, inds[n]))
+			return false;
+	}
+	for (u32 n = 0; n < md.num_polys; n++) {
+		if (!RawLoader::read_u32(&p_data, p_num_bytes, poly_num_inds[n]))
+			return false;
+	}
+
+	md.verts = verts.ptr();
+	md.iverts = iverts.ptr();
+	md.indices = inds.ptr();
+	md.poly_num_indices = poly_num_inds.ptr();
+
+	if (!RawLoader::read_fpoint2(&p_data, p_num_bytes, md.fixed_point_to_float_offset))
+		return false;
+	if (!RawLoader::read_fpoint2(&p_data, p_num_bytes, md.fixed_point_to_float_scale))
+		return false;
+	if (!RawLoader::read_fpoint2(&p_data, p_num_bytes, md.float_to_fixed_point_offset))
+		return false;
+	if (!RawLoader::read_fpoint2(&p_data, p_num_bytes, md.float_to_fixed_point_scale))
+		return false;
+
+	return load_working_data(md, r_mesh);
+}
+
+uint32_t Loader::prepare_raw_data(const Mesh &p_mesh) {
+	_save_data.clear();
+
+	// FOURCC?
+
+	// Version
+	RawLoader::write_u32(_save_data, 100);
+
+	WorkingMeshData md;
+	extract_working_data(md, p_mesh);
+
+	RawLoader::write_u32(_save_data, md.num_verts);
+	RawLoader::write_u32(_save_data, md.num_indices);
+	RawLoader::write_u32(_save_data, md.num_polys);
+
+	for (u32 n = 0; n < md.num_verts; n++) {
+		RawLoader::write_fpoint3(_save_data, md.verts[n]);
+	}
+
+	for (u32 n = 0; n < md.num_verts; n++) {
+		RawLoader::write_ipoint2(_save_data, md.iverts[n]);
+	}
+	for (u32 n = 0; n < md.num_indices; n++) {
+		RawLoader::write_u32(_save_data, md.indices[n]);
+	}
+	for (u32 n = 0; n < md.num_polys; n++) {
+		RawLoader::write_u32(_save_data, md.poly_num_indices[n]);
+	}
+
+	RawLoader::write_fpoint2(_save_data, md.fixed_point_to_float_offset);
+	RawLoader::write_fpoint2(_save_data, md.fixed_point_to_float_scale);
+	RawLoader::write_fpoint2(_save_data, md.float_to_fixed_point_offset);
+	RawLoader::write_fpoint2(_save_data, md.float_to_fixed_point_scale);
+
+	log(String("save_data size ") + _save_data.size() + " bytes.");
+
+	return _save_data.size();
+}
+
+bool Loader::save_raw_data(uint8_t *r_data, uint32_t p_num_bytes) {
+	if (p_num_bytes != _save_data.size())
+		return false;
+
+	memcpy(r_data, _save_data.ptr(), p_num_bytes);
+	return true;
+}
+
 bool Loader::load_working_data(const WorkingMeshData &p_data, Mesh &r_mesh) {
 	r_mesh.clear();
 
@@ -530,6 +752,11 @@ bool Loader::load_working_data(const WorkingMeshData &p_data, Mesh &r_mesh) {
 	// Polys
 	r_mesh._polys.resize(p_data.num_polys);
 	r_mesh._polys_extra.resize(p_data.num_polys);
+
+	r_mesh._f32_to_fp_offset = p_data.float_to_fixed_point_offset;
+	r_mesh._f32_to_fp_scale = p_data.float_to_fixed_point_scale;
+	r_mesh._fp_to_f32_offset = p_data.fixed_point_to_float_offset;
+	r_mesh._fp_to_f32_scale = p_data.fixed_point_to_float_scale;
 
 	if (!_load_polys(p_data.num_polys, p_data.poly_num_indices, r_mesh))
 		return false;

@@ -45,12 +45,26 @@ void NPMesh::_bind_methods() {
 
 void NPMesh::_update_mesh() {
 	if (data.verts.size() && data.indices.size()) {
-		load(data.verts.ptr(), data.verts.size(), (const uint32_t *)data.indices.ptr(), data.indices.size());
+		bake_load(data.verts.ptr(), data.verts.size(), (const uint32_t *)data.indices.ptr(), data.indices.size());
 	} else {
 		NavPhysics::Mesh *mesh = NavPhysics::g_world.safe_get_mesh(data.h_mesh);
 		NP_DEV_ASSERT(mesh);
 		mesh->clear();
 	}
+}
+
+//void NPMesh::set_data(const Vector<uint8_t> &p_data)
+//{
+
+//}
+
+//Vector<uint8_t> NPMesh::get_data() const
+//{
+
+//}
+
+void NPMesh::set_ivertices(const Vector<int> &p_iverts) {
+	data.iverts = p_iverts;
 }
 
 void NPMesh::set_vertices(const Vector<Vector3> &p_verts) {
@@ -388,7 +402,7 @@ void NPMesh::_convert_detail_mesh_to_native_navigation_mesh(const rcPolyMeshDeta
 		}
 	}
 
-	load(nav_vertices.ptr(), nav_vertices.size(), (const u32 *)inds.ptr(), inds.size());
+	bake_load(nav_vertices.ptr(), nav_vertices.size(), (const u32 *)inds.ptr(), inds.size());
 
 	data.verts = nav_vertices;
 	data.indices = inds;
@@ -398,7 +412,7 @@ bool NPMesh::clear() {
 	return true;
 }
 
-bool NPMesh::load(const NavigationMeshInstance &p_nav_mesh_instance) {
+bool NPMesh::bake_load2(const NavigationMeshInstance &p_nav_mesh_instance) {
 	const Ref<NavigationMesh> nmesh = p_nav_mesh_instance.get_navigation_mesh();
 	if (!nmesh.is_valid()) {
 		return false;
@@ -431,10 +445,26 @@ bool NPMesh::load(const NavigationMeshInstance &p_nav_mesh_instance) {
 		return false;
 	}
 
-	return load(pverts, num_verts, inds.ptr(), inds.size());
+	return bake_load(pverts, num_verts, inds.ptr(), inds.size());
 }
 
-bool NPMesh::load(const Vector3 *p_verts, uint32_t p_num_verts, const uint32_t *p_indices, uint32_t p_num_indices) {
+bool NPMesh::working_load() {
+	NavPhysics::Loader loader;
+	NavPhysics::Loader::WorkingMeshData source;
+
+	source.num_verts = data.verts.size();
+
+	if (data.iverts.size() != (source.num_verts * 2)) {
+		return false;
+	}
+
+	source.verts = (const NavPhysics::FPoint3 *)data.verts.ptr();
+	source.iverts = (const NavPhysics::IPoint2 *)data.iverts.ptr();
+
+	return true;
+}
+
+bool NPMesh::bake_load(const Vector3 *p_verts, uint32_t p_num_verts, const uint32_t *p_indices, uint32_t p_num_indices) {
 	NavPhysics::Loader loader;
 	NavPhysics::Loader::SourceMeshData source;
 
