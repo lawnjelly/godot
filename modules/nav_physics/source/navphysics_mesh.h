@@ -26,7 +26,7 @@ class Mesh {
 
 	Vector<IPoint2> _verts;
 	Vector<FPoint3> _fverts3;
-	Vector<FPoint2> _fverts;
+	//Vector<FPoint2> _fverts;
 
 	Vector<u32> _links;
 	Vector<Wall> _walls;
@@ -63,7 +63,7 @@ public:
 
 		_verts.clear();
 		_fverts3.clear();
-		_fverts.clear();
+		//_fverts.clear();
 
 		_links.clear();
 		_walls.clear();
@@ -106,7 +106,8 @@ protected:
 	u32 get_num_inds() const { return _inds.size(); }
 
 	const IPoint2 &get_vert(u32 p_idx) const { return _verts[p_idx]; }
-	const FPoint2 &get_fvert(u32 p_idx) const { return _fverts[p_idx]; }
+	//const FPoint2 &get_fvert(u32 p_idx) const { return _fverts[p_idx]; }
+	FPoint2 get_fvert(u32 p_idx) const { return FPoint2::make(_fverts3[p_idx].x, _fverts3[p_idx].y); }
 	const FPoint3 &get_fvert3(u32 p_idx) const { return _fverts3[p_idx]; }
 	u32 get_num_verts() const { return _verts.size(); }
 
