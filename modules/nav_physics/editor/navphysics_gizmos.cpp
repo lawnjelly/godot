@@ -1,6 +1,6 @@
 #include "navphysics_gizmos.h"
 #include "modules/nav_physics/godot/np_mesh.h"
-#include "modules/nav_physics/godot/np_region.h"
+#include "modules/nav_physics/godot/np_mesh_instance.h"
 
 NavPhysicsMeshSpatialGizmoPlugin::NavPhysicsMeshSpatialGizmoPlugin() {
 	create_material("navigation_edge_material", EDITOR_DEF("editors/3d_gizmos/gizmo_colors/navigation_edge", Color(0.5, 1, 1)));
@@ -10,11 +10,11 @@ NavPhysicsMeshSpatialGizmoPlugin::NavPhysicsMeshSpatialGizmoPlugin() {
 }
 
 bool NavPhysicsMeshSpatialGizmoPlugin::has_gizmo(Spatial *p_spatial) {
-	return Object::cast_to<NPRegion>(p_spatial) != nullptr;
+	return Object::cast_to<NPMeshInstance>(p_spatial) != nullptr;
 }
 
 String NavPhysicsMeshSpatialGizmoPlugin::get_name() const {
-	return "NPRegion";
+	return "NPMeshInstance";
 }
 
 int NavPhysicsMeshSpatialGizmoPlugin::get_priority() const {
@@ -23,7 +23,7 @@ int NavPhysicsMeshSpatialGizmoPlugin::get_priority() const {
 
 void NavPhysicsMeshSpatialGizmoPlugin::redraw(EditorSpatialGizmo *p_gizmo) {
 	p_gizmo->clear();
-	NPRegion *region = Object::cast_to<NPRegion>(p_gizmo->get_spatial_node());
+	NPMeshInstance *region = Object::cast_to<NPMeshInstance>(p_gizmo->get_spatial_node());
 
 	Ref<NPMesh> mesh = region->get_mesh();
 	if (mesh.is_null()) {
@@ -53,8 +53,20 @@ void NavPhysicsMeshSpatialGizmoPlugin::redraw(EditorSpatialGizmo *p_gizmo) {
 			int i0 = e + p.first_index;
 			int i1 = e2 + p.first_index;
 
-			lines.push_back(verts[inds[i0]]);
-			lines.push_back(verts[inds[i1]]);
+			if (i0 >= inds.size())
+				continue;
+			if (i1 >= inds.size())
+				continue;
+
+			int ind0 = inds[i0];
+			int ind1 = inds[i1];
+
+			if ((ind0 >= verts.size()) || (ind1 >= verts.size())) {
+				continue;
+			}
+
+			lines.push_back(verts[ind0]);
+			lines.push_back(verts[ind1]);
 		}
 	}
 

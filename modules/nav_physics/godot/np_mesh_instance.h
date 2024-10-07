@@ -4,8 +4,8 @@
 #include "np_mesh.h"
 #include "scene/3d/spatial.h"
 
-class NPRegion : public Spatial {
-	GDCLASS(NPRegion, Spatial);
+class NPMeshInstance : public Spatial {
+	GDCLASS(NPMeshInstance, Spatial);
 
 	struct Data {
 		np_handle h_mesh_instance = 0;
@@ -24,6 +24,6 @@ public:
 
 	String get_configuration_warning() const;
 
-	NPRegion();
-	~NPRegion();
+	NPMeshInstance();
+	~NPMeshInstance();
 };

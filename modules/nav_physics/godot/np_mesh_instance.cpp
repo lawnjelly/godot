@@ -1,4 +1,4 @@
-#include "np_region.h"
+#include "np_mesh_instance.h"
 
 #include "../source/navphysics_loader.h"
 #include "../source/navphysics_log.h"
@@ -9,7 +9,7 @@
 #include "../source/navphysics_transform.h"
 #include "../source/navphysics_vector.h"
 
-NPRegion::NPRegion() {
+NPMeshInstance::NPMeshInstance() {
 	data.h_mesh_instance = NavPhysics::g_world.safe_mesh_instance_create();
 
 	NavPhysics::g_world.safe_link_mesh_instance(data.h_mesh_instance, NavPhysics::g_world.get_handle_default_map());
@@ -17,7 +17,7 @@ NPRegion::NPRegion() {
 	set_notify_transform(true);
 }
 
-NPRegion::~NPRegion() {
+NPMeshInstance::~NPMeshInstance() {
 	if (data.h_mesh_instance) {
 		NavPhysics::g_world.safe_unlink_mesh_instance(data.h_mesh_instance, NavPhysics::g_world.get_handle_default_map());
 
@@ -26,7 +26,7 @@ NPRegion::~NPRegion() {
 	}
 }
 
-void NPRegion::_notification(int p_what) {
+void NPMeshInstance::_notification(int p_what) {
 	switch (p_what) {
 		case NOTIFICATION_TRANSFORM_CHANGED: {
 			if (data.h_mesh_instance) {
@@ -40,11 +40,11 @@ void NPRegion::_notification(int p_what) {
 	}
 }
 
-void NPRegion::resource_changed(RES res) {
+void NPMeshInstance::resource_changed(RES res) {
 	update_gizmo();
 }
 
-void NPRegion::set_mesh(const Ref<NPMesh> &p_mesh) {
+void NPMeshInstance::set_mesh(const Ref<NPMesh> &p_mesh) {
 	if (p_mesh == data.mesh) {
 		return;
 	}
@@ -69,11 +69,11 @@ void NPRegion::set_mesh(const Ref<NPMesh> &p_mesh) {
 	update_gizmo();
 	update_configuration_warning();
 }
-Ref<NPMesh> NPRegion::get_mesh() const {
+Ref<NPMesh> NPMeshInstance::get_mesh() const {
 	return data.mesh;
 }
 
-String NPRegion::get_configuration_warning() const {
+String NPMeshInstance::get_configuration_warning() const {
 	String warning = Spatial::get_configuration_warning();
 
 	if (!data.mesh.is_valid()) {
@@ -87,10 +87,10 @@ String NPRegion::get_configuration_warning() const {
 	return warning;
 }
 
-void NPRegion::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("resource_changed", "resource"), &NPRegion::resource_changed);
-	ClassDB::bind_method(D_METHOD("set_mesh", "mesh"), &NPRegion::set_mesh);
-	ClassDB::bind_method(D_METHOD("get_mesh"), &NPRegion::get_mesh);
+void NPMeshInstance::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("resource_changed", "resource"), &NPMeshInstance::resource_changed);
+	ClassDB::bind_method(D_METHOD("set_mesh", "mesh"), &NPMeshInstance::set_mesh);
+	ClassDB::bind_method(D_METHOD("get_mesh"), &NPMeshInstance::get_mesh);
 
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "mesh", PROPERTY_HINT_RESOURCE_TYPE, "NPMesh"), "set_mesh", "get_mesh");
 }

@@ -35,7 +35,7 @@
 #include "editor/editor_node.h"
 #include "editor/editor_plugin.h"
 
-class NPRegion;
+class NPMeshInstance;
 
 class NPMeshEditor : public Control {
 	friend class NPMeshEditorPlugin;
@@ -49,7 +49,7 @@ class NPMeshEditor : public Control {
 	ToolButton *button_reset;
 	Label *bake_info;
 
-	NPRegion *node;
+	NPMeshInstance *node;
 
 	void _bake_pressed();
 	void _clear_pressed();
@@ -60,7 +60,7 @@ protected:
 	void _notification(int p_option);
 
 public:
-	void edit(NPRegion *p_nav_mesh_instance);
+	void edit(NPMeshInstance *p_nav_mesh_instance);
 	NPMeshEditor();
 	~NPMeshEditor();
 };

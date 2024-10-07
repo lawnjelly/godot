@@ -33,8 +33,7 @@
 
 #include "core/io/marshalls.h"
 #include "core/io/resource_saver.h"
-//#include "navigation_mesh_generator.h"
-#include "../godot/np_region.h"
+#include "modules/nav_physics/godot/np_mesh_instance.h"
 #include "navphysics_gizmos.h"
 #include "scene/3d/mesh_instance.h"
 #include "scene/gui/box_container.h"
@@ -87,7 +86,7 @@ void NPMeshEditor::_clear_pressed() {
 	}
 }
 
-void NPMeshEditor::edit(NPRegion *p_nav_mesh_instance) {
+void NPMeshEditor::edit(NPMeshInstance *p_nav_mesh_instance) {
 	if (p_nav_mesh_instance == nullptr || node == p_nav_mesh_instance) {
 		return;
 	}
@@ -127,11 +126,11 @@ NPMeshEditor::~NPMeshEditor() {
 }
 
 void NPMeshEditorPlugin::edit(Object *p_object) {
-	navigation_mesh_editor->edit(Object::cast_to<NPRegion>(p_object));
+	navigation_mesh_editor->edit(Object::cast_to<NPMeshInstance>(p_object));
 }
 
 bool NPMeshEditorPlugin::handles(Object *p_object) const {
-	return p_object->is_class("NPRegion");
+	return p_object->is_class("NPMeshInstance");
 }
 
 void NPMeshEditorPlugin::make_visible(bool p_visible) {

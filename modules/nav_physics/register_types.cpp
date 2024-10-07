@@ -3,14 +3,14 @@
 #include "core/class_db.h"
 #include "godot/np_agent.h"
 #include "godot/np_mesh.h"
-#include "godot/np_region.h"
+#include "godot/np_mesh_instance.h"
 
 #ifdef TOOLS_ENABLED
 #include "editor/navphysics_mesh_editor_plugin.h"
 #endif
 
 void register_nav_physics_types() {
-	ClassDB::register_class<NPRegion>();
+	ClassDB::register_class<NPMeshInstance>();
 	ClassDB::register_class<NPMesh>();
 	ClassDB::register_class<NPAgent>();
 

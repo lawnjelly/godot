@@ -35,12 +35,12 @@ void NPMesh::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_vertices", "vertices"), &NPMesh::set_vertices);
 	ClassDB::bind_method(D_METHOD("get_vertices"), &NPMesh::get_vertices);
 
-	ADD_PROPERTY(PropertyInfo(Variant::POOL_VECTOR3_ARRAY, "vertices"), "set_vertices", "get_vertices");
+	ADD_PROPERTY(PropertyInfo(Variant::POOL_VECTOR3_ARRAY, "vertices", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NOEDITOR | PROPERTY_USAGE_INTERNAL), "set_vertices", "get_vertices");
 
 	ClassDB::bind_method(D_METHOD("set_indices", "indices"), &NPMesh::set_indices);
 	ClassDB::bind_method(D_METHOD("get_indices"), &NPMesh::get_indices);
 
-	ADD_PROPERTY(PropertyInfo(Variant::POOL_INT_ARRAY, "indices"), "set_indices", "get_indices");
+	ADD_PROPERTY(PropertyInfo(Variant::POOL_INT_ARRAY, "indices", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NOEDITOR | PROPERTY_USAGE_INTERNAL), "set_indices", "get_indices");
 }
 
 void NPMesh::_update_mesh() {
