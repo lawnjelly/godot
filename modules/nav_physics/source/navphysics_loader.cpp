@@ -1,5 +1,6 @@
 #include "navphysics_loader.h"
 #include "navphysics_rect.h"
+#include "navphysics_simplifier.h"
 
 #include <cstring>
 
@@ -801,7 +802,10 @@ bool Loader::load_mesh(const SourceMeshData &p_source_mesh, Mesh &r_mesh) {
 	if (!p_source_mesh.indices)
 		return false;
 
-	if (!load_polys(p_source_mesh, r_mesh)) {
+	Simplifier simp;
+	SourceMeshData smd = simp.simplify(p_source_mesh);
+
+	if (!load_polys(smd, r_mesh)) {
 		goto failed;
 	}
 

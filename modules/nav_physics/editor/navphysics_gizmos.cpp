@@ -79,10 +79,11 @@ void NavPhysicsMeshSpatialGizmoPlugin::redraw(EditorSpatialGizmo *p_gizmo) {
 		}
 	}
 
+	Ref<Material> edge_material = get_material("navigation_edge_material", p_gizmo);
+	/*
 	Ref<TriangleMesh> tmesh = memnew(TriangleMesh);
 	tmesh->create(tmeshfaces);
 
-	Ref<Material> edge_material = get_material("navigation_edge_material", p_gizmo);
 	Ref<Material> solid_material = get_material("navigation_solid_material", p_gizmo);
 	//Ref<Material> solid_material_disabled = get_material("navigation_solid_material_disabled", p_gizmo);
 
@@ -95,6 +96,7 @@ void NavPhysicsMeshSpatialGizmoPlugin::redraw(EditorSpatialGizmo *p_gizmo) {
 	//m->surface_set_material(0, navmesh->is_enabled() ? solid_material : solid_material_disabled);
 	m->surface_set_material(0, solid_material);
 	p_gizmo->add_mesh(m);
+	*/
 
 	if (lines.size()) {
 		//p_gizmo->add_lines(lines, navmesh->is_enabled() ? edge_material : edge_material_disabled);

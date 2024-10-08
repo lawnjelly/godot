@@ -13,6 +13,7 @@
 #include "navphysics_rect.cpp"
 #include "navphysics_region.cpp"
 #include "navphysics_sap.cpp"
+#include "navphysics_simplifier.cpp"
 #include "navphysics_string.cpp"
 #include "navphysics_structs.cpp"
 #include "navphysics_transform.cpp"
