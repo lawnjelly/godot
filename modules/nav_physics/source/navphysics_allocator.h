@@ -6,15 +6,28 @@ namespace NavPhysics {
 
 class DefaultAllocator {
 public:
-	static void *alloc(u32 p_bytes, u32 p_align = 0) {
+	template <class T>
+	static T *newT() {
+		T *t = (T *)DefaultAllocator::alloc(sizeof(T));
+		t = new (t) T();
+		return t;
+	}
+
+	template <class T>
+	static void deleteT(T *t) {
+		t->~T();
+		DefaultAllocator::free(t);
+	}
+
+	static void *alloc(u32 p_bytes) {
 		return ::malloc(p_bytes);
 	}
 
-	static void free(void *p_addr, u32 p_align = 0) {
+	static void free(void *p_addr) {
 		::free(p_addr);
 	}
 
-	static void *realloc(void *p_addr, u32 p_size, u32 p_align = 0) {
+	static void *realloc(void *p_addr, u32 p_size) {
 		return ::realloc(p_addr, p_size);
 	}
 

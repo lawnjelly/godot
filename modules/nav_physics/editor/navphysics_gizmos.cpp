@@ -31,8 +31,17 @@ void NavPhysicsMeshSpatialGizmoPlugin::redraw(EditorSpatialGizmo *p_gizmo) {
 	}
 
 	Vector<Vector3> verts = mesh->get_vertices();
+	if (!verts.size()) {
+		return;
+	}
 	Vector<int> inds = mesh->get_indices();
+	if (!inds.size()) {
+		return;
+	}
 	Vector<NPMesh::Poly> polys = mesh->get_polys();
+	if (!polys.size()) {
+		return;
+	}
 
 	PoolVector<Vector3> tmeshfaces;
 	tmeshfaces.resize(inds.size());

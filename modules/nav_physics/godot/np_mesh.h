@@ -28,10 +28,10 @@ private:
 	struct Data {
 		np_handle h_mesh = 0;
 
-		Vector<Vector3> verts;
-		Vector<int> iverts;
-		Vector<int> indices;
-		Vector<Poly> polys;
+		//Vector<Vector3> verts;
+		//		Vector<int> iverts;
+		//Vector<int> indices;
+		//Vector<Poly> polys;
 	} data;
 
 	static void _nav_physics_log_callback(const char *p_string);
@@ -50,7 +50,7 @@ private:
 			Vector<int> &indices);
 	void _convert_detail_mesh_to_native_navigation_mesh(const rcPolyMeshDetail *p_detail_mesh);
 
-	bool working_load();
+	//	bool working_load();
 	bool bake_load(const Vector3 *p_verts, uint32_t p_num_verts, const uint32_t *p_indices, uint32_t p_num_indices);
 	bool bake_load2(const NavigationMeshInstance &p_nav_mesh_instance);
 
@@ -63,14 +63,15 @@ public:
 	NPMesh();
 	~NPMesh();
 
-	void set_vertices(const Vector<Vector3> &p_verts);
-	void set_ivertices(const Vector<int> &p_iverts);
-	void set_indices(const Vector<int> &p_indices);
+	//void set_vertices(const Vector<Vector3> &p_verts);
+	//void set_indices(const Vector<int> &p_indices);
 
-	Vector<Vector3> get_vertices() const { return data.verts; }
-	Vector<int> get_ivertices() const { return data.iverts; }
-	Vector<int> get_indices() const { return data.indices; }
-	Vector<Poly> get_polys() const { return data.polys; }
+	Vector<Vector3> get_vertices() const; // { return data.verts; }
+	Vector<int> get_indices() const; // { return data.indices; }
+	Vector<Poly> get_polys() const; // { return data.polys; }
+
+	void set_data(const Vector<uint8_t> &p_data);
+	Vector<uint8_t> get_data() const;
 
 	bool bake(Node *p_node);
 	bool clear();

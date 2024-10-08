@@ -26,6 +26,7 @@ public:
 
 class Loader {
 	Vector<uint8_t> _save_data;
+	Vector<u32> _poly_num_indices;
 
 public:
 	struct SourceMeshData {
@@ -59,6 +60,7 @@ public:
 	bool load_mesh(const SourceMeshData &p_source_mesh, Mesh &r_mesh);
 	//	SourceMeshData save_mesh(const Mesh &p_mesh);
 	void llog(String p_sz);
+	void log_load(String p_sz);
 
 	bool load_working_data(const WorkingMeshData &p_data, Mesh &r_mesh);
 	bool extract_working_data(WorkingMeshData &r_data, const Mesh &p_mesh);

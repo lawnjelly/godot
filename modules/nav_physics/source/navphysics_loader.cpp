@@ -6,8 +6,10 @@
 namespace NavPhysics {
 
 bool RawLoader::read_u32(const u8 **pp_data, u32 &r_bytes_left, u32 &r_value) {
-	if (r_bytes_left < 4)
+	if (r_bytes_left < 4) {
+		log("RawLoader failed to read u32.");
 		return false;
+	}
 
 	const u32 *pval = (const u32 *)*pp_data;
 	// Big / little endian?
@@ -17,9 +19,10 @@ bool RawLoader::read_u32(const u8 **pp_data, u32 &r_bytes_left, u32 &r_value) {
 }
 
 bool RawLoader::read_i32(const u8 **pp_data, u32 &r_bytes_left, i32 &r_value) {
-	if (r_bytes_left < 4)
+	if (r_bytes_left < 4) {
+		log("RawLoader failed to read i32.");
 		return false;
-
+	}
 	const i32 *pval = (const i32 *)*pp_data;
 	// Big / little endian?
 	r_value = *pval;
@@ -28,8 +31,10 @@ bool RawLoader::read_i32(const u8 **pp_data, u32 &r_bytes_left, i32 &r_value) {
 }
 
 bool RawLoader::read_f32(const u8 **pp_data, u32 &r_bytes_left, f32 &r_value) {
-	if (r_bytes_left < 4)
+	if (r_bytes_left < 4) {
+		log("RawLoader failed to read f32.");
 		return false;
+	}
 
 	const f32 *pval = (const f32 *)*pp_data;
 	// Big / little endian?
@@ -108,6 +113,9 @@ void RawLoader::write_fpoint2(Vector<uint8_t> &r_data, const FPoint2 &p_point) {
 
 void Loader::llog(String p_sz) {
 	//log(p_sz);
+}
+void Loader::log_load(String p_sz) {
+	log(String("log_load:\t") + p_sz);
 }
 
 void Loader::find_index_nexts(Mesh &r_dest) {
@@ -588,6 +596,16 @@ bool Loader::extract_working_data(WorkingMeshData &r_data, const Mesh &p_mesh) {
 	r_data.num_indices = p_mesh.get_num_inds();
 	r_data.indices = p_mesh._inds.ptr();
 
+	r_data.num_polys = p_mesh._polys.size();
+	_poly_num_indices.resize(r_data.num_polys);
+	for (u32 n = 0; n < r_data.num_polys; n++) {
+		u32 num_inds = p_mesh.get_poly(n).num_inds;
+		_poly_num_indices[n] = num_inds;
+
+		//llog(String("poly ") + n + " has " + num_inds + " indices.");
+	}
+	r_data.poly_num_indices = _poly_num_indices.ptr();
+
 	r_data.fixed_point_to_float_offset = p_mesh._fp_to_f32_offset;
 	r_data.fixed_point_to_float_scale = p_mesh._fp_to_f32_scale;
 	r_data.float_to_fixed_point_offset = p_mesh._f32_to_fp_offset;
@@ -601,11 +619,15 @@ bool Loader::load_raw_data(const uint8_t *p_data, uint32_t p_num_bytes, Mesh &r_
 
 	// Version
 	u32 version;
-	if (RawLoader::read_u32(&p_data, p_num_bytes, version))
+	if (!RawLoader::read_u32(&p_data, p_num_bytes, version)) {
 		return false;
+	}
 
-	if (version != 100)
+	if (version != 100) {
+		log("NavMesh data version incorrect.");
 		return false;
+	}
+	log_load("Version correct.");
 
 	WorkingMeshData md;
 	if (!RawLoader::read_u32(&p_data, p_num_bytes, md.num_verts))
@@ -616,6 +638,7 @@ bool Loader::load_raw_data(const uint8_t *p_data, uint32_t p_num_bytes, Mesh &r_
 
 	if (!RawLoader::read_u32(&p_data, p_num_bytes, md.num_polys))
 		return false;
+	log_load("Numbers read OK.");
 
 	if (!md.num_verts)
 		return false;
@@ -637,35 +660,56 @@ bool Loader::load_raw_data(const uint8_t *p_data, uint32_t p_num_bytes, Mesh &r_
 	poly_num_inds.resize(md.num_polys);
 
 	for (u32 n = 0; n < md.num_verts; n++) {
-		if (!RawLoader::read_fpoint3(&p_data, p_num_bytes, verts[n]))
+		if (!RawLoader::read_fpoint3(&p_data, p_num_bytes, verts[n])) {
+			log("Failed to read vert.");
 			return false;
+		}
 	}
+	log_load("Verts read OK.");
 	for (u32 n = 0; n < md.num_verts; n++) {
-		if (!RawLoader::read_ipoint2(&p_data, p_num_bytes, iverts[n]))
+		if (!RawLoader::read_ipoint2(&p_data, p_num_bytes, iverts[n])) {
+			log("Failed to read ivert.");
 			return false;
+		}
 	}
+	log_load("IVerts read OK.");
 	for (u32 n = 0; n < md.num_indices; n++) {
-		if (!RawLoader::read_u32(&p_data, p_num_bytes, inds[n]))
+		if (!RawLoader::read_u32(&p_data, p_num_bytes, inds[n])) {
+			log("Failed to read index.");
 			return false;
+		}
 	}
+	log_load("Indices read OK.");
 	for (u32 n = 0; n < md.num_polys; n++) {
-		if (!RawLoader::read_u32(&p_data, p_num_bytes, poly_num_inds[n]))
+		if (!RawLoader::read_u32(&p_data, p_num_bytes, poly_num_inds[n])) {
+			log("Failed to read poly.");
 			return false;
+		}
 	}
+	log_load("Polys read OK.");
 
 	md.verts = verts.ptr();
 	md.iverts = iverts.ptr();
 	md.indices = inds.ptr();
 	md.poly_num_indices = poly_num_inds.ptr();
 
-	if (!RawLoader::read_fpoint2(&p_data, p_num_bytes, md.fixed_point_to_float_offset))
+	if (!RawLoader::read_fpoint2(&p_data, p_num_bytes, md.fixed_point_to_float_offset)) {
+		log("Failed to read fixed_point_to_float_offset.");
 		return false;
-	if (!RawLoader::read_fpoint2(&p_data, p_num_bytes, md.fixed_point_to_float_scale))
+	}
+	if (!RawLoader::read_fpoint2(&p_data, p_num_bytes, md.fixed_point_to_float_scale)) {
+		log("Failed to read fixed_point_to_float_scale.");
 		return false;
-	if (!RawLoader::read_fpoint2(&p_data, p_num_bytes, md.float_to_fixed_point_offset))
+	}
+	if (!RawLoader::read_fpoint2(&p_data, p_num_bytes, md.float_to_fixed_point_offset)) {
+		log("Failed to read float_to_fixed_point_offset.");
 		return false;
-	if (!RawLoader::read_fpoint2(&p_data, p_num_bytes, md.float_to_fixed_point_scale))
+	}
+	if (!RawLoader::read_fpoint2(&p_data, p_num_bytes, md.float_to_fixed_point_scale)) {
+		log("Failed to read float_to_fixed_point_scale.");
 		return false;
+	}
+	log_load("Offsets and scales read OK.");
 
 	return load_working_data(md, r_mesh);
 }

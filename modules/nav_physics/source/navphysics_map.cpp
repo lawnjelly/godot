@@ -441,7 +441,7 @@ np_handle World::safe_mesh_create() {
 	MeshContainer *mesh = _meshes.request(id);
 	if (mesh) {
 		NP_DEV_CHECK(!mesh->mesh);
-		mesh->mesh = new (Mesh);
+		mesh->mesh = ALLOCATOR::newT<Mesh>();
 		mesh->mesh->init();
 		if (!mesh->revision) {
 			// special case, zero is reserved
@@ -457,7 +457,7 @@ np_handle World::safe_mesh_instance_create() {
 	MeshInstanceContainer *mesh_instance = _mesh_instances.request(id);
 	if (mesh_instance) {
 		NP_DEV_CHECK(!mesh_instance->mesh_instance);
-		mesh_instance->mesh_instance = new (MeshInstance);
+		mesh_instance->mesh_instance = ALLOCATOR::newT<MeshInstance>();
 		mesh_instance->mesh_instance->init();
 		if (!mesh_instance->revision) {
 			// special case, zero is reserved
@@ -473,7 +473,7 @@ np_handle World::safe_region_create() {
 	RegionContainer *region = _regions.request(id);
 	if (region) {
 		NP_DEV_CHECK(!region->region);
-		region->region = new (Region);
+		region->region = ALLOCATOR::newT<Region>();
 		if (!region->revision) {
 			// special case, zero is reserved
 			region->revision = 1;
@@ -488,7 +488,7 @@ np_handle World::safe_map_create() {
 	MapContainer *map = _maps.request(id);
 	if (map) {
 		NP_DEV_CHECK(!map->map);
-		map->map = new (Map);
+		map->map = ALLOCATOR::newT<Map>();
 		if (!map->revision) {
 			// special case, zero is reserved
 			map->revision = 1;
@@ -516,7 +516,7 @@ void World::safe_mesh_free(np_handle p_mesh) {
 	NP_NP_ERR_FAIL_COND(mesh.revision != revision);
 	wrapped_increment_revision(mesh.revision);
 	if (mesh.mesh) {
-		ALLOCATOR::free(mesh.mesh);
+		ALLOCATOR::deleteT(mesh.mesh);
 		mesh.mesh = nullptr;
 	}
 	_meshes.free(id);
@@ -530,7 +530,7 @@ void World::safe_mesh_instance_free(np_handle p_mesh_instance) {
 	NP_NP_ERR_FAIL_COND(mesh_instance.revision != revision);
 	wrapped_increment_revision(mesh_instance.revision);
 	if (mesh_instance.mesh_instance) {
-		ALLOCATOR::free(mesh_instance.mesh_instance);
+		ALLOCATOR::deleteT(mesh_instance.mesh_instance);
 		mesh_instance.mesh_instance = nullptr;
 	}
 	_mesh_instances.free(id);
@@ -544,7 +544,7 @@ void World::safe_region_free(np_handle p_region) {
 	NP_NP_ERR_FAIL_COND(region.revision != revision);
 	wrapped_increment_revision(region.revision);
 	if (region.region) {
-		ALLOCATOR::free(region.region);
+		ALLOCATOR::deleteT(region.region);
 		region.region = nullptr;
 	}
 	_regions.free(id);
@@ -558,7 +558,7 @@ void World::safe_map_free(np_handle p_map) {
 	NP_NP_ERR_FAIL_COND(map.revision != revision);
 	wrapped_increment_revision(map.revision);
 	if (map.map) {
-		ALLOCATOR::free(map.map);
+		ALLOCATOR::deleteT(map.map);
 		map.map = nullptr;
 	}
 	_maps.free(id);
