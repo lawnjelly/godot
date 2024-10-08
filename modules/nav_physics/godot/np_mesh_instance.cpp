@@ -26,16 +26,23 @@ NPMeshInstance::~NPMeshInstance() {
 	}
 }
 
+void NPMeshInstance::_update_server() {
+	if (data.h_mesh_instance) {
+		NavPhysics::MeshInstance *mi = NavPhysics::g_world.safe_get_mesh_instance(data.h_mesh_instance);
+		if (mi) {
+			Transform tr = get_global_transform();
+			mi->set_transform(*(NavPhysics::Transform *)&tr);
+		}
+	}
+}
+
 void NPMeshInstance::_notification(int p_what) {
 	switch (p_what) {
+		case NOTIFICATION_ENTER_TREE: {
+			_update_server();
+		} break;
 		case NOTIFICATION_TRANSFORM_CHANGED: {
-			if (data.h_mesh_instance) {
-				NavPhysics::MeshInstance *mi = NavPhysics::g_world.safe_get_mesh_instance(data.h_mesh_instance);
-				if (mi) {
-					Transform tr = get_global_transform();
-					mi->set_transform(*(NavPhysics::Transform *)&tr);
-				}
-			}
+			_update_server();
 		} break;
 	}
 }

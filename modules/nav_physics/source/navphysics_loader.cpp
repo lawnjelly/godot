@@ -572,22 +572,6 @@ void Loader::wall_add_neighbour_wall(Mesh &r_dest, u32 p_a, u32 p_b) {
 void Loader::find_bottlenecks(Mesh &r_dest) {
 }
 
-//Loader::SourceMeshData Loader::save_mesh(const Mesh &p_mesh) {
-//	SourceMeshData d;
-//	const MeshSourceData &s = p_mesh._source_data;
-
-//	d.num_verts = s.verts.size();
-//	d.verts = s.verts.ptr();
-
-//	d.num_indices = s.inds.size();
-//	d.indices = s.inds.ptr();
-
-//	d.num_polys = s.poly_num_indices.size();
-//	d.poly_num_indices = s.poly_num_indices.ptr();
-
-//	return d;
-//}
-
 bool Loader::extract_working_data(WorkingMeshData &r_data, const Mesh &p_mesh) {
 	r_data.num_verts = p_mesh.get_num_verts();
 	r_data.verts = p_mesh._fverts3.ptr();
@@ -812,9 +796,6 @@ bool Loader::load_working_data(const WorkingMeshData &p_data, Mesh &r_mesh) {
 bool Loader::load_mesh(const SourceMeshData &p_source_mesh, Mesh &r_mesh) {
 	r_mesh.clear();
 
-	//	MeshSourceData &d = r_mesh._source_data;
-	//	const SourceMeshData &s = p_source_mesh;
-
 	if (!p_source_mesh.verts)
 		return false;
 	if (!p_source_mesh.indices)
@@ -848,16 +829,6 @@ void Loader::_load(Mesh &r_mesh) {
 
 	log(String("\tlinks: ") + r_mesh.get_num_links());
 	log(String("\twalls: ") + r_mesh.get_num_walls());
-
-	// Backup source data
-	//	d.verts.resize(s.num_verts);
-	//	memcpy(d.verts.ptr(), s.verts, s.num_verts * sizeof(FPoint3));
-
-	//	d.inds.resize(s.num_indices);
-	//	memcpy(d.inds.ptr(), s.indices, s.num_indices * sizeof(u32));
-
-	//	d.poly_num_indices.resize(s.num_polys);
-	//	memcpy(d.poly_num_indices.ptr(), s.poly_num_indices, s.num_polys * sizeof(u32));
 }
 
 } // namespace NavPhysics

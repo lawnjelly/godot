@@ -44,7 +44,7 @@ void MeshInstance::teleport_agent(Agent &r_agent) {
 
 		return;
 	} else {
-		print_line(String("c++ agent within poly ") + itos(r_agent.poly_id));
+		print_line(String("\tc++ agent within poly ") + itos(r_agent.poly_id));
 	}
 }
 

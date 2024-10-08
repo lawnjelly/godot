@@ -175,7 +175,10 @@ void NavPhysics::Map::iterate_agent(u32 p_agent_id) {
 
 		// apply avoidance
 		agent.fvel3 += agent.avoidance_fvel3;
-		agent.fvel3 = mesh_instance.get_transform_inverse().xform(agent.fvel3);
+
+		// Get the velocity into local navmesh space
+		agent.fvel3 = mesh_instance.get_transform_inverse().basis.xform(agent.fvel3);
+
 		//agent.fvel3 = mesh->get_transform().xform(agent.fvel3);
 		//agent.fpos = FPoint2(agent.fpos3.x, agent.fpos3.z);
 		agent.fvel = FPoint2::make(agent.fvel3.x, agent.fvel3.z);

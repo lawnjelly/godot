@@ -48,26 +48,6 @@ void NPMesh::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::POOL_BYTE_ARRAY, "data", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NOEDITOR | PROPERTY_USAGE_INTERNAL), "set_data", "get_data");
 }
 
-void NPMesh::_update_mesh() {
-	//	if (data.verts.size() && data.indices.size()) {
-	//		bake_load(data.verts.ptr(), data.verts.size(), (const uint32_t *)data.indices.ptr(), data.indices.size());
-	//	} else {
-	//		NavPhysics::Mesh *mesh = NavPhysics::g_world.safe_get_mesh(data.h_mesh);
-	//		NP_DEV_ASSERT(mesh);
-	//		mesh->clear();
-	//	}
-}
-
-//void NPMesh::set_data(const Vector<uint8_t> &p_data)
-//{
-
-//}
-
-//Vector<uint8_t> NPMesh::get_data() const
-//{
-
-//}
-
 void NPMesh::set_data(const Vector<uint8_t> &p_data) {
 	NavPhysics::Loader loader;
 	NavPhysics::Mesh *mesh = NavPhysics::g_world.safe_get_mesh(data.h_mesh);
@@ -91,29 +71,6 @@ Vector<uint8_t> NPMesh::get_data() const {
 	return data;
 }
 
-//void NPMesh::set_ivertices(const Vector<int> &p_iverts) {
-//	data.iverts = p_iverts;
-//}
-
-//void NPMesh::set_vertices(const Vector<Vector3> &p_verts) {
-//	data.verts = p_verts;
-//	_update_mesh();
-//}
-
-//void NPMesh::set_indices(const Vector<int> &p_indices) {
-//	data.indices = p_indices;
-
-//	data.polys.resize(p_indices.size() / 3);
-//	for (uint32_t n = 0; n < data.polys.size(); n++) {
-//		Poly p;
-//		p.first_index = n * 3;
-//		p.num_indices = 3;
-//		data.polys.set(n, p);
-//	}
-
-//	_update_mesh();
-//}
-
 Vector<Vector3> NPMesh::get_vertices() const {
 	NavPhysics::Loader loader;
 	NavPhysics::Mesh *mesh = NavPhysics::g_world.safe_get_mesh(data.h_mesh);
@@ -127,7 +84,6 @@ Vector<Vector3> NPMesh::get_vertices() const {
 		memcpy(ret.ptrw(), md.verts, md.num_verts * sizeof(Vector3));
 	}
 	return ret;
-	//	return data.verts;
 }
 Vector<int> NPMesh::get_indices() const {
 	NavPhysics::Loader loader;
@@ -143,8 +99,8 @@ Vector<int> NPMesh::get_indices() const {
 		memcpy(ret.ptrw(), md.indices, md.num_indices * sizeof(int32_t));
 	}
 	return ret;
-	//	return data.indices;
 }
+
 Vector<NPMesh::Poly> NPMesh::get_polys() const {
 	NavPhysics::Loader loader;
 	NavPhysics::Mesh *mesh = NavPhysics::g_world.safe_get_mesh(data.h_mesh);
@@ -167,7 +123,6 @@ Vector<NPMesh::Poly> NPMesh::get_polys() const {
 		}
 	}
 	return ret;
-	//	return data.polys;
 }
 
 bool NPMesh::bake(Node *p_node) {
@@ -460,7 +415,6 @@ void NPMesh::_convert_detail_mesh_to_native_navigation_mesh(const rcPolyMeshDeta
 		const float *v = &p_detail_mesh->verts[i * 3];
 		nav_vertices.push_back(Vector3(v[0], v[1], v[2]));
 	}
-	//p_nav_mesh->set_vertices(nav_vertices);
 
 	LocalVector<i32> inds;
 
@@ -471,82 +425,19 @@ void NPMesh::_convert_detail_mesh_to_native_navigation_mesh(const rcPolyMeshDeta
 		const unsigned int ntris = m[3];
 		const unsigned char *tris = &p_detail_mesh->tris[btris * 4];
 		for (unsigned int j = 0; j < ntris; j++) {
-			//			Vector<int> nav_indices;
-			//			nav_indices.resize(3);
 			// Polygon order in recast is opposite than godot's
-			//			nav_indices.write[0] = ((int)(bverts + tris[j * 4 + 0]));
-			//			nav_indices.write[1] = ((int)(bverts + tris[j * 4 + 2]));
-			//			nav_indices.write[2] = ((int)(bverts + tris[j * 4 + 1]));
-
 			inds.push_back(bverts + tris[j * 4 + 0]);
 			inds.push_back(bverts + tris[j * 4 + 2]);
 			inds.push_back(bverts + tris[j * 4 + 1]);
-
-			//			p_nav_mesh->add_polygon(nav_indices);
 		}
 	}
 
 	bake_load(nav_vertices.ptr(), nav_vertices.size(), (const u32 *)inds.ptr(), inds.size());
-
-	//data.verts = nav_vertices;
-	//data.indices = inds;
 }
 
 bool NPMesh::clear() {
 	return true;
 }
-
-bool NPMesh::bake_load2(const NavigationMeshInstance &p_nav_mesh_instance) {
-	const Ref<NavigationMesh> nmesh = p_nav_mesh_instance.get_navigation_mesh();
-	if (!nmesh.is_valid()) {
-		return false;
-	}
-
-	int num_verts = nmesh->get_vertices().size();
-	if (!num_verts) {
-		return false;
-	}
-	int num_polys = nmesh->get_polygon_count();
-	if (!num_polys) {
-		return false;
-	}
-
-	PoolVector<Vector3>::Read verts_read = nmesh->get_vertices().read();
-	const Vector3 *pverts = verts_read.ptr();
-
-	LocalVector<uint32_t> inds;
-
-	for (int n = 0; n < num_polys; n++) {
-		Vector<int> poly = nmesh->get_polygon(n);
-		if (poly.size() == 3) {
-			inds.push_back(poly[0]);
-			inds.push_back(poly[1]);
-			inds.push_back(poly[2]);
-		}
-	}
-
-	if (!inds.size()) {
-		return false;
-	}
-
-	return bake_load(pverts, num_verts, inds.ptr(), inds.size());
-}
-
-//bool NPMesh::working_load() {
-//	NavPhysics::Loader loader;
-//	NavPhysics::Loader::WorkingMeshData source;
-
-//	source.num_verts = data.verts.size();
-
-//	if (data.iverts.size() != (source.num_verts * 2)) {
-//		return false;
-//	}
-
-//	source.verts = (const NavPhysics::FPoint3 *)data.verts.ptr();
-//	source.iverts = (const NavPhysics::IPoint2 *)data.iverts.ptr();
-
-//	return true;
-//}
 
 bool NPMesh::bake_load(const Vector3 *p_verts, uint32_t p_num_verts, const uint32_t *p_indices, uint32_t p_num_indices) {
 	NavPhysics::Loader loader;

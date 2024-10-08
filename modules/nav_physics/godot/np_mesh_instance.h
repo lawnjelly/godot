@@ -13,6 +13,7 @@ class NPMeshInstance : public Spatial {
 	} data;
 
 	void resource_changed(RES res);
+	void _update_server();
 
 protected:
 	void _notification(int p_what);
