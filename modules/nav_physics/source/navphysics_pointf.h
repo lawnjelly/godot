@@ -81,6 +81,7 @@ struct [[nodiscard]] FPoint3 {
 	FPoint3() {
 		zero();
 	}
+	FPoint2 xz() const { return FPoint2::make(x, z); }
 };
 
 } // namespace NavPhysics

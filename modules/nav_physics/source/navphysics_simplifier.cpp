@@ -3,6 +3,12 @@
 namespace NavPhysics {
 
 Loader::SourceMeshData Simplifier::simplify(const Loader::SourceMeshData &p_source) {
+	static bool toggle = false;
+	toggle = !toggle;
+	if (!toggle) {
+		return p_source;
+	}
+
 	load(p_source);
 	find_pairs();
 
@@ -151,9 +157,9 @@ bool Simplifier::is_ok_to_merge(const Poly &p) const {
 		u32 e3 = (e + 2) % p.num_points;
 
 		FPoint3 pts[3];
-		pts[0] = data.verts[e];
-		pts[1] = data.verts[e2];
-		pts[2] = data.verts[e3];
+		pts[0] = data.verts[p.points[e]];
+		pts[1] = data.verts[p.points[e2]];
+		pts[2] = data.verts[p.points[e3]];
 
 		if (is_concave(pts)) {
 			return false;
@@ -163,11 +169,21 @@ bool Simplifier::is_ok_to_merge(const Poly &p) const {
 	return true;
 }
 
+bool Simplifier::is_concave(const FPoint3 p_pts[3]) const {
+	FPoint3 a = p_pts[1] - p_pts[0];
+	FPoint3 b = p_pts[2] - p_pts[0];
+
+	float cross = (a.x * b.z) - (a.z * b.x);
+	log(String("cross ") + cross);
+	return cross < 0.01f;
+	//return cross > 0;
+}
+
 void Simplifier::debug_poly(const Poly &p) const {
 	log(String("Poly"));
 	for (u32 n = 0; n < p.num_points; n++) {
 		const FPoint3 &pt = data.verts[p.points[n]];
-		log(String("\tpt ") + n + " : " + pt);
+		log(String("\tpt ") + n + " : " + pt.xz());
 	}
 }
 
@@ -204,16 +220,6 @@ void Simplifier::calc_poly_normal(Poly &p) {
 	// point and normal
 	//r_poly.plane.set(center, normal);
 	p.normal = normal;
-}
-
-bool Simplifier::is_concave(const FPoint3 p_pts[3]) const {
-	FPoint3 a = p_pts[1] - p_pts[0];
-	FPoint3 b = p_pts[2] - p_pts[0];
-
-	float cross = (a.x * b.z) - (a.z * b.x);
-	log(String("cross ") + cross);
-	//return cross > -0.01f;
-	return cross > 0;
 }
 
 void Simplifier::load(const Loader::SourceMeshData &p_source) {
