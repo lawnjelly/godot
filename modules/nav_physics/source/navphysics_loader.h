@@ -60,6 +60,8 @@ public:
 
 		FPoint2 fixed_point_to_float_scale;
 		FPoint2 fixed_point_to_float_offset;
+
+		AABB aabb;
 	};
 
 	bool load_mesh(const SourceMeshData &p_source_mesh, Mesh &r_mesh);

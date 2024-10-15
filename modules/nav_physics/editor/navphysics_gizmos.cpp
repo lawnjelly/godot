@@ -109,8 +109,28 @@ void NavPhysicsMeshSpatialGizmoPlugin::redraw(EditorSpatialGizmo *p_gizmo) {
 				continue;
 			}
 
-			lines.push_back(verts[ind0]);
-			lines.push_back(verts[ind1]);
+			// If the line is on the connections, don't render.
+			// This is slow, could be done better.
+			bool add = true;
+
+			for (u32 w = 0; w < wall_connection_inds.size(); w += 2) {
+				u32 w0 = wall_connection_inds[w];
+				u32 w1 = wall_connection_inds[w + 1];
+
+				if ((ind0 == w0) && (ind1 == w1)) {
+					add = false;
+					break;
+				}
+				if ((ind0 == w1) && (ind1 == w0)) {
+					add = false;
+					break;
+				}
+			}
+
+			if (add) {
+				lines.push_back(verts[ind0]);
+				lines.push_back(verts[ind1]);
+			}
 		}
 	}
 

@@ -2,6 +2,7 @@
 
 #include "navphysics_pointf.h"
 #include "navphysics_pointi.h"
+#include "navphysics_rect.h"
 #include "navphysics_structs.h"
 #include "navphysics_transform.h"
 #include "navphysics_vector.h"
@@ -34,6 +35,8 @@ class Mesh {
 
 	FPoint2 _fp_to_f32_scale;
 	FPoint2 _fp_to_f32_offset;
+
+	AABB _aabb;
 
 	u32 _mesh_id = UINT32_MAX;
 	u32 _map_id = UINT32_MAX;

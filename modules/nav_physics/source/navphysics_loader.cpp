@@ -326,26 +326,32 @@ void Loader::load_fixed_point_verts(Mesh &r_dest) {
 		return;
 	}
 
-	Rect2 rect;
-	rect.position = r_dest.get_fvert(0);
+	AABB aabb;
+	aabb.position = r_dest.get_fvert3(0);
+
+	//	rect.position = r_dest.get_fvert(0);
 
 	for (u32 i = 1; i < num_verts; i++) {
-		rect.expand_to(r_dest.get_fvert(i));
+		//rect.expand_to(r_dest.get_fvert(i));
+		aabb.expand_to(r_dest.get_fvert3(i));
 	}
 
-	llog(String("Internal Map AABB is ") + String(rect.position) + ", " + String(rect.size));
+	//	llog(String("Internal Map Rect is ") + String(rect.position) + ", " + String(rect.size));
+	llog(String("Internal Map AABB is ") + String(aabb.position) + ", " + String(aabb.size));
 
-	r_dest._f32_to_fp_scale = FPoint2::make(FPoint2::FP_RANGE / rect.size.x, FPoint2::FP_RANGE / rect.size.y);
-	r_dest._f32_to_fp_offset = -rect.position;
+	r_dest._f32_to_fp_scale = FPoint2::make(FPoint2::FP_RANGE / aabb.size.x, FPoint2::FP_RANGE / aabb.size.z);
+	r_dest._f32_to_fp_offset = -FPoint2::make(aabb.position.x, aabb.position.z);
 
-	r_dest._fp_to_f32_offset = rect.position;
-	r_dest._fp_to_f32_scale = FPoint2::make(rect.size.x / FPoint2::FP_RANGE, rect.size.y / FPoint2::FP_RANGE);
+	r_dest._fp_to_f32_offset = -r_dest._f32_to_fp_offset;
+	r_dest._fp_to_f32_scale = FPoint2::make(aabb.size.x / FPoint2::FP_RANGE, aabb.size.z / FPoint2::FP_RANGE);
 
 	llog(String("_f32_to_fp_scale ") + r_dest._f32_to_fp_scale);
 	llog(String("_f32_to_fp_offset ") + r_dest._f32_to_fp_offset);
 
 	llog(String("_fp_to_f32_offset ") + r_dest._fp_to_f32_offset);
 	llog(String("_fp_to_f32_scale ") + r_dest._fp_to_f32_scale);
+
+	r_dest._aabb = aabb;
 
 	for (u32 i = 0; i < num_verts; i++) {
 		FPoint2 v = r_dest.get_fvert(i);
@@ -609,6 +615,7 @@ bool Loader::extract_working_data(WorkingMeshData &r_data, const Mesh &p_mesh) {
 	r_data.fixed_point_to_float_scale = p_mesh._fp_to_f32_scale;
 	r_data.float_to_fixed_point_offset = p_mesh._f32_to_fp_offset;
 	r_data.float_to_fixed_point_scale = p_mesh._f32_to_fp_scale;
+	r_data.aabb = p_mesh._aabb;
 
 	return true;
 }
@@ -710,6 +717,16 @@ bool Loader::load_raw_data(const uint8_t *p_data, uint32_t p_num_bytes, Mesh &r_
 	}
 	log_load("Offsets and scales read OK.");
 
+	if (!RawLoader::read_fpoint3(&p_data, p_num_bytes, md.aabb.position)) {
+		log("Failed to read aabb.position.");
+		return false;
+	}
+	if (!RawLoader::read_fpoint3(&p_data, p_num_bytes, md.aabb.size)) {
+		log("Failed to read aabb.size.");
+		return false;
+	}
+	log_load("AABB read OK.");
+
 	return load_working_data(md, r_mesh);
 }
 
@@ -746,6 +763,9 @@ uint32_t Loader::prepare_raw_data(const Mesh &p_mesh) {
 	RawLoader::write_fpoint2(_save_data, md.fixed_point_to_float_scale);
 	RawLoader::write_fpoint2(_save_data, md.float_to_fixed_point_offset);
 	RawLoader::write_fpoint2(_save_data, md.float_to_fixed_point_scale);
+
+	RawLoader::write_fpoint3(_save_data, md.aabb.position);
+	RawLoader::write_fpoint3(_save_data, md.aabb.size);
 
 	log(String("save_data size ") + _save_data.size() + " bytes.");
 
@@ -800,6 +820,8 @@ bool Loader::load_working_data(const WorkingMeshData &p_data, Mesh &r_mesh) {
 	r_mesh._f32_to_fp_scale = p_data.float_to_fixed_point_scale;
 	r_mesh._fp_to_f32_offset = p_data.fixed_point_to_float_offset;
 	r_mesh._fp_to_f32_scale = p_data.fixed_point_to_float_scale;
+
+	r_mesh._aabb = p_data.aabb;
 
 	if (!_load_polys(p_data.num_polys, p_data.poly_num_indices, r_mesh))
 		return false;
