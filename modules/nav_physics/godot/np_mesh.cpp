@@ -85,6 +85,23 @@ Vector<Vector3> NPMesh::get_vertices() const {
 	}
 	return ret;
 }
+
+Vector<int> NPMesh::get_wall_connection_indices() const {
+	NavPhysics::Loader loader;
+	NavPhysics::Mesh *mesh = NavPhysics::g_world.safe_get_mesh(data.h_mesh);
+	NP_DEV_ASSERT(mesh);
+	NavPhysics::Loader::WorkingMeshData md;
+	loader.extract_working_data(md, *mesh);
+
+	Vector<int> ret;
+	if (md.num_indices) {
+		ret.resize(md.num_connecting_walls * 2);
+		static_assert(sizeof(int) == 4, "Expects 32 bit int.");
+		memcpy(ret.ptrw(), md.connecting_wall_indices, md.num_connecting_walls * 2 * sizeof(int32_t));
+	}
+	return ret;
+}
+
 Vector<int> NPMesh::get_indices() const {
 	NavPhysics::Loader loader;
 	NavPhysics::Mesh *mesh = NavPhysics::g_world.safe_get_mesh(data.h_mesh);
@@ -123,6 +140,13 @@ Vector<NPMesh::Poly> NPMesh::get_polys() const {
 		}
 	}
 	return ret;
+}
+
+bool NPMesh::toggle_wall_connection(const Vector3 &p_start, const Vector3 &p_end) {
+#ifdef TOOLS_ENABLED
+	return NavPhysics::g_world.safe_toggle_mesh_wall_connection(get_mesh_handle(), *(const NavPhysics::FPoint3 *)&p_start, *(const NavPhysics::FPoint3 *)&p_end);
+#endif
+	return false;
 }
 
 bool NPMesh::bake(Node *p_node) {

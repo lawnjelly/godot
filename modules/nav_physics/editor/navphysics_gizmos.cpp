@@ -3,10 +3,11 @@
 #include "modules/nav_physics/godot/np_mesh_instance.h"
 
 NavPhysicsMeshSpatialGizmoPlugin::NavPhysicsMeshSpatialGizmoPlugin() {
-	create_material("navigation_edge_material", EDITOR_DEF("editors/3d_gizmos/gizmo_colors/navigation_edge", Color(0.5, 1, 1)));
-	create_material("navigation_edge_material_disabled", EDITOR_DEF("editors/3d_gizmos/gizmo_colors/navigation_edge_disabled", Color(0.7, 0.7, 0.7)));
-	create_material("navigation_solid_material", EDITOR_DEF("editors/3d_gizmos/gizmo_colors/navigation_solid", Color(0.5, 1, 1, 0.4)));
-	create_material("navigation_solid_material_disabled", EDITOR_DEF("editors/3d_gizmos/gizmo_colors/navigation_solid_disabled", Color(0.7, 0.7, 0.7, 0.4)));
+	create_material("nav_physics_edge_material", EDITOR_DEF("editors/3d_gizmos/gizmo_colors/nav_physics_edge", Color(0.5, 1, 0)));
+	create_material("nav_physics_connection_material", EDITOR_DEF("editors/3d_gizmos/gizmo_colors/nav_physics_connection", Color(1, 0, 0)));
+	//create_material("navigation_edge_material_disabled", EDITOR_DEF("editors/3d_gizmos/gizmo_colors/navigation_edge_disabled", Color(0.7, 0.7, 0.7)));
+	create_material("nav_physics_solid_material", EDITOR_DEF("editors/3d_gizmos/gizmo_colors/nav_physics_solid", Color(0.5, 1, 1, 0.4)));
+	//create_material("navigation_solid_material_disabled", EDITOR_DEF("editors/3d_gizmos/gizmo_colors/navigation_solid_disabled", Color(0.7, 0.7, 0.7, 0.4)));
 }
 
 bool NavPhysicsMeshSpatialGizmoPlugin::has_gizmo(Spatial *p_spatial) {
@@ -43,13 +44,47 @@ void NavPhysicsMeshSpatialGizmoPlugin::redraw(EditorSpatialGizmo *p_gizmo) {
 		return;
 	}
 
+	Vector<int> wall_connection_inds = mesh->get_wall_connection_indices();
+
 	PoolVector<Vector3> tmeshfaces;
-	tmeshfaces.resize(inds.size());
+	//tmeshfaces.resize(inds.size());
 
 	{
-		PoolVector<Vector3>::Write tw = tmeshfaces.write();
-		for (int n = 0; n < inds.size(); n++) {
-			tw[n] = verts[inds[n]];
+		//		PoolVector<Vector3>::Write tw = tmeshfaces.write();
+		//		for (int n = 0; n < inds.size(); n++) {
+		//			tw[n] = verts[inds[n]];
+		//		}
+
+		for (int n = 0; n < polys.size(); n++) {
+			const NPMesh::Poly &p = polys[n];
+			int i0 = p.first_index;
+			if (i0 >= inds.size())
+				continue;
+			int ind0 = inds[i0];
+			if (ind0 >= verts.size()) {
+				continue;
+			}
+
+			for (int e = 2; e < p.num_indices; e++) {
+				int i1 = e - 1 + p.first_index;
+				int i2 = e + p.first_index;
+
+				if (i1 >= inds.size())
+					continue;
+				if (i2 >= inds.size())
+					continue;
+
+				int ind1 = inds[i1];
+				int ind2 = inds[i2];
+
+				if ((ind1 >= verts.size()) || (ind2 >= verts.size())) {
+					continue;
+				}
+
+				tmeshfaces.push_back(verts[ind0]);
+				tmeshfaces.push_back(verts[ind1]);
+				tmeshfaces.push_back(verts[ind2]);
+			}
 		}
 	}
 
@@ -79,12 +114,27 @@ void NavPhysicsMeshSpatialGizmoPlugin::redraw(EditorSpatialGizmo *p_gizmo) {
 		}
 	}
 
-	Ref<Material> edge_material = get_material("navigation_edge_material", p_gizmo);
-	/*
+	Vector<Vector3> wall_connection_lines;
+	for (int n = 0; n < wall_connection_inds.size(); n++) {
+		int ind = wall_connection_inds[n];
+
+		if (ind > verts.size()) {
+			continue;
+		}
+		wall_connection_lines.push_back(verts[ind]);
+	}
+	if ((wall_connection_lines.size() % 2) != 0) {
+		WARN_PRINT_ONCE("wall_connection_lines not a multiple of two.");
+		wall_connection_lines.clear();
+	}
+
+	Ref<Material> edge_material = get_material("nav_physics_edge_material", p_gizmo);
+	Ref<Material> connection_material = get_material("nav_physics_connection_material", p_gizmo);
+#if 1
 	Ref<TriangleMesh> tmesh = memnew(TriangleMesh);
 	tmesh->create(tmeshfaces);
 
-	Ref<Material> solid_material = get_material("navigation_solid_material", p_gizmo);
+	Ref<Material> solid_material = get_material("nav_physics_solid_material", p_gizmo);
 	//Ref<Material> solid_material_disabled = get_material("navigation_solid_material_disabled", p_gizmo);
 
 	p_gizmo->add_collision_triangles(tmesh);
@@ -96,11 +146,14 @@ void NavPhysicsMeshSpatialGizmoPlugin::redraw(EditorSpatialGizmo *p_gizmo) {
 	//m->surface_set_material(0, navmesh->is_enabled() ? solid_material : solid_material_disabled);
 	m->surface_set_material(0, solid_material);
 	p_gizmo->add_mesh(m);
-	*/
+#endif
 
 	if (lines.size()) {
 		//p_gizmo->add_lines(lines, navmesh->is_enabled() ? edge_material : edge_material_disabled);
 		p_gizmo->add_lines(lines, edge_material);
+	}
+	if (wall_connection_lines.size()) {
+		p_gizmo->add_lines(wall_connection_lines, connection_material);
 	}
 
 #if 0

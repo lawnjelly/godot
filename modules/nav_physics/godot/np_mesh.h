@@ -57,12 +57,14 @@ public:
 	Vector<Vector3> get_vertices() const;
 	Vector<int> get_indices() const;
 	Vector<Poly> get_polys() const;
+	Vector<int> get_wall_connection_indices() const;
 
 	void set_data(const Vector<uint8_t> &p_data);
 	Vector<uint8_t> get_data() const;
 
 	bool bake(Node *p_node);
 	bool clear();
+	bool toggle_wall_connection(const Vector3 &p_start, const Vector3 &p_end);
 
 	np_handle get_mesh_handle() { return data.h_mesh; }
 };

@@ -131,6 +131,8 @@ public:
 	NavPhysics::Map *safe_get_default_map() { return safe_get_map(_default_map); }
 	np_handle get_handle_default_map() { return _default_map; }
 
+	bool safe_toggle_mesh_wall_connection(np_handle p_mesh, const FPoint3 &p_from, const FPoint3 &p_to);
+
 	World();
 	~World();
 };

@@ -84,4 +84,8 @@ struct [[nodiscard]] FPoint3 {
 	FPoint2 xz() const { return FPoint2::make(x, z); }
 };
 
+inline FPoint3 operator*(freal lhs, FPoint3 rhs) {
+	return rhs * lhs;
+}
+
 } // namespace NavPhysics

@@ -1,6 +1,7 @@
 #include "navphysics_map.h"
 
 #include "navphysics_mesh.h"
+#include "navphysics_mesh_funcs.h"
 #include "navphysics_mesh_instance.h"
 #include "navphysics_region.h"
 
@@ -655,6 +656,18 @@ void World::clear() {
 		}
 	}
 	_maps.clear();
+}
+
+bool World::safe_toggle_mesh_wall_connection(np_handle p_mesh, const FPoint3 &p_from, const FPoint3 &p_to) {
+	Mesh *mesh = safe_get_mesh(p_mesh);
+
+	if (mesh) {
+		MeshFuncs mf;
+		mf.editor_toggle_wall_connection(*mesh, p_from, p_to);
+		return true;
+	}
+
+	return false;
 }
 
 World::World() {

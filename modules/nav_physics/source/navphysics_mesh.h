@@ -8,18 +8,10 @@
 
 namespace NavPhysics {
 
-//class MeshSourceData {
-//public:
-//	Vector<FPoint3> verts;
-//	Vector<u32> inds;
-//	Vector<u32> poly_num_indices;
-//};
-
 class Mesh {
 	friend class Loader;
 	friend class MeshInstance;
-
-	//	MeshSourceData _source_data;
+	friend class MeshFuncs;
 
 	Vector<u32> _inds;
 	Vector<u32> _inds_next;
@@ -32,6 +24,10 @@ class Mesh {
 	Vector<Poly> _polys;
 	Vector<PolyExtra> _polys_extra;
 	Vector<Narrowing> _narrowings;
+
+	struct Data {
+		Vector<u32> wall_connections;
+	} data;
 
 	FPoint2 _f32_to_fp_scale;
 	FPoint2 _f32_to_fp_offset;
@@ -68,6 +64,8 @@ public:
 		_polys.clear();
 		_polys_extra.clear();
 		_narrowings.clear();
+
+		data.wall_connections.clear();
 	}
 
 	u32 get_mesh_id() const { return _mesh_id; }
@@ -203,8 +201,6 @@ private:
 public:
 	u32 find_poly_within(const IPoint2 &p_pt) const;
 	void init() {
-		//		_transform.init();
-		//		_transform_inverse.init();
 	}
 };
 

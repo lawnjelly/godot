@@ -591,6 +591,20 @@ bool Loader::extract_working_data(WorkingMeshData &r_data, const Mesh &p_mesh) {
 	}
 	r_data.poly_num_indices = _poly_num_indices.ptr();
 
+	r_data.num_connecting_walls = p_mesh.data.wall_connections.size();
+	_connecting_wall_indices.resize(r_data.num_connecting_walls * 2);
+	for (u32 n = 0; n < r_data.num_connecting_walls; n++) {
+		const Wall &wall = p_mesh.get_wall(p_mesh.data.wall_connections[n]);
+		_connecting_wall_indices[n * 2] = wall.vert_a;
+		_connecting_wall_indices[(n * 2) + 1] = wall.vert_b;
+	}
+
+	if (r_data.num_connecting_walls) {
+		r_data.connecting_wall_indices = _connecting_wall_indices.ptr();
+	} else {
+		r_data.connecting_wall_indices = nullptr;
+	}
+
 	r_data.fixed_point_to_float_offset = p_mesh._fp_to_f32_offset;
 	r_data.fixed_point_to_float_scale = p_mesh._fp_to_f32_scale;
 	r_data.float_to_fixed_point_offset = p_mesh._f32_to_fp_offset;

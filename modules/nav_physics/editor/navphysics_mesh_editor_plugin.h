@@ -61,6 +61,7 @@ protected:
 
 public:
 	void edit(NPMeshInstance *p_nav_mesh_instance);
+	bool process_gui_input(Camera *p_camera, const Ref<InputEvent> &p_event);
 	NPMeshEditor();
 	~NPMeshEditor();
 };
@@ -77,6 +78,7 @@ public:
 	virtual void edit(Object *p_object);
 	virtual bool handles(Object *p_object) const;
 	virtual void make_visible(bool p_visible);
+	virtual bool forward_spatial_gui_input(Camera *p_camera, const Ref<InputEvent> &p_event);
 
 	NPMeshEditorPlugin(EditorNode *p_node);
 	~NPMeshEditorPlugin();

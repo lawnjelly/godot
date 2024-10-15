@@ -86,6 +86,38 @@ void NPMeshEditor::_clear_pressed() {
 	}
 }
 
+bool NPMeshEditor::process_gui_input(Camera *p_camera, const Ref<InputEvent> &p_event) {
+	Ref<InputEventMouseButton> mb = p_event;
+
+	if (!mb.is_valid()) {
+		return false;
+	}
+
+	if (!mb->is_pressed() || (mb->get_button_index() != 2)) {
+		return false;
+	}
+
+	if (!node) {
+		return false;
+	}
+
+	Point2 mbpos(mb->get_position().x, mb->get_position().y);
+
+	Vector3 start = p_camera->project_position(mbpos, 0);
+	Vector3 end = p_camera->project_position(mbpos, 10000);
+
+	Transform tr = node->get_global_transform();
+	start = tr.xform(start);
+	end = tr.xform(end);
+
+	if (node->get_mesh()->toggle_wall_connection(start, end)) {
+		node->update_gizmo();
+		return true;
+	}
+
+	return false;
+}
+
 void NPMeshEditor::edit(NPMeshInstance *p_nav_mesh_instance) {
 	if (p_nav_mesh_instance == nullptr || node == p_nav_mesh_instance) {
 		return;
@@ -131,6 +163,10 @@ void NPMeshEditorPlugin::edit(Object *p_object) {
 
 bool NPMeshEditorPlugin::handles(Object *p_object) const {
 	return p_object->is_class("NPMeshInstance");
+}
+
+bool NPMeshEditorPlugin::forward_spatial_gui_input(Camera *p_camera, const Ref<InputEvent> &p_event) {
+	return navigation_mesh_editor->process_gui_input(p_camera, p_event);
 }
 
 void NPMeshEditorPlugin::make_visible(bool p_visible) {

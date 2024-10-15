@@ -27,6 +27,7 @@ public:
 class Loader {
 	Vector<uint8_t> _save_data;
 	Vector<u32> _poly_num_indices;
+	Vector<u32> _connecting_wall_indices;
 
 public:
 	struct SourceMeshData {
@@ -46,9 +47,13 @@ public:
 		const u32 *indices = nullptr;
 		const u32 *poly_num_indices = nullptr;
 
+		// This will be twice the number of connecting walls.
+		const u32 *connecting_wall_indices = nullptr;
+
 		u32 num_verts = 0;
 		u32 num_indices = 0;
 		u32 num_polys = 0;
+		u32 num_connecting_walls = 0;
 
 		FPoint2 float_to_fixed_point_scale;
 		FPoint2 float_to_fixed_point_offset;
