@@ -21,9 +21,7 @@ public:
 
 	np_handle map = 0;
 	u32 revision = 0;
-#ifdef NP_DEV_ENABLED
 	u32 agent_id = 0;
-#endif
 
 	//	IPoint2 pos = { 0, 0 };
 	//	IPoint2 vel = { 0, 0 };
@@ -82,6 +80,16 @@ public:
 		avoidance_fvel3.zero();
 	}
 };
+
+class Map;
+
+// If an agent exits a mesh instance
+//struct ExitInfo
+//{
+//	u32 prev_mesh_instance_id = UINT32_MAX;
+//	u32 new_mesh_instance_id = UINT32_MAX;
+//	u32 map_id = UINT32_MAX;
+//};
 
 struct Poly {
 	void init() {

@@ -111,7 +111,8 @@ protected:
 
 	u32 get_link(u32 p_idx) const { return _links[p_idx]; }
 	u32 get_num_links() const { return _links.size(); }
-	bool is_hard_wall(u32 p_idx) const { return get_link(p_idx) == UINT32_MAX; }
+	bool is_hard_wall(u32 p_idx) const { return get_link(p_idx) >= UINT32_MAX - 1; }
+	bool is_connecting_wall(u32 p_idx) const { return get_link(p_idx) == UINT32_MAX - 1; }
 
 	const Wall &get_wall(u32 p_idx) const { return _walls[p_idx]; }
 	u32 get_num_walls() const { return _walls.size(); }
@@ -170,15 +171,25 @@ private:
 		MR_OK,
 		MR_LIMIT,
 	};
+
+public:
 	struct MoveInfo {
 		u32 poly_id = UINT32_MAX;
 		u32 wall_id = UINT32_MAX;
 		//IPoint2 pos_reached{ 0, 0 };
 		IPoint2 pos_reached;
+
+		// Exit info
+		u32 prev_mesh_instance_id = UINT32_MAX;
+		u32 new_mesh_instance_id = UINT32_MAX;
+		u32 map_id = UINT32_MAX;
+		u32 agent_id = UINT32_MAX;
 	};
 
+private:
 	MoveResult recursive_move(i32 p_depth, IPoint2 p_from, IPoint2 p_vel, u32 p_poly_id, u32 p_poly_from_id, u32 p_hug_wall_id, MoveInfo &r_info) const;
 	TraceResult recursive_trace(i32 p_depth, IPoint2 p_from, IPoint2 p_to, u32 p_poly_id, TraceInfo &r_info) const;
+	bool move_to_new_mesh(const IPoint2 &p_pt, MoveInfo &r_info) const;
 
 	// utility funcs
 	bool wall_find_intersect(u32 p_wall_id, const IPoint2 &p_from, const IPoint2 &p_to, IPoint2 &r_hit) const;

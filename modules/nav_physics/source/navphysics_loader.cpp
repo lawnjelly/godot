@@ -451,6 +451,14 @@ void Loader::find_links(Mesh &r_dest) {
 	for (u32 n = 0; n < links.size(); n++) {
 		llog(String("\t") + links[n]);
 	}
+
+	// Mark links that are connections as UINT32_MAX-1
+	for (u32 n = 0; n < r_dest.data.wall_connections.size(); n++) {
+		u32 wall_id = r_dest.data.wall_connections[n];
+		NP_DEV_ASSERT(links.size() > wall_id);
+		NP_DEV_ASSERT(links[wall_id] == UINT32_MAX);
+		links[wall_id] = UINT32_MAX - 1;
+	}
 }
 
 void Loader::find_walls(Mesh &r_dest) {
@@ -599,16 +607,22 @@ bool Loader::extract_working_data(WorkingMeshData &r_data, const Mesh &p_mesh) {
 
 	r_data.num_connecting_walls = p_mesh.data.wall_connections.size();
 	_connecting_wall_indices.resize(r_data.num_connecting_walls * 2);
+	_connecting_wall_ids.resize(r_data.num_connecting_walls);
 	for (u32 n = 0; n < r_data.num_connecting_walls; n++) {
-		const Wall &wall = p_mesh.get_wall(p_mesh.data.wall_connections[n]);
+		u32 wall_id = p_mesh.data.wall_connections[n];
+		const Wall &wall = p_mesh.get_wall(wall_id);
 		_connecting_wall_indices[n * 2] = wall.vert_a;
 		_connecting_wall_indices[(n * 2) + 1] = wall.vert_b;
+
+		_connecting_wall_ids[n] = wall_id;
 	}
 
 	if (r_data.num_connecting_walls) {
 		r_data.connecting_wall_indices = _connecting_wall_indices.ptr();
+		r_data.connecting_wall_ids = _connecting_wall_ids.ptr();
 	} else {
 		r_data.connecting_wall_indices = nullptr;
+		r_data.connecting_wall_ids = nullptr;
 	}
 
 	r_data.fixed_point_to_float_offset = p_mesh._fp_to_f32_offset;
@@ -644,6 +658,10 @@ bool Loader::load_raw_data(const uint8_t *p_data, uint32_t p_num_bytes, Mesh &r_
 
 	if (!RawLoader::read_u32(&p_data, p_num_bytes, md.num_polys))
 		return false;
+
+	if (!RawLoader::read_u32(&p_data, p_num_bytes, md.num_connecting_walls))
+		return false;
+
 	log_load("Numbers read OK.");
 
 	if (!md.num_verts)
@@ -652,6 +670,34 @@ bool Loader::load_raw_data(const uint8_t *p_data, uint32_t p_num_bytes, Mesh &r_
 		return false;
 	if (!md.num_polys)
 		return false;
+
+	if (!RawLoader::read_fpoint2(&p_data, p_num_bytes, md.fixed_point_to_float_offset)) {
+		log("Failed to read fixed_point_to_float_offset.");
+		return false;
+	}
+	if (!RawLoader::read_fpoint2(&p_data, p_num_bytes, md.fixed_point_to_float_scale)) {
+		log("Failed to read fixed_point_to_float_scale.");
+		return false;
+	}
+	if (!RawLoader::read_fpoint2(&p_data, p_num_bytes, md.float_to_fixed_point_offset)) {
+		log("Failed to read float_to_fixed_point_offset.");
+		return false;
+	}
+	if (!RawLoader::read_fpoint2(&p_data, p_num_bytes, md.float_to_fixed_point_scale)) {
+		log("Failed to read float_to_fixed_point_scale.");
+		return false;
+	}
+	log_load("Offsets and scales read OK.");
+
+	if (!RawLoader::read_fpoint3(&p_data, p_num_bytes, md.aabb.position)) {
+		log("Failed to read aabb.position.");
+		return false;
+	}
+	if (!RawLoader::read_fpoint3(&p_data, p_num_bytes, md.aabb.size)) {
+		log("Failed to read aabb.size.");
+		return false;
+	}
+	log_load("AABB read OK.");
 
 	Vector<FPoint3> verts;
 	verts.resize(md.num_verts);
@@ -664,6 +710,9 @@ bool Loader::load_raw_data(const uint8_t *p_data, uint32_t p_num_bytes, Mesh &r_
 
 	Vector<u32> poly_num_inds;
 	poly_num_inds.resize(md.num_polys);
+
+	Vector<u32> connecting_wall_ids;
+	connecting_wall_ids.resize(md.num_connecting_walls);
 
 	for (u32 n = 0; n < md.num_verts; n++) {
 		if (!RawLoader::read_fpoint3(&p_data, p_num_bytes, verts[n])) {
@@ -694,38 +743,19 @@ bool Loader::load_raw_data(const uint8_t *p_data, uint32_t p_num_bytes, Mesh &r_
 	}
 	log_load("Polys read OK.");
 
+	for (u32 n = 0; n < md.num_connecting_walls; n++) {
+		if (!RawLoader::read_u32(&p_data, p_num_bytes, connecting_wall_ids[n])) {
+			log("Failed to read connecting wall id.");
+			return false;
+		}
+	}
+	log_load("Connecting walls read OK.");
+
 	md.verts = verts.ptr();
 	md.iverts = iverts.ptr();
 	md.indices = inds.ptr();
 	md.poly_num_indices = poly_num_inds.ptr();
-
-	if (!RawLoader::read_fpoint2(&p_data, p_num_bytes, md.fixed_point_to_float_offset)) {
-		log("Failed to read fixed_point_to_float_offset.");
-		return false;
-	}
-	if (!RawLoader::read_fpoint2(&p_data, p_num_bytes, md.fixed_point_to_float_scale)) {
-		log("Failed to read fixed_point_to_float_scale.");
-		return false;
-	}
-	if (!RawLoader::read_fpoint2(&p_data, p_num_bytes, md.float_to_fixed_point_offset)) {
-		log("Failed to read float_to_fixed_point_offset.");
-		return false;
-	}
-	if (!RawLoader::read_fpoint2(&p_data, p_num_bytes, md.float_to_fixed_point_scale)) {
-		log("Failed to read float_to_fixed_point_scale.");
-		return false;
-	}
-	log_load("Offsets and scales read OK.");
-
-	if (!RawLoader::read_fpoint3(&p_data, p_num_bytes, md.aabb.position)) {
-		log("Failed to read aabb.position.");
-		return false;
-	}
-	if (!RawLoader::read_fpoint3(&p_data, p_num_bytes, md.aabb.size)) {
-		log("Failed to read aabb.size.");
-		return false;
-	}
-	log_load("AABB read OK.");
+	md.connecting_wall_ids = connecting_wall_ids.ptr();
 
 	return load_working_data(md, r_mesh);
 }
@@ -744,6 +774,15 @@ uint32_t Loader::prepare_raw_data(const Mesh &p_mesh) {
 	RawLoader::write_u32(_save_data, md.num_verts);
 	RawLoader::write_u32(_save_data, md.num_indices);
 	RawLoader::write_u32(_save_data, md.num_polys);
+	RawLoader::write_u32(_save_data, md.num_connecting_walls);
+
+	RawLoader::write_fpoint2(_save_data, md.fixed_point_to_float_offset);
+	RawLoader::write_fpoint2(_save_data, md.fixed_point_to_float_scale);
+	RawLoader::write_fpoint2(_save_data, md.float_to_fixed_point_offset);
+	RawLoader::write_fpoint2(_save_data, md.float_to_fixed_point_scale);
+
+	RawLoader::write_fpoint3(_save_data, md.aabb.position);
+	RawLoader::write_fpoint3(_save_data, md.aabb.size);
 
 	for (u32 n = 0; n < md.num_verts; n++) {
 		RawLoader::write_fpoint3(_save_data, md.verts[n]);
@@ -759,13 +798,9 @@ uint32_t Loader::prepare_raw_data(const Mesh &p_mesh) {
 		RawLoader::write_u32(_save_data, md.poly_num_indices[n]);
 	}
 
-	RawLoader::write_fpoint2(_save_data, md.fixed_point_to_float_offset);
-	RawLoader::write_fpoint2(_save_data, md.fixed_point_to_float_scale);
-	RawLoader::write_fpoint2(_save_data, md.float_to_fixed_point_offset);
-	RawLoader::write_fpoint2(_save_data, md.float_to_fixed_point_scale);
-
-	RawLoader::write_fpoint3(_save_data, md.aabb.position);
-	RawLoader::write_fpoint3(_save_data, md.aabb.size);
+	for (u32 n = 0; n < md.num_connecting_walls; n++) {
+		RawLoader::write_u32(_save_data, md.connecting_wall_ids[n]);
+	}
 
 	log(String("save_data size ") + _save_data.size() + " bytes.");
 
@@ -822,6 +857,12 @@ bool Loader::load_working_data(const WorkingMeshData &p_data, Mesh &r_mesh) {
 	r_mesh._fp_to_f32_scale = p_data.fixed_point_to_float_scale;
 
 	r_mesh._aabb = p_data.aabb;
+
+	// Connecting walls
+	r_mesh.data.wall_connections.resize(p_data.num_connecting_walls);
+	for (u32 n = 0; n < p_data.num_connecting_walls; n++) {
+		r_mesh.data.wall_connections[n] = p_data.connecting_wall_ids[n];
+	}
 
 	if (!_load_polys(p_data.num_polys, p_data.poly_num_indices, r_mesh))
 		return false;

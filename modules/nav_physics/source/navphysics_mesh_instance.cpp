@@ -17,8 +17,32 @@ void MeshInstance::_set_transform(const Transform &p_xform, const Transform &p_x
 	_transform_identity = p_is_identity;
 }
 freal MeshInstance::find_agent_fit(Agent &r_agent) const {
+	// xform agent world space to local space
+	FPoint3 pos = get_transform_inverse().xform(r_agent.fpos3);
+
+	// outside AABB?
+	const Mesh &mesh = get_mesh();
+
+	log(String("find_agent_fit pos ") + pos + ", aabb " + mesh._aabb);
+
+	if (!mesh._aabb.contains_point_or_above(pos)) {
+		log("\tnot in aabb");
+		return 100;
+	}
+
+	// Convert position to fixed point.
+	IPoint2 ipos = mesh.float_to_fixed_point_2(r_agent.fpos3.xz());
+
+	// Check for inclusion inside tri.
+	u32 new_poly_id = mesh.find_poly_within(ipos);
+	if (new_poly_id == UINT32_MAX) {
+		log("\tnot in tri");
+		return 10;
+	}
+
 	// multiple meshs NYI
-	return 1.0;
+	log("\tinside navmesh");
+	return 1;
 }
 
 void MeshInstance::teleport_agent(Agent &r_agent) {
@@ -75,8 +99,10 @@ void MeshInstance::agent_get_info(const Agent &p_agent, BodyInfo &r_body_info) c
 	}
 }
 
-void MeshInstance::iterate_agent(Agent &r_agent) {
+void MeshInstance::iterate_agent(Agent &r_agent, Mesh::MoveInfo &r_move_info) {
 	//print_line("c++ agent at pos " + String(Variant(r_agent.fpos)));
+
+	r_agent.fvel = FPoint2::make(r_agent.fvel3.x, r_agent.fvel3.z);
 
 	// has the f32 position moved significantly? if not, retain
 	// the fixed point position as this is the gold standard
@@ -91,7 +117,7 @@ void MeshInstance::iterate_agent(Agent &r_agent) {
 	IPoint2 vel_add = mesh.float_to_fixed_point_vel(r_agent.fvel);
 	r_agent.vel += vel_add;
 
-	_iterate_agent(r_agent);
+	_iterate_agent(r_agent, r_move_info);
 
 	// apply friction
 	r_agent.vel *= r_agent.friction;
@@ -107,6 +133,8 @@ void MeshInstance::iterate_agent(Agent &r_agent) {
 	}
 
 	r_agent.fvel = mesh.fixed_point_vel_to_float(r_agent.vel);
+
+	r_agent.fpos3 = FPoint3::make(r_agent.fpos.x, r_agent.height, r_agent.fpos.y);
 }
 
 bool MeshInstance::_agent_enter_poly(Agent &r_agent, u32 p_new_poly_id, bool p_force_allow) {
@@ -328,7 +356,7 @@ void MeshInstance::llog(String p_sz) {
 	//log(p_sz);
 }
 
-void MeshInstance::_iterate_agent(Agent &r_agent) {
+void MeshInstance::_iterate_agent(Agent &r_agent, Mesh::MoveInfo &r_move_info) {
 	Agent &ag = r_agent;
 
 	const Mesh &mesh = get_mesh();
@@ -361,7 +389,7 @@ void MeshInstance::_iterate_agent(Agent &r_agent) {
 	if (ag.wall_id == UINT32_MAX) {
 		NP_DEV_ASSERT(poly_contains_point(ag.poly_id, ag.pos));
 	}
-	Mesh::MoveInfo minfo;
+	Mesh::MoveInfo &minfo = r_move_info;
 	mesh.recursive_move(0, ag.pos, ag.vel, ag.poly_id, -2, ag.wall_id, minfo);
 	// poly, intersect, dir
 	//if res == null:
@@ -369,6 +397,11 @@ void MeshInstance::_iterate_agent(Agent &r_agent) {
 
 	//freal dist_moved = (minfo.pos_reached - ag.pos).length();
 	//_log("\t\tdistance moved overall : " + String(Variant(dist_moved)));
+
+	// If we entered a new mesh instance, don't do the rest of the stuff here.
+	if (minfo.new_mesh_instance_id != UINT32_MAX) {
+		return;
+	}
 
 	// if the move allowed by poly agent limits
 	if (_agent_enter_poly(r_agent, minfo.poly_id)) {

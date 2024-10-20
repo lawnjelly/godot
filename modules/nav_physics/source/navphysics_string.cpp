@@ -139,6 +139,10 @@ String::String(IPoint3 p_value) {
 	*this = String(p_value.x) + ", " + String(p_value.y) + ", " + String(p_value.z);
 }
 
+String::String(AABB p_value) {
+	*this = String("[ ") + p_value.position + ", " + p_value.size + " ] ";
+}
+
 String::String() {
 	set(nullptr);
 }

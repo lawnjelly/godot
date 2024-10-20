@@ -143,8 +143,15 @@ Mesh::MoveResult Mesh::recursive_move(i32 p_depth, IPoint2 p_from, IPoint2 p_vel
 					p_hug_wall_id = wall.next_wall;
 					// remaining velocity
 					p_vel = to - wall_end;
-					const Wall &next_wall = get_wall(p_hug_wall_id);
-					return recursive_move(p_depth + 1, wall_end, p_vel, next_wall.poly_id, p_poly_from_id, p_hug_wall_id, r_info);
+
+					// special case, we are moving onto a connection
+					if (is_connecting_wall(p_hug_wall_id)) {
+						_log(String("\t\tleaving hug wall ") + itos(p_hug_wall_id));
+						p_hug_wall_id = UINT32_MAX;
+					} else {
+						const Wall &next_wall = get_wall(p_hug_wall_id);
+						return recursive_move(p_depth + 1, wall_end, p_vel, next_wall.poly_id, p_poly_from_id, p_hug_wall_id, r_info);
+					}
 				}
 
 			} else {
@@ -159,8 +166,14 @@ Mesh::MoveResult Mesh::recursive_move(i32 p_depth, IPoint2 p_from, IPoint2 p_vel
 					p_hug_wall_id = wall.prev_wall;
 					// remaining velocity
 					p_vel = to - wall_start;
-					const Wall &next_wall = get_wall(p_hug_wall_id);
-					return recursive_move(p_depth + 1, wall_start, p_vel, next_wall.poly_id, p_poly_from_id, p_hug_wall_id, r_info);
+					// special case, we are moving onto a connection
+					if (is_connecting_wall(p_hug_wall_id)) {
+						_log(String("\t\tleaving hug wall ") + itos(p_hug_wall_id));
+						p_hug_wall_id = UINT32_MAX;
+					} else {
+						const Wall &next_wall = get_wall(p_hug_wall_id);
+						return recursive_move(p_depth + 1, wall_start, p_vel, next_wall.poly_id, p_poly_from_id, p_hug_wall_id, r_info);
+					}
 				}
 			}
 		} else {
@@ -198,11 +211,50 @@ Mesh::MoveResult Mesh::recursive_move(i32 p_depth, IPoint2 p_from, IPoint2 p_vel
 	u32 wall_id = trace_info.slide_wall;
 	IPoint2 pt_intersect = trace_info.hit_point;
 
+	// account for possibility we are going through a connection to a new mesh instance
+	if (is_connecting_wall(wall_id)) {
+		IPoint2 pt_potential = p_from + p_vel;
+		if (move_to_new_mesh(pt_potential, r_info)) {
+			r_info.poly_id = UINT32_MAX;
+			r_info.pos_reached = pt_potential;
+			r_info.wall_id = UINT32_MAX;
+			return MR_OK;
+		}
+	}
+
 	// reduce the velocity by how far travelled to the wall
 	p_vel -= (pt_intersect - p_from);
 	p_hug_wall_id = wall_id;
 	// const Wall &wall = get_wall(p_hug_wall_id);
 	return recursive_move(p_depth + 1, pt_intersect, p_vel, p_poly_id, p_poly_from_id, p_hug_wall_id, r_info);
+}
+
+bool Mesh::move_to_new_mesh(const IPoint2 &p_pt, MoveInfo &r_info) const {
+	Map &map = NavPhysics::g_world.get_map(r_info.map_id);
+	Agent &agent = NavPhysics::g_world.get_body(r_info.agent_id);
+
+	// Get the coords into world space.
+	u32 old_mesh_instance_id = agent.get_mesh_instance_id();
+	NP_DEV_ASSERT(old_mesh_instance_id != UINT32_MAX);
+
+	MeshInstance &old_mesh_instance = NavPhysics::g_world.get_mesh_instance(old_mesh_instance_id);
+
+	// only update the f32ing point position if significantly different
+	agent.fpos = fixed_point_to_float_2(agent.pos);
+
+	//r_agent.fvel = mesh.fixed_point_vel_to_float(r_agent.vel);
+
+	agent.fpos3 = FPoint3::make(agent.fpos.x, agent.height, agent.fpos.y);
+	agent.fpos3 = old_mesh_instance.get_transform().xform(agent.fpos3);
+
+	u32 mesh_instance_id = map.find_best_fit_agent_mesh(agent, old_mesh_instance_id);
+
+	if (mesh_instance_id != UINT32_MAX) {
+		r_info.new_mesh_instance_id = mesh_instance_id;
+		return true;
+	}
+
+	return false;
 }
 
 Mesh::TraceResult Mesh::recursive_trace(i32 p_depth, IPoint2 p_from, IPoint2 p_to, u32 p_poly_id, TraceInfo &r_info) const {
@@ -246,7 +298,7 @@ Mesh::TraceResult Mesh::recursive_trace(i32 p_depth, IPoint2 p_from, IPoint2 p_t
 
 	u32 linked_poly_id = get_link(best_wall_id);
 
-	if (linked_poly_id == UINT32_MAX) {
+	if (is_hard_wall(best_wall_id)) {
 		// indicates slide and which wall
 		r_info.poly_id = p_poly_id;
 		r_info.slide_wall = best_wall_id;

@@ -12,6 +12,7 @@ struct IPoint2;
 struct IPoint3;
 struct Basis;
 struct Transform;
+struct AABB;
 
 class String {
 	Vector<char> _chars;
@@ -32,6 +33,7 @@ public:
 	String(IPoint3 p_value);
 	String(Basis p_value);
 	String(Transform p_value);
+	String(AABB p_value);
 	String();
 	~String();
 

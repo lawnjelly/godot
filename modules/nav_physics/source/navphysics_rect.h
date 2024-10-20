@@ -42,6 +42,43 @@ struct [[nodiscard]] AABB {
 		position = begin;
 		size = end - begin;
 	}
+
+	bool contains_point_or_above(const FPoint3 &p_pt) const {
+		FPoint3 pt = p_pt - position;
+		if (pt.x < 0) {
+			return false;
+		}
+		if (pt.y < 0) {
+			//return false;
+		}
+		if (pt.z < 0) {
+			return false;
+		}
+		if (pt.x > size.x) {
+			return false;
+		}
+		if (pt.z > size.z) {
+			return false;
+		}
+
+		return true;
+	}
+
+	bool contains_point(const FPoint3 &p_pt) const {
+		FPoint3 pt = p_pt - position;
+		for (u32 n = 0; n < 3; n++) {
+			if (pt.coord[n] < 0) {
+				return false;
+			}
+		}
+		for (u32 n = 0; n < 3; n++) {
+			if (pt.coord[n] > size.coord[n]) {
+				return false;
+			}
+		}
+
+		return true;
+	}
 };
 
 } // namespace NavPhysics

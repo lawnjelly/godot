@@ -12,7 +12,7 @@ void MeshFuncs::editor_toggle_wall_connection(Mesh &r_mesh, const FPoint3 &p_fro
 	}
 
 	// Is it a side wall?
-	if (r_mesh.get_link(wall_id) != UINT32_MAX) {
+	if (!r_mesh.is_hard_wall(wall_id)) {
 		return;
 	}
 

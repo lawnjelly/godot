@@ -8,7 +8,7 @@
 
 namespace NavPhysics {
 class MeshInstance {
-	void _iterate_agent(Agent &r_agent);
+	void _iterate_agent(Agent &r_agent, Mesh::MoveInfo &r_move_info);
 	bool _agent_enter_poly(Agent &r_agent, u32 p_new_poly_id, bool p_force_allow = false);
 
 	Transform _transform;
@@ -31,7 +31,7 @@ class MeshInstance {
 public:
 	// less is better fit
 	freal find_agent_fit(Agent &r_agent) const;
-	void iterate_agent(Agent &r_agent);
+	void iterate_agent(Agent &r_agent, Mesh::MoveInfo &r_move_info);
 	void teleport_agent(Agent &r_agent);
 	void agent_get_info(const Agent &p_agent, BodyInfo &r_body_info) const;
 

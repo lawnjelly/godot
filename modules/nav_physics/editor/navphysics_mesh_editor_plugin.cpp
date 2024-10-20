@@ -106,9 +106,13 @@ bool NPMeshEditor::process_gui_input(Camera *p_camera, const Ref<InputEvent> &p_
 	Vector3 start = p_camera->project_position(mbpos, 0);
 	Vector3 end = p_camera->project_position(mbpos, 10000);
 
-	Transform tr = node->get_global_transform();
+	print_line("Click before: " + String(Variant(start)) + " to " + String(Variant(end)));
+
+	Transform tr = node->get_global_transform().affine_inverse();
 	start = tr.xform(start);
 	end = tr.xform(end);
+
+	print_line("Click after xform: " + String(Variant(start)) + " to " + String(Variant(end)));
 
 	if (node->get_mesh()->toggle_wall_connection(start, end)) {
 		node->update_gizmo();

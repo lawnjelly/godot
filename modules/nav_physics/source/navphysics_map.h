@@ -14,6 +14,7 @@ struct Agent;
 class Map {
 	TrackedPooledList<u32> _mesh_instances;
 	SAP _sap;
+	u32 _map_id = UINT32_MAX;
 	bool update_agent_mesh(Agent &r_agent, u32 p_agent_id, bool p_teleport_if_changed);
 
 public:
@@ -28,6 +29,11 @@ public:
 
 	u32 register_mesh_instance(u32 p_mesh_instance_id);
 	void unregister_mesh_instance(u32 p_mesh_instance_id, u32 p_mesh_slot_id);
+
+	u32 find_best_fit_agent_mesh(Agent &r_agent, u32 p_ignore_mesh_id = UINT32_MAX) const;
+
+	void set_map_id(u32 p_id) { _map_id = p_id; }
+
 	~Map();
 };
 
