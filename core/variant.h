@@ -432,7 +432,54 @@ public:
 	static void construct_from_string(const String &p_string, Variant &r_value, ObjectConstruct p_obj_construct = nullptr, void *p_construct_ud = nullptr);
 
 	void operator=(const Variant &p_variant); // only this is enough for all the other types
+	void operator=(Variant &&p_variant) {
+		if (unlikely(this == &p_variant)) {
+			return;
+		}
+		clear();
+		type = p_variant.type;
+
+#if defined(__clang__) && (__clang_major__ >= 13)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wuninitialized"
+#endif
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic warning "-Wuninitialized"
+#endif
+		_data = p_variant._data;
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
+#if defined(__clang__) && (__clang_major__ >= 13)
+#pragma clang diagnostic pop
+#endif
+
+		p_variant.type = NIL;
+	}
 	Variant(const Variant &p_variant);
+	Variant(Variant &&p_variant) {
+		type = p_variant.type;
+
+#if defined(__clang__) && (__clang_major__ >= 13)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wuninitialized"
+#endif
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic warning "-Wuninitialized"
+#endif
+
+		_data = p_variant._data;
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
+#if defined(__clang__) && (__clang_major__ >= 13)
+#pragma clang diagnostic pop
+#endif
+
+		p_variant.type = NIL;
+	}
 	_FORCE_INLINE_ Variant() { type = NIL; }
 	_FORCE_INLINE_ ~Variant() {
 		if (type != Variant::NIL) {
