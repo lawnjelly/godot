@@ -152,16 +152,32 @@ private:
 	void _propagate_visibility_changed();
 	void _propagate_merging_allowed(bool p_merging_allowed);
 
-	void _fti_notify_set_transform();
-
 protected:
 	_FORCE_INLINE_ void set_ignore_transform_notification(bool p_ignore) { data.ignore_notification = p_ignore; }
 	_FORCE_INLINE_ void _update_local_transform() const;
 
 	void _set_vi_visible(bool p_visible);
 	bool _is_vi_visible() const { return data.vi_visible; }
+
 	Transform _get_global_transform_interpolated(real_t p_interpolation_fraction);
+	const Transform &_get_cached_global_transform_interpolated() const { return data.global_transform_interpolated; }
 	void _disable_client_physics_interpolation();
+
+	// Calling this announces to the FTI system that a node has been moved,
+	// or requires an update in terms of interpolation
+	// (e.g. changing Camera zoom even if position hasn't changed).
+	void fti_notify_node_changed();
+
+	// Opportunity after FTI to update the servers
+	// with global_transform_interpolated,
+	// and any custom interpolated data in derived classes.
+	// Make sure to call the parent class fti_update_servers(),
+	// so all data is updated to the servers.
+	virtual void fti_update_servers() {}
+
+	// Pump the FTI data, also gives a chance for inherited classes
+	// to pump custom data, but they *must* call the base class here too.
+	virtual void fti_pump();
 
 	void _notification(int p_what);
 	static void _bind_methods();

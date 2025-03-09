@@ -87,7 +87,10 @@ void SceneTreeFTI::tick_update() {
 		Spatial *s = prev[n];
 		if (!s->data.fti_on_tick_list) {
 			// Needs a reset so jittering will stop.
-			s->data.local_transform_prev = s->data.local_transform;
+			s->fti_pump();
+
+			// This may not get updated so set it to the same as global xform.
+			// TODO: double check this is the best value.
 			s->data.global_transform_interpolated = s->data.global_transform;
 
 			// Remove from interpolation list.
@@ -105,7 +108,7 @@ void SceneTreeFTI::tick_update() {
 		s->data.fti_on_tick_list = false;
 
 		// Pump.
-		s->data.local_transform_prev = s->data.local_transform;
+		s->fti_pump();
 	}
 
 	// Clear previous list and flip.
@@ -215,24 +218,29 @@ void SceneTreeFTI::_update_dirty_spatials(Node *p_node, uint32_t p_current_frame
 		}
 
 		// Concatenate parent xform.
-		if (p_parent_global_xform) {
-			s->data.global_transform_interpolated = (*p_parent_global_xform) * local_interp;
-		} else {
-			const Spatial *parent = s->get_parent_spatial();
-
-			if (parent) {
-				const Transform &parent_glob = parent->data.fti_global_xform_interp_set ? parent->data.global_transform_interpolated : parent->data.global_transform;
-				s->data.global_transform_interpolated = parent_glob * local_interp;
+		if (!s->is_set_as_toplevel()) {
+			if (p_parent_global_xform) {
+				s->data.global_transform_interpolated = (*p_parent_global_xform) * local_interp;
 			} else {
-				s->data.global_transform_interpolated = local_interp;
+				const Spatial *parent = s->get_parent_spatial();
+
+				if (parent) {
+					const Transform &parent_glob = parent->data.fti_global_xform_interp_set ? parent->data.global_transform_interpolated : parent->data.global_transform;
+					s->data.global_transform_interpolated = parent_glob * local_interp;
+				} else {
+					s->data.global_transform_interpolated = local_interp;
+				}
 			}
+		} else {
+			s->data.global_transform_interpolated = local_interp;
 		}
 
 		// Upload to VisualServer the interpolated global xform.
-		VisualInstance *vi = Object::cast_to<VisualInstance>(s);
-		if (vi && !vi->_is_using_identity_transform()) {
-			VisualServer::get_singleton()->instance_set_transform(vi->get_instance(), s->data.global_transform_interpolated);
-		}
+		s->fti_update_servers();
+		// VisualInstance *vi = Object::cast_to<VisualInstance>(s);
+		// if (vi && !vi->_is_using_identity_transform()) {
+		// VisualServer::get_singleton()->instance_set_transform(vi->get_instance(), s->data.global_transform_interpolated);
+		// }
 
 	} // if active.
 
