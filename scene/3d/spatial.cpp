@@ -319,11 +319,20 @@ void Spatial::fti_pump_xform() {
 void Spatial::fti_notify_node_changed(bool p_transform_changed) {
 	if (is_inside_tree()) {
 		get_tree()->get_scene_tree_fti().spatial_notify_changed(*this, p_transform_changed);
+
+		if (p_transform_changed) {
+			// FTI auto reset ability on entering the tree.
+			if (_is_physics_interpolation_reset_requested() && _is_vi_visible() && !_is_using_identity_transform() && is_physics_interpolated_and_enabled()) {
+				// For instance when first adding to the tree, when the previous transform is
+				// unset, to prevent streaking from the origin.
+				notification(NOTIFICATION_RESET_PHYSICS_INTERPOLATION);
+				_set_physics_interpolation_reset_requested(false);
+			}
+		}
 	}
 }
 
 void Spatial::set_transform(const Transform &p_transform) {
-	fti_notify_node_changed();
 	data.local_transform = p_transform;
 	data.dirty |= DIRTY_VECTORS;
 	data.dirty &= ~DIRTY_LOCAL;
@@ -335,6 +344,7 @@ void Spatial::set_transform(const Transform &p_transform) {
 	if (data.notify_local_transform) {
 		notification(NOTIFICATION_LOCAL_TRANSFORM_CHANGED);
 	}
+	fti_notify_node_changed();
 }
 
 void Spatial::set_global_transform(const Transform &p_transform) {
@@ -532,17 +542,16 @@ Transform Spatial::get_relative_transform(const Node *p_parent) const {
 }
 
 void Spatial::set_translation(const Vector3 &p_translation) {
-	fti_notify_node_changed();
 	data.local_transform.origin = p_translation;
 	_change_notify("transform");
 	_propagate_transform_changed(this);
 	if (data.notify_local_transform) {
 		notification(NOTIFICATION_LOCAL_TRANSFORM_CHANGED);
 	}
+	fti_notify_node_changed();
 }
 
 void Spatial::set_rotation(const Vector3 &p_euler_rad) {
-	fti_notify_node_changed();
 	if (data.dirty & DIRTY_VECTORS) {
 		data.scale = data.local_transform.basis.get_scale();
 		data.dirty &= ~DIRTY_VECTORS;
@@ -555,6 +564,7 @@ void Spatial::set_rotation(const Vector3 &p_euler_rad) {
 	if (data.notify_local_transform) {
 		notification(NOTIFICATION_LOCAL_TRANSFORM_CHANGED);
 	}
+	fti_notify_node_changed();
 }
 
 void Spatial::set_rotation_degrees(const Vector3 &p_euler_deg) {
@@ -562,7 +572,6 @@ void Spatial::set_rotation_degrees(const Vector3 &p_euler_deg) {
 }
 
 void Spatial::set_scale(const Vector3 &p_scale) {
-	fti_notify_node_changed();
 	if (data.dirty & DIRTY_VECTORS) {
 		data.rotation = data.local_transform.basis.get_rotation();
 		data.dirty &= ~DIRTY_VECTORS;
@@ -575,6 +584,7 @@ void Spatial::set_scale(const Vector3 &p_scale) {
 	if (data.notify_local_transform) {
 		notification(NOTIFICATION_LOCAL_TRANSFORM_CHANGED);
 	}
+	fti_notify_node_changed();
 }
 
 Vector3 Spatial::get_translation() const {
