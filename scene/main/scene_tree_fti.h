@@ -65,9 +65,22 @@ public:
 // This class is not thread safe, but can be made thread safe easily with a mutex as in the 4.x version.
 
 class SceneTreeFTI {
+	enum TraversalMode : unsigned {
+		TM_DEFAULT,
+		TM_LEGACY,
+		TM_DEBUG,
+	};
+
 	struct Data {
+		static const uint32_t scene_tree_depth_limit = 32;
+
 		// Prev / Curr lists of spatials having local xforms pumped.
 		LocalVector<Spatial *> tick_xform_list[2];
+
+		// The frame lists are changed nodes that need to start traversal,
+		// either longterm (on the tick list) or single frame forced.
+		LocalVector<Spatial *> frame_xform_list;
+		LocalVector<Spatial *> frame_xform_list_forced;
 
 		// Prev / Curr lists of spatials having actively interpolated properties.
 		LocalVector<Spatial *> tick_property_list[2];
@@ -86,15 +99,33 @@ class SceneTreeFTI {
 		// Updating at the start of the frame, or the end on second pass.
 		bool frame_start = true;
 
-		bool debug = false;
+		bool periodic_debug_log = false;
+
+		uint32_t debug_node_count = 0;
+		uint32_t debug_nodes_processed = 0;
+
+		TraversalMode traversal_mode = TM_DEFAULT;
+		bool default_traversal_method = true;
+
+		bool should_verify() const { return (traversal_mode == TM_DEBUG) && default_traversal_method; }
+
+		LocalVector<Spatial *> dirty_spatial_depth_lists[scene_tree_depth_limit];
 	} data;
 
-	void _update_dirty_spatials(Node *p_node, uint32_t p_current_frame, float p_interpolation_fraction, bool p_active, const Transform *p_parent_global_xform = nullptr, int p_depth = 0);
+	void _update_dirty_spatials(Node *p_node, uint32_t p_current_half_frame, float p_interpolation_fraction, bool p_active, const Transform *p_parent_global_xform = nullptr, int p_depth = 0);
 	void _update_request_resets();
 
 	void _reset_flags(Node *p_node);
 	void _spatial_notify_set_xform(Spatial &r_spatial);
 	void _spatial_notify_set_property(Spatial &r_spatial);
+
+	void _spatial_add_to_frame_list(Spatial &r_spatial, bool p_forced);
+	void _spatial_remove_from_frame_list(Spatial &r_spatial, bool p_forced);
+
+	void _create_depth_lists();
+	void _clear_depth_lists();
+
+	void _debug_verify_failed(const Spatial *p_spatial, const Transform &p_test);
 
 public:
 	// Hottest function, allow inlining the data.enabled check.
@@ -121,7 +152,9 @@ public:
 	void set_enabled(Node *p_root, bool p_enabled);
 	bool is_enabled() const { return data.enabled; }
 
-	void set_debug_next_frame() { data.debug = true; }
+	void set_debug_next_frame() { data.periodic_debug_log = true; }
+
+	SceneTreeFTI();
 };
 
 #endif // ndef _3D_DISABLED

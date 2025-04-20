@@ -38,9 +38,19 @@
 #include "scene/3d/spatial.h"
 #include "scene/3d/visual_instance.h"
 
+#ifdef DEV_ENABLED
+
 // Uncomment this to enable some slow extra DEV_ENABLED
 // checks to ensure there aren't more than one object added to the lists.
 // #define GODOT_SCENE_TREE_FTI_EXTRA_CHECKS
+
+// Uncomment this to regularly print the tree that is being interpolated.
+// #define GODOT_SCENE_TREE_FTI_PRINT_TREE
+
+// Uncomment this to verify traversal method results.
+#define GODOT_SCENE_TREE_FTI_VERIFY
+
+#endif
 
 void SceneTreeFTI::_reset_flags(Node *p_node) {
 	Spatial *s = Object::cast_to<Spatial>(p_node);
@@ -52,6 +62,7 @@ void SceneTreeFTI::_reset_flags(Node *p_node) {
 		s->data.fti_on_frame_property_list = false;
 		s->data.fti_global_xform_interp_set = false;
 		s->data.fti_frame_xform_force_update = false;
+		s->data.fti_processed = false;
 
 		// In most cases the later  NOTIFICATION_RESET_PHYSICS_INTERPOLATION
 		// will reset this, but this should help cover hidden nodes.
@@ -99,18 +110,23 @@ void SceneTreeFTI::tick_update() {
 			// Needs a reset so jittering will stop.
 			s->fti_pump_xform();
 
+			// Optimization - detect whether we have rested at identity xform.
+			s->data.fti_is_identity_xform = s->data.local_transform == Transform();
+
 			// This may not get updated so set it to the same as global xform.
 			// TODO: double check this is the best value.
 			s->data.global_transform_interpolated = s->get_global_transform();
 
 			// Remove from interpolation list.
 			if (s->data.fti_on_frame_xform_list) {
-				s->data.fti_on_frame_xform_list = false;
+				_spatial_remove_from_frame_list(*s, false);
 			}
 
 			// Ensure that the spatial gets at least ONE further
 			// update in the resting position in the next frame update.
-			s->data.fti_frame_xform_force_update = true;
+			if (!s->data.fti_frame_xform_force_update) {
+				_spatial_add_to_frame_list(*s, true);
+			}
 		}
 	}
 
@@ -226,15 +242,107 @@ void SceneTreeFTI::_spatial_notify_set_property(Spatial &r_spatial) {
 	}
 }
 
+void SceneTreeFTI::_create_depth_lists() {
+	uint32_t first_list = data.frame_start ? 0 : 1;
+#ifdef GODOT_SCENE_TREE_FTI_EXTRA_CHECKS
+	if (data.periodic_debug_log) {
+		print_line("\n");
+	}
+#endif
+
+	for (uint32_t l = first_list; l < 2; l++) {
+		LocalVector<Spatial *> &source_list = l == 0 ? data.frame_xform_list : data.frame_xform_list_forced;
+
+		for (uint32_t n = 0; n < source_list.size(); n++) {
+			Spatial *s = source_list[n];
+			s->data.fti_processed = false;
+
+			int32_t depth = s->_get_scene_tree_depth();
+
+			// This shouldn't happen, but wouldn't be terrible if it did.
+			DEV_ASSERT(depth >= 0);
+			depth = MIN(depth, (int32_t)data.scene_tree_depth_limit);
+
+			LocalVector<Spatial *> &dest_list = data.dirty_spatial_depth_lists[depth];
+#ifdef GODOT_SCENE_TREE_FTI_EXTRA_CHECKS
+			// Shouldn't really happen, but duplicates don't really matter that much.
+			if (dest_list.find(s) != -1) {
+				ERR_FAIL_COND(dest_list.find(s) != -1);
+			}
+
+			if (data.periodic_debug_log && !data.frame_start) {
+				print_line(s->get_name());
+			}
+#endif
+			if ((l == 0) && s->data.fti_frame_xform_force_update) {
+				continue;
+			}
+
+			dest_list.push_back(s);
+		}
+	}
+}
+
+void SceneTreeFTI::_clear_depth_lists() {
+	for (uint32_t d = 0; d < data.scene_tree_depth_limit; d++) {
+		data.dirty_spatial_depth_lists[d].clear();
+	}
+}
+
+void SceneTreeFTI::_spatial_add_to_frame_list(Spatial &r_spatial, bool p_forced) {
+	if (p_forced) {
+		DEV_ASSERT(!r_spatial.data.fti_frame_xform_force_update);
+#ifdef GODOT_SCENE_TREE_FTI_EXTRA_CHECKS
+		int64_t found = data.frame_xform_list_forced.find(&r_spatial);
+		if (found != -1) {
+			ERR_FAIL_COND(found != -1);
+		}
+#endif
+		data.frame_xform_list_forced.push_back(&r_spatial);
+		r_spatial.data.fti_frame_xform_force_update = true;
+	} else {
+		DEV_ASSERT(!r_spatial.data.fti_on_frame_xform_list);
+#ifdef GODOT_SCENE_TREE_FTI_EXTRA_CHECKS
+		int64_t found = data.frame_xform_list.find(&r_spatial);
+		if (found != -1) {
+			ERR_FAIL_COND(found != -1);
+		}
+#endif
+		data.frame_xform_list.push_back(&r_spatial);
+		r_spatial.data.fti_on_frame_xform_list = true;
+	}
+}
+
+void SceneTreeFTI::_spatial_remove_from_frame_list(Spatial &r_spatial, bool p_forced) {
+	if (p_forced) {
+		DEV_ASSERT(r_spatial.data.fti_frame_xform_force_update);
+		data.frame_xform_list_forced.erase_unordered(&r_spatial);
+		r_spatial.data.fti_frame_xform_force_update = false;
+	} else {
+		DEV_ASSERT(r_spatial.data.fti_on_frame_xform_list);
+		data.frame_xform_list.erase_unordered(&r_spatial);
+		r_spatial.data.fti_on_frame_xform_list = false;
+	}
+}
+
 void SceneTreeFTI::_spatial_notify_set_xform(Spatial &r_spatial) {
 	DEV_CHECK_ONCE(data.enabled);
 
 	if (!r_spatial.is_physics_interpolated()) {
 		// Force an update of non-interpolated to servers
 		// on the next traversal.
-		r_spatial.data.fti_frame_xform_force_update = true;
+		if (!r_spatial.data.fti_frame_xform_force_update) {
+			_spatial_add_to_frame_list(r_spatial, true);
+		}
+
+		// ToDo: Double check this is a win,
+		// non-interpolated nodes we always check for identity,
+		// *just in case*.
+		r_spatial.data.fti_is_identity_xform = r_spatial.get_transform() == Transform();
 		return;
 	}
+
+	r_spatial.data.fti_is_identity_xform = false;
 
 	if (!r_spatial.data.fti_on_tick_xform_list) {
 		r_spatial.data.fti_on_tick_xform_list = true;
@@ -255,7 +363,15 @@ void SceneTreeFTI::_spatial_notify_set_xform(Spatial &r_spatial) {
 	}
 
 	if (!r_spatial.data.fti_on_frame_xform_list) {
-		r_spatial.data.fti_on_frame_xform_list = true;
+		_spatial_add_to_frame_list(r_spatial, false);
+	}
+
+	// If we are in the second half of a frame, always add to the force update list,
+	// because we ignore the tick update list during the second update.
+	if (data.in_frame) {
+		if (!r_spatial.data.fti_frame_xform_force_update) {
+			_spatial_add_to_frame_list(r_spatial, true);
+		}
 	}
 }
 
@@ -266,7 +382,13 @@ void SceneTreeFTI::spatial_notify_delete(Spatial *p_spatial) {
 
 	ERR_FAIL_NULL(p_spatial);
 
-	p_spatial->data.fti_on_frame_xform_list = false;
+	// Remove from frame lists.
+	if (p_spatial->data.fti_on_frame_xform_list) {
+		_spatial_remove_from_frame_list(*p_spatial, false);
+	}
+	if (p_spatial->data.fti_frame_xform_force_update) {
+		_spatial_remove_from_frame_list(*p_spatial, true);
+	}
 
 	// Ensure this is kept in sync with the lists, in case a node
 	// is removed and readded to the scene tree multiple times
@@ -295,11 +417,50 @@ void SceneTreeFTI::spatial_notify_delete(Spatial *p_spatial) {
 
 	DEV_CHECK_ONCE(data.frame_property_list.find(p_spatial) == -1);
 	DEV_CHECK_ONCE(data.request_reset_list.find(p_spatial) == -1);
+
+	DEV_CHECK_ONCE(data.frame_xform_list.find(p_spatial) == -1);
+	DEV_CHECK_ONCE(data.frame_xform_list_forced.find(p_spatial) == -1);
 #endif
 }
 
-void SceneTreeFTI::_update_dirty_spatials(Node *p_node, uint32_t p_current_frame, float p_interpolation_fraction, bool p_active, const Transform *p_parent_global_xform, int p_depth) {
+void SceneTreeFTI::_debug_verify_failed(const Spatial *p_spatial, const Transform &p_test) {
+	print_line("VERIFY FAILED\n");
+	//print_line("test xform : " + String(Variant(p_test)));
+
+	bool first = true;
+
+	while (p_spatial) {
+		int32_t depth = MAX(p_spatial->_get_scene_tree_depth(), 0);
+		String tabs;
+		for (int32_t n = 0; n < depth; n++) {
+			tabs += "\t";
+		}
+
+		bool interp_equal = p_spatial->_get_cached_global_transform_interpolated() == p_test;
+		bool glob_equal = p_spatial->get_global_transform() == p_test;
+
+		String sz = tabs + p_spatial->get_name() + " [ " + p_spatial->get_class_name() + " ]\n";
+
+		if (first) {
+			sz += tabs + "... " + String(Variant(p_test)) + "\n";
+		}
+
+		sz += tabs + (p_spatial->data.fti_global_xform_interp_set ? "[I] " : "[i] ") + String(Variant(p_spatial->_get_cached_global_transform_interpolated())) + (interp_equal ? " ***" : "") + "\n";
+		sz += tabs + "[g] " + String(Variant(p_spatial->get_global_transform())) + (glob_equal ? " ***" : "");
+
+		print_line(sz);
+
+		p_spatial = p_spatial->get_parent_spatial();
+		first = false;
+	}
+}
+
+void SceneTreeFTI::_update_dirty_spatials(Node *p_node, uint32_t p_current_half_frame, float p_interpolation_fraction, bool p_active, const Transform *p_parent_global_xform, int p_depth) {
 	Spatial *s = Object::cast_to<Spatial>(p_node);
+
+#ifdef DEBUG_ENABLED
+	data.debug_node_count++;
+#endif
 
 	// Don't recurse into hidden branches.
 	if (s && !s->is_visible()) {
@@ -313,7 +474,7 @@ void SceneTreeFTI::_update_dirty_spatials(Node *p_node, uint32_t p_current_frame
 	// so we should still recurse to children.
 	if (!s) {
 		for (int n = 0; n < p_node->get_child_count(); n++) {
-			_update_dirty_spatials(p_node->get_child(n), p_current_frame, p_interpolation_fraction, p_active, nullptr, p_depth + 1);
+			_update_dirty_spatials(p_node->get_child(n), p_current_half_frame, p_interpolation_fraction, p_active, nullptr, p_depth + 1);
 		}
 		return;
 	}
@@ -340,10 +501,16 @@ void SceneTreeFTI::_update_dirty_spatials(Node *p_node, uint32_t p_current_frame
 			// since the frame start.
 			if (s->data.dirty & Spatial::DIRTY_GLOBAL_INTERPOLATED) {
 				p_active = true;
+
+				if (data.periodic_debug_log) {
+					print_line("activating on : " + s->get_name());
+				}
 			}
 		}
 	}
 
+	// ToDo : Check global_xform_interp is up to date for nodes
+	// that are not traversed by the depth lists.
 	if (data.frame_start) {
 		// Mark on the Spatial whether we have set global_transform_interp.
 		// This can later be used when calling `get_global_transform_interpolated()`
@@ -352,15 +519,15 @@ void SceneTreeFTI::_update_dirty_spatials(Node *p_node, uint32_t p_current_frame
 	}
 
 	if (p_active) {
-#if 0
-		bool dirty = s->data.dirty & Spatial::DIRTY_GLOBAL_INTERP;
+#ifdef GODOT_SCENE_TREE_FTI_PRINT_TREE
+		bool dirty = s->data.dirty & Spatial::DIRTY_GLOBAL_INTERPOLATED;
 
-		if (data.debug) {
+		if (data.periodic_debug_log && !data.default_traversal_method && !data.frame_start) {
 			String sz;
 			for (int n = 0; n < p_depth; n++) {
 				sz += "\t";
 			}
-			print_line(sz + p_node->get_name() + (dirty ? " DIRTY" : ""));
+			print_line(sz + p_node->get_name() + (dirty ? " DIRTY" : "") + (s->get_transform() == Transform() ? "\t[IDENTITY]" : ""));
 		}
 #endif
 
@@ -368,9 +535,15 @@ void SceneTreeFTI::_update_dirty_spatials(Node *p_node, uint32_t p_current_frame
 		// This will either use interpolation, or just use the current local if not interpolated.
 		Transform local_interp;
 		if (s->is_physics_interpolated()) {
-			// Make sure to call `get_transform()` rather than using local_transform directly, because
-			// local_transform may be dirty and need updating from rotation / scale.
-			TransformInterpolator::interpolate_transform(s->data.local_transform_prev, s->get_transform(), local_interp, p_interpolation_fraction);
+			// There may be no need to interpolate if the spatial has not been moved recently
+			// and is therefore not on the tick list...
+			if (s->data.fti_on_tick_xform_list) {
+				// Make sure to call `get_transform()` rather than using local_transform directly, because
+				// local_transform may be dirty and need updating from rotation / scale.
+				TransformInterpolator::interpolate_transform(s->data.local_transform_prev, s->get_transform(), local_interp, p_interpolation_fraction);
+			} else {
+				local_interp = s->get_transform();
+			}
 		} else {
 			local_interp = s->get_transform();
 		}
@@ -378,13 +551,46 @@ void SceneTreeFTI::_update_dirty_spatials(Node *p_node, uint32_t p_current_frame
 		// Concatenate parent xform.
 		if (!s->is_set_as_toplevel()) {
 			if (p_parent_global_xform) {
-				s->data.global_transform_interpolated = (*p_parent_global_xform) * local_interp;
+#ifdef GODOT_SCENE_TREE_FTI_VERIFY
+				if (data.should_verify()) {
+					Transform test = (*p_parent_global_xform) * local_interp;
+					if (s->data.disable_scale) {
+						test.basis.orthonormalize();
+					}
+					if (s->data.global_transform_interpolated != test) {
+						//if (!s->data.global_transform_interpolated.is_equal_approx(test)) {
+						_debug_verify_failed(s, test);
+						DEV_ASSERT(s->data.global_transform_interpolated == test);
+					}
+				} else {
+					s->data.global_transform_interpolated = s->data.fti_is_identity_xform ? (*p_parent_global_xform) : (*p_parent_global_xform) * local_interp;
+				}
+#else
+				s->data.global_transform_interpolated = s->data.fti_is_identity_xform ? *p_parent_global_xform : ((*p_parent_global_xform) * local_interp);
+#endif
 			} else {
 				const Spatial *parent = s->get_parent_spatial();
 
 				if (parent) {
-					const Transform &parent_glob = parent->data.fti_global_xform_interp_set ? parent->data.global_transform_interpolated : parent->data.global_transform;
-					s->data.global_transform_interpolated = parent_glob * local_interp;
+					const Transform &parent_glob = parent->data.fti_global_xform_interp_set ? parent->data.global_transform_interpolated : parent->get_global_transform();
+
+#ifdef GODOT_SCENE_TREE_FTI_VERIFY
+					if (data.should_verify()) {
+						Transform test = parent_glob * local_interp;
+						if (s->data.disable_scale) {
+							test.basis.orthonormalize();
+						}
+						if (s->data.global_transform_interpolated != test) {
+							_debug_verify_failed(s, test);
+							DEV_ASSERT(s->data.global_transform_interpolated == test);
+						}
+
+					} else {
+						s->data.global_transform_interpolated = s->data.fti_is_identity_xform ? parent_glob : parent_glob * local_interp;
+					}
+#else
+					s->data.global_transform_interpolated = s->data.fti_is_identity_xform ? parent_glob : parent_glob * local_interp;
+#endif
 				} else {
 					s->data.global_transform_interpolated = local_interp;
 				}
@@ -407,6 +613,12 @@ void SceneTreeFTI::_update_dirty_spatials(Node *p_node, uint32_t p_current_frame
 		// that have a deferred frame update.
 		s->data.fti_frame_xform_force_update = false;
 
+		// Ensure branches are only processed once on each traversal.
+		s->data.fti_processed = true;
+
+#ifdef DEBUG_ENABLED
+		data.debug_nodes_processed++;
+#endif
 	} // if active.
 
 	// Remove the dirty interp flag from EVERYTHING as we go.
@@ -414,7 +626,7 @@ void SceneTreeFTI::_update_dirty_spatials(Node *p_node, uint32_t p_current_frame
 
 	// Recurse to children.
 	for (int n = 0; n < p_node->get_child_count(); n++) {
-		_update_dirty_spatials(p_node->get_child(n), p_current_frame, p_interpolation_fraction, p_active, s->data.fti_global_xform_interp_set ? &s->data.global_transform_interpolated : &s->data.global_transform, p_depth + 1);
+		_update_dirty_spatials(p_node->get_child(n), p_current_half_frame, p_interpolation_fraction, p_active, s->data.fti_global_xform_interp_set ? &s->data.global_transform_interpolated : &s->data.global_transform, p_depth + 1);
 	}
 }
 
@@ -423,35 +635,140 @@ void SceneTreeFTI::frame_update(Node *p_root, bool p_frame_start) {
 		return;
 	}
 
-	_update_request_resets();
-
 	data.frame_start = p_frame_start;
+	data.in_frame = true;
+
+	_update_request_resets();
 
 	float f = Engine::get_singleton()->get_physics_interpolation_fraction();
 	uint32_t frame = Engine::get_singleton()->get_frames_drawn();
+
+#ifdef DEBUG_ENABLED
+	if (p_frame_start && ((frame % 499) == 1)) {
+		data.periodic_debug_log = true;
+	}
+#ifdef GODOT_SCENE_TREE_FTI_PRINT_TREE
+	if (data.periodic_debug_log) {
+		print_line(String("\nScene: ") + (data.frame_start ? "start" : "end") + "\n");
+	}
+#endif
+#endif
 
 // #define SCENE_TREE_FTI_TAKE_TIMINGS
 #ifdef SCENE_TREE_FTI_TAKE_TIMINGS
 	uint64_t before = OS::get_singleton()->get_ticks_usec();
 #endif
 
-	if (data.debug) {
-		print_line(String("\nScene: ") + (data.frame_start ? "start" : "end") + "\n");
-	}
-
 	// Probably not the most optimal approach as we traverse the entire SceneTree
 	// but simple and foolproof.
 	// Can be optimized later.
-	_update_dirty_spatials(p_root, frame, f, false);
 
-	if (!p_frame_start && data.debug) {
-		data.debug = false;
+	data.debug_node_count = 0;
+	data.debug_nodes_processed = 0;
+
+	uint32_t half_frame = p_frame_start ? (frame * 2) : ((frame * 2) + 1);
+
+	bool print_debug_stats = false;
+	switch (data.traversal_mode) {
+		case TM_LEGACY: {
+			data.default_traversal_method = false;
+		} break;
+		case TM_DEBUG: {
+			// Switch on alternate frames between the two methods.
+			data.default_traversal_method = (frame % 2) == 1;
+
+			// Odd number ensures we debug stats for both methods.
+			print_debug_stats = (frame % 119) == 0;
+		} break;
+		default: {
+			data.default_traversal_method = true;
+		} break;
+	}
+
+#ifdef GODOT_SCENE_TREE_FTI_VERIFY
+	{
+		data.default_traversal_method = false;
+#else
+	if (!data.default_traversal_method) {
+#endif
+		_update_dirty_spatials(p_root, half_frame, f, false);
+		if (print_debug_stats) {
+			print_line("debug_node_count old " + itos(data.debug_node_count) + ", total processed : " + itos(data.debug_nodes_processed));
+		}
+#ifdef GODOT_SCENE_TREE_FTI_VERIFY
+	}
+	{
+		data.default_traversal_method = true;
+#else
+	} else {
+#endif
+		uint32_t skipped = 0;
+
+		_create_depth_lists();
+
+		for (uint32_t d = 0; d < data.scene_tree_depth_limit; d++) {
+			const LocalVector<Spatial *> &list = data.dirty_spatial_depth_lists[d];
+
+#if 0
+			if (list.size() > 0) {
+				print_line("depth " + itos(d) + ", contains " + itos(list.size()));
+			}
+#endif
+
+			for (uint32_t n = 0; n < list.size(); n++) {
+				// Already processed this frame?
+				Spatial *s = list[n];
+
+				if (s->data.fti_processed) {
+#ifdef DEBUG_ENABLED
+					skipped++;
+#endif
+					continue;
+				}
+
+				// The first node requires a recursive visibility check
+				// up the tree, because `is_visible()` only returns the node
+				// local flag.
+				if (Object::cast_to<VisualInstance>(s)) {
+					if (!s->_is_vi_visible()) {
+#ifdef DEBUG_ENABLED
+						skipped++;
+#endif
+						continue;
+					}
+				} else if (!s->is_visible_in_tree()) {
+#ifdef DEBUG_ENABLED
+					skipped++;
+#endif
+					continue;
+				}
+
+				_update_dirty_spatials(s, half_frame, f, true);
+			}
+		}
+
+		_clear_depth_lists();
+
+		if (print_debug_stats) {
+			print_line("debug_node_count new " + itos(data.debug_node_count) + (skipped == 0 ? "" : ", skipped " + itos(skipped)) + ", total processed : " + itos(data.debug_nodes_processed));
+		}
+	}
+	data.frame_xform_list_forced.clear();
+
+	if (!p_frame_start && data.periodic_debug_log) {
+		data.periodic_debug_log = false;
 	}
 
 #ifdef SCENE_TREE_FTI_TAKE_TIMINGS
 	uint64_t after = OS::get_singleton()->get_ticks_usec();
-	if ((Engine::get_singleton()->get_frames_drawn() % 60) == 0) {
-		print_line("Took " + itos(after - before) + " usec " + (data.frame_start ? "start" : "end"));
+	if ((Engine::get_singleton()->get_frames_drawn() % 59) == 0) {
+		if ((frame % 2) == 0) {
+			print_line("old method:");
+		} else {
+			print_line("new method:");
+		}
+
+		print_line("\ttook " + itos(after - before) + " usec " + (data.frame_start ? "start" : "end"));
 	}
 #endif
 
@@ -463,6 +780,54 @@ void SceneTreeFTI::frame_update(Node *p_root, bool p_frame_start) {
 			s->fti_update_servers_property();
 		}
 	}
+
+	// Marks the end of the frame.
+	// Enables us to recognise when change notifications
+	// come in _during_ a frame (they get treated differently).
+	if (!data.frame_start) {
+		data.in_frame = false;
+	}
+}
+
+SceneTreeFTI::SceneTreeFTI() {
+	Variant traversal_mode_string = GLOBAL_DEF("physics/3d/physics_interpolation/scene_traversal", "DEFAULT");
+	ProjectSettings::get_singleton()->set_custom_property_info("physics/3d/physics_interpolation/scene_traversal", PropertyInfo(Variant::STRING, "physics/3d/physics_interpolation/scene_traversal", PROPERTY_HINT_ENUM, "DEFAULT,Legacy,Debug"));
+
+	data.traversal_mode = TM_DEFAULT;
+
+	if (traversal_mode_string == "Legacy") {
+		data.traversal_mode = TM_LEGACY;
+	} else if (traversal_mode_string == "Debug") {
+		// Don't allow debug mode in final exports,
+		// it will almost certainly be a mistake.
+#ifdef DEBUG_ENABLED
+		data.traversal_mode = TM_DEBUG;
+#else
+		data.traversal_mode = TM_DEFAULT;
+#endif
+	}
+
+	switch (data.traversal_mode) {
+		default: {
+			print_verbose("SceneTreeFTI: traversal method DEFAULT");
+		} break;
+		case TM_LEGACY: {
+			print_verbose("SceneTreeFTI: traversal method Legacy");
+		} break;
+		case TM_DEBUG: {
+			print_verbose("SceneTreeFTI: traversal method Debug");
+		} break;
+	}
+
+#ifdef GODOT_SCENE_TREE_FTI_EXTRA_CHECKS
+	print_line("SceneTreeFTI : GODOT_SCENE_TREE_FTI_EXTRA_CHECKS defined");
+#endif
+#ifdef GODOT_SCENE_TREE_FTI_PRINT_TREE
+	print_line("SceneTreeFTI : GODOT_SCENE_TREE_FTI_PRINT_TREE defined");
+#endif
+#ifdef GODOT_SCENE_TREE_FTI_VERIFY
+	print_line("SceneTreeFTI : GODOT_SCENE_TREE_FTI_VERIFY defined");
+#endif
 }
 
 #endif // ndef _3D_DISABLED
