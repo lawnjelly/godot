@@ -423,9 +423,33 @@ void SceneTreeFTI::spatial_notify_delete(Spatial *p_spatial) {
 #endif
 }
 
-void SceneTreeFTI::_debug_verify_failed(const Spatial *p_spatial, const Transform &p_test) {
+Transform SceneTreeFTI::_debug_xform_diff(const Transform &p_a, const Transform &p_b) const {
+	const real_t mult = 10000000;
+
+	Transform diff;
+	diff.origin = p_b.origin - p_a.origin;
+	diff.origin *= mult;
+	for (uint32_t n = 0; n < 3; n++) {
+		diff.basis.elements[n] = p_b.basis.elements[n] - p_a.basis.elements[n];
+		diff.basis.elements[n] *= mult;
+	}
+	return diff;
+}
+
+void SceneTreeFTI::_debug_verify_failed(const Spatial *p_spatial, const Transform &p_test, const Transform &p_curr_parent, const Transform &p_curr_local) {
 	print_line("VERIFY FAILED\n");
 	//print_line("test xform : " + String(Variant(p_test)));
+
+	Transform recreated = p_spatial->data.interp_parent * p_spatial->data.interp_local;
+	const Transform &interp = p_spatial->_get_cached_global_transform_interpolated();
+
+	print_line("recreated is " + String(Variant(recreated)));
+
+	print_line("recreated is equal to test is " + String(Variant(recreated == p_test)) + "\ndiff is " + String(Variant(_debug_xform_diff(recreated, p_test))));
+	print_line("recreated is equal to interp_cache is " + String(Variant(recreated == interp)) + "\ndiff is " + String(Variant(_debug_xform_diff(recreated, interp))));
+
+	print_line("spatial parent xform is equal to curr parent xform is " + String(Variant(p_spatial->data.interp_parent == p_curr_parent)) + "\ndiff is " + String(Variant(_debug_xform_diff(p_spatial->data.interp_parent, p_curr_parent))));
+	print_line("spatial local xform is equal to curr local xform is " + String(Variant(p_spatial->data.interp_local == p_curr_local)) + "\ndiff is " + String(Variant(_debug_xform_diff(p_spatial->data.interp_local, p_curr_local))));
 
 	bool first = true;
 
@@ -445,6 +469,7 @@ void SceneTreeFTI::_debug_verify_failed(const Spatial *p_spatial, const Transfor
 			sz += tabs + "... " + String(Variant(p_test)) + "\n";
 		}
 
+		sz += tabs + itos(p_spatial->data.interp_counter) + "\n";
 		sz += tabs + (p_spatial->data.fti_global_xform_interp_set ? "[I] " : "[i] ") + String(Variant(p_spatial->_get_cached_global_transform_interpolated())) + (interp_equal ? " ***" : "") + "\n";
 		sz += tabs + "[g] " + String(Variant(p_spatial->get_global_transform())) + (glob_equal ? " ***" : "");
 
@@ -460,6 +485,11 @@ void SceneTreeFTI::_update_dirty_spatials(Node *p_node, uint32_t p_current_half_
 
 #ifdef DEBUG_ENABLED
 	data.debug_node_count++;
+#endif
+
+	bool SET_STATE = true;
+#ifdef GODOT_SCENE_TREE_FTI_VERIFY
+	SET_STATE = !data.should_verify();
 #endif
 
 	// Don't recurse into hidden branches.
@@ -515,7 +545,9 @@ void SceneTreeFTI::_update_dirty_spatials(Node *p_node, uint32_t p_current_half_
 		// Mark on the Spatial whether we have set global_transform_interp.
 		// This can later be used when calling `get_global_transform_interpolated()`
 		// to know which xform to return.
-		s->data.fti_global_xform_interp_set = p_active;
+		if (SET_STATE) {
+			s->data.fti_global_xform_interp_set = p_active;
+		}
 	}
 
 	if (p_active) {
@@ -559,11 +591,16 @@ void SceneTreeFTI::_update_dirty_spatials(Node *p_node, uint32_t p_current_half_
 					}
 					if (s->data.global_transform_interpolated != test) {
 						//if (!s->data.global_transform_interpolated.is_equal_approx(test)) {
-						_debug_verify_failed(s, test);
+						_debug_verify_failed(s, test, (*p_parent_global_xform), local_interp);
 						DEV_ASSERT(s->data.global_transform_interpolated == test);
 					}
 				} else {
 					s->data.global_transform_interpolated = s->data.fti_is_identity_xform ? (*p_parent_global_xform) : (*p_parent_global_xform) * local_interp;
+
+					s->data.interp_parent = *p_parent_global_xform;
+					s->data.interp_local = s->data.fti_is_identity_xform ? Transform() : local_interp;
+
+					s->data.interp_counter = data.debug_interpolation_calc_counter++;
 				}
 #else
 				s->data.global_transform_interpolated = s->data.fti_is_identity_xform ? *p_parent_global_xform : ((*p_parent_global_xform) * local_interp);
@@ -581,37 +618,50 @@ void SceneTreeFTI::_update_dirty_spatials(Node *p_node, uint32_t p_current_half_
 							test.basis.orthonormalize();
 						}
 						if (s->data.global_transform_interpolated != test) {
-							_debug_verify_failed(s, test);
+							_debug_verify_failed(s, test, parent_glob, local_interp);
 							DEV_ASSERT(s->data.global_transform_interpolated == test);
 						}
 
 					} else {
 						s->data.global_transform_interpolated = s->data.fti_is_identity_xform ? parent_glob : parent_glob * local_interp;
+
+						s->data.interp_parent = parent_glob;
+						s->data.interp_local = s->data.fti_is_identity_xform ? Transform() : local_interp;
+						s->data.interp_counter = data.debug_interpolation_calc_counter++;
 					}
 #else
 					s->data.global_transform_interpolated = s->data.fti_is_identity_xform ? parent_glob : parent_glob * local_interp;
 #endif
 				} else {
-					s->data.global_transform_interpolated = local_interp;
+					if (SET_STATE) {
+						s->data.global_transform_interpolated = local_interp;
+					}
 				}
 			}
 		} else {
-			s->data.global_transform_interpolated = local_interp;
+			if (SET_STATE) {
+				s->data.global_transform_interpolated = local_interp;
+				s->data.interp_counter = data.debug_interpolation_calc_counter++;
+			}
 		}
 
 		// Watch for this, disable_scale can cause incredibly confusing bugs
 		// and must be checked for when calculating global xforms.
 		if (s->data.disable_scale) {
-			s->data.global_transform_interpolated.basis.orthonormalize();
+			if (SET_STATE) {
+				s->data.global_transform_interpolated.basis.orthonormalize();
+			}
 		}
 
-		// Upload to VisualServer the interpolated global xform.
-		s->fti_update_servers_xform();
+		if (SET_STATE) {
+			// Upload to VisualServer the interpolated global xform.
+			s->fti_update_servers_xform();
 
-		// Only do this at most for one frame,
-		// it is used to catch objects being removed from the tick lists
-		// that have a deferred frame update.
-		s->data.fti_frame_xform_force_update = false;
+			// Only do this at most for one frame,
+			// it is used to catch objects being removed from the tick lists
+			// that have a deferred frame update.
+			s->data.fti_frame_xform_force_update = false;
+		}
 
 		// Ensure branches are only processed once on each traversal.
 		s->data.fti_processed = true;
@@ -621,8 +671,10 @@ void SceneTreeFTI::_update_dirty_spatials(Node *p_node, uint32_t p_current_half_
 #endif
 	} // if active.
 
-	// Remove the dirty interp flag from EVERYTHING as we go.
-	s->data.dirty &= ~Spatial::DIRTY_GLOBAL_INTERPOLATED;
+	if (SET_STATE) {
+		// Remove the dirty interp flag from EVERYTHING as we go.
+		s->data.dirty &= ~Spatial::DIRTY_GLOBAL_INTERPOLATED;
+	}
 
 	// Recurse to children.
 	for (int n = 0; n < p_node->get_child_count(); n++) {

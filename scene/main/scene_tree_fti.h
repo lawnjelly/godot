@@ -104,6 +104,8 @@ class SceneTreeFTI {
 		uint32_t debug_node_count = 0;
 		uint32_t debug_nodes_processed = 0;
 
+		uint64_t debug_interpolation_calc_counter = 0;
+
 		TraversalMode traversal_mode = TM_DEFAULT;
 		bool default_traversal_method = true;
 
@@ -125,7 +127,8 @@ class SceneTreeFTI {
 	void _create_depth_lists();
 	void _clear_depth_lists();
 
-	void _debug_verify_failed(const Spatial *p_spatial, const Transform &p_test);
+	void _debug_verify_failed(const Spatial *p_spatial, const Transform &p_test, const Transform &p_curr_parent, const Transform &p_curr_local);
+	Transform _debug_xform_diff(const Transform &p_a, const Transform &p_b) const;
 
 public:
 	// Hottest function, allow inlining the data.enabled check.

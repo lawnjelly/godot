@@ -132,6 +132,11 @@ private:
 		bool fti_is_identity_xform : 1;
 		bool fti_processed : 1;
 
+		Transform interp_parent;
+		Transform interp_local;
+
+		uint64_t interp_counter = 0;
+
 		bool merging_allowed : 1;
 
 		int children_lock;
