@@ -14,11 +14,13 @@ class NPMeshInstance : public Spatial {
 
 	struct DebugData {
 		RID debug_polys;
+		bool show_debug_visuals = false;
 	} debug_data;
 
 	void resource_changed(RES res);
 	void _update_server();
 	void _update_visibility();
+	bool _refresh_debug_visuals();
 
 protected:
 	void _notification(int p_what);
@@ -29,7 +31,8 @@ public:
 	Ref<NPMesh> get_mesh() const;
 	Vector3 choose_random_location() const;
 
-	bool refresh_debug_geometry(bool p_show);
+	void set_debug_visuals(bool p_enable);
+	bool has_debug_visuals() const { return debug_data.show_debug_visuals; }
 
 	String get_configuration_warning() const;
 
