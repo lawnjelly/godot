@@ -671,6 +671,8 @@ void NPMesh::set_data(const Vector<uint8_t> &p_data) {
 	NP_DEV_ASSERT(mesh);
 	mesh->clear();
 
+	debug_data.changed = true;
+
 	if (p_data.size()) {
 		NavPhysics::Mesh::MeshParams params;
 
@@ -714,76 +716,81 @@ RID NPMesh::_refresh_debug_geometry(bool p_show) {
 
 	if (!rid_mesh.is_valid()) {
 		rid_mesh = RID_PRIME(vs->mesh_create());
+		debug_data.changed = true;
 	}
 
-	NavPhysics::Loader loader;
-	NavPhysics::Mesh *mesh = NavPhysics::g_world.safe_get_mesh(data.h_mesh);
-	NP_DEV_ASSERT(mesh);
-	NavPhysics::Loader::WorkingMeshData md;
-	loader.extract_working_data(md, *mesh);
+	if (debug_data.changed) {
+		debug_data.changed = false;
+		NavPhysics::Loader loader;
+		NavPhysics::Mesh *mesh = NavPhysics::g_world.safe_get_mesh(data.h_mesh);
+		NP_DEV_ASSERT(mesh);
+		NavPhysics::Loader::WorkingMeshData md;
+		loader.extract_working_data(md, *mesh);
 
-	NavPhysics::Loader::WorkingMeshData::SubMesh sm = md.floor;
+		NavPhysics::Loader::WorkingMeshData::SubMesh sm = md.floor;
 
-	const Vector3 *source_verts = (const Vector3 *)sm.verts;
-	const uint32_t *inds = sm.indices;
+		const Vector3 *source_verts = (const Vector3 *)sm.verts;
+		const uint32_t *inds = sm.indices;
 
-	Vector<Vector3> tris_area;
-	Vector<Vector3> tris_narrowing;
-	Vector<NPMesh::Poly> polys = get_polys();
+		Vector<Vector3> tris_area;
+		Vector<Vector3> tris_narrowing;
+		Vector<NPMesh::Poly> polys = get_polys();
 
-	// Display offset.
-	Vector3 off(0, 0.25, 0);
+		// Display offset.
+		Vector3 off(0, 0.25, 0);
 
-	u32 num_inds = sm.num_indices;
-	u32 num_verts = sm.num_verts;
+		u32 num_inds = sm.num_indices;
+		u32 num_verts = sm.num_verts;
 
-	for (uint32_t n = 0; n < sm.num_polys; n++) {
-		const NPMesh::Poly &p = polys[n];
+		for (uint32_t n = 0; n < sm.num_polys; n++) {
+			const NPMesh::Poly &p = polys[n];
 
-		int i0 = p.first_index;
-		if (i0 >= num_inds)
-			continue;
-		int ind0 = inds[i0];
-		if (ind0 >= num_verts) {
-			continue;
-		}
-
-		for (int e = 2; e < p.num_indices; e++) {
-			int i1 = e - 1 + p.first_index;
-			int i2 = e + p.first_index;
-
-			if (i1 >= num_inds)
+			int i0 = p.first_index;
+			if (i0 >= num_inds)
 				continue;
-			if (i2 >= num_inds)
-				continue;
-
-			int ind1 = inds[i1];
-			int ind2 = inds[i2];
-
-			if ((ind1 >= num_verts) || (ind2 >= num_verts)) {
+			int ind0 = inds[i0];
+			if (ind0 >= num_verts) {
 				continue;
 			}
 
-			Vector<Vector3> &tris = !p.type ? tris_area : tris_narrowing;
-			tris.push_back(source_verts[ind0] + off);
-			tris.push_back(source_verts[ind1] + off);
-			tris.push_back(source_verts[ind2] + off);
+			for (int e = 2; e < p.num_indices; e++) {
+				int i1 = e - 1 + p.first_index;
+				int i2 = e + p.first_index;
+
+				if (i1 >= num_inds)
+					continue;
+				if (i2 >= num_inds)
+					continue;
+
+				int ind1 = inds[i1];
+				int ind2 = inds[i2];
+
+				if ((ind1 >= num_verts) || (ind2 >= num_verts)) {
+					continue;
+				}
+
+				Vector<Vector3> &tris = !p.type ? tris_area : tris_narrowing;
+				tris.push_back(source_verts[ind0] + off);
+				tris.push_back(source_verts[ind1] + off);
+				tris.push_back(source_verts[ind2] + off);
+			}
 		}
-	}
 
-	vs->mesh_clear(rid_mesh);
-	Array d;
-	d.resize(VS::ARRAY_MAX);
-	d[VS::ARRAY_VERTEX] = tris_area;
-	vs->mesh_add_surface_from_arrays(rid_mesh, VS::PRIMITIVE_TRIANGLES, d);
-	d[VS::ARRAY_VERTEX] = tris_narrowing;
-	vs->mesh_add_surface_from_arrays(rid_mesh, VS::PRIMITIVE_TRIANGLES, d);
+		vs->mesh_clear(rid_mesh);
+		Array d;
+		d.resize(VS::ARRAY_MAX);
+		d[VS::ARRAY_VERTEX] = tris_area;
+		vs->mesh_add_surface_from_arrays(rid_mesh, VS::PRIMITIVE_TRIANGLES, d);
+		d[VS::ARRAY_VERTEX] = tris_narrowing;
+		vs->mesh_add_surface_from_arrays(rid_mesh, VS::PRIMITIVE_TRIANGLES, d);
 
-	SceneTree *st = SceneTree::get_singleton();
-	if (st) {
-		vs->mesh_surface_set_material(rid_mesh, 0, st->get_debug_navigation_disabled_material()->get_rid());
-		vs->mesh_surface_set_material(rid_mesh, 1, st->get_debug_navigation_material()->get_rid());
-	}
+		SceneTree *st = SceneTree::get_singleton();
+		if (st) {
+			vs->mesh_surface_set_material(rid_mesh, 0, st->get_debug_navigation_disabled_material()->get_rid());
+			vs->mesh_surface_set_material(rid_mesh, 1, st->get_debug_navigation_material()->get_rid());
+		}
+
+	} // if changed
 
 	return rid_mesh;
 }

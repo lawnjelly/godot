@@ -128,6 +128,7 @@ private:
 
 	struct DebugData {
 		RID mesh;
+		bool changed = true;
 	} debug_data;
 
 	static void _nav_physics_log_callback(const char *p_string);
