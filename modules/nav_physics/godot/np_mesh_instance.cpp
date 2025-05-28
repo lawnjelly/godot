@@ -21,7 +21,7 @@ NPMeshInstance::NPMeshInstance() {
 }
 
 NPMeshInstance::~NPMeshInstance() {
-	refresh_debug_geometry(false);
+	set_debug_visuals(false);
 
 	if (data.h_mesh_instance) {
 		NavPhysics::g_world.safe_unlink_mesh_instance(data.h_mesh_instance, NavPhysics::g_world.get_handle_default_map());
@@ -31,6 +31,11 @@ NPMeshInstance::~NPMeshInstance() {
 	if (!data.mesh.is_null()) {
 		data.mesh->unregister_owner(this);
 	}
+}
+
+void NPMeshInstance::set_debug_visuals(bool p_enable) {
+	debug_data.show_debug_visuals = p_enable;
+	_refresh_debug_visuals();
 }
 
 void NPMeshInstance::_update_server() {
@@ -57,6 +62,7 @@ void NPMeshInstance::_notification(int p_what) {
 			NavPhysics::World::set_timestep(1.0 / Engine::get_singleton()->get_iterations_per_second());
 			_update_visibility();
 			_update_server();
+			_refresh_debug_visuals();
 		} break;
 		case NOTIFICATION_TRANSFORM_CHANGED: {
 			if (_is_vi_visible()) {
@@ -97,6 +103,7 @@ void NPMeshInstance::set_mesh(const Ref<NPMesh> &p_mesh) {
 
 	update_gizmo();
 	update_configuration_warning();
+	_refresh_debug_visuals();
 }
 Ref<NPMesh> NPMeshInstance::get_mesh() const {
 	return data.mesh;
@@ -128,31 +135,38 @@ Vector3 NPMeshInstance::choose_random_location() const {
 	return Vector3();
 }
 
-bool NPMeshInstance::refresh_debug_geometry(bool p_show) {
+bool NPMeshInstance::_refresh_debug_visuals() {
+	bool show = debug_data.show_debug_visuals;
+
 	if (Engine::get_singleton()->is_editor_hint()) {
 		return false;
 	}
 
 	if (!data.mesh.is_valid()) {
-		return false;
+		show = false;
 	}
 
-	RID rid_mesh = data.mesh->_refresh_debug_geometry(p_show);
 	RID &rid_mesh_instance = debug_data.debug_polys;
-
 	VisualServer *vs = VisualServer::get_singleton();
 
 	// Hiding, free the meshinstance RID before the mesh.
-	if (!p_show) {
+	if (!show) {
 		if (rid_mesh_instance.is_valid()) {
 			vs->free(rid_mesh_instance);
 			rid_mesh_instance = RID();
 		}
-		data.mesh->_refresh_debug_geometry(p_show);
+
+		// Never try and delete debug geometry from mesh once shown,
+		// because another MeshInstance may be using it.
+		// We could alternatively refcount here, but probably overkill.
 		return true;
 	}
 
-	ERR_FAIL_COND_V(!is_inside_tree(), false);
+	if (!is_inside_tree()) {
+		return false;
+	}
+
+	RID rid_mesh = data.mesh->_refresh_debug_geometry(true);
 
 	if (!rid_mesh_instance.is_valid()) {
 		RID scenario = get_tree()->get_root()->get_world()->get_scenario();
@@ -169,8 +183,11 @@ void NPMeshInstance::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_mesh", "mesh"), &NPMeshInstance::set_mesh);
 	ClassDB::bind_method(D_METHOD("get_mesh"), &NPMeshInstance::get_mesh);
 	ClassDB::bind_method(D_METHOD("choose_random_location"), &NPMeshInstance::choose_random_location);
+	ClassDB::bind_method(D_METHOD("set_debug_visuals", "enable"), &NPMeshInstance::set_debug_visuals);
+	ClassDB::bind_method(D_METHOD("has_debug_visuals"), &NPMeshInstance::has_debug_visuals);
 
-	ClassDB::bind_method(D_METHOD("refresh_debug_geometry", "show"), &NPMeshInstance::refresh_debug_geometry);
+	ADD_GROUP("Debug", "debug_");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "debug_visuals"), "set_debug_visuals", "has_debug_visuals");
 
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "mesh", PROPERTY_HINT_RESOURCE_TYPE, "NPMesh"), "set_mesh", "get_mesh");
 }
