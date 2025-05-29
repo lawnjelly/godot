@@ -1977,6 +1977,29 @@ void Loader::find_bottlenecks(Mesh &r_dest) {
 	_poly_temps.clear();
 	//r_dest.svg_export(String("../test_narrowings_") + r_dest.get_num_polys() + ".svg");
 
+	// Find zone centres (for pathfinding zones).
+	Vector<u32> zone_poly_counts;
+	zone_poly_counts.resize(r_dest._zones.size());
+	zone_poly_counts.fill(0);
+
+	for (u32 n = 0; n < r_dest.get_num_polys(); n++) {
+		PolyExtra &ex = r_dest.get_poly_extra(n);
+		const Poly &poly = r_dest.get_poly(n);
+		//ex.zone_id = !ex.is_narrowing() ? ex.get_area_id() : ex.get_narrowing_id() + start_narrowings;
+		Zone &zone = r_dest._zones[ex.zone_id];
+		zone.local_pos3 += poly.center3;
+		zone_poly_counts[ex.zone_id] += 1;
+	}
+	// Average.
+	for (u32 n = 0; n < r_dest._zones.size(); n++) {
+		Zone &zone = r_dest._zones[n];
+		u32 poly_count = zone_poly_counts[n];
+
+		if (poly_count) {
+			zone.local_pos3 /= (float)poly_count;
+		}
+	}
+
 #if 1
 
 	// Calculate max agents per area / narrowing.
