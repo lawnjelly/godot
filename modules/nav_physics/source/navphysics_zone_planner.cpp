@@ -53,13 +53,14 @@ void ZonePlanner::OpenList::sort_last() {
 	sort_list[insert_pos] = si_new;
 }
 
-f32 ZonePlanner::cost(const Zone &p_a, const Zone &p_b) const {
-	return (p_b.local_pos3 - p_a.local_pos3).length();
+f32 ZonePlanner::cost(const FPoint3 &p_a, const FPoint3 &p_b) const {
+	return (p_b - p_a).length();
 }
 
 f32 ZonePlanner::heuristic(const Mesh &p_mesh, const PlanPoint &p) const {
-	const Zone &zone = p_mesh.get_zone(p.info.zone_id);
-	return (data.goal_pos - zone.local_pos3).length();
+	// const Zone &zone = p_mesh.get_zone(p.info.zone_id);
+	// return (data.goal_pos - zone.local_pos3).length();
+	return (data.goal_pos - p.pos).length();
 }
 
 void ZonePlanner::calculate_waypoint_pos3(const Mesh &p_mesh, ZonePoint &r_wp) const {
@@ -188,7 +189,7 @@ PathStatus ZonePlanner::iterate(u32 &r_first_waypoint, u32 p_iterations_limit) {
 			pp = pp->parent_closed_id == UINT32_MAX ? nullptr : &_pool_plan_points[data.closed_list.plan_points[pp->parent_closed_id]];
 
 			while (pp) {
-				log(String("intermediate pp ") + pp->info.zone_id + ", start cost: " + pp->start_cost + ", end_cost: " + pp->end_cost + ", total_cost: " + pp->total_cost);
+				// log(String("intermediate pp ") + pp->info.zone_id + ", start cost: " + pp->start_cost + ", end_cost: " + pp->end_cost + ", total_cost: " + pp->total_cost);
 
 				ZonePoint wp;
 				wp.create();
@@ -255,22 +256,23 @@ PathStatus ZonePlanner::iterate(u32 &r_first_waypoint, u32 p_iterations_limit) {
 		for (u32 w = 0; w < zone.num_links; w++) {
 			u32 zone_link_id = zone.first_link + w;
 
-			u32 zone_to_id = mesh._zone_links[zone_link_id].zone_to_id;
+			const ZoneLink &zone_link = mesh._zone_links[zone_link_id];
+			u32 zone_to_id = zone_link.zone_to_id;
 
 			// Already on closed list?
 			if (data.closed_list.contains(zone_to_id)) {
 				continue;
 			}
 
-			const Zone &nzone = mesh.get_zone(zone_to_id);
-
-			float tentative_start_cost = pp->start_cost + cost(nzone, zone);
+			//const Zone &nzone = mesh.get_zone(zone_to_id);
+			float tentative_start_cost = pp->start_cost + cost(pp->pos, zone_link.pt_crossing3);
 
 			// Does open list contain this zone already?
-			PlanPoint *found = data.open_list.find(zone_to_id);
+			PlanPoint *found = data.open_list.find(zone_to_id, zone_link_id);
 
 			if (!found) {
-				// BUG!!!
+				// POTENTIAL BUG!!!
+				// ToDo: Check this in the waypoints also.
 				// Watch out this may invalidate the data in pp
 				// so it contains garbage.
 				found = &data.open_list.request();
@@ -293,6 +295,9 @@ PathStatus ZonePlanner::iterate(u32 &r_first_waypoint, u32 p_iterations_limit) {
 				found->info.zone_id = zone_to_id;
 				found->parent_closed_id = data.closed_list.plan_points.size() - 1;
 				found->start_cost = tentative_start_cost;
+
+				found->pos = zone_link.pt_crossing3;
+
 				found->end_cost = heuristic(mesh, *found);
 				found->total_cost = found->start_cost + found->end_cost;
 
@@ -352,6 +357,7 @@ PathStatus ZonePlanner::pathfind_pos(np_handle p_mesh_instance, const IPoint2 &p
 	// Seed with first point.
 	PlanPoint p;
 	p.info.zone_id = data.zone_start;
+	p.pos = data.start_pos3;
 
 	// Special!
 	// Don't use the regular zone heuristic,
@@ -360,7 +366,7 @@ PathStatus ZonePlanner::pathfind_pos(np_handle p_mesh_instance, const IPoint2 &p
 	p.end_cost = (data.goal_pos - data.start_pos3).length();
 	p.total_cost = p.end_cost;
 
-	log(String("path start to goal cost :") + p.total_cost);
+	//log(String("path start to goal cost :") + p.total_cost);
 
 	data.open_list.add(p);
 

@@ -23,6 +23,13 @@ class ZonePlanner {
 		u32 parent_closed_id = UINT32_MAX;
 		ZoneWayPoint info;
 
+		// Effective position in mesh space.
+		// This can either be:
+		// * start point
+		// * end point
+		// * a zone link crossing point
+		FPoint3 pos;
+
 		bool operator<(const PlanPoint &p_o) const {
 			return total_cost < p_o.total_cost;
 		}
@@ -33,10 +40,10 @@ class ZonePlanner {
 		Vector<SortItem> sort_list;
 
 	public:
-		PlanPoint *find(u32 p_zone_id) {
+		PlanPoint *find(u32 p_zone_id, u32 p_zone_link_id) {
 			for (u32 n = 0; n < sort_list.size(); n++) {
 				PlanPoint *pt = &_pool_plan_points[sort_list[n].point_id];
-				if (pt->info.zone_id == p_zone_id) {
+				if ((pt->info.zone_id == p_zone_id) && (pt->info.zone_link_id == p_zone_link_id)) {
 					return pt;
 				}
 			}
@@ -108,15 +115,13 @@ class ZonePlanner {
 			point_infos.clear();
 		}
 
-		bool contains(u32 zone_id) const {
-			ZoneWayPoint test;
-			test.zone_id = zone_id;
-
+		bool contains(u32 p_zone_id) const {
 			for (u32 n = 0; n < point_infos.size(); n++) {
-				if (point_infos[n] == test) {
+				if (point_infos[n].zone_id == p_zone_id) {
 					return true;
 				}
 			}
+
 			return false;
 		}
 	};
@@ -142,7 +147,7 @@ class ZonePlanner {
 	} data;
 
 	f32 heuristic(const Mesh &p_mesh, const PlanPoint &p) const;
-	f32 cost(const Zone &p_a, const Zone &p_b) const;
+	f32 cost(const FPoint3 &p_a, const FPoint3 &p_b) const;
 
 	void calculate_waypoint_pos3(const Mesh &p_mesh, ZonePoint &r_wp) const;
 	void finalize_path(const Mesh &p_mesh, StackVector<ZonePoint> &r_waypoints) const;
