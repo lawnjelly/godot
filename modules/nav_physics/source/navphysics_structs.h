@@ -354,6 +354,9 @@ struct ZoneLink {
 	// Calculated in advance in the loader,
 	// based on the centre of the edge line.
 	IPoint2 pt_crossing;
+
+	// In mesh space.
+	FPoint3 pt_crossing3;
 };
 
 struct AreaBase {

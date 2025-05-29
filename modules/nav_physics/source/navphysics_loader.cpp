@@ -2352,6 +2352,7 @@ void Loader::find_zone_links(Mesh &r_dest) {
 					zl.zone_from_poly_id = e.poly_from_id;
 					zl.zone_to_poly_id = e.poly_to_id;
 					zl.pt_crossing = _find_crossing_point_in_poly(r_dest, zl.zone_to_poly_id, crossing_pt);
+					zl.pt_crossing3 = r_dest.local_point_to_point3(zl.pt_crossing, zl.zone_to_poly_id);
 
 					zll_from.links.push_back(zl);
 
@@ -2361,6 +2362,7 @@ void Loader::find_zone_links(Mesh &r_dest) {
 					zl.zone_to_id = a;
 					SWAP(zl.zone_from_poly_id, zl.zone_to_poly_id);
 					zl.pt_crossing = _find_crossing_point_in_poly(r_dest, zl.zone_to_poly_id, crossing_pt);
+					zl.pt_crossing3 = r_dest.local_point_to_point3(zl.pt_crossing, zl.zone_to_poly_id);
 
 					zll_to.links.push_back(zl);
 
