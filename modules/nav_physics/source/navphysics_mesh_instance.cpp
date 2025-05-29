@@ -375,6 +375,15 @@ void MeshInstance::iterate_agent_housekeeping(Agent &r_agent) {
 
 bool MeshInstance::_agent_enter_poly(Agent &r_agent, u32 p_new_poly_id, bool p_force_allow) {
 	if (!r_agent.is_npc) {
+#ifdef NP_DEV_ENABLED
+		const Mesh &mesh = get_mesh();
+		u32 old_zone_id = r_agent.poly_id == UINT32_MAX ? UINT32_MAX : mesh.get_poly_extra(r_agent.poly_id).zone_id;
+		u32 new_zone_id = p_new_poly_id == UINT32_MAX ? UINT32_MAX : mesh.get_poly_extra(p_new_poly_id).zone_id;
+		if (old_zone_id != new_zone_id) {
+			log(String("Player entering zone_id ") + new_zone_id);
+		}
+#endif
+
 		r_agent.poly_id = p_new_poly_id;
 		return true;
 	}

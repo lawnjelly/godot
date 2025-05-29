@@ -126,7 +126,8 @@ class ZonePlanner {
 		OpenList open_list;
 		ClosedList closed_list;
 
-		FPoint3 goal_pos; // Centre of zone end.
+		FPoint3 start_pos3;
+		FPoint3 goal_pos;
 
 		// User specified start and destination.
 		IPoint2 start_pos;
