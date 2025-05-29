@@ -66,6 +66,7 @@ struct ZoneWayPoint {
 	bool operator==(const ZoneWayPoint &p_o) const {
 		//return client_id == p_o.client_id && type == p_o.type;
 		return zone_id == p_o.zone_id;
+		//		return (zone_id == p_o.zone_id) && (zone_link_id == p_o.zone_link_id);
 	}
 };
 
