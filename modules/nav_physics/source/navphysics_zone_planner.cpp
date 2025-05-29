@@ -156,14 +156,11 @@ PathStatus ZonePlanner::iterate(u32 &r_first_waypoint, u32 p_iterations_limit) {
 		data.open_list.pop_back_and_keep(popped_id);
 
 		const PlanPoint *pp = &_pool_plan_points[popped_id];
-
 		// log(String("popping zone ") + p.info.zone_id + " from open list");
 
 		// Add all popped to the closed list.
 		data.closed_list.plan_points.push_back(popped_id);
 		data.closed_list.point_infos.push_back(pp->info);
-
-		//const PlanPoint *pp = &p;
 
 		if (pp->info == data.end_info) {
 			// Finished path.
@@ -264,7 +261,6 @@ PathStatus ZonePlanner::iterate(u32 &r_first_waypoint, u32 p_iterations_limit) {
 				continue;
 			}
 
-			//const Zone &nzone = mesh.get_zone(zone_to_id);
 			float tentative_start_cost = pp->start_cost + cost(pp->pos, zone_link.pt_crossing3);
 
 			// Does open list contain this zone already?
@@ -298,6 +294,7 @@ PathStatus ZonePlanner::iterate(u32 &r_first_waypoint, u32 p_iterations_limit) {
 
 				found->pos = zone_link.pt_crossing3;
 
+				// Must set up found->pos (the crossing point) prior to finding the heuristic.
 				found->end_cost = heuristic(mesh, *found);
 				found->total_cost = found->start_cost + found->end_cost;
 
@@ -349,9 +346,7 @@ PathStatus ZonePlanner::pathfind_pos(np_handle p_mesh_instance, const IPoint2 &p
 	data.zone_start = ex_start.zone_id;
 	data.end_info.zone_id = ex_end.zone_id;
 
-	// Goal at centre of end zone ..
-	//data.goal_pos = mesh.get_zone(data.end_info.zone_id).local_pos3;
-	// OR.. actual end pos?
+	// Goal is the actual end position, NOT the centre of the end zone.
 	data.goal_pos = mesh.local_point_to_point3(p_end, p_poly_end);
 
 	// Seed with first point.
@@ -359,11 +354,7 @@ PathStatus ZonePlanner::pathfind_pos(np_handle p_mesh_instance, const IPoint2 &p
 	p.info.zone_id = data.zone_start;
 	p.pos = data.start_pos3;
 
-	// Special!
-	// Don't use the regular zone heuristic,
-	// use the heuristic from the ACTUAL start point to the destination.
-	// p.end_cost = heuristic(mesh, p);
-	p.end_cost = (data.goal_pos - data.start_pos3).length();
+	p.end_cost = heuristic(mesh, p);
 	p.total_cost = p.end_cost;
 
 	//log(String("path start to goal cost :") + p.total_cost);
