@@ -65,7 +65,7 @@ void NPMeshInstance::_notification(int p_what) {
 			_refresh_debug_visuals();
 		} break;
 		case NOTIFICATION_TRANSFORM_CHANGED: {
-			if (_is_vi_visible()) {
+			if (is_visible_in_tree()) {
 				_update_server();
 			}
 		} break;
