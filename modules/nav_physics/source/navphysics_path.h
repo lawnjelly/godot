@@ -55,18 +55,8 @@ struct ZoneWayPoint {
 	// This is likely to be a low number as it is added to the first zone_link_id.
 	u32 zone_link_id = UINT32_MAX;
 
-	// Direction of the link, from the narrowing to zone, or vice versa.
-	//	bool from_narrowing = false;
-	//	u32 zone_link_id = UINT32_MAX;
-
-	//	// Narrowing, or zone
-	//	u32 client_id = UINT32_MAX;
-	//	ZoneType type = ZONE_TYPE_UNDEFINED;
-
 	bool operator==(const ZoneWayPoint &p_o) const {
-		//return client_id == p_o.client_id && type == p_o.type;
 		return zone_id == p_o.zone_id;
-		//		return (zone_id == p_o.zone_id) && (zone_link_id == p_o.zone_link_id);
 	}
 };
 
