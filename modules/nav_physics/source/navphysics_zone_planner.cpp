@@ -154,15 +154,15 @@ PathStatus ZonePlanner::iterate(u32 &r_first_waypoint, u32 p_iterations_limit) {
 		u32 popped_id = 0;
 		data.open_list.pop_back_and_keep(popped_id);
 
-		const PlanPoint &p = _pool_plan_points[popped_id];
+		const PlanPoint *pp = &_pool_plan_points[popped_id];
 
 		// log(String("popping zone ") + p.info.zone_id + " from open list");
 
 		// Add all popped to the closed list.
 		data.closed_list.plan_points.push_back(popped_id);
-		data.closed_list.point_infos.push_back(p.info);
+		data.closed_list.point_infos.push_back(pp->info);
 
-		const PlanPoint *pp = &p;
+		//const PlanPoint *pp = &p;
 
 		if (pp->info == data.end_info) {
 			// Finished path.
@@ -250,7 +250,7 @@ PathStatus ZonePlanner::iterate(u32 &r_first_waypoint, u32 p_iterations_limit) {
 		}
 
 		// Get the neighbours.
-		const Zone &zone = mesh.get_zone(p.info.zone_id);
+		const Zone &zone = mesh.get_zone(pp->info.zone_id);
 
 		for (u32 w = 0; w < zone.num_links; w++) {
 			u32 zone_link_id = zone.first_link + w;
@@ -264,7 +264,7 @@ PathStatus ZonePlanner::iterate(u32 &r_first_waypoint, u32 p_iterations_limit) {
 
 			const Zone &nzone = mesh.get_zone(zone_to_id);
 
-			float tentative_start_cost = p.start_cost + cost(nzone, zone);
+			float tentative_start_cost = pp->start_cost + cost(nzone, zone);
 
 			// Does open list contain this zone already?
 			PlanPoint *found = data.open_list.find(zone_to_id);
@@ -274,6 +274,10 @@ PathStatus ZonePlanner::iterate(u32 &r_first_waypoint, u32 p_iterations_limit) {
 				// Watch out this may invalidate the data in pp
 				// so it contains garbage.
 				found = &data.open_list.request();
+
+				// Reget the popped ID because the pool might have grown
+				// and invalidated pp.
+				pp = &_pool_plan_points[popped_id];
 			} else {
 				if (tentative_start_cost >= found->start_cost) {
 					found = nullptr;
