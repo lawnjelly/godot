@@ -154,7 +154,7 @@ PathStatus ZonePlanner::iterate(u32 &r_first_waypoint, u32 p_iterations_limit) {
 		u32 popped_id = 0;
 		data.open_list.pop_back_and_keep(popped_id);
 
-		PlanPoint &p = _pool_plan_points[popped_id];
+		const PlanPoint &p = _pool_plan_points[popped_id];
 
 		// log(String("popping zone ") + p.info.zone_id + " from open list");
 
@@ -162,12 +162,10 @@ PathStatus ZonePlanner::iterate(u32 &r_first_waypoint, u32 p_iterations_limit) {
 		data.closed_list.plan_points.push_back(popped_id);
 		data.closed_list.point_infos.push_back(p.info);
 
-		PlanPoint *pp = &p;
+		const PlanPoint *pp = &p;
 
 		if (pp->info == data.end_info) {
 			// Finished path.
-			// Create a temporary stack vector for the waypoints,
-			// this makes it easier to do funneling.
 			StackVector<ZonePoint> waypoints;
 			waypoints.setup_external((ZonePoint *)alloca(sizeof(ZonePoint) * MAX_PATH_POINTS), MAX_PATH_POINTS);
 
@@ -190,6 +188,8 @@ PathStatus ZonePlanner::iterate(u32 &r_first_waypoint, u32 p_iterations_limit) {
 			pp = pp->parent_closed_id == UINT32_MAX ? nullptr : &_pool_plan_points[data.closed_list.plan_points[pp->parent_closed_id]];
 
 			while (pp) {
+				log(String("intermediate pp ") + pp->info.zone_id + ", start cost: " + pp->start_cost + ", end_cost: " + pp->end_cost + ", total_cost: " + pp->total_cost);
+
 				ZonePoint wp;
 				wp.create();
 				wp.wp = pp->info;
@@ -270,6 +270,9 @@ PathStatus ZonePlanner::iterate(u32 &r_first_waypoint, u32 p_iterations_limit) {
 			PlanPoint *found = data.open_list.find(zone_to_id);
 
 			if (!found) {
+				// BUG!!!
+				// Watch out this may invalidate the data in pp
+				// so it contains garbage.
 				found = &data.open_list.request();
 			} else {
 				if (tentative_start_cost >= found->start_cost) {
@@ -328,19 +331,32 @@ PathStatus ZonePlanner::pathfind_pos(np_handle p_mesh_instance, const IPoint2 &p
 	data.start_pos = p_start;
 	data.dest_pos = p_end;
 
+	data.start_pos3 = mesh.local_point_to_point3(p_start, p_poly_start);
+
 	//const Poly &poly_end = mesh.get_poly(p_poly_end);
 	const PolyExtra &ex_start = mesh.get_poly_extra(p_poly_start);
 	const PolyExtra &ex_end = mesh.get_poly_extra(p_poly_end);
 
 	data.zone_start = ex_start.zone_id;
 	data.end_info.zone_id = ex_end.zone_id;
-	data.goal_pos = mesh.get_zone(data.end_info.zone_id).local_pos3;
+
+	// Goal at centre of end zone ..
+	//data.goal_pos = mesh.get_zone(data.end_info.zone_id).local_pos3;
+	// OR.. actual end pos?
+	data.goal_pos = mesh.local_point_to_point3(p_end, p_poly_end);
 
 	// Seed with first point.
 	PlanPoint p;
 	p.info.zone_id = data.zone_start;
-	p.end_cost = heuristic(mesh, p);
+
+	// Special!
+	// Don't use the regular zone heuristic,
+	// use the heuristic from the ACTUAL start point to the destination.
+	// p.end_cost = heuristic(mesh, p);
+	p.end_cost = (data.goal_pos - data.start_pos3).length();
 	p.total_cost = p.end_cost;
+
+	log(String("path start to goal cost :") + p.total_cost);
 
 	data.open_list.add(p);
 
