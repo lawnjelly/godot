@@ -32,6 +32,7 @@
 #define MATH_FUNCS_H
 
 #include "core/error_macros.h"
+#include "core/func_defs.h"
 #include "core/math/math_defs.h"
 #include "core/math/random_pcg.h"
 #include "core/typedefs.h"
@@ -260,8 +261,10 @@ public:
 	static _ALWAYS_INLINE_ double db2linear(double p_db) { return Math::exp(p_db * 0.11512925464970228420089957273422); }
 	static _ALWAYS_INLINE_ float db2linear(float p_db) { return Math::exp(p_db * (float)0.11512925464970228420089957273422); }
 
-	static _ALWAYS_INLINE_ double round(double p_val) { return ::round(p_val); }
-	static _ALWAYS_INLINE_ float round(float p_val) { return ::roundf(p_val); }
+	EXPLICIT_PARAM_FUNC(double, double, static _ALWAYS_INLINE_)
+	round(T p_val) { return ::round(p_val); }
+	EXPLICIT_PARAM_FUNC(float, float, static _ALWAYS_INLINE_)
+	round(T p_val) { return ::roundf(p_val); }
 
 	static _ALWAYS_INLINE_ int64_t wrapi(int64_t value, int64_t min, int64_t max) {
 		int64_t range = max - min;
