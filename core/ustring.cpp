@@ -4258,6 +4258,10 @@ String rtoss(double p_val) {
 	return String::num_scientific(p_val);
 }
 
+String ptos(const void *p_pointer) {
+	return String("0x") + String::num_uint64((uint64_t)p_pointer, 16, true);
+}
+
 // Right-pad with a character.
 String String::rpad(int min_length, const String &character) const {
 	String s = *this;

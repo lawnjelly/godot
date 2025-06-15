@@ -386,6 +386,7 @@ String itos(int64_t p_val);
 String uitos(uint64_t p_val);
 String rtos(double p_val);
 String rtoss(double p_val); //scientific version
+String ptos(const void *p_pointer);
 
 struct NoCaseComparator {
 	bool operator()(const String &p_a, const String &p_b) const {

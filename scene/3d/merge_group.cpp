@@ -61,6 +61,8 @@ void MergeGroup::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_param_enabled", "param", "value"), &MergeGroup::set_param_enabled);
 	ClassDB::bind_method(D_METHOD("get_param_enabled", "param"), &MergeGroup::get_param_enabled);
 
+	ClassDB::bind_method(D_METHOD("benchmark_object_db"), &MergeGroup::benchmark_object_db);
+
 	ADD_PROPERTYI(PropertyInfo(Variant::BOOL, "auto_merge"), "set_param_enabled", "get_param_enabled", PARAM_ENABLED_AUTO_MERGE);
 	ADD_PROPERTYI(PropertyInfo(Variant::BOOL, "shadow_proxy"), "set_param_enabled", "get_param_enabled", PARAM_ENABLED_SHADOW_PROXY);
 
@@ -1160,6 +1162,20 @@ void MergeGroup::set_param(Param p_param, int p_value) {
 	}
 
 	data.params[p_param] = (uint32_t)CLAMP(p_value, 0, INT32_MAX);
+}
+
+void MergeGroup::benchmark_object_db() {
+	uint32_t count = 0;
+	uint64_t before = OS::get_singleton()->get_ticks_usec();
+	for (uint32_t n = 0; n < 1024 * 1024 * 128; n++) {
+		if (ObjectDB::get_instance(get_instance_id()) != nullptr) {
+			count++;
+		}
+	}
+	uint64_t after = OS::get_singleton()->get_ticks_usec();
+
+	print_line("ObjectDB benchmark took " + itos((after - before) / 1000) + " msecs.");
+	print_line("count " + itos(count % 2) + ".");
 }
 
 int MergeGroup::get_param(Param p_param) {

@@ -39,6 +39,7 @@
 #include "core/resource.h"
 #include "core/script_language.h"
 #include "core/translation.h"
+#include "core/tspool.h"
 
 #ifdef DEBUG_ENABLED
 
@@ -1934,6 +1935,15 @@ Object::Object() {
 	_predelete_ok = 0;
 	_instance_id = 0;
 	_instance_id = ObjectDB::add_instance(this);
+
+#if 0
+	// Benchmark ObjectDB:
+	for (uint32_t n = 0; n < 1024 * 100; n++) {
+		Object *test = ObjectDB::get_instance(_instance_id);
+		DEV_ASSERT(test == this);
+	}
+#endif
+
 	_can_translate = true;
 	_is_queued_for_deletion = false;
 	_emitting = false;
@@ -2015,9 +2025,23 @@ void postinitialize_handler(Object *p_object) {
 HashMap<ObjectID, Object *> ObjectDB::instances;
 ObjectID ObjectDB::instance_counter = 1;
 HashMap<Object *, ObjectID, ObjectDB::ObjectPtrHash> ObjectDB::instance_checks;
+
+#define GODOT_USE_POOLED_INSTANCE_DB
+#ifdef GODOT_USE_POOLED_INSTANCE_DB
+TSPool<Object *> _instance_pool_db;
+using InstanceHandle = Handle_32_32;
+#endif
+
 ObjectID ObjectDB::add_instance(Object *p_object) {
 	ERR_FAIL_COND_V(p_object->get_instance_id() != 0, 0);
+#ifdef GODOT_USE_POOLED_INSTANCE_DB
+	InstanceHandle h;
+	Object **pp = _instance_pool_db.request(h);
+	ERR_FAIL_NULL_V(pp, 0);
+	*pp = p_object;
 
+	return h.get_value();
+#else
 	rw_lock.write_lock();
 	ObjectID instance_id = ++instance_counter;
 	instances[instance_id] = p_object;
@@ -2026,18 +2050,34 @@ ObjectID ObjectDB::add_instance(Object *p_object) {
 	rw_lock.write_unlock();
 
 	return instance_id;
+#endif
 }
 
 void ObjectDB::remove_instance(Object *p_object) {
+#ifdef GODOT_USE_POOLED_INSTANCE_DB
+	InstanceHandle h;
+	h.set_value(p_object->get_instance_id());
+	_instance_pool_db.free(h);
+#else
 	rw_lock.write_lock();
 
 	instances.erase(p_object->get_instance_id());
 	instance_checks.erase(p_object);
 
 	rw_lock.write_unlock();
+#endif
 }
 
 Object *ObjectDB::get_instance(ObjectID p_instance_id) {
+#ifdef GODOT_USE_POOLED_INSTANCE_DB
+	InstanceHandle h;
+	h.set_value(p_instance_id);
+	Object **pp = _instance_pool_db.get(h, true);
+	if (pp) {
+		return *pp;
+	}
+	return nullptr;
+#else
 	rw_lock.read_lock();
 	Object **obj = instances.getptr(p_instance_id);
 	rw_lock.read_unlock();
@@ -2046,6 +2086,7 @@ Object *ObjectDB::get_instance(ObjectID p_instance_id) {
 		return nullptr;
 	}
 	return *obj;
+#endif
 }
 
 void ObjectDB::debug_objects(DebugFunc p_func) {
@@ -2063,16 +2104,23 @@ void Object::get_argument_options(const StringName &p_function, int p_idx, List<
 }
 
 int ObjectDB::get_object_count() {
+#ifdef GODOT_USE_POOLED_INSTANCE_DB
+	return _instance_pool_db.used_size();
+#else
 	rw_lock.read_lock();
 	int count = instances.size();
 	rw_lock.read_unlock();
 
 	return count;
+#endif
 }
 
 RWLock ObjectDB::rw_lock;
 
 void ObjectDB::cleanup() {
+#ifdef GODOT_USE_POOLED_INSTANCE_DB
+	//_instance_pool_db.clear();
+#else
 	rw_lock.write_lock();
 	if (instances.size()) {
 		WARN_PRINT("ObjectDB instances leaked at exit (run with --verbose for details).");
@@ -2101,4 +2149,5 @@ void ObjectDB::cleanup() {
 	instances.clear();
 	instance_checks.clear();
 	rw_lock.write_unlock();
+#endif
 }

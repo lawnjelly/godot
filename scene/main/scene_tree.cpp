@@ -38,6 +38,7 @@
 #include "core/os/os.h"
 #include "core/print_string.h"
 #include "core/project_settings.h"
+#include "core/tspool.h"
 #include "core/variant_parser.h"
 #include "main/input_default.h"
 #include "node.h"
@@ -524,6 +525,52 @@ void SceneTree::init() {
 	initialized = true;
 	root->_set_tree(this);
 	MainLoop::init();
+
+	// Test new pool
+#if 0
+	TSPoolBase<int> p;
+	uint32_t id;
+	int *data = p.request(id);
+	DEV_ASSERT(data);
+	*data = 10;
+	data = nullptr;
+
+	data = p.get(id);
+	print_line(itos(*data));
+
+	p.free(id);
+#endif
+
+#if 0
+	TSPool<int> p;
+	Handle_32_32 h;
+	int *data = p.request(h);
+	*data = 144;
+
+	print_line("data is " + ptos(data));
+
+	p.free(h);
+
+	// The zeroth element should protect against invalid.
+	p.request(h);
+	p.request(h);
+	p.request(h);
+	p.request(h);
+
+	p.clear();
+
+	data = p.request(h);
+
+	Handle_32_32 h2;
+	int *data2 = p.request(h2);
+	*data2 = 145;
+
+	int *data3 = p.get(h);
+	DEV_ASSERT(*data3 == 144);
+	int *data4 = p.get(h2);
+	DEV_ASSERT(*data4 == 145);
+
+#endif
 }
 
 void SceneTree::set_physics_interpolation_enabled(bool p_enabled) {

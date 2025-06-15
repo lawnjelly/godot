@@ -69,6 +69,8 @@ public:
 	void set_param(Param p_param, int p_value);
 	int get_param(Param p_param);
 
+	void benchmark_object_db();
+
 	// These enable feedback in the Godot UI as we bake.
 	typedef bool (*BakeStepFunc)(float, const String &, void *, bool); // Progress, step description, userdata, force refresh.
 	typedef void (*BakeEndFunc)(uint32_t); // time_started
