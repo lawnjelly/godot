@@ -45,12 +45,12 @@ void LODManager::remove_camera(Camera *p_camera) {
 }
 
 void LODManager::register_lod(LOD *p_lod, uint32_t p_queue_id) {
-	ERR_FAIL_UNSIGNED_INDEX(p_queue_id, NUM_LOD_QUEUES);
+	ERR_FAIL_UNSIGNED_INDEX(p_queue_id, (uint32_t)NUM_LOD_QUEUES);
 	data.queues[p_queue_id].lods.push_back(p_lod);
 }
 
 void LODManager::unregister_lod(LOD *p_lod, uint32_t p_queue_id) {
-	ERR_FAIL_UNSIGNED_INDEX(p_queue_id, NUM_LOD_QUEUES);
+	ERR_FAIL_UNSIGNED_INDEX(p_queue_id, (uint32_t)NUM_LOD_QUEUES);
 	data.queues[p_queue_id].lods.erase(p_lod);
 }
 
@@ -133,7 +133,7 @@ void LODManager::notify_saving(bool p_active) {
 	data.saving = p_active;
 
 	if (p_active) {
-		for (uint32_t n = 0; n < NUM_LOD_QUEUES; n++) {
+		for (uint32_t n = 0; n < (uint32_t)NUM_LOD_QUEUES; n++) {
 			Queue &queue = data.queues[n];
 			LocalVector<LOD *> &lods = queue.lods;
 
@@ -176,7 +176,7 @@ void LODManager::update() {
 		return;
 	}
 
-	for (uint32_t n = 0; n < NUM_LOD_QUEUES; n++) {
+	for (uint32_t n = 0; n < (uint32_t)NUM_LOD_QUEUES; n++) {
 		_update_queue(n, camera_positions, num_cameras);
 	}
 }

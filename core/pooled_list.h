@@ -56,6 +56,7 @@
 
 template <class T, class U = uint32_t, bool force_trivial = false, bool zero_on_first_request = false>
 class PooledList {
+	static_assert(std::is_unsigned<U>::value, "U must be unsigned.");
 	LocalVector<T, U, force_trivial> list;
 	LocalVector<U, U, true> freelist;
 
@@ -117,7 +118,7 @@ public:
 
 		return &list[r_id];
 	}
-	void free(const U &p_id) {
+	void free(U p_id) {
 		// should not be on free list already
 		ERR_FAIL_UNSIGNED_INDEX(p_id, list.size());
 		freelist.push_back(p_id);

@@ -75,7 +75,7 @@ public:
 	}
 
 	void remove(U p_index) {
-		ERR_FAIL_UNSIGNED_INDEX(p_index, count);
+		ERR_FAIL_INDEX(p_index, count);
 		count--;
 		for (U i = p_index; i < count; i++) {
 			data[i] = std::move(data[i + 1]);

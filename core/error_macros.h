@@ -173,6 +173,8 @@ void _physics_interpolation_warning(const char *p_function, const char *p_file, 
  */
 #define ERR_FAIL_UNSIGNED_INDEX(m_index, m_size)                                                                \
 	if (unlikely((m_index) >= (m_size))) {                                                                      \
+		static_assert(std::is_unsigned<decltype(m_index)>::value, "m_index must be unsigned");                  \
+		static_assert(std::is_unsigned<decltype(m_size)>::value, "m_size must be unsigned");                    \
 		_err_print_index_error(FUNCTION_STR, __FILE__, __LINE__, m_index, m_size, _STR(m_index), _STR(m_size)); \
 		return;                                                                                                 \
 	} else                                                                                                      \

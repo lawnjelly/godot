@@ -40,7 +40,7 @@ struct Vector3;
 
 class LODManager {
 public:
-	enum { NUM_LOD_QUEUES = 5 };
+	enum : unsigned int { NUM_LOD_QUEUES = 5 };
 
 	void register_camera(Camera *p_camera);
 	void remove_camera(Camera *p_camera);
