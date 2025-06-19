@@ -41,6 +41,8 @@
 #include "core/variant.h"
 #include "core/vmap.h"
 
+#include "core/count_cast_tos.h"
+
 #include <atomic>
 
 #define VARIANT_ARG_LIST const Variant &p_arg1 = Variant(), const Variant &p_arg2 = Variant(), const Variant &p_arg3 = Variant(), const Variant &p_arg4 = Variant(), const Variant &p_arg5 = Variant(), const Variant &p_arg6 = Variant(), const Variant &p_arg7 = Variant(), const Variant &p_arg8 = Variant()
@@ -618,9 +620,14 @@ public:
 	void remove_change_receptor(Object *p_receptor);
 
 	template <class T>
-	static T *cast_to(Object *p_object) {
+	static T *cast_to(Object *p_object, bool p_count = true) {
 		static_assert(std::is_base_of<Object, T>::value, "T must be derived from Object");
 		static_assert(std::is_same<std::decay_t<T>, typename T::self_type>::value, "T must use GDCLASS or GDSOFTCLASS");
+
+		if (p_count) {
+			CountCast::count_cast(p_object);
+		}
+
 		if (!p_object)
 			return NULL;
 		if (p_object->is_class_ptr(T::get_class_ptr_static()))
@@ -630,14 +637,19 @@ public:
 	}
 
 	template <class T>
-	static const T *cast_to(const Object *p_object) {
+	static const T *cast_to(const Object *p_object, bool p_count = true) {
 		static_assert(std::is_base_of<Object, T>::value, "T must be derived from Object");
 		static_assert(std::is_same<std::decay_t<T>, typename T::self_type>::value, "T must use GDCLASS or GDSOFTCLASS");
+
+		if (p_count) {
+			CountCast::count_cast(p_object);
+		}
+
 		if (!p_object)
 			return NULL;
-		if (p_object->is_class_ptr(T::get_class_ptr_static()))
+		if (p_object->is_class_ptr(T::get_class_ptr_static())) {
 			return static_cast<const T *>(p_object);
-		else
+		} else
 			return NULL;
 	}
 
