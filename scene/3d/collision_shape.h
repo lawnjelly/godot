@@ -62,14 +62,14 @@ public:
 	void set_disabled(bool p_disabled);
 	bool is_disabled() const;
 
-	String get_configuration_warning() const;
+	String get_configuration_warning() const override;
 
 #ifdef TOOLS_ENABLED
-	virtual AABB get_fallback_gizmo_aabb() const;
+	AABB get_fallback_gizmo_aabb() const override;
 #endif
 
 	CollisionShape();
-	~CollisionShape();
+	~CollisionShape() override;
 };
 
 #endif // COLLISION_SHAPE_H

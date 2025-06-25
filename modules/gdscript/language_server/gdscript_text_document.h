@@ -75,7 +75,7 @@ public:
 	void initialize();
 
 	GDScriptTextDocument();
-	virtual ~GDScriptTextDocument();
+	~GDScriptTextDocument() override;
 };
 
 #endif // GDSCRIPT_TEXT_DOCUMENT_H

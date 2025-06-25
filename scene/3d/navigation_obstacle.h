@@ -50,12 +50,12 @@ class NavigationObstacle : public Node {
 
 protected:
 	static void _bind_methods();
-	void _validate_property(PropertyInfo &property) const;
+	void _validate_property(PropertyInfo &property) const override;
 	void _notification(int p_what);
 
 public:
 	NavigationObstacle();
-	virtual ~NavigationObstacle();
+	~NavigationObstacle() override;
 
 	void set_navigation(Navigation *p_nav);
 	const Navigation *get_navigation() const {
@@ -78,7 +78,7 @@ public:
 		return radius;
 	}
 
-	virtual String get_configuration_warning() const;
+	String get_configuration_warning() const override;
 
 private:
 	void initialize_agent();

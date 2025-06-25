@@ -55,8 +55,8 @@ private:
 
 public:
 	GodotCollisionDispatcher(btCollisionConfiguration *collisionConfiguration);
-	virtual bool needsCollision(const btCollisionObject *body0, const btCollisionObject *body1);
-	virtual bool needsResponse(const btCollisionObject *body0, const btCollisionObject *body1);
+	bool needsCollision(const btCollisionObject *body0, const btCollisionObject *body1) override;
+	bool needsResponse(const btCollisionObject *body0, const btCollisionObject *body1) override;
 };
 
 #endif // GODOT_COLLISION_DISPATCHER_H

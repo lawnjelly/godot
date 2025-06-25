@@ -161,7 +161,7 @@ class NodeAttribute : public Object {
 public:
 	NodeAttribute(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name);
 
-	virtual ~NodeAttribute();
+	~NodeAttribute() override;
 
 	const PropertyTable *Props() const {
 		return props;
@@ -176,7 +176,7 @@ class CameraSwitcher : public NodeAttribute {
 public:
 	CameraSwitcher(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name);
 
-	virtual ~CameraSwitcher();
+	~CameraSwitcher() override;
 
 	int CameraID() const {
 		return cameraId;
@@ -222,7 +222,7 @@ public:
 		return pose_nodes;
 	}
 
-	virtual ~FbxPose();
+	~FbxPose() override;
 
 private:
 	std::vector<FbxPoseNode *> pose_nodes;
@@ -266,7 +266,7 @@ class Camera : public NodeAttribute {
 public:
 	Camera(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name);
 
-	virtual ~Camera();
+	~Camera() override;
 
 	fbx_simple_property(Position, Vector3, Vector3(0, 0, 0));
 	fbx_simple_property(UpVector, Vector3, Vector3(0, 1, 0));
@@ -291,21 +291,21 @@ public:
 class Null : public NodeAttribute {
 public:
 	Null(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name);
-	virtual ~Null();
+	~Null() override;
 };
 
 /** DOM base class for FBX limb node markers attached to a node */
 class LimbNode : public NodeAttribute {
 public:
 	LimbNode(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name);
-	virtual ~LimbNode();
+	~LimbNode() override;
 };
 
 /** DOM base class for FBX lights attached to a node */
 class Light : public NodeAttribute {
 public:
 	Light(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name);
-	virtual ~Light();
+	~Light() override;
 
 	enum Type {
 		Type_Point,
@@ -382,7 +382,7 @@ public:
 
 	Model(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name);
 
-	virtual ~Model();
+	~Model() override;
 
 	fbx_simple_property(QuaternionInterpolate, int, 0);
 
@@ -506,7 +506,7 @@ class ModelLimbNode : public Model {
 public:
 	ModelLimbNode(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name);
 
-	virtual ~ModelLimbNode();
+	~ModelLimbNode() override;
 };
 
 /** DOM class for generic FBX textures */
@@ -514,7 +514,7 @@ class Texture : public Object {
 public:
 	Texture(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name);
 
-	virtual ~Texture();
+	~Texture() override;
 
 	const std::string &Type() const {
 		return type;
@@ -572,7 +572,7 @@ private:
 class LayeredTexture : public Object {
 public:
 	LayeredTexture(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name);
-	virtual ~LayeredTexture();
+	~LayeredTexture() override;
 
 	// Can only be called after construction of the layered texture object due to construction flag.
 	void fillTexture(const Document &doc);
@@ -639,7 +639,7 @@ class Video : public Object {
 public:
 	Video(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name);
 
-	virtual ~Video();
+	~Video() override;
 
 	const std::string &Type() const {
 		return type;
@@ -699,7 +699,7 @@ class Material : public Object {
 public:
 	Material(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name);
 
-	virtual ~Material();
+	~Material() override;
 
 	const std::string &GetShadingModel() const {
 		return shading;
@@ -738,7 +738,7 @@ typedef std::vector<float> KeyValueList;
 class AnimationCurve : public Object {
 public:
 	AnimationCurve(uint64_t id, const ElementPtr element, const std::string &name, const Document &doc);
-	virtual ~AnimationCurve();
+	~AnimationCurve() override;
 
 	/** get list of keyframe positions (time).
 	 *  Invariant: |GetKeys()| > 0 */
@@ -790,7 +790,7 @@ public:
 	AnimationCurveNode(uint64_t id, const ElementPtr element, const std::string &name, const Document &doc,
 			const char *const *target_prop_whitelist = nullptr, size_t whitelist_size = 0);
 
-	virtual ~AnimationCurveNode();
+	~AnimationCurveNode() override;
 
 	const PropertyTable *Props() const {
 		return props;
@@ -836,7 +836,7 @@ typedef std::vector<const AnimationLayer *> AnimationLayerList;
 class AnimationLayer : public Object {
 public:
 	AnimationLayer(uint64_t id, const ElementPtr element, const std::string &name, const Document &doc);
-	virtual ~AnimationLayer();
+	~AnimationLayer() override;
 
 	const PropertyTable *Props() const {
 		//ai_assert(props.get());
@@ -857,7 +857,7 @@ private:
 class AnimationStack : public Object {
 public:
 	AnimationStack(uint64_t id, const ElementPtr element, const std::string &name, const Document &doc);
-	virtual ~AnimationStack();
+	~AnimationStack() override;
 
 	fbx_simple_property(LocalStart, int64_t, 0L);
 	fbx_simple_property(LocalStop, int64_t, 0L);
@@ -881,7 +881,7 @@ private:
 class Deformer : public Object {
 public:
 	Deformer(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name);
-	virtual ~Deformer();
+	~Deformer() override;
 
 	const PropertyTable *Props() const {
 		//ai_assert(props.get());
@@ -896,7 +896,7 @@ private:
 class Constraint : public Object {
 public:
 	Constraint(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name);
-	virtual ~Constraint();
+	~Constraint() override;
 
 private:
 	const PropertyTable *props;
@@ -910,7 +910,7 @@ class BlendShapeChannel : public Deformer {
 public:
 	BlendShapeChannel(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name);
 
-	virtual ~BlendShapeChannel();
+	~BlendShapeChannel() override;
 
 	float DeformPercent() const {
 		return percent;
@@ -935,7 +935,7 @@ class BlendShape : public Deformer {
 public:
 	BlendShape(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name);
 
-	virtual ~BlendShape();
+	~BlendShape() override;
 
 	const std::vector<const BlendShapeChannel *> &BlendShapeChannels() const {
 		return blendShapeChannels;
@@ -950,7 +950,7 @@ class Cluster : public Deformer {
 public:
 	Cluster(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name);
 
-	virtual ~Cluster();
+	~Cluster() override;
 
 	/** get the list of deformer weights associated with this cluster.
 	 *  Use #GetIndices() to get the associated vertices. Both arrays
@@ -1016,7 +1016,7 @@ class Skin : public Deformer {
 public:
 	Skin(uint64_t id, const ElementPtr element, const Document &doc, const std::string &name);
 
-	virtual ~Skin();
+	~Skin() override;
 
 	float DeformAccuracy() const {
 		return accuracy;

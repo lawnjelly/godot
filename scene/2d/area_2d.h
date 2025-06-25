@@ -132,7 +132,7 @@ private:
 protected:
 	void _notification(int p_what);
 	static void _bind_methods();
-	void _validate_property(PropertyInfo &property) const;
+	void _validate_property(PropertyInfo &property) const override;
 
 public:
 	void set_space_override_mode(SpaceOverride p_mode);
@@ -178,7 +178,7 @@ public:
 	StringName get_audio_bus_name() const;
 
 	Area2D();
-	~Area2D();
+	~Area2D() override;
 };
 
 VARIANT_ENUM_CAST(Area2D::SpaceOverride);

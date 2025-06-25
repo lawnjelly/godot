@@ -117,7 +117,7 @@ public:
 	virtual void notification(int p_what) = 0;
 
 	ARVRInterface();
-	~ARVRInterface();
+	~ARVRInterface() override;
 };
 
 VARIANT_ENUM_CAST(ARVRInterface::Capabilities);

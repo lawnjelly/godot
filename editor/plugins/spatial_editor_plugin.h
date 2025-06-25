@@ -124,11 +124,11 @@ public:
 	bool intersect_frustum(const Camera *p_camera, const Vector<Plane> &p_frustum);
 	bool intersect_ray(Camera *p_camera, const Point2 &p_point, Vector3 &r_pos, Vector3 &r_normal, int *r_gizmo_handle = nullptr, bool p_sec_first = false);
 
-	virtual void clear();
-	virtual void create();
-	virtual void transform();
-	virtual void redraw();
-	virtual void free();
+	void clear() override;
+	void create() override;
+	void transform() override;
+	void redraw() override;
+	void free() override;
 
 	virtual bool is_editable() const;
 
@@ -136,7 +136,7 @@ public:
 	void set_plugin(EditorSpatialGizmoPlugin *p_plugin);
 
 	EditorSpatialGizmo();
-	~EditorSpatialGizmo();
+	~EditorSpatialGizmo() override;
 };
 
 class ViewportRotationControl : public Control {
@@ -504,7 +504,7 @@ public:
 	Camera *get_camera() { return camera; } // return the default camera object.
 
 	SpatialEditorViewport(SpatialEditor *p_spatial_editor, EditorNode *p_editor, int p_index);
-	~SpatialEditorViewport();
+	~SpatialEditorViewport() override;
 };
 
 class SpatialEditorSelectedItem : public Object {
@@ -526,7 +526,7 @@ public:
 		sp = nullptr;
 		last_xform_dirty = true;
 	}
-	~SpatialEditorSelectedItem();
+	~SpatialEditorSelectedItem() override;
 };
 
 class SpatialEditorViewportContainer : public Container {
@@ -859,7 +859,7 @@ public:
 	void clear();
 
 	SpatialEditor(EditorNode *p_editor);
-	~SpatialEditor();
+	~SpatialEditor() override;
 };
 
 class SpatialEditorPlugin : public EditorPlugin {
@@ -875,20 +875,20 @@ public:
 	void snap_cursor_to_plane(const Plane &p_plane);
 
 	SpatialEditor *get_spatial_editor() { return spatial_editor; }
-	virtual String get_name() const { return "3D"; }
-	bool has_main_screen() const { return true; }
-	virtual void make_visible(bool p_visible);
-	virtual void edit(Object *p_object);
-	virtual bool handles(Object *p_object) const;
+	String get_name() const override { return "3D"; }
+	bool has_main_screen() const override { return true; }
+	void make_visible(bool p_visible) override;
+	void edit(Object *p_object) override;
+	bool handles(Object *p_object) const override;
 
-	virtual Dictionary get_state() const;
-	virtual void set_state(const Dictionary &p_state);
-	virtual void clear() { spatial_editor->clear(); }
+	Dictionary get_state() const override;
+	void set_state(const Dictionary &p_state) override;
+	void clear() override { spatial_editor->clear(); }
 
-	virtual void edited_scene_changed();
+	void edited_scene_changed() override;
 
 	SpatialEditorPlugin(EditorNode *p_node);
-	~SpatialEditorPlugin();
+	~SpatialEditorPlugin() override;
 };
 
 class EditorSpatialGizmoPlugin : public Resource {
@@ -934,7 +934,7 @@ public:
 	void unregister_gizmo(EditorSpatialGizmo *p_gizmo);
 
 	EditorSpatialGizmoPlugin();
-	virtual ~EditorSpatialGizmoPlugin();
+	~EditorSpatialGizmoPlugin() override;
 };
 
 class ViewportNavigationControl : public Control {

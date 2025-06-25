@@ -347,7 +347,7 @@ public:
 	Image(const uint8_t *p_mem_png_jpg, int p_len = -1);
 	Image(const char **p_xpm);
 
-	virtual Ref<Resource> duplicate(bool p_subresources = false) const;
+	Ref<Resource> duplicate(bool p_subresources = false) const override;
 
 	void lock();
 	void unlock();
@@ -379,7 +379,7 @@ public:
 		data = p_image->data;
 	}
 
-	~Image();
+	~Image() override;
 };
 
 VARIANT_ENUM_CAST(Image::Format)

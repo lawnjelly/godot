@@ -200,7 +200,7 @@ class PackedScene : public Resource {
 	Dictionary _get_bundled_scene() const;
 
 protected:
-	virtual bool editor_can_reload_from_file() { return false; } // this is handled by editor better
+	bool editor_can_reload_from_file() override { return false; } // this is handled by editor better
 	static void _bind_methods();
 
 public:
@@ -221,9 +221,9 @@ public:
 	void recreate_state();
 	void replace_state(Ref<SceneState> p_by);
 
-	virtual void set_path(const String &p_path, bool p_take_over = false);
+	void set_path(const String &p_path, bool p_take_over = false) override;
 #ifdef TOOLS_ENABLED
-	virtual void set_last_modified_time(uint64_t p_time) { state->set_last_modified_time(p_time); }
+	void set_last_modified_time(uint64_t p_time) override { state->set_last_modified_time(p_time); }
 
 #endif
 	Ref<SceneState> get_state();

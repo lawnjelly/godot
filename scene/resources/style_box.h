@@ -68,10 +68,10 @@ public:
 
 class StyleBoxEmpty : public StyleBox {
 	GDCLASS(StyleBoxEmpty, StyleBox);
-	virtual float get_style_margin(Margin p_margin) const { return 0; }
+	float get_style_margin(Margin p_margin) const override { return 0; }
 
 public:
-	virtual void draw(RID p_canvas_item, const Rect2 &p_rect) const {}
+	void draw(RID p_canvas_item, const Rect2 &p_rect) const override {}
 	StyleBoxEmpty() {}
 };
 
@@ -97,7 +97,7 @@ private:
 	AxisStretchMode axis_v;
 
 protected:
-	virtual float get_style_margin(Margin p_margin) const;
+	float get_style_margin(Margin p_margin) const override;
 	static void _bind_methods();
 
 public:
@@ -120,7 +120,7 @@ public:
 
 	void set_draw_center(bool p_enabled);
 	bool is_draw_center_enabled() const;
-	virtual Size2 get_center_size() const;
+	Size2 get_center_size() const override;
 
 	void set_h_axis_stretch_mode(AxisStretchMode p_mode);
 	AxisStretchMode get_h_axis_stretch_mode() const;
@@ -131,11 +131,11 @@ public:
 	void set_modulate(const Color &p_modulate);
 	Color get_modulate() const;
 
-	virtual Rect2 get_draw_rect(const Rect2 &p_rect) const;
-	virtual void draw(RID p_canvas_item, const Rect2 &p_rect) const;
+	Rect2 get_draw_rect(const Rect2 &p_rect) const override;
+	void draw(RID p_canvas_item, const Rect2 &p_rect) const override;
 
 	StyleBoxTexture();
-	~StyleBoxTexture();
+	~StyleBoxTexture() override;
 };
 
 VARIANT_ENUM_CAST(StyleBoxTexture::AxisStretchMode)
@@ -162,7 +162,7 @@ class StyleBoxFlat : public StyleBox {
 	real_t aa_size;
 
 protected:
-	virtual float get_style_margin(Margin p_margin) const;
+	float get_style_margin(Margin p_margin) const override;
 	static void _bind_methods();
 
 public:
@@ -216,13 +216,13 @@ public:
 	void set_aa_size(const float &p_aa_size);
 	float get_aa_size() const;
 
-	virtual Size2 get_center_size() const;
+	Size2 get_center_size() const override;
 
-	virtual Rect2 get_draw_rect(const Rect2 &p_rect) const;
-	virtual void draw(RID p_canvas_item, const Rect2 &p_rect) const;
+	Rect2 get_draw_rect(const Rect2 &p_rect) const override;
+	void draw(RID p_canvas_item, const Rect2 &p_rect) const override;
 
 	StyleBoxFlat();
-	~StyleBoxFlat();
+	~StyleBoxFlat() override;
 };
 
 // Just used to draw lines.
@@ -235,7 +235,7 @@ class StyleBoxLine : public StyleBox {
 	float grow_end;
 
 protected:
-	virtual float get_style_margin(Margin p_margin) const;
+	float get_style_margin(Margin p_margin) const override;
 	static void _bind_methods();
 
 public:
@@ -254,12 +254,12 @@ public:
 	void set_grow_end(float p_grow);
 	float get_grow_end() const;
 
-	virtual Size2 get_center_size() const;
+	Size2 get_center_size() const override;
 
-	virtual void draw(RID p_canvas_item, const Rect2 &p_rect) const;
+	void draw(RID p_canvas_item, const Rect2 &p_rect) const override;
 
 	StyleBoxLine();
-	~StyleBoxLine();
+	~StyleBoxLine() override;
 };
 
 #endif // STYLE_BOX_H

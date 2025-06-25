@@ -76,10 +76,10 @@ public:
 	void set_compress(bool p_enable);
 	bool is_compressed() const;
 
-	virtual RID get_rid() const;
+	RID get_rid() const override;
 
 	GIProbeData();
-	~GIProbeData();
+	~GIProbeData() override;
 };
 
 class GIProbe : public VisualInstance {
@@ -164,13 +164,13 @@ public:
 
 	void bake(Node *p_from_node = nullptr, bool p_create_visual_debug = false);
 
-	virtual AABB get_aabb() const;
-	virtual PoolVector<Face3> get_faces(uint32_t p_usage_flags) const;
+	AABB get_aabb() const override;
+	PoolVector<Face3> get_faces(uint32_t p_usage_flags) const override;
 
-	virtual String get_configuration_warning() const;
+	String get_configuration_warning() const override;
 
 	GIProbe();
-	~GIProbe();
+	~GIProbe() override;
 };
 
 VARIANT_ENUM_CAST(GIProbe::Subdiv)

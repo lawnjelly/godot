@@ -98,7 +98,7 @@ public:
 	void did_delete_files(const Dictionary &p_params);
 
 	GDScriptWorkspace();
-	~GDScriptWorkspace();
+	~GDScriptWorkspace() override;
 };
 
 #endif // GDSCRIPT_WORKSPACE_H

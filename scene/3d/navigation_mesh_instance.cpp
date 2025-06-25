@@ -160,8 +160,9 @@ void NavigationMeshInstance::_notification(int p_what) {
 }
 
 void NavigationMeshInstance::set_navigation_mesh(const Ref<NavigationMesh> &p_navmesh) {
-	if (p_navmesh == navmesh)
+	if (p_navmesh == navmesh) {
 		return;
+	}
 
 	if (navmesh.is_valid()) {
 		navmesh->remove_change_receptor(this);

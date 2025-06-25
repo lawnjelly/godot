@@ -48,9 +48,9 @@ protected:
 
 public:
 #ifdef TOOLS_ENABLED
-	virtual Rect2 _edit_get_rect() const;
-	virtual bool _edit_use_rect() const;
-	virtual bool _edit_is_selected_on_click(const Point2 &p_point, double p_tolerance) const;
+	Rect2 _edit_get_rect() const override;
+	bool _edit_use_rect() const override;
+	bool _edit_is_selected_on_click(const Point2 &p_point, double p_tolerance) const override;
 #endif
 
 	void set_curve(const Ref<Curve2D> &p_curve);
@@ -76,7 +76,7 @@ private:
 	void _update_transform();
 
 protected:
-	virtual void _validate_property(PropertyInfo &property) const;
+	void _validate_property(PropertyInfo &property) const override;
 
 	void _notification(int p_what);
 	static void _bind_methods();
@@ -106,7 +106,7 @@ public:
 	void set_cubic_interpolation(bool p_enable);
 	bool get_cubic_interpolation() const;
 
-	String get_configuration_warning() const;
+	String get_configuration_warning() const override;
 
 	PathFollow2D();
 };

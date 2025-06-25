@@ -313,7 +313,7 @@ public:
 	ScriptCreateDialog *get_script_create_dialog() { return script_create_dialog; }
 
 	SceneTreeDock(EditorNode *p_editor, Node *p_scene_root, EditorSelection *p_editor_selection, EditorData &p_editor_data);
-	~SceneTreeDock();
+	~SceneTreeDock() override;
 };
 
 #endif // SCENE_TREE_DOCK_H

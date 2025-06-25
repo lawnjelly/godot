@@ -42,7 +42,7 @@ void class_db_api_to_json(const String &p_output_file, ClassDB::APIType p_api) {
 
 	List<StringName> names;
 
-	const StringName *k = NULL;
+	const StringName *k = nullptr;
 
 	while ((k = ClassDB::classes.next(k))) {
 		names.push_back(*k);
@@ -53,8 +53,9 @@ void class_db_api_to_json(const String &p_output_file, ClassDB::APIType p_api) {
 	for (List<StringName>::Element *E = names.front(); E; E = E->next()) {
 		ClassDB::ClassInfo *t = ClassDB::classes.getptr(E->get());
 		ERR_FAIL_COND(!t);
-		if (t->api != p_api || !t->exposed)
+		if (t->api != p_api || !t->exposed) {
 			continue;
+		}
 
 		Dictionary class_dict;
 		classes_dict[t->name] = class_dict;
@@ -65,15 +66,16 @@ void class_db_api_to_json(const String &p_output_file, ClassDB::APIType p_api) {
 
 			List<StringName> snames;
 
-			k = NULL;
+			k = nullptr;
 
 			while ((k = t->method_map.next(k))) {
 				String name = k->operator String();
 
 				ERR_CONTINUE(name.empty());
 
-				if (name[0] == '_')
+				if (name[0] == '_') {
 					continue; // Ignore non-virtual methods that start with an underscore
+				}
 
 				snames.push_back(*k);
 			}
@@ -129,7 +131,7 @@ void class_db_api_to_json(const String &p_output_file, ClassDB::APIType p_api) {
 
 			List<StringName> snames;
 
-			k = NULL;
+			k = nullptr;
 
 			while ((k = t->constant_map.next(k))) {
 				snames.push_back(*k);
@@ -156,7 +158,7 @@ void class_db_api_to_json(const String &p_output_file, ClassDB::APIType p_api) {
 
 			List<StringName> snames;
 
-			k = NULL;
+			k = nullptr;
 
 			while ((k = t->signal_map.next(k))) {
 				snames.push_back(*k);
@@ -191,7 +193,7 @@ void class_db_api_to_json(const String &p_output_file, ClassDB::APIType p_api) {
 
 			List<StringName> snames;
 
-			k = NULL;
+			k = nullptr;
 
 			while ((k = t->property_setget.next(k))) {
 				snames.push_back(*k);

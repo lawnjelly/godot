@@ -65,7 +65,7 @@ public:
 	String process_name(const String &p_name, Style p_style) const;
 
 	EditorPropertyNameProcessor();
-	~EditorPropertyNameProcessor();
+	~EditorPropertyNameProcessor() override;
 };
 
 #endif // EDITOR_PROPERTY_NAME_PROCESSOR_H

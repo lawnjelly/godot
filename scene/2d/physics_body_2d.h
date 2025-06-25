@@ -51,7 +51,7 @@ protected:
 	static void _bind_methods();
 
 public:
-	virtual String get_configuration_warning() const;
+	String get_configuration_warning() const override;
 
 	Array get_collision_exceptions();
 	void add_collision_exception_with(Node *p_node); //must be physicsbody
@@ -87,7 +87,7 @@ public:
 	real_t get_constant_angular_velocity() const;
 
 	StaticBody2D();
-	~StaticBody2D();
+	~StaticBody2D() override;
 
 private:
 	void _reload_physics_characteristics();
@@ -253,10 +253,10 @@ public:
 
 	Array get_colliding_bodies() const; //function for script
 
-	virtual String get_configuration_warning() const;
+	String get_configuration_warning() const override;
 
 	RigidBody2D();
-	~RigidBody2D();
+	~RigidBody2D() override;
 
 private:
 	void _reload_physics_characteristics();

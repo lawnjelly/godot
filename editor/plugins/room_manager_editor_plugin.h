@@ -53,14 +53,14 @@ protected:
 	static void _bind_methods();
 
 public:
-	virtual String get_name() const { return "RoomManager"; }
-	bool has_main_screen() const { return false; }
-	virtual void edit(Object *p_object);
-	virtual bool handles(Object *p_object) const;
-	virtual void make_visible(bool p_visible);
+	String get_name() const override { return "RoomManager"; }
+	bool has_main_screen() const override { return false; }
+	void edit(Object *p_object) override;
+	bool handles(Object *p_object) const override;
+	void make_visible(bool p_visible) override;
 
 	RoomManagerEditorPlugin(EditorNode *p_node);
-	~RoomManagerEditorPlugin();
+	~RoomManagerEditorPlugin() override;
 };
 
 ///////////////////////
@@ -79,14 +79,14 @@ protected:
 	static void _bind_methods();
 
 public:
-	virtual String get_name() const { return "Room"; }
-	bool has_main_screen() const { return false; }
-	virtual void edit(Object *p_object);
-	virtual bool handles(Object *p_object) const;
-	virtual void make_visible(bool p_visible);
+	String get_name() const override { return "Room"; }
+	bool has_main_screen() const override { return false; }
+	void edit(Object *p_object) override;
+	bool handles(Object *p_object) const override;
+	void make_visible(bool p_visible) override;
 
 	RoomEditorPlugin(EditorNode *p_node);
-	~RoomEditorPlugin();
+	~RoomEditorPlugin() override;
 };
 
 ///////////////////////
@@ -104,14 +104,14 @@ protected:
 	static void _bind_methods();
 
 public:
-	virtual String get_name() const { return "Portal"; }
-	bool has_main_screen() const { return false; }
-	virtual void edit(Object *p_object);
-	virtual bool handles(Object *p_object) const;
-	virtual void make_visible(bool p_visible);
+	String get_name() const override { return "Portal"; }
+	bool has_main_screen() const override { return false; }
+	void edit(Object *p_object) override;
+	bool handles(Object *p_object) const override;
+	void make_visible(bool p_visible) override;
 
 	PortalEditorPlugin(EditorNode *p_node);
-	~PortalEditorPlugin();
+	~PortalEditorPlugin() override;
 };
 
 ///////////////////////
@@ -130,14 +130,14 @@ protected:
 	static void _bind_methods();
 
 public:
-	virtual String get_name() const { return "Occluder"; }
-	bool has_main_screen() const { return false; }
-	virtual void edit(Object *p_object);
-	virtual bool handles(Object *p_object) const;
-	virtual void make_visible(bool p_visible);
+	String get_name() const override { return "Occluder"; }
+	bool has_main_screen() const override { return false; }
+	void edit(Object *p_object) override;
+	bool handles(Object *p_object) const override;
+	void make_visible(bool p_visible) override;
 
 	OccluderEditorPlugin(EditorNode *p_node);
-	~OccluderEditorPlugin();
+	~OccluderEditorPlugin() override;
 };
 
 #endif // ROOM_MANAGER_EDITOR_PLUGIN_H

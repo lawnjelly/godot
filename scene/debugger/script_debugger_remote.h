@@ -172,24 +172,24 @@ public:
 	static ResourceUsageFunc resource_usage_func;
 
 	Error connect_to_host(const String &p_host, uint16_t p_port);
-	virtual void debug(ScriptLanguage *p_script, bool p_can_continue = true, bool p_is_error_breakpoint = false);
-	virtual void idle_poll();
-	virtual void line_poll();
+	void debug(ScriptLanguage *p_script, bool p_can_continue = true, bool p_is_error_breakpoint = false) override;
+	void idle_poll() override;
+	void line_poll() override;
 
-	virtual bool is_remote() const { return true; }
-	virtual void request_quit();
+	bool is_remote() const override { return true; }
+	void request_quit() override;
 
-	virtual void send_message(const String &p_message, const Array &p_args);
-	virtual void send_error(const String &p_func, const String &p_file, int p_line, const String &p_err, const String &p_descr, ErrorHandlerType p_type, const Vector<ScriptLanguage::StackInfo> &p_stack_info);
+	void send_message(const String &p_message, const Array &p_args) override;
+	void send_error(const String &p_func, const String &p_file, int p_line, const String &p_err, const String &p_descr, ErrorHandlerType p_type, const Vector<ScriptLanguage::StackInfo> &p_stack_info) override;
 
-	virtual void set_multiplayer(Ref<MultiplayerAPI> p_multiplayer);
+	void set_multiplayer(Ref<MultiplayerAPI> p_multiplayer) override;
 
-	virtual bool is_profiling() const;
-	virtual void add_profiling_frame_data(const StringName &p_name, const Array &p_data);
+	bool is_profiling() const override;
+	void add_profiling_frame_data(const StringName &p_name, const Array &p_data) override;
 
-	virtual void profiling_start();
-	virtual void profiling_end();
-	virtual void profiling_set_frame_times(float p_frame_time, float p_process_time, float p_physics_time, float p_physics_frame_time);
+	void profiling_start() override;
+	void profiling_end() override;
+	void profiling_set_frame_times(float p_frame_time, float p_process_time, float p_physics_time, float p_physics_frame_time) override;
 
 	virtual void set_skip_breakpoints(bool p_skip_breakpoints);
 
@@ -197,7 +197,7 @@ public:
 	void set_allow_focus_steal_pid(OS::ProcessID p_pid);
 
 	ScriptDebuggerRemote();
-	~ScriptDebuggerRemote();
+	~ScriptDebuggerRemote() override;
 };
 
 #endif // SCRIPT_DEBUGGER_REMOTE_H

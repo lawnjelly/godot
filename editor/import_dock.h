@@ -92,7 +92,7 @@ public:
 	void clear();
 
 	ImportDock();
-	~ImportDock();
+	~ImportDock() override;
 };
 
 #endif // IMPORT_DOCK_H

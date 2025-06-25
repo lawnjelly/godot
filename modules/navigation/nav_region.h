@@ -98,7 +98,7 @@ public:
 	bool sync();
 
 	NavRegion();
-	~NavRegion();
+	~NavRegion() override;
 
 private:
 	void update_polygons();

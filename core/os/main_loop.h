@@ -79,7 +79,7 @@ public:
 	void set_init_script(const Ref<Script> &p_init_script);
 
 	MainLoop();
-	virtual ~MainLoop();
+	~MainLoop() override;
 };
 
 #endif // MAIN_LOOP_H

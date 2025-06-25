@@ -1082,7 +1082,7 @@ extern "C" {
 #define pa_timeval_store pa_timeval_store_dylibloader_wrapper_pulse
 #define pa_timeval_load pa_timeval_load_dylibloader_wrapper_pulse
 #define pa_rtclock_now pa_rtclock_now_dylibloader_wrapper_pulse
-extern const char* (*pa_get_library_version_dylibloader_wrapper_pulse)( void);
+extern const char* (*pa_get_library_version_dylibloader_wrapper_pulse)( );
 extern size_t (*pa_bytes_per_second_dylibloader_wrapper_pulse)(const pa_sample_spec*);
 extern size_t (*pa_frame_size_dylibloader_wrapper_pulse)(const pa_sample_spec*);
 extern size_t (*pa_sample_size_dylibloader_wrapper_pulse)(const pa_sample_spec*);
@@ -1104,7 +1104,7 @@ extern int (*pa_sample_format_is_be_dylibloader_wrapper_pulse)( pa_sample_format
 extern int (*pa_direction_valid_dylibloader_wrapper_pulse)( pa_direction_t);
 extern const char* (*pa_direction_to_string_dylibloader_wrapper_pulse)( pa_direction_t);
 extern void (*pa_mainloop_api_once_dylibloader_wrapper_pulse)( pa_mainloop_api*, void*, void*);
-extern pa_proplist* (*pa_proplist_new_dylibloader_wrapper_pulse)( void);
+extern pa_proplist* (*pa_proplist_new_dylibloader_wrapper_pulse)( );
 extern void (*pa_proplist_free_dylibloader_wrapper_pulse)( pa_proplist*);
 extern int (*pa_proplist_key_valid_dylibloader_wrapper_pulse)(const char*);
 extern int (*pa_proplist_sets_dylibloader_wrapper_pulse)( pa_proplist*,const char*,const char*);
@@ -1149,7 +1149,7 @@ extern int (*pa_channel_map_has_position_dylibloader_wrapper_pulse)(const pa_cha
 extern pa_channel_position_mask_t (*pa_channel_map_mask_dylibloader_wrapper_pulse)(const pa_channel_map*);
 extern const char* (*pa_encoding_to_string_dylibloader_wrapper_pulse)( pa_encoding_t);
 extern pa_encoding_t (*pa_encoding_from_string_dylibloader_wrapper_pulse)(const char*);
-extern pa_format_info* (*pa_format_info_new_dylibloader_wrapper_pulse)( void);
+extern pa_format_info* (*pa_format_info_new_dylibloader_wrapper_pulse)( );
 extern pa_format_info* (*pa_format_info_copy_dylibloader_wrapper_pulse)(const pa_format_info*);
 extern void (*pa_format_info_free_dylibloader_wrapper_pulse)( pa_format_info*);
 extern int (*pa_format_info_valid_dylibloader_wrapper_pulse)(const pa_format_info*);
@@ -1391,7 +1391,7 @@ extern char* (*pa_utf8_filter_dylibloader_wrapper_pulse)(const char*);
 extern char* (*pa_ascii_filter_dylibloader_wrapper_pulse)(const char*);
 extern char* (*pa_utf8_to_locale_dylibloader_wrapper_pulse)(const char*);
 extern char* (*pa_locale_to_utf8_dylibloader_wrapper_pulse)(const char*);
-extern pa_threaded_mainloop* (*pa_threaded_mainloop_new_dylibloader_wrapper_pulse)( void);
+extern pa_threaded_mainloop* (*pa_threaded_mainloop_new_dylibloader_wrapper_pulse)( );
 extern void (*pa_threaded_mainloop_free_dylibloader_wrapper_pulse)( pa_threaded_mainloop*);
 extern int (*pa_threaded_mainloop_start_dylibloader_wrapper_pulse)( pa_threaded_mainloop*);
 extern void (*pa_threaded_mainloop_stop_dylibloader_wrapper_pulse)( pa_threaded_mainloop*);
@@ -1405,7 +1405,7 @@ extern pa_mainloop_api* (*pa_threaded_mainloop_get_api_dylibloader_wrapper_pulse
 extern int (*pa_threaded_mainloop_in_thread_dylibloader_wrapper_pulse)( pa_threaded_mainloop*);
 extern void (*pa_threaded_mainloop_set_name_dylibloader_wrapper_pulse)( pa_threaded_mainloop*,const char*);
 extern void (*pa_threaded_mainloop_once_unlocked_dylibloader_wrapper_pulse)( pa_threaded_mainloop*, void*, void*);
-extern pa_mainloop* (*pa_mainloop_new_dylibloader_wrapper_pulse)( void);
+extern pa_mainloop* (*pa_mainloop_new_dylibloader_wrapper_pulse)( );
 extern void (*pa_mainloop_free_dylibloader_wrapper_pulse)( pa_mainloop*);
 extern int (*pa_mainloop_prepare_dylibloader_wrapper_pulse)( pa_mainloop*, int);
 extern int (*pa_mainloop_poll_dylibloader_wrapper_pulse)( pa_mainloop*);
@@ -1418,7 +1418,7 @@ extern void (*pa_mainloop_quit_dylibloader_wrapper_pulse)( pa_mainloop*, int);
 extern void (*pa_mainloop_wakeup_dylibloader_wrapper_pulse)( pa_mainloop*);
 extern void (*pa_mainloop_set_poll_func_dylibloader_wrapper_pulse)( pa_mainloop*, pa_poll_func, void*);
 extern int (*pa_signal_init_dylibloader_wrapper_pulse)( pa_mainloop_api*);
-extern void (*pa_signal_done_dylibloader_wrapper_pulse)( void);
+extern void (*pa_signal_done_dylibloader_wrapper_pulse)( );
 extern pa_signal_event* (*pa_signal_new_dylibloader_wrapper_pulse)( int, pa_signal_cb_t, void*);
 extern void (*pa_signal_free_dylibloader_wrapper_pulse)( pa_signal_event*);
 extern void (*pa_signal_set_destroy_dylibloader_wrapper_pulse)( pa_signal_event*, pa_signal_destroy_cb_t);
@@ -1438,7 +1438,7 @@ extern struct timeval* (*pa_timeval_add_dylibloader_wrapper_pulse)(struct timeva
 extern struct timeval* (*pa_timeval_sub_dylibloader_wrapper_pulse)(struct timeval*, pa_usec_t);
 extern struct timeval* (*pa_timeval_store_dylibloader_wrapper_pulse)(struct timeval*, pa_usec_t);
 extern pa_usec_t (*pa_timeval_load_dylibloader_wrapper_pulse)(struct timeval*);
-extern pa_usec_t (*pa_rtclock_now_dylibloader_wrapper_pulse)( void);
+extern pa_usec_t (*pa_rtclock_now_dylibloader_wrapper_pulse)( );
 int initialize_pulse(int verbose);
 #ifdef __cplusplus
 }

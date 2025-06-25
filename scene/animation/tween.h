@@ -189,7 +189,7 @@ public:
 	bool targeting_method(Object *p_object, StringName p_method, Object *p_initial, StringName p_initial_method, Variant p_final_val, real_t p_duration, TransitionType p_trans_type = TRANS_LINEAR, EaseType p_ease_type = EASE_IN_OUT, real_t p_delay = 0);
 
 	Tween();
-	~Tween();
+	~Tween() override;
 };
 
 VARIANT_ENUM_CAST(Tween::TweenProcessMode);

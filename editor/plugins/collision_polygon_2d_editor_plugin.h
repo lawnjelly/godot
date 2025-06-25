@@ -40,8 +40,8 @@ class CollisionPolygon2DEditor : public AbstractPolygon2DEditor {
 	CollisionPolygon2D *node;
 
 protected:
-	virtual Node2D *_get_node() const;
-	virtual void _set_node(Node *p_polygon);
+	Node2D *_get_node() const override;
+	void _set_node(Node *p_polygon) override;
 
 public:
 	CollisionPolygon2DEditor(EditorNode *p_editor);

@@ -105,7 +105,7 @@ protected:
 	// This is because physics interpolation may need to request process modes additionally.
 	void set_desired_process_modes(bool p_process_internal, bool p_physics_process_internal);
 
-	virtual void _physics_interpolated_changed();
+	void _physics_interpolated_changed() override;
 	virtual Transform _get_adjusted_camera_transform(const Transform &p_xform) const;
 	///////////////////////////////////////////////////////
 
@@ -113,12 +113,12 @@ protected:
 	virtual void _request_camera_update();
 	void _update_camera_mode();
 
-	virtual void fti_pump_property();
-	virtual void fti_update_servers_property();
-	virtual void fti_update_servers_xform();
+	void fti_pump_property() override;
+	void fti_update_servers_property() override;
+	void fti_update_servers_xform() override;
 
 	void _notification(int p_what);
-	virtual void _validate_property(PropertyInfo &p_property) const;
+	void _validate_property(PropertyInfo &p_property) const override;
 
 	static void _bind_methods();
 
@@ -196,7 +196,7 @@ public:
 	bool get_affect_lod() const { return affect_lod; }
 
 	Camera();
-	~Camera();
+	~Camera() override;
 };
 
 VARIANT_ENUM_CAST(Camera::Projection);
@@ -235,10 +235,10 @@ private:
 	} _interpolation_data;
 
 protected:
-	virtual Transform _get_adjusted_camera_transform(const Transform &p_xform) const;
-	virtual void fti_pump_xform();
-	virtual void fti_update_servers_xform();
-	virtual void _physics_interpolated_changed();
+	Transform _get_adjusted_camera_transform(const Transform &p_xform) const override;
+	void fti_pump_xform() override;
+	void fti_update_servers_xform() override;
+	void _physics_interpolated_changed() override;
 	///////////////////////////////////////////////////////
 
 	void _notification(int p_what);
@@ -272,7 +272,7 @@ public:
 	float get_clip_offset() const;
 
 	ClippedCamera();
-	~ClippedCamera();
+	~ClippedCamera() override;
 };
 
 VARIANT_ENUM_CAST(ClippedCamera::ProcessMode);

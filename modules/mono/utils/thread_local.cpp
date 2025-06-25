@@ -103,5 +103,5 @@ void ThreadLocalStorage::alloc(void(_CALLBACK_FUNC_ *p_destr_callback)(void *)) 
 
 void ThreadLocalStorage::free() {
 	memdelete(pimpl);
-	pimpl = NULL;
+	pimpl = nullptr;
 }

@@ -66,7 +66,7 @@ class ScrollContainer : public Container {
 	void _cancel_drag();
 
 protected:
-	Size2 get_minimum_size() const;
+	Size2 get_minimum_size() const override;
 
 	void _gui_input(const Ref<InputEvent> &p_gui_input);
 	void _gui_focus_changed(Control *p_control);
@@ -101,9 +101,9 @@ public:
 	VScrollBar *get_v_scrollbar();
 	void ensure_control_visible(Control *p_control);
 
-	virtual bool clips_input() const;
+	bool clips_input() const override;
 
-	virtual String get_configuration_warning() const;
+	String get_configuration_warning() const override;
 
 	ScrollContainer();
 };

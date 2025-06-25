@@ -1518,8 +1518,9 @@ Error Main::setup2(Thread::ID p_main_tid_override) {
 			if (boot_logo_path != String()) {
 				boot_logo.instance();
 				Error load_err = ImageLoader::load_image(boot_logo_path, boot_logo);
-				if (load_err)
+				if (load_err) {
 					ERR_PRINT("Non-existing or invalid boot splash at '" + boot_logo_path + "'. Loading default splash.");
+				}
 			}
 		} else {
 			// Create a 1×1 transparent image. This will effectively hide the splash image.
@@ -2172,8 +2173,9 @@ bool Main::start() {
 			if (editor) {
 				if (game_path != GLOBAL_GET("application/run/main_scene") || !editor_node->has_scenes_in_session()) {
 					Error serr = editor_node->load_scene(local_game_path);
-					if (serr != OK)
+					if (serr != OK) {
 						ERR_PRINT("Failed to load scene");
+					}
 				}
 				OS::get_singleton()->set_context(OS::CONTEXT_EDITOR);
 				// Start debug server.

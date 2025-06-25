@@ -80,7 +80,7 @@ protected:
 
 public:
 	NavigationAgent();
-	virtual ~NavigationAgent();
+	~NavigationAgent() override;
 
 	void set_navigation(Navigation *p_nav);
 	const Navigation *get_navigation() const {
@@ -175,7 +175,7 @@ public:
 	void set_velocity(Vector3 p_velocity);
 	void _avoidance_done(Vector3 p_new_velocity);
 
-	virtual String get_configuration_warning() const;
+	String get_configuration_warning() const override;
 
 private:
 	void update_navigation();

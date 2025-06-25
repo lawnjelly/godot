@@ -73,7 +73,7 @@ public:
 	void get_viewport_list(List<Viewport *> *r_viewports);
 
 	World2D();
-	~World2D();
+	~World2D() override;
 };
 
 #endif // WORLD_2D_H

@@ -157,16 +157,16 @@ public:
 		Octree_CL<Instance, true> _octree;
 
 	public:
-		SpatialPartitionID create(Instance *p_userdata, const AABB &p_aabb, int p_subindex, bool p_pairable, uint32_t p_pairable_type, uint32_t pairable_mask);
-		void erase(SpatialPartitionID p_handle);
-		void move(SpatialPartitionID p_handle, const AABB &p_aabb);
-		void set_pairable(Instance *p_instance, bool p_pairable, uint32_t p_pairable_type, uint32_t p_pairable_mask);
-		int cull_convex(const Vector<Plane> &p_convex, Instance **p_result_array, int p_result_max, uint32_t p_mask = 0xFFFFFFFF);
-		int cull_aabb(const AABB &p_aabb, Instance **p_result_array, int p_result_max, int *p_subindex_array = nullptr, uint32_t p_mask = 0xFFFFFFFF);
-		int cull_segment(const Vector3 &p_from, const Vector3 &p_to, Instance **p_result_array, int p_result_max, int *p_subindex_array = nullptr, uint32_t p_mask = 0xFFFFFFFF);
-		void set_pair_callback(PairCallback p_callback, void *p_userdata);
-		void set_unpair_callback(UnpairCallback p_callback, void *p_userdata);
-		void set_balance(float p_balance);
+		SpatialPartitionID create(Instance *p_userdata, const AABB &p_aabb, int p_subindex, bool p_pairable, uint32_t p_pairable_type, uint32_t pairable_mask) override;
+		void erase(SpatialPartitionID p_handle) override;
+		void move(SpatialPartitionID p_handle, const AABB &p_aabb) override;
+		void set_pairable(Instance *p_instance, bool p_pairable, uint32_t p_pairable_type, uint32_t p_pairable_mask) override;
+		int cull_convex(const Vector<Plane> &p_convex, Instance **p_result_array, int p_result_max, uint32_t p_mask = 0xFFFFFFFF) override;
+		int cull_aabb(const AABB &p_aabb, Instance **p_result_array, int p_result_max, int *p_subindex_array = nullptr, uint32_t p_mask = 0xFFFFFFFF) override;
+		int cull_segment(const Vector3 &p_from, const Vector3 &p_to, Instance **p_result_array, int p_result_max, int *p_subindex_array = nullptr, uint32_t p_mask = 0xFFFFFFFF) override;
+		void set_pair_callback(PairCallback p_callback, void *p_userdata) override;
+		void set_unpair_callback(UnpairCallback p_callback, void *p_userdata) override;
+		void set_balance(float p_balance) override;
 	};
 
 	class SpatialPartitioningScene_BVH : public SpatialPartitioningScene {
@@ -237,24 +237,24 @@ public:
 
 	public:
 		SpatialPartitioningScene_BVH();
-		~SpatialPartitioningScene_BVH();
-		SpatialPartitionID create(Instance *p_userdata, const AABB &p_aabb, int p_subindex, bool p_pairable, uint32_t p_pairable_type, uint32_t p_pairable_mask);
-		void erase(SpatialPartitionID p_handle);
-		void move(SpatialPartitionID p_handle, const AABB &p_aabb);
-		void activate(SpatialPartitionID p_handle, const AABB &p_aabb);
-		void deactivate(SpatialPartitionID p_handle);
-		void force_collision_check(SpatialPartitionID p_handle);
-		void update();
-		void update_collisions();
-		void set_pairable(Instance *p_instance, bool p_pairable, uint32_t p_pairable_type, uint32_t p_pairable_mask);
-		int cull_convex(const Vector<Plane> &p_convex, Instance **p_result_array, int p_result_max, uint32_t p_mask = 0xFFFFFFFF);
-		int cull_aabb(const AABB &p_aabb, Instance **p_result_array, int p_result_max, int *p_subindex_array = nullptr, uint32_t p_mask = 0xFFFFFFFF);
-		int cull_segment(const Vector3 &p_from, const Vector3 &p_to, Instance **p_result_array, int p_result_max, int *p_subindex_array = nullptr, uint32_t p_mask = 0xFFFFFFFF);
-		void set_pair_callback(PairCallback p_callback, void *p_userdata);
-		void set_unpair_callback(UnpairCallback p_callback, void *p_userdata);
+		~SpatialPartitioningScene_BVH() override;
+		SpatialPartitionID create(Instance *p_userdata, const AABB &p_aabb, int p_subindex, bool p_pairable, uint32_t p_pairable_type, uint32_t p_pairable_mask) override;
+		void erase(SpatialPartitionID p_handle) override;
+		void move(SpatialPartitionID p_handle, const AABB &p_aabb) override;
+		void activate(SpatialPartitionID p_handle, const AABB &p_aabb) override;
+		void deactivate(SpatialPartitionID p_handle) override;
+		void force_collision_check(SpatialPartitionID p_handle) override;
+		void update() override;
+		void update_collisions() override;
+		void set_pairable(Instance *p_instance, bool p_pairable, uint32_t p_pairable_type, uint32_t p_pairable_mask) override;
+		int cull_convex(const Vector<Plane> &p_convex, Instance **p_result_array, int p_result_max, uint32_t p_mask = 0xFFFFFFFF) override;
+		int cull_aabb(const AABB &p_aabb, Instance **p_result_array, int p_result_max, int *p_subindex_array = nullptr, uint32_t p_mask = 0xFFFFFFFF) override;
+		int cull_segment(const Vector3 &p_from, const Vector3 &p_to, Instance **p_result_array, int p_result_max, int *p_subindex_array = nullptr, uint32_t p_mask = 0xFFFFFFFF) override;
+		void set_pair_callback(PairCallback p_callback, void *p_userdata) override;
+		void set_unpair_callback(UnpairCallback p_callback, void *p_userdata) override;
 
-		void params_set_node_expansion(real_t p_value) { _bvh.params_set_node_expansion(p_value); }
-		void params_set_pairing_expansion(real_t p_value) { _bvh.params_set_pairing_expansion(p_value); }
+		void params_set_node_expansion(real_t p_value) override { _bvh.params_set_node_expansion(p_value); }
+		void params_set_pairing_expansion(real_t p_value) override { _bvh.params_set_pairing_expansion(p_value); }
 	};
 
 	struct Scenario : RID_Data {
@@ -273,7 +273,7 @@ public:
 		SelfList<Instance>::List instances;
 
 		Scenario();
-		~Scenario() { memdelete(sps); }
+		~Scenario() override { memdelete(sps); }
 	};
 
 	mutable RID_Owner<Scenario> scenario_owner;
@@ -338,11 +338,11 @@ public:
 
 		InstanceBaseData *base_data;
 
-		virtual void base_removed() {
+		void base_removed() override {
 			singleton->instance_set_base(self, RID());
 		}
 
-		virtual void base_changed(bool p_aabb, bool p_materials) {
+		void base_changed(bool p_aabb, bool p_materials) override {
 			singleton->_instance_queue_update(this, p_aabb, p_materials);
 		}
 
@@ -381,7 +381,7 @@ public:
 			use_aabb_center = true;
 		}
 
-		~Instance() {
+		~Instance() override {
 			if (base_data) {
 				memdelete(base_data);
 			}
@@ -699,7 +699,7 @@ public:
 		uint32_t object_id = 0;
 		RGhostHandle rghost_handle = 0; // handle in occlusion system (or 0)
 		AABB aabb;
-		virtual ~Ghost() {
+		~Ghost() override {
 			if (scenario) {
 				if (rghost_handle) {
 					scenario->_portal_renderer.rghost_destroy(rghost_handle);
@@ -726,7 +726,7 @@ public:
 		// all interactions with actual portals are indirect, as the portal is part of the scenario
 		uint32_t scenario_portal_id = 0;
 		Scenario *scenario = nullptr;
-		virtual ~Portal() {
+		~Portal() override {
 			if (scenario) {
 				scenario->_portal_renderer.portal_destroy(scenario_portal_id);
 				scenario = nullptr;
@@ -748,7 +748,7 @@ public:
 		// all interactions with actual roomgroups are indirect, as the roomgroup is part of the scenario
 		uint32_t scenario_roomgroup_id = 0;
 		Scenario *scenario = nullptr;
-		virtual ~RoomGroup() {
+		~RoomGroup() override {
 			if (scenario) {
 				scenario->_portal_renderer.roomgroup_destroy(scenario_roomgroup_id);
 				scenario = nullptr;
@@ -768,7 +768,7 @@ public:
 	struct OccluderInstance : RID_Data {
 		uint32_t scenario_occluder_id = 0;
 		Scenario *scenario = nullptr;
-		virtual ~OccluderInstance() {
+		~OccluderInstance() override {
 			if (scenario) {
 				scenario->_portal_renderer.occluder_instance_destroy(scenario_occluder_id);
 				scenario = nullptr;
@@ -784,7 +784,7 @@ public:
 			r_portal_resources.occluder_resource_destroy(occluder_resource_id);
 			occluder_resource_id = 0;
 		}
-		virtual ~OccluderResource() {
+		~OccluderResource() override {
 			DEV_ASSERT(occluder_resource_id == 0);
 		}
 	};
@@ -817,7 +817,7 @@ public:
 		// all interactions with actual rooms are indirect, as the room is part of the scenario
 		uint32_t scenario_room_id = 0;
 		Scenario *scenario = nullptr;
-		virtual ~Room() {
+		~Room() override {
 			if (scenario) {
 				scenario->_portal_renderer.room_destroy(scenario_room_id);
 				scenario = nullptr;

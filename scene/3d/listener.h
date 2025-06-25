@@ -65,7 +65,7 @@ public:
 	virtual Transform get_listener_transform() const;
 
 	Listener();
-	~Listener();
+	~Listener() override;
 };
 
 #endif // LISTENER_H

@@ -151,7 +151,7 @@ public:
 	void set_https_proxy(const String &p_host, int p_port);
 
 	HTTPRequest();
-	~HTTPRequest();
+	~HTTPRequest() override;
 };
 
 VARIANT_ENUM_CAST(HTTPRequest::Result);

@@ -52,7 +52,7 @@ public:
 
 protected:
 	void _notification(int p_what);
-	virtual Size2 get_minimum_size() const;
+	Size2 get_minimum_size() const override;
 	static void _bind_methods();
 
 public:
@@ -74,10 +74,10 @@ public:
 	void set_v_axis_stretch_mode(AxisStretchMode p_mode);
 	AxisStretchMode get_v_axis_stretch_mode() const;
 
-	String get_configuration_warning() const;
+	String get_configuration_warning() const override;
 
 	NinePatchRect();
-	~NinePatchRect();
+	~NinePatchRect() override;
 };
 
 VARIANT_ENUM_CAST(NinePatchRect::AxisStretchMode)

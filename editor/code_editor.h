@@ -48,7 +48,7 @@ class GotoLineDialog : public ConfirmationDialog {
 
 	TextEdit *text_editor;
 
-	virtual void ok_pressed();
+	void ok_pressed() override;
 
 public:
 	void popup_find_line(TextEdit *p_edit);

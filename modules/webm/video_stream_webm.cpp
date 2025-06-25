@@ -54,13 +54,13 @@ public:
 
 		ERR_FAIL_COND_MSG(!file, "Failed loading resource: '" + p_file + "'.");
 	}
-	~MkvReader() {
+	~MkvReader() override {
 		if (file) {
 			memdelete(file);
 		}
 	}
 
-	virtual int Read(long long pos, long len, unsigned char *buf) {
+	int Read(long long pos, long len, unsigned char *buf) override {
 		if (file) {
 			if (file->get_position() != (uint64_t)pos) {
 				file->seek(pos);
@@ -72,7 +72,7 @@ public:
 		return -1;
 	}
 
-	virtual int Length(long long *total, long long *available) {
+	int Length(long long *total, long long *available) override {
 		if (file) {
 			const uint64_t len = file->get_len();
 			if (total) {

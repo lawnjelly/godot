@@ -181,7 +181,7 @@ public:
 	void _mark_commit();
 
 	ARVRServer();
-	~ARVRServer();
+	~ARVRServer() override;
 };
 
 #define ARVR ARVRServer

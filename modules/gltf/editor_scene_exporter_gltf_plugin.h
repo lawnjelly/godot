@@ -49,8 +49,8 @@ protected:
 	static void _bind_methods();
 
 public:
-	virtual String get_name() const;
-	bool has_main_screen() const;
+	String get_name() const override;
+	bool has_main_screen() const override;
 	SceneExporterGLTFPlugin(class EditorNode *p_node);
 };
 

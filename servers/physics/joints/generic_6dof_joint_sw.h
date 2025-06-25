@@ -234,10 +234,10 @@ protected:
 public:
 	Generic6DOFJointSW(BodySW *rbA, BodySW *rbB, const Transform &frameInA, const Transform &frameInB, bool useLinearReferenceFrameA);
 
-	virtual PhysicsServer::JointType get_type() const { return PhysicsServer::JOINT_6DOF; }
+	PhysicsServer::JointType get_type() const override { return PhysicsServer::JOINT_6DOF; }
 
-	virtual bool setup(real_t p_timestep);
-	virtual void solve(real_t p_timestep);
+	bool setup(real_t p_timestep) override;
+	void solve(real_t p_timestep) override;
 
 	// Calcs the global transform for the joint offset for body A an B, and also calcs the angle differences between the bodies.
 	void calculateTransforms();

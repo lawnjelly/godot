@@ -75,7 +75,7 @@ public:
 	int delete_port_mapping(int port, String proto = "UDP") const;
 
 	UPNPDevice();
-	~UPNPDevice();
+	~UPNPDevice() override;
 
 protected:
 	static void _bind_methods();

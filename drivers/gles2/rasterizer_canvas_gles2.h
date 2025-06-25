@@ -40,11 +40,11 @@ class RasterizerCanvasGLES2 : public RasterizerCanvasBaseGLES2, public Rasterize
 	friend class RasterizerCanvasBatcher<RasterizerCanvasGLES2, RasterizerStorageGLES2>;
 
 public:
-	virtual void canvas_render_items_begin(const Color &p_modulate, Light *p_light, const Transform2D &p_base_transform);
-	virtual void canvas_render_items_end();
-	virtual void canvas_render_items(Item *p_item_list, int p_z, const Color &p_modulate, Light *p_light, const Transform2D &p_base_transform);
-	virtual void canvas_begin();
-	virtual void canvas_end();
+	void canvas_render_items_begin(const Color &p_modulate, Light *p_light, const Transform2D &p_base_transform) override;
+	void canvas_render_items_end() override;
+	void canvas_render_items(Item *p_item_list, int p_z, const Color &p_modulate, Light *p_light, const Transform2D &p_base_transform) override;
+	void canvas_begin() override;
+	void canvas_end() override;
 
 private:
 	// legacy codepath .. to remove after testing

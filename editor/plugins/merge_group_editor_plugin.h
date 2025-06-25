@@ -106,16 +106,16 @@ protected:
 	static void _bind_methods();
 
 public:
-	virtual String get_name() const { return "MergeGroup"; }
-	bool has_main_screen() const { return false; }
-	virtual void edit(Object *p_object);
-	virtual bool handles(Object *p_object) const;
-	virtual void make_visible(bool p_visible);
+	String get_name() const override { return "MergeGroup"; }
+	bool has_main_screen() const override { return false; }
+	void edit(Object *p_object) override;
+	bool handles(Object *p_object) const override;
+	void make_visible(bool p_visible) override;
 
 	void dialog_pressed_bake(bool p_single_scene, int p_subscene_polycount_threshold);
 
 	MergeGroupEditorPlugin(EditorNode *p_node);
-	~MergeGroupEditorPlugin();
+	~MergeGroupEditorPlugin() override;
 };
 
 #endif // MERGE_GROUP_EDITOR_PLUGIN_H

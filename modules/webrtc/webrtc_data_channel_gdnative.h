@@ -48,32 +48,32 @@ private:
 public:
 	void set_native_webrtc_data_channel(const godot_net_webrtc_data_channel *p_impl);
 
-	virtual void set_write_mode(WriteMode mode);
-	virtual WriteMode get_write_mode() const;
-	virtual bool was_string_packet() const;
+	void set_write_mode(WriteMode mode) override;
+	WriteMode get_write_mode() const override;
+	bool was_string_packet() const override;
 
-	virtual ChannelState get_ready_state() const;
-	virtual String get_label() const;
-	virtual bool is_ordered() const;
-	virtual int get_id() const;
-	virtual int get_max_packet_life_time() const;
-	virtual int get_max_retransmits() const;
-	virtual String get_protocol() const;
-	virtual bool is_negotiated() const;
-	virtual int get_buffered_amount() const;
+	ChannelState get_ready_state() const override;
+	String get_label() const override;
+	bool is_ordered() const override;
+	int get_id() const override;
+	int get_max_packet_life_time() const override;
+	int get_max_retransmits() const override;
+	String get_protocol() const override;
+	bool is_negotiated() const override;
+	int get_buffered_amount() const override;
 
-	virtual Error poll();
-	virtual void close();
+	Error poll() override;
+	void close() override;
 
 	/** Inherited from PacketPeer: **/
-	virtual int get_available_packet_count() const;
-	virtual Error get_packet(const uint8_t **r_buffer, int &r_buffer_size); ///< buffer is GONE after next get_packet
-	virtual Error put_packet(const uint8_t *p_buffer, int p_buffer_size);
+	int get_available_packet_count() const override;
+	Error get_packet(const uint8_t **r_buffer, int &r_buffer_size) override; ///< buffer is GONE after next get_packet
+	Error put_packet(const uint8_t *p_buffer, int p_buffer_size) override;
 
-	virtual int get_max_packet_size() const;
+	int get_max_packet_size() const override;
 
 	WebRTCDataChannelGDNative();
-	~WebRTCDataChannelGDNative();
+	~WebRTCDataChannelGDNative() override;
 };
 
 #endif // WEBRTC_GDNATIVE_ENABLED

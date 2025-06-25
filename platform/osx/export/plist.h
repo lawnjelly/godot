@@ -108,7 +108,7 @@ public:
 	void store_text(String &p_stream, uint8_t p_indent) const;
 
 	PListNode() {}
-	~PListNode() {}
+	~PListNode() override {}
 };
 
 #endif // MODULE_REGEX_ENABLED

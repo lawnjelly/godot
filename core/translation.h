@@ -73,8 +73,8 @@ class ContextTranslation : public Translation {
 	Map<StringName, Map<StringName, StringName>> context_translation_map;
 
 public:
-	virtual void add_context_message(const StringName &p_src_text, const StringName &p_xlated_text, const StringName &p_context);
-	virtual StringName get_context_message(const StringName &p_src_text, const StringName &p_context) const;
+	void add_context_message(const StringName &p_src_text, const StringName &p_xlated_text, const StringName &p_context) override;
+	StringName get_context_message(const StringName &p_src_text, const StringName &p_context) const override;
 };
 
 class TranslationServer : public Object {

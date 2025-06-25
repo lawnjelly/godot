@@ -68,22 +68,22 @@ public:
 	void set_viewport_path_in_scene(const NodePath &p_path);
 	NodePath get_viewport_path_in_scene() const;
 
-	virtual void setup_local_to_scene();
+	void setup_local_to_scene() override;
 
-	virtual int get_width() const;
-	virtual int get_height() const;
-	virtual Size2 get_size() const;
-	virtual RID get_rid() const;
+	int get_width() const override;
+	int get_height() const override;
+	Size2 get_size() const override;
+	RID get_rid() const override;
 
-	virtual bool has_alpha() const;
+	bool has_alpha() const override;
 
-	virtual void set_flags(uint32_t p_flags);
-	virtual uint32_t get_flags() const;
+	void set_flags(uint32_t p_flags) override;
+	uint32_t get_flags() const override;
 
-	virtual Ref<Image> get_data() const;
+	Ref<Image> get_data() const override;
 
 	ViewportTexture();
-	~ViewportTexture();
+	~ViewportTexture() override;
 };
 
 class Viewport : public Node {
@@ -432,7 +432,7 @@ protected:
 	void _notification(int p_what);
 	void _process_picking(bool p_ignore_paused);
 	static void _bind_methods();
-	virtual void _validate_property(PropertyInfo &property) const;
+	void _validate_property(PropertyInfo &property) const override;
 
 public:
 	Listener *get_listener() const;
@@ -572,7 +572,7 @@ public:
 	Control *gui_get_focus_owner() const;
 	Control *gui_get_hovered_control() const;
 
-	virtual String get_configuration_warning() const;
+	String get_configuration_warning() const override;
 
 	void set_usage(Usage p_usage);
 	Usage get_usage() const;
@@ -601,7 +601,7 @@ public:
 	static void flush_canvas_parents_dirty_order();
 
 	Viewport();
-	~Viewport();
+	~Viewport() override;
 };
 
 VARIANT_ENUM_CAST(Viewport::UpdateMode);

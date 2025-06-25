@@ -303,10 +303,11 @@ void FabrikInverseKinematic::solve(Task *p_task, real_t blending_delta, bool ove
 
 		} else {
 			// Set target orientation to tip
-			if (override_tip_basis)
+			if (override_tip_basis) {
 				new_bone_pose.basis = p_task->chain.tips[0].end_effector->goal_transform.basis;
-			else
+			} else {
 				new_bone_pose.basis = new_bone_pose.basis * p_task->chain.tips[0].end_effector->goal_transform.basis;
+			}
 		}
 
 		// IK should not affect scale, so undo any scaling

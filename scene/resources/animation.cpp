@@ -1436,8 +1436,9 @@ int Animation::_find(const Vector<K> &p_keys, float p_time) const {
 	int middle = 0;
 
 #ifdef DEBUG_ENABLED
-	if (low > high)
+	if (low > high) {
 		ERR_PRINT("low > high, this may be a bug");
+	}
 #endif
 
 	const K *keys = &p_keys[0];

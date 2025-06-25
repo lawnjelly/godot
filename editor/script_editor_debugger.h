@@ -293,9 +293,9 @@ public:
 
 	bool is_skip_breakpoints();
 
-	virtual Size2 get_minimum_size() const;
+	Size2 get_minimum_size() const override;
 	ScriptEditorDebugger(EditorNode *p_editor = nullptr);
-	~ScriptEditorDebugger();
+	~ScriptEditorDebugger() override;
 };
 
 #endif // SCRIPT_EDITOR_DEBUGGER_H

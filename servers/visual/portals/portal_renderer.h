@@ -207,8 +207,9 @@ public:
 		Vector3 point = p_cam_transform.origin;
 		Vector3 cam_dir = -p_cam_transform.basis.get_axis(2).normalized();
 
-		if (!_override_camera)
+		if (!_override_camera) {
 			return cull_convex_implementation(point, cam_dir, cm, p_convex, p_result_array, p_result_max, p_mask, r_previous_room_id_hint);
+		}
 
 		// override camera matrix NYI
 		return cull_convex_implementation(_override_camera_pos, cam_dir, cm, _override_camera_planes, p_result_array, p_result_max, p_mask, r_previous_room_id_hint);

@@ -60,7 +60,7 @@ class VisibilityNotifier : public CullInstance {
 protected:
 	virtual void _screen_enter() {}
 	virtual void _screen_exit() {}
-	virtual void _refresh_portal_mode();
+	void _refresh_portal_mode() override;
 
 	void _notification(int p_what);
 	static void _bind_methods();
@@ -90,7 +90,7 @@ public:
 	}
 
 	VisibilityNotifier();
-	~VisibilityNotifier();
+	~VisibilityNotifier() override;
 };
 
 class VisibilityEnabler : public VisibilityNotifier {
@@ -104,8 +104,8 @@ public:
 	};
 
 protected:
-	virtual void _screen_enter();
-	virtual void _screen_exit();
+	void _screen_enter() override;
+	void _screen_exit() override;
 
 	bool visible;
 

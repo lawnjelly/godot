@@ -39,14 +39,14 @@ class PlaneShape : public Shape {
 
 protected:
 	static void _bind_methods();
-	virtual void _update_shape();
+	void _update_shape() override;
 
 public:
 	void set_plane(Plane p_plane);
 	Plane get_plane() const;
 
-	virtual Vector<Vector3> get_debug_mesh_lines();
-	virtual real_t get_enclosing_radius() const {
+	Vector<Vector3> get_debug_mesh_lines() override;
+	real_t get_enclosing_radius() const override {
 		// Should be infinite?
 		return 0;
 	};

@@ -117,7 +117,7 @@ public:
 	bool is_discover_ipv6() const;
 
 	UPNP();
-	~UPNP();
+	~UPNP() override;
 };
 
 VARIANT_ENUM_CAST(UPNP::UPNPResult)

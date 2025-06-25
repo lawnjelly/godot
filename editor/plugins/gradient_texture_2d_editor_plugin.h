@@ -100,8 +100,8 @@ class EditorInspectorPluginGradientTexture2D : public EditorInspectorPlugin {
 	GDCLASS(EditorInspectorPluginGradientTexture2D, EditorInspectorPlugin);
 
 public:
-	virtual bool can_handle(Object *p_object);
-	virtual void parse_begin(Object *p_object);
+	bool can_handle(Object *p_object) override;
+	void parse_begin(Object *p_object) override;
 };
 
 class GradientTexture2DEditorPlugin : public EditorPlugin {

@@ -104,7 +104,7 @@ public:
 	uint64_t get_ticks_usec() const;
 
 	Time();
-	virtual ~Time();
+	~Time() override;
 };
 
 #endif // TIME_H

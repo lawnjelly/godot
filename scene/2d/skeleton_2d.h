@@ -61,7 +61,7 @@ public:
 	void apply_rest();
 	Transform2D get_skeleton_rest() const;
 
-	String get_configuration_warning() const;
+	String get_configuration_warning() const override;
 
 	void set_default_length(float p_length);
 	float get_default_length() const;
@@ -114,7 +114,7 @@ protected:
 	void _notification(int p_what);
 	static void _bind_methods();
 
-	virtual void _physics_interpolated_changed();
+	void _physics_interpolated_changed() override;
 
 public:
 	int get_bone_count() const;
@@ -122,7 +122,7 @@ public:
 
 	RID get_skeleton() const;
 	Skeleton2D();
-	~Skeleton2D();
+	~Skeleton2D() override;
 };
 
 #endif // SKELETON_2D_H

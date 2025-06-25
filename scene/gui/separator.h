@@ -40,10 +40,10 @@ protected:
 	void _notification(int p_what);
 
 public:
-	virtual Size2 get_minimum_size() const;
+	Size2 get_minimum_size() const override;
 
 	Separator();
-	~Separator();
+	~Separator() override;
 };
 
 class VSeparator : public Separator {

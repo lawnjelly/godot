@@ -90,10 +90,10 @@ public:
 	void set_include_in_bound(bool p_enabled) { _settings_include_in_bound = p_enabled; }
 	bool get_include_in_bound() const { return _settings_include_in_bound; }
 
-	String get_configuration_warning() const;
+	String get_configuration_warning() const override;
 
 	Portal();
-	~Portal();
+	~Portal() override;
 
 	// whether the convention is that the normal of the portal points outward (false) or inward (true)
 	// normally I'd recommend portal normal faces outward. But you may make a booboo, so this can work

@@ -180,9 +180,9 @@ protected:
 
 public:
 	static AnimationNodeStateMachineEditor *get_singleton() { return singleton; }
-	virtual bool can_edit(const Ref<AnimationNode> &p_node);
-	virtual void edit(const Ref<AnimationNode> &p_node);
-	virtual CursorShape get_cursor_shape(const Point2 &p_pos) const;
+	bool can_edit(const Ref<AnimationNode> &p_node) override;
+	void edit(const Ref<AnimationNode> &p_node) override;
+	CursorShape get_cursor_shape(const Point2 &p_pos) const override;
 	AnimationNodeStateMachineEditor();
 };
 

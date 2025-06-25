@@ -880,7 +880,7 @@ public:
 	int execute_and_show_output(const String &p_title, const String &p_path, const List<String> &p_arguments, bool p_close_on_ok = true, bool p_close_on_errors = false);
 
 	EditorNode();
-	~EditorNode();
+	~EditorNode() override;
 
 	void add_resource_conversion_plugin(const Ref<EditorResourceConversionPlugin> &p_plugin);
 	void remove_resource_conversion_plugin(const Ref<EditorResourceConversionPlugin> &p_plugin);
@@ -936,7 +936,7 @@ public:
 	bool empty();
 
 	EditorPluginList();
-	~EditorPluginList();
+	~EditorPluginList() override;
 };
 
 struct EditorProgressBG {

@@ -188,7 +188,7 @@ public:
 	void set_scroll(int p_scroll);
 
 	EditorHelp();
-	~EditorHelp();
+	~EditorHelp() override;
 };
 
 class EditorHelpBit : public PanelContainer {

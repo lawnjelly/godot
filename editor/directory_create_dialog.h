@@ -56,8 +56,8 @@ protected:
 	static void _bind_methods();
 	void _notification(int p_what);
 
-	virtual void ok_pressed();
-	virtual void _post_popup();
+	void ok_pressed() override;
+	void _post_popup() override;
 
 public:
 	void config(const String &p_base_dir);

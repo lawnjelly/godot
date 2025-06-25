@@ -77,7 +77,7 @@ public:
 	bool is_active() const;
 
 	EditorFileServer();
-	~EditorFileServer();
+	~EditorFileServer() override;
 };
 
 #endif // EDITOR_FILE_SERVER_H

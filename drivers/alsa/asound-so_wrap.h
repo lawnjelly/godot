@@ -3848,7 +3848,7 @@ extern "C" {
 #define snd_midi_event_encode snd_midi_event_encode_dylibloader_wrapper_asound
 #define snd_midi_event_encode_byte snd_midi_event_encode_byte_dylibloader_wrapper_asound
 #define snd_midi_event_decode snd_midi_event_decode_dylibloader_wrapper_asound
-extern const char* (*snd_asoundlib_version_dylibloader_wrapper_asound)( void);
+extern const char* (*snd_asoundlib_version_dylibloader_wrapper_asound)( );
 extern int (*snd_dlpath_dylibloader_wrapper_asound)( char*, size_t,const char*);
 extern void* (*snd_dlopen_dylibloader_wrapper_asound)(const char*, int, char*, size_t);
 extern void* (*snd_dlsym_dylibloader_wrapper_asound)( void*,const char*,const char*);
@@ -3883,15 +3883,15 @@ extern int (*snd_output_flush_dylibloader_wrapper_asound)( snd_output_t*);
 extern const char* (*snd_strerror_dylibloader_wrapper_asound)( int);
 extern int (*snd_lib_error_set_handler_dylibloader_wrapper_asound)( snd_lib_error_handler_t);
 extern snd_local_error_handler_t (*snd_lib_error_set_local_dylibloader_wrapper_asound)( snd_local_error_handler_t);
-extern const char* (*snd_config_topdir_dylibloader_wrapper_asound)( void);
+extern const char* (*snd_config_topdir_dylibloader_wrapper_asound)( );
 extern int (*snd_config_top_dylibloader_wrapper_asound)( snd_config_t**);
 extern int (*snd_config_load_dylibloader_wrapper_asound)( snd_config_t*, snd_input_t*);
 extern int (*snd_config_load_override_dylibloader_wrapper_asound)( snd_config_t*, snd_input_t*);
 extern int (*snd_config_save_dylibloader_wrapper_asound)( snd_config_t*, snd_output_t*);
-extern int (*snd_config_update_dylibloader_wrapper_asound)( void);
+extern int (*snd_config_update_dylibloader_wrapper_asound)( );
 extern int (*snd_config_update_r_dylibloader_wrapper_asound)( snd_config_t**, snd_config_update_t**,const char*);
 extern int (*snd_config_update_free_dylibloader_wrapper_asound)( snd_config_update_t*);
-extern int (*snd_config_update_free_global_dylibloader_wrapper_asound)( void);
+extern int (*snd_config_update_free_global_dylibloader_wrapper_asound)( );
 extern int (*snd_config_update_ref_dylibloader_wrapper_asound)( snd_config_t**);
 extern void (*snd_config_ref_dylibloader_wrapper_asound)( snd_config_t*);
 extern void (*snd_config_unref_dylibloader_wrapper_asound)( snd_config_t*);
@@ -4007,7 +4007,7 @@ extern snd_pcm_chmap_t* (*snd_pcm_chmap_parse_string_dylibloader_wrapper_asound)
 extern int (*snd_pcm_recover_dylibloader_wrapper_asound)( snd_pcm_t*, int, int);
 extern int (*snd_pcm_set_params_dylibloader_wrapper_asound)( snd_pcm_t*, snd_pcm_format_t, snd_pcm_access_t, unsigned int, unsigned int, int, unsigned int);
 extern int (*snd_pcm_get_params_dylibloader_wrapper_asound)( snd_pcm_t*, snd_pcm_uframes_t*, snd_pcm_uframes_t*);
-extern size_t (*snd_pcm_info_sizeof_dylibloader_wrapper_asound)( void);
+extern size_t (*snd_pcm_info_sizeof_dylibloader_wrapper_asound)( );
 extern int (*snd_pcm_info_malloc_dylibloader_wrapper_asound)( snd_pcm_info_t**);
 extern void (*snd_pcm_info_free_dylibloader_wrapper_asound)( snd_pcm_info_t*);
 extern void (*snd_pcm_info_copy_dylibloader_wrapper_asound)( snd_pcm_info_t*,const snd_pcm_info_t*);
@@ -4044,7 +4044,7 @@ extern int (*snd_pcm_hw_params_supports_audio_ts_type_dylibloader_wrapper_asound
 extern int (*snd_pcm_hw_params_get_rate_numden_dylibloader_wrapper_asound)(const snd_pcm_hw_params_t*, unsigned int*, unsigned int*);
 extern int (*snd_pcm_hw_params_get_sbits_dylibloader_wrapper_asound)(const snd_pcm_hw_params_t*);
 extern int (*snd_pcm_hw_params_get_fifo_size_dylibloader_wrapper_asound)(const snd_pcm_hw_params_t*);
-extern size_t (*snd_pcm_hw_params_sizeof_dylibloader_wrapper_asound)( void);
+extern size_t (*snd_pcm_hw_params_sizeof_dylibloader_wrapper_asound)( );
 extern int (*snd_pcm_hw_params_malloc_dylibloader_wrapper_asound)( snd_pcm_hw_params_t**);
 extern void (*snd_pcm_hw_params_free_dylibloader_wrapper_asound)( snd_pcm_hw_params_t*);
 extern void (*snd_pcm_hw_params_copy_dylibloader_wrapper_asound)( snd_pcm_hw_params_t*,const snd_pcm_hw_params_t*);
@@ -4155,7 +4155,7 @@ extern int (*snd_pcm_hw_params_set_buffer_size_near_dylibloader_wrapper_asound)(
 extern int (*snd_pcm_hw_params_set_buffer_size_first_dylibloader_wrapper_asound)( snd_pcm_t*, snd_pcm_hw_params_t*, snd_pcm_uframes_t*);
 extern int (*snd_pcm_hw_params_set_buffer_size_last_dylibloader_wrapper_asound)( snd_pcm_t*, snd_pcm_hw_params_t*, snd_pcm_uframes_t*);
 extern int (*snd_pcm_hw_params_get_min_align_dylibloader_wrapper_asound)(const snd_pcm_hw_params_t*, snd_pcm_uframes_t*);
-extern size_t (*snd_pcm_sw_params_sizeof_dylibloader_wrapper_asound)( void);
+extern size_t (*snd_pcm_sw_params_sizeof_dylibloader_wrapper_asound)( );
 extern int (*snd_pcm_sw_params_malloc_dylibloader_wrapper_asound)( snd_pcm_sw_params_t**);
 extern void (*snd_pcm_sw_params_free_dylibloader_wrapper_asound)( snd_pcm_sw_params_t*);
 extern void (*snd_pcm_sw_params_copy_dylibloader_wrapper_asound)( snd_pcm_sw_params_t*,const snd_pcm_sw_params_t*);
@@ -4174,7 +4174,7 @@ extern int (*snd_pcm_sw_params_set_silence_threshold_dylibloader_wrapper_asound)
 extern int (*snd_pcm_sw_params_get_silence_threshold_dylibloader_wrapper_asound)(const snd_pcm_sw_params_t*, snd_pcm_uframes_t*);
 extern int (*snd_pcm_sw_params_set_silence_size_dylibloader_wrapper_asound)( snd_pcm_t*, snd_pcm_sw_params_t*, snd_pcm_uframes_t);
 extern int (*snd_pcm_sw_params_get_silence_size_dylibloader_wrapper_asound)(const snd_pcm_sw_params_t*, snd_pcm_uframes_t*);
-extern size_t (*snd_pcm_access_mask_sizeof_dylibloader_wrapper_asound)( void);
+extern size_t (*snd_pcm_access_mask_sizeof_dylibloader_wrapper_asound)( );
 extern int (*snd_pcm_access_mask_malloc_dylibloader_wrapper_asound)( snd_pcm_access_mask_t**);
 extern void (*snd_pcm_access_mask_free_dylibloader_wrapper_asound)( snd_pcm_access_mask_t*);
 extern void (*snd_pcm_access_mask_copy_dylibloader_wrapper_asound)( snd_pcm_access_mask_t*,const snd_pcm_access_mask_t*);
@@ -4184,7 +4184,7 @@ extern int (*snd_pcm_access_mask_test_dylibloader_wrapper_asound)(const snd_pcm_
 extern int (*snd_pcm_access_mask_empty_dylibloader_wrapper_asound)(const snd_pcm_access_mask_t*);
 extern void (*snd_pcm_access_mask_set_dylibloader_wrapper_asound)( snd_pcm_access_mask_t*, snd_pcm_access_t);
 extern void (*snd_pcm_access_mask_reset_dylibloader_wrapper_asound)( snd_pcm_access_mask_t*, snd_pcm_access_t);
-extern size_t (*snd_pcm_format_mask_sizeof_dylibloader_wrapper_asound)( void);
+extern size_t (*snd_pcm_format_mask_sizeof_dylibloader_wrapper_asound)( );
 extern int (*snd_pcm_format_mask_malloc_dylibloader_wrapper_asound)( snd_pcm_format_mask_t**);
 extern void (*snd_pcm_format_mask_free_dylibloader_wrapper_asound)( snd_pcm_format_mask_t*);
 extern void (*snd_pcm_format_mask_copy_dylibloader_wrapper_asound)( snd_pcm_format_mask_t*,const snd_pcm_format_mask_t*);
@@ -4194,7 +4194,7 @@ extern int (*snd_pcm_format_mask_test_dylibloader_wrapper_asound)(const snd_pcm_
 extern int (*snd_pcm_format_mask_empty_dylibloader_wrapper_asound)(const snd_pcm_format_mask_t*);
 extern void (*snd_pcm_format_mask_set_dylibloader_wrapper_asound)( snd_pcm_format_mask_t*, snd_pcm_format_t);
 extern void (*snd_pcm_format_mask_reset_dylibloader_wrapper_asound)( snd_pcm_format_mask_t*, snd_pcm_format_t);
-extern size_t (*snd_pcm_subformat_mask_sizeof_dylibloader_wrapper_asound)( void);
+extern size_t (*snd_pcm_subformat_mask_sizeof_dylibloader_wrapper_asound)( );
 extern int (*snd_pcm_subformat_mask_malloc_dylibloader_wrapper_asound)( snd_pcm_subformat_mask_t**);
 extern void (*snd_pcm_subformat_mask_free_dylibloader_wrapper_asound)( snd_pcm_subformat_mask_t*);
 extern void (*snd_pcm_subformat_mask_copy_dylibloader_wrapper_asound)( snd_pcm_subformat_mask_t*,const snd_pcm_subformat_mask_t*);
@@ -4204,7 +4204,7 @@ extern int (*snd_pcm_subformat_mask_test_dylibloader_wrapper_asound)(const snd_p
 extern int (*snd_pcm_subformat_mask_empty_dylibloader_wrapper_asound)(const snd_pcm_subformat_mask_t*);
 extern void (*snd_pcm_subformat_mask_set_dylibloader_wrapper_asound)( snd_pcm_subformat_mask_t*, snd_pcm_subformat_t);
 extern void (*snd_pcm_subformat_mask_reset_dylibloader_wrapper_asound)( snd_pcm_subformat_mask_t*, snd_pcm_subformat_t);
-extern size_t (*snd_pcm_status_sizeof_dylibloader_wrapper_asound)( void);
+extern size_t (*snd_pcm_status_sizeof_dylibloader_wrapper_asound)( );
 extern int (*snd_pcm_status_malloc_dylibloader_wrapper_asound)( snd_pcm_status_t**);
 extern void (*snd_pcm_status_free_dylibloader_wrapper_asound)( snd_pcm_status_t*);
 extern void (*snd_pcm_status_copy_dylibloader_wrapper_asound)( snd_pcm_status_t*,const snd_pcm_status_t*);
@@ -4318,7 +4318,7 @@ extern int (*snd_rawmidi_poll_descriptors_count_dylibloader_wrapper_asound)( snd
 extern int (*snd_rawmidi_poll_descriptors_dylibloader_wrapper_asound)( snd_rawmidi_t*,struct pollfd*, unsigned int);
 extern int (*snd_rawmidi_poll_descriptors_revents_dylibloader_wrapper_asound)( snd_rawmidi_t*,struct pollfd*, unsigned int, unsigned short*);
 extern int (*snd_rawmidi_nonblock_dylibloader_wrapper_asound)( snd_rawmidi_t*, int);
-extern size_t (*snd_rawmidi_info_sizeof_dylibloader_wrapper_asound)( void);
+extern size_t (*snd_rawmidi_info_sizeof_dylibloader_wrapper_asound)( );
 extern int (*snd_rawmidi_info_malloc_dylibloader_wrapper_asound)( snd_rawmidi_info_t**);
 extern void (*snd_rawmidi_info_free_dylibloader_wrapper_asound)( snd_rawmidi_info_t*);
 extern void (*snd_rawmidi_info_copy_dylibloader_wrapper_asound)( snd_rawmidi_info_t*,const snd_rawmidi_info_t*);
@@ -4336,7 +4336,7 @@ extern void (*snd_rawmidi_info_set_device_dylibloader_wrapper_asound)( snd_rawmi
 extern void (*snd_rawmidi_info_set_subdevice_dylibloader_wrapper_asound)( snd_rawmidi_info_t*, unsigned int);
 extern void (*snd_rawmidi_info_set_stream_dylibloader_wrapper_asound)( snd_rawmidi_info_t*, snd_rawmidi_stream_t);
 extern int (*snd_rawmidi_info_dylibloader_wrapper_asound)( snd_rawmidi_t*, snd_rawmidi_info_t*);
-extern size_t (*snd_rawmidi_params_sizeof_dylibloader_wrapper_asound)( void);
+extern size_t (*snd_rawmidi_params_sizeof_dylibloader_wrapper_asound)( );
 extern int (*snd_rawmidi_params_malloc_dylibloader_wrapper_asound)( snd_rawmidi_params_t**);
 extern void (*snd_rawmidi_params_free_dylibloader_wrapper_asound)( snd_rawmidi_params_t*);
 extern void (*snd_rawmidi_params_copy_dylibloader_wrapper_asound)( snd_rawmidi_params_t*,const snd_rawmidi_params_t*);
@@ -4348,7 +4348,7 @@ extern int (*snd_rawmidi_params_set_no_active_sensing_dylibloader_wrapper_asound
 extern int (*snd_rawmidi_params_get_no_active_sensing_dylibloader_wrapper_asound)(const snd_rawmidi_params_t*);
 extern int (*snd_rawmidi_params_dylibloader_wrapper_asound)( snd_rawmidi_t*, snd_rawmidi_params_t*);
 extern int (*snd_rawmidi_params_current_dylibloader_wrapper_asound)( snd_rawmidi_t*, snd_rawmidi_params_t*);
-extern size_t (*snd_rawmidi_status_sizeof_dylibloader_wrapper_asound)( void);
+extern size_t (*snd_rawmidi_status_sizeof_dylibloader_wrapper_asound)( );
 extern int (*snd_rawmidi_status_malloc_dylibloader_wrapper_asound)( snd_rawmidi_status_t**);
 extern void (*snd_rawmidi_status_free_dylibloader_wrapper_asound)( snd_rawmidi_status_t*);
 extern void (*snd_rawmidi_status_copy_dylibloader_wrapper_asound)( snd_rawmidi_status_t*,const snd_rawmidi_status_t*);
@@ -4385,7 +4385,7 @@ extern int (*snd_timer_start_dylibloader_wrapper_asound)( snd_timer_t*);
 extern int (*snd_timer_stop_dylibloader_wrapper_asound)( snd_timer_t*);
 extern int (*snd_timer_continue_dylibloader_wrapper_asound)( snd_timer_t*);
 extern ssize_t (*snd_timer_read_dylibloader_wrapper_asound)( snd_timer_t*, void*, size_t);
-extern size_t (*snd_timer_id_sizeof_dylibloader_wrapper_asound)( void);
+extern size_t (*snd_timer_id_sizeof_dylibloader_wrapper_asound)( );
 extern int (*snd_timer_id_malloc_dylibloader_wrapper_asound)( snd_timer_id_t**);
 extern void (*snd_timer_id_free_dylibloader_wrapper_asound)( snd_timer_id_t*);
 extern void (*snd_timer_id_copy_dylibloader_wrapper_asound)( snd_timer_id_t*,const snd_timer_id_t*);
@@ -4399,7 +4399,7 @@ extern void (*snd_timer_id_set_device_dylibloader_wrapper_asound)( snd_timer_id_
 extern int (*snd_timer_id_get_device_dylibloader_wrapper_asound)( snd_timer_id_t*);
 extern void (*snd_timer_id_set_subdevice_dylibloader_wrapper_asound)( snd_timer_id_t*, int);
 extern int (*snd_timer_id_get_subdevice_dylibloader_wrapper_asound)( snd_timer_id_t*);
-extern size_t (*snd_timer_ginfo_sizeof_dylibloader_wrapper_asound)( void);
+extern size_t (*snd_timer_ginfo_sizeof_dylibloader_wrapper_asound)( );
 extern int (*snd_timer_ginfo_malloc_dylibloader_wrapper_asound)( snd_timer_ginfo_t**);
 extern void (*snd_timer_ginfo_free_dylibloader_wrapper_asound)( snd_timer_ginfo_t*);
 extern void (*snd_timer_ginfo_copy_dylibloader_wrapper_asound)( snd_timer_ginfo_t*,const snd_timer_ginfo_t*);
@@ -4413,7 +4413,7 @@ extern unsigned long (*snd_timer_ginfo_get_resolution_dylibloader_wrapper_asound
 extern unsigned long (*snd_timer_ginfo_get_resolution_min_dylibloader_wrapper_asound)( snd_timer_ginfo_t*);
 extern unsigned long (*snd_timer_ginfo_get_resolution_max_dylibloader_wrapper_asound)( snd_timer_ginfo_t*);
 extern unsigned int (*snd_timer_ginfo_get_clients_dylibloader_wrapper_asound)( snd_timer_ginfo_t*);
-extern size_t (*snd_timer_info_sizeof_dylibloader_wrapper_asound)( void);
+extern size_t (*snd_timer_info_sizeof_dylibloader_wrapper_asound)( );
 extern int (*snd_timer_info_malloc_dylibloader_wrapper_asound)( snd_timer_info_t**);
 extern void (*snd_timer_info_free_dylibloader_wrapper_asound)( snd_timer_info_t*);
 extern void (*snd_timer_info_copy_dylibloader_wrapper_asound)( snd_timer_info_t*,const snd_timer_info_t*);
@@ -4422,7 +4422,7 @@ extern int (*snd_timer_info_get_card_dylibloader_wrapper_asound)( snd_timer_info
 extern const char* (*snd_timer_info_get_id_dylibloader_wrapper_asound)( snd_timer_info_t*);
 extern const char* (*snd_timer_info_get_name_dylibloader_wrapper_asound)( snd_timer_info_t*);
 extern long (*snd_timer_info_get_resolution_dylibloader_wrapper_asound)( snd_timer_info_t*);
-extern size_t (*snd_timer_params_sizeof_dylibloader_wrapper_asound)( void);
+extern size_t (*snd_timer_params_sizeof_dylibloader_wrapper_asound)( );
 extern int (*snd_timer_params_malloc_dylibloader_wrapper_asound)( snd_timer_params_t**);
 extern void (*snd_timer_params_free_dylibloader_wrapper_asound)( snd_timer_params_t*);
 extern void (*snd_timer_params_copy_dylibloader_wrapper_asound)( snd_timer_params_t*,const snd_timer_params_t*);
@@ -4438,7 +4438,7 @@ extern void (*snd_timer_params_set_queue_size_dylibloader_wrapper_asound)( snd_t
 extern long (*snd_timer_params_get_queue_size_dylibloader_wrapper_asound)( snd_timer_params_t*);
 extern void (*snd_timer_params_set_filter_dylibloader_wrapper_asound)( snd_timer_params_t*, unsigned int);
 extern unsigned int (*snd_timer_params_get_filter_dylibloader_wrapper_asound)( snd_timer_params_t*);
-extern size_t (*snd_timer_status_sizeof_dylibloader_wrapper_asound)( void);
+extern size_t (*snd_timer_status_sizeof_dylibloader_wrapper_asound)( );
 extern int (*snd_timer_status_malloc_dylibloader_wrapper_asound)( snd_timer_status_t**);
 extern void (*snd_timer_status_free_dylibloader_wrapper_asound)( snd_timer_status_t*);
 extern void (*snd_timer_status_copy_dylibloader_wrapper_asound)( snd_timer_status_t*,const snd_timer_status_t*);
@@ -4460,7 +4460,7 @@ extern int (*snd_hwdep_dsp_load_dylibloader_wrapper_asound)( snd_hwdep_t*, snd_h
 extern int (*snd_hwdep_ioctl_dylibloader_wrapper_asound)( snd_hwdep_t*, unsigned int, void*);
 extern ssize_t (*snd_hwdep_write_dylibloader_wrapper_asound)( snd_hwdep_t*,const void*, size_t);
 extern ssize_t (*snd_hwdep_read_dylibloader_wrapper_asound)( snd_hwdep_t*, void*, size_t);
-extern size_t (*snd_hwdep_info_sizeof_dylibloader_wrapper_asound)( void);
+extern size_t (*snd_hwdep_info_sizeof_dylibloader_wrapper_asound)( );
 extern int (*snd_hwdep_info_malloc_dylibloader_wrapper_asound)( snd_hwdep_info_t**);
 extern void (*snd_hwdep_info_free_dylibloader_wrapper_asound)( snd_hwdep_info_t*);
 extern void (*snd_hwdep_info_copy_dylibloader_wrapper_asound)( snd_hwdep_info_t*,const snd_hwdep_info_t*);
@@ -4470,7 +4470,7 @@ extern const char* (*snd_hwdep_info_get_id_dylibloader_wrapper_asound)(const snd
 extern const char* (*snd_hwdep_info_get_name_dylibloader_wrapper_asound)(const snd_hwdep_info_t*);
 extern snd_hwdep_iface_t (*snd_hwdep_info_get_iface_dylibloader_wrapper_asound)(const snd_hwdep_info_t*);
 extern void (*snd_hwdep_info_set_device_dylibloader_wrapper_asound)( snd_hwdep_info_t*, unsigned int);
-extern size_t (*snd_hwdep_dsp_status_sizeof_dylibloader_wrapper_asound)( void);
+extern size_t (*snd_hwdep_dsp_status_sizeof_dylibloader_wrapper_asound)( );
 extern int (*snd_hwdep_dsp_status_malloc_dylibloader_wrapper_asound)( snd_hwdep_dsp_status_t**);
 extern void (*snd_hwdep_dsp_status_free_dylibloader_wrapper_asound)( snd_hwdep_dsp_status_t*);
 extern void (*snd_hwdep_dsp_status_copy_dylibloader_wrapper_asound)( snd_hwdep_dsp_status_t*,const snd_hwdep_dsp_status_t*);
@@ -4479,7 +4479,7 @@ extern const char* (*snd_hwdep_dsp_status_get_id_dylibloader_wrapper_asound)(con
 extern unsigned int (*snd_hwdep_dsp_status_get_num_dsps_dylibloader_wrapper_asound)(const snd_hwdep_dsp_status_t*);
 extern unsigned int (*snd_hwdep_dsp_status_get_dsp_loaded_dylibloader_wrapper_asound)(const snd_hwdep_dsp_status_t*);
 extern unsigned int (*snd_hwdep_dsp_status_get_chip_ready_dylibloader_wrapper_asound)(const snd_hwdep_dsp_status_t*);
-extern size_t (*snd_hwdep_dsp_image_sizeof_dylibloader_wrapper_asound)( void);
+extern size_t (*snd_hwdep_dsp_image_sizeof_dylibloader_wrapper_asound)( );
 extern int (*snd_hwdep_dsp_image_malloc_dylibloader_wrapper_asound)( snd_hwdep_dsp_image_t**);
 extern void (*snd_hwdep_dsp_image_free_dylibloader_wrapper_asound)( snd_hwdep_dsp_image_t*);
 extern void (*snd_hwdep_dsp_image_copy_dylibloader_wrapper_asound)( snd_hwdep_dsp_image_t*,const snd_hwdep_dsp_image_t*);
@@ -4550,7 +4550,7 @@ extern void (*snd_ctl_elem_list_free_space_dylibloader_wrapper_asound)( snd_ctl_
 extern char* (*snd_ctl_ascii_elem_id_get_dylibloader_wrapper_asound)( snd_ctl_elem_id_t*);
 extern int (*snd_ctl_ascii_elem_id_parse_dylibloader_wrapper_asound)( snd_ctl_elem_id_t*,const char*);
 extern int (*snd_ctl_ascii_value_parse_dylibloader_wrapper_asound)( snd_ctl_t*, snd_ctl_elem_value_t*, snd_ctl_elem_info_t*,const char*);
-extern size_t (*snd_ctl_elem_id_sizeof_dylibloader_wrapper_asound)( void);
+extern size_t (*snd_ctl_elem_id_sizeof_dylibloader_wrapper_asound)( );
 extern int (*snd_ctl_elem_id_malloc_dylibloader_wrapper_asound)( snd_ctl_elem_id_t**);
 extern void (*snd_ctl_elem_id_free_dylibloader_wrapper_asound)( snd_ctl_elem_id_t*);
 extern void (*snd_ctl_elem_id_clear_dylibloader_wrapper_asound)( snd_ctl_elem_id_t*);
@@ -4567,7 +4567,7 @@ extern void (*snd_ctl_elem_id_set_device_dylibloader_wrapper_asound)( snd_ctl_el
 extern void (*snd_ctl_elem_id_set_subdevice_dylibloader_wrapper_asound)( snd_ctl_elem_id_t*, unsigned int);
 extern void (*snd_ctl_elem_id_set_name_dylibloader_wrapper_asound)( snd_ctl_elem_id_t*,const char*);
 extern void (*snd_ctl_elem_id_set_index_dylibloader_wrapper_asound)( snd_ctl_elem_id_t*, unsigned int);
-extern size_t (*snd_ctl_card_info_sizeof_dylibloader_wrapper_asound)( void);
+extern size_t (*snd_ctl_card_info_sizeof_dylibloader_wrapper_asound)( );
 extern int (*snd_ctl_card_info_malloc_dylibloader_wrapper_asound)( snd_ctl_card_info_t**);
 extern void (*snd_ctl_card_info_free_dylibloader_wrapper_asound)( snd_ctl_card_info_t*);
 extern void (*snd_ctl_card_info_clear_dylibloader_wrapper_asound)( snd_ctl_card_info_t*);
@@ -4579,13 +4579,13 @@ extern const char* (*snd_ctl_card_info_get_name_dylibloader_wrapper_asound)(cons
 extern const char* (*snd_ctl_card_info_get_longname_dylibloader_wrapper_asound)(const snd_ctl_card_info_t*);
 extern const char* (*snd_ctl_card_info_get_mixername_dylibloader_wrapper_asound)(const snd_ctl_card_info_t*);
 extern const char* (*snd_ctl_card_info_get_components_dylibloader_wrapper_asound)(const snd_ctl_card_info_t*);
-extern size_t (*snd_ctl_event_sizeof_dylibloader_wrapper_asound)( void);
+extern size_t (*snd_ctl_event_sizeof_dylibloader_wrapper_asound)( );
 extern int (*snd_ctl_event_malloc_dylibloader_wrapper_asound)( snd_ctl_event_t**);
 extern void (*snd_ctl_event_free_dylibloader_wrapper_asound)( snd_ctl_event_t*);
 extern void (*snd_ctl_event_clear_dylibloader_wrapper_asound)( snd_ctl_event_t*);
 extern void (*snd_ctl_event_copy_dylibloader_wrapper_asound)( snd_ctl_event_t*,const snd_ctl_event_t*);
 extern snd_ctl_event_type_t (*snd_ctl_event_get_type_dylibloader_wrapper_asound)(const snd_ctl_event_t*);
-extern size_t (*snd_ctl_elem_list_sizeof_dylibloader_wrapper_asound)( void);
+extern size_t (*snd_ctl_elem_list_sizeof_dylibloader_wrapper_asound)( );
 extern int (*snd_ctl_elem_list_malloc_dylibloader_wrapper_asound)( snd_ctl_elem_list_t**);
 extern void (*snd_ctl_elem_list_free_dylibloader_wrapper_asound)( snd_ctl_elem_list_t*);
 extern void (*snd_ctl_elem_list_clear_dylibloader_wrapper_asound)( snd_ctl_elem_list_t*);
@@ -4600,7 +4600,7 @@ extern unsigned int (*snd_ctl_elem_list_get_device_dylibloader_wrapper_asound)(c
 extern unsigned int (*snd_ctl_elem_list_get_subdevice_dylibloader_wrapper_asound)(const snd_ctl_elem_list_t*, unsigned int);
 extern const char* (*snd_ctl_elem_list_get_name_dylibloader_wrapper_asound)(const snd_ctl_elem_list_t*, unsigned int);
 extern unsigned int (*snd_ctl_elem_list_get_index_dylibloader_wrapper_asound)(const snd_ctl_elem_list_t*, unsigned int);
-extern size_t (*snd_ctl_elem_info_sizeof_dylibloader_wrapper_asound)( void);
+extern size_t (*snd_ctl_elem_info_sizeof_dylibloader_wrapper_asound)( );
 extern int (*snd_ctl_elem_info_malloc_dylibloader_wrapper_asound)( snd_ctl_elem_info_t**);
 extern void (*snd_ctl_elem_info_free_dylibloader_wrapper_asound)( snd_ctl_elem_info_t*);
 extern void (*snd_ctl_elem_info_clear_dylibloader_wrapper_asound)( snd_ctl_elem_info_t*);
@@ -4655,7 +4655,7 @@ extern int (*snd_ctl_elem_add_boolean_dylibloader_wrapper_asound)( snd_ctl_t*,co
 extern int (*snd_ctl_elem_add_enumerated_dylibloader_wrapper_asound)( snd_ctl_t*,const snd_ctl_elem_id_t*, unsigned int, unsigned int,const char* []);
 extern int (*snd_ctl_elem_add_iec958_dylibloader_wrapper_asound)( snd_ctl_t*,const snd_ctl_elem_id_t*);
 extern int (*snd_ctl_elem_remove_dylibloader_wrapper_asound)( snd_ctl_t*, snd_ctl_elem_id_t*);
-extern size_t (*snd_ctl_elem_value_sizeof_dylibloader_wrapper_asound)( void);
+extern size_t (*snd_ctl_elem_value_sizeof_dylibloader_wrapper_asound)( );
 extern int (*snd_ctl_elem_value_malloc_dylibloader_wrapper_asound)( snd_ctl_elem_value_t**);
 extern void (*snd_ctl_elem_value_free_dylibloader_wrapper_asound)( snd_ctl_elem_value_t*);
 extern void (*snd_ctl_elem_value_clear_dylibloader_wrapper_asound)( snd_ctl_elem_value_t*);
@@ -4780,7 +4780,7 @@ extern int (*snd_mixer_elem_attach_dylibloader_wrapper_asound)( snd_mixer_elem_t
 extern int (*snd_mixer_elem_detach_dylibloader_wrapper_asound)( snd_mixer_elem_t*, snd_hctl_elem_t*);
 extern int (*snd_mixer_elem_empty_dylibloader_wrapper_asound)( snd_mixer_elem_t*);
 extern void* (*snd_mixer_elem_get_private_dylibloader_wrapper_asound)(const snd_mixer_elem_t*);
-extern size_t (*snd_mixer_class_sizeof_dylibloader_wrapper_asound)( void);
+extern size_t (*snd_mixer_class_sizeof_dylibloader_wrapper_asound)( );
 extern int (*snd_mixer_class_malloc_dylibloader_wrapper_asound)( snd_mixer_class_t**);
 extern void (*snd_mixer_class_free_dylibloader_wrapper_asound)( snd_mixer_class_t*);
 extern void (*snd_mixer_class_copy_dylibloader_wrapper_asound)( snd_mixer_class_t*,const snd_mixer_class_t*);
@@ -4850,7 +4850,7 @@ extern int (*snd_mixer_selem_get_enum_items_dylibloader_wrapper_asound)( snd_mix
 extern int (*snd_mixer_selem_get_enum_item_name_dylibloader_wrapper_asound)( snd_mixer_elem_t*, unsigned int, size_t, char*);
 extern int (*snd_mixer_selem_get_enum_item_dylibloader_wrapper_asound)( snd_mixer_elem_t*, snd_mixer_selem_channel_id_t, unsigned int*);
 extern int (*snd_mixer_selem_set_enum_item_dylibloader_wrapper_asound)( snd_mixer_elem_t*, snd_mixer_selem_channel_id_t, unsigned int);
-extern size_t (*snd_mixer_selem_id_sizeof_dylibloader_wrapper_asound)( void);
+extern size_t (*snd_mixer_selem_id_sizeof_dylibloader_wrapper_asound)( );
 extern int (*snd_mixer_selem_id_malloc_dylibloader_wrapper_asound)( snd_mixer_selem_id_t**);
 extern void (*snd_mixer_selem_id_free_dylibloader_wrapper_asound)( snd_mixer_selem_id_t*);
 extern void (*snd_mixer_selem_id_copy_dylibloader_wrapper_asound)( snd_mixer_selem_id_t*,const snd_mixer_selem_id_t*);
@@ -4873,7 +4873,7 @@ extern size_t (*snd_seq_get_output_buffer_size_dylibloader_wrapper_asound)( snd_
 extern size_t (*snd_seq_get_input_buffer_size_dylibloader_wrapper_asound)( snd_seq_t*);
 extern int (*snd_seq_set_output_buffer_size_dylibloader_wrapper_asound)( snd_seq_t*, size_t);
 extern int (*snd_seq_set_input_buffer_size_dylibloader_wrapper_asound)( snd_seq_t*, size_t);
-extern size_t (*snd_seq_system_info_sizeof_dylibloader_wrapper_asound)( void);
+extern size_t (*snd_seq_system_info_sizeof_dylibloader_wrapper_asound)( );
 extern int (*snd_seq_system_info_malloc_dylibloader_wrapper_asound)( snd_seq_system_info_t**);
 extern void (*snd_seq_system_info_free_dylibloader_wrapper_asound)( snd_seq_system_info_t*);
 extern void (*snd_seq_system_info_copy_dylibloader_wrapper_asound)( snd_seq_system_info_t*,const snd_seq_system_info_t*);
@@ -4884,7 +4884,7 @@ extern int (*snd_seq_system_info_get_channels_dylibloader_wrapper_asound)(const 
 extern int (*snd_seq_system_info_get_cur_clients_dylibloader_wrapper_asound)(const snd_seq_system_info_t*);
 extern int (*snd_seq_system_info_get_cur_queues_dylibloader_wrapper_asound)(const snd_seq_system_info_t*);
 extern int (*snd_seq_system_info_dylibloader_wrapper_asound)( snd_seq_t*, snd_seq_system_info_t*);
-extern size_t (*snd_seq_client_info_sizeof_dylibloader_wrapper_asound)( void);
+extern size_t (*snd_seq_client_info_sizeof_dylibloader_wrapper_asound)( );
 extern int (*snd_seq_client_info_malloc_dylibloader_wrapper_asound)( snd_seq_client_info_t**);
 extern void (*snd_seq_client_info_free_dylibloader_wrapper_asound)( snd_seq_client_info_t*);
 extern void (*snd_seq_client_info_copy_dylibloader_wrapper_asound)( snd_seq_client_info_t*,const snd_seq_client_info_t*);
@@ -4911,7 +4911,7 @@ extern int (*snd_seq_get_client_info_dylibloader_wrapper_asound)( snd_seq_t*, sn
 extern int (*snd_seq_get_any_client_info_dylibloader_wrapper_asound)( snd_seq_t*, int, snd_seq_client_info_t*);
 extern int (*snd_seq_set_client_info_dylibloader_wrapper_asound)( snd_seq_t*, snd_seq_client_info_t*);
 extern int (*snd_seq_query_next_client_dylibloader_wrapper_asound)( snd_seq_t*, snd_seq_client_info_t*);
-extern size_t (*snd_seq_client_pool_sizeof_dylibloader_wrapper_asound)( void);
+extern size_t (*snd_seq_client_pool_sizeof_dylibloader_wrapper_asound)( );
 extern int (*snd_seq_client_pool_malloc_dylibloader_wrapper_asound)( snd_seq_client_pool_t**);
 extern void (*snd_seq_client_pool_free_dylibloader_wrapper_asound)( snd_seq_client_pool_t*);
 extern void (*snd_seq_client_pool_copy_dylibloader_wrapper_asound)( snd_seq_client_pool_t*,const snd_seq_client_pool_t*);
@@ -4926,7 +4926,7 @@ extern void (*snd_seq_client_pool_set_input_pool_dylibloader_wrapper_asound)( sn
 extern void (*snd_seq_client_pool_set_output_room_dylibloader_wrapper_asound)( snd_seq_client_pool_t*, size_t);
 extern int (*snd_seq_get_client_pool_dylibloader_wrapper_asound)( snd_seq_t*, snd_seq_client_pool_t*);
 extern int (*snd_seq_set_client_pool_dylibloader_wrapper_asound)( snd_seq_t*, snd_seq_client_pool_t*);
-extern size_t (*snd_seq_port_info_sizeof_dylibloader_wrapper_asound)( void);
+extern size_t (*snd_seq_port_info_sizeof_dylibloader_wrapper_asound)( );
 extern int (*snd_seq_port_info_malloc_dylibloader_wrapper_asound)( snd_seq_port_info_t**);
 extern void (*snd_seq_port_info_free_dylibloader_wrapper_asound)( snd_seq_port_info_t*);
 extern void (*snd_seq_port_info_copy_dylibloader_wrapper_asound)( snd_seq_port_info_t*,const snd_seq_port_info_t*);
@@ -4964,7 +4964,7 @@ extern int (*snd_seq_get_port_info_dylibloader_wrapper_asound)( snd_seq_t*, int,
 extern int (*snd_seq_get_any_port_info_dylibloader_wrapper_asound)( snd_seq_t*, int, int, snd_seq_port_info_t*);
 extern int (*snd_seq_set_port_info_dylibloader_wrapper_asound)( snd_seq_t*, int, snd_seq_port_info_t*);
 extern int (*snd_seq_query_next_port_dylibloader_wrapper_asound)( snd_seq_t*, snd_seq_port_info_t*);
-extern size_t (*snd_seq_port_subscribe_sizeof_dylibloader_wrapper_asound)( void);
+extern size_t (*snd_seq_port_subscribe_sizeof_dylibloader_wrapper_asound)( );
 extern int (*snd_seq_port_subscribe_malloc_dylibloader_wrapper_asound)( snd_seq_port_subscribe_t**);
 extern void (*snd_seq_port_subscribe_free_dylibloader_wrapper_asound)( snd_seq_port_subscribe_t*);
 extern void (*snd_seq_port_subscribe_copy_dylibloader_wrapper_asound)( snd_seq_port_subscribe_t*,const snd_seq_port_subscribe_t*);
@@ -4983,7 +4983,7 @@ extern void (*snd_seq_port_subscribe_set_time_real_dylibloader_wrapper_asound)( 
 extern int (*snd_seq_get_port_subscription_dylibloader_wrapper_asound)( snd_seq_t*, snd_seq_port_subscribe_t*);
 extern int (*snd_seq_subscribe_port_dylibloader_wrapper_asound)( snd_seq_t*, snd_seq_port_subscribe_t*);
 extern int (*snd_seq_unsubscribe_port_dylibloader_wrapper_asound)( snd_seq_t*, snd_seq_port_subscribe_t*);
-extern size_t (*snd_seq_query_subscribe_sizeof_dylibloader_wrapper_asound)( void);
+extern size_t (*snd_seq_query_subscribe_sizeof_dylibloader_wrapper_asound)( );
 extern int (*snd_seq_query_subscribe_malloc_dylibloader_wrapper_asound)( snd_seq_query_subscribe_t**);
 extern void (*snd_seq_query_subscribe_free_dylibloader_wrapper_asound)( snd_seq_query_subscribe_t*);
 extern void (*snd_seq_query_subscribe_copy_dylibloader_wrapper_asound)( snd_seq_query_subscribe_t*,const snd_seq_query_subscribe_t*);
@@ -5004,7 +5004,7 @@ extern void (*snd_seq_query_subscribe_set_root_dylibloader_wrapper_asound)( snd_
 extern void (*snd_seq_query_subscribe_set_type_dylibloader_wrapper_asound)( snd_seq_query_subscribe_t*, snd_seq_query_subs_type_t);
 extern void (*snd_seq_query_subscribe_set_index_dylibloader_wrapper_asound)( snd_seq_query_subscribe_t*, int);
 extern int (*snd_seq_query_port_subscribers_dylibloader_wrapper_asound)( snd_seq_t*, snd_seq_query_subscribe_t*);
-extern size_t (*snd_seq_queue_info_sizeof_dylibloader_wrapper_asound)( void);
+extern size_t (*snd_seq_queue_info_sizeof_dylibloader_wrapper_asound)( );
 extern int (*snd_seq_queue_info_malloc_dylibloader_wrapper_asound)( snd_seq_queue_info_t**);
 extern void (*snd_seq_queue_info_free_dylibloader_wrapper_asound)( snd_seq_queue_info_t*);
 extern void (*snd_seq_queue_info_copy_dylibloader_wrapper_asound)( snd_seq_queue_info_t*,const snd_seq_queue_info_t*);
@@ -5026,7 +5026,7 @@ extern int (*snd_seq_set_queue_info_dylibloader_wrapper_asound)( snd_seq_t*, int
 extern int (*snd_seq_query_named_queue_dylibloader_wrapper_asound)( snd_seq_t*,const char*);
 extern int (*snd_seq_get_queue_usage_dylibloader_wrapper_asound)( snd_seq_t*, int);
 extern int (*snd_seq_set_queue_usage_dylibloader_wrapper_asound)( snd_seq_t*, int, int);
-extern size_t (*snd_seq_queue_status_sizeof_dylibloader_wrapper_asound)( void);
+extern size_t (*snd_seq_queue_status_sizeof_dylibloader_wrapper_asound)( );
 extern int (*snd_seq_queue_status_malloc_dylibloader_wrapper_asound)( snd_seq_queue_status_t**);
 extern void (*snd_seq_queue_status_free_dylibloader_wrapper_asound)( snd_seq_queue_status_t*);
 extern void (*snd_seq_queue_status_copy_dylibloader_wrapper_asound)( snd_seq_queue_status_t*,const snd_seq_queue_status_t*);
@@ -5036,7 +5036,7 @@ extern snd_seq_tick_time_t (*snd_seq_queue_status_get_tick_time_dylibloader_wrap
 extern const snd_seq_real_time_t* (*snd_seq_queue_status_get_real_time_dylibloader_wrapper_asound)(const snd_seq_queue_status_t*);
 extern unsigned int (*snd_seq_queue_status_get_status_dylibloader_wrapper_asound)(const snd_seq_queue_status_t*);
 extern int (*snd_seq_get_queue_status_dylibloader_wrapper_asound)( snd_seq_t*, int, snd_seq_queue_status_t*);
-extern size_t (*snd_seq_queue_tempo_sizeof_dylibloader_wrapper_asound)( void);
+extern size_t (*snd_seq_queue_tempo_sizeof_dylibloader_wrapper_asound)( );
 extern int (*snd_seq_queue_tempo_malloc_dylibloader_wrapper_asound)( snd_seq_queue_tempo_t**);
 extern void (*snd_seq_queue_tempo_free_dylibloader_wrapper_asound)( snd_seq_queue_tempo_t*);
 extern void (*snd_seq_queue_tempo_copy_dylibloader_wrapper_asound)( snd_seq_queue_tempo_t*,const snd_seq_queue_tempo_t*);
@@ -5051,7 +5051,7 @@ extern void (*snd_seq_queue_tempo_set_skew_dylibloader_wrapper_asound)( snd_seq_
 extern void (*snd_seq_queue_tempo_set_skew_base_dylibloader_wrapper_asound)( snd_seq_queue_tempo_t*, unsigned int);
 extern int (*snd_seq_get_queue_tempo_dylibloader_wrapper_asound)( snd_seq_t*, int, snd_seq_queue_tempo_t*);
 extern int (*snd_seq_set_queue_tempo_dylibloader_wrapper_asound)( snd_seq_t*, int, snd_seq_queue_tempo_t*);
-extern size_t (*snd_seq_queue_timer_sizeof_dylibloader_wrapper_asound)( void);
+extern size_t (*snd_seq_queue_timer_sizeof_dylibloader_wrapper_asound)( );
 extern int (*snd_seq_queue_timer_malloc_dylibloader_wrapper_asound)( snd_seq_queue_timer_t**);
 extern void (*snd_seq_queue_timer_free_dylibloader_wrapper_asound)( snd_seq_queue_timer_t*);
 extern void (*snd_seq_queue_timer_copy_dylibloader_wrapper_asound)( snd_seq_queue_timer_t*,const snd_seq_queue_timer_t*);
@@ -5078,7 +5078,7 @@ extern int (*snd_seq_drop_output_dylibloader_wrapper_asound)( snd_seq_t*);
 extern int (*snd_seq_drop_output_buffer_dylibloader_wrapper_asound)( snd_seq_t*);
 extern int (*snd_seq_drop_input_dylibloader_wrapper_asound)( snd_seq_t*);
 extern int (*snd_seq_drop_input_buffer_dylibloader_wrapper_asound)( snd_seq_t*);
-extern size_t (*snd_seq_remove_events_sizeof_dylibloader_wrapper_asound)( void);
+extern size_t (*snd_seq_remove_events_sizeof_dylibloader_wrapper_asound)( );
 extern int (*snd_seq_remove_events_malloc_dylibloader_wrapper_asound)( snd_seq_remove_events_t**);
 extern void (*snd_seq_remove_events_free_dylibloader_wrapper_asound)( snd_seq_remove_events_t*);
 extern void (*snd_seq_remove_events_copy_dylibloader_wrapper_asound)( snd_seq_remove_events_t*,const snd_seq_remove_events_t*);

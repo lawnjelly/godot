@@ -121,9 +121,9 @@ public:
 	Ref<Material> get_surface_material(int p_surface) const;
 	Ref<Material> get_active_material(int p_surface) const;
 
-	virtual void set_material_override(const Ref<Material> &p_material);
+	void set_material_override(const Ref<Material> &p_material) override;
 
-	virtual void set_material_overlay(const Ref<Material> &p_material);
+	void set_material_overlay(const Ref<Material> &p_material) override;
 
 	void set_software_skinning_transform_normals(bool p_enabled);
 	bool is_software_skinning_transform_normals_enabled() const;
@@ -143,11 +143,11 @@ public:
 	bool is_mergeable_with(Node *p_other, bool p_shadows_only) const;
 	bool merge_meshes(Vector<Variant> p_list, bool p_use_global_space, bool p_check_compatibility, bool p_shadows_only);
 
-	virtual AABB get_aabb() const;
-	virtual PoolVector<Face3> get_faces(uint32_t p_usage_flags) const;
+	AABB get_aabb() const override;
+	PoolVector<Face3> get_faces(uint32_t p_usage_flags) const override;
 
 	MeshInstance();
-	~MeshInstance();
+	~MeshInstance() override;
 };
 
 #endif // MESH_INSTANCE_H

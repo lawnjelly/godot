@@ -41,7 +41,7 @@ protected:
 
 public:
 	Panel();
-	~Panel();
+	~Panel() override;
 };
 
 #endif // PANEL_H

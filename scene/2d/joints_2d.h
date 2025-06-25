@@ -59,7 +59,7 @@ protected:
 	static void _bind_methods();
 
 public:
-	virtual String get_configuration_warning() const;
+	String get_configuration_warning() const override;
 
 	void set_node_a(const NodePath &p_node_a);
 	NodePath get_node_a() const;
@@ -84,7 +84,7 @@ class PinJoint2D : public Joint2D {
 
 protected:
 	void _notification(int p_what);
-	virtual RID _configure_joint(PhysicsBody2D *body_a, PhysicsBody2D *body_b);
+	RID _configure_joint(PhysicsBody2D *body_a, PhysicsBody2D *body_b) override;
 	static void _bind_methods();
 
 public:
@@ -102,7 +102,7 @@ class GrooveJoint2D : public Joint2D {
 
 protected:
 	void _notification(int p_what);
-	virtual RID _configure_joint(PhysicsBody2D *body_a, PhysicsBody2D *body_b);
+	RID _configure_joint(PhysicsBody2D *body_a, PhysicsBody2D *body_b) override;
 	static void _bind_methods();
 
 public:
@@ -125,7 +125,7 @@ class DampedSpringJoint2D : public Joint2D {
 
 protected:
 	void _notification(int p_what);
-	virtual RID _configure_joint(PhysicsBody2D *body_a, PhysicsBody2D *body_b);
+	RID _configure_joint(PhysicsBody2D *body_a, PhysicsBody2D *body_b) override;
 	static void _bind_methods();
 
 public:

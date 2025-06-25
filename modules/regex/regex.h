@@ -95,7 +95,7 @@ public:
 
 	RegEx();
 	RegEx(const String &p_pattern);
-	~RegEx();
+	~RegEx() override;
 };
 
 #endif // REGEX_H

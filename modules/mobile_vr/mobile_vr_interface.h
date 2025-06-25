@@ -128,24 +128,24 @@ public:
 	void set_k2(const real_t p_k2);
 	real_t get_k2() const;
 
-	virtual StringName get_name() const;
-	virtual int get_capabilities() const;
+	StringName get_name() const override;
+	int get_capabilities() const override;
 
-	virtual bool is_initialized() const;
-	virtual bool initialize();
-	virtual void uninitialize();
+	bool is_initialized() const override;
+	bool initialize() override;
+	void uninitialize() override;
 
-	virtual Size2 get_render_targetsize();
-	virtual bool is_stereo();
-	virtual Transform get_transform_for_eye(ARVRInterface::Eyes p_eye, const Transform &p_cam_transform);
-	virtual CameraMatrix get_projection_for_eye(ARVRInterface::Eyes p_eye, real_t p_aspect, real_t p_z_near, real_t p_z_far);
-	virtual void commit_for_eye(ARVRInterface::Eyes p_eye, RID p_render_target, const Rect2 &p_screen_rect);
+	Size2 get_render_targetsize() override;
+	bool is_stereo() override;
+	Transform get_transform_for_eye(ARVRInterface::Eyes p_eye, const Transform &p_cam_transform) override;
+	CameraMatrix get_projection_for_eye(ARVRInterface::Eyes p_eye, real_t p_aspect, real_t p_z_near, real_t p_z_far) override;
+	void commit_for_eye(ARVRInterface::Eyes p_eye, RID p_render_target, const Rect2 &p_screen_rect) override;
 
-	virtual void process();
-	virtual void notification(int p_what);
+	void process() override;
+	void notification(int p_what) override;
 
 	MobileVRInterface();
-	~MobileVRInterface();
+	~MobileVRInterface() override;
 };
 
 #endif // MOBILE_VR_INTERFACE_H

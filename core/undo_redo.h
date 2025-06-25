@@ -128,7 +128,7 @@ public:
 	void set_property_notify_callback(PropertyNotifyCallback p_property_callback, void *p_ud);
 
 	UndoRedo();
-	~UndoRedo();
+	~UndoRedo() override;
 };
 
 VARIANT_ENUM_CAST(UndoRedo::MergeMode);

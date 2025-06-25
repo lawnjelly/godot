@@ -51,7 +51,7 @@ protected:
 public:
 	static constexpr AncestralClass static_ancestral_class = AncestralClass::PHYSICS_BODY;
 
-	virtual String get_configuration_warning() const;
+	String get_configuration_warning() const override;
 
 	virtual Vector3 get_linear_velocity() const;
 	virtual Vector3 get_angular_velocity() const;
@@ -92,7 +92,7 @@ public:
 	Vector3 get_constant_angular_velocity() const;
 
 	StaticBody();
-	~StaticBody();
+	~StaticBody() override;
 
 private:
 	void _reload_physics_characteristics();
@@ -183,7 +183,7 @@ public:
 	void set_mass(real_t p_mass);
 	real_t get_mass() const;
 
-	virtual float get_inverse_mass() const { return 1.0 / mass; }
+	float get_inverse_mass() const override { return 1.0 / mass; }
 
 	void set_weight(real_t p_weight);
 	real_t get_weight() const;
@@ -200,12 +200,12 @@ public:
 	Ref<PhysicsMaterial> get_physics_material_override() const;
 
 	void set_linear_velocity(const Vector3 &p_velocity);
-	Vector3 get_linear_velocity() const;
+	Vector3 get_linear_velocity() const override;
 
 	void set_axis_velocity(const Vector3 &p_axis);
 
 	void set_angular_velocity(const Vector3 &p_velocity);
-	Vector3 get_angular_velocity() const;
+	Vector3 get_angular_velocity() const override;
 
 	Basis get_inverse_inertia_tensor();
 
@@ -249,10 +249,10 @@ public:
 	void apply_impulse(const Vector3 &p_pos, const Vector3 &p_impulse);
 	void apply_torque_impulse(const Vector3 &p_impulse);
 
-	virtual String get_configuration_warning() const;
+	String get_configuration_warning() const override;
 
 	RigidBody();
-	~RigidBody();
+	~RigidBody() override;
 
 private:
 	void _reload_physics_characteristics();
@@ -409,11 +409,11 @@ public:
 	};
 
 	struct PinJointData : public JointData {
-		virtual JointType get_joint_type() { return JOINT_TYPE_PIN; }
+		JointType get_joint_type() override { return JOINT_TYPE_PIN; }
 
-		virtual bool _set(const StringName &p_name, const Variant &p_value, RID j);
-		virtual bool _get(const StringName &p_name, Variant &r_ret) const;
-		virtual void _get_property_list(List<PropertyInfo> *p_list) const;
+		bool _set(const StringName &p_name, const Variant &p_value, RID j) override;
+		bool _get(const StringName &p_name, Variant &r_ret) const override;
+		void _get_property_list(List<PropertyInfo> *p_list) const override;
 
 		real_t bias;
 		real_t damping;
@@ -426,11 +426,11 @@ public:
 	};
 
 	struct ConeJointData : public JointData {
-		virtual JointType get_joint_type() { return JOINT_TYPE_CONE; }
+		JointType get_joint_type() override { return JOINT_TYPE_CONE; }
 
-		virtual bool _set(const StringName &p_name, const Variant &p_value, RID j);
-		virtual bool _get(const StringName &p_name, Variant &r_ret) const;
-		virtual void _get_property_list(List<PropertyInfo> *p_list) const;
+		bool _set(const StringName &p_name, const Variant &p_value, RID j) override;
+		bool _get(const StringName &p_name, Variant &r_ret) const override;
+		void _get_property_list(List<PropertyInfo> *p_list) const override;
 
 		real_t swing_span;
 		real_t twist_span;
@@ -447,11 +447,11 @@ public:
 	};
 
 	struct HingeJointData : public JointData {
-		virtual JointType get_joint_type() { return JOINT_TYPE_HINGE; }
+		JointType get_joint_type() override { return JOINT_TYPE_HINGE; }
 
-		virtual bool _set(const StringName &p_name, const Variant &p_value, RID j);
-		virtual bool _get(const StringName &p_name, Variant &r_ret) const;
-		virtual void _get_property_list(List<PropertyInfo> *p_list) const;
+		bool _set(const StringName &p_name, const Variant &p_value, RID j) override;
+		bool _get(const StringName &p_name, Variant &r_ret) const override;
+		void _get_property_list(List<PropertyInfo> *p_list) const override;
 
 		bool angular_limit_enabled;
 		real_t angular_limit_upper;
@@ -470,11 +470,11 @@ public:
 	};
 
 	struct SliderJointData : public JointData {
-		virtual JointType get_joint_type() { return JOINT_TYPE_SLIDER; }
+		JointType get_joint_type() override { return JOINT_TYPE_SLIDER; }
 
-		virtual bool _set(const StringName &p_name, const Variant &p_value, RID j);
-		virtual bool _get(const StringName &p_name, Variant &r_ret) const;
-		virtual void _get_property_list(List<PropertyInfo> *p_list) const;
+		bool _set(const StringName &p_name, const Variant &p_value, RID j) override;
+		bool _get(const StringName &p_name, Variant &r_ret) const override;
+		void _get_property_list(List<PropertyInfo> *p_list) const override;
 
 		real_t linear_limit_upper;
 		real_t linear_limit_lower;
@@ -548,11 +548,11 @@ public:
 					angular_equilibrium_point(0) {}
 		};
 
-		virtual JointType get_joint_type() { return JOINT_TYPE_6DOF; }
+		JointType get_joint_type() override { return JOINT_TYPE_6DOF; }
 
-		virtual bool _set(const StringName &p_name, const Variant &p_value, RID j);
-		virtual bool _get(const StringName &p_name, Variant &r_ret) const;
-		virtual void _get_property_list(List<PropertyInfo> *p_list) const;
+		bool _set(const StringName &p_name, const Variant &p_value, RID j) override;
+		bool _get(const StringName &p_name, Variant &r_ret) const override;
+		void _get_property_list(List<PropertyInfo> *p_list) const override;
 
 		SixDOFAxisData axis_data[3];
 
@@ -605,8 +605,8 @@ public:
 
 public:
 #ifdef TOOLS_ENABLED
-	virtual Transform get_global_gizmo_transform() const;
-	virtual Transform get_local_gizmo_transform() const;
+	Transform get_global_gizmo_transform() const override;
+	Transform get_local_gizmo_transform() const override;
 #endif
 
 	const JointData *get_joint_data() const;
@@ -652,7 +652,7 @@ public:
 	void apply_impulse(const Vector3 &p_pos, const Vector3 &p_impulse);
 
 	PhysicalBone();
-	~PhysicalBone();
+	~PhysicalBone() override;
 
 private:
 	void update_bone_id();

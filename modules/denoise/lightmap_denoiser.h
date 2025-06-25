@@ -45,12 +45,12 @@ protected:
 public:
 	static LightmapDenoiser *create_oidn_denoiser();
 
-	Ref<Image> denoise_image(const Ref<Image> &p_image);
+	Ref<Image> denoise_image(const Ref<Image> &p_image) override;
 
 	static void make_default_denoiser();
 
 	LightmapDenoiserOIDN();
-	~LightmapDenoiserOIDN();
+	~LightmapDenoiserOIDN() override;
 };
 
 #endif // LIGHTMAP_DENOISER_H

@@ -102,7 +102,7 @@ protected:
 	static void _bind_methods();
 	// bind helpers
 public:
-	virtual Size2 get_minimum_size() const;
+	Size2 get_minimum_size() const override;
 
 	void set_align(Align p_align);
 	Align get_align() const;
@@ -140,7 +140,7 @@ public:
 	int get_visible_line_count() const;
 
 	Label(const String &p_text = String());
-	~Label();
+	~Label() override;
 };
 
 VARIANT_ENUM_CAST(Label::Align);

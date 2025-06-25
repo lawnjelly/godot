@@ -82,14 +82,14 @@ private:
 
 	// bind helpers
 
-	virtual void owner_changed_notify();
+	void owner_changed_notify() override;
 
 protected:
 	RID light;
 
 	static void _bind_methods();
 	void _notification(int p_what);
-	virtual void _validate_property(PropertyInfo &property) const;
+	void _validate_property(PropertyInfo &property) const override;
 
 	Light(VisualServer::LightType p_type);
 
@@ -123,11 +123,11 @@ public:
 	void set_bake_mode(BakeMode p_mode);
 	BakeMode get_bake_mode() const;
 
-	virtual AABB get_aabb() const;
-	virtual PoolVector<Face3> get_faces(uint32_t p_usage_flags) const;
+	AABB get_aabb() const override;
+	PoolVector<Face3> get_faces(uint32_t p_usage_flags) const override;
 
 	Light();
-	~Light();
+	~Light() override;
 };
 
 VARIANT_ENUM_CAST(Light::Param);
@@ -156,7 +156,7 @@ private:
 
 protected:
 	static void _bind_methods();
-	virtual void _validate_property(PropertyInfo &property) const;
+	void _validate_property(PropertyInfo &property) const override;
 
 public:
 	void set_shadow_mode(ShadowMode p_mode);
@@ -217,7 +217,7 @@ protected:
 	static void _bind_methods();
 
 public:
-	virtual String get_configuration_warning() const;
+	String get_configuration_warning() const override;
 
 	SpotLight() :
 			Light(VisualServer::LIGHT_SPOT) {}

@@ -162,7 +162,7 @@ public:
 	PoolVector<int> get_id_path(int p_from_id, int p_to_id);
 
 	AStar();
-	~AStar();
+	~AStar() override;
 };
 
 class AStar2D : public Reference {
@@ -209,7 +209,7 @@ public:
 	PoolVector<int> get_id_path(int p_from_id, int p_to_id);
 
 	AStar2D();
-	~AStar2D();
+	~AStar2D() override;
 };
 
 #endif // A_STAR_H

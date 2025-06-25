@@ -109,7 +109,7 @@ public:
 	void set_override_oversampling(float p_oversampling);
 
 	DynamicFontData();
-	~DynamicFontData();
+	~DynamicFontData() override;
 };
 
 VARIANT_ENUM_CAST(DynamicFontData::Hinting);
@@ -274,7 +274,7 @@ public:
 	Dictionary get_char_contours(CharType p_char, CharType p_next, const Vector<Ref<DynamicFontAtSize>> &p_fallbacks) const;
 
 	DynamicFontAtSize();
-	~DynamicFontAtSize();
+	~DynamicFontAtSize() override;
 };
 
 ///////////////
@@ -347,30 +347,30 @@ public:
 	Ref<DynamicFontData> get_fallback(int p_idx) const;
 	void remove_fallback(int p_idx);
 
-	virtual float get_height() const;
+	float get_height() const override;
 
-	virtual float get_ascent() const;
-	virtual float get_descent() const;
+	float get_ascent() const override;
+	float get_descent() const override;
 
-	virtual int get_spacing_char() const;
+	int get_spacing_char() const override;
 
-	virtual Size2 get_char_size(CharType p_char, CharType p_next = 0) const;
+	Size2 get_char_size(CharType p_char, CharType p_next = 0) const override;
 	String get_available_chars() const;
 
-	virtual bool is_distance_field_hint() const;
+	bool is_distance_field_hint() const override;
 
-	virtual bool has_outline() const;
+	bool has_outline() const override;
 
-	virtual float draw_char_ex(RID p_canvas_item, const Point2 &p_pos, CharType p_char, CharType p_next = 0, const Color &p_modulate = Color(1, 1, 1), bool p_outline = false, MultiRect *p_multirect = nullptr) const;
+	float draw_char_ex(RID p_canvas_item, const Point2 &p_pos, CharType p_char, CharType p_next = 0, const Color &p_modulate = Color(1, 1, 1), bool p_outline = false, MultiRect *p_multirect = nullptr) const override;
 
-	RID get_char_texture(CharType p_char, CharType p_next, bool p_outline) const;
-	Size2 get_char_texture_size(CharType p_char, CharType p_next, bool p_outline) const;
+	RID get_char_texture(CharType p_char, CharType p_next, bool p_outline) const override;
+	Size2 get_char_texture_size(CharType p_char, CharType p_next, bool p_outline) const override;
 
-	Vector2 get_char_tx_offset(CharType p_char, CharType p_next, bool p_outline) const;
-	Size2 get_char_tx_size(CharType p_char, CharType p_next, bool p_outline) const;
-	Rect2 get_char_tx_uv_rect(CharType p_char, CharType p_next, bool p_outline) const;
+	Vector2 get_char_tx_offset(CharType p_char, CharType p_next, bool p_outline) const override;
+	Size2 get_char_tx_size(CharType p_char, CharType p_next, bool p_outline) const override;
+	Rect2 get_char_tx_uv_rect(CharType p_char, CharType p_next, bool p_outline) const override;
 
-	Dictionary get_char_contours(CharType p_char, CharType p_next) const;
+	Dictionary get_char_contours(CharType p_char, CharType p_next) const override;
 
 	SelfList<DynamicFont> font_list;
 
@@ -382,7 +382,7 @@ public:
 	static void update_oversampling();
 
 	DynamicFont();
-	~DynamicFont();
+	~DynamicFont() override;
 };
 
 VARIANT_ENUM_CAST(DynamicFont::SpacingType);
@@ -391,10 +391,10 @@ VARIANT_ENUM_CAST(DynamicFont::SpacingType);
 
 class ResourceFormatLoaderDynamicFont : public ResourceFormatLoader {
 public:
-	virtual RES load(const String &p_path, const String &p_original_path = "", Error *r_error = nullptr, bool p_no_subresource_cache = false);
-	virtual void get_recognized_extensions(List<String> *p_extensions) const;
-	virtual bool handles_type(const String &p_type) const;
-	virtual String get_resource_type(const String &p_path) const;
+	RES load(const String &p_path, const String &p_original_path = "", Error *r_error = nullptr, bool p_no_subresource_cache = false) override;
+	void get_recognized_extensions(List<String> *p_extensions) const override;
+	bool handles_type(const String &p_type) const override;
+	String get_resource_type(const String &p_path) const override;
 };
 
 #endif // MODULE_FREETYPE_ENABLED

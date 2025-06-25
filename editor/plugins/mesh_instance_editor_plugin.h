@@ -90,14 +90,14 @@ class MeshInstanceEditorPlugin : public EditorPlugin {
 	EditorNode *editor;
 
 public:
-	virtual String get_name() const { return "MeshInstance"; }
-	bool has_main_screen() const { return false; }
-	virtual void edit(Object *p_object);
-	virtual bool handles(Object *p_object) const;
-	virtual void make_visible(bool p_visible);
+	String get_name() const override { return "MeshInstance"; }
+	bool has_main_screen() const override { return false; }
+	void edit(Object *p_object) override;
+	bool handles(Object *p_object) const override;
+	void make_visible(bool p_visible) override;
 
 	MeshInstanceEditorPlugin(EditorNode *p_node);
-	~MeshInstanceEditorPlugin();
+	~MeshInstanceEditorPlugin() override;
 };
 
 #endif // MESH_INSTANCE_EDITOR_PLUGIN_H

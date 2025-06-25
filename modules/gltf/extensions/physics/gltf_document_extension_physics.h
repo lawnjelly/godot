@@ -41,13 +41,13 @@ class GLTFDocumentExtensionPhysics : public GLTFDocumentExtension {
 
 public:
 	// Import process.
-	Error import_preflight(Ref<GLTFState> p_state, Vector<String> p_extensions);
-	Vector<String> get_supported_extensions();
-	Error parse_node_extensions(Ref<GLTFState> p_state, Ref<GLTFNode> p_gltf_node, Dictionary &p_extensions);
-	Spatial *generate_scene_node(Ref<GLTFState> p_state, Ref<GLTFNode> p_gltf_node, Node *p_scene_parent);
+	Error import_preflight(Ref<GLTFState> p_state, Vector<String> p_extensions) override;
+	Vector<String> get_supported_extensions() override;
+	Error parse_node_extensions(Ref<GLTFState> p_state, Ref<GLTFNode> p_gltf_node, Dictionary &p_extensions) override;
+	Spatial *generate_scene_node(Ref<GLTFState> p_state, Ref<GLTFNode> p_gltf_node, Node *p_scene_parent) override;
 	// Export process.
-	void convert_scene_node(Ref<GLTFState> p_state, Ref<GLTFNode> p_gltf_node, Node *p_scene_node);
-	Error export_node(Ref<GLTFState> p_state, Ref<GLTFNode> p_gltf_node, Dictionary &r_node_json, Node *p_scene_node);
+	void convert_scene_node(Ref<GLTFState> p_state, Ref<GLTFNode> p_gltf_node, Node *p_scene_node) override;
+	Error export_node(Ref<GLTFState> p_state, Ref<GLTFNode> p_gltf_node, Dictionary &r_node_json, Node *p_scene_node) override;
 };
 
 #endif // GLTF_DOCUMENT_EXTENSION_PHYSICS_H

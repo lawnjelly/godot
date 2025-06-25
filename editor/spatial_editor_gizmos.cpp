@@ -4698,8 +4698,9 @@ void RoomSpatialGizmo::redraw() {
 	}
 
 	const Geometry::MeshData &md = _room->_bound_mesh_data;
-	if (!md.edges.size())
+	if (!md.edges.size()) {
 		return;
+	}
 
 	Vector<Vector3> lines;
 	Transform tr = _room->get_global_transform();

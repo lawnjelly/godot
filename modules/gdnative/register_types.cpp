@@ -54,7 +54,7 @@
 
 class GDNativeExportPlugin : public EditorExportPlugin {
 protected:
-	virtual void _export_file(const String &p_path, const String &p_type, const Set<String> &p_features);
+	void _export_file(const String &p_path, const String &p_type, const Set<String> &p_features) override;
 };
 
 struct LibrarySymbol {

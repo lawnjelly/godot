@@ -57,7 +57,7 @@ public:
 	Error flush(bool p_verbose = false);
 
 	PCKPacker();
-	~PCKPacker();
+	~PCKPacker() override;
 };
 
 #endif // PCK_PACKER_H

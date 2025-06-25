@@ -70,9 +70,9 @@ public:
 	void set_cull_mode(CullMode p_mode);
 	CullMode get_cull_mode() const;
 
-	virtual RID get_rid() const;
+	RID get_rid() const override;
 	OccluderPolygon2D();
-	~OccluderPolygon2D();
+	~OccluderPolygon2D() override;
 };
 
 VARIANT_ENUM_CAST(OccluderPolygon2D::CullMode);
@@ -86,7 +86,7 @@ class LightOccluder2D : public Node2D {
 	Ref<OccluderPolygon2D> occluder_polygon;
 
 	void _poly_changed();
-	virtual void _physics_interpolated_changed();
+	void _physics_interpolated_changed() override;
 
 protected:
 	void _notification(int p_what);
@@ -94,8 +94,8 @@ protected:
 
 public:
 #ifdef TOOLS_ENABLED
-	virtual Rect2 _edit_get_rect() const;
-	virtual bool _edit_is_selected_on_click(const Point2 &p_point, double p_tolerance) const;
+	Rect2 _edit_get_rect() const override;
+	bool _edit_is_selected_on_click(const Point2 &p_point, double p_tolerance) const override;
 #endif
 
 	void set_occluder_polygon(const Ref<OccluderPolygon2D> &p_polygon);
@@ -104,10 +104,10 @@ public:
 	void set_occluder_light_mask(int p_mask);
 	int get_occluder_light_mask() const;
 
-	String get_configuration_warning() const;
+	String get_configuration_warning() const override;
 
 	LightOccluder2D();
-	~LightOccluder2D();
+	~LightOccluder2D() override;
 };
 
 #endif // LIGHT_OCCLUDER_2D_H

@@ -171,12 +171,12 @@ public:
 	Error create_from_fnt(const String &p_file);
 
 	void set_height(float p_height);
-	float get_height() const;
+	float get_height() const override;
 
 	void set_ascent(float p_ascent);
-	float get_ascent() const;
-	float get_descent() const;
-	int get_spacing_char() const {
+	float get_ascent() const override;
+	float get_descent() const override;
+	int get_spacing_char() const override {
 		return 0;
 	}
 
@@ -194,7 +194,7 @@ public:
 	int get_kerning_pair(int32_t p_A, int32_t p_B) const;
 	Vector<KerningPairKey> get_kerning_pair_keys() const;
 
-	Size2 get_char_size(CharType p_char, CharType p_next = 0) const;
+	Size2 get_char_size(CharType p_char, CharType p_next = 0) const override;
 
 	void set_fallback(const Ref<BitmapFont> &p_fallback);
 	Ref<BitmapFont> get_fallback() const;
@@ -202,27 +202,27 @@ public:
 	void clear();
 
 	void set_distance_field_hint(bool p_distance_field);
-	bool is_distance_field_hint() const;
+	bool is_distance_field_hint() const override;
 
-	float draw_char_ex(RID p_canvas_item, const Point2 &p_pos, CharType p_char, CharType p_next = 0, const Color &p_modulate = Color(1, 1, 1), bool p_outline = false, MultiRect *p_multirect = nullptr) const;
+	float draw_char_ex(RID p_canvas_item, const Point2 &p_pos, CharType p_char, CharType p_next = 0, const Color &p_modulate = Color(1, 1, 1), bool p_outline = false, MultiRect *p_multirect = nullptr) const override;
 
-	RID get_char_texture(CharType p_char, CharType p_next, bool p_outline) const;
-	Size2 get_char_texture_size(CharType p_char, CharType p_next, bool p_outline) const;
+	RID get_char_texture(CharType p_char, CharType p_next, bool p_outline) const override;
+	Size2 get_char_texture_size(CharType p_char, CharType p_next, bool p_outline) const override;
 
-	Vector2 get_char_tx_offset(CharType p_char, CharType p_next, bool p_outline) const;
-	Size2 get_char_tx_size(CharType p_char, CharType p_next, bool p_outline) const;
-	Rect2 get_char_tx_uv_rect(CharType p_char, CharType p_next, bool p_outline) const;
+	Vector2 get_char_tx_offset(CharType p_char, CharType p_next, bool p_outline) const override;
+	Size2 get_char_tx_size(CharType p_char, CharType p_next, bool p_outline) const override;
+	Rect2 get_char_tx_uv_rect(CharType p_char, CharType p_next, bool p_outline) const override;
 
 	BitmapFont();
-	~BitmapFont();
+	~BitmapFont() override;
 };
 
 class ResourceFormatLoaderBMFont : public ResourceFormatLoader {
 public:
-	virtual RES load(const String &p_path, const String &p_original_path = "", Error *r_error = nullptr, bool p_no_subresource_cache = false);
-	virtual void get_recognized_extensions(List<String> *p_extensions) const;
-	virtual bool handles_type(const String &p_type) const;
-	virtual String get_resource_type(const String &p_path) const;
+	RES load(const String &p_path, const String &p_original_path = "", Error *r_error = nullptr, bool p_no_subresource_cache = false) override;
+	void get_recognized_extensions(List<String> *p_extensions) const override;
+	bool handles_type(const String &p_type) const override;
+	String get_resource_type(const String &p_path) const override;
 };
 
 VARIANT_ENUM_CAST(Font::ContourPointTag);

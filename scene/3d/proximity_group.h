@@ -77,7 +77,7 @@ public:
 	void broadcast(String p_method, Variant p_parameters);
 
 	ProximityGroup();
-	~ProximityGroup() {}
+	~ProximityGroup() override {}
 };
 
 VARIANT_ENUM_CAST(ProximityGroup::DispatchMode);

@@ -75,7 +75,7 @@ public:
 	int get_encode_buffer_max_size() const;
 
 	PacketPeer();
-	~PacketPeer() {}
+	~PacketPeer() override {}
 };
 
 class PacketPeerStream : public PacketPeer {
@@ -95,11 +95,11 @@ protected:
 	static void _bind_methods();
 
 public:
-	virtual int get_available_packet_count() const;
-	virtual Error get_packet(const uint8_t **r_buffer, int &r_buffer_size);
-	virtual Error put_packet(const uint8_t *p_buffer, int p_buffer_size);
+	int get_available_packet_count() const override;
+	Error get_packet(const uint8_t **r_buffer, int &r_buffer_size) override;
+	Error put_packet(const uint8_t *p_buffer, int p_buffer_size) override;
 
-	virtual int get_max_packet_size() const;
+	int get_max_packet_size() const override;
 
 	void set_stream_peer(const Ref<StreamPeer> &p_peer);
 	Ref<StreamPeer> get_stream_peer() const;

@@ -128,10 +128,10 @@ public:
 
 	virtual AABB get_aabb() const;
 
-	virtual RID get_rid() const;
+	RID get_rid() const override;
 
 	MultiMesh();
-	~MultiMesh();
+	~MultiMesh() override;
 };
 
 VARIANT_ENUM_CAST(MultiMesh::TransformFormat);

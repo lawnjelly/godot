@@ -59,7 +59,7 @@ private:
 
 protected:
 	void _notification(int p_what);
-	virtual Size2 get_minimum_size() const;
+	Size2 get_minimum_size() const override;
 	static void _bind_methods();
 
 public:
@@ -79,7 +79,7 @@ public:
 	bool is_flipped_v() const;
 
 	TextureRect();
-	~TextureRect();
+	~TextureRect() override;
 };
 
 VARIANT_ENUM_CAST(TextureRect::StretchMode);

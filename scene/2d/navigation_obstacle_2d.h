@@ -49,12 +49,12 @@ class NavigationObstacle2D : public Node {
 
 protected:
 	static void _bind_methods();
-	void _validate_property(PropertyInfo &property) const;
+	void _validate_property(PropertyInfo &property) const override;
 	void _notification(int p_what);
 
 public:
 	NavigationObstacle2D();
-	virtual ~NavigationObstacle2D();
+	~NavigationObstacle2D() override;
 
 	void set_navigation(Navigation2D *p_nav);
 	const Navigation2D *get_navigation() const {
@@ -76,7 +76,7 @@ public:
 	real_t get_radius() const {
 		return radius;
 	}
-	virtual String get_configuration_warning() const;
+	String get_configuration_warning() const override;
 
 private:
 	void initialize_agent();

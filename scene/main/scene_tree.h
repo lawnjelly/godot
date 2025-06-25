@@ -319,16 +319,16 @@ public:
 
 	void flush_transform_notifications();
 
-	virtual void input_text(const String &p_text);
-	virtual void input_event(const Ref<InputEvent> &p_event);
-	virtual void init();
+	void input_text(const String &p_text) override;
+	void input_event(const Ref<InputEvent> &p_event) override;
+	void init() override;
 
-	virtual void iteration_prepare();
-	virtual bool iteration(float p_time);
-	virtual void iteration_end();
-	virtual bool idle(float p_time);
+	void iteration_prepare() override;
+	bool iteration(float p_time) override;
+	void iteration_end() override;
+	bool idle(float p_time) override;
 
-	virtual void finish();
+	void finish() override;
 
 	bool is_auto_accept_quit() const;
 	void set_auto_accept_quit(bool p_enable);
@@ -420,9 +420,9 @@ public:
 
 	static SceneTree *get_singleton() { return singleton; }
 
-	void drop_files(const Vector<String> &p_files, int p_from_screen = 0);
-	void global_menu_action(const Variant &p_id, const Variant &p_meta);
-	void get_argument_options(const StringName &p_function, int p_idx, List<String> *r_options) const;
+	void drop_files(const Vector<String> &p_files, int p_from_screen = 0) override;
+	void global_menu_action(const Variant &p_id, const Variant &p_meta) override;
+	void get_argument_options(const StringName &p_function, int p_idx, List<String> *r_options) const override;
 
 	//network API
 
@@ -455,7 +455,7 @@ public:
 
 	static void add_idle_callback(IdleCallback p_callback);
 	SceneTree();
-	~SceneTree();
+	~SceneTree() override;
 };
 
 VARIANT_ENUM_CAST(SceneTree::StretchMode);

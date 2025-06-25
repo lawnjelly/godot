@@ -74,8 +74,8 @@ protected:
 
 public:
 #ifdef TOOLS_ENABLED
-	virtual Rect2 _edit_get_rect() const;
-	virtual bool _edit_use_rect() const;
+	Rect2 _edit_get_rect() const override;
+	bool _edit_use_rect() const override;
 #endif
 
 	void set_texture(const Ref<Texture> &p_texture);
@@ -107,7 +107,7 @@ public:
 
 	bool is_pressed() const;
 
-	virtual Rect2 get_anchorable_rect() const;
+	Rect2 get_anchorable_rect() const override;
 
 	TouchScreenButton();
 };

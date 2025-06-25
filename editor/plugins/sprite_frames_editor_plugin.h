@@ -186,14 +186,14 @@ class SpriteFramesEditorPlugin : public EditorPlugin {
 	Button *button;
 
 public:
-	virtual String get_name() const { return "SpriteFrames"; }
-	bool has_main_screen() const { return false; }
-	virtual void edit(Object *p_object);
-	virtual bool handles(Object *p_object) const;
-	virtual void make_visible(bool p_visible);
+	String get_name() const override { return "SpriteFrames"; }
+	bool has_main_screen() const override { return false; }
+	void edit(Object *p_object) override;
+	bool handles(Object *p_object) const override;
+	void make_visible(bool p_visible) override;
 
 	SpriteFramesEditorPlugin(EditorNode *p_node);
-	~SpriteFramesEditorPlugin();
+	~SpriteFramesEditorPlugin() override;
 };
 
 #endif // SPRITE_FRAMES_EDITOR_PLUGIN_H

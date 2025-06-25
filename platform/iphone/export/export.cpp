@@ -182,15 +182,15 @@ class EditorExportPlatformIOS : public EditorExportPlatform {
 #endif
 
 protected:
-	virtual void get_preset_features(const Ref<EditorExportPreset> &p_preset, List<String> *r_features);
-	virtual void get_export_options(List<ExportOption> *r_options);
+	void get_preset_features(const Ref<EditorExportPreset> &p_preset, List<String> *r_features) override;
+	void get_export_options(List<ExportOption> *r_options) override;
 
 public:
-	virtual String get_name() const { return "iOS"; }
-	virtual String get_os_name() const { return "iOS"; }
-	virtual Ref<Texture> get_logo() const { return logo; }
+	String get_name() const override { return "iOS"; }
+	String get_os_name() const override { return "iOS"; }
+	Ref<Texture> get_logo() const override { return logo; }
 
-	virtual bool should_update_export_options() {
+	bool should_update_export_options() override {
 		bool export_options_changed = plugins_changed.is_set();
 		if (export_options_changed) {
 			// don't clear unless we're reporting true, to avoid race
@@ -199,27 +199,27 @@ public:
 		return export_options_changed;
 	}
 
-	virtual List<String> get_binary_extensions(const Ref<EditorExportPreset> &p_preset) const {
+	List<String> get_binary_extensions(const Ref<EditorExportPreset> &p_preset) const override {
 		List<String> list;
 		list.push_back("ipa");
 		return list;
 	}
 
-	virtual Error export_project(const Ref<EditorExportPreset> &p_preset, bool p_debug, const String &p_path, int p_flags = 0);
+	Error export_project(const Ref<EditorExportPreset> &p_preset, bool p_debug, const String &p_path, int p_flags = 0) override;
 
-	virtual bool has_valid_export_configuration(const Ref<EditorExportPreset> &p_preset, String &r_error, bool &r_missing_templates) const;
-	virtual bool has_valid_project_configuration(const Ref<EditorExportPreset> &p_preset, String &r_error) const;
+	bool has_valid_export_configuration(const Ref<EditorExportPreset> &p_preset, String &r_error, bool &r_missing_templates) const override;
+	bool has_valid_project_configuration(const Ref<EditorExportPreset> &p_preset, String &r_error) const override;
 
-	virtual void get_platform_features(List<String> *r_features) {
+	void get_platform_features(List<String> *r_features) override {
 		r_features->push_back("mobile");
 		r_features->push_back("iOS");
 	}
 
-	virtual void resolve_platform_feature_priorities(const Ref<EditorExportPreset> &p_preset, Set<String> &p_features) {
+	void resolve_platform_feature_priorities(const Ref<EditorExportPreset> &p_preset, Set<String> &p_features) override {
 	}
 
 	EditorExportPlatformIOS();
-	~EditorExportPlatformIOS();
+	~EditorExportPlatformIOS() override;
 
 	/// List the gdip files in the directory specified by the p_path parameter.
 	static Vector<String> list_plugin_config_files(const String &p_path, bool p_check_directories) {
@@ -1234,7 +1234,7 @@ Error EditorExportPlatformIOS::_codesign(String p_file, void *p_userdata) {
 		codesign_args.push_back(p_file);
 
 		String str;
-		Error err = OS::get_singleton()->execute("codesign", codesign_args, true, NULL, &str, NULL, true);
+		Error err = OS::get_singleton()->execute("codesign", codesign_args, true, nullptr, &str, nullptr, true);
 		print_verbose("codesign (" + p_file + "):\n" + str);
 
 		return err;

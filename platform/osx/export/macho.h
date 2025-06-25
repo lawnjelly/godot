@@ -209,7 +209,7 @@ public:
 	uint64_t get_signature_size();
 	bool set_signature_size(uint64_t p_size);
 
-	~MachO();
+	~MachO() override;
 };
 
 #endif // MODULE_REGEX_ENABLED

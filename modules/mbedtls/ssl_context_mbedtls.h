@@ -60,7 +60,7 @@ public:
 	void clear();
 
 	CookieContextMbedTLS();
-	~CookieContextMbedTLS();
+	~CookieContextMbedTLS() override;
 };
 
 class SSLContextMbedTLS : public Reference {
@@ -87,7 +87,7 @@ public:
 	mbedtls_ssl_context *get_context();
 
 	SSLContextMbedTLS();
-	~SSLContextMbedTLS();
+	~SSLContextMbedTLS() override;
 };
 
 #endif // SSL_CONTEXT_MBEDTLS_H

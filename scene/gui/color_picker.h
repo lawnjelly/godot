@@ -57,7 +57,7 @@ public:
 	Color get_preset_color() const;
 
 	ColorPresetButton(Color p_color);
-	~ColorPresetButton();
+	~ColorPresetButton() override;
 };
 
 class ColorPicker : public BoxContainer {
@@ -178,7 +178,7 @@ class ColorPickerButton : public Button {
 	void _color_changed(const Color &p_color);
 	void _modal_closed();
 
-	virtual void pressed();
+	void pressed() override;
 
 	void _update_picker();
 

@@ -123,7 +123,7 @@ protected:
 	static void _bind_methods();
 
 	void _notification(int p_what);
-	void custom_action(const String &p_action);
+	void custom_action(const String &p_action) override;
 
 private:
 	void _on_folder_button_pressed();

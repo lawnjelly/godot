@@ -230,7 +230,7 @@ void OptionButton::_select(int p_which, bool p_emit) {
 
 		current = NONE_SELECTED;
 		set_text("");
-		set_icon(NULL);
+		set_icon(nullptr);
 	} else {
 		ERR_FAIL_INDEX(p_which, popup->get_item_count());
 

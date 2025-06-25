@@ -89,7 +89,7 @@ class NavMap : public NavRid {
 
 public:
 	NavMap();
-	~NavMap();
+	~NavMap() override;
 
 	void set_up(Vector3 p_up);
 	Vector3 get_up() const {

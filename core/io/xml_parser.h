@@ -114,7 +114,7 @@ public:
 	void close();
 
 	XMLParser();
-	~XMLParser();
+	~XMLParser() override;
 };
 
 #endif // XML_PARSER_H

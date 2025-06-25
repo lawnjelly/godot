@@ -68,16 +68,16 @@ public:
 	static WebRTCPeerConnection *_create() { return memnew(WebRTCPeerConnectionJS); }
 	static void make_default() { WebRTCPeerConnection::_create = WebRTCPeerConnectionJS::_create; }
 
-	virtual ConnectionState get_connection_state() const;
+	virtual ConnectionState get_connection_state() const override;
 
-	virtual Error initialize(Dictionary configuration = Dictionary());
-	virtual Ref<WebRTCDataChannel> create_data_channel(String p_channel_name, Dictionary p_channel_config = Dictionary());
-	virtual Error create_offer();
-	virtual Error set_remote_description(String type, String sdp);
-	virtual Error set_local_description(String type, String sdp);
-	virtual Error add_ice_candidate(String sdpMidName, int sdpMlineIndexName, String sdpName);
-	virtual Error poll();
-	virtual void close();
+	virtual Error initialize(Dictionary configuration = Dictionary()) override;
+	virtual Ref<WebRTCDataChannel> create_data_channel(String p_channel_name, Dictionary p_channel_config = Dictionary()) override;
+	virtual Error create_offer() override;
+	virtual Error set_remote_description(String type, String sdp) override;
+	virtual Error set_local_description(String type, String sdp) override;
+	virtual Error add_ice_candidate(String sdpMidName, int sdpMlineIndexName, String sdpName) override;
+	virtual Error poll() override;
+	virtual void close() override;
 
 	WebRTCPeerConnectionJS();
 	~WebRTCPeerConnectionJS();

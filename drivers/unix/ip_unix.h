@@ -38,12 +38,12 @@
 class IP_Unix : public IP {
 	GDCLASS(IP_Unix, IP);
 
-	virtual void _resolve_hostname(List<IP_Address> &r_addresses, const String &p_hostname, Type p_type = TYPE_ANY) const;
+	void _resolve_hostname(List<IP_Address> &r_addresses, const String &p_hostname, Type p_type = TYPE_ANY) const override;
 
 	static IP *_create_unix();
 
 public:
-	virtual void get_local_interfaces(Map<String, Interface_Info> *r_interfaces) const;
+	void get_local_interfaces(Map<String, Interface_Info> *r_interfaces) const override;
 
 	static void make_default();
 	IP_Unix();

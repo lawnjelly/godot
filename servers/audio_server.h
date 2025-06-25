@@ -419,7 +419,7 @@ public:
 	void capture_set_device(const String &p_name);
 
 	AudioServer();
-	virtual ~AudioServer();
+	~AudioServer() override;
 };
 
 VARIANT_ENUM_CAST(AudioServer::SpeakerMode)

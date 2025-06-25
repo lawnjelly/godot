@@ -60,11 +60,11 @@ public:
 	virtual Rect2 get_rect() const { return Rect2(); }
 	/// Returns the radius of a sphere that fully enclose this shape
 	virtual real_t get_enclosing_radius() const = 0;
-	virtual RID get_rid() const;
+	RID get_rid() const override;
 
 	bool is_collision_outline_enabled();
 
-	~Shape2D();
+	~Shape2D() override;
 };
 
 #endif // SHAPE_2D_H

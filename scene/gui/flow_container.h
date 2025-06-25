@@ -60,7 +60,7 @@ protected:
 public:
 	int get_line_count() const;
 
-	virtual Size2 get_minimum_size() const;
+	Size2 get_minimum_size() const override;
 
 	FlowContainer(bool p_vertical = false);
 

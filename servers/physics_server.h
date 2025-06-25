@@ -743,7 +743,7 @@ public:
 	virtual int get_process_info(ProcessInfo p_info) = 0;
 
 	PhysicsServer();
-	~PhysicsServer();
+	~PhysicsServer() override;
 };
 
 class PhysicsTestMotionResult : public Reference {

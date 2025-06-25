@@ -114,7 +114,7 @@ public:
 	void stop();
 
 	EditorResourcePreview();
-	~EditorResourcePreview();
+	~EditorResourcePreview() override;
 };
 
 #endif // EDITOR_RESOURCE_PREVIEW_H

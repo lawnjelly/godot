@@ -72,7 +72,7 @@ public:
 	void update_category_list();
 
 	SectionedInspector();
-	~SectionedInspector();
+	~SectionedInspector() override;
 };
 
 #endif // EDITOR_SECTIONED_INSPECTOR_H

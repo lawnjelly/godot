@@ -330,7 +330,7 @@ public:
 	FileListDisplayMode get_file_list_display_mode() { return file_list_display_mode; };
 
 	FileSystemDock(EditorNode *p_editor);
-	~FileSystemDock();
+	~FileSystemDock() override;
 };
 
 #endif // FILESYSTEM_DOCK_H

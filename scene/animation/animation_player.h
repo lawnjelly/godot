@@ -252,7 +252,7 @@ private:
 
 	void _animation_process_animation(AnimationData *p_anim, float p_time, float p_delta, float p_interp, bool p_is_current = true, bool p_seeked = false, bool p_started = false);
 
-	void _ensure_node_caches(AnimationData *p_anim, Node *p_root_override = NULL);
+	void _ensure_node_caches(AnimationData *p_anim, Node *p_root_override = nullptr);
 	void _animation_process_data(PlaybackData &cd, float p_delta, float p_blend, bool p_seeked, bool p_started);
 	void _animation_process2(float p_delta, bool p_started);
 	void _animation_update_transforms();
@@ -284,7 +284,7 @@ private:
 protected:
 	bool _set(const StringName &p_name, const Variant &p_value);
 	bool _get(const StringName &p_name, Variant &r_ret) const;
-	virtual void _validate_property(PropertyInfo &property) const;
+	void _validate_property(PropertyInfo &property) const override;
 	void _get_property_list(List<PropertyInfo> *p_list) const;
 	void _notification(int p_what);
 
@@ -352,16 +352,16 @@ public:
 
 	void clear_caches(); ///< must be called by hand if an animation was modified after added
 
-	void get_argument_options(const StringName &p_function, int p_idx, List<String> *r_options) const;
+	void get_argument_options(const StringName &p_function, int p_idx, List<String> *r_options) const override;
 
 #ifdef TOOLS_ENABLED
-	Ref<AnimatedValuesBackup> backup_animated_values(Node *p_root_override = NULL);
+	Ref<AnimatedValuesBackup> backup_animated_values(Node *p_root_override = nullptr);
 	Ref<AnimatedValuesBackup> apply_reset(bool p_user_initiated = false);
 	bool can_apply_reset() const;
 #endif
 
 	AnimationPlayer();
-	~AnimationPlayer();
+	~AnimationPlayer() override;
 };
 
 VARIANT_ENUM_CAST(AnimationPlayer::AnimationProcessMode);

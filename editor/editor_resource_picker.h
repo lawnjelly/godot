@@ -137,8 +137,8 @@ protected:
 	static void _bind_methods();
 
 public:
-	virtual void set_create_options(Object *p_menu_node);
-	virtual bool handle_menu_selected(int p_which);
+	void set_create_options(Object *p_menu_node) override;
+	bool handle_menu_selected(int p_which) override;
 
 	void set_script_owner(Node *p_owner);
 	Node *get_script_owner() const;

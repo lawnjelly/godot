@@ -101,14 +101,14 @@ class AnimationTreeEditorPlugin : public EditorPlugin {
 	Button *button;
 
 public:
-	virtual String get_name() const { return "AnimationTree"; }
-	bool has_main_screen() const { return false; }
-	virtual void edit(Object *p_object);
-	virtual bool handles(Object *p_object) const;
-	virtual void make_visible(bool p_visible);
+	String get_name() const override { return "AnimationTree"; }
+	bool has_main_screen() const override { return false; }
+	void edit(Object *p_object) override;
+	bool handles(Object *p_object) const override;
+	void make_visible(bool p_visible) override;
 
 	AnimationTreeEditorPlugin(EditorNode *p_node);
-	~AnimationTreeEditorPlugin();
+	~AnimationTreeEditorPlugin() override;
 };
 
 #endif // ANIMATION_TREE_EDITOR_PLUGIN_H

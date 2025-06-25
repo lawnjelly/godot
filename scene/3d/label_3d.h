@@ -171,7 +171,7 @@ protected:
 
 	static void _bind_methods();
 
-	void _validate_property(PropertyInfo &property) const;
+	void _validate_property(PropertyInfo &property) const override;
 
 	void _im_update();
 	void _font_changed();
@@ -235,13 +235,13 @@ public:
 	void set_billboard_mode(Material3D::BillboardMode p_mode);
 	Material3D::BillboardMode get_billboard_mode() const;
 
-	virtual AABB get_aabb() const;
+	AABB get_aabb() const override;
 	Ref<TriangleMesh> generate_triangle_mesh() const;
 
-	virtual PoolVector<Face3> get_faces(uint32_t p_usage_flags) const;
+	PoolVector<Face3> get_faces(uint32_t p_usage_flags) const override;
 
 	Label3D();
-	~Label3D();
+	~Label3D() override;
 };
 
 VARIANT_ENUM_CAST(Label3D::DrawFlags);

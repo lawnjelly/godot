@@ -53,15 +53,15 @@ public:
 	void set_shape(const Ref<OccluderShape> &p_shape);
 	Ref<OccluderShape> get_shape() const;
 
-	String get_configuration_warning() const;
+	String get_configuration_warning() const override;
 
 #ifdef TOOLS_ENABLED
 	// for editor gizmo
-	virtual AABB get_fallback_gizmo_aabb() const;
+	AABB get_fallback_gizmo_aabb() const override;
 #endif
 
 	Occluder();
-	~Occluder();
+	~Occluder() override;
 };
 
 #endif // OCCLUDER_H

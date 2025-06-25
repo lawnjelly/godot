@@ -122,7 +122,7 @@ class ScriptCreateDialog : public ConfirmationDialog {
 	void _file_selected(const String &p_file);
 	void _create();
 	void _browse_class_in_tree();
-	virtual void ok_pressed();
+	void ok_pressed() override;
 	void _create_new();
 	void _load_exist();
 	void _msg_script_valid(bool valid, const String &p_msg = String());

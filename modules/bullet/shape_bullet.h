@@ -69,7 +69,7 @@ protected:
 
 public:
 	ShapeBullet();
-	virtual ~ShapeBullet();
+	~ShapeBullet() override;
 
 	btCollisionShape *create_bt_shape(const Vector3 &p_implicit_scale, real_t p_extra_edge = 0);
 	virtual btCollisionShape *create_bt_shape(const btVector3 &p_implicit_scale, real_t p_extra_edge = 0) = 0;
@@ -108,10 +108,10 @@ class PlaneShapeBullet : public ShapeBullet {
 public:
 	PlaneShapeBullet();
 
-	virtual void set_data(const Variant &p_data);
-	virtual Variant get_data() const;
-	virtual PhysicsServer::ShapeType get_type() const;
-	virtual btCollisionShape *create_bt_shape(const btVector3 &p_implicit_scale, real_t p_extra_edge = 0);
+	void set_data(const Variant &p_data) override;
+	Variant get_data() const override;
+	PhysicsServer::ShapeType get_type() const override;
+	btCollisionShape *create_bt_shape(const btVector3 &p_implicit_scale, real_t p_extra_edge = 0) override;
 
 private:
 	void setup(const Plane &p_plane);
@@ -124,10 +124,10 @@ public:
 	SphereShapeBullet();
 
 	_FORCE_INLINE_ real_t get_radius() { return radius; }
-	virtual void set_data(const Variant &p_data);
-	virtual Variant get_data() const;
-	virtual PhysicsServer::ShapeType get_type() const;
-	virtual btCollisionShape *create_bt_shape(const btVector3 &p_implicit_scale, real_t p_extra_edge = 0);
+	void set_data(const Variant &p_data) override;
+	Variant get_data() const override;
+	PhysicsServer::ShapeType get_type() const override;
+	btCollisionShape *create_bt_shape(const btVector3 &p_implicit_scale, real_t p_extra_edge = 0) override;
 
 private:
 	void setup(real_t p_radius);
@@ -140,10 +140,10 @@ public:
 	BoxShapeBullet();
 
 	_FORCE_INLINE_ const btVector3 &get_half_extents() { return half_extents; }
-	virtual void set_data(const Variant &p_data);
-	virtual Variant get_data() const;
-	virtual PhysicsServer::ShapeType get_type() const;
-	virtual btCollisionShape *create_bt_shape(const btVector3 &p_implicit_scale, real_t p_extra_edge = 0);
+	void set_data(const Variant &p_data) override;
+	Variant get_data() const override;
+	PhysicsServer::ShapeType get_type() const override;
+	btCollisionShape *create_bt_shape(const btVector3 &p_implicit_scale, real_t p_extra_edge = 0) override;
 
 private:
 	void setup(const Vector3 &p_half_extents);
@@ -158,10 +158,10 @@ public:
 
 	_FORCE_INLINE_ real_t get_height() { return height; }
 	_FORCE_INLINE_ real_t get_radius() { return radius; }
-	virtual void set_data(const Variant &p_data);
-	virtual Variant get_data() const;
-	virtual PhysicsServer::ShapeType get_type() const;
-	virtual btCollisionShape *create_bt_shape(const btVector3 &p_implicit_scale, real_t p_extra_edge = 0);
+	void set_data(const Variant &p_data) override;
+	Variant get_data() const override;
+	PhysicsServer::ShapeType get_type() const override;
+	btCollisionShape *create_bt_shape(const btVector3 &p_implicit_scale, real_t p_extra_edge = 0) override;
 
 private:
 	void setup(real_t p_height, real_t p_radius);
@@ -176,10 +176,10 @@ public:
 
 	_FORCE_INLINE_ real_t get_height() { return height; }
 	_FORCE_INLINE_ real_t get_radius() { return radius; }
-	virtual void set_data(const Variant &p_data);
-	virtual Variant get_data() const;
-	virtual PhysicsServer::ShapeType get_type() const;
-	virtual btCollisionShape *create_bt_shape(const btVector3 &p_implicit_scale, real_t p_margin = 0);
+	void set_data(const Variant &p_data) override;
+	Variant get_data() const override;
+	PhysicsServer::ShapeType get_type() const override;
+	btCollisionShape *create_bt_shape(const btVector3 &p_implicit_scale, real_t p_margin = 0) override;
 
 private:
 	void setup(real_t p_height, real_t p_radius);
@@ -191,11 +191,11 @@ public:
 
 	ConvexPolygonShapeBullet();
 
-	virtual void set_data(const Variant &p_data);
+	void set_data(const Variant &p_data) override;
 	void get_vertices(Vector<Vector3> &out_vertices);
-	virtual Variant get_data() const;
-	virtual PhysicsServer::ShapeType get_type() const;
-	virtual btCollisionShape *create_bt_shape(const btVector3 &p_implicit_scale, real_t p_extra_edge = 0);
+	Variant get_data() const override;
+	PhysicsServer::ShapeType get_type() const override;
+	btCollisionShape *create_bt_shape(const btVector3 &p_implicit_scale, real_t p_extra_edge = 0) override;
 
 private:
 	void setup(const Vector<Vector3> &p_vertices);
@@ -208,12 +208,12 @@ public:
 	PoolVector<Vector3> faces;
 
 	ConcavePolygonShapeBullet();
-	virtual ~ConcavePolygonShapeBullet();
+	~ConcavePolygonShapeBullet() override;
 
-	virtual void set_data(const Variant &p_data);
-	virtual Variant get_data() const;
-	virtual PhysicsServer::ShapeType get_type() const;
-	virtual btCollisionShape *create_bt_shape(const btVector3 &p_implicit_scale, real_t p_extra_edge = 0);
+	void set_data(const Variant &p_data) override;
+	Variant get_data() const override;
+	PhysicsServer::ShapeType get_type() const override;
+	btCollisionShape *create_bt_shape(const btVector3 &p_implicit_scale, real_t p_extra_edge = 0) override;
 
 private:
 	void setup(PoolVector<Vector3> p_faces);
@@ -229,10 +229,10 @@ public:
 
 	HeightMapShapeBullet();
 
-	virtual void set_data(const Variant &p_data);
-	virtual Variant get_data() const;
-	virtual PhysicsServer::ShapeType get_type() const;
-	virtual btCollisionShape *create_bt_shape(const btVector3 &p_implicit_scale, real_t p_extra_edge = 0);
+	void set_data(const Variant &p_data) override;
+	Variant get_data() const override;
+	PhysicsServer::ShapeType get_type() const override;
+	btCollisionShape *create_bt_shape(const btVector3 &p_implicit_scale, real_t p_extra_edge = 0) override;
 
 private:
 	void setup(PoolVector<real_t> &p_heights, int p_width, int p_depth, real_t p_min_height, real_t p_max_height);
@@ -245,10 +245,10 @@ public:
 
 	RayShapeBullet();
 
-	virtual void set_data(const Variant &p_data);
-	virtual Variant get_data() const;
-	virtual PhysicsServer::ShapeType get_type() const;
-	virtual btCollisionShape *create_bt_shape(const btVector3 &p_implicit_scale, real_t p_extra_edge = 0);
+	void set_data(const Variant &p_data) override;
+	Variant get_data() const override;
+	PhysicsServer::ShapeType get_type() const override;
+	btCollisionShape *create_bt_shape(const btVector3 &p_implicit_scale, real_t p_extra_edge = 0) override;
 
 private:
 	void setup(real_t p_length, bool p_slips_on_slope);

@@ -281,7 +281,7 @@ extern "C" {
 #define udev_util_encode_string udev_util_encode_string_dylibloader_wrapper_libudev
 extern struct udev* (*udev_ref_dylibloader_wrapper_libudev)(struct udev*);
 extern struct udev* (*udev_unref_dylibloader_wrapper_libudev)(struct udev*);
-extern struct udev* (*udev_new_dylibloader_wrapper_libudev)( void);
+extern struct udev* (*udev_new_dylibloader_wrapper_libudev)( );
 extern void (*udev_set_log_fn_dylibloader_wrapper_libudev)(struct udev*, void*);
 extern int (*udev_get_log_priority_dylibloader_wrapper_libudev)(struct udev*);
 extern void (*udev_set_log_priority_dylibloader_wrapper_libudev)(struct udev*, int);

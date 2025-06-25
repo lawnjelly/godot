@@ -156,9 +156,9 @@ public:
 	Ref<PropertyTweener> set_ease(Tween::EaseType p_ease);
 	Ref<PropertyTweener> set_delay(float p_delay);
 
-	virtual void set_tween(Ref<SceneTreeTween> p_tween);
-	virtual void start();
-	virtual bool step(float &r_delta);
+	void set_tween(Ref<SceneTreeTween> p_tween) override;
+	void start() override;
+	bool step(float &r_delta) override;
 
 	PropertyTweener(Object *p_target, NodePath p_property, Variant p_to, float p_duration);
 	PropertyTweener();
@@ -187,8 +187,8 @@ class IntervalTweener : public Tweener {
 	GDCLASS(IntervalTweener, Tweener);
 
 public:
-	virtual void start();
-	virtual bool step(float &r_delta);
+	void start() override;
+	bool step(float &r_delta) override;
 
 	IntervalTweener(float p_time);
 	IntervalTweener();
@@ -203,8 +203,8 @@ class CallbackTweener : public Tweener {
 public:
 	Ref<CallbackTweener> set_delay(float p_delay);
 
-	virtual void start();
-	virtual bool step(float &r_delta);
+	void start() override;
+	bool step(float &r_delta) override;
 
 	CallbackTweener(Object *p_target, StringName p_method, const Vector<Variant> &p_binds);
 	CallbackTweener();
@@ -228,9 +228,9 @@ public:
 	Ref<MethodTweener> set_ease(Tween::EaseType p_ease);
 	Ref<MethodTweener> set_delay(float p_delay);
 
-	virtual void set_tween(Ref<SceneTreeTween> p_tween);
-	virtual void start();
-	virtual bool step(float &r_delta);
+	void set_tween(Ref<SceneTreeTween> p_tween) override;
+	void start() override;
+	bool step(float &r_delta) override;
 
 	MethodTweener(Object *p_target, StringName p_method, Variant p_from, Variant p_to, float p_duration, const Vector<Variant> &p_binds);
 	MethodTweener();

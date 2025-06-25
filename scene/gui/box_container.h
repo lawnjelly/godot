@@ -66,7 +66,7 @@ public:
 	void set_alignment(AlignMode p_align);
 	AlignMode get_alignment() const;
 
-	virtual Size2 get_minimum_size() const;
+	Size2 get_minimum_size() const override;
 
 	BoxContainer(bool p_vertical = false);
 };

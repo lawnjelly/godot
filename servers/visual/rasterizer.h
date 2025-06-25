@@ -905,7 +905,7 @@ public:
 				type = TYPE_POLYGON;
 				count = 0;
 			}
-			virtual ~CommandPolygon() {
+			~CommandPolygon() override {
 				if (skinning_data) {
 					memdelete(skinning_data);
 					skinning_data = nullptr;
@@ -927,9 +927,9 @@ public:
 			RID texture;
 			RID normal_map;
 			RID canvas_item;
-			virtual bool contains_reference(const RID &p_rid) const { return multimesh == p_rid; }
+			bool contains_reference(const RID &p_rid) const override { return multimesh == p_rid; }
 			CommandMultiMesh() { type = TYPE_MULTIMESH; }
-			virtual ~CommandMultiMesh() {
+			~CommandMultiMesh() override {
 				// Remove any backlinks from multimesh to canvas item.
 				if (multimesh.is_valid()) {
 					RasterizerStorage::base_singleton->multimesh_attach_canvas_item(multimesh, canvas_item, false);
@@ -1242,7 +1242,7 @@ public:
 			use_identity_xform = false;
 			local_bound_last_update_tick = 0;
 		}
-		virtual ~Item() {
+		~Item() override {
 			clear();
 			if (copy_back_buffer) {
 				memdelete(copy_back_buffer);

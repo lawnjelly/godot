@@ -212,7 +212,7 @@ public:
 	virtual void process(real_t delta_time) = 0;
 
 	NavigationServer();
-	virtual ~NavigationServer();
+	~NavigationServer() override;
 };
 
 typedef NavigationServer *(*NavigationServerCallback)();

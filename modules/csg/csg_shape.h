@@ -119,7 +119,7 @@ protected:
 	friend class CSGCombiner;
 	CSGBrush *_get_brush();
 
-	virtual void _validate_property(PropertyInfo &property) const;
+	void _validate_property(PropertyInfo &property) const override;
 
 public:
 	Array get_meshes() const;
@@ -131,8 +131,8 @@ public:
 
 	virtual PoolVector<Vector3> get_brush_faces();
 
-	virtual AABB get_aabb() const;
-	virtual PoolVector<Face3> get_faces(uint32_t p_usage_flags) const;
+	AABB get_aabb() const override;
+	PoolVector<Face3> get_faces(uint32_t p_usage_flags) const override;
 
 	bool split_by_surface(Vector<Variant> p_destination_mesh_instances);
 
@@ -159,7 +159,7 @@ public:
 
 	bool is_root_shape() const;
 	CSGShape();
-	~CSGShape();
+	~CSGShape() override;
 };
 
 VARIANT_ENUM_CAST(CSGShape::Operation)
@@ -168,7 +168,7 @@ class CSGCombiner : public CSGShape {
 	GDCLASS(CSGCombiner, CSGShape);
 
 private:
-	virtual CSGBrush *_build_brush();
+	CSGBrush *_build_brush() override;
 
 public:
 	CSGCombiner();
@@ -192,7 +192,7 @@ public:
 class CSGMesh : public CSGPrimitive {
 	GDCLASS(CSGMesh, CSGPrimitive);
 
-	virtual CSGBrush *_build_brush();
+	CSGBrush *_build_brush() override;
 
 	Ref<Mesh> mesh;
 	Ref<Material> material;
@@ -212,7 +212,7 @@ public:
 
 class CSGSphere : public CSGPrimitive {
 	GDCLASS(CSGSphere, CSGPrimitive);
-	virtual CSGBrush *_build_brush();
+	CSGBrush *_build_brush() override;
 
 	Ref<Material> material;
 	bool smooth_faces;
@@ -244,7 +244,7 @@ public:
 
 class CSGBox : public CSGPrimitive {
 	GDCLASS(CSGBox, CSGPrimitive);
-	virtual CSGBrush *_build_brush();
+	CSGBrush *_build_brush() override;
 
 	Ref<Material> material;
 	float width;
@@ -272,7 +272,7 @@ public:
 
 class CSGCylinder : public CSGPrimitive {
 	GDCLASS(CSGCylinder, CSGPrimitive);
-	virtual CSGBrush *_build_brush();
+	CSGBrush *_build_brush() override;
 
 	Ref<Material> material;
 	float radius;
@@ -308,7 +308,7 @@ public:
 
 class CSGTorus : public CSGPrimitive {
 	GDCLASS(CSGTorus, CSGPrimitive);
-	virtual CSGBrush *_build_brush();
+	CSGBrush *_build_brush() override;
 
 	Ref<Material> material;
 	float inner_radius;
@@ -364,7 +364,7 @@ public:
 	};
 
 private:
-	virtual CSGBrush *_build_brush();
+	CSGBrush *_build_brush() override;
 
 	Vector<Vector2> polygon;
 	Ref<Material> material;
@@ -398,7 +398,7 @@ private:
 
 protected:
 	static void _bind_methods();
-	virtual void _validate_property(PropertyInfo &property) const;
+	void _validate_property(PropertyInfo &property) const override;
 	void _notification(int p_what);
 
 public:

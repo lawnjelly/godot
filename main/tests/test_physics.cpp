@@ -244,7 +244,7 @@ protected:
 	}
 
 public:
-	virtual void input_event(const Ref<InputEvent> &p_event) {
+	void input_event(const Ref<InputEvent> &p_event) override {
 		Ref<InputEventMouseMotion> mm = p_event;
 		if (mm.is_valid() && mm->get_button_mask() & 4) {
 			ofs_y -= mm->get_relative().y / 200.0;
@@ -268,7 +268,7 @@ public:
 	virtual void request_quit() {
 		quit = true;
 	}
-	virtual void init() {
+	void init() override {
 		ofs_x = ofs_y = 0;
 		init_shapes();
 
@@ -309,7 +309,7 @@ public:
 		test_fall();
 		quit = false;
 	}
-	virtual bool iteration(float p_time) {
+	bool iteration(float p_time) override {
 		if (mover.is_valid()) {
 			static float joy_speed = 10;
 			PhysicsServer *ps = PhysicsServer::get_singleton();
@@ -327,7 +327,7 @@ public:
 
 		return quit;
 	}
-	virtual void finish() {
+	void finish() override {
 	}
 
 	void test_joint() {
@@ -395,7 +395,7 @@ public:
 		create_static_plane(Plane(Vector3(0, 1, 0), -1));
 	}
 
-	virtual bool idle(float p_time) {
+	bool idle(float p_time) override {
 		return false;
 	}
 

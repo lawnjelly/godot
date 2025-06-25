@@ -67,7 +67,7 @@ public:
 	static WebRTCPeerConnection *create();
 
 	WebRTCPeerConnection();
-	~WebRTCPeerConnection();
+	~WebRTCPeerConnection() override;
 };
 
 VARIANT_ENUM_CAST(WebRTCPeerConnection::ConnectionState);

@@ -35,8 +35,8 @@
 
 class ImageLoaderTinyEXR : public ImageFormatLoader {
 public:
-	virtual Error load_image(Ref<Image> p_image, FileAccess *f, bool p_force_linear, float p_scale);
-	virtual void get_recognized_extensions(List<String> *p_extensions) const;
+	Error load_image(Ref<Image> p_image, FileAccess *f, bool p_force_linear, float p_scale) override;
+	void get_recognized_extensions(List<String> *p_extensions) const override;
 	ImageLoaderTinyEXR();
 };
 

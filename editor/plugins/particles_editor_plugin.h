@@ -88,7 +88,7 @@ class ParticlesEditor : public ParticlesEditorBase {
 
 	friend class ParticlesEditorPlugin;
 
-	virtual void _generate_emission_points();
+	void _generate_emission_points() override;
 
 protected:
 	void _notification(int p_notification);
@@ -107,14 +107,14 @@ class ParticlesEditorPlugin : public EditorPlugin {
 	EditorNode *editor;
 
 public:
-	virtual String get_name() const { return "Particles"; }
-	bool has_main_screen() const { return false; }
-	virtual void edit(Object *p_object);
-	virtual bool handles(Object *p_object) const;
-	virtual void make_visible(bool p_visible);
+	String get_name() const override { return "Particles"; }
+	bool has_main_screen() const override { return false; }
+	void edit(Object *p_object) override;
+	bool handles(Object *p_object) const override;
+	void make_visible(bool p_visible) override;
 
 	ParticlesEditorPlugin(EditorNode *p_node);
-	~ParticlesEditorPlugin();
+	~ParticlesEditorPlugin() override;
 };
 
 #endif // PARTICLES_EDITOR_PLUGIN_H

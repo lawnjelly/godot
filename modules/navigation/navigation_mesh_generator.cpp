@@ -63,7 +63,7 @@
 #include "modules/gridmap/grid_map.h"
 #endif
 
-NavigationMeshGenerator *NavigationMeshGenerator::singleton = NULL;
+NavigationMeshGenerator *NavigationMeshGenerator::singleton = nullptr;
 
 void NavigationMeshGenerator::_add_vertex(const Vector3 &p_vec3, Vector<float> &p_vertices) {
 	p_vertices.push_back(p_vec3.x);
@@ -515,8 +515,9 @@ void NavigationMeshGenerator::_build_recast_navigation_mesh(
 	rcContext ctx;
 
 #ifdef TOOLS_ENABLED
-	if (ep)
+	if (ep) {
 		ep->step(TTR("Setting up Configuration..."), 1);
+	}
 #endif
 
 	const float *verts = vertices.ptr();
@@ -567,8 +568,9 @@ void NavigationMeshGenerator::_build_recast_navigation_mesh(
 	}
 
 #ifdef TOOLS_ENABLED
-	if (ep)
+	if (ep) {
 		ep->step(TTR("Calculating grid size..."), 2);
+	}
 #endif
 	rcCalcGridSize(cfg.bmin, cfg.bmax, cfg.cs, &cfg.width, &cfg.height);
 
@@ -581,8 +583,9 @@ void NavigationMeshGenerator::_build_recast_navigation_mesh(
 	}
 
 #ifdef TOOLS_ENABLED
-	if (ep)
+	if (ep) {
 		ep->step(TTR("Creating heightfield..."), 3);
+	}
 #endif
 	hf = rcAllocHeightfield();
 
@@ -590,8 +593,9 @@ void NavigationMeshGenerator::_build_recast_navigation_mesh(
 	ERR_FAIL_COND(!rcCreateHeightfield(&ctx, *hf, cfg.width, cfg.height, cfg.bmin, cfg.bmax, cfg.cs, cfg.ch));
 
 #ifdef TOOLS_ENABLED
-	if (ep)
+	if (ep) {
 		ep->step(TTR("Marking walkable triangles..."), 4);
+	}
 #endif
 	{
 		Vector<unsigned char> tri_areas;
@@ -616,8 +620,9 @@ void NavigationMeshGenerator::_build_recast_navigation_mesh(
 	}
 
 #ifdef TOOLS_ENABLED
-	if (ep)
+	if (ep) {
 		ep->step(TTR("Constructing compact heightfield..."), 5);
+	}
 #endif
 
 	chf = rcAllocCompactHeightfield();
@@ -626,18 +631,20 @@ void NavigationMeshGenerator::_build_recast_navigation_mesh(
 	ERR_FAIL_COND(!rcBuildCompactHeightfield(&ctx, cfg.walkableHeight, cfg.walkableClimb, *hf, *chf));
 
 	rcFreeHeightField(hf);
-	hf = 0;
+	hf = nullptr;
 
 #ifdef TOOLS_ENABLED
-	if (ep)
+	if (ep) {
 		ep->step(TTR("Eroding walkable area..."), 6);
+	}
 #endif
 
 	ERR_FAIL_COND(!rcErodeWalkableArea(&ctx, cfg.walkableRadius, *chf));
 
 #ifdef TOOLS_ENABLED
-	if (ep)
+	if (ep) {
 		ep->step(TTR("Partitioning..."), 7);
+	}
 #endif
 
 	if (p_nav_mesh->get_sample_partition_type() == NavigationMesh::SAMPLE_PARTITION_WATERSHED) {
@@ -650,8 +657,9 @@ void NavigationMeshGenerator::_build_recast_navigation_mesh(
 	}
 
 #ifdef TOOLS_ENABLED
-	if (ep)
+	if (ep) {
 		ep->step(TTR("Creating contours..."), 8);
+	}
 #endif
 
 	cset = rcAllocContourSet();
@@ -660,8 +668,9 @@ void NavigationMeshGenerator::_build_recast_navigation_mesh(
 	ERR_FAIL_COND(!rcBuildContours(&ctx, *chf, cfg.maxSimplificationError, cfg.maxEdgeLen, *cset));
 
 #ifdef TOOLS_ENABLED
-	if (ep)
+	if (ep) {
 		ep->step(TTR("Creating polymesh..."), 9);
+	}
 #endif
 
 	poly_mesh = rcAllocPolyMesh();
@@ -673,21 +682,22 @@ void NavigationMeshGenerator::_build_recast_navigation_mesh(
 	ERR_FAIL_COND(!rcBuildPolyMeshDetail(&ctx, *poly_mesh, *chf, cfg.detailSampleDist, cfg.detailSampleMaxError, *detail_mesh));
 
 	rcFreeCompactHeightfield(chf);
-	chf = 0;
+	chf = nullptr;
 	rcFreeContourSet(cset);
-	cset = 0;
+	cset = nullptr;
 
 #ifdef TOOLS_ENABLED
-	if (ep)
+	if (ep) {
 		ep->step(TTR("Converting to native navigation mesh..."), 10);
+	}
 #endif
 
 	_convert_detail_mesh_to_native_navigation_mesh(detail_mesh, p_nav_mesh);
 
 	rcFreePolyMesh(poly_mesh);
-	poly_mesh = 0;
+	poly_mesh = nullptr;
 	rcFreePolyMeshDetail(detail_mesh);
-	detail_mesh = 0;
+	detail_mesh = nullptr;
 }
 
 NavigationMeshGenerator *NavigationMeshGenerator::get_singleton() {
@@ -761,27 +771,29 @@ void NavigationMeshGenerator::bake(Ref<NavigationMesh> p_nav_mesh, Node *p_node)
 				indices);
 
 		rcFreeHeightField(hf);
-		hf = 0;
+		hf = nullptr;
 
 		rcFreeCompactHeightfield(chf);
-		chf = 0;
+		chf = nullptr;
 
 		rcFreeContourSet(cset);
-		cset = 0;
+		cset = nullptr;
 
 		rcFreePolyMesh(poly_mesh);
-		poly_mesh = 0;
+		poly_mesh = nullptr;
 
 		rcFreePolyMeshDetail(detail_mesh);
-		detail_mesh = 0;
+		detail_mesh = nullptr;
 	}
 
 #ifdef TOOLS_ENABLED
-	if (ep)
+	if (ep) {
 		ep->step(TTR("Done!"), 11);
+	}
 
-	if (ep)
+	if (ep) {
 		memdelete(ep);
+	}
 #endif
 
 	p_nav_mesh->property_list_changed_notify();

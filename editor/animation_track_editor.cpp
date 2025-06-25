@@ -3416,8 +3416,9 @@ void AnimationTrackEditor::_query_insert(const InsertData &p_id) {
 		int num_tracks = 0;
 		bool all_bezier = true;
 		for (int i = 0; i < insert_data.size(); i++) {
-			if (insert_data[i].type != Animation::TYPE_VALUE && insert_data[i].type != Animation::TYPE_BEZIER)
+			if (insert_data[i].type != Animation::TYPE_VALUE && insert_data[i].type != Animation::TYPE_BEZIER) {
 				all_bezier = false;
+			}
 
 			if (insert_data[i].track_idx == -1) {
 				++num_tracks;

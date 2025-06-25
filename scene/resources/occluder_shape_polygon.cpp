@@ -142,8 +142,9 @@ PoolVector<Vector2> OccluderShapePolygon::get_hole_points() const {
 }
 
 void OccluderShapePolygon::update_shape_to_visual_server() {
-	if (_poly_pts_local.size() < 3)
+	if (_poly_pts_local.size() < 3) {
 		return;
+	}
 
 	Geometry::OccluderMeshData md;
 	md.faces.resize(1);

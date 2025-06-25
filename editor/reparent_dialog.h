@@ -57,7 +57,7 @@ public:
 	void set_current(const Set<Node *> &p_selection);
 
 	ReparentDialog();
-	~ReparentDialog();
+	~ReparentDialog() override;
 };
 
 #endif // REPARENT_DIALOG_H

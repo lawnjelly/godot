@@ -226,7 +226,7 @@ class ThemeItemEditorDialog : public AcceptDialog {
 
 	ConfirmationDialog *confirm_closing_dialog;
 
-	void ok_pressed();
+	void ok_pressed() override;
 	void _close_dialog();
 
 	void _dialog_about_to_show();
@@ -276,7 +276,7 @@ class ThemeTypeDialog : public ConfirmationDialog {
 	ConfirmationDialog *add_type_confirmation;
 
 	void _dialog_about_to_show();
-	void ok_pressed();
+	void ok_pressed() override;
 
 	void _update_add_type_options(const String &p_filter = "");
 
@@ -435,11 +435,11 @@ class ThemeEditorPlugin : public EditorPlugin {
 	Button *button;
 
 public:
-	virtual String get_name() const { return "Theme"; }
-	bool has_main_screen() const { return false; }
-	virtual void edit(Object *p_node);
-	virtual bool handles(Object *p_node) const;
-	virtual void make_visible(bool p_visible);
+	String get_name() const override { return "Theme"; }
+	bool has_main_screen() const override { return false; }
+	void edit(Object *p_node) override;
+	bool handles(Object *p_node) const override;
+	void make_visible(bool p_visible) override;
 
 	ThemeEditorPlugin(EditorNode *p_node);
 };

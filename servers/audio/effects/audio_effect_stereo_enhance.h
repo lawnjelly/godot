@@ -50,9 +50,9 @@ class AudioEffectStereoEnhanceInstance : public AudioEffectInstance {
 	unsigned int ringbuff_mask;
 
 public:
-	virtual void process(const AudioFrame *p_src_frames, AudioFrame *p_dst_frames, int p_frame_count);
+	void process(const AudioFrame *p_src_frames, AudioFrame *p_dst_frames, int p_frame_count) override;
 
-	~AudioEffectStereoEnhanceInstance();
+	~AudioEffectStereoEnhanceInstance() override;
 };
 
 class AudioEffectStereoEnhance : public AudioEffect {
@@ -69,7 +69,7 @@ protected:
 	static void _bind_methods();
 
 public:
-	Ref<AudioEffectInstance> instance();
+	Ref<AudioEffectInstance> instance() override;
 
 	void set_pan_pullout(float p_amount);
 	float get_pan_pullout() const;

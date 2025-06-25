@@ -213,7 +213,7 @@ public:
 	void update();
 
 	ProjectSettings();
-	~ProjectSettings();
+	~ProjectSettings() override;
 };
 
 //not a macro any longer

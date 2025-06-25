@@ -132,7 +132,7 @@ protected:
 
 public:
 	ProjectManager();
-	~ProjectManager();
+	~ProjectManager() override;
 };
 
 class ProjectListFilter : public HBoxContainer {

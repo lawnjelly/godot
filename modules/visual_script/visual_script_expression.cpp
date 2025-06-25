@@ -1476,7 +1476,7 @@ public:
 		return false;
 	}
 
-	virtual int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) {
+	int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) override {
 		if (!expression->root || expression->error_set) {
 			r_error_str = expression->error_str;
 			r_error.error = Variant::CallError::CALL_ERROR_INVALID_METHOD;

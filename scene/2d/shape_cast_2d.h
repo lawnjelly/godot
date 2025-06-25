@@ -118,7 +118,7 @@ public:
 	void remove_exception(const Object *p_object);
 	void clear_exceptions();
 
-	virtual String get_configuration_warning() const;
+	String get_configuration_warning() const override;
 };
 
 #endif // SHAPE_CAST_2D_H

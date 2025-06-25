@@ -354,8 +354,8 @@ public:
 		Operator op;
 		StringName struct_name;
 		Vector<Node *> arguments;
-		virtual DataType get_datatype() const { return return_cache; }
-		virtual String get_datatype_name() const { return String(struct_name); }
+		DataType get_datatype() const override { return return_cache; }
+		String get_datatype_name() const override { return String(struct_name); }
 
 		OperatorNode() :
 				Node(TYPE_OPERATOR),
@@ -369,8 +369,8 @@ public:
 		DataType datatype_cache;
 		StringName name;
 		StringName struct_name;
-		virtual DataType get_datatype() const { return datatype_cache; }
-		virtual String get_datatype_name() const { return String(struct_name); }
+		DataType get_datatype() const override { return datatype_cache; }
+		String get_datatype_name() const override { return String(struct_name); }
 		bool is_const;
 		bool is_local;
 
@@ -393,7 +393,7 @@ public:
 		};
 
 		Vector<Declaration> declarations;
-		virtual DataType get_datatype() const { return datatype; }
+		DataType get_datatype() const override { return datatype; }
 
 		VariableDeclarationNode() :
 				Node(TYPE_VARIABLE_DECLARATION),
@@ -412,8 +412,8 @@ public:
 		bool is_const;
 		bool is_local;
 
-		virtual DataType get_datatype() const { return datatype_cache; }
-		virtual String get_datatype_name() const { return String(struct_name); }
+		DataType get_datatype() const override { return datatype_cache; }
+		String get_datatype_name() const override { return String(struct_name); }
 
 		ArrayNode() :
 				Node(TYPE_ARRAY),
@@ -449,7 +449,7 @@ public:
 		};
 
 		Vector<Declaration> declarations;
-		virtual DataType get_datatype() const { return datatype; }
+		DataType get_datatype() const override { return datatype; }
 
 		ArrayDeclarationNode() :
 				Node(TYPE_ARRAY_DECLARATION),
@@ -472,8 +472,8 @@ public:
 
 		Vector<Value> values;
 		Vector<ArrayDeclarationNode::Declaration> array_declarations;
-		virtual DataType get_datatype() const { return datatype; }
-		virtual String get_datatype_name() const { return struct_name; }
+		DataType get_datatype() const override { return datatype; }
+		String get_datatype_name() const override { return struct_name; }
 
 		ConstantNode() :
 				Node(TYPE_CONSTANT),
@@ -542,8 +542,8 @@ public:
 		Node *assign_expression;
 		bool has_swizzling_duplicates;
 
-		virtual DataType get_datatype() const { return datatype; }
-		virtual String get_datatype_name() const { return String(struct_name); }
+		DataType get_datatype() const override { return datatype; }
+		String get_datatype_name() const override { return String(struct_name); }
 
 		MemberNode() :
 				Node(TYPE_MEMBER),

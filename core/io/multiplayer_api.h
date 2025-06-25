@@ -165,7 +165,7 @@ public:
 	int get_outgoing_bandwidth_usage();
 
 	MultiplayerAPI();
-	~MultiplayerAPI();
+	~MultiplayerAPI() override;
 };
 
 VARIANT_ENUM_CAST(MultiplayerAPI::RPCMode);

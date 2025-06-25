@@ -101,7 +101,7 @@ public:
 
 	float get_zoom_scale() const;
 
-	virtual Size2 get_minimum_size() const;
+	Size2 get_minimum_size() const override;
 	void set_animation(const Ref<Animation> &p_animation);
 	void set_track_edit(AnimationTrackEdit *p_track_edit);
 	void set_zoom(Range *p_zoom);
@@ -119,7 +119,7 @@ public:
 
 	void set_hscroll(HScrollBar *p_hscroll);
 
-	virtual CursorShape get_cursor_shape(const Point2 &p_pos) const;
+	CursorShape get_cursor_shape(const Point2 &p_pos) const override;
 
 	AnimationTimelineEdit();
 };
@@ -201,11 +201,11 @@ protected:
 	virtual void _gui_input(const Ref<InputEvent> &p_event);
 
 public:
-	virtual Variant get_drag_data(const Point2 &p_point);
-	virtual bool can_drop_data(const Point2 &p_point, const Variant &p_data) const;
-	virtual void drop_data(const Point2 &p_point, const Variant &p_data);
+	Variant get_drag_data(const Point2 &p_point) override;
+	bool can_drop_data(const Point2 &p_point, const Variant &p_data) const override;
+	void drop_data(const Point2 &p_point, const Variant &p_data) override;
 
-	virtual String get_tooltip(const Point2 &p_pos) const;
+	String get_tooltip(const Point2 &p_pos) const override;
 
 	virtual int get_key_height() const;
 	virtual Rect2 get_key_rect(int p_index, float p_pixels_sec);
@@ -227,7 +227,7 @@ public:
 	UndoRedo *get_undo_redo() const { return undo_redo; }
 	NodePath get_path() const;
 	void set_animation_and_track(const Ref<Animation> &p_animation, int p_track);
-	virtual Size2 get_minimum_size() const;
+	Size2 get_minimum_size() const override;
 
 	void set_undo_redo(UndoRedo *p_undo_redo);
 	void set_timeline(AnimationTimelineEdit *p_timeline);
@@ -273,7 +273,7 @@ protected:
 
 public:
 	void set_type_and_name(const Ref<Texture> &p_type, const String &p_name, const NodePath &p_node);
-	virtual Size2 get_minimum_size() const;
+	Size2 get_minimum_size() const override;
 	void set_timeline(AnimationTimelineEdit *p_timeline);
 	void set_root(Node *p_root);
 
@@ -556,7 +556,7 @@ public:
 
 	MenuButton *get_edit_menu();
 	AnimationTrackEditor();
-	~AnimationTrackEditor();
+	~AnimationTrackEditor() override;
 };
 
 #endif // ANIMATION_TRACK_EDITOR_H

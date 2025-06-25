@@ -48,8 +48,8 @@ protected:
 	OccluderShape();
 
 public:
-	virtual RID get_rid() const { return _shape; }
-	~OccluderShape();
+	RID get_rid() const override { return _shape; }
+	~OccluderShape() override;
 
 	virtual Transform center_node(const Transform &p_global_xform, const Transform &p_parent_xform, real_t p_snap) = 0;
 
@@ -83,11 +83,11 @@ public:
 	void set_sphere_radius(int p_idx, real_t p_radius);
 
 	void update_shape_to_visual_server();
-	virtual Transform center_node(const Transform &p_global_xform, const Transform &p_parent_xform, real_t p_snap);
+	Transform center_node(const Transform &p_global_xform, const Transform &p_parent_xform, real_t p_snap) override;
 
 #ifdef TOOLS_ENABLED
-	virtual AABB get_fallback_gizmo_aabb() const;
-	virtual bool requires_uniform_scale() const { return false; }
+	AABB get_fallback_gizmo_aabb() const override;
+	bool requires_uniform_scale() const override { return false; }
 #endif
 
 	OccluderShapeSphere();

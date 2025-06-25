@@ -57,7 +57,7 @@ public:
 	virtual bool get_no_subresource_cache();
 
 	ResourceInteractiveLoader() {}
-	~ResourceInteractiveLoader();
+	~ResourceInteractiveLoader() override;
 };
 
 class ResourceFormatLoader : public Reference {
@@ -82,7 +82,7 @@ public:
 	virtual int get_import_order(const String &p_path) const { return 0; }
 	virtual String get_import_group_file(const String &p_path) const { return ""; } //no group
 
-	virtual ~ResourceFormatLoader() {}
+	~ResourceFormatLoader() override {}
 };
 
 typedef void (*ResourceLoadErrorNotify)(void *p_ud, const String &p_text);

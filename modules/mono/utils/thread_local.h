@@ -96,8 +96,9 @@ class ThreadLocal {
 	T *_tls_get_value() const {
 		void *tls_data = storage.get_value();
 
-		if (tls_data)
+		if (tls_data) {
 			return static_cast<T *>(tls_data);
+		}
 
 		T *data = memnew(T(init_val));
 

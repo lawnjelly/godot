@@ -218,7 +218,7 @@ public:
 	void clear();
 
 	Theme();
-	~Theme();
+	~Theme() override;
 };
 
 VARIANT_ENUM_CAST(Theme::DataType);

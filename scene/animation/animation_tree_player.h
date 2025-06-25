@@ -337,7 +337,7 @@ public:
 	int node_get_input_count(const StringName &p_node) const;
 	StringName node_get_input_source(const StringName &p_node, int p_input) const;
 
-	String get_configuration_warning() const;
+	String get_configuration_warning() const override;
 
 	/* ANIMATION NODE */
 	void animation_node_set_animation(const StringName &p_node, const Ref<Animation> &p_animation);
@@ -463,7 +463,7 @@ public:
 	void advance(float p_time);
 
 	AnimationTreePlayer();
-	~AnimationTreePlayer();
+	~AnimationTreePlayer() override;
 };
 
 VARIANT_ENUM_CAST(AnimationTreePlayer::NodeType);

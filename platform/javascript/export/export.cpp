@@ -320,37 +320,37 @@ class EditorExportPlatformJavaScript : public EditorExportPlatform {
 	static void _server_thread_poll(void *data);
 
 public:
-	virtual void get_preset_features(const Ref<EditorExportPreset> &p_preset, List<String> *r_features);
+	void get_preset_features(const Ref<EditorExportPreset> &p_preset, List<String> *r_features) override;
 
-	virtual void get_export_options(List<ExportOption> *r_options);
+	void get_export_options(List<ExportOption> *r_options) override;
 
-	virtual String get_name() const;
-	virtual String get_os_name() const;
-	virtual Ref<Texture> get_logo() const;
+	String get_name() const override;
+	String get_os_name() const override;
+	Ref<Texture> get_logo() const override;
 
-	virtual bool has_valid_export_configuration(const Ref<EditorExportPreset> &p_preset, String &r_error, bool &r_missing_templates) const;
-	virtual bool has_valid_project_configuration(const Ref<EditorExportPreset> &p_preset, String &r_error) const;
-	virtual List<String> get_binary_extensions(const Ref<EditorExportPreset> &p_preset) const;
-	virtual Error export_project(const Ref<EditorExportPreset> &p_preset, bool p_debug, const String &p_path, int p_flags = 0);
+	bool has_valid_export_configuration(const Ref<EditorExportPreset> &p_preset, String &r_error, bool &r_missing_templates) const override;
+	bool has_valid_project_configuration(const Ref<EditorExportPreset> &p_preset, String &r_error) const override;
+	List<String> get_binary_extensions(const Ref<EditorExportPreset> &p_preset) const override;
+	Error export_project(const Ref<EditorExportPreset> &p_preset, bool p_debug, const String &p_path, int p_flags = 0) override;
 
-	virtual bool poll_export();
-	virtual int get_options_count() const;
-	virtual String get_option_label(int p_index) const { return p_index ? TTR("Stop HTTP Server") : TTR("Run in Browser"); }
-	virtual String get_option_tooltip(int p_index) const { return p_index ? TTR("Stop HTTP Server") : TTR("Run exported HTML in the system's default browser."); }
-	virtual Ref<ImageTexture> get_option_icon(int p_index) const;
-	virtual Error run(const Ref<EditorExportPreset> &p_preset, int p_option, int p_debug_flags);
-	virtual Ref<Texture> get_run_icon() const;
+	bool poll_export() override;
+	int get_options_count() const override;
+	String get_option_label(int p_index) const override { return p_index ? TTR("Stop HTTP Server") : TTR("Run in Browser"); }
+	String get_option_tooltip(int p_index) const override { return p_index ? TTR("Stop HTTP Server") : TTR("Run exported HTML in the system's default browser."); }
+	Ref<ImageTexture> get_option_icon(int p_index) const override;
+	Error run(const Ref<EditorExportPreset> &p_preset, int p_option, int p_debug_flags) override;
+	Ref<Texture> get_run_icon() const override;
 
-	virtual void get_platform_features(List<String> *r_features) {
+	void get_platform_features(List<String> *r_features) override {
 		r_features->push_back("web");
 		r_features->push_back(get_os_name());
 	}
 
-	virtual void resolve_platform_feature_priorities(const Ref<EditorExportPreset> &p_preset, Set<String> &p_features) {
+	void resolve_platform_feature_priorities(const Ref<EditorExportPreset> &p_preset, Set<String> &p_features) override {
 	}
 
 	EditorExportPlatformJavaScript();
-	~EditorExportPlatformJavaScript();
+	~EditorExportPlatformJavaScript() override;
 };
 
 Error EditorExportPlatformJavaScript::_extract_template(const String &p_template, const String &p_dir, const String &p_name, bool pwa) {

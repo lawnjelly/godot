@@ -167,7 +167,7 @@ private:
 		ObjectID owner;
 
 		ItemFont() { type = ITEM_FONT; }
-		~ItemFont() {
+		~ItemFont() override {
 			if (font.is_valid()) {
 				RichTextLabel *owner_rtl = ObjectDB::get_instance<RichTextLabel>(owner);
 				if (owner_rtl) {
@@ -317,7 +317,7 @@ private:
 			char_fx_transform.instance();
 		}
 
-		virtual ~ItemCustomFX() {
+		~ItemCustomFX() override {
 			_clear_children();
 
 			char_fx_transform.unref();
@@ -427,7 +427,7 @@ private:
 	bool fit_content_height;
 
 protected:
-	virtual void _validate_property(PropertyInfo &p_property) const;
+	void _validate_property(PropertyInfo &p_property) const override;
 	void _notification(int p_what);
 
 public:
@@ -493,8 +493,8 @@ public:
 
 	VScrollBar *get_v_scroll() { return vscroll; }
 
-	virtual CursorShape get_cursor_shape(const Point2 &p_pos) const;
-	virtual Variant get_drag_data(const Point2 &p_point);
+	CursorShape get_cursor_shape(const Point2 &p_pos) const override;
+	Variant get_drag_data(const Point2 &p_point) override;
 
 	void set_selection_enabled(bool p_enabled);
 	bool is_selection_enabled() const;
@@ -528,10 +528,10 @@ public:
 	void install_effect(const Variant effect);
 
 	void set_fixed_size_to_width(int p_width);
-	virtual Size2 get_minimum_size() const;
+	Size2 get_minimum_size() const override;
 
 	RichTextLabel();
-	~RichTextLabel();
+	~RichTextLabel() override;
 };
 
 VARIANT_ENUM_CAST(RichTextLabel::Align);

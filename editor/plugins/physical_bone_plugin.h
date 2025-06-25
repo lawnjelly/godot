@@ -51,7 +51,7 @@ private:
 
 public:
 	PhysicalBoneEditor(EditorNode *p_editor);
-	~PhysicalBoneEditor();
+	~PhysicalBoneEditor() override;
 
 	void set_selected(PhysicalBone *p_pb);
 
@@ -67,10 +67,10 @@ class PhysicalBonePlugin : public EditorPlugin {
 	PhysicalBoneEditor physical_bone_editor;
 
 public:
-	virtual String get_name() const { return "PhysicalBone"; }
-	virtual bool handles(Object *p_object) const { return p_object->is_class("PhysicalBone"); }
-	virtual void make_visible(bool p_visible);
-	virtual void edit(Object *p_node);
+	String get_name() const override { return "PhysicalBone"; }
+	bool handles(Object *p_object) const override { return p_object->is_class("PhysicalBone"); }
+	void make_visible(bool p_visible) override;
+	void edit(Object *p_node) override;
 
 	PhysicalBonePlugin(EditorNode *p_editor);
 };

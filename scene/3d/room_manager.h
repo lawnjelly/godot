@@ -107,7 +107,7 @@ public:
 	void rooms_clear();
 	void rooms_flip_portals();
 
-	String get_configuration_warning() const;
+	String get_configuration_warning() const override;
 
 	// for internal use in the editor..
 	// either we can clear the rooms and unload,
@@ -120,7 +120,7 @@ public:
 #endif
 
 	RoomManager();
-	~RoomManager();
+	~RoomManager() override;
 
 	// an easy way of grabbing the active room manager for tools purposes
 #ifdef TOOLS_ENABLED

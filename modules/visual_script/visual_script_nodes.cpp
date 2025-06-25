@@ -268,7 +268,7 @@ public:
 
 	//virtual int get_working_memory_size() const { return 0; }
 
-	virtual int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) {
+	int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) override {
 		int ac = node->get_argument_count();
 
 		for (int i = 0; i < ac; i++) {
@@ -734,9 +734,9 @@ String VisualScriptComposeArray::get_text() const {
 class VisualScriptComposeArrayNode : public VisualScriptNodeInstance {
 public:
 	int input_count = 0;
-	virtual int get_working_memory_size() const { return 0; }
+	int get_working_memory_size() const override { return 0; }
 
-	virtual int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) {
+	int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) override {
 		if (input_count > 0) {
 			Array arr;
 			for (int i = 0; i < input_count; i++) {
@@ -997,7 +997,7 @@ public:
 
 	//virtual int get_working_memory_size() const { return 0; }
 
-	virtual int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) {
+	int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) override {
 		bool valid;
 		if (unary) {
 			Variant::evaluate(op, *p_inputs[0], Variant(), *p_outputs[0], valid);
@@ -1115,7 +1115,7 @@ class VisualScriptNodeInstanceSelect : public VisualScriptNodeInstance {
 public:
 	//virtual int get_working_memory_size() const { return 0; }
 
-	virtual int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) {
+	int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) override {
 		bool cond = *p_inputs[0];
 		if (cond) {
 			*p_outputs[0] = *p_inputs[1];
@@ -1223,7 +1223,7 @@ public:
 	VisualScriptInstance *instance;
 	StringName variable;
 
-	virtual int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) {
+	int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) override {
 		if (!instance->get_variable(variable, p_outputs[0])) {
 			r_error.error = Variant::CallError::CALL_ERROR_INVALID_METHOD;
 			r_error_str = RTR("VariableGet not found in script:") + " '" + String(variable) + "'";
@@ -1333,7 +1333,7 @@ public:
 
 	//virtual int get_working_memory_size() const { return 0; }
 
-	virtual int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) {
+	int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) override {
 		if (!instance->set_variable(variable, *p_inputs[0])) {
 			r_error.error = Variant::CallError::CALL_ERROR_INVALID_METHOD;
 			r_error_str = RTR("VariableSet not found in script:") + " '" + String(variable) + "'";
@@ -1449,7 +1449,7 @@ public:
 	Variant constant;
 	//virtual int get_working_memory_size() const { return 0; }
 
-	virtual int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) {
+	int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) override {
 		*p_outputs[0] = constant;
 		return 0;
 	}
@@ -1541,7 +1541,7 @@ public:
 	Ref<Resource> preload;
 	//virtual int get_working_memory_size() const { return 0; }
 
-	virtual int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) {
+	int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) override {
 		*p_outputs[0] = preload;
 		return 0;
 	}
@@ -1599,7 +1599,7 @@ class VisualScriptNodeInstanceIndexGet : public VisualScriptNodeInstance {
 public:
 	//virtual int get_working_memory_size() const { return 0; }
 
-	virtual int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) {
+	int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) override {
 		bool valid;
 		*p_outputs[0] = p_inputs[0]->get(*p_inputs[1], &valid);
 
@@ -1664,7 +1664,7 @@ class VisualScriptNodeInstanceIndexSet : public VisualScriptNodeInstance {
 public:
 	//virtual int get_working_memory_size() const { return 0; }
 
-	virtual int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) {
+	int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) override {
 		bool valid;
 		((Variant *)p_inputs[0])->set(*p_inputs[1], *p_inputs[2], &valid);
 
@@ -1734,7 +1734,7 @@ public:
 	int index;
 	//virtual int get_working_memory_size() const { return 0; }
 
-	virtual int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) {
+	int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) override {
 		*p_outputs[0] = GlobalConstants::get_global_constant_value(index);
 		return 0;
 	}
@@ -1846,7 +1846,7 @@ public:
 	bool valid;
 	//virtual int get_working_memory_size() const { return 0; }
 
-	virtual int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) {
+	int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) override {
 		if (!valid) {
 			r_error_str = "Invalid constant name, pick a valid class constant.";
 			r_error.error = Variant::CallError::CALL_ERROR_INVALID_METHOD;
@@ -1980,7 +1980,7 @@ public:
 	bool valid;
 	//virtual int get_working_memory_size() const { return 0; }
 
-	virtual int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) {
+	int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) override {
 		if (!valid) {
 			r_error_str = "Invalid constant name, pick a valid basic type constant.";
 			r_error.error = Variant::CallError::CALL_ERROR_INVALID_METHOD;
@@ -2108,7 +2108,7 @@ public:
 	float value;
 	//virtual int get_working_memory_size() const { return 0; }
 
-	virtual int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) {
+	int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) override {
 		*p_outputs[0] = value;
 		return 0;
 	}
@@ -2201,7 +2201,7 @@ public:
 
 	//virtual int get_working_memory_size() const { return 0; }
 
-	virtual int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) {
+	int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) override {
 		*p_outputs[0] = singleton;
 		return 0;
 	}
@@ -2311,7 +2311,7 @@ public:
 
 	//virtual int get_working_memory_size() const { return 0; }
 
-	virtual int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) {
+	int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) override {
 		Node *node = Object::cast_to<Node>(instance->get_owner_ptr());
 		if (!node) {
 			r_error.error = Variant::CallError::CALL_ERROR_INVALID_METHOD;
@@ -2492,7 +2492,7 @@ public:
 
 	//virtual int get_working_memory_size() const { return 0; }
 
-	virtual int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) {
+	int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) override {
 		Node *node = Object::cast_to<Node>(instance->get_owner_ptr());
 		if (!node) {
 			r_error.error = Variant::CallError::CALL_ERROR_INVALID_METHOD;
@@ -2587,7 +2587,7 @@ public:
 
 	//virtual int get_working_memory_size() const { return 0; }
 
-	virtual int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) {
+	int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) override {
 		*p_outputs[0] = path;
 		return 0;
 	}
@@ -2658,7 +2658,7 @@ public:
 
 	//virtual int get_working_memory_size() const { return 0; }
 
-	virtual int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) {
+	int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) override {
 		*p_outputs[0] = instance->get_owner_ptr();
 		return 0;
 	}
@@ -2810,8 +2810,8 @@ public:
 	int out_count;
 	int work_mem_size;
 
-	virtual int get_working_memory_size() const { return work_mem_size; }
-	virtual int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) {
+	int get_working_memory_size() const override { return work_mem_size; }
+	int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) override {
 		if (node->get_script_instance()) {
 #ifdef DEBUG_ENABLED
 			if (!node->get_script_instance()->has_method(VisualScriptLanguage::singleton->_step)) {
@@ -3017,7 +3017,7 @@ public:
 
 	//virtual int get_working_memory_size() const { return 0; }
 
-	virtual int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) {
+	int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) override {
 		if (!valid) {
 			r_error_str = "Node requires a script with a _subcall(<args>) method to work.";
 			r_error.error = Variant::CallError::CALL_ERROR_INVALID_METHOD;
@@ -3133,7 +3133,7 @@ public:
 
 	//virtual int get_working_memory_size() const { return 0; }
 
-	virtual int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) {
+	int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) override {
 		return 0;
 	}
 };
@@ -3233,7 +3233,7 @@ public:
 
 	//virtual int get_working_memory_size() const { return 0; }
 
-	virtual int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) {
+	int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) override {
 		Variant::CallError ce;
 		*p_outputs[0] = Variant::construct(type, p_inputs, argcount, ce);
 		if (ce.error != Variant::CallError::CALL_OK) {
@@ -3345,8 +3345,8 @@ public:
 	VisualScriptInstance *instance;
 	StringName name;
 
-	virtual int get_working_memory_size() const { return 1; }
-	virtual int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) {
+	int get_working_memory_size() const override { return 1; }
+	int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) override {
 		*p_outputs[0] = *p_working_mem;
 		return 0;
 	}
@@ -3450,8 +3450,8 @@ public:
 	VisualScriptInstance *instance;
 	StringName name;
 
-	virtual int get_working_memory_size() const { return 1; }
-	virtual int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) {
+	int get_working_memory_size() const override { return 1; }
+	int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) override {
 		*p_working_mem = *p_inputs[0];
 		*p_outputs[0] = *p_working_mem;
 		return 0;
@@ -3572,7 +3572,7 @@ public:
 	StringName action;
 	VisualScriptInputAction::Mode mode;
 
-	virtual int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) {
+	int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) override {
 		switch (mode) {
 			case VisualScriptInputAction::MODE_PRESSED: {
 				*p_outputs[0] = Input::get_singleton()->is_action_pressed(action);
@@ -3752,7 +3752,7 @@ public:
 
 	//virtual int get_working_memory_size() const { return 0; }
 
-	virtual int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) {
+	int step(const Variant **p_inputs, Variant **p_outputs, StartMode p_start_mode, Variant *p_working_mem, Variant::CallError &r_error, String &r_error_str) override {
 		Variant in = *p_inputs[0];
 
 		for (int i = 0; i < outputs.size(); i++) {

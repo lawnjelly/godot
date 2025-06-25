@@ -77,16 +77,16 @@ protected:
 
 public:
 #ifdef TOOLS_ENABLED
-	virtual Dictionary _edit_get_state() const;
-	virtual void _edit_set_state(const Dictionary &p_state);
+	Dictionary _edit_get_state() const override;
+	void _edit_set_state(const Dictionary &p_state) override;
 
-	virtual void _edit_set_pivot(const Point2 &p_pivot);
-	virtual Point2 _edit_get_pivot() const;
-	virtual bool _edit_use_pivot() const;
-	virtual Rect2 _edit_get_rect() const;
-	virtual bool _edit_use_rect() const;
+	void _edit_set_pivot(const Point2 &p_pivot) override;
+	Point2 _edit_get_pivot() const override;
+	bool _edit_use_pivot() const override;
+	Rect2 _edit_get_rect() const override;
+	bool _edit_use_rect() const override;
 
-	virtual bool _edit_is_selected_on_click(const Point2 &p_point, double p_tolerance) const;
+	bool _edit_is_selected_on_click(const Point2 &p_point, double p_tolerance) const override;
 #endif
 
 	void set_polygon(const PoolVector<Vector2> &p_polygon);
@@ -147,7 +147,7 @@ public:
 	NodePath get_skeleton() const;
 
 	Polygon2D();
-	virtual ~Polygon2D();
+	~Polygon2D() override;
 };
 
 #endif // POLYGON_2D_H

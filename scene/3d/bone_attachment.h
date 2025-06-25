@@ -43,7 +43,7 @@ class BoneAttachment : public Spatial {
 	void _check_unbind();
 
 protected:
-	virtual void _validate_property(PropertyInfo &property) const;
+	void _validate_property(PropertyInfo &property) const override;
 	void _notification(int p_what);
 
 	static void _bind_methods();

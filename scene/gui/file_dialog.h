@@ -130,7 +130,7 @@ private:
 
 	bool _is_open_should_be_disabled();
 
-	virtual void _post_popup();
+	void _post_popup() override;
 
 protected:
 	void _notification(int p_what);
@@ -177,7 +177,7 @@ public:
 	void deselect_items();
 
 	FileDialog();
-	~FileDialog();
+	~FileDialog() override;
 };
 
 class LineEditFileChooser : public HBoxContainer {

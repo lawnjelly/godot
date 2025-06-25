@@ -67,7 +67,7 @@ void ContextGL_X11::make_offscreen_current() {
 }
 
 void ContextGL_X11::release_offscreen_current() {
-	glXMakeCurrent(x11_display, None, NULL);
+	glXMakeCurrent(x11_display, None, nullptr);
 }
 
 void ContextGL_X11::swap_buffers() {

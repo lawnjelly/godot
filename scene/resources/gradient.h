@@ -69,7 +69,7 @@ protected:
 
 public:
 	Gradient();
-	virtual ~Gradient();
+	~Gradient() override;
 
 	void add_point(float p_offset, const Color &p_color);
 	void remove_point(int p_index);
@@ -109,8 +109,9 @@ public:
 		int middle = 0;
 
 #ifdef DEBUG_ENABLED
-		if (low > high)
+		if (low > high) {
 			ERR_PRINT("low > high, this may be a bug");
+		}
 #endif
 
 		while (low <= high) {

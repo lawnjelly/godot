@@ -185,7 +185,7 @@ class OS_X11 : public OS_Unix {
 	static Bool _predicate_clipboard_save_targets(Display *display, XEvent *event, XPointer arg);
 
 	void process_xevents();
-	virtual void delete_main_loop();
+	void delete_main_loop() override;
 
 	bool force_quit;
 	bool minimized;
@@ -243,16 +243,16 @@ class OS_X11 : public OS_Unix {
 	Bool xrandr_ext_ok;
 
 protected:
-	virtual int get_current_video_driver() const;
+	int get_current_video_driver() const override;
 
-	virtual void initialize_core();
-	virtual Error initialize(const VideoMode &p_desired, int p_video_driver, int p_audio_driver);
-	virtual void finalize();
+	void initialize_core() override;
+	Error initialize(const VideoMode &p_desired, int p_video_driver, int p_audio_driver) override;
+	void finalize() override;
 
-	virtual bool is_offscreen_gl_available() const;
-	virtual void set_offscreen_gl_current(bool p_current);
+	bool is_offscreen_gl_available() const override;
+	void set_offscreen_gl_current(bool p_current) override;
 
-	virtual void set_main_loop(MainLoop *p_main_loop);
+	void set_main_loop(MainLoop *p_main_loop) override;
 
 	void _window_changed(XEvent *event);
 
@@ -261,7 +261,7 @@ protected:
 	bool is_window_maximize_allowed() const;
 
 public:
-	virtual String get_name() const;
+	String get_name() const override;
 
 #ifdef SPEECHD_ENABLED
 	virtual bool tts_is_speaking() const;
@@ -274,122 +274,122 @@ public:
 	virtual void tts_stop();
 #endif
 
-	virtual void set_cursor_shape(CursorShape p_shape);
-	virtual CursorShape get_cursor_shape() const;
-	virtual void set_custom_mouse_cursor(const RES &p_cursor, CursorShape p_shape, const Vector2 &p_hotspot);
+	void set_cursor_shape(CursorShape p_shape) override;
+	CursorShape get_cursor_shape() const override;
+	void set_custom_mouse_cursor(const RES &p_cursor, CursorShape p_shape, const Vector2 &p_hotspot) override;
 
-	void set_mouse_mode(MouseMode p_mode);
-	MouseMode get_mouse_mode() const;
+	void set_mouse_mode(MouseMode p_mode) override;
+	MouseMode get_mouse_mode() const override;
 
-	virtual void warp_mouse_position(const Point2 &p_to);
-	virtual Point2 get_mouse_position() const;
-	virtual int get_mouse_button_state() const;
-	virtual void set_window_title(const String &p_title);
-	virtual void set_window_mouse_passthrough(const PoolVector2Array &p_region);
+	void warp_mouse_position(const Point2 &p_to) override;
+	Point2 get_mouse_position() const override;
+	int get_mouse_button_state() const override;
+	void set_window_title(const String &p_title) override;
+	void set_window_mouse_passthrough(const PoolVector2Array &p_region) override;
 
-	virtual void set_icon(const Ref<Image> &p_icon);
+	void set_icon(const Ref<Image> &p_icon) override;
 
-	virtual MainLoop *get_main_loop() const;
+	MainLoop *get_main_loop() const override;
 
-	virtual uint64_t get_embedded_pck_offset() const;
+	uint64_t get_embedded_pck_offset() const override;
 
-	virtual bool can_draw() const;
+	bool can_draw() const override;
 
-	virtual void set_clipboard(const String &p_text);
-	virtual String get_clipboard() const;
-	virtual void set_clipboard_primary(const String &p_text);
-	virtual String get_clipboard_primary() const;
+	void set_clipboard(const String &p_text) override;
+	String get_clipboard() const override;
+	void set_clipboard_primary(const String &p_text) override;
+	String get_clipboard_primary() const override;
 
-	virtual void release_rendering_thread();
-	virtual void make_rendering_thread();
-	virtual void swap_buffers();
+	void release_rendering_thread() override;
+	void make_rendering_thread() override;
+	void swap_buffers() override;
 
-	virtual String get_config_path() const;
-	virtual String get_data_path() const;
-	virtual String get_cache_path() const;
+	String get_config_path() const override;
+	String get_data_path() const override;
+	String get_cache_path() const override;
 
-	virtual String get_system_dir(SystemDir p_dir, bool p_shared_storage = true) const;
+	String get_system_dir(SystemDir p_dir, bool p_shared_storage = true) const override;
 
-	virtual Error shell_open(String p_uri);
+	Error shell_open(String p_uri) override;
 
-	virtual void set_video_mode(const VideoMode &p_video_mode, int p_screen = 0);
-	virtual VideoMode get_video_mode(int p_screen = 0) const;
-	virtual void get_fullscreen_mode_list(List<VideoMode> *p_list, int p_screen = 0) const;
+	void set_video_mode(const VideoMode &p_video_mode, int p_screen = 0) override;
+	VideoMode get_video_mode(int p_screen = 0) const override;
+	void get_fullscreen_mode_list(List<VideoMode> *p_list, int p_screen = 0) const override;
 
-	virtual int get_screen_count() const;
-	virtual int get_current_screen() const;
-	virtual void set_current_screen(int p_screen);
-	virtual Point2 get_screen_position(int p_screen = -1) const;
-	virtual Size2 get_screen_size(int p_screen = -1) const;
-	virtual int get_screen_dpi(int p_screen = -1) const;
-	virtual float get_screen_refresh_rate(int p_screen = -1) const;
-	virtual Point2 get_window_position() const;
-	virtual void set_window_position(const Point2 &p_position);
-	virtual Size2 get_window_size() const;
-	virtual Size2 get_real_window_size() const;
-	virtual Size2 get_max_window_size() const;
-	virtual Size2 get_min_window_size() const;
-	virtual void set_min_window_size(const Size2 p_size);
-	virtual void set_max_window_size(const Size2 p_size);
-	virtual void set_window_size(const Size2 p_size);
-	virtual void set_window_fullscreen(bool p_enabled);
-	virtual bool is_window_fullscreen() const;
-	virtual void set_window_resizable(bool p_enabled);
-	virtual bool is_window_resizable() const;
-	virtual void set_window_minimized(bool p_enabled);
-	virtual bool is_window_minimized() const;
-	virtual void set_window_maximized(bool p_enabled);
-	virtual bool is_window_maximized() const;
-	virtual void set_window_always_on_top(bool p_enabled);
-	virtual bool is_window_always_on_top() const;
-	virtual bool is_window_focused() const;
-	virtual void request_attention();
-	virtual void *get_native_handle(int p_handle_type);
+	int get_screen_count() const override;
+	int get_current_screen() const override;
+	void set_current_screen(int p_screen) override;
+	Point2 get_screen_position(int p_screen = -1) const override;
+	Size2 get_screen_size(int p_screen = -1) const override;
+	int get_screen_dpi(int p_screen = -1) const override;
+	float get_screen_refresh_rate(int p_screen = -1) const override;
+	Point2 get_window_position() const override;
+	void set_window_position(const Point2 &p_position) override;
+	Size2 get_window_size() const override;
+	Size2 get_real_window_size() const override;
+	Size2 get_max_window_size() const override;
+	Size2 get_min_window_size() const override;
+	void set_min_window_size(const Size2 p_size) override;
+	void set_max_window_size(const Size2 p_size) override;
+	void set_window_size(const Size2 p_size) override;
+	void set_window_fullscreen(bool p_enabled) override;
+	bool is_window_fullscreen() const override;
+	void set_window_resizable(bool p_enabled) override;
+	bool is_window_resizable() const override;
+	void set_window_minimized(bool p_enabled) override;
+	bool is_window_minimized() const override;
+	void set_window_maximized(bool p_enabled) override;
+	bool is_window_maximized() const override;
+	void set_window_always_on_top(bool p_enabled) override;
+	bool is_window_always_on_top() const override;
+	bool is_window_focused() const override;
+	void request_attention() override;
+	void *get_native_handle(int p_handle_type) override;
 
-	virtual void set_borderless_window(bool p_borderless);
-	virtual bool get_borderless_window();
+	void set_borderless_window(bool p_borderless) override;
+	bool get_borderless_window() override;
 
-	virtual bool get_window_per_pixel_transparency_enabled() const;
-	virtual void set_window_per_pixel_transparency_enabled(bool p_enabled);
+	bool get_window_per_pixel_transparency_enabled() const override;
+	void set_window_per_pixel_transparency_enabled(bool p_enabled) override;
 
-	virtual void set_ime_active(const bool p_active);
-	virtual void set_ime_position(const Point2 &p_pos);
+	void set_ime_active(const bool p_active) override;
+	void set_ime_position(const Point2 &p_pos) override;
 
-	virtual String get_unique_id() const;
-	virtual String get_processor_name() const;
+	String get_unique_id() const override;
+	String get_processor_name() const override;
 
-	virtual void move_window_to_foreground();
-	virtual void alert(const String &p_alert, const String &p_title = "ALERT!");
+	void move_window_to_foreground() override;
+	void alert(const String &p_alert, const String &p_title = "ALERT!") override;
 
-	virtual bool is_joy_known(int p_device);
-	virtual String get_joy_guid(int p_device) const;
+	bool is_joy_known(int p_device) override;
+	String get_joy_guid(int p_device) const override;
 
-	virtual void set_context(int p_context);
+	void set_context(int p_context) override;
 
-	virtual void _set_use_vsync(bool p_enable);
+	void _set_use_vsync(bool p_enable) override;
 	//virtual bool is_vsync_enabled() const;
 
-	virtual OS::PowerState get_power_state();
-	virtual int get_power_seconds_left();
-	virtual int get_power_percent_left();
+	OS::PowerState get_power_state() override;
+	int get_power_seconds_left() override;
+	int get_power_percent_left() override;
 
-	virtual bool _check_internal_feature_support(const String &p_feature);
+	bool _check_internal_feature_support(const String &p_feature) override;
 
-	virtual void force_process_input();
+	void force_process_input() override;
 	void run();
 
-	void disable_crash_handler();
-	bool is_disable_crash_handler() const;
+	void disable_crash_handler() override;
+	bool is_disable_crash_handler() const override;
 
-	virtual Error move_to_trash(const String &p_path);
+	Error move_to_trash(const String &p_path) override;
 
-	virtual LatinKeyboardVariant get_latin_keyboard_variant() const;
-	virtual int keyboard_get_layout_count() const;
-	virtual int keyboard_get_current_layout() const;
-	virtual void keyboard_set_current_layout(int p_index);
-	virtual String keyboard_get_layout_language(int p_index) const;
-	virtual String keyboard_get_layout_name(int p_index) const;
-	virtual uint32_t keyboard_get_scancode_from_physical(uint32_t p_scancode) const;
+	LatinKeyboardVariant get_latin_keyboard_variant() const override;
+	int keyboard_get_layout_count() const override;
+	int keyboard_get_current_layout() const override;
+	void keyboard_set_current_layout(int p_index) override;
+	String keyboard_get_layout_language(int p_index) const override;
+	String keyboard_get_layout_name(int p_index) const override;
+	uint32_t keyboard_get_scancode_from_physical(uint32_t p_scancode) const override;
 
 	void update_real_mouse_position();
 	OS_X11();

@@ -105,7 +105,7 @@ protected:
 
 	static void _bind_methods();
 
-	void _validate_property(PropertyInfo &property) const;
+	void _validate_property(PropertyInfo &property) const override;
 
 public:
 	virtual void get_parameter_list(List<PropertyInfo> *r_list) const;
@@ -307,7 +307,7 @@ public:
 	void set_animation_player(const NodePath &p_player);
 	NodePath get_animation_player() const;
 
-	virtual String get_configuration_warning() const;
+	String get_configuration_warning() const override;
 
 	bool is_state_invalid() const;
 	String get_invalid_state_reason() const;
@@ -324,7 +324,7 @@ public:
 
 	uint64_t get_last_process_pass() const;
 	AnimationTree();
-	~AnimationTree();
+	~AnimationTree() override;
 };
 
 VARIANT_ENUM_CAST(AnimationTree::AnimationProcessMode)

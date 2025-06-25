@@ -141,10 +141,10 @@ public:
 
 	_FORCE_INLINE_ RID get_rid() const { return rid; }
 
-	virtual String get_configuration_warning() const;
+	String get_configuration_warning() const override;
 
 	CollisionObject();
-	~CollisionObject();
+	~CollisionObject() override;
 };
 
 #endif // COLLISION_OBJECT_H

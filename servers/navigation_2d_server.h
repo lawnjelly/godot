@@ -187,7 +187,7 @@ public:
 	virtual void free(RID p_object) const;
 
 	Navigation2DServer();
-	virtual ~Navigation2DServer();
+	~Navigation2DServer() override;
 };
 
 #endif // NAVIGATION_2D_SERVER_H

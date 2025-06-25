@@ -45,7 +45,7 @@ public:
 	virtual void free() = 0;
 
 	SpatialGizmo();
-	virtual ~SpatialGizmo() {}
+	~SpatialGizmo() override {}
 };
 
 class Spatial : public Node {
@@ -207,7 +207,7 @@ public:
 		NOTIFICATION_EXIT_GAMEPLAY = 46,
 	};
 
-	virtual void notification_callback(int p_message_type);
+	void notification_callback(int p_message_type) override;
 	Spatial *get_parent_spatial() const;
 
 	Ref<World> get_world() const;
@@ -311,7 +311,7 @@ public:
 	float get_lod_range() const { return data.lod_range; }
 
 	Spatial();
-	~Spatial();
+	~Spatial() override;
 };
 
 #endif // SPATIAL_H

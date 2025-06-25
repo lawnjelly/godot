@@ -214,8 +214,8 @@ public:
 
 	void set_device(AVCaptureDevice *p_device);
 
-	bool activate_feed();
-	void deactivate_feed();
+	bool activate_feed() override;
+	void deactivate_feed() override;
 };
 
 AVCaptureDevice *CameraFeedOSX::get_device() const {

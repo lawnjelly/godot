@@ -571,7 +571,7 @@ public:
 	virtual int get_process_info(ProcessInfo p_info) = 0;
 
 	Physics2DServer();
-	~Physics2DServer();
+	~Physics2DServer() override;
 };
 
 class Physics2DTestMotionResult : public Reference {

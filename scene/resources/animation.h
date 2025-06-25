@@ -357,7 +357,7 @@ public:
 	void optimize(float p_allowed_linear_err = 0.05, float p_allowed_angular_err = 0.01, float p_max_optimizable_angle = Math_PI * 0.125);
 
 	Animation();
-	~Animation();
+	~Animation() override;
 };
 
 VARIANT_ENUM_CAST(Animation::TrackType);

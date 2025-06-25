@@ -70,8 +70,8 @@ class EditorLocaleDialog : public ConfirmationDialog {
 
 protected:
 	static void _bind_methods();
-	virtual void _post_popup();
-	virtual void ok_pressed();
+	void _post_popup() override;
+	void ok_pressed() override;
 
 	void _item_selected();
 	void _filter_lang_option_changed();

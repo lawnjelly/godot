@@ -82,10 +82,10 @@ public:
 	void clear();
 
 	void update_shape_to_visual_server();
-	virtual Transform center_node(const Transform &p_global_xform, const Transform &p_parent_xform, real_t p_snap);
+	Transform center_node(const Transform &p_global_xform, const Transform &p_parent_xform, real_t p_snap) override;
 
 #ifdef TOOLS_ENABLED
-	virtual AABB get_fallback_gizmo_aabb() const;
+	AABB get_fallback_gizmo_aabb() const override;
 #endif
 
 	OccluderShapePolygon();

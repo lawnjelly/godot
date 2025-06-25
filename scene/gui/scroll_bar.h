@@ -108,9 +108,9 @@ public:
 	void set_smooth_scroll_enabled(bool p_enable);
 	bool is_smooth_scroll_enabled() const;
 
-	virtual Size2 get_minimum_size() const;
+	Size2 get_minimum_size() const override;
 	ScrollBar(Orientation p_orientation = VERTICAL);
-	~ScrollBar();
+	~ScrollBar() override;
 };
 
 class HScrollBar : public ScrollBar {

@@ -149,7 +149,7 @@ public:
 	void apply_script_properties(Object *p_object);
 
 	InspectorDock(EditorNode *p_editor, EditorData &p_editor_data);
-	~InspectorDock();
+	~InspectorDock() override;
 };
 
 #endif // INSPECTOR_DOCK_H

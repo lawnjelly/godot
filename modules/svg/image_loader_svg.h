@@ -65,8 +65,8 @@ public:
 	static Error create_image(Ref<Image> p_image, const PoolVector<uint8_t> *p_data, float p_scale, bool upsample, bool convert_colors = false);
 	static Error create_image_from_string(Ref<Image> p_image, const char *p_svg_str, float p_scale, bool upsample, bool convert_colors = false);
 
-	virtual Error load_image(Ref<Image> p_image, FileAccess *f, bool p_force_linear, float p_scale);
-	virtual void get_recognized_extensions(List<String> *p_extensions) const;
+	Error load_image(Ref<Image> p_image, FileAccess *f, bool p_force_linear, float p_scale) override;
+	void get_recognized_extensions(List<String> *p_extensions) const override;
 	ImageLoaderSVG();
 };
 

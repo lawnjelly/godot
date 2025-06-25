@@ -102,16 +102,16 @@ class EditorExportPlatformOSX : public EditorExportPlatform {
 	}
 
 protected:
-	virtual void get_preset_features(const Ref<EditorExportPreset> &p_preset, List<String> *r_features);
-	virtual void get_export_options(List<ExportOption> *r_options);
-	virtual bool get_option_visibility(const EditorExportPreset *p_preset, const String &p_option, const Map<StringName, Variant> &p_options) const;
+	void get_preset_features(const Ref<EditorExportPreset> &p_preset, List<String> *r_features) override;
+	void get_export_options(List<ExportOption> *r_options) override;
+	bool get_option_visibility(const EditorExportPreset *p_preset, const String &p_option, const Map<StringName, Variant> &p_options) const override;
 
 public:
-	virtual String get_name() const { return "Mac OSX"; }
-	virtual String get_os_name() const { return "OSX"; }
-	virtual Ref<Texture> get_logo() const { return logo; }
+	String get_name() const override { return "Mac OSX"; }
+	String get_os_name() const override { return "OSX"; }
+	Ref<Texture> get_logo() const override { return logo; }
 
-	virtual List<String> get_binary_extensions(const Ref<EditorExportPreset> &p_preset) const {
+	List<String> get_binary_extensions(const Ref<EditorExportPreset> &p_preset) const override {
 		List<String> list;
 
 		if (p_preset.is_valid()) {
@@ -138,22 +138,22 @@ public:
 
 		return list;
 	}
-	virtual Error export_project(const Ref<EditorExportPreset> &p_preset, bool p_debug, const String &p_path, int p_flags = 0);
+	Error export_project(const Ref<EditorExportPreset> &p_preset, bool p_debug, const String &p_path, int p_flags = 0) override;
 
-	virtual bool has_valid_export_configuration(const Ref<EditorExportPreset> &p_preset, String &r_error, bool &r_missing_templates) const;
-	virtual bool has_valid_project_configuration(const Ref<EditorExportPreset> &p_preset, String &r_error) const;
+	bool has_valid_export_configuration(const Ref<EditorExportPreset> &p_preset, String &r_error, bool &r_missing_templates) const override;
+	bool has_valid_project_configuration(const Ref<EditorExportPreset> &p_preset, String &r_error) const override;
 
-	virtual void get_platform_features(List<String> *r_features) {
+	void get_platform_features(List<String> *r_features) override {
 		r_features->push_back("pc");
 		r_features->push_back("s3tc");
 		r_features->push_back("OSX");
 	}
 
-	virtual void resolve_platform_feature_priorities(const Ref<EditorExportPreset> &p_preset, Set<String> &p_features) {
+	void resolve_platform_feature_priorities(const Ref<EditorExportPreset> &p_preset, Set<String> &p_features) override {
 	}
 
 	EditorExportPlatformOSX();
-	~EditorExportPlatformOSX();
+	~EditorExportPlatformOSX() override;
 };
 
 void EditorExportPlatformOSX::get_preset_features(const Ref<EditorExportPreset> &p_preset, List<String> *r_features) {
@@ -672,7 +672,7 @@ Error EditorExportPlatformOSX::_notarize(const Ref<EditorExportPreset> &p_preset
 			String str;
 			int exitcode = 0;
 
-			Error err = OS::get_singleton()->execute(rcodesign, args, true, NULL, &str, &exitcode, true);
+			Error err = OS::get_singleton()->execute(rcodesign, args, true, nullptr, &str, &exitcode, true);
 			if (err != OK) {
 				add_message(EXPORT_MESSAGE_WARNING, TTR("Notarization"), TTR("Could not start rcodesign executable."));
 				return err;
@@ -920,7 +920,7 @@ Error EditorExportPlatformOSX::_code_sign(const Ref<EditorExportPreset> &p_prese
 			String str;
 			int exitcode = 0;
 
-			Error err = OS::get_singleton()->execute(rcodesign, args, true, NULL, &str, &exitcode, true);
+			Error err = OS::get_singleton()->execute(rcodesign, args, true, nullptr, &str, &exitcode, true);
 			if (err != OK) {
 				add_message(EXPORT_MESSAGE_WARNING, TTR("Code Signing"), TTR("Could not start rcodesign executable."));
 				return err;

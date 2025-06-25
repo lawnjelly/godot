@@ -50,9 +50,9 @@ class VisualInstance : public CullInstance {
 
 protected:
 	void _update_server_visibility_and_xform(bool p_force_refresh_server);
-	virtual void _refresh_portal_mode();
+	void _refresh_portal_mode() override;
 	void set_instance_use_identity_transform(bool p_enable);
-	virtual void fti_update_servers_xform();
+	void fti_update_servers_xform() override;
 
 	void _notification(int p_what);
 	static void _bind_methods();
@@ -88,7 +88,7 @@ public:
 	bool is_sorting_use_aabb_center();
 
 	VisualInstance();
-	~VisualInstance();
+	~VisualInstance() override;
 };
 
 class GeometryInstance : public VisualInstance {

@@ -44,16 +44,16 @@ protected:
 
 public:
 	PacketPeerGDNative();
-	~PacketPeerGDNative();
+	~PacketPeerGDNative() override;
 
 	/* Sets the interface implementation from GDNative */
 	void set_native_packet_peer(const godot_net_packet_peer *p_impl);
 
 	/* Specific to PacketPeer */
-	virtual Error get_packet(const uint8_t **r_buffer, int &r_buffer_size);
-	virtual Error put_packet(const uint8_t *p_buffer, int p_buffer_size);
-	virtual int get_max_packet_size() const;
-	virtual int get_available_packet_count() const;
+	Error get_packet(const uint8_t **r_buffer, int &r_buffer_size) override;
+	Error put_packet(const uint8_t *p_buffer, int p_buffer_size) override;
+	int get_max_packet_size() const override;
+	int get_available_packet_count() const override;
 };
 
 #endif // PACKET_PEER_GDNATIVE_H

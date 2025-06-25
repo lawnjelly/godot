@@ -676,18 +676,18 @@ class CanvasItemEditorPlugin : public EditorPlugin {
 	EditorNode *editor;
 
 public:
-	virtual String get_name() const { return "2D"; }
-	bool has_main_screen() const { return true; }
-	virtual void edit(Object *p_object);
-	virtual bool handles(Object *p_object) const;
-	virtual void make_visible(bool p_visible);
-	virtual Dictionary get_state() const;
-	virtual void set_state(const Dictionary &p_state);
+	String get_name() const override { return "2D"; }
+	bool has_main_screen() const override { return true; }
+	void edit(Object *p_object) override;
+	bool handles(Object *p_object) const override;
+	void make_visible(bool p_visible) override;
+	Dictionary get_state() const override;
+	void set_state(const Dictionary &p_state) override;
 
 	CanvasItemEditor *get_canvas_item_editor() { return canvas_item_editor; }
 
 	CanvasItemEditorPlugin(EditorNode *p_node);
-	~CanvasItemEditorPlugin();
+	~CanvasItemEditorPlugin() override;
 };
 
 class CanvasItemEditorViewport : public Control {
@@ -733,11 +733,11 @@ protected:
 	void _notification(int p_what);
 
 public:
-	virtual bool can_drop_data(const Point2 &p_point, const Variant &p_data) const;
-	virtual void drop_data(const Point2 &p_point, const Variant &p_data);
+	bool can_drop_data(const Point2 &p_point, const Variant &p_data) const override;
+	void drop_data(const Point2 &p_point, const Variant &p_data) override;
 
 	CanvasItemEditorViewport(EditorNode *p_node, CanvasItemEditor *p_canvas_item_editor);
-	~CanvasItemEditorViewport();
+	~CanvasItemEditorViewport() override;
 };
 
 #endif // CANVAS_ITEM_EDITOR_PLUGIN_H

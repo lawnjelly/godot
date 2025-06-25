@@ -47,10 +47,10 @@ private:
 protected:
 public:
 	CameraFeedWindows();
-	virtual ~CameraFeedWindows();
+	~CameraFeedWindows() override;
 
-	bool activate_feed();
-	void deactivate_feed();
+	bool activate_feed() override;
+	void deactivate_feed() override;
 };
 
 CameraFeedWindows::CameraFeedWindows(){

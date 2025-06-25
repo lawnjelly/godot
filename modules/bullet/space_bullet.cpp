@@ -746,14 +746,14 @@ void SpaceBullet::check_ghost_overlaps() {
 								gjk_simplex_solver,
 								gjk_epa_pen_solver);
 
-						gjk_pair_detector.getClosestPoints(gjk_input, result, 0);
+						gjk_pair_detector.getClosestPoints(gjk_input, result, nullptr);
 						if (result.m_distance <= 0) {
 							area->set_overlap(other_object, other_shape_id, our_shape_id);
 						}
 					} else { // Other shape is not convex.
-						btCollisionObjectWrapper obA(NULL, area_convex_shape, bt_ghost, gjk_input.m_transformA, -1, our_shape_id);
-						btCollisionObjectWrapper obB(NULL, other_shape, other_bt_collision_object, gjk_input.m_transformB, -1, other_shape_id);
-						btCollisionAlgorithm *algorithm = dispatcher->findAlgorithm(&obA, &obB, NULL, BT_CONTACT_POINT_ALGORITHMS);
+						btCollisionObjectWrapper obA(nullptr, area_convex_shape, bt_ghost, gjk_input.m_transformA, -1, our_shape_id);
+						btCollisionObjectWrapper obB(nullptr, other_shape, other_bt_collision_object, gjk_input.m_transformB, -1, other_shape_id);
+						btCollisionAlgorithm *algorithm = dispatcher->findAlgorithm(&obA, &obB, nullptr, BT_CONTACT_POINT_ALGORITHMS);
 
 						if (!algorithm) {
 							continue;
@@ -1103,7 +1103,7 @@ private:
 				collision_object(p_collision_object) {
 		}
 
-		void Process(const btDbvtNode *leaf) {
+		void Process(const btDbvtNode *leaf) override {
 			BroadphaseResult result;
 			result.collision_object = collision_object;
 			result.compound_child_index = leaf->dataAsInt;
@@ -1127,9 +1127,9 @@ public:
 		bounds = btDbvtVolume::FromMM(p_aabb_min, p_aabb_max);
 	}
 
-	virtual ~RecoverPenetrationBroadPhaseCallback() {}
+	~RecoverPenetrationBroadPhaseCallback() override {}
 
-	virtual bool process(const btBroadphaseProxy *proxy) {
+	bool process(const btBroadphaseProxy *proxy) override {
 		btCollisionObject *co = static_cast<btCollisionObject *>(proxy->m_clientObject);
 		if (co->getInternalType() <= btCollisionObject::CO_RIGID_BODY) {
 			if (self_collision_object != proxy->m_clientObject && GodotFilterCallback::test_collision_filters(collision_layer, collision_mask, proxy->m_collisionFilterGroup, proxy->m_collisionFilterMask)) {

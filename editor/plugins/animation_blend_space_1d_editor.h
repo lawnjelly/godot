@@ -127,8 +127,8 @@ protected:
 
 public:
 	static AnimationNodeBlendSpace1DEditor *get_singleton() { return singleton; }
-	virtual bool can_edit(const Ref<AnimationNode> &p_node);
-	virtual void edit(const Ref<AnimationNode> &p_node);
+	bool can_edit(const Ref<AnimationNode> &p_node) override;
+	void edit(const Ref<AnimationNode> &p_node) override;
 	AnimationNodeBlendSpace1DEditor();
 };
 

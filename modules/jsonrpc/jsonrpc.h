@@ -44,7 +44,7 @@ protected:
 
 public:
 	JSONRPC();
-	~JSONRPC();
+	~JSONRPC() override;
 
 	enum ErrorCode {
 		PARSE_ERROR = -32700,

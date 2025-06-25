@@ -50,8 +50,8 @@ class EditorInspectorPluginBitMap : public EditorInspectorPlugin {
 	GDCLASS(EditorInspectorPluginBitMap, EditorInspectorPlugin);
 
 public:
-	virtual bool can_handle(Object *p_object);
-	virtual void parse_begin(Object *p_object);
+	bool can_handle(Object *p_object) override;
+	void parse_begin(Object *p_object) override;
 };
 
 class BitMapEditorPlugin : public EditorPlugin {

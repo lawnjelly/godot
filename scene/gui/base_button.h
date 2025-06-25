@@ -125,13 +125,13 @@ public:
 	void set_shortcut(const Ref<ShortCut> &p_shortcut);
 	Ref<ShortCut> get_shortcut() const;
 
-	virtual String get_tooltip(const Point2 &p_pos) const;
+	String get_tooltip(const Point2 &p_pos) const override;
 
 	void set_button_group(const Ref<ButtonGroup> &p_group);
 	Ref<ButtonGroup> get_button_group() const;
 
 	BaseButton();
-	~BaseButton();
+	~BaseButton() override;
 };
 
 VARIANT_ENUM_CAST(BaseButton::DrawMode)

@@ -1233,7 +1233,7 @@ public:
 #endif
 
 	VisualServer();
-	virtual ~VisualServer();
+	~VisualServer() override;
 };
 
 // make variant understand the enums

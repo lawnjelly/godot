@@ -44,7 +44,7 @@ class HeightMapShape : public Shape {
 
 protected:
 	static void _bind_methods();
-	virtual void _update_shape();
+	void _update_shape() override;
 
 public:
 	void set_map_width(int p_new);
@@ -54,8 +54,8 @@ public:
 	void set_map_data(PoolRealArray p_new);
 	PoolRealArray get_map_data() const;
 
-	virtual Vector<Vector3> get_debug_mesh_lines();
-	virtual real_t get_enclosing_radius() const;
+	Vector<Vector3> get_debug_mesh_lines() override;
+	real_t get_enclosing_radius() const override;
 
 	HeightMapShape();
 };

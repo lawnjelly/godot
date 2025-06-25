@@ -68,7 +68,7 @@ public:
 
 	void close();
 
-	~LipO();
+	~LipO() override;
 };
 
 #endif // MODULE_REGEX_ENABLED

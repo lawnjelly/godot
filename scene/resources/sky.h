@@ -73,16 +73,16 @@ private:
 
 protected:
 	static void _bind_methods();
-	virtual void _radiance_changed();
+	void _radiance_changed() override;
 
 public:
 	void set_panorama(const Ref<Texture> &p_panorama);
 	Ref<Texture> get_panorama() const;
 
-	virtual RID get_rid() const;
+	RID get_rid() const override;
 
 	PanoramaSky();
-	~PanoramaSky();
+	~PanoramaSky() override;
 };
 
 class ProceduralSky : public Sky {
@@ -134,7 +134,7 @@ private:
 
 protected:
 	static void _bind_methods();
-	virtual void _radiance_changed();
+	void _radiance_changed() override;
 
 	Ref<Image> _generate_sky();
 	void _update_sky();
@@ -192,10 +192,10 @@ public:
 
 	Ref<Image> get_data() const;
 
-	virtual RID get_rid() const;
+	RID get_rid() const override;
 
 	ProceduralSky(bool p_desaturate = false);
-	~ProceduralSky();
+	~ProceduralSky() override;
 };
 
 VARIANT_ENUM_CAST(ProceduralSky::TextureSize)

@@ -393,7 +393,7 @@ public:
 #endif
 	void get_storable_properties(Set<StringName> &r_storable_properties) const;
 
-	virtual String to_string();
+	String to_string() override;
 
 	/* NOTIFICATIONS */
 
@@ -489,7 +489,7 @@ public:
 
 	bool is_owned_by_parent() const;
 
-	void get_argument_options(const StringName &p_function, int p_idx, List<String> *r_options) const;
+	void get_argument_options(const StringName &p_function, int p_idx, List<String> *r_options) const override;
 
 	void clear_internal_tree_resource_paths();
 
@@ -530,7 +530,7 @@ public:
 	const Map<StringName, MultiplayerAPI::RPCMode>::Element *get_node_rset_mode(const StringName &p_property);
 
 	Node();
-	~Node();
+	~Node() override;
 };
 
 VARIANT_ENUM_CAST(Node::DuplicateFlags);

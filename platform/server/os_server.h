@@ -55,7 +55,7 @@ class OS_Server : public OS_Unix {
 
 	bool grab;
 
-	virtual void delete_main_loop();
+	void delete_main_loop() override;
 
 	bool force_quit;
 
@@ -74,55 +74,55 @@ class OS_Server : public OS_Unix {
 	Ref<ResourceFormatDummyTexture> resource_loader_dummy;
 
 protected:
-	virtual int get_video_driver_count() const;
-	virtual const char *get_video_driver_name(int p_driver) const;
-	virtual int get_current_video_driver() const;
-	virtual int get_audio_driver_count() const;
-	virtual const char *get_audio_driver_name(int p_driver) const;
+	int get_video_driver_count() const override;
+	const char *get_video_driver_name(int p_driver) const override;
+	int get_current_video_driver() const override;
+	int get_audio_driver_count() const override;
+	const char *get_audio_driver_name(int p_driver) const override;
 
-	virtual void initialize_core();
-	virtual Error initialize(const VideoMode &p_desired, int p_video_driver, int p_audio_driver);
-	virtual void finalize();
+	void initialize_core() override;
+	Error initialize(const VideoMode &p_desired, int p_video_driver, int p_audio_driver) override;
+	void finalize() override;
 
-	virtual void set_main_loop(MainLoop *p_main_loop);
+	void set_main_loop(MainLoop *p_main_loop) override;
 
 public:
-	virtual String get_name() const;
+	String get_name() const override;
 
 	virtual void set_mouse_show(bool p_show);
 	virtual void set_mouse_grab(bool p_grab);
 	virtual bool is_mouse_grab_enabled() const;
-	virtual Point2 get_mouse_position() const;
-	virtual int get_mouse_button_state() const;
-	virtual void set_window_title(const String &p_title);
+	Point2 get_mouse_position() const override;
+	int get_mouse_button_state() const override;
+	void set_window_title(const String &p_title) override;
 
-	virtual MainLoop *get_main_loop() const;
+	MainLoop *get_main_loop() const override;
 
-	virtual bool can_draw() const;
+	bool can_draw() const override;
 
-	virtual void set_video_mode(const VideoMode &p_video_mode, int p_screen = 0);
-	virtual VideoMode get_video_mode(int p_screen = 0) const;
-	virtual void get_fullscreen_mode_list(List<VideoMode> *p_list, int p_screen = 0) const;
+	void set_video_mode(const VideoMode &p_video_mode, int p_screen = 0) override;
+	VideoMode get_video_mode(int p_screen = 0) const override;
+	void get_fullscreen_mode_list(List<VideoMode> *p_list, int p_screen = 0) const override;
 
-	virtual Size2 get_window_size() const;
+	Size2 get_window_size() const override;
 
-	virtual void move_window_to_foreground();
+	void move_window_to_foreground() override;
 
 	void run();
 
-	virtual OS::PowerState get_power_state();
-	virtual int get_power_seconds_left();
-	virtual int get_power_percent_left();
-	virtual bool _check_internal_feature_support(const String &p_feature);
+	OS::PowerState get_power_state() override;
+	int get_power_seconds_left() override;
+	int get_power_percent_left() override;
+	bool _check_internal_feature_support(const String &p_feature) override;
 
-	virtual String get_config_path() const;
-	virtual String get_data_path() const;
-	virtual String get_cache_path() const;
+	String get_config_path() const override;
+	String get_data_path() const override;
+	String get_cache_path() const override;
 
-	virtual String get_system_dir(SystemDir p_dir, bool p_shared_storage = true) const;
+	String get_system_dir(SystemDir p_dir, bool p_shared_storage = true) const override;
 
-	void disable_crash_handler();
-	bool is_disable_crash_handler() const;
+	void disable_crash_handler() override;
+	bool is_disable_crash_handler() const override;
 
 	OS_Server();
 };

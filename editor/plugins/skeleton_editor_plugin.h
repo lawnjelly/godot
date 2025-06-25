@@ -72,7 +72,7 @@ public:
 	void edit(Skeleton *p_node);
 
 	SkeletonEditor();
-	~SkeletonEditor();
+	~SkeletonEditor() override;
 };
 
 class SkeletonEditorPlugin : public EditorPlugin {
@@ -82,14 +82,14 @@ class SkeletonEditorPlugin : public EditorPlugin {
 	SkeletonEditor *skeleton_editor;
 
 public:
-	virtual String get_name() const { return "Skeleton"; }
-	virtual bool has_main_screen() const { return false; }
-	virtual void edit(Object *p_object);
-	virtual bool handles(Object *p_object) const;
-	virtual void make_visible(bool p_visible);
+	String get_name() const override { return "Skeleton"; }
+	bool has_main_screen() const override { return false; }
+	void edit(Object *p_object) override;
+	bool handles(Object *p_object) const override;
+	void make_visible(bool p_visible) override;
 
 	SkeletonEditorPlugin(EditorNode *p_node);
-	~SkeletonEditorPlugin();
+	~SkeletonEditorPlugin() override;
 };
 
 #endif // SKELETON_EDITOR_PLUGIN_H

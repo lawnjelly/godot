@@ -57,25 +57,25 @@ protected:
 
 public:
 	NetworkedMultiplayerCustom();
-	~NetworkedMultiplayerCustom();
+	~NetworkedMultiplayerCustom() override;
 
 	// PacketPeer.
-	Error get_packet(const uint8_t **r_buffer, int &r_buffer_size);
-	Error put_packet(const uint8_t *p_buffer, int p_buffer_size);
-	int get_available_packet_count() const;
-	int get_max_packet_size() const;
+	Error get_packet(const uint8_t **r_buffer, int &r_buffer_size) override;
+	Error put_packet(const uint8_t *p_buffer, int p_buffer_size) override;
+	int get_available_packet_count() const override;
+	int get_max_packet_size() const override;
 
 	// NetworkedMultiplayerPeer.
-	void set_transfer_mode(TransferMode p_mode);
-	TransferMode get_transfer_mode() const;
-	void set_target_peer(int p_peer);
-	int get_packet_peer() const;
-	bool is_server() const;
-	void poll();
-	int get_unique_id() const;
-	void set_refuse_new_connections(bool p_enable);
-	bool is_refusing_new_connections() const;
-	ConnectionStatus get_connection_status() const;
+	void set_transfer_mode(TransferMode p_mode) override;
+	TransferMode get_transfer_mode() const override;
+	void set_target_peer(int p_peer) override;
+	int get_packet_peer() const override;
+	bool is_server() const override;
+	void poll() override;
+	int get_unique_id() const override;
+	void set_refuse_new_connections(bool p_enable) override;
+	bool is_refusing_new_connections() const override;
+	ConnectionStatus get_connection_status() const override;
 
 	// Custom methods.
 	void initialize(int p_self_id);

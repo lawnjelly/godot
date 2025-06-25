@@ -56,7 +56,7 @@ class OpenSimplexNoise : public Resource {
 
 public:
 	OpenSimplexNoise();
-	~OpenSimplexNoise();
+	~OpenSimplexNoise() override;
 
 	void _init_seeds();
 

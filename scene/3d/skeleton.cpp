@@ -389,8 +389,9 @@ Transform Skeleton::get_bone_global_pose(int p_bone) const {
 
 Transform Skeleton::get_bone_global_pose_no_override(int p_bone) const {
 	ERR_FAIL_INDEX_V(p_bone, bones.size(), Transform());
-	if (dirty)
+	if (dirty) {
 		const_cast<Skeleton *>(this)->notification(NOTIFICATION_UPDATE_SKELETON);
+	}
 	return bones[p_bone].pose_global_no_override;
 }
 

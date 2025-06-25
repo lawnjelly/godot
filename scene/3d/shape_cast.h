@@ -72,7 +72,7 @@ class ShapeCast : public Spatial {
 
 	Array _get_collision_result() const;
 
-	~ShapeCast();
+	~ShapeCast() override;
 
 protected:
 	void _notification(int p_what);
@@ -137,7 +137,7 @@ public:
 	void remove_exception(const Object *p_object);
 	void clear_exceptions();
 
-	virtual String get_configuration_warning() const;
+	String get_configuration_warning() const override;
 };
 
 #endif // SHAPE_CAST_H

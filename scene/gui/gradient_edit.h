@@ -71,10 +71,10 @@ public:
 	void set_interpolation_mode(Gradient::InterpolationMode p_interp_mode);
 	Gradient::InterpolationMode get_interpolation_mode();
 
-	virtual Size2 get_minimum_size() const;
+	Size2 get_minimum_size() const override;
 
 	GradientEdit();
-	virtual ~GradientEdit();
+	~GradientEdit() override;
 };
 
 #endif // GRADIENT_EDIT_H

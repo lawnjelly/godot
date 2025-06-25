@@ -295,7 +295,7 @@ protected:
 	MethodInfo arguments;
 
 public:
-	virtual PropertyInfo _gen_argument_type_info(int p_arg) const {
+	PropertyInfo _gen_argument_type_info(int p_arg) const override {
 		if (p_arg < 0) {
 			return arguments.return_val;
 		} else if (p_arg < arguments.arguments.size()) {
@@ -305,17 +305,17 @@ public:
 		}
 	}
 
-	virtual Variant::Type _gen_argument_type(int p_arg) const {
+	Variant::Type _gen_argument_type(int p_arg) const override {
 		return _gen_argument_type_info(p_arg).type;
 	}
 
 #ifdef DEBUG_METHODS_ENABLED
-	virtual GodotTypeInfo::Metadata get_argument_meta(int) const {
+	GodotTypeInfo::Metadata get_argument_meta(int) const override {
 		return GodotTypeInfo::METADATA_NONE;
 	}
 #endif
 
-	virtual Variant call(Object *p_object, const Variant **p_args, int p_arg_count, Variant::CallError &r_error) {
+	Variant call(Object *p_object, const Variant **p_args, int p_arg_count, Variant::CallError &r_error) override {
 		T *instance = static_cast<T *>(p_object);
 		return (instance->*call_method)(p_args, p_arg_count, r_error);
 	}
@@ -348,16 +348,16 @@ public:
 	}
 
 #ifdef PTRCALL_ENABLED
-	virtual void ptrcall(Object *p_object, const void **p_args, void *r_ret) {
+	void ptrcall(Object *p_object, const void **p_args, void *r_ret) override {
 		ERR_FAIL(); //can't call
 	} //todo
 #endif
 
 	void set_method(NativeCall p_method) { call_method = p_method; }
 	virtual bool is_const() const { return false; }
-	virtual String get_instance_class() const { return T::get_class_static(); }
+	String get_instance_class() const override { return T::get_class_static(); }
 
-	virtual bool is_vararg() const { return true; }
+	bool is_vararg() const override { return true; }
 
 	MethodBindVarArg() {
 		call_method = nullptr;

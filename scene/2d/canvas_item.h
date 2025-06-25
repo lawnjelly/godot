@@ -126,7 +126,7 @@ private:
 
 protected:
 	static void _bind_methods();
-	void _validate_property(PropertyInfo &property) const;
+	void _validate_property(PropertyInfo &property) const override;
 
 public:
 	void set_blend_mode(BlendMode p_blend_mode);
@@ -152,10 +152,10 @@ public:
 
 	RID get_shader_rid() const;
 
-	virtual Shader::Mode get_shader_mode() const;
+	Shader::Mode get_shader_mode() const override;
 
 	CanvasItemMaterial();
-	virtual ~CanvasItemMaterial();
+	~CanvasItemMaterial() override;
 };
 
 VARIANT_ENUM_CAST(CanvasItemMaterial::BlendMode)
@@ -226,7 +226,7 @@ private:
 	void _exit_canvas();
 
 	void _notify_transform(CanvasItem *p_node);
-	virtual void _physics_interpolated_changed();
+	void _physics_interpolated_changed() override;
 
 	void _set_on_top(bool p_on_top) { set_draw_behind_parent(!p_on_top); }
 	bool _is_on_top() const { return !is_draw_behind_parent_enabled(); }
@@ -252,7 +252,7 @@ protected:
 	static void _bind_methods();
 
 #ifdef DEV_ENABLED
-	virtual void _name_changed_notify();
+	void _name_changed_notify() override;
 #endif
 
 public:
@@ -411,7 +411,7 @@ public:
 	int get_canvas_layer() const;
 
 	CanvasItem();
-	~CanvasItem();
+	~CanvasItem() override;
 };
 
 VARIANT_ENUM_CAST(CanvasItem::BlendMode);

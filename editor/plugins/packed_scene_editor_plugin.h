@@ -55,8 +55,8 @@ class EditorInspectorPluginPackedScene : public EditorInspectorPlugin {
 	GDCLASS(EditorInspectorPluginPackedScene, EditorInspectorPlugin);
 
 public:
-	virtual bool can_handle(Object *p_object);
-	virtual void parse_begin(Object *p_object);
+	bool can_handle(Object *p_object) override;
+	void parse_begin(Object *p_object) override;
 };
 
 class PackedSceneEditorPlugin : public EditorPlugin {

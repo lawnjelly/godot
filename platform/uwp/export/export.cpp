@@ -982,24 +982,24 @@ class EditorExportPlatformUWP : public EditorExportPlatform {
 	}
 
 public:
-	virtual String get_name() const {
+	String get_name() const override {
 		return "UWP";
 	}
-	virtual String get_os_name() const {
+	String get_os_name() const override {
 		return "UWP";
 	}
 
-	virtual List<String> get_binary_extensions(const Ref<EditorExportPreset> &p_preset) const {
+	List<String> get_binary_extensions(const Ref<EditorExportPreset> &p_preset) const override {
 		List<String> list;
 		list.push_back("appx");
 		return list;
 	}
 
-	virtual Ref<Texture> get_logo() const {
+	Ref<Texture> get_logo() const override {
 		return logo;
 	}
 
-	virtual void get_preset_features(const Ref<EditorExportPreset> &p_preset, List<String> *r_features) {
+	void get_preset_features(const Ref<EditorExportPreset> &p_preset, List<String> *r_features) override {
 		r_features->push_back("s3tc");
 		r_features->push_back("etc");
 		switch ((int)p_preset->get("architecture/target")) {
@@ -1015,7 +1015,7 @@ public:
 		}
 	}
 
-	virtual void get_export_options(List<ExportOption> *r_options) {
+	void get_export_options(List<ExportOption> *r_options) override {
 		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, "custom_template/debug", PROPERTY_HINT_GLOBAL_FILE, "*.zip"), ""));
 		r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, "custom_template/release", PROPERTY_HINT_GLOBAL_FILE, "*.zip"), ""));
 
@@ -1080,7 +1080,7 @@ public:
 		}
 	}
 
-	virtual bool has_valid_export_configuration(const Ref<EditorExportPreset> &p_preset, String &r_error, bool &r_missing_templates) const {
+	bool has_valid_export_configuration(const Ref<EditorExportPreset> &p_preset, String &r_error, bool &r_missing_templates) const override {
 		String err;
 		bool valid = false;
 
@@ -1135,7 +1135,7 @@ public:
 		return valid;
 	}
 
-	virtual bool has_valid_project_configuration(const Ref<EditorExportPreset> &p_preset, String &r_error) const {
+	bool has_valid_project_configuration(const Ref<EditorExportPreset> &p_preset, String &r_error) const override {
 		String err;
 		bool valid = true;
 
@@ -1266,7 +1266,7 @@ public:
 	}
 #endif
 
-	virtual Error export_project(const Ref<EditorExportPreset> &p_preset, bool p_debug, const String &p_path, int p_flags = 0) {
+	Error export_project(const Ref<EditorExportPreset> &p_preset, bool p_debug, const String &p_path, int p_flags = 0) override {
 		ExportNotifier notifier(*this, p_preset, p_debug, p_path, p_flags);
 
 		String src_appx;
@@ -1553,12 +1553,12 @@ public:
 		return OK;
 	}
 
-	virtual void get_platform_features(List<String> *r_features) {
+	void get_platform_features(List<String> *r_features) override {
 		r_features->push_back("pc");
 		r_features->push_back("UWP");
 	}
 
-	virtual void resolve_platform_feature_priorities(const Ref<EditorExportPreset> &p_preset, Set<String> &p_features) {
+	void resolve_platform_feature_priorities(const Ref<EditorExportPreset> &p_preset, Set<String> &p_features) override {
 	}
 
 	static Error copy_shared_objects(void *p_userdata, const SharedObject &p_so) {

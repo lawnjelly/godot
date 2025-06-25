@@ -161,7 +161,7 @@ public:
 	Tree *get_scene_tree() { return tree; }
 
 	SceneTreeEditor(bool p_label = true, bool p_can_rename = false, bool p_can_open_instance = false);
-	~SceneTreeEditor();
+	~SceneTreeEditor() override;
 };
 
 class SceneTreeDialog : public ConfirmationDialog {
@@ -185,7 +185,7 @@ public:
 	SceneTreeEditor *get_scene_tree() { return tree; }
 	LineEdit *get_filter_line_edit() { return filter; }
 	SceneTreeDialog();
-	~SceneTreeDialog();
+	~SceneTreeDialog() override;
 };
 
 #endif // SCENE_TREE_EDITOR_H

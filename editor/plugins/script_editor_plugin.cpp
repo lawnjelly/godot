@@ -100,7 +100,7 @@ public:
 		}
 	}
 
-	virtual RES get_cached_resource(const String &p_path) {
+	RES get_cached_resource(const String &p_path) override {
 		Map<String, Cache>::Element *E = cached.find(p_path);
 		if (!E) {
 			Cache c;
@@ -136,7 +136,7 @@ public:
 		max_time_cache = 5 * 60 * 1000; //minutes, five
 	}
 
-	virtual ~EditorScriptCodeCompletionCache() {}
+	~EditorScriptCodeCompletionCache() override {}
 };
 
 void ScriptEditorQuickOpen::popup_dialog(const Vector<String> &p_functions, bool p_dontclear) {
@@ -2046,8 +2046,9 @@ bool ScriptEditor::edit(const RES &p_resource, int p_line, int p_col, bool p_gra
 	if (script.is_valid() && script->get_language()->overrides_external_editor()) {
 		if (should_open) {
 			Error err = script->get_language()->open_in_external_editor(script, p_line >= 0 ? p_line : 0, p_col);
-			if (err != OK)
+			if (err != OK) {
 				ERR_PRINT("Couldn't open script in the overridden external text editor");
+			}
 		}
 		return false;
 	}

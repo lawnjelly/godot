@@ -281,7 +281,7 @@ public:
 	RID get_bake_mesh_instance(int p_idx);
 
 	GridMap();
-	~GridMap();
+	~GridMap() override;
 };
 
 #endif // GRID_MAP_H

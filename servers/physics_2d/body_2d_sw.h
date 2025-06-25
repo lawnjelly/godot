@@ -84,7 +84,7 @@ class Body2DSW : public CollisionObject2DSW {
 	bool first_time_kinematic;
 	bool first_integration;
 	void _update_inertia();
-	virtual void _shapes_changed();
+	void _shapes_changed() override;
 	Transform2D new_transform;
 
 	Map<Constraint2DSW *, int> constraint_map;
@@ -266,7 +266,7 @@ public:
 	_FORCE_INLINE_ void set_continuous_collision_detection_mode(Physics2DServer::CCDMode p_mode) { continuous_cd_mode = p_mode; }
 	_FORCE_INLINE_ Physics2DServer::CCDMode get_continuous_collision_detection_mode() const { return continuous_cd_mode; }
 
-	void set_space(Space2DSW *p_space);
+	void set_space(Space2DSW *p_space) override;
 
 	void update_inertias();
 
@@ -302,7 +302,7 @@ public:
 	Physics2DDirectBodyStateSW *get_direct_state() const { return direct_access; }
 
 	Body2DSW();
-	~Body2DSW();
+	~Body2DSW() override;
 };
 
 //add contact inline
@@ -355,99 +355,99 @@ class Physics2DDirectBodyStateSW : public Physics2DDirectBodyState {
 public:
 	Body2DSW *body = nullptr;
 
-	virtual Vector2 get_total_gravity() const { return body->gravity; } // get gravity vector working on this body space/area
-	virtual real_t get_total_angular_damp() const { return body->area_angular_damp; } // get density of this body space/area
-	virtual real_t get_total_linear_damp() const { return body->area_linear_damp; } // get density of this body space/area
+	Vector2 get_total_gravity() const override { return body->gravity; } // get gravity vector working on this body space/area
+	real_t get_total_angular_damp() const override { return body->area_angular_damp; } // get density of this body space/area
+	real_t get_total_linear_damp() const override { return body->area_linear_damp; } // get density of this body space/area
 
-	virtual real_t get_inverse_mass() const { return body->get_inv_mass(); } // get the mass
-	virtual real_t get_inverse_inertia() const { return body->get_inv_inertia(); } // get density of this body space
+	real_t get_inverse_mass() const override { return body->get_inv_mass(); } // get the mass
+	real_t get_inverse_inertia() const override { return body->get_inv_inertia(); } // get density of this body space
 
-	virtual void set_linear_velocity(const Vector2 &p_velocity) {
+	void set_linear_velocity(const Vector2 &p_velocity) override {
 		body->wakeup();
 		body->set_linear_velocity(p_velocity);
 	}
-	virtual Vector2 get_linear_velocity() const { return body->get_linear_velocity(); }
+	Vector2 get_linear_velocity() const override { return body->get_linear_velocity(); }
 
-	virtual void set_angular_velocity(real_t p_velocity) {
+	void set_angular_velocity(real_t p_velocity) override {
 		body->wakeup();
 		body->set_angular_velocity(p_velocity);
 	}
-	virtual real_t get_angular_velocity() const { return body->get_angular_velocity(); }
+	real_t get_angular_velocity() const override { return body->get_angular_velocity(); }
 
-	virtual void set_transform(const Transform2D &p_transform) { body->set_state(Physics2DServer::BODY_STATE_TRANSFORM, p_transform); }
-	virtual Transform2D get_transform() const { return body->get_transform(); }
+	void set_transform(const Transform2D &p_transform) override { body->set_state(Physics2DServer::BODY_STATE_TRANSFORM, p_transform); }
+	Transform2D get_transform() const override { return body->get_transform(); }
 
-	virtual Vector2 get_velocity_at_local_position(const Vector2 &p_position) const { return body->get_velocity_in_local_point(p_position); }
+	Vector2 get_velocity_at_local_position(const Vector2 &p_position) const override { return body->get_velocity_in_local_point(p_position); }
 
-	virtual void add_central_force(const Vector2 &p_force) {
+	void add_central_force(const Vector2 &p_force) override {
 		body->wakeup();
 		body->add_central_force(p_force);
 	}
-	virtual void add_force(const Vector2 &p_offset, const Vector2 &p_force) {
+	void add_force(const Vector2 &p_offset, const Vector2 &p_force) override {
 		body->wakeup();
 		body->add_force(p_offset, p_force);
 	}
-	virtual void add_torque(real_t p_torque) {
+	void add_torque(real_t p_torque) override {
 		body->wakeup();
 		body->add_torque(p_torque);
 	}
-	virtual void apply_central_impulse(const Vector2 &p_impulse) {
+	void apply_central_impulse(const Vector2 &p_impulse) override {
 		body->wakeup();
 		body->apply_central_impulse(p_impulse);
 	}
-	virtual void apply_impulse(const Vector2 &p_offset, const Vector2 &p_force) {
+	void apply_impulse(const Vector2 &p_offset, const Vector2 &p_force) override {
 		body->wakeup();
 		body->apply_impulse(p_offset, p_force);
 	}
-	virtual void apply_torque_impulse(real_t p_torque) {
+	void apply_torque_impulse(real_t p_torque) override {
 		body->wakeup();
 		body->apply_torque_impulse(p_torque);
 	}
 
-	virtual void set_sleep_state(bool p_enable) { body->set_active(!p_enable); }
-	virtual bool is_sleeping() const { return !body->is_active(); }
+	void set_sleep_state(bool p_enable) override { body->set_active(!p_enable); }
+	bool is_sleeping() const override { return !body->is_active(); }
 
-	virtual int get_contact_count() const { return body->contact_count; }
+	int get_contact_count() const override { return body->contact_count; }
 
-	virtual Vector2 get_contact_local_position(int p_contact_idx) const {
+	Vector2 get_contact_local_position(int p_contact_idx) const override {
 		ERR_FAIL_INDEX_V(p_contact_idx, body->contact_count, Vector2());
 		return body->contacts[p_contact_idx].local_pos;
 	}
-	virtual Vector2 get_contact_local_normal(int p_contact_idx) const {
+	Vector2 get_contact_local_normal(int p_contact_idx) const override {
 		ERR_FAIL_INDEX_V(p_contact_idx, body->contact_count, Vector2());
 		return body->contacts[p_contact_idx].local_normal;
 	}
-	virtual int get_contact_local_shape(int p_contact_idx) const {
+	int get_contact_local_shape(int p_contact_idx) const override {
 		ERR_FAIL_INDEX_V(p_contact_idx, body->contact_count, -1);
 		return body->contacts[p_contact_idx].local_shape;
 	}
 
-	virtual RID get_contact_collider(int p_contact_idx) const {
+	RID get_contact_collider(int p_contact_idx) const override {
 		ERR_FAIL_INDEX_V(p_contact_idx, body->contact_count, RID());
 		return body->contacts[p_contact_idx].collider;
 	}
-	virtual Vector2 get_contact_collider_position(int p_contact_idx) const {
+	Vector2 get_contact_collider_position(int p_contact_idx) const override {
 		ERR_FAIL_INDEX_V(p_contact_idx, body->contact_count, Vector2());
 		return body->contacts[p_contact_idx].collider_pos;
 	}
-	virtual ObjectID get_contact_collider_id(int p_contact_idx) const {
+	ObjectID get_contact_collider_id(int p_contact_idx) const override {
 		ERR_FAIL_INDEX_V(p_contact_idx, body->contact_count, 0);
 		return body->contacts[p_contact_idx].collider_instance_id;
 	}
-	virtual int get_contact_collider_shape(int p_contact_idx) const {
+	int get_contact_collider_shape(int p_contact_idx) const override {
 		ERR_FAIL_INDEX_V(p_contact_idx, body->contact_count, 0);
 		return body->contacts[p_contact_idx].collider_shape;
 	}
-	virtual Variant get_contact_collider_shape_metadata(int p_contact_idx) const;
+	Variant get_contact_collider_shape_metadata(int p_contact_idx) const override;
 
-	virtual Vector2 get_contact_collider_velocity_at_position(int p_contact_idx) const {
+	Vector2 get_contact_collider_velocity_at_position(int p_contact_idx) const override {
 		ERR_FAIL_INDEX_V(p_contact_idx, body->contact_count, Vector2());
 		return body->contacts[p_contact_idx].collider_velocity_at_pos;
 	}
 
-	virtual Physics2DDirectSpaceState *get_space_state();
+	Physics2DDirectSpaceState *get_space_state() override;
 
-	virtual real_t get_step() const;
+	real_t get_step() const override;
 
 	Physics2DDirectBodyStateSW() {}
 };

@@ -247,8 +247,9 @@ Node *MultiplayerAPI::_process_get_node(int p_from, const uint8_t *p_packet, int
 
 		node = root_node->get_node(np);
 
-		if (!node)
+		if (!node) {
 			ERR_PRINT("Failed to get path from RPC: " + String(np) + ".");
+		}
 	} else {
 		// Use cached path.
 		int id = target;
@@ -263,8 +264,9 @@ Node *MultiplayerAPI::_process_get_node(int p_from, const uint8_t *p_packet, int
 		// Do proper caching later.
 
 		node = root_node->get_node(ni->path);
-		if (!node)
+		if (!node) {
 			ERR_PRINT("Failed to get cached path from RPC: " + String(ni->path) + ".");
+		}
 	}
 	return node;
 }

@@ -95,7 +95,7 @@ public:
 	void notify_saving(bool p_active);
 
 	World();
-	~World();
+	~World() override;
 };
 
 #endif // WORLD_H

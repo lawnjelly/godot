@@ -65,8 +65,9 @@ class VehicleWheel : public Spatial {
 
 			// Wrap rotation to prevent float error.
 			double wrapped = Math::fmod(curr_rotation + Math_PI, Math_TAU);
-			if (wrapped < 0)
+			if (wrapped < 0) {
 				wrapped += Math_TAU;
+			}
 			curr_rotation = wrapped - Math_PI;
 		}
 
@@ -184,7 +185,7 @@ public:
 	void set_steering(float p_steering);
 	float get_steering() const;
 
-	String get_configuration_warning() const;
+	String get_configuration_warning() const override;
 
 	VehicleWheel();
 };
@@ -233,13 +234,13 @@ class VehicleBody : public RigidBody {
 
 	static void _bind_methods();
 
-	void _direct_state_changed(Object *p_state);
+	void _direct_state_changed(Object *p_state) override;
 
 protected:
 	void _notification(int p_what);
 
-	virtual void _physics_interpolated_changed();
-	virtual void fti_pump_xform();
+	void _physics_interpolated_changed() override;
+	void fti_pump_xform() override;
 
 public:
 	void set_engine_force(float p_engine_force);

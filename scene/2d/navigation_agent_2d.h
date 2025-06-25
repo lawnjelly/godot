@@ -78,7 +78,7 @@ protected:
 
 public:
 	NavigationAgent2D();
-	virtual ~NavigationAgent2D();
+	~NavigationAgent2D() override;
 
 	void set_navigation(Navigation2D *p_nav);
 	const Navigation2D *get_navigation() const {
@@ -163,7 +163,7 @@ public:
 	void set_velocity(Vector2 p_velocity);
 	void _avoidance_done(Vector3 p_new_velocity);
 
-	virtual String get_configuration_warning() const;
+	String get_configuration_warning() const override;
 
 private:
 	void update_navigation();

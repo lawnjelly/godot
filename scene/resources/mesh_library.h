@@ -96,7 +96,7 @@ public:
 	int get_last_unused_item_id() const;
 
 	MeshLibrary();
-	~MeshLibrary();
+	~MeshLibrary() override;
 };
 
 #endif // MESH_LIBRARY_H

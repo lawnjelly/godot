@@ -64,13 +64,13 @@ public:
 
 	struct StreamFile : public Stream {
 	protected:
-		virtual uint32_t _read_buffer(CharType *p_buffer, uint32_t p_num_chars);
-		virtual bool _is_eof() const;
+		uint32_t _read_buffer(CharType *p_buffer, uint32_t p_num_chars) override;
+		bool _is_eof() const override;
 
 	public:
 		FileAccess *f;
 
-		virtual bool is_utf8() const;
+		bool is_utf8() const override;
 		StreamFile(bool p_readahead_enabled = true) {
 			f = nullptr;
 			readahead_enabled = p_readahead_enabled;
@@ -82,13 +82,13 @@ public:
 		int pos;
 
 	protected:
-		virtual uint32_t _read_buffer(CharType *p_buffer, uint32_t p_num_chars);
-		virtual bool _is_eof() const;
+		uint32_t _read_buffer(CharType *p_buffer, uint32_t p_num_chars) override;
+		bool _is_eof() const override;
 
 	public:
 		String s;
 
-		virtual bool is_utf8() const;
+		bool is_utf8() const override;
 		StreamString(bool p_readahead_enabled = true) {
 			pos = 0;
 			readahead_enabled = p_readahead_enabled;

@@ -115,11 +115,11 @@ public:
 	RID get_canvas() const;
 
 #ifdef TOOLS_ENABLED
-	StringName get_property_store_alias(const StringName &p_property) const;
+	StringName get_property_store_alias(const StringName &p_property) const override;
 #endif
 
 	CanvasLayer();
-	~CanvasLayer();
+	~CanvasLayer() override;
 };
 
 #endif // CANVAS_LAYER_H
