@@ -485,10 +485,15 @@ PathStatus Planner::iterate(u32 &r_first_waypoint, u32 p_iterations_limit) {
 			PlanPoint *found = data.open_list.find(npoly_id);
 
 			if (!found) {
-				// ToDo : Fix this invalidating pp,
-				// which we already fixed in the zone path.
-				NP_DEV_ASSERT(0);
+				// POTENTIAL BUG!!!
+				// Watch out this may invalidate the data in pp
+				// so it contains garbage.
 				found = &data.open_list.request();
+
+				// Reget the popped ID because the pool might have grown
+				// and invalidated pp.
+				pp = &_pool_plan_points[popped_id];
+
 			} else {
 				if (tentative_start_cost >= found->start_cost) {
 					found = nullptr;
