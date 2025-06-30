@@ -380,7 +380,16 @@ bool MeshInstance::_agent_enter_poly(Agent &r_agent, u32 p_new_poly_id, bool p_f
 		u32 old_zone_id = r_agent.poly_id == UINT32_MAX ? UINT32_MAX : mesh.get_poly_extra(r_agent.poly_id).zone_id;
 		u32 new_zone_id = p_new_poly_id == UINT32_MAX ? UINT32_MAX : mesh.get_poly_extra(p_new_poly_id).zone_id;
 		if (old_zone_id != new_zone_id) {
-			log(String("Player entering zone_id ") + new_zone_id);
+			String sz = String("Player entering zone_id ") + new_zone_id;
+
+			if (new_zone_id != UINT32_MAX) {
+				const Zone &new_zone2 = mesh.get_zone(new_zone_id);
+				const ZoneInstance &new_zone_instance2 = get_zone_instance(new_zone_id);
+
+				sz += String(", max_agents: ") + new_zone2.max_agents + ", used: " + new_zone_instance2.used;
+			}
+
+			log(sz);
 		}
 #endif
 
@@ -457,13 +466,14 @@ bool MeshInstance::_agent_enter_poly(Agent &r_agent, u32 p_new_poly_id, bool p_f
 
 			if ((new_zone_instance->used >= available) && !p_force_allow) {
 				r_agent.blocking_zone_id = new_poly->zone_id;
-				log(String("DISALLOW new zone available : ") + available + ", used : " + new_zone_instance->used);
+				//log(String("DISALLOW new zone available : ") + available + ", used : " + new_zone_instance->used);
 				return false;
 			}
 
 			new_zone_instance->used += 1;
-			if (!p_force_allow)
-				log(String("ALLOW new zone available : ") + available + ", used : " + new_zone_instance->used);
+			//			if (!p_force_allow) {
+			//				log(String("ALLOW new zone available : ") + available + ", used : " + new_zone_instance->used);
+			//			}
 
 #ifdef NP_DEV_ENABLED
 
