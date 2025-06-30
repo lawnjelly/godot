@@ -2045,7 +2045,7 @@ void Loader::find_bottlenecks(Mesh &r_dest) {
 			zone.max_agents = MAX(1, zone_areas[n] / agent_area);
 
 			// debug
-			zone.max_agents = 1;
+			//zone.max_agents = 2;
 
 			log(String("Zone ") + n + "\tmax_agents " + zone.max_agents);
 		}
