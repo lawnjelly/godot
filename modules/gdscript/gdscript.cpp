@@ -38,6 +38,8 @@
 #include "core/os/os.h"
 #include "core/project_settings.h"
 #include "gdscript_compiler.h"
+#include "gdscript_optimizer.h"
+#include "gdscript_pre_processor.h"
 
 ///////////////////////////
 
@@ -609,6 +611,11 @@ Error GDScript::reload(bool p_keep_state) {
 		}
 		_err_print_error("GDScript::reload", path.empty() ? "built-in" : (const char *)path.utf8().get_data(), parser.get_error_line(), ("Parse Error: " + parser.get_error()).utf8().get_data(), ERR_HANDLER_SCRIPT);
 		return ERR_PARSE_ERROR;
+	}
+
+	if (!Engine::get_singleton()->is_editor_hint()) {
+		GDScriptOptimizer optimizer;
+		optimizer.optimize(parser);
 	}
 
 	bool can_run = ScriptServer::is_scripting_enabled() || parser.is_tool_script();
@@ -2162,6 +2169,7 @@ GDScriptLanguage::GDScriptLanguage() {
 		GLOBAL_DEF("debug/gdscript/warnings/" + warning, default_enabled);
 	}
 #endif // DEBUG_ENABLED
+	GDScriptOptimizer::active_inlining = GLOBAL_DEF("application/run/gdscript/inlining", true);
 }
 
 GDScriptLanguage::~GDScriptLanguage() {
@@ -2240,6 +2248,9 @@ RES ResourceFormatLoaderGDScript::load(const String &p_path, const String &p_ori
 
 		script->set_script_path(p_original_path); // script needs this.
 		script->set_path(p_original_path, true);
+
+		GDScriptPreProcessor pp;
+		script->set_source_code(pp.process(script->get_source_code()));
 
 		script->reload();
 	}

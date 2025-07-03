@@ -41,6 +41,8 @@ struct GDScriptDataType;
 struct GDScriptWarning;
 
 class GDScriptParser {
+	friend class GDScriptOptimizer;
+
 public:
 	struct ClassNode;
 
