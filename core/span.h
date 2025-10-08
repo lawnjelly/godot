@@ -52,6 +52,14 @@ public:
 
 	_FORCE_INLINE_ constexpr Span() = default;
 
+	Span(const T *p_ptr, int32_t p_len) {
+		// Could be a runtime check, but we ideally want to prevent this possibility,
+		// as this is performance sensitive.
+		// The signed version might be called from e.g. `LocalVector` with a signed count.
+		DEV_ASSERT(p_len >= 0);
+		*this = Span(p_ptr, (U)p_len);
+	}
+
 	_FORCE_INLINE_ Span(const T *p_ptr, U p_len) :
 			_ptr(p_ptr), _len(p_len) {
 #ifdef DEBUG_ENABLED
