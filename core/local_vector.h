@@ -238,6 +238,16 @@ public:
 		return -1;
 	}
 
+	U find_or_push_back(const T &p_val) {
+		int64_t found = find(p_val);
+		if (found == -1) {
+			U id = size();
+			push_back(p_val);
+			return id;
+		}
+		return (U)found;
+	}
+
 	template <class C>
 	void sort_custom() {
 		U len = count;
@@ -387,6 +397,28 @@ public:
 // Integer default version
 template <class T, class I = int32_t, bool force_trivial = false>
 class LocalVectori : public LocalVector<T, I, force_trivial> {
+public:
+	using LocalVector<T, I, force_trivial>::operator=;
+	using LocalVector<T, I, force_trivial>::operator Vector<T>;
+
+	const T &get_wrapped(I p_index) const {
+		return this->data[wrap_index(p_index)];
+	}
+
+	T &get_wrapped(I p_index) {
+		return this->data[wrap_index(p_index)];
+	}
+
+	I wrap_index(I p_index) const {
+		if (p_index >= 0) {
+			p_index %= this->size();
+		} else {
+			p_index = -p_index;
+			p_index %= this->size();
+			p_index = this->size() - p_index;
+		}
+		return p_index;
+	}
 };
 
 #endif // LOCAL_VECTOR_H

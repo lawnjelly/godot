@@ -438,13 +438,14 @@ bool MeshSimplify::_detect_mirror_tris(const Tri &p_a, const Tri &p_b, int &r_ax
 }
 
 void MeshSimplify::_optimize_vertex_cache(uint32_t *r_inds, uint32_t p_num_inds, uint32_t p_num_verts) const {
-	LocalVectori<uint32_t> inds_copy;
+	LocalVector<int32_t> inds_copy;
 	inds_copy.resize(p_num_inds);
 	if (p_num_inds) {
-		memcpy(&inds_copy[0], r_inds, p_num_inds * sizeof(uint32_t));
+		memcpy(inds_copy.ptr(), r_inds, p_num_inds * sizeof(uint32_t));
 
-		VertexCacheOptimizer<uint32_t> opt;
-		opt.reorder_indices(r_inds, &inds_copy[0], p_num_inds / 3, p_num_verts);
+		VertexCacheOptimizer opt;
+		opt.reorder_indices(inds_copy, p_num_inds / 3, p_num_verts);
+		memcpy(r_inds, inds_copy.ptr(), p_num_inds * sizeof(uint32_t));
 	}
 }
 
