@@ -11,13 +11,13 @@
 #define GSM_LOG(a)
 //#define GSM_LOG(a) print_line(a)
 
-uint32_t MeshSimplify::simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in_inds, const Vector3 *p_in_verts, uint32_t p_num_in_verts, uint32_t *r_out_inds, LocalVectori<uint32_t> &r_vert_map, uint32_t &r_num_out_verts, real_t p_tri_target_fraction, real_t p_surf_detail, real_t p_edge_simplification, real_t p_vertex_tolerance) {
+uint32_t MeshSimplify::simplify_map(Span<uint32_t> p_in_inds, Span<Vector3> p_in_verts, uint32_t *r_out_inds, LocalVectori<uint32_t> &r_vert_map, uint32_t &r_num_out_verts, real_t p_tri_target_fraction, real_t p_surf_detail, real_t p_edge_simplification, real_t p_vertex_tolerance) {
 	_edge_simplification = CLAMP(1.0 - p_edge_simplification, 0.0, 1.0);
 
-	uint32_t target_num_tris = (p_num_in_inds / 3) * p_tri_target_fraction;
-	target_num_tris = CLAMP(target_num_tris, 1, p_num_in_inds / 3);
+	uint32_t target_num_tris = (p_in_inds.size() / 3) * p_tri_target_fraction;
+	target_num_tris = CLAMP(target_num_tris, 1, p_in_inds.size() / 3);
 
-	uint32_t orig_num_verts = p_num_in_verts;
+	uint32_t orig_num_verts = p_in_verts.size();
 
 	// DEDUPLICATE
 	//////////////////////////////////////////////////////////////////////////////////
@@ -26,7 +26,7 @@ uint32_t MeshSimplify::simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in
 
 	print_line("dedupe start");
 	AABB world_bound;
-	_deduplicator.deduplicate_map(p_in_inds, p_num_in_inds, p_in_verts, p_num_in_verts, r_vert_map, r_num_out_verts, deduped_inds, &world_bound, p_vertex_tolerance);
+	_deduplicator.deduplicate_map(p_in_inds, p_in_verts, r_vert_map, r_num_out_verts, deduped_inds, &world_bound, p_vertex_tolerance);
 	print_line("dedupe end");
 
 	// scale surface detail allowed error according to the mesh size
@@ -55,7 +55,7 @@ uint32_t MeshSimplify::simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in
 	LocalVectori<uint32_t> deduped_verts_source;
 	deduped_verts_source.resize(deduped_verts.size());
 
-	for (int n = 0; n < p_num_in_verts; n++) {
+	for (int n = 0; n < p_in_verts.size(); n++) {
 		uint32_t new_vert_id = r_vert_map[n];
 		DEV_ASSERT(new_vert_id < r_num_out_verts);
 
@@ -63,14 +63,11 @@ uint32_t MeshSimplify::simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in
 		deduped_verts_source[new_vert_id] = n;
 	}
 
-	DEV_ASSERT(deduped_verts.size() <= p_num_in_verts);
+	DEV_ASSERT(deduped_verts.size() <= p_in_verts.size());
 
 	// change the indices to the deduped
-	p_in_inds = &deduped_inds[0];
-	p_num_in_inds = deduped_inds.size();
-
-	p_in_verts = &deduped_verts[0];
-	p_num_in_verts = deduped_verts.size();
+	p_in_inds = Span<uint32_t>(&deduped_inds[0], deduped_inds.size());
+	p_in_verts = Span<Vector3>(&deduped_verts[0], deduped_verts.size());
 
 	print_line("orig num verts " + itos(orig_num_verts) + ", after dedup : " + itos(r_num_out_verts));
 
@@ -108,8 +105,8 @@ uint32_t MeshSimplify::simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in
 	_tris.clear();
 
 	// setup the verts
-	_verts.resize(p_num_in_verts);
-	for (int n = 0; n < p_num_in_verts; n++) {
+	_verts.resize(p_in_verts.size());
+	for (int n = 0; n < p_in_verts.size(); n++) {
 		_verts[n].pos = p_in_verts[n];
 
 		// Seed each vert with the original vert number...
@@ -122,7 +119,7 @@ uint32_t MeshSimplify::simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in
 	////////////////////////////////////////////////////
 	// set up linked verts
 	LocalVectori<SpatialDeduplicator::LinkedVerts> linked_verts_list;
-	_deduplicator.find_duplicate_positions(p_in_verts, p_num_in_verts, linked_verts_list);
+	_deduplicator.find_duplicate_positions(p_in_verts, linked_verts_list);
 
 	for (int n = 0; n < linked_verts_list.size(); n++) {
 		const SpatialDeduplicator::LinkedVerts &lv = linked_verts_list[n];
@@ -140,7 +137,7 @@ uint32_t MeshSimplify::simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in
 
 	////////////////////////////////////////////////////
 
-	_create_tris(p_in_inds, p_num_in_inds);
+	_create_tris(p_in_inds);
 	//_detect_mirror_verts();
 
 #ifdef GODOT_MESH_SIMPLIFY_VERBOSE
@@ -244,7 +241,7 @@ uint32_t MeshSimplify::simplify_map(const uint32_t *p_in_inds, uint32_t p_num_in
 //	}
 #endif
 
-	print_line("simplify tris before : " + itos(p_num_in_inds / 3) + ", after : " + itos(count / 3) + ", orig num verts " + itos(orig_num_verts) + ", final verts : " + itos(r_num_out_verts));
+	print_line("simplify tris before : " + itos(p_in_inds.size() / 3) + ", after : " + itos(count / 3) + ", orig num verts " + itos(orig_num_verts) + ", final verts : " + itos(r_num_out_verts));
 
 	return count;
 }
@@ -450,13 +447,13 @@ void MeshSimplify::_optimize_vertex_cache(uint32_t *r_inds, uint32_t p_num_inds,
 }
 
 // returns number of indices
-uint32_t MeshSimplify::simplify_occluders(const uint32_t *p_in_inds, uint32_t p_num_in_inds, const Vector3 *p_in_verts, uint32_t p_num_in_verts, uint32_t *r_out_inds, Vector3 *r_out_verts, uint32_t &r_num_out_verts, real_t p_simplification, real_t p_vertex_tolerance) {
+uint32_t MeshSimplify::simplify_occluders(const Span<uint32_t> &p_in_inds, const Span<Vector3> &p_in_verts, uint32_t *r_out_inds, Vector3 *r_out_verts, uint32_t &r_num_out_verts, real_t p_simplification, real_t p_vertex_tolerance) {
 	LocalVectori<uint32_t> vert_map;
 
-	uint32_t num_out_inds = simplify_map(p_in_inds, p_num_in_inds, p_in_verts, p_num_in_verts, r_out_inds, vert_map, r_num_out_verts, 0.0, 1.0 - p_simplification, 0.01);
+	uint32_t num_out_inds = simplify_map(p_in_inds, p_in_verts, r_out_inds, vert_map, r_num_out_verts, 0.0, 1.0 - p_simplification, 0.01);
 
 	// convert output verts
-	for (int n = 0; n < p_num_in_verts; n++) {
+	for (int n = 0; n < p_in_verts.size(); n++) {
 		uint32_t new_vert = vert_map[n];
 
 		// unused may be marked as UINT32_MAX
@@ -540,8 +537,8 @@ bool MeshSimplify::_calculate_plane(uint32_t p_corns[3], Plane &r_plane) const {
 	return true;
 }
 
-void MeshSimplify::_create_tris(const uint32_t *p_inds, uint32_t p_num_inds) {
-	int num_tris = p_num_inds / 3;
+void MeshSimplify::_create_tris(const Span<uint32_t> &p_inds) {
+	int num_tris = p_inds.size() / 3;
 
 	uint32_t count = 0;
 

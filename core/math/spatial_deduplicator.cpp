@@ -2,14 +2,14 @@
 #include "core/print_string.h"
 #include "core/variant.h"
 
-AABB SpatialDeduplicator::Grid::calc_bound(const Vector3 *p_verts, uint32_t p_num_verts) {
-	if (!p_num_verts) {
+AABB SpatialDeduplicator::Grid::calc_bound(const Span<Vector3> &p_verts) {
+	if (!p_verts.size()) {
 		return AABB();
 	}
 
 	AABB aabb;
 	aabb.position = p_verts[0];
-	for (uint32_t n = 1; n < p_num_verts; n++) {
+	for (uint32_t n = 1; n < p_verts.size(); n++) {
 		aabb.expand_to(p_verts[n]);
 	}
 
@@ -66,16 +66,16 @@ bool SpatialDeduplicator::Grid::find(const Vector3 &p_pos, real_t p_epsilon, Loc
 	return r_ids.size() != 0;
 }
 
-bool SpatialDeduplicator::deduplicate_verts_only(const uint32_t *p_in_inds, uint32_t p_num_in_inds, const Vector3 *p_in_verts, uint32_t p_num_in_verts, LocalVectori<Vector3> &r_out_verts, LocalVectori<uint32_t> &r_out_inds, real_t p_epsilon) {
+bool SpatialDeduplicator::deduplicate_verts_only(const Span<uint32_t> &p_in_inds, const Span<Vector3> &p_in_verts, LocalVectori<Vector3> &r_out_verts, LocalVectori<uint32_t> &r_out_inds, real_t p_epsilon) {
 	LocalVectori<uint32_t> vert_map;
 	uint32_t num_out_verts = 0;
-	if (!deduplicate_map(p_in_inds, p_num_in_inds, p_in_verts, p_num_in_verts, vert_map, num_out_verts, r_out_inds, nullptr, p_epsilon))
+	if (!deduplicate_map(p_in_inds, p_in_verts, vert_map, num_out_verts, r_out_inds, nullptr, p_epsilon))
 		return false;
 
 	// create new verts list
 	r_out_verts.resize(num_out_verts);
 
-	for (int n = 0; n < p_num_in_verts; n++) {
+	for (int n = 0; n < p_in_verts.size(); n++) {
 		uint32_t new_vert_id = vert_map[n];
 		DEV_ASSERT(new_vert_id < num_out_verts);
 
@@ -87,13 +87,13 @@ bool SpatialDeduplicator::deduplicate_verts_only(const uint32_t *p_in_inds, uint
 
 // The spatial deduplication is done automatically, but the user can provide a template function following the form above
 // to detect whether a vertex is similar enough to be merged based on e.g. normal, UVs etc.
-bool SpatialDeduplicator::deduplicate_map(const uint32_t *p_in_inds, uint32_t p_num_in_inds, const Vector3 *p_in_verts, uint32_t p_num_in_verts, LocalVectori<uint32_t> &r_vert_map, uint32_t &r_num_out_verts, LocalVectori<uint32_t> &r_out_inds, AABB *r_bound, real_t p_epsilon) {
+bool SpatialDeduplicator::deduplicate_map(const Span<uint32_t> &p_in_inds, const Span<Vector3> &p_in_verts, LocalVectori<uint32_t> &r_vert_map, uint32_t &r_num_out_verts, LocalVectori<uint32_t> &r_out_inds, AABB *r_bound, real_t p_epsilon) {
 	_epsilon = p_epsilon;
 
 	//LocalVectori<uint32_t> vert_map;
 	// vert map needs to be big enough for all the input verts,
 	// it maps an input vert to an output vert after removing duplicates
-	r_vert_map.resize(p_num_in_verts);
+	r_vert_map.resize(p_in_verts.size());
 
 	LocalVectori<Vector3> out_verts;
 	LocalVectori<uint32_t> out_vert_sources;
@@ -103,14 +103,14 @@ bool SpatialDeduplicator::deduplicate_map(const uint32_t *p_in_inds, uint32_t p_
 #define GODOT_DEDUPLICATOR_USE_GRID
 #ifdef GODOT_DEDUPLICATOR_USE_GRID
 	Grid grid;
-	AABB world_bound = grid.calc_bound(p_in_verts, p_num_in_verts);
+	AABB world_bound = grid.calc_bound(p_in_verts);
 	if (r_bound) {
 		*r_bound = world_bound;
 	}
 	LocalVectori<uint32_t> found_ids;
 #endif
 
-	for (int n = 0; n < p_num_in_verts; n++) {
+	for (int n = 0; n < p_in_verts.size(); n++) {
 		const Vector3 &pt = p_in_verts[n];
 
 		//print_line("in_vert " + itos(n) + " : ( " + String(Variant(pt)) + " ) ");
@@ -196,9 +196,9 @@ bool SpatialDeduplicator::deduplicate_map(const uint32_t *p_in_inds, uint32_t p_
 	r_num_out_verts = out_verts.size();
 
 	// sort output data
-	for (int n = 0; n < p_num_in_inds; n++) {
+	for (int n = 0; n < p_in_inds.size(); n++) {
 		uint32_t ind = p_in_inds[n];
-		DEV_ASSERT(ind < p_num_in_verts);
+		DEV_ASSERT(ind < p_in_verts.size());
 
 		uint32_t new_ind = r_vert_map[ind];
 		DEV_ASSERT(new_ind < out_verts.size());
@@ -209,12 +209,12 @@ bool SpatialDeduplicator::deduplicate_map(const uint32_t *p_in_inds, uint32_t p_
 	return true;
 }
 
-void SpatialDeduplicator::find_duplicate_positions(const Vector3 *p_in_verts, uint32_t p_num_in_verts, LocalVectori<LinkedVerts> &r_linked_verts_list, real_t p_epsilon) {
+void SpatialDeduplicator::find_duplicate_positions(const Span<Vector3> &p_in_verts, LocalVectori<LinkedVerts> &r_linked_verts_list, real_t p_epsilon) {
 	// resize down at the end
-	r_linked_verts_list.resize(p_num_in_verts);
+	r_linked_verts_list.resize(p_in_verts.size());
 	int used = 0;
 
-	for (uint32_t n = 0; n < p_num_in_verts; n++) {
+	for (uint32_t n = 0; n < p_in_verts.size(); n++) {
 		const Vector3 &pos = p_in_verts[n];
 
 		// already exists?
