@@ -31,6 +31,7 @@
 #include "visual_server.h"
 
 #include "core/engine.h"
+#include "core/math/mesh_simplify.h"
 #include "core/math/vertex_cache_optimizer.h"
 #include "core/method_bind_ext.gen.inc"
 #include "core/project_settings.h"
@@ -406,6 +407,8 @@ Error VisualServer::_surface_set_data(Array p_arrays, uint32_t p_format, uint32_
 
 	int max_bone = 0;
 
+	MeshSimplify simplifier;
+
 	for (int ai = 0; ai < VS::ARRAY_MAX; ai++) {
 		if (!(p_format & (1 << ai))) { // no array
 			continue;
@@ -455,6 +458,8 @@ Error VisualServer::_surface_set_data(Array p_arrays, uint32_t p_format, uint32_
 				} else {
 					PoolVector<Vector3> array = p_arrays[ai];
 					ERR_FAIL_COND_V(array.size() != p_vertex_array_len, ERR_INVALID_PARAMETER);
+
+					simplifier.declare_positions(array);
 
 					PoolVector<Vector3>::Read read = array.read();
 					const Vector3 *src = read.ptr();
@@ -777,6 +782,8 @@ Error VisualServer::_surface_set_data(Array p_arrays, uint32_t p_format, uint32_
 					opt.reorder_indices_pool(indices, indices.size() / 3, p_vertex_array_len);
 				}
 
+				simplifier.declare_indices(indices);
+
 				/* determine whether using 16 or 32 bits indices */
 
 				PoolVector<int>::Read read = indices.read();
@@ -799,6 +806,8 @@ Error VisualServer::_surface_set_data(Array p_arrays, uint32_t p_format, uint32_
 			}
 		}
 	}
+
+	simplifier.simplify_mesh();
 
 	if (p_format & VS::ARRAY_FORMAT_BONES) {
 		//create AABBs for each detected bone

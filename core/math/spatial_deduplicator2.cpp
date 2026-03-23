@@ -1,4 +1,4 @@
-#include "spatial_deduplicator.h"
+#include "spatial_deduplicator2.h"
 #include "core/print_string.h"
 #include "core/variant.h"
 
