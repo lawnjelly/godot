@@ -20,8 +20,8 @@ bool MeshSimplify::simplify_mesh() {
 	LocalVector<uint32_t> inds;
 
 	dd.set_num_attribute_streams(1);
-	MeshDeduplicator::AttributeStream &as = dd.get_input_attribute_stream(0);
-	as.type = MeshDeduplicator::ATTR_POSITION;
+	MeshAttributeStream &as = dd.get_input_attribute_stream(0);
+	as.set_type(MeshAttributeStream::ATTR_POSITION);
 	as.vec3 = data.positions;
 
 	dd.process(data.indices, inds);

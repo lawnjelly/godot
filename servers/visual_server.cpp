@@ -407,7 +407,41 @@ Error VisualServer::_surface_set_data(Array p_arrays, uint32_t p_format, uint32_
 
 	int max_bone = 0;
 
+	////////////////////////////////////////////////////////////////////////
+	// First simplify if desired.
 	MeshSimplify simplifier;
+	for (int ai = 0; ai < VS::ARRAY_MAX; ai++) {
+		if (!(p_format & (1 << ai))) {
+			continue;
+		}
+
+		switch (ai) {
+			case VS::ARRAY_VERTEX: {
+				if (!(p_format & VS::ARRAY_FLAG_USE_2D_VERTICES)) {
+					PoolVector<Vector3> array = p_arrays[ai];
+					ERR_FAIL_COND_V(array.size() != p_vertex_array_len, ERR_INVALID_PARAMETER);
+
+					simplifier.declare_positions(array);
+				}
+
+			} break;
+			case VS::ARRAY_INDEX: {
+				ERR_FAIL_COND_V(p_index_array_len <= 0, ERR_INVALID_DATA);
+				ERR_FAIL_COND_V(p_arrays[ai].get_type() != Variant::POOL_INT_ARRAY, ERR_INVALID_PARAMETER);
+
+				PoolVector<int> indices = p_arrays[ai];
+				ERR_FAIL_COND_V(indices.size() == 0, ERR_INVALID_PARAMETER);
+				ERR_FAIL_COND_V(indices.size() != p_index_array_len, ERR_INVALID_PARAMETER);
+
+				simplifier.declare_indices(indices);
+			} break;
+
+			default: {
+			} break;
+		}
+	}
+	simplifier.simplify_mesh();
+	////////////////////////////////////////////////////////////////////////
 
 	for (int ai = 0; ai < VS::ARRAY_MAX; ai++) {
 		if (!(p_format & (1 << ai))) { // no array
@@ -458,8 +492,6 @@ Error VisualServer::_surface_set_data(Array p_arrays, uint32_t p_format, uint32_
 				} else {
 					PoolVector<Vector3> array = p_arrays[ai];
 					ERR_FAIL_COND_V(array.size() != p_vertex_array_len, ERR_INVALID_PARAMETER);
-
-					simplifier.declare_positions(array);
 
 					PoolVector<Vector3>::Read read = array.read();
 					const Vector3 *src = read.ptr();
@@ -782,8 +814,6 @@ Error VisualServer::_surface_set_data(Array p_arrays, uint32_t p_format, uint32_
 					opt.reorder_indices_pool(indices, indices.size() / 3, p_vertex_array_len);
 				}
 
-				simplifier.declare_indices(indices);
-
 				/* determine whether using 16 or 32 bits indices */
 
 				PoolVector<int>::Read read = indices.read();
@@ -806,8 +836,6 @@ Error VisualServer::_surface_set_data(Array p_arrays, uint32_t p_format, uint32_
 			}
 		}
 	}
-
-	simplifier.simplify_mesh();
 
 	if (p_format & VS::ARRAY_FORMAT_BONES) {
 		//create AABBs for each detected bone
