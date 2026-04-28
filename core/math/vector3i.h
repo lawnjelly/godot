@@ -118,88 +118,88 @@ struct _NO_DISCARD_CLASS_ Vector3i {
 
 /* Operators */
 
-constexpr Vector3i &Vector3i::operator+=(const Vector3i &p_v) {
+inline constexpr Vector3i &Vector3i::operator+=(const Vector3i &p_v) {
 	x += p_v.x;
 	y += p_v.y;
 	z += p_v.z;
 	return *this;
 }
 
-constexpr Vector3i Vector3i::operator+(const Vector3i &p_v) const {
+inline constexpr Vector3i Vector3i::operator+(const Vector3i &p_v) const {
 	return Vector3i(x + p_v.x, y + p_v.y, z + p_v.z);
 }
 
-constexpr Vector3i &Vector3i::operator-=(const Vector3i &p_v) {
+inline constexpr Vector3i &Vector3i::operator-=(const Vector3i &p_v) {
 	x -= p_v.x;
 	y -= p_v.y;
 	z -= p_v.z;
 	return *this;
 }
 
-constexpr Vector3i Vector3i::operator-(const Vector3i &p_v) const {
+inline constexpr Vector3i Vector3i::operator-(const Vector3i &p_v) const {
 	return Vector3i(x - p_v.x, y - p_v.y, z - p_v.z);
 }
 
-constexpr Vector3i &Vector3i::operator*=(const Vector3i &p_v) {
+inline constexpr Vector3i &Vector3i::operator*=(const Vector3i &p_v) {
 	x *= p_v.x;
 	y *= p_v.y;
 	z *= p_v.z;
 	return *this;
 }
 
-constexpr Vector3i Vector3i::operator*(const Vector3i &p_v) const {
+inline constexpr Vector3i Vector3i::operator*(const Vector3i &p_v) const {
 	return Vector3i(x * p_v.x, y * p_v.y, z * p_v.z);
 }
 
-constexpr Vector3i &Vector3i::operator/=(const Vector3i &p_v) {
+inline constexpr Vector3i &Vector3i::operator/=(const Vector3i &p_v) {
 	x /= p_v.x;
 	y /= p_v.y;
 	z /= p_v.z;
 	return *this;
 }
 
-constexpr Vector3i Vector3i::operator/(const Vector3i &p_v) const {
+inline constexpr Vector3i Vector3i::operator/(const Vector3i &p_v) const {
 	return Vector3i(x / p_v.x, y / p_v.y, z / p_v.z);
 }
 
-constexpr Vector3i &Vector3i::operator%=(const Vector3i &p_v) {
+inline constexpr Vector3i &Vector3i::operator%=(const Vector3i &p_v) {
 	x %= p_v.x;
 	y %= p_v.y;
 	z %= p_v.z;
 	return *this;
 }
 
-constexpr Vector3i Vector3i::operator%(const Vector3i &p_v) const {
+inline constexpr Vector3i Vector3i::operator%(const Vector3i &p_v) const {
 	return Vector3i(x % p_v.x, y % p_v.y, z % p_v.z);
 }
 
-constexpr Vector3i &Vector3i::operator*=(int32_t p_scalar) {
+inline constexpr Vector3i &Vector3i::operator*=(int32_t p_scalar) {
 	x *= p_scalar;
 	y *= p_scalar;
 	z *= p_scalar;
 	return *this;
 }
 
-constexpr Vector3i Vector3i::operator*(int32_t p_scalar) const {
+inline constexpr Vector3i Vector3i::operator*(int32_t p_scalar) const {
 	return Vector3i(x * p_scalar, y * p_scalar, z * p_scalar);
 }
 
-int64_t Vector3i::length_squared() const {
+inline int64_t Vector3i::length_squared() const {
 	return x * (int64_t)x + y * (int64_t)y + z * (int64_t)z;
 }
 
-int64_t Vector3i::distance_squared_to(const Vector3i &p_to) const {
+inline int64_t Vector3i::distance_squared_to(const Vector3i &p_to) const {
 	return (p_to - *this).length_squared();
 }
 
-double Vector3i::length() const {
+inline double Vector3i::length() const {
 	return Math::sqrt((double)length_squared());
 }
 
-double Vector3i::distance_to(const Vector3i &p_to) const {
+inline double Vector3i::distance_to(const Vector3i &p_to) const {
 	return (p_to - *this).length();
 }
 
-Vector3i Vector3i::abs() const {
+inline Vector3i Vector3i::abs() const {
 	return Vector3i(Math::abs(x), Math::abs(y), Math::abs(z));
 }
