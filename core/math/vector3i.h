@@ -57,7 +57,7 @@ struct _NO_DISCARD_CLASS_ Vector3i {
 	constexpr Vector3i operator-() const;
 
 	constexpr bool operator==(const Vector3i &p_v) const;
-	constexpr bool operator!=(const Vector3i &p_v) const;
+	constexpr bool operator!=(const Vector3i &p_v) const { return !(*this == p_v); }
 	constexpr bool operator<(const Vector3i &p_v) const;
 	constexpr bool operator<=(const Vector3i &p_v) const;
 	constexpr bool operator>(const Vector3i &p_v) const;
@@ -202,4 +202,8 @@ inline double Vector3i::distance_to(const Vector3i &p_to) const {
 
 inline Vector3i Vector3i::abs() const {
 	return Vector3i(Math::abs(x), Math::abs(y), Math::abs(z));
+}
+
+inline constexpr bool Vector3i::operator==(const Vector3i &p_v) const {
+	return x == p_v.x && y == p_v.y && z == p_v.z;
 }

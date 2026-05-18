@@ -71,11 +71,91 @@ bool MeshSimplify::simplify_mesh() {
 	data.bound_extent = data.bound.size.coord[data.bound.size.max_axis()];
 
 	// Create in verts, and find their grid pos.
-	data.positions.resize(in_verts.size());
+	data.verts.resize(in_verts.size());
 
 	for (uint32_t n = 0; n < in_verts.size(); n++) {
-		data.positions[n] = data.find_grid_pos(in_verts[n]);
+		data.verts[n].position = data.find_grid_pos(in_verts[n]);
 	}
 
+	_create_tris();
+
 	return true;
+}
+
+// Returns:
+//   > 0  -> front side (positive side, according to right-hand rule)
+//   < 0  -> back side
+//   == 0 -> exactly on the plane
+int32_t MeshSimplify::_triangle_which_side(const Vector3i &p_a, const Vector3i &p_b, const Vector3i &p_c, const Vector3i &p_test) const {
+	// Vectors from A
+	int64_t ux = (int64_t)p_b.x - p_a.x;
+	int64_t uy = (int64_t)p_b.y - p_a.y;
+	int64_t uz = (int64_t)p_b.z - p_a.z;
+
+	int64_t vx = (int64_t)p_c.x - p_a.x;
+	int64_t vy = (int64_t)p_c.y - p_a.y;
+	int64_t vz = (int64_t)p_c.z - p_a.z;
+
+	int64_t wx = (int64_t)p_test.x - p_a.x;
+	int64_t wy = (int64_t)p_test.y - p_a.y;
+	int64_t wz = (int64_t)p_test.z - p_a.z;
+
+	// Normal N = U × V  (cross product)
+	int64_t nx = uy * vz - uz * vy;
+	int64_t ny = uz * vx - ux * vz;
+	int64_t nz = ux * vy - uy * vx;
+
+	// Scalar = N · W
+	int64_t scalar = nx * wx + ny * wy + nz * wz;
+
+	if (scalar > 0)
+		return 1; // front
+	if (scalar < 0)
+		return -1; // back
+	return 0; // on plane
+}
+
+bool MeshSimplify::_is_triangle_degenerate(const uint32_t p_inds[3]) const {
+	if ((p_inds[0] == p_inds[1]) || (p_inds[1] == p_inds[2]) || (p_inds[0] == p_inds[2])) {
+		return true;
+	}
+
+	const Vector3i &a = data.verts[p_inds[0]].position;
+	const Vector3i &b = data.verts[p_inds[1]].position;
+	const Vector3i &c = data.verts[p_inds[2]].position;
+
+	if ((a == b) || (b == c) || (a == c)) {
+		return true;
+	}
+
+	return false;
+}
+
+void MeshSimplify::_create_tris() {
+	uint32_t num_orig_tris = input_data.indices.size() / 3;
+
+	// Better to overestimate at first.
+	data.tris.resize(num_orig_tris);
+
+	uint32_t index_count = 0;
+	uint32_t valid_tri_count = 0;
+
+	for (uint32_t t = 0; t < num_orig_tris; t++) {
+		Tri &tri = data.tris[valid_tri_count];
+		tri.corn[0] = input_data.indices[index_count++];
+		tri.corn[1] = input_data.indices[index_count++];
+		tri.corn[2] = input_data.indices[index_count++];
+
+		// Ignore null tris.
+		if (_is_triangle_degenerate(tri.corn)) {
+			continue;
+		}
+
+		// Tri was valid.
+		valid_tri_count++;
+	}
+
+	// Resize to exact size the tri array.
+	// (could possibly be omitted if we store count externally to the LocalVector)
+	data.tris.resize(valid_tri_count);
 }
