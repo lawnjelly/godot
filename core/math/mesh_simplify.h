@@ -49,6 +49,11 @@ class MeshSimplify {
 		uint32_t a, b;
 		double cost;
 
+		// List of triangles using this edge.
+		// If there is only 1, it must be a mesh edge,
+		// therefore having different rules for collapse.
+		LocalVector<uint32_t> tris;
+
 		Edge() {
 			a = UINT32_MAX;
 			b = UINT32_MAX;
@@ -60,6 +65,13 @@ class MeshSimplify {
 			}
 		}
 		bool operator==(const Edge &p_o) const { return (a == p_o.a) && (b == p_o.b); }
+
+		void link_tri(uint32_t p_id) {
+			int64_t res = tris.find(p_id);
+			if (res == -1) {
+				tris.push_back(p_id);
+			}
+		}
 	};
 
 	struct Vert {
@@ -69,11 +81,11 @@ class MeshSimplify {
 		LocalVector<uint32_t> tris;
 
 		// ancestors
-		LocalVector<uint32_t> ancestral_verts;
+		//LocalVector<uint32_t> ancestral_verts;
 
 		// list of vertices that this vertex is already registered to collapse
 		// to on the heap
-		LocalVector<uint32_t> heap_collapse_to;
+		//LocalVector<uint32_t> heap_collapse_to;
 
 		// List of verts that share the same position
 		// (these will usually be on another edge, and separated
@@ -223,6 +235,8 @@ class MeshSimplify {
 	} data;
 
 	void _create_tris();
+	uint32_t _create_edge(uint32_t p_corn_a, uint32_t p_corn_b, uint32_t p_triangle_id);
+
 	int32_t _triangle_which_side(const Vector3i &p_a, const Vector3i &p_b, const Vector3i &p_c, const Vector3i &p_test) const;
 	bool _is_triangle_degenerate(const uint32_t p_inds[3]) const;
 

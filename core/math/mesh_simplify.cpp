@@ -26,6 +26,11 @@ void MeshSimplify::declare_positions(const Span<Vector3> &p_positions) {
 }
 
 bool MeshSimplify::simplify_mesh() {
+	// Can't simplify when no indices.
+	if (!input_data.indices.size()) {
+		return false;
+	}
+
 	// Duduplicate.
 	MeshDeduplicator dd;
 
@@ -124,11 +129,49 @@ bool MeshSimplify::_is_triangle_degenerate(const uint32_t p_inds[3]) const {
 	const Vector3i &b = data.verts[p_inds[1]].position;
 	const Vector3i &c = data.verts[p_inds[2]].position;
 
-	if ((a == b) || (b == c) || (a == c)) {
+	// We can check for colinear points and duplicate points at the same time.
+	int64_t abx = (int64_t)b.x - a.x;
+	int64_t aby = (int64_t)b.y - a.y;
+	int64_t abz = (int64_t)b.z - a.z;
+
+	int64_t acx = (int64_t)c.x - a.x;
+	int64_t acy = (int64_t)c.y - a.y;
+	int64_t acz = (int64_t)c.z - a.z;
+
+	int64_t crossX = aby * acz - abz * acy;
+	int64_t crossY = abz * acx - abx * acz;
+	int64_t crossZ = abx * acy - aby * acx;
+
+	if (crossX == 0 && crossY == 0 && crossZ == 0) {
+		// Degenerate.
 		return true;
 	}
 
+	// We already have the data to compute squared magnitude.
+	// We can compare this against a small threshold if required.
+#if 0
+	int64_t mag_sq = crossX*crossX + crossY*crossY + crossZ*crossZ;
+#endif
+
 	return false;
+}
+
+uint32_t MeshSimplify::_create_edge(uint32_t p_corn_a, uint32_t p_corn_b, uint32_t p_triangle_id) {
+	Edge e;
+	e.a = p_corn_a;
+	e.b = p_corn_b;
+	e.sort();
+
+	for (uint32_t n = 0; n < data.edges.size(); n++) {
+		if (data.edges[n] == e) {
+			data.edges[n].link_tri(p_triangle_id);
+			return n;
+		}
+	}
+
+	e.link_tri(p_triangle_id);
+	data.edges.push_back(e);
+	return data.edges.size() - 1;
 }
 
 void MeshSimplify::_create_tris() {
@@ -149,6 +192,17 @@ void MeshSimplify::_create_tris() {
 		// Ignore null tris.
 		if (_is_triangle_degenerate(tri.corn)) {
 			continue;
+		}
+
+		tri.edge[0] = _create_edge(tri.corn[0], tri.corn[1], valid_tri_count);
+		tri.edge[1] = _create_edge(tri.corn[1], tri.corn[2], valid_tri_count);
+		tri.edge[2] = _create_edge(tri.corn[2], tri.corn[0], valid_tri_count);
+
+		// Add the tri to the verts.
+		for (uint32_t c = 0; c < 3; c++) {
+			Vert &v = data.verts[tri.corn[c]];
+			v.active = true;
+			v.link_tri(valid_tri_count);
 		}
 
 		// Tri was valid.
