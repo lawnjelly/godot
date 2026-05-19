@@ -42,7 +42,9 @@ bool MeshSimplify::simplify_mesh() {
 	as.set_type(MeshAttributeStream::ATTR_POSITION);
 	as.vec3 = input_data.positions;
 
-	dd.process(input_data.indices, inds);
+	if (!dd.process(input_data.indices, inds)) {
+		return false;
+	}
 	verts = dd.get_output_attribute_stream(0).vec3;
 
 	// Save the deduplicated data.
@@ -83,6 +85,11 @@ bool MeshSimplify::simplify_mesh() {
 	}
 
 	_create_tris();
+
+	// No valid tris to simplify.
+	if (!data.tris.size()) {
+		return false;
+	}
 
 	return true;
 }
@@ -207,6 +214,18 @@ void MeshSimplify::_create_tris() {
 
 		// Tri was valid.
 		valid_tri_count++;
+	}
+
+	if (valid_tri_count) {
+		print_line("Simplify valid tris " + itos(valid_tri_count) + ", degenerate " + itos(num_orig_tris - valid_tri_count));
+
+#if 0
+		for (uint32_t n=0; n<data.edges.size(); n++)
+		{
+			const Edge &e = data.edges[n];
+			print_line("\tedge " + itos(n) + " : from " + itos(e.a) + " to " + itos(e.b) + " with " + itos(e.tris.size()) + " tris.");
+		}
+#endif
 	}
 
 	// Resize to exact size the tri array.

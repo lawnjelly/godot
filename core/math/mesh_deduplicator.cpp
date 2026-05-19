@@ -86,12 +86,14 @@ bool MeshDeduplicator::process(const Span<uint32_t> &p_indices, LocalVector<uint
 
 	// We need a map going from the original vertices to the unique verts,
 	// so that a new list of indices can be output.
-	LocalVector<uint32_t> index_remap;
-	index_remap.resize(in_verts.size());
+	LocalVector<uint32_t> vertex_remap;
+	vertex_remap.resize(in_verts.size());
 
 	for (uint32_t n = 0; n < in_verts.size(); n++) {
 		const Vector3 &in_pos = in_verts[n];
 		Vector3i grid_pos = grid.find_grid_pos(in_pos);
+
+		//print_line("input vertex " + itos(n) + " in_pos is " + in_pos + ", grid_pos is " + grid_pos);
 
 		// Assign in verts to buckets.
 		uint32_t bucket = grid.hash_grid_pos(grid_pos);
@@ -167,7 +169,7 @@ bool MeshDeduplicator::process(const Span<uint32_t> &p_indices, LocalVector<uint
 						// Close enough to merge.
 						// Check other attributes NYI.
 						matching_vert = &test_vert;
-						index_remap[n] = test_vert_id;
+						vertex_remap[n] = test_vert_id;
 					} // for b through bucket verts.
 				} // dx
 			} // dy
@@ -188,8 +190,10 @@ bool MeshDeduplicator::process(const Span<uint32_t> &p_indices, LocalVector<uint
 			// print_line("Adding vert to bucket " + itos(bucket));
 			grid.buckets[bucket].vert_ids.push_back(new_vert_id);
 
-			index_remap[n] = new_vert_id;
+			vertex_remap[n] = new_vert_id;
 		}
+
+		//print_line("\tvertex_remap to " + itos(vertex_remap[n]));
 	}
 
 	//////////////////////////////////////////////////
@@ -256,10 +260,12 @@ bool MeshDeduplicator::process(const Span<uint32_t> &p_indices, LocalVector<uint
 	// Store the final indices now referring to the unique verts.
 	data.out_indices.resize(p_indices.size());
 	for (uint32_t n = 0; n < p_indices.size(); n++) {
-		data.out_indices[n] = index_remap[p_indices[n]];
+		data.out_indices[n] = vertex_remap[p_indices[n]];
 	}
 
-	print_line("Verts before " + itos(in_verts.size()) + ", after " + itos(data.out_attributes[data.position_attribute_id].vec3.size()));
+	print_line("Verts before " + itos(in_verts.size()) + ", after " + itos(data.out_attributes[data.position_attribute_id].vec3.size()) + ", indices " + itos(data.out_indices.size()));
+
+	p_output_indices = data.out_indices;
 
 	return true;
 }
