@@ -181,6 +181,86 @@ uint32_t MeshSimplify::_create_edge(uint32_t p_corn_a, uint32_t p_corn_b, uint32
 	return data.edges.size() - 1;
 }
 
+void MeshSimplify::_triangle_calculate_plane(uint32_t p_tri_id) {
+	Tri &tri = data.tris[p_tri_id];
+	Vert &p0 = data.verts[tri.corn[0]];
+	Vert &p1 = data.verts[tri.corn[1]];
+	Vert &p2 = data.verts[tri.corn[2]];
+
+	tri.plane = Plane(p0.pos(), p1.pos(), p2.pos());
+}
+
+void MeshSimplify::_initialize_vertex_quadrics() {
+	// Step A: Calculate the quadric matrix for every triangle plane
+	for (uint32_t n = 0; n < data.tris.size(); n++) {
+		Tri &t = data.tris[n];
+
+		// Make sure plane is up to date... (should be?)
+
+		// Create the fundamental error matrix Kp = p * p^T
+		Quadric Kp;
+		for (int i = 0; i < 4; ++i) {
+			for (int j = 0; j < 4; ++j) {
+				Kp.m[i][j] = plane_coord(t.plane, i) * plane_coord(t.plane, j);
+			}
+		}
+
+		// Step B: Accumulate this plane's matrix into its three corner vertices
+		for (uint32_t i = 0; i < 3; i++) {
+			Vert &v = data.verts[t.corn[i]];
+			v.Q = v.Q + Kp;
+		}
+	}
+}
+
+// Evaluates the error equation: v^T * Q * v
+double MeshSimplify::_compute_quadric_error(const Vector3i &p_pos, const Quadric &Q) {
+	// 1. Expand the 3D position into a 4D homogeneous vector [x, y, z, 1]
+	double x = p_pos.x;
+	double y = p_pos.y;
+	double z = p_pos.z;
+	double w = 1;
+
+	// 2. Perform the first step: Multiply the matrix Q by the column vector v.
+	// This yields an intermediate 4D vector (let's call it R).
+	double rx = Q.m[0][0] * x + Q.m[0][1] * y + Q.m[0][2] * z + Q.m[0][3] * w;
+	double ry = Q.m[1][0] * x + Q.m[1][1] * y + Q.m[1][2] * z + Q.m[1][3] * w;
+	double rz = Q.m[2][0] * x + Q.m[2][1] * y + Q.m[2][2] * z + Q.m[2][3] * w;
+	double rw = Q.m[3][0] * x + Q.m[3][1] * y + Q.m[3][2] * z + Q.m[3][3] * w;
+
+	// 3. Perform the final step: Compute the dot product of the row vector v^T and R.
+	// This yields the single scalar error value.
+	double error = (x * rx) + (y * ry) + (z * rz) + (w * rw);
+
+	return error;
+}
+
+void MeshSimplify::_evaluate_edge_collapse(uint32_t p_edge_id) {
+	//	void MeshSimplify::evaluate_edge_collapse(int u_idx, int v_idx, const std::vector<Vertex>& vertices) {
+	Edge &edge = data.edges[p_edge_id];
+
+	const Vert &u = data.verts[edge.a];
+	const Vert &v = data.verts[edge.b];
+
+	// Combine the quadric error histories
+	Quadric Q_new = u.Q + v.Q;
+
+	// Evaluate the cost if we collapse EVERYTHING down to vertex U's position
+	double cost_at_u = _compute_quadric_error(u.position, Q_new);
+
+	// Evaluate the cost if we collapse EVERYTHING down to vertex V's position
+	double cost_at_v = _compute_quadric_error(v.position, Q_new);
+
+	// Pick the endpoint that preserves the local geometry best (lowest error)
+	if (cost_at_u < cost_at_v) {
+		edge.vertex_to_collapse_to = edge.a;
+		edge.cost = cost_at_u;
+	} else {
+		edge.vertex_to_collapse_to = edge.b;
+		edge.cost = cost_at_v;
+	}
+}
+
 void MeshSimplify::_create_tris() {
 	uint32_t num_orig_tris = input_data.indices.size() / 3;
 
@@ -231,4 +311,10 @@ void MeshSimplify::_create_tris() {
 	// Resize to exact size the tri array.
 	// (could possibly be omitted if we store count externally to the LocalVector)
 	data.tris.resize(valid_tri_count);
+
+	for (uint32_t n = 0; n < valid_tri_count; n++) {
+		_triangle_calculate_plane(n);
+	}
+
+	_initialize_vertex_quadrics();
 }

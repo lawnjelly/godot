@@ -6,22 +6,25 @@
 #include <core/math/vector3i.h>
 
 class MeshSimplify {
-#if 0
+	// Symmetric 4x4 matrix,
+	// can be stored as just half to save memory / calcs.
 	struct Quadric {
-		// Symmetric 4x4 matrix stored as:
-		// A  B  C  D
-		//    E  F  G
-		//       H  I
-		//          J
-		double a, b, c, d; // first row
-		double e, f, g; // second row (symmetric)
-		double h, i; // third row
-		double j; // bottom right
+		double m[4][4] = {}; // Initialized to all zeros
 
-		Quadric() :
-				a(0), b(0), c(0), d(0), e(0), f(0), g(0), h(0), i(0), j(0) {}
+		// Add two quadric matrices together
+		Quadric operator+(const Quadric &other) const {
+			Quadric res;
+
+			const double *a = &m[0][0];
+			const double *b = &other.m[0][0];
+			double *c = &res.m[0][0];
+
+			for (uint32_t n = 0; n < 16; n++) {
+				*c++ = *a++ + *b++;
+			}
+			return res;
+		}
 	};
-#endif
 
 	struct InputData {
 		LocalVector<uint32_t> indices;
@@ -43,22 +46,21 @@ class MeshSimplify {
 		// neighbouring triangles
 		uint32_t neigh[3];
 		uint32_t num_neighs = 0;
+
+		Plane plane;
 	};
 
 	struct Edge {
-		uint32_t a, b;
-		double cost;
+		uint32_t a = UINT32_MAX;
+		uint32_t b = UINT32_MAX;
+		double cost = 0;
+		uint32_t vertex_to_collapse_to = UINT32_MAX;
 
 		// List of triangles using this edge.
 		// If there is only 1, it must be a mesh edge,
 		// therefore having different rules for collapse.
 		LocalVector<uint32_t> tris;
 
-		Edge() {
-			a = UINT32_MAX;
-			b = UINT32_MAX;
-			cost = 0;
-		}
 		void sort() {
 			if (b > a) {
 				SWAP(a, b);
@@ -76,6 +78,7 @@ class MeshSimplify {
 
 	struct Vert {
 		Vector3i position;
+		Quadric Q;
 
 		// List of triangles that use this vertex
 		LocalVector<uint32_t> tris;
@@ -213,6 +216,9 @@ class MeshSimplify {
 			edge_vert_neighs[1] = UINT32_MAX;
 		}
 
+		Vector3 pos() const {
+			return Vector3(position.x, position.y, position.z);
+		}
 		Vert() {
 			edge_vert_neighs[0] = UINT32_MAX;
 			edge_vert_neighs[1] = UINT32_MAX;
@@ -235,7 +241,32 @@ class MeshSimplify {
 	} data;
 
 	void _create_tris();
+	void _triangle_calculate_plane(uint32_t p_tri_id);
+	void _initialize_vertex_quadrics();
+	void _evaluate_edge_collapse(uint32_t p_edge_id);
+	double _compute_quadric_error(const Vector3i &p_pos, const Quadric &Q);
+
 	uint32_t _create_edge(uint32_t p_corn_a, uint32_t p_corn_b, uint32_t p_triangle_id);
+	double plane_coord(const Plane &p_plane, uint32_t p_coord) const {
+		switch (p_coord) {
+			case 0: {
+				return p_plane.normal.x;
+			} break;
+			case 1: {
+				return p_plane.normal.y;
+			} break;
+			case 2: {
+				return p_plane.normal.z;
+			} break;
+			case 3: {
+				return p_plane.d;
+			} break;
+			default: {
+				DEV_ASSERT(0);
+			} break;
+		}
+		return 0;
+	}
 
 	int32_t _triangle_which_side(const Vector3i &p_a, const Vector3i &p_b, const Vector3i &p_c, const Vector3i &p_test) const;
 	bool _is_triangle_degenerate(const uint32_t p_inds[3]) const;
