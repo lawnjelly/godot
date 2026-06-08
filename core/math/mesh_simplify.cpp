@@ -91,6 +91,89 @@ bool MeshSimplify::simplify_mesh() {
 		return false;
 	}
 
+	// 2. Populate priority queue with all unique edges
+	std::priority_queue<SortedEdge> queue;
+	for (uint32_t n = 0; n < data.edges.size(); n++) {
+		_evaluate_edge_collapse(n);
+		SortedEdge e(n, data.edges[n].cost);
+		queue.push(e);
+	}
+
+	uint32_t current_triangle_count = data.tris.size();
+
+	// 3. Process collapses until target density is achieved
+	//while (current_triangle_count > target_triangle_count && !queue.empty()) {
+	while (!queue.empty()) {
+		SortedEdge se = queue.top();
+		queue.pop();
+		Edge &edge = data.edges[se.edge_id];
+
+		// Discard if the sorted edge is not valid (the cost is stale)
+		if (se.cost != edge.cost) {
+			continue;
+		}
+
+		// Skip if either vertex was already swallowed by a previous collapse
+		if (!data.verts[edge.a].active || !data.verts[edge.b].active) {
+			continue;
+		}
+
+		// EXECUTE COLLAPSE: Merge vertex 'v' into vertex 'u'
+		int kept_v = edge.vertex_to_collapse_to;
+		int deleted_v = edge.vertex_to_collapse_to == edge.a ? edge.b : edge.a;
+
+		data.verts[kept_v].Q = data.verts[kept_v].Q + data.verts[deleted_v].Q;
+		data.verts[deleted_v].active = false;
+		edge.active = false;
+
+		// Update triangles surrounding the collapsed edge
+		for (uint32_t n = 0; n < data.tris.size(); n++) {
+			Tri &t = data.tris[n];
+
+			if (!t.active)
+				continue;
+
+			// If triangle contains both vertices, it has flattened into a line. Delete it.
+			if ((t.corn[0] == kept_v || t.corn[1] == kept_v || t.corn[2] == kept_v) &&
+					(t.corn[0] == deleted_v || t.corn[1] == deleted_v || t.corn[2] == deleted_v)) {
+				t.active = false;
+				current_triangle_count--;
+				continue;
+			}
+
+			// If it contains the deleted vertex, re-route it to the kept vertex
+			if (t.corn[0] == deleted_v)
+				t.corn[0] = kept_v;
+			if (t.corn[1] == deleted_v)
+				t.corn[1] = kept_v;
+			if (t.corn[2] == deleted_v)
+				t.corn[2] = kept_v;
+		}
+
+		// Re-evaluate error cost for all remaining edges connected to the modified vertex
+		for (uint32_t n = 0; n < data.edges.size(); n++) {
+			const Edge &e = data.edges[n];
+			if (!e.active)
+				continue;
+
+			if ((e.a == kept_v) || (e.b == kept_v)) {
+				_evaluate_edge_collapse(n);
+
+				// We don't actually move the edge in the queue,
+				// we add a duplicate.
+				SortedEdge se(n, e.cost);
+				queue.push(se);
+			}
+		}
+
+		//		std::vector<int> neighbors = find_neighbor_vertices(kept_v, triangles);
+		//		for (int neighbor_idx : neighbors) {
+		//			queue.push(evaluate_edge_collapse(kept_v, neighbor_idx, vertices));
+		//		}
+
+		break;
+	}
+
 	return true;
 }
 

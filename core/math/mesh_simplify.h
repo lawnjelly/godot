@@ -47,6 +47,8 @@ class MeshSimplify {
 		uint32_t neigh[3];
 		uint32_t num_neighs = 0;
 
+		bool active = true;
+
 		Plane plane;
 	};
 
@@ -55,6 +57,7 @@ class MeshSimplify {
 		uint32_t b = UINT32_MAX;
 		double cost = 0;
 		uint32_t vertex_to_collapse_to = UINT32_MAX;
+		bool active = true;
 
 		// List of triangles using this edge.
 		// If there is only 1, it must be a mesh edge,
@@ -73,6 +76,22 @@ class MeshSimplify {
 			if (res == -1) {
 				tris.push_back(p_id);
 			}
+		}
+	};
+
+	struct SortedEdge {
+		uint32_t edge_id;
+		double cost = 0;
+
+		SortedEdge(uint32_t p_id, double p_cost) {
+			edge_id = p_id;
+			cost = p_cost;
+		}
+
+		// Overload the less-than operator for std::priority_queue
+		bool operator<(const SortedEdge &o) const {
+			// Invert the operator: higher cost means "less priority" (lower in the queue)
+			return this->cost > o.cost;
 		}
 	};
 
