@@ -440,7 +440,22 @@ Error VisualServer::_surface_set_data(Array p_arrays, uint32_t p_format, uint32_
 			} break;
 		}
 	}
-	simplifier.simplify_mesh();
+
+	// If we are simplifying, copy the final data back to the source arrays.
+	//#if 0
+	if (simplifier.simplify_mesh()) {
+		PoolVector<int> indices;
+		Span<uint32_t> new_inds = simplifier.get_simplified_remapped_indices();
+
+		indices.resize(new_inds.size());
+		for (uint32_t n = 0; n < new_inds.size(); n++) {
+			indices.set(n, new_inds[n]);
+		}
+
+		p_arrays[VS::ARRAY_INDEX] = indices;
+		p_index_array_len = indices.size();
+	}
+	//#endif
 	////////////////////////////////////////////////////////////////////////
 
 	for (int ai = 0; ai < VS::ARRAY_MAX; ai++) {

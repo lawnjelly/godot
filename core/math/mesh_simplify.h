@@ -257,6 +257,9 @@ class MeshSimplify {
 		LocalVector<Edge> edges;
 
 		Vector3i find_grid_pos(const Vector3 &p_pos) const;
+
+		// Remapped to the original vertices.
+		LocalVector<uint32_t> output_remapped_indices;
 	} data;
 
 	void _create_tris();
@@ -295,4 +298,8 @@ public:
 	void declare_positions(const Span<Vector3> &p_positions);
 
 	bool simplify_mesh();
+
+	Span<uint32_t> get_simplified_remapped_indices() {
+		return Span<uint32_t>(data.output_remapped_indices.ptr(), data.output_remapped_indices.size());
+	}
 };

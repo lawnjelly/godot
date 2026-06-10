@@ -39,6 +39,11 @@ class MeshDeduplicator {
 		LocalVector<MeshAttributeStream> out_attributes;
 		LocalVector<uint32_t> out_indices;
 
+		// Output vertex to input vertex
+		// (so we can optionally reuse existing input vertex data,
+		// and only change the indices used).
+		LocalVector<uint32_t> out_mapping;
+
 		// Which attribute stream is the master position stream for spatial partitioning.
 		uint32_t position_attribute_id = 0;
 	} data;
@@ -75,6 +80,9 @@ public:
 	}
 	const MeshAttributeStream &get_output_attribute_stream(uint32_t p_idx) {
 		return data.out_attributes[p_idx];
+	}
+	uint32_t get_output_vertex_mapping_to_input_vertex(uint32_t p_idx) {
+		return data.out_mapping[p_idx];
 	}
 
 	bool process(const Span<uint32_t> &p_indices, LocalVector<uint32_t> &p_output_indices);

@@ -100,10 +100,14 @@ bool MeshSimplify::simplify_mesh() {
 	}
 
 	uint32_t current_triangle_count = data.tris.size();
+	uint32_t before_triangle_count = current_triangle_count;
 
 	// 3. Process collapses until target density is achieved
 	//while (current_triangle_count > target_triangle_count && !queue.empty()) {
 	while (!queue.empty()) {
+		if (current_triangle_count < 500)
+			break;
+
 		SortedEdge se = queue.top();
 		queue.pop();
 		Edge &edge = data.edges[se.edge_id];
@@ -171,8 +175,34 @@ bool MeshSimplify::simplify_mesh() {
 		//			queue.push(evaluate_edge_collapse(kept_v, neighbor_idx, vertices));
 		//		}
 
-		break;
+		//break;
 	}
+
+	// Create final output indices.
+	data.output_remapped_indices.resize(current_triangle_count * 3);
+	uint32_t out_ind_count = 0;
+
+	for (uint32_t n = 0; n < data.tris.size(); n++) {
+		const Tri &t = data.tris[n];
+		if (!t.active)
+			continue;
+
+		data.output_remapped_indices[out_ind_count++] = dd.get_output_vertex_mapping_to_input_vertex(t.corn[0]);
+		data.output_remapped_indices[out_ind_count++] = dd.get_output_vertex_mapping_to_input_vertex(t.corn[1]);
+		data.output_remapped_indices[out_ind_count++] = dd.get_output_vertex_mapping_to_input_vertex(t.corn[2]);
+	}
+
+	// Debug
+
+	print_line("simplify before_triangle_count: " + itos(before_triangle_count) + ", after_triangle_count: " + itos(current_triangle_count));
+#if 0
+	for (uint32_t n=0; n< data.output_remapped_indices.size(); n++)
+	{
+		if (n > 12)
+			break;
+		print_line(itos(data.output_remapped_indices[n]));
+	}
+#endif
 
 	return true;
 }

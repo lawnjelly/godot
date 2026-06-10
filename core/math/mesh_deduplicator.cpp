@@ -197,6 +197,13 @@ bool MeshDeduplicator::process(const Span<uint32_t> &p_indices, LocalVector<uint
 	}
 
 	//////////////////////////////////////////////////
+	// Copy mappings
+	data.out_mapping.resize(grid.verts.size());
+	for (uint32_t n = 0; n < grid.verts.size(); n++) {
+		// The mapping to return will be simplified, and just contain the first source vertex.
+		data.out_mapping[n] = grid.verts[n].source_vert_ids[0];
+	}
+
 	// Store unique verts.
 
 	// Prepare output attributes.
