@@ -35,17 +35,23 @@ class MeshSimplify {
 		Tri() {
 			for (int n = 0; n < 3; n++) {
 				corn[n] = UINT32_MAX;
-				neigh[n] = UINT32_MAX;
+				//neigh[n] = UINT32_MAX;
+//#define STORE_EDGES_IN_TRIS
+#ifdef STORE_EDGES_IN_TRIS
 				edge[n] = UINT32_MAX;
+#endif
 			}
 		}
 		// corner indices
 		uint32_t corn[3];
+
+#ifdef STORE_EDGES_IN_TRIS
 		uint32_t edge[3];
+#endif
 
 		// neighbouring triangles
-		uint32_t neigh[3];
-		uint32_t num_neighs = 0;
+		//uint32_t neigh[3];
+		//uint32_t num_neighs = 0;
 
 		bool active = true;
 
@@ -59,11 +65,6 @@ class MeshSimplify {
 		uint32_t vertex_to_collapse_to = UINT32_MAX;
 		bool active = true;
 
-		// List of triangles using this edge.
-		// If there is only 1, it must be a mesh edge,
-		// therefore having different rules for collapse.
-		LocalVector<uint32_t> tris;
-
 		void sort() {
 			if (b > a) {
 				SWAP(a, b);
@@ -71,12 +72,20 @@ class MeshSimplify {
 		}
 		bool operator==(const Edge &p_o) const { return (a == p_o.a) && (b == p_o.b); }
 
+//#define LINK_EDGES_TO_TRIS
+#ifdef LINK_EDGES_TO_TRIS
+		// List of triangles using this edge.
+		// If there is only 1, it must be a mesh edge,
+		// therefore having different rules for collapse.
+		LocalVector<uint32_t> tris;
+
 		void link_tri(uint32_t p_id) {
 			int64_t res = tris.find(p_id);
 			if (res == -1) {
 				tris.push_back(p_id);
 			}
 		}
+#endif
 	};
 
 	struct SortedEdge {
@@ -99,8 +108,13 @@ class MeshSimplify {
 		Vector3i position;
 		Quadric Q;
 
+		// A vertex is active until it has been collapsed
+		bool active = false;
+
 		// List of triangles that use this vertex
+#ifdef LINK_VERTS_TO_TRIS
 		LocalVector<uint32_t> tris;
+#endif
 
 		// ancestors
 		//LocalVector<uint32_t> ancestral_verts;
@@ -116,13 +130,12 @@ class MeshSimplify {
 		// also similarly collapse the linked vert, to preserve the shared
 		// edge between the two zones (otherwise you get an ugly seam
 		// like Blender decimate).
+#if 0
 		LocalVector<uint32_t> linked_verts;
 		bool is_linked_to(uint32_t p_vert_id) const {
 			return linked_verts.find(p_vert_id) != -1;
 		}
 
-		// A vertex is active until it has been collapsed
-		bool active = false;
 
 		// if a vert has more than 2 edge neighbours
 		// (i.e. at a t junction of edges)
@@ -200,12 +213,14 @@ class MeshSimplify {
 			return (edge_vert_neighs[0] == p_vert_id) || (edge_vert_neighs[1] == p_vert_id);
 		}
 
+#ifdef LINK_VERTS_TO_TRIS
 		void link_tri(uint32_t p_id) {
 			int64_t res = tris.find(p_id);
 			if (res == -1) {
 				tris.push_back(p_id);
 			}
 		}
+#endif
 		void add_edge_vert_neigh(uint32_t p_vert_id) {
 			edge_vert = true;
 			// already present?
@@ -234,13 +249,13 @@ class MeshSimplify {
 			edge_vert_neighs[0] = UINT32_MAX;
 			edge_vert_neighs[1] = UINT32_MAX;
 		}
-
-		Vector3 pos() const {
-			return Vector3(position.x, position.y, position.z);
-		}
 		Vert() {
 			edge_vert_neighs[0] = UINT32_MAX;
 			edge_vert_neighs[1] = UINT32_MAX;
+		}
+#endif
+		Vector3 pos() const {
+			return Vector3(position.x, position.y, position.z);
 		}
 	};
 

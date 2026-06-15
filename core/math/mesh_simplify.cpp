@@ -110,7 +110,12 @@ bool MeshSimplify::simplify_mesh() {
 
 		SortedEdge se = queue.top();
 		queue.pop();
+
 		Edge &edge = data.edges[se.edge_id];
+
+		if (!edge.active) {
+			continue;
+		}
 
 		// Discard if the sorted edge is not valid (the cost is stale)
 		if (se.cost != edge.cost) {
@@ -121,6 +126,8 @@ bool MeshSimplify::simplify_mesh() {
 		if (!data.verts[edge.a].active || !data.verts[edge.b].active) {
 			continue;
 		}
+
+		print_line("collapsing edge with cost " + rtos(edge.cost));
 
 		// EXECUTE COLLAPSE: Merge vertex 'v' into vertex 'u'
 		int kept_v = edge.vertex_to_collapse_to;
@@ -156,11 +163,12 @@ bool MeshSimplify::simplify_mesh() {
 
 		// Re-evaluate error cost for all remaining edges connected to the modified vertex
 		for (uint32_t n = 0; n < data.edges.size(); n++) {
-			const Edge &e = data.edges[n];
+			Edge &e = data.edges[n];
 			if (!e.active)
 				continue;
 
 			if ((e.a == kept_v) || (e.b == kept_v)) {
+				//e.active = false;
 				_evaluate_edge_collapse(n);
 
 				// We don't actually move the edge in the queue,
@@ -284,12 +292,16 @@ uint32_t MeshSimplify::_create_edge(uint32_t p_corn_a, uint32_t p_corn_b, uint32
 
 	for (uint32_t n = 0; n < data.edges.size(); n++) {
 		if (data.edges[n] == e) {
+#ifdef LINK_EDGES_TO_TRIS
 			data.edges[n].link_tri(p_triangle_id);
+#endif
 			return n;
 		}
 	}
 
+#ifdef LINK_EDGES_TO_TRIS
 	e.link_tri(p_triangle_id);
+#endif
 	data.edges.push_back(e);
 	return data.edges.size() - 1;
 }
@@ -394,15 +406,23 @@ void MeshSimplify::_create_tris() {
 			continue;
 		}
 
+#ifdef STORE_EDGES_IN_TRIS
 		tri.edge[0] = _create_edge(tri.corn[0], tri.corn[1], valid_tri_count);
 		tri.edge[1] = _create_edge(tri.corn[1], tri.corn[2], valid_tri_count);
 		tri.edge[2] = _create_edge(tri.corn[2], tri.corn[0], valid_tri_count);
+#else
+		_create_edge(tri.corn[0], tri.corn[1], valid_tri_count);
+		_create_edge(tri.corn[1], tri.corn[2], valid_tri_count);
+		_create_edge(tri.corn[2], tri.corn[0], valid_tri_count);
+#endif
 
 		// Add the tri to the verts.
 		for (uint32_t c = 0; c < 3; c++) {
 			Vert &v = data.verts[tri.corn[c]];
 			v.active = true;
+#ifdef LINK_VERTS_TO_TRIS
 			v.link_tri(valid_tri_count);
+#endif
 		}
 
 		// Tri was valid.
