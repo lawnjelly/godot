@@ -4,6 +4,7 @@
 #include "core/math/math_funcs.h"
 
 class String;
+struct Vector3;
 
 struct _NO_DISCARD_CLASS_ Vector3i {
 	static const int AXIS_COUNT = 3;
@@ -72,6 +73,7 @@ struct _NO_DISCARD_CLASS_ Vector3i {
 	Vector3i abs() const;
 
 	operator String() const;
+	operator Vector3() const;
 
 #if 0
 #define HASH_MURMUR3_SEED 0x7F07C65

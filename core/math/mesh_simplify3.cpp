@@ -1,5 +1,6 @@
-#include "mesh_simplify.h"
+#if 0
 #include "mesh_deduplicator.h"
+#include "mesh_simplify.h"
 
 Vector3i MeshSimplify::Data::find_grid_pos(const Vector3 &p_pos) const {
 	Vector3i res;
@@ -25,116 +26,6 @@ void MeshSimplify::declare_positions(const Span<Vector3> &p_positions) {
 	input_data.positions = LocalVector<Vector3>(p_positions);
 }
 
-bool MeshSimplify::_is_triangle_degenerate_from_positions(const Vector3i p[3]) const {
-	int64_t abx = (int64_t)p[1].x - p[0].x;
-	int64_t aby = (int64_t)p[1].y - p[0].y;
-	int64_t abz = (int64_t)p[1].z - p[0].z;
-	int64_t acx = (int64_t)p[2].x - p[0].x;
-	int64_t acy = (int64_t)p[2].y - p[0].y;
-	int64_t acz = (int64_t)p[2].z - p[0].z;
-
-	int64_t crossX = aby * acz - abz * acy;
-	int64_t crossY = abz * acx - abx * acz;
-	int64_t crossZ = abx * acy - aby * acx;
-
-	return (crossX == 0 && crossY == 0 && crossZ == 0);
-}
-
-bool MeshSimplify::_can_collapse(uint32_t kept, uint32_t deleted) const {
-	for (uint32_t n = 0; n < data.tris.size(); n++) {
-		const Tri &t = data.tris[n];
-		if (!t.active)
-			continue;
-
-		bool touches_deleted = false;
-		Vector3i old_c[3];
-		int deleted_idx = -1;
-
-		for (int i = 0; i < 3; ++i) {
-			old_c[i] = data.verts[t.corn[i]].position;
-			if (t.corn[i] == deleted) {
-				touches_deleted = true;
-				deleted_idx = i;
-			}
-		}
-
-		if (!touches_deleted)
-			continue;
-
-		// Triangle will be removed anyway
-		if (t.corn[0] == kept || t.corn[1] == kept || t.corn[2] == kept) {
-			continue;
-		}
-
-		// Build new triangle positions
-		Vector3i new_c[3];
-		for (int i = 0; i < 3; ++i) {
-			new_c[i] = (t.corn[i] == deleted) ? data.verts[kept].position : old_c[i];
-		}
-
-		if (_is_triangle_degenerate_from_positions(new_c)) {
-			return false;
-		}
-
-		// Normal flip check with tolerance
-		Vector3 v1b = Vector3(old_c[1] - old_c[0]);
-		Vector3 v2b = Vector3(old_c[2] - old_c[0]);
-		Vector3 before = v1b.cross(v2b);
-
-		Vector3 v1a = Vector3(new_c[1] - new_c[0]);
-		Vector3 v2a = Vector3(new_c[2] - new_c[0]);
-		Vector3 after = v1a.cross(v2a);
-
-		double len_before = before.length();
-		double len_after = after.length();
-
-		if (len_before < 1e-4 || len_after < 1e-4)
-			continue;
-
-		double dot = before.dot(after);
-		double cos_angle = dot / (len_before * len_after);
-
-		// You can adjust -0.1 if needed:
-
-		// -0.01 → stricter (better quality, fewer collapses)
-		// -0.3 → more permissive (more aggressive simplification)
-
-		// Reject only significant flips
-		if (cos_angle < -0.1) {
-			return false;
-		}
-	}
-	return true;
-}
-
-/*
-bool MeshSimplify::_can_collapse_edge(const Edge &edge) const {
-	uint32_t u = edge.a, v = edge.b; // or kept/deleted
-	// Simple check: no more than 2 triangles per "side" of the edge (link condition)
-	// For full robustness, track adjacent triangles per edge and verify the vertex link.
-	int shared_tris = 0;
-	for (uint32_t n = 0; n < data.tris.size(); n++) {
-		const Tri &t = data.tris[n];
-		if (!t.active)
-			continue;
-		bool has_u = false, has_v = false;
-		for (int i = 0; i < 3; ++i) {
-			if (t.corn[i] == u)
-				has_u = true;
-			if (t.corn[i] == v)
-				has_v = true;
-		}
-		if (has_u && has_v)
-			++shared_tris;
-	}
-	if (shared_tris > 2)
-		return false; // non-manifold edge
-
-	// Optional: normal flip check using _triangle_which_side or plane dot products
-	return true;
-}
-
-*/
 bool MeshSimplify::simplify_mesh() {
 	// Can't simplify when no indices.
 	if (!input_data.indices.size()) {
@@ -205,96 +96,13 @@ bool MeshSimplify::simplify_mesh() {
 	std::priority_queue<SortedEdge> queue;
 	for (uint32_t n = 0; n < data.edges.size(); n++) {
 		_evaluate_edge_collapse(n);
-		SortedEdge e(n, data.edges[n].cost, 0);
+		SortedEdge e(n, data.edges[n].cost);
 		queue.push(e);
 	}
 
 	uint32_t current_triangle_count = data.tris.size();
 	uint32_t before_triangle_count = current_triangle_count;
 
-	uint32_t target = before_triangle_count / 4; // adjust as needed (e.g. / 2, / 8, etc.)
-
-	while (current_triangle_count > target && !queue.empty()) {
-		SortedEdge se = queue.top();
-		queue.pop();
-
-		if (se.edge_id >= data.edges.size())
-			continue;
-
-		Edge &edge = data.edges[se.edge_id];
-		if (!edge.active || se.cost != edge.cost)
-			continue;
-		if (!data.verts[edge.a].active || !data.verts[edge.b].active)
-			continue;
-
-		uint32_t kept = edge.vertex_to_collapse_to;
-		uint32_t deleted = (kept == edge.a ? edge.b : edge.a);
-
-		// Strong safety check - this is the main fix for bad visuals on the shark
-		if (!_can_collapse(kept, deleted)) {
-			edge.active = false;
-			continue;
-		}
-
-		// Collapse to one of the original endpoints only
-		data.verts[kept].Q = data.verts[kept].Q + data.verts[deleted].Q;
-		data.verts[deleted].active = false;
-		edge.active = false;
-
-		// Update triangles
-		for (uint32_t n = 0; n < data.tris.size(); n++) {
-			Tri &t = data.tris[n];
-			if (!t.active)
-				continue;
-
-			bool has_kept = false;
-			bool has_deleted = false;
-
-			for (int i = 0; i < 3; i++) {
-				if (t.corn[i] == kept)
-					has_kept = true;
-				if (t.corn[i] == deleted)
-					has_deleted = true;
-			}
-
-			if (has_kept && has_deleted) {
-				t.active = false;
-				current_triangle_count--;
-				continue;
-			}
-
-			if (has_deleted) {
-				for (int i = 0; i < 3; i++) {
-					if (t.corn[i] == deleted) {
-						t.corn[i] = kept;
-					}
-				}
-			}
-		}
-
-		// Re-evaluate edges connected to the kept vertex
-		for (uint32_t n = 0; n < data.edges.size(); n++) {
-			Edge &e = data.edges[n];
-			if (!e.active)
-				continue;
-			if (e.a == kept || e.b == kept) {
-				_evaluate_edge_collapse(n);
-				e.version++;
-				queue.push(SortedEdge(n, e.cost, e.version));
-			}
-		}
-	}
-
-	// Final cleanup of any new degenerates
-	for (uint32_t n = 0; n < data.tris.size(); n++) {
-		if (data.tris[n].active && _is_triangle_degenerate(data.tris[n].corn)) {
-			data.tris[n].active = false;
-			current_triangle_count--;
-		}
-	}
-
-// END
-#if 0
 	// 3. Process collapses until target density is achieved
 	//while (current_triangle_count > target_triangle_count && !queue.empty()) {
 	while (!queue.empty()) {
@@ -311,18 +119,12 @@ bool MeshSimplify::simplify_mesh() {
 		}
 
 		// Discard if the sorted edge is not valid (the cost is stale)
-		if (se.cost != edge.cost || se.version != edge.version) {
+		if (se.cost != edge.cost) {
 			continue;
 		}
 
 		// Skip if either vertex was already swallowed by a previous collapse
 		if (!data.verts[edge.a].active || !data.verts[edge.b].active) {
-			continue;
-		}
-
-		// In simplify_mesh(), before EXECUTE COLLAPSE:
-		if (!_can_collapse_edge(edge)) {
-			edge.active = false;
 			continue;
 		}
 
@@ -369,18 +171,21 @@ bool MeshSimplify::simplify_mesh() {
 			if ((e.a == kept_v) || (e.b == kept_v)) {
 				//e.active = false;
 				_evaluate_edge_collapse(n);
-				e.version++;
 
 				// We don't actually move the edge in the queue,
 				// we add a duplicate.
-				SortedEdge se(n, e.cost, e.version);
+				SortedEdge se(n, e.cost);
 				queue.push(se);
 			}
 		}
 
+		//		std::vector<int> neighbors = find_neighbor_vertices(kept_v, triangles);
+		//		for (int neighbor_idx : neighbors) {
+		//			queue.push(evaluate_edge_collapse(kept_v, neighbor_idx, vertices));
+		//		}
+
 		//break;
 	}
-#endif
 
 	// Create final output indices.
 	data.output_remapped_indices.resize(current_triangle_count * 3);
@@ -488,10 +293,16 @@ uint32_t MeshSimplify::_create_edge(uint32_t p_corn_a, uint32_t p_corn_b, uint32
 
 	for (uint32_t n = 0; n < data.edges.size(); n++) {
 		if (data.edges[n] == e) {
+#ifdef LINK_EDGES_TO_TRIS
+			data.edges[n].link_tri(p_triangle_id);
+#endif
 			return n;
 		}
 	}
 
+#ifdef LINK_EDGES_TO_TRIS
+	e.link_tri(p_triangle_id);
+#endif
 	data.edges.push_back(e);
 	return data.edges.size() - 1;
 }
@@ -511,12 +322,6 @@ void MeshSimplify::_initialize_vertex_quadrics() {
 		Tri &t = data.tris[n];
 
 		// Make sure plane is up to date... (should be?)
-
-#if 0
-		// In _triangle_calculate_plane or when building Kp:
-		double area = 0.5 * (p1.pos() - p0.pos()).cross(p2.pos() - p0.pos()).length(); // or use unnormalized for speed
-		// Then scale Kp by area before adding.
-#endif
 
 		// Create the fundamental error matrix Kp = p * p^T
 		Quadric Kp;
@@ -602,14 +407,23 @@ void MeshSimplify::_create_tris() {
 			continue;
 		}
 
+#ifdef STORE_EDGES_IN_TRIS
+		tri.edge[0] = _create_edge(tri.corn[0], tri.corn[1], valid_tri_count);
+		tri.edge[1] = _create_edge(tri.corn[1], tri.corn[2], valid_tri_count);
+		tri.edge[2] = _create_edge(tri.corn[2], tri.corn[0], valid_tri_count);
+#else
 		_create_edge(tri.corn[0], tri.corn[1], valid_tri_count);
 		_create_edge(tri.corn[1], tri.corn[2], valid_tri_count);
 		_create_edge(tri.corn[2], tri.corn[0], valid_tri_count);
+#endif
 
 		// Add the tri to the verts.
 		for (uint32_t c = 0; c < 3; c++) {
 			Vert &v = data.verts[tri.corn[c]];
 			v.active = true;
+#ifdef LINK_VERTS_TO_TRIS
+			v.link_tri(valid_tri_count);
+#endif
 		}
 
 		// Tri was valid.
@@ -638,3 +452,4 @@ void MeshSimplify::_create_tris() {
 
 	_initialize_vertex_quadrics();
 }
+#endif
