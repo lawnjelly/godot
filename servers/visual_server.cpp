@@ -409,53 +409,54 @@ Error VisualServer::_surface_set_data(Array p_arrays, uint32_t p_format, uint32_
 
 	////////////////////////////////////////////////////////////////////////
 	// First simplify if desired.
-	MeshSimplify simplifier;
-	for (int ai = 0; ai < VS::ARRAY_MAX; ai++) {
-		if (!(p_format & (1 << ai))) {
-			continue;
+	if (!Engine::get_singleton()->is_editor_hint()) {
+		// if (p_format & ARRAY_FLAG_USE_CONTINUOUS_LEVEL_OF_DETAIL) {
+		MeshSimplify simplifier;
+		for (int ai = 0; ai < VS::ARRAY_MAX; ai++) {
+			if (!(p_format & (1 << ai))) {
+				continue;
+			}
+
+			switch (ai) {
+				case VS::ARRAY_VERTEX: {
+					if (!(p_format & VS::ARRAY_FLAG_USE_2D_VERTICES)) {
+						PoolVector<Vector3> array = p_arrays[ai];
+						ERR_FAIL_COND_V(array.size() != p_vertex_array_len, ERR_INVALID_PARAMETER);
+
+						simplifier.declare_positions(array);
+					}
+
+				} break;
+				case VS::ARRAY_INDEX: {
+					ERR_FAIL_COND_V(p_index_array_len <= 0, ERR_INVALID_DATA);
+					ERR_FAIL_COND_V(p_arrays[ai].get_type() != Variant::POOL_INT_ARRAY, ERR_INVALID_PARAMETER);
+
+					PoolVector<int> indices = p_arrays[ai];
+					ERR_FAIL_COND_V(indices.size() == 0, ERR_INVALID_PARAMETER);
+					ERR_FAIL_COND_V(indices.size() != p_index_array_len, ERR_INVALID_PARAMETER);
+
+					simplifier.declare_indices(indices);
+				} break;
+
+				default: {
+				} break;
+			}
 		}
 
-		switch (ai) {
-			case VS::ARRAY_VERTEX: {
-				if (!(p_format & VS::ARRAY_FLAG_USE_2D_VERTICES)) {
-					PoolVector<Vector3> array = p_arrays[ai];
-					ERR_FAIL_COND_V(array.size() != p_vertex_array_len, ERR_INVALID_PARAMETER);
+		// If we are simplifying, copy the final data back to the source arrays.
+		if (simplifier.simplify_mesh()) {
+			PoolVector<int> indices;
+			Span<uint32_t> new_inds = simplifier.get_simplified_remapped_indices();
 
-					simplifier.declare_positions(array);
-				}
+			indices.resize(new_inds.size());
+			for (uint32_t n = 0; n < new_inds.size(); n++) {
+				indices.set(n, new_inds[n]);
+			}
 
-			} break;
-			case VS::ARRAY_INDEX: {
-				ERR_FAIL_COND_V(p_index_array_len <= 0, ERR_INVALID_DATA);
-				ERR_FAIL_COND_V(p_arrays[ai].get_type() != Variant::POOL_INT_ARRAY, ERR_INVALID_PARAMETER);
-
-				PoolVector<int> indices = p_arrays[ai];
-				ERR_FAIL_COND_V(indices.size() == 0, ERR_INVALID_PARAMETER);
-				ERR_FAIL_COND_V(indices.size() != p_index_array_len, ERR_INVALID_PARAMETER);
-
-				simplifier.declare_indices(indices);
-			} break;
-
-			default: {
-			} break;
+			p_arrays[VS::ARRAY_INDEX] = indices;
+			p_index_array_len = indices.size();
 		}
-	}
-
-	// If we are simplifying, copy the final data back to the source arrays.
-	//#if 0
-	if (simplifier.simplify_mesh()) {
-		PoolVector<int> indices;
-		Span<uint32_t> new_inds = simplifier.get_simplified_remapped_indices();
-
-		indices.resize(new_inds.size());
-		for (uint32_t n = 0; n < new_inds.size(); n++) {
-			indices.set(n, new_inds[n]);
-		}
-
-		p_arrays[VS::ARRAY_INDEX] = indices;
-		p_index_array_len = indices.size();
-	}
-	//#endif
+	} // if using CLOD
 	////////////////////////////////////////////////////////////////////////
 
 	for (int ai = 0; ai < VS::ARRAY_MAX; ai++) {
