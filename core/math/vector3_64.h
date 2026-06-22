@@ -32,6 +32,7 @@
 
 #include "core/math/math_funcs.h"
 #include "core/ustring.h"
+#include "vector3.h"
 
 struct _NO_DISCARD_CLASS_ Vector3_64 {
 	static const int AXIS_COUNT = 3;
@@ -140,6 +141,13 @@ struct _NO_DISCARD_CLASS_ Vector3_64 {
 		z = p_z;
 	}
 	_FORCE_INLINE_ Vector3_64() { x = y = z = 0; }
+
+	// Allow upcasting from potentially lower bit depth Vector3.
+	explicit Vector3_64(const Vector3 &p_pt) {
+		x = p_pt.x;
+		y = p_pt.y;
+		z = p_pt.z;
+	}
 };
 
 Vector3_64 Vector3_64::cross(const Vector3_64 &p_b) const {

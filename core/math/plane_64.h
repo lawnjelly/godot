@@ -34,8 +34,14 @@
 
 class _NO_DISCARD_CLASS_ Plane_64 {
 public:
-	Vector3_64 normal;
-	double d;
+	union {
+		struct {
+			Vector3_64 normal;
+			double d;
+		};
+
+		double coord[4];
+	};
 
 	void set_normal(const Vector3_64 &p_normal);
 	_FORCE_INLINE_ Vector3_64 get_normal() const { return normal; }; ///Point is coplanar, CMP_EPSILON for precision

@@ -502,7 +502,7 @@ void MeshSimplify::_triangle_calculate_plane(uint32_t p_tri_id) {
 	Vert &p1 = data.verts[tri.corn[1]];
 	Vert &p2 = data.verts[tri.corn[2]];
 
-	tri.plane = Plane(p0.pos(), p1.pos(), p2.pos());
+	tri.plane = Plane_64(Vector3_64(p0.pos()), Vector3_64(p1.pos()), Vector3_64(p2.pos()));
 }
 
 void MeshSimplify::_initialize_vertex_quadrics() {
@@ -522,7 +522,7 @@ void MeshSimplify::_initialize_vertex_quadrics() {
 		Quadric Kp;
 		for (int i = 0; i < 4; ++i) {
 			for (int j = 0; j < 4; ++j) {
-				Kp.m[i][j] = plane_coord(t.plane, i) * plane_coord(t.plane, j);
+				Kp.m[i][j] = t.plane.coord[i] * t.plane.coord[j];
 			}
 		}
 

@@ -3,6 +3,7 @@
 #include "core/local_vector.h"
 #include "core/math/vector3.h"
 #include <core/math/aabb.h>
+#include <core/math/plane_64.h>
 #include <core/math/vector3i.h>
 
 class MeshSimplify {
@@ -41,7 +42,7 @@ class MeshSimplify {
 		uint32_t corn[3];
 		bool active = true;
 
-		Plane plane;
+		Plane_64 plane;
 	};
 
 	struct Edge {
@@ -115,26 +116,6 @@ class MeshSimplify {
 	double _compute_quadric_error(const Vector3i &p_pos, const Quadric &Q);
 
 	uint32_t _create_edge(uint32_t p_corn_a, uint32_t p_corn_b, uint32_t p_triangle_id);
-	double plane_coord(const Plane &p_plane, uint32_t p_coord) const {
-		switch (p_coord) {
-			case 0: {
-				return p_plane.normal.x;
-			} break;
-			case 1: {
-				return p_plane.normal.y;
-			} break;
-			case 2: {
-				return p_plane.normal.z;
-			} break;
-			case 3: {
-				return p_plane.d;
-			} break;
-			default: {
-				DEV_ASSERT(0);
-			} break;
-		}
-		return 0;
-	}
 
 	int32_t _triangle_which_side(const Vector3i &p_a, const Vector3i &p_b, const Vector3i &p_c, const Vector3i &p_test) const;
 	bool _is_triangle_degenerate(const uint32_t p_inds[3]) const;
