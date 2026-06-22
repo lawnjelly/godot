@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/local_vector.h"
+#include "core/math/vector2.h"
 #include "core/math/vector3.h"
 #include <core/math/aabb.h>
 #include <core/math/plane_64.h>
@@ -30,6 +31,8 @@ class MeshSimplify {
 	struct InputData {
 		LocalVector<uint32_t> indices;
 		LocalVector<Vector3> positions;
+		LocalVector<Vector2> uvs;
+		LocalVector<Vector2> uv2s;
 	} input_data;
 
 	struct Tri {
@@ -83,11 +86,14 @@ class MeshSimplify {
 		Vector3i position;
 		Quadric Q;
 
+		Vector2 uv;
+		Vector2 uv2;
+
 		// A vertex is active until it has been collapsed
 		bool active = false;
 
-		Vector3 pos() const {
-			return Vector3(position.x, position.y, position.z);
+		Vector3_64 pos() const {
+			return Vector3_64(position.x, position.y, position.z);
 		}
 	};
 
@@ -126,6 +132,8 @@ class MeshSimplify {
 public:
 	void declare_indices(const Span<int> &p_indices);
 	void declare_positions(const Span<Vector3> &p_positions);
+	void declare_uvs(const Span<Vector2> &p_uvs);
+	void declare_uv2s(const Span<Vector2> &p_uvs);
 
 	bool simplify_mesh();
 

@@ -21,6 +21,14 @@ void MeshSimplify::declare_indices(const Span<int> &p_indices) {
 	}
 }
 
+void MeshSimplify::declare_uvs(const Span<Vector2> &p_uvs) {
+	input_data.uvs = LocalVector<Vector2>(p_uvs);
+}
+
+void MeshSimplify::declare_uv2s(const Span<Vector2> &p_uvs) {
+	input_data.uv2s = LocalVector<Vector2>(p_uvs);
+}
+
 void MeshSimplify::declare_positions(const Span<Vector3> &p_positions) {
 	input_data.positions = LocalVector<Vector3>(p_positions);
 }
@@ -147,10 +155,33 @@ bool MeshSimplify::simplify_mesh() {
 	LocalVector<Vector3> verts;
 	LocalVector<uint32_t> inds;
 
-	dd.set_num_attribute_streams(1);
-	MeshAttributeStream &as = dd.get_input_attribute_stream(0);
-	as.set_type(MeshAttributeStream::ATTR_POSITION);
-	as.vec3 = input_data.positions;
+	uint32_t num_streams = 1;
+	if (input_data.uvs.size()) {
+		num_streams++;
+	}
+	if (input_data.uv2s.size()) {
+		num_streams++;
+	}
+
+	dd.set_num_attribute_streams(num_streams);
+
+	uint32_t fill_stream = 0;
+
+	MeshAttributeStream &as_pos = dd.get_input_attribute_stream(fill_stream++);
+	as_pos.set_type(MeshAttributeStream::ATTR_POSITION);
+	as_pos.vec3 = input_data.positions;
+
+	if (input_data.uvs.size()) {
+		MeshAttributeStream &as = dd.get_input_attribute_stream(fill_stream++);
+		as.set_type(MeshAttributeStream::ATTR_UV);
+		as.vec2 = input_data.uvs;
+	}
+
+	if (input_data.uv2s.size()) {
+		MeshAttributeStream &as = dd.get_input_attribute_stream(fill_stream++);
+		as.set_type(MeshAttributeStream::ATTR_UV);
+		as.vec2 = input_data.uv2s;
+	}
 
 	if (!dd.process(input_data.indices, inds)) {
 		return false;
@@ -160,12 +191,20 @@ bool MeshSimplify::simplify_mesh() {
 	// Save the deduplicated data.
 	input_data.indices = inds;
 	input_data.positions = verts;
+	if (input_data.uvs.size()) {
+		input_data.uvs = dd.get_output_attribute_stream(1).vec2;
+	}
+	if (input_data.uv2s.size()) {
+		input_data.uv2s = dd.get_output_attribute_stream(input_data.uvs.size() ? 2 : 1).vec2;
+	}
 
 	ERR_FAIL_COND_V(!input_data.indices.size(), false);
 	ERR_FAIL_COND_V(!input_data.positions.size(), false);
 
 	// Find world bound.
 	Span<Vector3> in_verts = Span<Vector3>(input_data.positions);
+	Span<Vector2> in_uvs = Span<Vector2>(input_data.uvs);
+	Span<Vector2> in_uv2s = Span<Vector2>(input_data.uv2s);
 
 	// Find bounds.
 	data.bound.position = in_verts[0];
@@ -192,6 +231,13 @@ bool MeshSimplify::simplify_mesh() {
 
 	for (uint32_t n = 0; n < in_verts.size(); n++) {
 		data.verts[n].position = data.find_grid_pos(in_verts[n]);
+
+		if (in_uvs.size()) {
+			data.verts[n].uv = in_uvs[n];
+		}
+		if (in_uv2s.size()) {
+			data.verts[n].uv2 = in_uv2s[n];
+		}
 	}
 
 	_create_tris();
@@ -502,7 +548,7 @@ void MeshSimplify::_triangle_calculate_plane(uint32_t p_tri_id) {
 	Vert &p1 = data.verts[tri.corn[1]];
 	Vert &p2 = data.verts[tri.corn[2]];
 
-	tri.plane = Plane_64(Vector3_64(p0.pos()), Vector3_64(p1.pos()), Vector3_64(p2.pos()));
+	tri.plane = Plane_64(p0.pos(), p1.pos(), p2.pos());
 }
 
 void MeshSimplify::_initialize_vertex_quadrics() {
