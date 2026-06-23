@@ -5,6 +5,7 @@
 
 class String;
 struct Vector3;
+struct Vector3_64;
 
 struct _NO_DISCARD_CLASS_ Vector3i {
 	static const int AXIS_COUNT = 3;
@@ -70,10 +71,13 @@ struct _NO_DISCARD_CLASS_ Vector3i {
 	double length() const;
 	double distance_to(const Vector3i &p_to) const;
 
+	double calculate_triangle_area(const Vector3i &p_a, const Vector3i &p_b) const;
+
 	Vector3i abs() const;
 
 	operator String() const;
 	operator Vector3() const;
+	operator Vector3_64() const;
 
 #if 0
 #define HASH_MURMUR3_SEED 0x7F07C65

@@ -62,6 +62,11 @@ class MeshSimplify {
 		bool is_seam_or_boundary = false;
 		uint32_t triangle_count = 0;
 
+		uint32_t get_collapse_from() const { return vertex_to_collapse_to == a ? b : a; }
+		//uint32_t get_readable_cost() const {return cost / 100000000;}
+		uint32_t get_readable_cost() const { return cost / 10; }
+
+		String info() const;
 		void sort() {
 			if (b > a) {
 				SWAP(a, b);
@@ -106,6 +111,7 @@ class MeshSimplify {
 
 		// Edges that use this vertex.
 		LocalVector<uint32_t> edges;
+		LocalVector<uint32_t> seam_neighbour_verts;
 
 		Vector3_64 pos() const {
 			return Vector3_64(position.x, position.y, position.z);

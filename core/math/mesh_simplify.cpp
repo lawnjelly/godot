@@ -14,6 +14,12 @@
 	} while (0)
 #endif
 
+#define MESH_SIMPLIFY_TRIS_TO_REMOVE 0
+
+String MeshSimplify::Edge::info() const {
+	return itos(get_collapse_from()) + " to " + itos(vertex_to_collapse_to);
+}
+
 Vector3i MeshSimplify::Data::find_grid_pos(const Vector3 &p_pos) const {
 	Vector3i res;
 
@@ -98,8 +104,10 @@ bool MeshSimplify::_can_collapse(uint32_t kept, uint32_t deleted) const {
 			new_c[i] = (t.corn[i] == deleted) ? data.verts[kept].position : old_c[i];
 		}
 
-		if (_is_triangle_degenerate_from_positions(new_c))
+		if (_is_triangle_degenerate_from_positions(new_c)) {
+			MS_LOG("_can_collapse rejecting edge from " + itos(deleted) + " to " + itos(kept) + " - _is_triangle_degenerate_from_positions");
 			return false;
+		}
 
 		// Strong normal protection
 		Vector3 v1b = Vector3(old_c[1] - old_c[0]);
@@ -113,12 +121,15 @@ bool MeshSimplify::_can_collapse(uint32_t kept, uint32_t deleted) const {
 		double len_b2 = before.length_squared();
 		double len_a2 = after.length_squared();
 
-		if (len_a2 < 1.0)
+		if (len_a2 < 1.0) {
+			MS_LOG("_can_collapse rejecting edge from " + itos(deleted) + " to " + itos(kept) + " - len_a2");
 			return false;
+		}
 
 		if (len_b2 > 1.0 && len_a2 > 1.0) {
 			double cos_angle = before.dot(after) / (Math::sqrt(len_b2) * Math::sqrt(len_a2));
 			if (cos_angle < 0.1) { // Very strict - almost no inversion
+				MS_LOG("_can_collapse rejecting edge from " + itos(deleted) + " to " + itos(kept) + " - cos_angle");
 				return false;
 			}
 		}
@@ -128,6 +139,7 @@ bool MeshSimplify::_can_collapse(uint32_t kept, uint32_t deleted) const {
 		double new_peri = (new_c[1] - new_c[0]).length() + (new_c[2] - new_c[1]).length() + (new_c[0] - new_c[2]).length();
 
 		if (new_peri < old_peri * 0.85) {
+			MS_LOG("_can_collapse rejecting edge from " + itos(deleted) + " to " + itos(kept) + " - peri");
 			return false;
 		}
 
@@ -141,8 +153,35 @@ bool MeshSimplify::_can_collapse(uint32_t kept, uint32_t deleted) const {
 		double min_s = MIN(sides[0], MIN(sides[1], sides[2]));
 
 		if (min_s > 0.0 && max_s / min_s > 12.0) {
+			MS_LOG("_can_collapse rejecting edge from " + itos(deleted) + " to " + itos(kept) + " - min_s");
 			return false;
 		}
+
+#if 0
+		// STRONG CORNER / FEATURE EDGE PROTECTION
+		// Reject collapses that significantly change the local shape at corners
+		Vector3 old_dir_ab = Vector3(old_c[1] - old_c[0]).normalized();
+		Vector3 old_dir_ac = Vector3(old_c[2] - old_c[0]).normalized();
+		Vector3 new_dir_ab = Vector3(new_c[1] - new_c[0]).normalized();
+		Vector3 new_dir_ac = Vector3(new_c[2] - new_c[0]).normalized();
+		
+		double dot_ab = old_dir_ab.dot(new_dir_ab);
+		double dot_ac = old_dir_ac.dot(new_dir_ac);
+		
+		if (dot_ab < 0.85 || dot_ac < 0.85) { // significant direction change
+			MS_LOG("_can_collapse rejecting edge from " + itos (deleted) + " to " + itos(kept)  + " - dot_ab");
+			return false;
+		}
+#endif
+
+#if 0
+			   // Also reject large movement of corner vertices
+		double move_dist = (new_c[0] - old_c[0]).length();
+		if (move_dist > 300.0) { // tune to your model scale
+			MS_LOG("_can_collapse rejecting edge from " + itos (deleted) + " to " + itos(kept)  + " - move_dist");
+			return false;
+		}
+#endif
 	}
 	return true;
 }
@@ -171,7 +210,8 @@ void MeshSimplify::_debug_log_input_data() {
 	MS_LOG("IN_VERTS\n");
 	for (uint32_t n = 0; n < in_verts.size(); n++) {
 		String sz = itos(n) + " : " + String(Variant(in_verts[n]));
-		sz += ",\tuv " + String(Variant(in_uvs[n]));
+		if (in_uvs.size())
+			sz += ",\tuv " + String(Variant(in_uvs[n]));
 		MS_LOG(sz);
 	}
 #endif
@@ -293,11 +333,14 @@ bool MeshSimplify::simplify_mesh() {
 		queue.push(e);
 	}
 
-	//#if 0
 	uint32_t current_triangle_count = data.tris.size();
 	uint32_t before_triangle_count = current_triangle_count;
 
-	uint32_t target = before_triangle_count / 2; // adjust as needed (e.g. / 2, / 8, etc.)
+	uint32_t target = before_triangle_count / 8; // adjust as needed (e.g. / 2, / 8, etc.)
+
+	if (MESH_SIMPLIFY_TRIS_TO_REMOVE != 0) {
+		target = before_triangle_count - MESH_SIMPLIFY_TRIS_TO_REMOVE;
+	}
 
 	while (current_triangle_count > target && !queue.empty()) {
 		SortedEdge se = queue.top();
@@ -313,11 +356,13 @@ bool MeshSimplify::simplify_mesh() {
 		if (!data.verts[edge.a].active || !data.verts[edge.b].active)
 			continue;
 
-		// Disallow collapsing edges for now.
+			// Disallow collapsing edges for now.
+#if 0
 		if (edge.is_seam_or_boundary) {
 			edge.active = false;
 			continue;
 		}
+#endif
 
 		uint32_t kept = edge.vertex_to_collapse_to;
 		uint32_t deleted = (kept == edge.a ? edge.b : edge.a);
@@ -333,10 +378,11 @@ bool MeshSimplify::simplify_mesh() {
 		//			}
 
 #ifdef MESH_SIMPLIFY_DEBUG_LOGGING
-		String sz = "collapsing edge " + itos(se.edge_id) + " : " + itos(edge.a) + " to " + itos(edge.b);
+		String sz = "collapsing edge " + itos(se.edge_id) + " : " + itos(edge.get_collapse_from()) + " to " + itos(edge.vertex_to_collapse_to);
 		if (edge.is_seam_or_boundary) {
 			sz += "\tSEAM";
 		}
+		sz += " cost : " + itos(edge.get_readable_cost());
 		MS_LOG(sz);
 #endif
 
@@ -423,180 +469,6 @@ bool MeshSimplify::simplify_mesh() {
 		}
 #endif
 	}
-	//#endif
-
-#if GREEDY_METHOD
-	// === MULTI-PASS GREEDY SIMPLIFICATION ===
-	uint32_t current_triangle_count = data.tris.size();
-	uint32_t before_triangle_count = current_triangle_count;
-	uint32_t target = before_triangle_count / 2;
-
-	int max_passes = 12; // safety
-
-	for (int pass = 0; pass < max_passes && current_triangle_count > target; ++pass) {
-		print_line(vformat("Pass %d, tris: %d", pass, current_triangle_count));
-
-		std::vector<uint32_t> candidates;
-
-		for (uint32_t i = 0; i < data.edges.size(); ++i) {
-			if (data.edges[i].active && !data.edges[i].is_seam_or_boundary) {
-				_evaluate_edge_collapse(i);
-				candidates.push_back(i);
-			}
-		}
-
-		// Sort by cost (lowest first)
-		std::sort(candidates.begin(), candidates.end(), [&](uint32_t a, uint32_t b) {
-			return data.edges[a].cost < data.edges[b].cost;
-		});
-
-		uint32_t collapses_this_pass = 0;
-
-		for (uint32_t e_idx : candidates) {
-			Edge &edge = data.edges[e_idx];
-			if (!edge.active)
-				continue;
-
-			if (!data.verts[edge.a].active || !data.verts[edge.b].active) {
-				edge.active = false;
-				continue;
-			}
-#if 0
-			if (edge.is_seam_or_boundary) {
-				edge.active = false;
-				continue; // Completely skip boundary edges
-			}
-#endif
-
-			uint32_t kept = edge.vertex_to_collapse_to;
-			uint32_t deleted = (kept == edge.a ? edge.b : edge.a);
-
-			// DEBUG SYNC CHECK
-			if (!data.verts[kept].active || !data.verts[deleted].active) {
-				print_line("ERROR: Collapsing inactive vertices!");
-			}
-
-			// === THRUSTER DEBUG ===
-			const Vector3i &kp = data.verts[kept].position;
-			const Vector3i &dp = data.verts[deleted].position;
-
-			bool near_thruster = (Math::abs(kp.y) < 2000 && Math::abs(dp.y) < 2000 &&
-					kp.z > 55000 && kp.z < 59000);
-
-			if (near_thruster) {
-				print_line("=== THRUSTER COLLAPSE DETECTED! ===");
-				print_line("Edge " + itos(e_idx) + " kept=" + itos(kept) + " deleted=" + itos(deleted) + " cost=" + rtos(edge.cost));
-				print_line("  Kept: (" + itos(kp.x) + "," + itos(kp.y) + "," + itos(kp.z) + ")");
-				print_line("  Deleted: (" + itos(dp.x) + "," + itos(dp.y) + "," + itos(dp.z) + ")");
-			}
-
-			if (!_can_collapse(kept, deleted)) {
-				edge.active = false;
-				continue;
-			}
-
-			if (edge.is_seam_or_boundary) {
-				print_line("WARNING: Collapsing seam/boundary edge " + itos(e_idx) + "!");
-			}
-
-#ifdef MESH_SIMPLIFY_DEBUG_LOGGING
-			String sz = "collapsing edge " + itos(e_idx) + " : " + itos(edge.a) + " to " + itos(edge.b);
-			if (edge.is_seam_or_boundary) {
-				sz += "\tSEAM";
-			}
-			MS_LOG(sz);
-#endif
-
-			// Put this just before performing the collapse
-			//			print_line("Collapsing edge " + itos(e_idx) + " -> kept " + itos(kept) +
-			//					", deleted " + itos(deleted) + ", cost = " + rtos(edge.cost));
-
-			//			// Print positions
-			//			const Vector3i& pkept = data.verts[kept].position;
-			//			const Vector3i& pdel = data.verts[deleted].position;
-			//			print_line("  Kept pos: (" + itos(pkept.x) + "," + itos(pkept.y) + "," + itos(pkept.z) +
-			//					"), Deleted pos: (" + itos(pdel.x) + "," + itos(pdel.y) + "," + itos(pdel.z) + ")");
-
-			// Perform collapse
-			Vert &kept_vert = data.verts[kept];
-			Vert &deleted_vert = data.verts[deleted];
-
-			kept_vert.Q = data.verts[kept].Q + data.verts[deleted].Q;
-			deleted_vert.active = false;
-			edge.active = false;
-
-			// IMPORTANT: Deactivate ALL edges connected to the deleted vertex
-			for (uint32_t n = 0; n < deleted_vert.edges.size(); n++) {
-				uint32_t e_idx = deleted_vert.edges[n];
-				data.edges[e_idx].active = false;
-			}
-
-			// Update triangles
-			// BULLETPROOF TRIANGLE RESTITCHING
-			for (uint32_t n = 0; n < data.tris.size(); n++) {
-				Tri &t = data.tris[n];
-				if (!t.active)
-					continue;
-
-				bool modified = false;
-				int kept_count = 0;
-
-				for (int i = 0; i < 3; i++) {
-					if (t.corn[i] == deleted) {
-						t.corn[i] = kept;
-						modified = true;
-					}
-					if (t.corn[i] == kept)
-						kept_count++;
-				}
-
-				if (modified) {
-					// Remove if degenerate or invalid
-					if (kept_count > 1 || _is_triangle_degenerate(t.corn)) {
-						t.active = false;
-						current_triangle_count--;
-					}
-				}
-			}
-
-			// Rebuild adjacency for kept vertex safely
-			data.verts[kept].edges.clear();
-			for (uint32_t e = 0; e < data.edges.size(); ++e) {
-				Edge &edge = data.edges[e];
-				if (edge.active && (edge.a == kept || edge.b == kept)) {
-					data.verts[kept].edges.push_back(e);
-				}
-			}
-
-			// ... after triangle update and adjacency rebuild ...
-			_validate_and_rebuild();
-
-			// DEBUG: Check for holes after collapse
-			int hole_check = 0;
-			for (uint32_t n = 0; n < data.tris.size(); n++) {
-				const Tri &t = data.tris[n];
-				if (t.active) {
-					for (int i = 0; i < 3; i++) {
-						if (t.corn[i] == deleted) {
-							hole_check++;
-							print_line("BUG: Triangle " + itos(n) + " still has deleted vertex " + itos(deleted) + " after collapse!");
-						}
-					}
-				}
-			}
-			if (hole_check > 0) {
-				print_line("=== HOLE CREATION DETECTED after collapsing edge " + itos(e_idx) + " (kept=" + itos(kept) + ", deleted=" + itos(deleted) + ") ===");
-			}
-
-			collapses_this_pass++;
-			if (current_triangle_count <= target)
-				break;
-		}
-
-		if (collapses_this_pass == 0)
-			break; // no more safe collapses
-	}
-#endif
 
 	// Final cleanup of any new degenerates
 	for (uint32_t n = 0; n < data.tris.size(); n++) {
@@ -914,6 +786,9 @@ void MeshSimplify::_evaluate_edge_collapse(uint32_t p_edge_id) {
 	// 1.0 to 10.0 handles texture preservation nicely without stalling geometry changes.
 	const double beta = 150;
 
+	//double distance_cost = (a.pos() - b.pos()).length();
+	double distance_cost = 0;
+
 	double geom_cost_a = _compute_quadric_error(a.position, Q_new);
 	double geom_cost_b = _compute_quadric_error(b.position, Q_new);
 
@@ -928,15 +803,65 @@ void MeshSimplify::_evaluate_edge_collapse(uint32_t p_edge_id) {
 		attr_b += _compute_attribute_error(b.position, b.uv.y, Qv_new);
 	}
 
-	double total_a = geom_cost_a + beta * attr_a;
-	double total_b = geom_cost_b + beta * attr_b;
+	double total_a = distance_cost + geom_cost_a + beta * attr_a;
+	double total_b = distance_cost + geom_cost_b + beta * attr_b;
+
+	// === SEAM LINE DISRUPTION PENALTY ===
 
 	// Add penalty for collapsing from a seam.
 	if (a.is_seam_or_boundary) {
-		total_b *= 1000;
+		bool breaks_line = true;
+
+		if (a.seam_neighbour_verts.size() == 2) {
+			for (uint32_t n = 0; n < a.seam_neighbour_verts.size(); n++) {
+				if (a.seam_neighbour_verts[n] == edge.b) {
+					breaks_line = false; // direct neighbour on scene line
+					break;
+				}
+			}
+		} else {
+			breaks_line = false;
+		}
+
+		if (breaks_line) {
+			total_b *= 60;
+			total_b = MAX(total_b, 60.0);
+		} else {
+			// Calculate angle penalty.
+			const Vector3i &v0 = data.verts[a.seam_neighbour_verts[0]].position;
+			const Vector3i &v1 = data.verts[a.seam_neighbour_verts[1]].position;
+
+			double area_before = a.position.calculate_triangle_area(v0, v1);
+			// double area_after = b.position.calculate_triangle_area(v0, v1);
+
+			//double change = Math::absd(area_after - area_before);
+			double change = Math::absd(area_before);
+			total_b += change;
+		}
 	}
 	if (b.is_seam_or_boundary) {
-		total_a *= 1000;
+		bool breaks_line = true;
+		for (uint32_t n = 0; n < b.seam_neighbour_verts.size(); n++) {
+			if (b.seam_neighbour_verts[n] == edge.a) {
+				breaks_line = false; // direct neighbour on scene line
+				break;
+			}
+		}
+
+		if (breaks_line) {
+			total_a *= 60;
+			total_a = MAX(total_a, 60.0);
+		} else {
+			// Calculate angle penalty.
+			const Vector3i &v0 = data.verts[b.seam_neighbour_verts[0]].position;
+			const Vector3i &v1 = data.verts[b.seam_neighbour_verts[1]].position;
+
+			double area_before = b.position.calculate_triangle_area(v0, v1);
+			double area_after = a.position.calculate_triangle_area(v0, v1);
+
+			double change = Math::absd(area_after - area_before);
+			total_a += change;
+		}
 	}
 
 	if (total_a < total_b) {
@@ -950,17 +875,24 @@ void MeshSimplify::_evaluate_edge_collapse(uint32_t p_edge_id) {
 	// ==========================================
 	// UV SEAM AND VISUAL SILHOUETTE PROTECTOR
 	// ==========================================
+#if 0
 	if (edge.is_seam_or_boundary) {
 		// Apply a massive penalty multiplier to the final cost.
 		// This forces the queue to decimate flat, internal areas completely
 		// before it even considers altering a UV boundary.
 		edge.cost *= 1000;
+		edge.cost = MAX(edge.cost, 1000.0);
 
 		// OPTIONAL STRICT PROTECTION EXTRA:
 		// If you want to absolutely guarantee that UV borders never distort their shape,
 		// you can flag an edge as completely non-collapsable if it crosses distinct islands,
 		// or freeze its cost to a fixed value.
 	}
+#endif
+
+#ifdef MESH_SIMPLIFY_DEBUG_LOGGING
+	print_line("\tevaluating edge " + itos(edge.get_collapse_from()) + " to " + itos(edge.vertex_to_collapse_to) + " ... cost " + itos(edge.get_readable_cost()));
+#endif
 }
 
 void MeshSimplify::_detect_seam_edges() {
@@ -1002,6 +934,11 @@ void MeshSimplify::_detect_seam_edges() {
 		if (e.is_seam_or_boundary) {
 			data.verts[e.a].is_seam_or_boundary = true;
 			data.verts[e.b].is_seam_or_boundary = true;
+
+			if (e.triangle_count == 1) {
+				data.verts[e.a].seam_neighbour_verts.push_back(e.b);
+				data.verts[e.b].seam_neighbour_verts.push_back(e.a);
+			}
 		}
 
 #ifdef MESH_SIMPLIFY_DEBUG_LOGGING
