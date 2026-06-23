@@ -293,11 +293,11 @@ bool MeshSimplify::simplify_mesh() {
 		queue.push(e);
 	}
 
-#if 0
+	//#if 0
 	uint32_t current_triangle_count = data.tris.size();
 	uint32_t before_triangle_count = current_triangle_count;
 
-	uint32_t target = before_triangle_count * 3 / 5; // adjust as needed (e.g. / 2, / 8, etc.)
+	uint32_t target = before_triangle_count / 2; // adjust as needed (e.g. / 2, / 8, etc.)
 
 	while (current_triangle_count > target && !queue.empty()) {
 		SortedEdge se = queue.top();
@@ -307,14 +307,17 @@ bool MeshSimplify::simplify_mesh() {
 			continue;
 
 		Edge &edge = data.edges[se.edge_id];
+
 		if (!edge.active || se.version != edge.version || se.cost != edge.cost)
 			continue;
 		if (!data.verts[edge.a].active || !data.verts[edge.b].active)
 			continue;
 
 		// Disallow collapsing edges for now.
-		if (edge.is_seam_or_boundary)
+		if (edge.is_seam_or_boundary) {
+			edge.active = false;
 			continue;
+		}
 
 		uint32_t kept = edge.vertex_to_collapse_to;
 		uint32_t deleted = (kept == edge.a ? edge.b : edge.a);
@@ -325,41 +328,71 @@ bool MeshSimplify::simplify_mesh() {
 			continue;
 		}
 
+		//			if (edge.is_seam_or_boundary) {
+		//				print_line("WARNING: Collapsing seam/boundary edge " + itos(e_idx) + "!");
+		//			}
+
+#ifdef MESH_SIMPLIFY_DEBUG_LOGGING
+		String sz = "collapsing edge " + itos(se.edge_id) + " : " + itos(edge.a) + " to " + itos(edge.b);
+		if (edge.is_seam_or_boundary) {
+			sz += "\tSEAM";
+		}
+		MS_LOG(sz);
+#endif
+
 		// Collapse to one of the original endpoints only
-		data.verts[kept].Q = data.verts[kept].Q + data.verts[deleted].Q;
-		data.verts[deleted].active = false;
+		Vert &kept_vert = data.verts[kept];
+		Vert &deleted_vert = data.verts[deleted];
+
+		kept_vert.Q = kept_vert.Q + deleted_vert.Q;
+		deleted_vert.active = false;
 		edge.active = false;
 
+		// IMPORTANT: Deactivate ALL edges connected to the deleted vertex
+		for (uint32_t n = 0; n < deleted_vert.edges.size(); n++) {
+			uint32_t e_idx = deleted_vert.edges[n];
+			data.edges[e_idx].active = false;
+		}
+
 		// Update triangles
+		// BULLETPROOF TRIANGLE RESTITCHING
 		for (uint32_t n = 0; n < data.tris.size(); n++) {
 			Tri &t = data.tris[n];
 			if (!t.active)
 				continue;
 
-			bool has_kept = false;
-			bool has_deleted = false;
+			bool modified = false;
+			int kept_count = 0;
 
 			for (int i = 0; i < 3; i++) {
+				if (t.corn[i] == deleted) {
+					t.corn[i] = kept;
+					modified = true;
+				}
 				if (t.corn[i] == kept)
-					has_kept = true;
-				if (t.corn[i] == deleted)
-					has_deleted = true;
+					kept_count++;
 			}
 
-			if (has_kept && has_deleted) {
-				t.active = false;
-				current_triangle_count--;
-				continue;
-			}
-
-			if (has_deleted) {
-				for (int i = 0; i < 3; i++) {
-					if (t.corn[i] == deleted) {
-						t.corn[i] = kept;
-					}
+			if (modified) {
+				// Remove if degenerate or invalid
+				if (kept_count > 1 || _is_triangle_degenerate(t.corn)) {
+					t.active = false;
+					current_triangle_count--;
 				}
 			}
 		}
+
+		// Rebuild adjacency for kept vertex safely
+		data.verts[kept].edges.clear();
+		for (uint32_t e = 0; e < data.edges.size(); ++e) {
+			Edge &edge = data.edges[e];
+			if (edge.active && (edge.a == kept || edge.b == kept)) {
+				data.verts[kept].edges.push_back(e);
+			}
+		}
+
+		// ... after triangle update and adjacency rebuild ...
+		_validate_and_rebuild();
 
 		// Re-evaluate edges connected to the kept vertex
 		const LocalVector<uint32_t> &connected = data.verts[kept].edges;
@@ -390,8 +423,9 @@ bool MeshSimplify::simplify_mesh() {
 		}
 #endif
 	}
-#endif
+	//#endif
 
+#if GREEDY_METHOD
 	// === MULTI-PASS GREEDY SIMPLIFICATION ===
 	uint32_t current_triangle_count = data.tris.size();
 	uint32_t before_triangle_count = current_triangle_count;
@@ -484,7 +518,7 @@ bool MeshSimplify::simplify_mesh() {
 			//					"), Deleted pos: (" + itos(pdel.x) + "," + itos(pdel.y) + "," + itos(pdel.z) + ")");
 
 			// Perform collapse
-			Vert &kept_vert = data.verts[deleted];
+			Vert &kept_vert = data.verts[kept];
 			Vert &deleted_vert = data.verts[deleted];
 
 			kept_vert.Q = data.verts[kept].Q + data.verts[deleted].Q;
@@ -562,6 +596,7 @@ bool MeshSimplify::simplify_mesh() {
 		if (collapses_this_pass == 0)
 			break; // no more safe collapses
 	}
+#endif
 
 	// Final cleanup of any new degenerates
 	for (uint32_t n = 0; n < data.tris.size(); n++) {
