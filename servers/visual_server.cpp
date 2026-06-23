@@ -397,13 +397,8 @@ Vector3 VisualServer::oct_to_tangent(const Vector2 v, float *out_sign) {
 	return res;
 }
 
-Error VisualServer::_surface_set_data(Array p_arrays, uint32_t p_format, uint32_t *p_offsets, uint32_t *p_stride, PoolVector<uint8_t> &r_vertex_array, int p_vertex_array_len, PoolVector<uint8_t> &r_index_array, int p_index_array_len, AABB &r_aabb, Vector<AABB> &r_bone_aabb) {
+Error VisualServer::_surface_set_data(Array p_arrays, uint32_t p_format, uint32_t *p_offsets, uint32_t *p_stride, PoolVector<uint8_t> &r_vertex_array, int p_vertex_array_len, PoolVector<uint8_t> &r_index_array, int &r_index_array_len, AABB &r_aabb, Vector<AABB> &r_bone_aabb) {
 	PoolVector<uint8_t>::Write vw = r_vertex_array.write();
-
-	PoolVector<uint8_t>::Write iw;
-	if (r_index_array.size()) {
-		iw = r_index_array.write();
-	}
 
 	int max_bone = 0;
 
@@ -441,12 +436,12 @@ Error VisualServer::_surface_set_data(Array p_arrays, uint32_t p_format, uint32_
 					simplifier.declare_uv2s(array);
 				} break;
 				case VS::ARRAY_INDEX: {
-					ERR_FAIL_COND_V(p_index_array_len <= 0, ERR_INVALID_DATA);
+					ERR_FAIL_COND_V(r_index_array_len <= 0, ERR_INVALID_DATA);
 					ERR_FAIL_COND_V(p_arrays[ai].get_type() != Variant::POOL_INT_ARRAY, ERR_INVALID_PARAMETER);
 
 					PoolVector<int> indices = p_arrays[ai];
 					ERR_FAIL_COND_V(indices.size() == 0, ERR_INVALID_PARAMETER);
-					ERR_FAIL_COND_V(indices.size() != p_index_array_len, ERR_INVALID_PARAMETER);
+					ERR_FAIL_COND_V(indices.size() != r_index_array_len, ERR_INVALID_PARAMETER);
 
 					simplifier.declare_indices(indices);
 				} break;
@@ -466,11 +461,28 @@ Error VisualServer::_surface_set_data(Array p_arrays, uint32_t p_format, uint32_
 				indices.set(n, new_inds[n]);
 			}
 
+			p_arrays[VS::ARRAY_INDEX] = Variant();
 			p_arrays[VS::ARRAY_INDEX] = indices;
-			p_index_array_len = indices.size();
+			r_index_array_len = indices.size();
+
+			// Resize the returned index array to the smaller size.
+			int index_array_size = p_offsets[VS::ARRAY_INDEX] * r_index_array_len;
+			r_index_array.resize(index_array_size);
+
+#if 0
+			print_line("visual server inds:\n");
+			for (uint32_t n = 0; n < indices.size(); n++) {
+				print_line(itos(indices[n]));
+			}
+#endif
 		}
 	} // if using CLOD
 	////////////////////////////////////////////////////////////////////////
+
+	PoolVector<uint8_t>::Write iw;
+	if (r_index_array.size()) {
+		iw = r_index_array.write();
+	}
 
 	for (int ai = 0; ai < VS::ARRAY_MAX; ai++) {
 		if (!(p_format & (1 << ai))) { // no array
@@ -828,12 +840,12 @@ Error VisualServer::_surface_set_data(Array p_arrays, uint32_t p_format, uint32_
 
 			} break;
 			case VS::ARRAY_INDEX: {
-				ERR_FAIL_COND_V(p_index_array_len <= 0, ERR_INVALID_DATA);
+				ERR_FAIL_COND_V(r_index_array_len <= 0, ERR_INVALID_DATA);
 				ERR_FAIL_COND_V(p_arrays[ai].get_type() != Variant::POOL_INT_ARRAY, ERR_INVALID_PARAMETER);
 
 				PoolVector<int> indices = p_arrays[ai];
 				ERR_FAIL_COND_V(indices.size() == 0, ERR_INVALID_PARAMETER);
-				ERR_FAIL_COND_V(indices.size() != p_index_array_len, ERR_INVALID_PARAMETER);
+				ERR_FAIL_COND_V(indices.size() != r_index_array_len, ERR_INVALID_PARAMETER);
 
 				// Vertex cache optimization?
 				if (p_format & ARRAY_FLAG_USE_VERTEX_CACHE_OPTIMIZATION) {
@@ -848,7 +860,7 @@ Error VisualServer::_surface_set_data(Array p_arrays, uint32_t p_format, uint32_
 				PoolVector<int>::Read read = indices.read();
 				const int *src = read.ptr();
 
-				for (int i = 0; i < p_index_array_len; i++) {
+				for (int i = 0; i < r_index_array_len; i++) {
 					if (p_vertex_array_len < (1 << 16)) {
 						uint16_t v = src[i];
 
@@ -1396,7 +1408,8 @@ void VisualServer::mesh_add_surface_from_arrays(RID p_mesh, PrimitiveType p_prim
 		PoolVector<uint8_t> noindex;
 
 		AABB laabb;
-		Error err2 = _surface_set_data(p_blend_shapes[i], format & ~ARRAY_FORMAT_INDEX, offsets, strides, vertex_array_shape, array_len, noindex, 0, laabb, bone_aabb);
+		int index_array_count = 0;
+		Error err2 = _surface_set_data(p_blend_shapes[i], format & ~ARRAY_FORMAT_INDEX, offsets, strides, vertex_array_shape, array_len, noindex, index_array_count, laabb, bone_aabb);
 		aabb.merge_with(laabb);
 		ERR_FAIL_COND_MSG(err2 != OK, "Invalid blend shape array format for surface.");
 

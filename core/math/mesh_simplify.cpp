@@ -67,9 +67,11 @@ bool MeshSimplify::_is_triangle_degenerate_from_positions(const Vector3i p[3]) c
 
 bool MeshSimplify::_can_collapse(uint32_t kept, uint32_t deleted) const {
 	// Disallow seams for now.
+#if 0
 	if (data.verts[deleted].is_seam_or_boundary) {
 		return false;
 	}
+#endif
 
 	for (uint32_t n = 0; n < data.tris.size(); n++) {
 		const Tri &t = data.tris[n];
@@ -393,7 +395,7 @@ bool MeshSimplify::simplify_mesh() {
 	// === MULTI-PASS GREEDY SIMPLIFICATION ===
 	uint32_t current_triangle_count = data.tris.size();
 	uint32_t before_triangle_count = current_triangle_count;
-	uint32_t target = before_triangle_count * 3 / 4;
+	uint32_t target = before_triangle_count / 2;
 
 	int max_passes = 12; // safety
 
@@ -425,11 +427,12 @@ bool MeshSimplify::simplify_mesh() {
 				edge.active = false;
 				continue;
 			}
-
+#if 0
 			if (edge.is_seam_or_boundary) {
 				edge.active = false;
 				continue; // Completely skip boundary edges
 			}
+#endif
 
 			uint32_t kept = edge.vertex_to_collapse_to;
 			uint32_t deleted = (kept == edge.a ? edge.b : edge.a);
@@ -580,25 +583,34 @@ bool MeshSimplify::simplify_mesh() {
 			continue;
 
 #ifdef MESH_SIMPLIFY_DEBUG_LOGGING
-		String sz = "final tri " + itos(n) + " : " + itos(t.corn[0]) + ", " + itos(t.corn[1]) + ", " + itos(t.corn[2]);
+		String sz = "final tri " + itos(n) + " : " + itos(t.corn[0]) + ", " + itos(t.corn[1]) + ", " + itos(t.corn[2]) + " : ";
+
+		for (uint32_t i = 0; i < 3; i++) {
+			sz += String(Variant(input_data.positions[t.corn[i]])) + ", ";
+		}
+
 		MS_LOG(sz);
 #endif
-		data.output_remapped_indices[out_ind_count++] = dd.get_output_vertex_mapping_to_input_vertex(t.corn[0]);
-		data.output_remapped_indices[out_ind_count++] = dd.get_output_vertex_mapping_to_input_vertex(t.corn[1]);
-		data.output_remapped_indices[out_ind_count++] = dd.get_output_vertex_mapping_to_input_vertex(t.corn[2]);
+
+		for (uint32_t c = 0; c < 3; c++) {
+			uint32_t orig_index = dd.get_output_vertex_mapping_to_input_vertex(t.corn[c]);
+			// MS_LOG("\t" + itos(orig_index));
+			data.output_remapped_indices[out_ind_count++] = orig_index;
+		}
 	}
 
-	// Debug
-
-	print_line("simplify before_triangle_count: " + itos(before_triangle_count) + ", after_triangle_count: " + itos(current_triangle_count));
+	// TEST
 #if 0
-	for (uint32_t n=0; n< data.output_remapped_indices.size(); n++)
-	{
-		if (n > 12)
-			break;
-		print_line(itos(data.output_remapped_indices[n]));
+	LocalVector<uint32_t> temp = data.output_remapped_indices;
+	data.output_remapped_indices.resize(3);
+	const uint32_t test_tri = 0;
+	for (uint32_t n = 0; n < 3; n++) {
+		data.output_remapped_indices[n] = temp[(test_tri * 3) + n];
 	}
 #endif
+
+	// Debug
+	print_line("simplify before_triangle_count: " + itos(before_triangle_count) + ", after_triangle_count: " + itos(current_triangle_count));
 
 	return true;
 }

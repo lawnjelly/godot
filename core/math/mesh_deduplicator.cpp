@@ -156,6 +156,13 @@ bool MeshDeduplicator::process(const Span<uint32_t> &p_indices, LocalVector<uint
 									break;
 								}
 							} // for a
+
+							// Force off the deduplication
+// #define DEDUPLICATE_BYPASS
+#ifdef DEDUPLICATE_BYPASS
+							reject_merge = true;
+#endif
+
 							if (reject_merge) {
 								break;
 							}

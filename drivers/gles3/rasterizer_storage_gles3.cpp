@@ -3627,7 +3627,9 @@ void RasterizerStorageGLES3::mesh_add_surface(RID p_mesh, uint32_t p_format, VS:
 		index_array_size = attribs[VS::ARRAY_INDEX].stride * p_index_count;
 	}
 
-	ERR_FAIL_COND(p_index_array.size() != index_array_size);
+	if (p_index_array.size() != index_array_size) {
+		ERR_FAIL_COND(p_index_array.size() != index_array_size);
+	}
 
 	ERR_FAIL_COND(p_blend_shapes.size() != mesh->blend_shape_count);
 
