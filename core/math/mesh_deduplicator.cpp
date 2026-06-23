@@ -271,6 +271,7 @@ bool MeshDeduplicator::process(const Span<uint32_t> &p_indices, LocalVector<uint
 	}
 
 	print_line("Verts before " + itos(in_verts.size()) + ", after " + itos(data.out_attributes[data.position_attribute_id].vec3.size()) + ", indices " + itos(data.out_indices.size()));
+	print_line("Deduplication ratio: " + rtos((float)in_verts.size() / grid.verts.size()));
 
 	p_output_indices = data.out_indices;
 

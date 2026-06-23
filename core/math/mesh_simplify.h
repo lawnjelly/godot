@@ -39,10 +39,12 @@ class MeshSimplify {
 		Tri() {
 			for (int n = 0; n < 3; n++) {
 				corn[n] = UINT32_MAX;
+				edge_ids[n] = UINT32_MAX;
 			}
 		}
 		// corner indices
 		uint32_t corn[3];
+		uint32_t edge_ids[3];
 		bool active = true;
 
 		Plane_64 plane;
@@ -51,10 +53,14 @@ class MeshSimplify {
 	struct Edge {
 		uint32_t a = UINT32_MAX;
 		uint32_t b = UINT32_MAX;
-		double cost = 0;
 		uint32_t vertex_to_collapse_to = UINT32_MAX;
-		bool active = true;
 		uint32_t version = 0;
+
+		double cost = 0;
+		bool active = true;
+
+		bool is_seam_or_boundary = false;
+		uint32_t triangle_count = 0;
 
 		void sort() {
 			if (b > a) {
@@ -86,11 +92,20 @@ class MeshSimplify {
 		Vector3i position;
 		Quadric Q;
 
+		// Use Hughes Hoppe's version of storing UV mapping
+		// as quadrics, similar to position.
+		Quadric Qu;
+		Quadric Qv;
+
 		Vector2 uv;
 		Vector2 uv2;
 
 		// A vertex is active until it has been collapsed
 		bool active = false;
+		bool is_seam_or_boundary = false;
+
+		// Edges that use this vertex.
+		LocalVector<uint32_t> edges;
 
 		Vector3_64 pos() const {
 			return Vector3_64(position.x, position.y, position.z);
@@ -116,10 +131,13 @@ class MeshSimplify {
 	} data;
 
 	void _create_tris();
+	void _detect_seam_edges();
+
 	void _triangle_calculate_plane(uint32_t p_tri_id);
 	void _initialize_vertex_quadrics();
 	void _evaluate_edge_collapse(uint32_t p_edge_id);
 	double _compute_quadric_error(const Vector3i &p_pos, const Quadric &Q);
+	double _compute_attribute_error(const Vector3i &p_pos, double p_attr, const Quadric &Qa);
 
 	uint32_t _create_edge(uint32_t p_corn_a, uint32_t p_corn_b, uint32_t p_triangle_id);
 
@@ -128,6 +146,10 @@ class MeshSimplify {
 	//bool _can_collapse_edge(const Edge& edge) const;
 	bool _can_collapse(uint32_t kept, uint32_t deleted) const;
 	bool _is_triangle_degenerate_from_positions(const Vector3i p[3]) const;
+
+	void _validate_and_rebuild();
+
+	void _debug_log_input_data();
 
 public:
 	void declare_indices(const Span<int> &p_indices);
