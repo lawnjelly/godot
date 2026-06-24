@@ -63,14 +63,17 @@ class MeshSimplify {
 		uint32_t triangle_count = 0;
 
 		uint32_t get_collapse_from() const { return vertex_to_collapse_to == a ? b : a; }
-		//uint32_t get_readable_cost() const {return cost / 100000000;}
-		uint32_t get_readable_cost() const { return cost / 10; }
+		uint32_t get_readable_cost() const { return cost / 100000000; }
+		//uint32_t get_readable_cost() const { return cost / 10; }
 
 		String info() const;
 		void sort() {
-			if (b > a) {
+			if (a > b) {
 				SWAP(a, b);
 			}
+		}
+		void check_sorted() const {
+			DEV_ASSERT(a < b);
 		}
 		bool operator==(const Edge &p_o) const { return (a == p_o.a) && (b == p_o.b); }
 	};

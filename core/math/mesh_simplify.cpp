@@ -1,8 +1,12 @@
 #include "mesh_simplify.h"
 #include "mesh_deduplicator.h"
 
-#define MESH_SIMPLIFY_DEBUG_LOGGING
+//#define MESH_SIMPLIFY_DISALLOW_SEAMS
+#define MESH_SIMPLIFY_ONE_AT_A_TIME
 
+#define MESH_SIMPLIFY_FACTOR(a) ((a * 5) / 4)
+
+#define MESH_SIMPLIFY_DEBUG_LOGGING
 #ifdef MESH_SIMPLIFY_DEBUG_LOGGING
 #define MS_LOG(a)      \
 	do {               \
@@ -14,7 +18,7 @@
 	} while (0)
 #endif
 
-#define MESH_SIMPLIFY_TRIS_TO_REMOVE 0
+#define MESH_NUM_EDGES_TO_COLLAPSE 3
 
 String MeshSimplify::Edge::info() const {
 	return itos(get_collapse_from()) + " to " + itos(vertex_to_collapse_to);
@@ -187,6 +191,7 @@ bool MeshSimplify::_can_collapse(uint32_t kept, uint32_t deleted) const {
 }
 
 void MeshSimplify::_validate_and_rebuild() {
+#if 0
 	uint32_t active_count = 0;
 	for (uint32_t n = 0; n < data.tris.size(); n++) {
 		Tri &t = data.tris[n];
@@ -199,14 +204,15 @@ void MeshSimplify::_validate_and_rebuild() {
 		}
 		active_count++;
 	}
-	//	print_line("Validation: active tris = " + itos(active_count));
+	print_line("Validation: active tris = " + itos(active_count));
+#endif
 }
 
 void MeshSimplify::_debug_log_input_data() {
+#ifdef MESH_SIMPLIFY_DEBUG_LOGGING
 	Span<Vector3> in_verts = Span<Vector3>(input_data.positions);
 	Span<Vector2> in_uvs = Span<Vector2>(input_data.uvs);
 
-#ifdef MESH_SIMPLIFY_DEBUG_LOGGING
 	MS_LOG("IN_VERTS\n");
 	for (uint32_t n = 0; n < in_verts.size(); n++) {
 		String sz = itos(n) + " : " + String(Variant(in_verts[n]));
@@ -336,13 +342,17 @@ bool MeshSimplify::simplify_mesh() {
 	uint32_t current_triangle_count = data.tris.size();
 	uint32_t before_triangle_count = current_triangle_count;
 
-	uint32_t target = before_triangle_count / 8; // adjust as needed (e.g. / 2, / 8, etc.)
+	//uint32_t target = before_triangle_count * 2 / 3;
+	//uint32_t target = before_triangle_count /4;
+	uint32_t target = MESH_SIMPLIFY_FACTOR(before_triangle_count);
 
-	if (MESH_SIMPLIFY_TRIS_TO_REMOVE != 0) {
-		target = before_triangle_count - MESH_SIMPLIFY_TRIS_TO_REMOVE;
+	uint32_t edges_to_collapse = UINT32_MAX;
+	if (MESH_NUM_EDGES_TO_COLLAPSE != 0) {
+		edges_to_collapse = MESH_NUM_EDGES_TO_COLLAPSE;
+		target = 1;
 	}
 
-	while (current_triangle_count > target && !queue.empty()) {
+	while ((current_triangle_count > target && !queue.empty()) && current_triangle_count > 1) {
 		SortedEdge se = queue.top();
 		queue.pop();
 
@@ -356,16 +366,20 @@ bool MeshSimplify::simplify_mesh() {
 		if (!data.verts[edge.a].active || !data.verts[edge.b].active)
 			continue;
 
-			// Disallow collapsing edges for now.
-#if 0
-		if (edge.is_seam_or_boundary) {
+		uint32_t kept = edge.vertex_to_collapse_to;
+		uint32_t deleted = (kept == edge.a ? edge.b : edge.a);
+
+		// Collapse to one of the original endpoints only
+		Vert &kept_vert = data.verts[kept];
+		Vert &deleted_vert = data.verts[deleted];
+
+		// Disallow collapsing edges for now.
+#ifdef MESH_SIMPLIFY_DISALLOW_SEAMS
+		if (deleted_vert.is_seam_or_boundary) {
 			edge.active = false;
 			continue;
 		}
 #endif
-
-		uint32_t kept = edge.vertex_to_collapse_to;
-		uint32_t deleted = (kept == edge.a ? edge.b : edge.a);
 
 		// Strong safety check - this is the main fix for bad visuals on the shark
 		if (!_can_collapse(kept, deleted)) {
@@ -386,18 +400,45 @@ bool MeshSimplify::simplify_mesh() {
 		MS_LOG(sz);
 #endif
 
-		// Collapse to one of the original endpoints only
-		Vert &kept_vert = data.verts[kept];
-		Vert &deleted_vert = data.verts[deleted];
+#ifdef DEV_ENABLED
+		// Evaluate once more to allow us to debug through (don't do on release, this is just to see what is happening).
+		_evaluate_edge_collapse(se.edge_id);
+#endif
 
 		kept_vert.Q = kept_vert.Q + deleted_vert.Q;
 		deleted_vert.active = false;
 		edge.active = false;
 
+#if 0
 		// IMPORTANT: Deactivate ALL edges connected to the deleted vertex
 		for (uint32_t n = 0; n < deleted_vert.edges.size(); n++) {
 			uint32_t e_idx = deleted_vert.edges[n];
 			data.edges[e_idx].active = false;
+		}
+#endif
+
+		// Do NOT deactivate all edges of deleted vertex blindly.
+		// Instead, update the ones that should survive (those connected to kept)
+		for (uint32_t n = 0; n < deleted_vert.edges.size(); n++) {
+			uint32_t e_idx = deleted_vert.edges[n];
+			Edge &ed = data.edges[e_idx];
+			if (!ed.active)
+				continue;
+
+			// Update edge to point to kept instead of deleted
+			if (ed.a == deleted) {
+				ed.a = kept;
+				ed.sort();
+			}
+			if (ed.b == deleted) {
+				ed.b = kept;
+				ed.sort();
+			}
+
+			// Remove invalid edges.
+			if (ed.a == ed.b) {
+				ed.active = false;
+			}
 		}
 
 		// Update triangles
@@ -428,33 +469,58 @@ bool MeshSimplify::simplify_mesh() {
 			}
 		}
 
+#if 0
 		// Rebuild adjacency for kept vertex safely
 		data.verts[kept].edges.clear();
 		for (uint32_t e = 0; e < data.edges.size(); ++e) {
 			Edge &edge = data.edges[e];
+
 			if (edge.active && (edge.a == kept || edge.b == kept)) {
 				data.verts[kept].edges.push_back(e);
+
+				_evaluate_edge_collapse(e);
+				edge.version++;
+				queue.push(SortedEdge(e, edge.cost, edge.version));
 			}
+		}
+#endif
+
+		// Re-evaluate edges connected to the kept vertex
+		data.verts[kept].edges.clear();
+
+		for (uint32_t e = 0; e < data.edges.size(); ++e) {
+			Edge &edge = data.edges[e];
+			if (!edge.active)
+				continue;
+
+			// This will be slow debug check, could be done outside loop maybe...
+			edge.check_sorted();
+
+			if (edge.a != kept && edge.b != kept)
+				continue;
+
+			// Avoid duplicates
+			bool already_present = false;
+			for (uint32_t k = 0; k < data.verts[kept].edges.size(); k++) {
+				uint32_t edge2_id = data.verts[kept].edges[k];
+				const Edge &edge2 = data.edges[edge2_id];
+				if (edge2 == edge) {
+					already_present = true;
+					break;
+				}
+			}
+			if (already_present)
+				continue;
+
+			data.verts[kept].edges.push_back(e);
+			_evaluate_edge_collapse(e);
+			edge.version++;
+			queue.push(SortedEdge(e, edge.cost, edge.version));
 		}
 
 		// ... after triangle update and adjacency rebuild ...
-		_validate_and_rebuild();
+		//_validate_and_rebuild();
 
-		// Re-evaluate edges connected to the kept vertex
-		const LocalVector<uint32_t> &connected = data.verts[kept].edges;
-		for (uint32_t n = 0; n < connected.size(); n++) {
-			uint32_t e_idx = connected[n];
-
-			Edge &e = data.edges[e_idx];
-			if (!e.active)
-				continue;
-			if (e.a != kept && e.b != kept)
-				continue; // safety
-
-			_evaluate_edge_collapse(e_idx);
-			e.version++;
-			queue.push(SortedEdge(e_idx, e.cost, e.version));
-		}
 #if 0	
 		// Re-evaluate edges connected to the kept vertex
 		for (uint32_t n = 0; n < data.edges.size(); n++) {
@@ -468,6 +534,15 @@ bool MeshSimplify::simplify_mesh() {
 			}
 		}
 #endif
+
+#ifdef MESH_SIMPLIFY_ONE_AT_A_TIME
+		break;
+#endif
+
+		edges_to_collapse--;
+		if (edges_to_collapse <= 0) {
+			break;
+		}
 	}
 
 	// Final cleanup of any new degenerates
@@ -490,6 +565,7 @@ bool MeshSimplify::simplify_mesh() {
 			continue;
 
 #ifdef MESH_SIMPLIFY_DEBUG_LOGGING
+#if 0
 		String sz = "final tri " + itos(n) + " : " + itos(t.corn[0]) + ", " + itos(t.corn[1]) + ", " + itos(t.corn[2]) + " : ";
 
 		for (uint32_t i = 0; i < 3; i++) {
@@ -497,6 +573,7 @@ bool MeshSimplify::simplify_mesh() {
 		}
 
 		MS_LOG(sz);
+#endif
 #endif
 
 		for (uint32_t c = 0; c < 3; c++) {
@@ -857,9 +934,9 @@ void MeshSimplify::_evaluate_edge_collapse(uint32_t p_edge_id) {
 			const Vector3i &v1 = data.verts[b.seam_neighbour_verts[1]].position;
 
 			double area_before = b.position.calculate_triangle_area(v0, v1);
-			double area_after = a.position.calculate_triangle_area(v0, v1);
+			//double area_after = a.position.calculate_triangle_area(v0, v1);
 
-			double change = Math::absd(area_after - area_before);
+			double change = Math::absd(area_before);
 			total_a += change;
 		}
 	}
