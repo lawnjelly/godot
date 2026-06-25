@@ -2,9 +2,9 @@
 #include "mesh_deduplicator.h"
 
 //#define MESH_SIMPLIFY_DISALLOW_SEAMS
-#define MESH_SIMPLIFY_ONE_AT_A_TIME
+//#define MESH_SIMPLIFY_ONE_AT_A_TIME
 
-#define MESH_SIMPLIFY_FACTOR(a) ((a * 5) / 4)
+#define MESH_SIMPLIFY_FACTOR(a) ((a * 4) / 5)
 
 #define MESH_SIMPLIFY_DEBUG_LOGGING
 #ifdef MESH_SIMPLIFY_DEBUG_LOGGING
@@ -18,7 +18,7 @@
 	} while (0)
 #endif
 
-#define MESH_NUM_EDGES_TO_COLLAPSE 3
+#define MESH_NUM_EDGES_TO_COLLAPSE 9
 
 String MeshSimplify::Edge::info() const {
 	return itos(get_collapse_from()) + " to " + itos(vertex_to_collapse_to);
@@ -693,6 +693,126 @@ void MeshSimplify::_triangle_calculate_plane(uint32_t p_tri_id) {
 	tri.plane = Plane_64(p0.pos(), p1.pos(), p2.pos());
 }
 
+void MeshSimplify::_test_quadrics() {
+	print_line("=== QUADRIC UNIT TEST ===");
+
+	// Create a simple flat triangle
+	Vector3_64 p0(0, 0, 0);
+	Vector3_64 p1(1, 0, 0);
+	Vector3_64 p2(0, 1, 0);
+
+	Vector3_64 p3(0, 0, 1);
+	Vector3_64 p4(1, 0, 1);
+	Vector3_64 p5(0, 1, 1);
+
+	// Test two orientations
+	Plane_64 plane1(p0, p1, p2);
+	Plane_64 plane2(p0, p2, p1); // reversed winding
+	Plane_64 plane3(p3, p4, p5);
+
+	print_line("Distance from p3 to plane3: " + rtos(plane3.normal.dot(p3) + plane3.d));
+	print_line("Distance from p4 to plane3: " + rtos(plane3.normal.dot(p4) + plane3.d));
+	print_line("Distance from p5 to plane3: " + rtos(plane3.normal.dot(p5) + plane3.d));
+
+	print_line("Plane1: " + String(Variant(plane1.normal)) + " d=" + rtos(plane1.d));
+	print_line("Plane2: " + String(Variant(plane2.normal)) + " d=" + rtos(plane2.d));
+	print_line("Plane3: " + String(Variant(plane3.normal)) + " d=" + rtos(plane3.d));
+
+	// Build Kp for both
+	Quadric Kp1(plane1);
+	Quadric Kp2(plane2);
+	Quadric Kp3(plane3);
+
+	// Evaluate at a point on the plane
+	Vector3i test_pos(0, 0, 0);
+	Vector3i test_pos3(0, 0, 1); // on plane3
+
+	print_line("d = " + rtos(plane3.d) + ", Kp3[3][3] = " + rtos(Kp3.m[3][3]));
+	Vector3_64 test_p(test_pos3.x, test_pos3.y, test_pos3.z);
+	print_line("test point dot normal + d = " + rtos(plane3.normal.dot(test_p) + plane3.d));
+
+	double error1 = _compute_quadric_error(test_pos, Kp1);
+	double error2 = _compute_quadric_error(test_pos, Kp2);
+	double error3 = _compute_quadric_error(test_pos3, Kp3);
+
+	print_line("Error at point for plane1: " + rtos(error1));
+	print_line("Error at point for plane2: " + rtos(error2));
+	print_line("Error at point for plane3: " + rtos(error3));
+
+	// The errors should be near zero for points on the plane
+	if (Math::abs(error1) > 1e-5 || Math::abs(error2) > 1e-5 || Math::abs(error3) > 1e-5) {
+		print_line("WARNING: Quadric error not zero on plane!");
+	}
+}
+
+#if 0
+bool MeshSimplify::Quadric::calculate_from_positions(const Vector3_64 &p0, const Vector3_64 &p1, const Vector3_64 &p2, const Plane_64 &p_plane) {
+	// Calculate face area and normal vector
+	Vector3_64 edge1 = p1 - p0;
+	Vector3_64 edge2 = p2 - p0;
+	Vector3_64 cross = edge1.cross(edge2);
+	double normal_length = cross.length();
+
+	// Avoid processing degenerate, flat triangles
+	if (normal_length < 1e-7) {
+		return false;
+	}
+
+	//Vector3_64 normal = cross / normal_length;
+
+#if 0
+	double area = 0.5 * normal_length;
+	  // In _triangle_calculate_plane or when building Kp:
+		double area = 0.5 * (p1.pos() - p0.pos()).cross(p2.pos() - p0.pos()).length(); // or use unnormalized for speed
+		// Then scale Kp by area before adding.
+#endif
+
+	// 1. STANDARD POSITION GEOMETRY QUADRIC
+	// Create the fundamental error matrix Kp = p * p^T
+	Quadric Kp;
+	for (int i = 0; i < 4; ++i) {
+		for (int j = 0; j < 4; ++j) {
+			Kp.m[i][j] = p_plane.coord[i] * p_plane.coord[j];
+		}
+	}
+
+	return true;
+}
+#endif
+
+MeshSimplify::Quadric::Quadric(const Plane_64 &p_plane) {
+	// 1. STANDARD POSITION GEOMETRY QUADRIC
+	// Beware - the standard Garland Quadric assumes planes pass through the origin,
+	// whereas ours pass through the triangle.
+	// We need  to account for this and use non-standard math here.
+
+	// Kp for plane ax + by + cz + d = 0
+	double a = p_plane.normal.x;
+	double b = p_plane.normal.y;
+	double c = p_plane.normal.z;
+	double d = -p_plane.d; // FLIP THE SIGN, Garland expects plane in reverse polarity to Godot standard.
+
+	m[0][0] = a * a;
+	m[0][1] = a * b;
+	m[0][2] = a * c;
+	m[0][3] = a * d;
+
+	m[1][0] = a * b;
+	m[1][1] = b * b;
+	m[1][2] = b * c;
+	m[1][3] = b * d;
+
+	m[2][0] = a * c;
+	m[2][1] = b * c;
+	m[2][2] = c * c;
+	m[2][3] = c * d;
+
+	m[3][0] = a * d;
+	m[3][1] = b * d;
+	m[3][2] = c * d;
+	m[3][3] = d * d;
+}
+
 void MeshSimplify::_initialize_vertex_quadrics() {
 	// Step A: Calculate the quadric matrix for every triangle plane
 	for (uint32_t n = 0; n < data.tris.size(); n++) {
@@ -720,7 +840,6 @@ void MeshSimplify::_initialize_vertex_quadrics() {
 			continue;
 		}
 		double area = 0.5 * normal_length;
-		Vector3_64 normal = cross / normal_length;
 
 #if 0
 		// In _triangle_calculate_plane or when building Kp:
@@ -729,15 +848,10 @@ void MeshSimplify::_initialize_vertex_quadrics() {
 #endif
 
 		// 1. STANDARD POSITION GEOMETRY QUADRIC
-		// Create the fundamental error matrix Kp = p * p^T
-		Quadric Kp;
-		for (int i = 0; i < 4; ++i) {
-			for (int j = 0; j < 4; ++j) {
-				Kp.m[i][j] = t.plane.coord[i] * t.plane.coord[j];
-			}
-		}
+		Quadric Kp(t.plane);
 
 		// 2. TEXTURE ATTRIBUTE QUADRICS (Hoppe's Framework)
+		Vector3_64 normal = cross / normal_length;
 		double base_matrix[4][4] = {
 			{ p0.x, p0.y, p0.z, 1.0 },
 			{ p1.x, p1.y, p1.z, 1.0 },
@@ -801,8 +915,17 @@ void MeshSimplify::_initialize_vertex_quadrics() {
 			v.Q = v.Q + Kp;
 			v.Qu = v.Qu + Qu;
 			v.Qv = v.Qv + Qv;
+
+			// === DIAGNOSTIC ===
+			if (true) {
+				//if (t.corn[i] == 0 || t.corn[i] == 1 || t.corn[i] == 2) {  // change to vertices you care about
+				double self_error = _compute_quadric_error(v.position, v.Q);
+				print_line("Vert " + itos(t.corn[i]) + " self-error after tri " + itos(n) + ": " + rtos(self_error));
+			}
 		}
 	}
+
+	_test_quadrics();
 }
 
 // Evaluates the error equation: v^T * Q * v
@@ -873,11 +996,13 @@ void MeshSimplify::_evaluate_edge_collapse(uint32_t p_edge_id) {
 
 	// Only compute if UVs exist
 	if (input_data.uvs.size()) { // were these declared?
+#if 0
 		attr_a += _compute_attribute_error(a.position, a.uv.x, Qu_new);
 		attr_a += _compute_attribute_error(a.position, a.uv.y, Qv_new);
 
 		attr_b += _compute_attribute_error(b.position, b.uv.x, Qu_new);
 		attr_b += _compute_attribute_error(b.position, b.uv.y, Qv_new);
+#endif
 	}
 
 	double total_a = distance_cost + geom_cost_a + beta * attr_a;
@@ -896,8 +1021,6 @@ void MeshSimplify::_evaluate_edge_collapse(uint32_t p_edge_id) {
 					break;
 				}
 			}
-		} else {
-			breaks_line = false;
 		}
 
 		if (breaks_line) {
@@ -905,6 +1028,7 @@ void MeshSimplify::_evaluate_edge_collapse(uint32_t p_edge_id) {
 			total_b = MAX(total_b, 60.0);
 		} else {
 			// Calculate angle penalty.
+			DEV_ASSERT(a.seam_neighbour_verts.size() == 2);
 			const Vector3i &v0 = data.verts[a.seam_neighbour_verts[0]].position;
 			const Vector3i &v1 = data.verts[a.seam_neighbour_verts[1]].position;
 
@@ -918,10 +1042,13 @@ void MeshSimplify::_evaluate_edge_collapse(uint32_t p_edge_id) {
 	}
 	if (b.is_seam_or_boundary) {
 		bool breaks_line = true;
-		for (uint32_t n = 0; n < b.seam_neighbour_verts.size(); n++) {
-			if (b.seam_neighbour_verts[n] == edge.a) {
-				breaks_line = false; // direct neighbour on scene line
-				break;
+
+		if (b.seam_neighbour_verts.size() == 2) {
+			for (uint32_t n = 0; n < b.seam_neighbour_verts.size(); n++) {
+				if (b.seam_neighbour_verts[n] == edge.a) {
+					breaks_line = false; // direct neighbour on scene line
+					break;
+				}
 			}
 		}
 
@@ -930,6 +1057,7 @@ void MeshSimplify::_evaluate_edge_collapse(uint32_t p_edge_id) {
 			total_a = MAX(total_a, 60.0);
 		} else {
 			// Calculate angle penalty.
+			DEV_ASSERT(b.seam_neighbour_verts.size() == 2);
 			const Vector3i &v0 = data.verts[b.seam_neighbour_verts[0]].position;
 			const Vector3i &v1 = data.verts[b.seam_neighbour_verts[1]].position;
 
@@ -941,12 +1069,21 @@ void MeshSimplify::_evaluate_edge_collapse(uint32_t p_edge_id) {
 		}
 	}
 
+#ifdef MESH_SIMPLIFY_DEBUG_LOGGING
+	double from_cost = 0;
+#endif
 	if (total_a < total_b) {
 		edge.vertex_to_collapse_to = edge.a;
 		edge.cost = total_a;
+#ifdef MESH_SIMPLIFY_DEBUG_LOGGING
+		from_cost = total_b;
+#endif
 	} else {
 		edge.vertex_to_collapse_to = edge.b;
 		edge.cost = total_b;
+#ifdef MESH_SIMPLIFY_DEBUG_LOGGING
+		from_cost = total_a;
+#endif
 	}
 
 	// ==========================================
@@ -968,7 +1105,7 @@ void MeshSimplify::_evaluate_edge_collapse(uint32_t p_edge_id) {
 #endif
 
 #ifdef MESH_SIMPLIFY_DEBUG_LOGGING
-	print_line("\tevaluating edge " + itos(edge.get_collapse_from()) + " to " + itos(edge.vertex_to_collapse_to) + " ... cost " + itos(edge.get_readable_cost()));
+	print_line("\tevaluating edge " + itos(edge.get_collapse_from()) + " to " + itos(edge.vertex_to_collapse_to) + " ... cost " + itos(edge.get_readable_cost()) + " .. from cost " + itos(edge.translate_readable_cost(from_cost)));
 #endif
 }
 
@@ -1084,9 +1221,9 @@ void MeshSimplify::_create_tris() {
 	}
 
 	// Reserve capacity to prevent reallocations that could invalidate references later
-	for (uint32_t i = 0; i < data.verts.size(); ++i) {
-		data.verts[i].edges.reserve(16); // typical valence for manifold meshes
-	}
+	//	for (uint32_t i = 0; i < data.verts.size(); ++i) {
+	//		data.verts[i].edges.reserve(16); // typical valence for manifold meshes
+	//	}
 
 	if (valid_tri_count) {
 		print_line("Simplify valid tris " + itos(valid_tri_count) + ", degenerate " + itos(num_orig_tris - valid_tri_count));

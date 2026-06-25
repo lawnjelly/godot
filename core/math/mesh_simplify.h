@@ -13,6 +13,10 @@ class MeshSimplify {
 	struct Quadric {
 		double m[4][4] = {}; // Initialized to all zeros
 
+		//bool calculate_from_positions(const Vector3_64 &p0, const Vector3_64 &p1, const Vector3_64 &p2, const Plane_64 &p_plane);
+		Quadric(const Plane_64 &p_plane);
+		Quadric() = default;
+
 		// Add two quadric matrices together
 		Quadric operator+(const Quadric &other) const {
 			Quadric res;
@@ -63,8 +67,9 @@ class MeshSimplify {
 		uint32_t triangle_count = 0;
 
 		uint32_t get_collapse_from() const { return vertex_to_collapse_to == a ? b : a; }
-		uint32_t get_readable_cost() const { return cost / 100000000; }
-		//uint32_t get_readable_cost() const { return cost / 10; }
+
+		uint32_t translate_readable_cost(double p_cost) const { return p_cost / 100000000; }
+		uint32_t get_readable_cost() const { return translate_readable_cost(cost); }
 
 		String info() const;
 		void sort() {
@@ -143,7 +148,10 @@ class MeshSimplify {
 	void _detect_seam_edges();
 
 	void _triangle_calculate_plane(uint32_t p_tri_id);
+
 	void _initialize_vertex_quadrics();
+	void _test_quadrics();
+
 	void _evaluate_edge_collapse(uint32_t p_edge_id);
 	double _compute_quadric_error(const Vector3i &p_pos, const Quadric &Q);
 	double _compute_attribute_error(const Vector3i &p_pos, double p_attr, const Quadric &Qa);
