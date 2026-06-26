@@ -194,6 +194,12 @@ T *_nullptr() {
 #define SGN(m_v) (((m_v) < 0) ? (-1.0f) : (+1.0f))
 #endif
 
+#undef SIGN
+template <typename T>
+constexpr const T SIGN(const T m_v) {
+	return m_v > 0 ? +1.0f : (m_v < 0 ? -1.0f : 0.0f);
+}
+
 #ifndef MIN
 #define MIN(m_a, m_b) (((m_a) < (m_b)) ? (m_a) : (m_b))
 #endif

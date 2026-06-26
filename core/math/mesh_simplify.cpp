@@ -745,40 +745,40 @@ void MeshSimplify::_test_quadrics() {
 	}
 }
 
-#if 0
-bool MeshSimplify::Quadric::calculate_from_positions(const Vector3_64 &p0, const Vector3_64 &p1, const Vector3_64 &p2, const Plane_64 &p_plane) {
-	// Calculate face area and normal vector
+void MeshSimplify::_test_attribute_quadrics() {
+	print_line("=== ATTRIBUTE QUADRIC UNIT TEST (Gradient) ===");
+
+	Vector3_64 p0(0, 0, 0);
+	Vector3_64 p1(1, 0, 0);
+	Vector3_64 p2(0, 1, 0);
+
+	// UVs chosen so u = x + 5 exactly
+	double u0 = 5.0, u1 = 6.0, u2 = 5.0;
+
 	Vector3_64 edge1 = p1 - p0;
 	Vector3_64 edge2 = p2 - p0;
 	Vector3_64 cross = edge1.cross(edge2);
 	double normal_length = cross.length();
+	Vector3_64 normal = cross / normal_length;
 
-	// Avoid processing degenerate, flat triangles
-	if (normal_length < 1e-7) {
-		return false;
+	Vector4_64 gradient = _solve_attribute_gradient(p0, p1, p2, normal, u0, u1, u2);
+
+	print_line("Solved gradient = [" + rtos(gradient.x) + ", " + rtos(gradient.y) + ", " + rtos(gradient.z) + "], c = " + rtos(gradient.w));
+
+	Vector3i test_pos(1, 0, 0); // should have UV = 6.0
+
+	double err_correct = _compute_attribute_error(test_pos, 6.0, gradient);
+	double err_wrong = _compute_attribute_error(test_pos, 60.0, gradient);
+
+	print_line("Error with CORRECT target (6.0): " + rtos(err_correct));
+	print_line("Error with WRONG target (60.0):   " + rtos(err_wrong));
+
+	if (Math::abs(err_correct) < 1e-5) {
+		print_line("SUCCESS: Attribute error ~0 for matching target.");
+	} else {
+		print_line("WARNING: Attribute error NOT zero!");
 	}
-
-	//Vector3_64 normal = cross / normal_length;
-
-#if 0
-	double area = 0.5 * normal_length;
-	  // In _triangle_calculate_plane or when building Kp:
-		double area = 0.5 * (p1.pos() - p0.pos()).cross(p2.pos() - p0.pos()).length(); // or use unnormalized for speed
-		// Then scale Kp by area before adding.
-#endif
-
-	// 1. STANDARD POSITION GEOMETRY QUADRIC
-	// Create the fundamental error matrix Kp = p * p^T
-	Quadric Kp;
-	for (int i = 0; i < 4; ++i) {
-		for (int j = 0; j < 4; ++j) {
-			Kp.m[i][j] = p_plane.coord[i] * p_plane.coord[j];
-		}
-	}
-
-	return true;
 }
-#endif
 
 MeshSimplify::Quadric::Quadric(const Plane_64 &p_plane) {
 	// 1. STANDARD POSITION GEOMETRY QUADRIC
@@ -813,6 +813,44 @@ MeshSimplify::Quadric::Quadric(const Plane_64 &p_plane) {
 	m[3][3] = d * d;
 }
 
+Vector4_64 MeshSimplify::_solve_attribute_gradient(const Vector3_64 &p0, const Vector3_64 &p1, const Vector3_64 &p2,
+		const Vector3_64 &normal, double u0, double u1, double u2) {
+	double base_matrix[4][4] = {
+		{ p0.x, p0.y, p0.z, 1.0 },
+		{ p1.x, p1.y, p1.z, 1.0 },
+		{ p2.x, p2.y, p2.z, 1.0 },
+		{ normal.x, normal.y, normal.z, 0.0 }
+	};
+
+	// 4x4 determinant solver
+	auto det_4x4 = [](double m[4][4]) -> double {
+		double sub0 = m[1][1] * (m[2][2] * m[3][3] - m[2][3] * m[3][2]) - m[1][2] * (m[2][1] * m[3][3] - m[2][3] * m[3][1]) + m[1][3] * (m[2][1] * m[3][2] - m[2][2] * m[3][1]);
+		double sub1 = m[1][0] * (m[2][2] * m[3][3] - m[2][3] * m[3][2]) - m[1][2] * (m[2][0] * m[3][3] - m[2][3] * m[3][0]) + m[1][3] * (m[2][0] * m[3][2] - m[2][2] * m[3][0]);
+		double sub2 = m[1][0] * (m[2][1] * m[3][3] - m[2][3] * m[3][1]) - m[1][1] * (m[2][0] * m[3][3] - m[2][3] * m[3][0]) + m[1][3] * (m[2][0] * m[3][1] - m[2][1] * m[3][0]);
+		double sub3 = m[1][0] * (m[2][1] * m[3][2] - m[2][2] * m[3][1]) - m[1][1] * (m[2][0] * m[3][2] - m[2][2] * m[3][0]) + m[1][2] * (m[2][0] * m[3][1] - m[2][1] * m[3][0]);
+		return m[0][0] * sub0 - m[0][1] * sub1 + m[0][2] * sub2 - m[0][3] * sub3;
+	};
+
+	double main_det = det_4x4(base_matrix);
+	if (Math::abs(main_det) < 1e-7)
+		return Vector4_64();
+
+	double targets[4] = { u0, u1, u2, 0 };
+	double coeff[4] = { 0 };
+
+	for (int col = 0; col < 4; ++col) {
+		double temp[4][4];
+		for (int r = 0; r < 4; ++r)
+			for (int c = 0; c < 4; ++c)
+				temp[r][c] = base_matrix[r][c];
+		for (int row = 0; row < 4; ++row)
+			temp[row][col] = targets[row];
+		coeff[col] = det_4x4(temp) / main_det;
+	}
+
+	return Vector4_64(coeff[0], coeff[1], coeff[2], coeff[3]);
+}
+
 void MeshSimplify::_initialize_vertex_quadrics() {
 	// Step A: Calculate the quadric matrix for every triangle plane
 	for (uint32_t n = 0; n < data.tris.size(); n++) {
@@ -839,7 +877,6 @@ void MeshSimplify::_initialize_vertex_quadrics() {
 		if (normal_length < 1e-7) {
 			continue;
 		}
-		double area = 0.5 * normal_length;
 
 #if 0
 		// In _triangle_calculate_plane or when building Kp:
@@ -850,71 +887,10 @@ void MeshSimplify::_initialize_vertex_quadrics() {
 		// 1. STANDARD POSITION GEOMETRY QUADRIC
 		Quadric Kp(t.plane);
 
-		// 2. TEXTURE ATTRIBUTE QUADRICS (Hoppe's Framework)
-		Vector3_64 normal = cross / normal_length;
-		double base_matrix[4][4] = {
-			{ p0.x, p0.y, p0.z, 1.0 },
-			{ p1.x, p1.y, p1.z, 1.0 },
-			{ p2.x, p2.y, p2.z, 1.0 },
-			{ normal.x, normal.y, normal.z, 0.0 }
-		};
-
-		// 4x4 determinant solver
-		auto det_4x4 = [](double m[4][4]) -> double {
-			double sub0 = m[1][1] * (m[2][2] * m[3][3] - m[2][3] * m[3][2]) - m[1][2] * (m[2][1] * m[3][3] - m[2][3] * m[3][1]) + m[1][3] * (m[2][1] * m[3][2] - m[2][2] * m[3][1]);
-			double sub1 = m[1][0] * (m[2][2] * m[3][3] - m[2][3] * m[3][2]) - m[1][2] * (m[2][0] * m[3][3] - m[2][3] * m[3][0]) + m[1][3] * (m[2][0] * m[3][2] - m[2][2] * m[3][0]);
-			double sub2 = m[1][0] * (m[2][1] * m[3][3] - m[2][3] * m[3][1]) - m[1][1] * (m[2][0] * m[3][3] - m[2][3] * m[3][0]) + m[1][3] * (m[2][0] * m[3][1] - m[2][1] * m[3][0]);
-			double sub3 = m[1][0] * (m[2][1] * m[3][2] - m[2][2] * m[3][1]) - m[1][1] * (m[2][0] * m[3][2] - m[2][2] * m[3][0]) + m[1][2] * (m[2][0] * m[3][1] - m[2][1] * m[3][0]);
-			return m[0][0] * sub0 - m[0][1] * sub1 + m[0][2] * sub2 - m[0][3] * sub3;
-		};
-
-		double main_det = det_4x4(base_matrix);
-		Quadric Qu, Qv;
-
-		// Only compute UV attributes if the triangle is invertible and has valid mapping
-		if (Math::abs(main_det) > 1e-7 && normal_length > 1e-7) {
-			double targets_u[4] = { v0.uv.x, v1.uv.x, v2.uv.x, 0 }; // Godot Vector2 uses x,y for u,v
-			double targets_v[4] = { v0.uv.y, v1.uv.y, v2.uv.y, 0 };
-			double coeff_u[4] = { 0 };
-			double coeff_v[4] = { 0 };
-
-			for (int col = 0; col < 4; ++col) {
-				double temp_matrix[4][4];
-
-				// Solve U coefficients
-				for (int r = 0; r < 4; ++r) {
-					for (int c = 0; c < 4; ++c)
-						temp_matrix[r][c] = base_matrix[r][c];
-				}
-				for (int row = 0; row < 4; ++row)
-					temp_matrix[row][col] = targets_u[row];
-				coeff_u[col] = det_4x4(temp_matrix) / main_det;
-
-				// Solve V coefficients
-				for (int r = 0; r < 4; ++r) {
-					for (int c = 0; c < 4; ++c)
-						temp_matrix[r][c] = base_matrix[r][c];
-				}
-				for (int row = 0; row < 4; ++row)
-					temp_matrix[row][col] = targets_v[row];
-				coeff_v[col] = det_4x4(temp_matrix) / main_det;
-			}
-
-			// Generate outer product scaled by the triangle face surface area
-			for (int i = 0; i < 4; ++i) {
-				for (int j = 0; j < 4; ++j) {
-					Qu.m[i][j] = area * (coeff_u[i] * coeff_u[j]);
-					Qv.m[i][j] = area * (coeff_v[i] * coeff_v[j]);
-				}
-			}
-		}
-
 		// Step B: Accumulate this plane's matrix into its three corner vertices
 		for (uint32_t i = 0; i < 3; i++) {
 			Vert &v = data.verts[t.corn[i]];
 			v.Q = v.Q + Kp;
-			v.Qu = v.Qu + Qu;
-			v.Qv = v.Qv + Qv;
 
 			// === DIAGNOSTIC ===
 			if (true) {
@@ -923,9 +899,25 @@ void MeshSimplify::_initialize_vertex_quadrics() {
 				print_line("Vert " + itos(t.corn[i]) + " self-error after tri " + itos(n) + ": " + rtos(self_error));
 			}
 		}
+
+		// ATTRIBUTE GRADIENT (new reliable way)
+		if (input_data.uvs.size()) {
+			Vector3_64 normal = cross / normal_length;
+			double area = 0.5 * normal_length;
+
+			Vector4_64 gu = _solve_attribute_gradient(p0, p1, p2, normal, v0.uv.x, v1.uv.x, v2.uv.x);
+			Vector4_64 gv = _solve_attribute_gradient(p0, p1, p2, normal, v0.uv.y, v1.uv.y, v2.uv.y);
+
+			for (uint32_t i = 0; i < 3; i++) {
+				Vert &v = data.verts[t.corn[i]];
+				v.gradient_u += gu * area;
+				v.gradient_v += gv * area;
+			}
+		}
 	}
 
 	_test_quadrics();
+	_test_attribute_quadrics();
 }
 
 // Evaluates the error equation: v^T * Q * v
@@ -950,27 +942,14 @@ double MeshSimplify::_compute_quadric_error(const Vector3i &p_pos, const Quadric
 	return error;
 }
 
-double MeshSimplify::_compute_attribute_error(const Vector3i &p_pos, double p_attr, const Quadric &Qa) {
+double MeshSimplify::_compute_attribute_error(const Vector3i &p_pos, double p_attr, const Vector4_64 &gradient) {
 	double x = p_pos.x;
 	double y = p_pos.y;
 	double z = p_pos.z;
-	double w = 1.0;
 
-	// Term A: v^T * Qa * v
-	double rx = Qa.m[0][0] * x + Qa.m[0][1] * y + Qa.m[0][2] * z + Qa.m[0][3] * w;
-	double ry = Qa.m[1][0] * x + Qa.m[1][1] * y + Qa.m[1][2] * z + Qa.m[1][3] * w;
-	double rz = Qa.m[2][0] * x + Qa.m[2][1] * y + Qa.m[2][2] * z + Qa.m[2][3] * w;
-	double rw = Qa.m[3][0] * x + Qa.m[3][1] * y + Qa.m[3][2] * z + Qa.m[3][3] * w;
-	double vt_Q_v = (x * rx) + (y * ry) + (z * rz) + (w * rw);
-
-	// Term B: r^T * v (Dot product of the last column vector 'r' with the position vector)
-	double r_t_v = Qa.m[0][3] * x + Qa.m[1][3] * y + Qa.m[2][3] * z + Qa.m[3][3] * w;
-
-	// Term C: Bottom right element
-	double s = Qa.m[3][3];
-
-	// Full expansion evaluation
-	return vt_Q_v - (2.0 * p_attr * r_t_v) + (p_attr * p_attr * s);
+	double predicted = gradient.x * x + gradient.y * y + gradient.z * z + gradient.w;
+	double diff = predicted - p_attr;
+	return diff * diff;
 }
 
 void MeshSimplify::_evaluate_edge_collapse(uint32_t p_edge_id) {
@@ -979,8 +958,8 @@ void MeshSimplify::_evaluate_edge_collapse(uint32_t p_edge_id) {
 	const Vert &b = data.verts[edge.b];
 
 	Quadric Q_new = a.Q + b.Q;
-	Quadric Qu_new = a.Qu + b.Qu;
-	Quadric Qv_new = a.Qv + b.Qv;
+	//Quadric Qu_new = a.Qu + b.Qu;
+	//Quadric Qv_new = a.Qv + b.Qv;
 
 	// User defined weighting balancing factor. Tune this to your preference.
 	// 1.0 to 10.0 handles texture preservation nicely without stalling geometry changes.
@@ -996,12 +975,12 @@ void MeshSimplify::_evaluate_edge_collapse(uint32_t p_edge_id) {
 
 	// Only compute if UVs exist
 	if (input_data.uvs.size()) { // were these declared?
-#if 0
-		attr_a += _compute_attribute_error(a.position, a.uv.x, Qu_new);
-		attr_a += _compute_attribute_error(a.position, a.uv.y, Qv_new);
+#if 1
+		attr_a += _compute_attribute_error(a.position, a.uv.x, a.gradient_u);
+		attr_a += _compute_attribute_error(a.position, a.uv.y, a.gradient_v);
 
-		attr_b += _compute_attribute_error(b.position, b.uv.x, Qu_new);
-		attr_b += _compute_attribute_error(b.position, b.uv.y, Qv_new);
+		attr_b += _compute_attribute_error(b.position, b.uv.x, b.gradient_u);
+		attr_b += _compute_attribute_error(b.position, b.uv.y, b.gradient_v);
 #endif
 	}
 
@@ -1027,17 +1006,14 @@ void MeshSimplify::_evaluate_edge_collapse(uint32_t p_edge_id) {
 			total_b *= 60;
 			total_b = MAX(total_b, 60.0);
 		} else {
-			// Calculate angle penalty.
+			// Measure deviation from straight line
 			DEV_ASSERT(a.seam_neighbour_verts.size() == 2);
-			const Vector3i &v0 = data.verts[a.seam_neighbour_verts[0]].position;
-			const Vector3i &v1 = data.verts[a.seam_neighbour_verts[1]].position;
+			const Vector3i &v_prev = data.verts[a.seam_neighbour_verts[0]].position;
+			const Vector3i &v_next = data.verts[a.seam_neighbour_verts[1]].position;
 
-			double area_before = a.position.calculate_triangle_area(v0, v1);
-			// double area_after = b.position.calculate_triangle_area(v0, v1);
-
-			//double change = Math::absd(area_after - area_before);
-			double change = Math::absd(area_before);
-			total_b += change;
+			// Area of triangle (a, prev, next). 0 = perfectly straight line
+			double deviation_area = Math::absd(a.position.calculate_triangle_area(v_prev, v_next));
+			total_b += deviation_area * 0.05; // tune multiplier
 		}
 	}
 	if (b.is_seam_or_boundary) {
@@ -1056,16 +1032,14 @@ void MeshSimplify::_evaluate_edge_collapse(uint32_t p_edge_id) {
 			total_a *= 60;
 			total_a = MAX(total_a, 60.0);
 		} else {
-			// Calculate angle penalty.
+			// Measure deviation from straight line
 			DEV_ASSERT(b.seam_neighbour_verts.size() == 2);
-			const Vector3i &v0 = data.verts[b.seam_neighbour_verts[0]].position;
-			const Vector3i &v1 = data.verts[b.seam_neighbour_verts[1]].position;
+			const Vector3i &v_prev = data.verts[b.seam_neighbour_verts[0]].position;
+			const Vector3i &v_next = data.verts[b.seam_neighbour_verts[1]].position;
 
-			double area_before = b.position.calculate_triangle_area(v0, v1);
-			//double area_after = a.position.calculate_triangle_area(v0, v1);
-
-			double change = Math::absd(area_before);
-			total_a += change;
+			// Area of triangle (a, prev, next). 0 = perfectly straight line
+			double deviation_area = Math::absd(b.position.calculate_triangle_area(v_prev, v_next));
+			total_a += deviation_area * 0.05; // tune multiplier
 		}
 	}
 

@@ -6,6 +6,7 @@
 #include <core/math/aabb.h>
 #include <core/math/plane_64.h>
 #include <core/math/vector3i.h>
+#include <core/math/vector4.h>
 
 class MeshSimplify {
 	// Symmetric 4x4 matrix,
@@ -105,10 +106,8 @@ class MeshSimplify {
 		Vector3i position;
 		Quadric Q;
 
-		// Use Hughes Hoppe's version of storing UV mapping
-		// as quadrics, similar to position.
-		Quadric Qu;
-		Quadric Qv;
+		Vector4_64 gradient_u; // gx, gy, gz, c for U
+		Vector4_64 gradient_v; // for V
 
 		Vector2 uv;
 		Vector2 uv2;
@@ -151,10 +150,15 @@ class MeshSimplify {
 
 	void _initialize_vertex_quadrics();
 	void _test_quadrics();
+	void _test_attribute_quadrics();
 
 	void _evaluate_edge_collapse(uint32_t p_edge_id);
 	double _compute_quadric_error(const Vector3i &p_pos, const Quadric &Q);
-	double _compute_attribute_error(const Vector3i &p_pos, double p_attr, const Quadric &Qa);
+	double _compute_attribute_error(const Vector3i &p_pos, double p_attr, const Vector4_64 &gradient);
+
+	// Helper to solve gradient for one attribute (U or V)
+	Vector4_64 _solve_attribute_gradient(const Vector3_64 &p0, const Vector3_64 &p1, const Vector3_64 &p2,
+			const Vector3_64 &normal, double u0, double u1, double u2);
 
 	uint32_t _create_edge(uint32_t p_corn_a, uint32_t p_corn_b, uint32_t p_triangle_id);
 
