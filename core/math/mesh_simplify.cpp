@@ -114,13 +114,13 @@ bool MeshSimplify::_can_collapse(uint32_t kept, uint32_t deleted) const {
 		}
 
 		// Strong normal protection
-		Vector3 v1b = Vector3(old_c[1] - old_c[0]);
-		Vector3 v2b = Vector3(old_c[2] - old_c[0]);
-		Vector3 before = v1b.cross(v2b);
+		Vector3_64 v1b = Vector3_64(old_c[1] - old_c[0]);
+		Vector3_64 v2b = Vector3_64(old_c[2] - old_c[0]);
+		Vector3_64 before = v1b.cross(v2b);
 
-		Vector3 v1a = Vector3(new_c[1] - new_c[0]);
-		Vector3 v2a = Vector3(new_c[2] - new_c[0]);
-		Vector3 after = v1a.cross(v2a);
+		Vector3_64 v1a = Vector3_64(new_c[1] - new_c[0]);
+		Vector3_64 v2a = Vector3_64(new_c[2] - new_c[0]);
+		Vector3_64 after = v1a.cross(v2a);
 
 		double len_b2 = before.length_squared();
 		double len_a2 = after.length_squared();
@@ -1006,14 +1006,20 @@ void MeshSimplify::_evaluate_edge_collapse(uint32_t p_edge_id) {
 			total_b *= 60;
 			total_b = MAX(total_b, 60.0);
 		} else {
-			// Measure deviation from straight line
+			// Normalized deviation from straight line
 			DEV_ASSERT(a.seam_neighbour_verts.size() == 2);
 			const Vector3i &v_prev = data.verts[a.seam_neighbour_verts[0]].position;
 			const Vector3i &v_next = data.verts[a.seam_neighbour_verts[1]].position;
 
-			// Area of triangle (a, prev, next). 0 = perfectly straight line
-			double deviation_area = Math::absd(a.position.calculate_triangle_area(v_prev, v_next));
-			total_b += deviation_area * 0.05; // tune multiplier
+			// Use normalized vectors to make it scale-invariant
+			Vector3_64 dir1 = Vector3_64(v_prev - a.position).normalized();
+			Vector3_64 dir2 = Vector3_64(v_next - a.position).normalized();
+			double angle_cos = dir1.dot(dir2);
+
+			// Penalty based on how much it deviates from 180 degrees (straight line)
+			double deviation = 1.0 - angle_cos; // 0 = perfectly straight, 2 = 180 degree turn
+
+			total_b += deviation * 30.0; // tune this constant
 		}
 	}
 	if (b.is_seam_or_boundary) {
@@ -1032,14 +1038,20 @@ void MeshSimplify::_evaluate_edge_collapse(uint32_t p_edge_id) {
 			total_a *= 60;
 			total_a = MAX(total_a, 60.0);
 		} else {
-			// Measure deviation from straight line
+			// Normalized deviation from straight line
 			DEV_ASSERT(b.seam_neighbour_verts.size() == 2);
 			const Vector3i &v_prev = data.verts[b.seam_neighbour_verts[0]].position;
 			const Vector3i &v_next = data.verts[b.seam_neighbour_verts[1]].position;
 
-			// Area of triangle (a, prev, next). 0 = perfectly straight line
-			double deviation_area = Math::absd(b.position.calculate_triangle_area(v_prev, v_next));
-			total_a += deviation_area * 0.05; // tune multiplier
+			// Use normalized vectors to make it scale-invariant
+			Vector3_64 dir1 = Vector3_64(v_prev - b.position).normalized();
+			Vector3_64 dir2 = Vector3_64(v_next - b.position).normalized();
+			double angle_cos = dir1.dot(dir2);
+
+			// Penalty based on how much it deviates from 180 degrees (straight line)
+			double deviation = 1.0 - angle_cos; // 0 = perfectly straight, 2 = 180 degree turn
+
+			total_a += deviation * 30.0; // tune this constant
 		}
 	}
 
