@@ -6,7 +6,6 @@
 #include <core/math/aabb.h>
 #include <core/math/plane_64.h>
 #include <core/math/vector3i.h>
-#include <core/math/vector4.h>
 
 class MeshSimplify {
 	// Symmetric 4x4 matrix,

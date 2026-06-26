@@ -4,9 +4,9 @@
 //#define MESH_SIMPLIFY_DISALLOW_SEAMS
 //#define MESH_SIMPLIFY_ONE_AT_A_TIME
 
-#define MESH_SIMPLIFY_FACTOR(a) ((a * 4) / 5)
+#define MESH_SIMPLIFY_FACTOR(a) ((a * 1) / 3)
 
-#define MESH_SIMPLIFY_DEBUG_LOGGING
+//#define MESH_SIMPLIFY_DEBUG_LOGGING
 #ifdef MESH_SIMPLIFY_DEBUG_LOGGING
 #define MS_LOG(a)      \
 	do {               \
@@ -18,7 +18,7 @@
 	} while (0)
 #endif
 
-#define MESH_NUM_EDGES_TO_COLLAPSE 9
+#define MESH_NUM_EDGES_TO_COLLAPSE 0
 
 String MeshSimplify::Edge::info() const {
 	return itos(get_collapse_from()) + " to " + itos(vertex_to_collapse_to);
@@ -342,8 +342,6 @@ bool MeshSimplify::simplify_mesh() {
 	uint32_t current_triangle_count = data.tris.size();
 	uint32_t before_triangle_count = current_triangle_count;
 
-	//uint32_t target = before_triangle_count * 2 / 3;
-	//uint32_t target = before_triangle_count /4;
 	uint32_t target = MESH_SIMPLIFY_FACTOR(before_triangle_count);
 
 	uint32_t edges_to_collapse = UINT32_MAX;
@@ -387,10 +385,6 @@ bool MeshSimplify::simplify_mesh() {
 			continue;
 		}
 
-		//			if (edge.is_seam_or_boundary) {
-		//				print_line("WARNING: Collapsing seam/boundary edge " + itos(e_idx) + "!");
-		//			}
-
 #ifdef MESH_SIMPLIFY_DEBUG_LOGGING
 		String sz = "collapsing edge " + itos(se.edge_id) + " : " + itos(edge.get_collapse_from()) + " to " + itos(edge.vertex_to_collapse_to);
 		if (edge.is_seam_or_boundary) {
@@ -402,20 +396,12 @@ bool MeshSimplify::simplify_mesh() {
 
 #ifdef DEV_ENABLED
 		// Evaluate once more to allow us to debug through (don't do on release, this is just to see what is happening).
-		_evaluate_edge_collapse(se.edge_id);
+		// _evaluate_edge_collapse(se.edge_id);
 #endif
 
 		kept_vert.Q = kept_vert.Q + deleted_vert.Q;
 		deleted_vert.active = false;
 		edge.active = false;
-
-#if 0
-		// IMPORTANT: Deactivate ALL edges connected to the deleted vertex
-		for (uint32_t n = 0; n < deleted_vert.edges.size(); n++) {
-			uint32_t e_idx = deleted_vert.edges[n];
-			data.edges[e_idx].active = false;
-		}
-#endif
 
 		// Do NOT deactivate all edges of deleted vertex blindly.
 		// Instead, update the ones that should survive (those connected to kept)
@@ -521,20 +507,6 @@ bool MeshSimplify::simplify_mesh() {
 		// ... after triangle update and adjacency rebuild ...
 		//_validate_and_rebuild();
 
-#if 0	
-		// Re-evaluate edges connected to the kept vertex
-		for (uint32_t n = 0; n < data.edges.size(); n++) {
-			Edge &e = data.edges[n];
-			if (!e.active)
-				continue;
-			if (e.a == kept || e.b == kept) {
-				_evaluate_edge_collapse(n);
-				e.version++;
-				queue.push(SortedEdge(n, e.cost, e.version));
-			}
-		}
-#endif
-
 #ifdef MESH_SIMPLIFY_ONE_AT_A_TIME
 		break;
 #endif
@@ -564,7 +536,6 @@ bool MeshSimplify::simplify_mesh() {
 		if (!t.active)
 			continue;
 
-#ifdef MESH_SIMPLIFY_DEBUG_LOGGING
 #if 0
 		String sz = "final tri " + itos(n) + " : " + itos(t.corn[0]) + ", " + itos(t.corn[1]) + ", " + itos(t.corn[2]) + " : ";
 
@@ -573,7 +544,6 @@ bool MeshSimplify::simplify_mesh() {
 		}
 
 		MS_LOG(sz);
-#endif
 #endif
 
 		for (uint32_t c = 0; c < 3; c++) {
@@ -714,9 +684,9 @@ void MeshSimplify::_test_quadrics() {
 	print_line("Distance from p4 to plane3: " + rtos(plane3.normal.dot(p4) + plane3.d));
 	print_line("Distance from p5 to plane3: " + rtos(plane3.normal.dot(p5) + plane3.d));
 
-	print_line("Plane1: " + String(Variant(plane1.normal)) + " d=" + rtos(plane1.d));
-	print_line("Plane2: " + String(Variant(plane2.normal)) + " d=" + rtos(plane2.d));
-	print_line("Plane3: " + String(Variant(plane3.normal)) + " d=" + rtos(plane3.d));
+	print_line("Plane1: " + String(plane1.normal) + " d=" + rtos(plane1.d));
+	print_line("Plane2: " + String(plane2.normal) + " d=" + rtos(plane2.d));
+	print_line("Plane3: " + String(plane3.normal) + " d=" + rtos(plane3.d));
 
 	// Build Kp for both
 	Quadric Kp1(plane1);
@@ -893,11 +863,10 @@ void MeshSimplify::_initialize_vertex_quadrics() {
 			v.Q = v.Q + Kp;
 
 			// === DIAGNOSTIC ===
-			if (true) {
-				//if (t.corn[i] == 0 || t.corn[i] == 1 || t.corn[i] == 2) {  // change to vertices you care about
-				double self_error = _compute_quadric_error(v.position, v.Q);
-				print_line("Vert " + itos(t.corn[i]) + " self-error after tri " + itos(n) + ": " + rtos(self_error));
-			}
+#if 0
+			double self_error = _compute_quadric_error(v.position, v.Q);
+			print_line("Vert " + itos(t.corn[i]) + " self-error after tri " + itos(n) + ": " + rtos(self_error));
+#endif
 		}
 
 		// ATTRIBUTE GRADIENT (new reliable way)
@@ -1205,11 +1174,6 @@ void MeshSimplify::_create_tris() {
 		data.verts[edge.a].edges.push_back(e);
 		data.verts[edge.b].edges.push_back(e);
 	}
-
-	// Reserve capacity to prevent reallocations that could invalidate references later
-	//	for (uint32_t i = 0; i < data.verts.size(); ++i) {
-	//		data.verts[i].edges.reserve(16); // typical valence for manifold meshes
-	//	}
 
 	if (valid_tri_count) {
 		print_line("Simplify valid tris " + itos(valid_tri_count) + ", degenerate " + itos(num_orig_tris - valid_tri_count));

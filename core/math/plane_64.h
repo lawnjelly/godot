@@ -30,7 +30,7 @@
 
 #pragma once
 
-#include "core/math/vector3_64.h"
+#include "core/math/math_templated_types.h"
 
 class _NO_DISCARD_CLASS_ Plane_64 {
 public:
