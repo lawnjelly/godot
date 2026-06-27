@@ -4,7 +4,7 @@
 #include "core/math/vector2.h"
 #include "core/math/vector3.h"
 #include <core/math/aabb.h>
-#include <core/math/plane_64.h>
+#include <core/math/math_templated_types.h>
 #include <core/math/vector3i.h>
 
 class MeshSimplify {

@@ -250,3 +250,88 @@ constexpr Vector4T<T> operator*(int64_t p_scalar, const Vector4T<T> &p_vec) {
 }
 
 using Vector4_64 = Vector4T<double>;
+
+///////////////////////////////////////////////////
+
+template <typename VEC_T, typename T>
+class _NO_DISCARD_CLASS_ PlaneT {
+public:
+	union {
+		struct {
+			VEC_T normal;
+			T d;
+		};
+
+		T coord[4];
+	};
+
+	void set_normal(const VEC_T &p_normal) { normal = p_normal; }
+	PlaneT get_normal() const { return normal; } ///Point is coplanar, CMP_EPSILON for precision
+
+	void normalize();
+	PlaneT normalized() const {
+		PlaneT p = *this;
+		p.normalize();
+		return p;
+	}
+
+	/* Plane_64-Point operations */
+
+	VEC_T center() const { return normal * d; }
+	VEC_T get_any_point() const { return get_normal() * d; }
+	VEC_T get_any_perpendicular_normal() const;
+
+	bool is_point_over(const VEC_T &p_point) const { return (normal.dot(p_point) > d); } ///< Point is over plane
+	T distance_to(const VEC_T &p_point) const { return (normal.dot(p_point) - d); }
+	bool has_point(const VEC_T &p_point, T _epsilon = CMP_EPSILON) const {
+		double dist = normal.dot(p_point) - d;
+		dist = ABS(dist);
+		return (dist <= _epsilon);
+	}
+
+	/* intersections */
+
+	bool intersect_3(const PlaneT &p_plane1, const PlaneT &p_plane2, VEC_T *r_result = nullptr) const;
+	bool intersects_ray(const VEC_T &p_from, const VEC_T &p_dir, VEC_T *p_intersection) const;
+	bool intersects_segment(const VEC_T &p_begin, const VEC_T &p_end, VEC_T *p_intersection) const;
+
+	VEC_T project(const VEC_T &p_point) const {
+		return p_point - normal * distance_to(p_point);
+	}
+
+	/* misc */
+
+	PlaneT operator-() const { return PlaneT(-normal, -d); }
+	bool is_equal_approx(const PlaneT &p_plane) const;
+
+	bool operator==(const PlaneT &p_plane) const { return normal == p_plane.normal && d == p_plane.d; }
+	bool operator!=(const PlaneT &p_plane) const { return !(*this == p_plane); }
+	operator String() const;
+
+	PlaneT() :
+			d(0) {}
+	PlaneT(double p_a, double p_b, double p_c, double p_d) :
+			normal(p_a, p_b, p_c),
+			d(p_d) {}
+
+	PlaneT(const VEC_T &p_normal, double p_d) :
+			normal(p_normal),
+			d(p_d) {
+	}
+	PlaneT(const VEC_T &p_point, const VEC_T &p_normal) :
+			normal(p_normal),
+			d(p_normal.dot(p_point)) {
+	}
+	PlaneT(const VEC_T &p_point1, const VEC_T &p_point2, const VEC_T &p_point3, ClockDirection p_dir = CLOCKWISE) {
+		if (p_dir == CLOCKWISE) {
+			normal = (p_point1 - p_point3).cross(p_point1 - p_point2);
+		} else {
+			normal = (p_point1 - p_point2).cross(p_point1 - p_point3);
+		}
+
+		normal.normalize();
+		d = normal.dot(p_point1);
+	}
+};
+
+using Plane_64 = PlaneT<Vector3_64, double>;
