@@ -937,90 +937,112 @@ void MeshSimplify::_evaluate_edge_collapse(uint32_t p_edge_id) {
 	//double distance_cost = (a.pos() - b.pos()).length();
 	double distance_cost = 0;
 
-	double geom_cost_a = _compute_quadric_error(a.position, Q_new);
-	double geom_cost_b = _compute_quadric_error(b.position, Q_new);
+	const double VERY_HIGH_COST = 1e30;
+	double total_a = VERY_HIGH_COST;
+	double total_b = VERY_HIGH_COST;
 
-	double attr_a = 0, attr_b = 0;
+	// Test both directions.
+	bool can_collapse_to_a = _can_collapse(edge.b, edge.a); // keep b, delete a
+	bool can_collapse_to_b = _can_collapse(edge.a, edge.b); // keep a, delete b
 
-	// Only compute if UVs exist
-	if (input_data.uvs.size()) { // were these declared?
-#if 1
-		attr_a += _compute_attribute_error(a.position, a.uv.x, a.gradient_u);
-		attr_a += _compute_attribute_error(a.position, a.uv.y, a.gradient_v);
-
-		attr_b += _compute_attribute_error(b.position, b.uv.x, b.gradient_u);
-		attr_b += _compute_attribute_error(b.position, b.uv.y, b.gradient_v);
-#endif
+	// Don't even attempt this edge.
+	if (!can_collapse_to_b && !can_collapse_to_a) {
+		edge.active = false;
+		edge.cost = VERY_HIGH_COST;
+		return;
 	}
 
-	double total_a = distance_cost + geom_cost_a + beta * attr_a;
-	double total_b = distance_cost + geom_cost_b + beta * attr_b;
+	if (can_collapse_to_a) {
+		double geom_cost_a = _compute_quadric_error(a.position, Q_new);
 
-	// === SEAM LINE DISRUPTION PENALTY ===
+		// Only compute if UVs exist
+		double attr_a = 0;
+		if (input_data.uvs.size()) { // were these declared?
+			attr_a += _compute_attribute_error(a.position, a.uv.x, a.gradient_u);
+			attr_a += _compute_attribute_error(a.position, a.uv.y, a.gradient_v);
+		}
+		total_a = distance_cost + geom_cost_a + beta * attr_a;
 
-	// Add penalty for collapsing from a seam.
-	if (a.is_seam_or_boundary) {
-		bool breaks_line = true;
+		// Add penalty for collapsing from a seam.
+		if (b.is_seam_or_boundary) {
+			bool breaks_line = true;
 
-		if (a.seam_neighbour_verts.size() == 2) {
-			for (uint32_t n = 0; n < a.seam_neighbour_verts.size(); n++) {
-				if (a.seam_neighbour_verts[n] == edge.b) {
-					breaks_line = false; // direct neighbour on scene line
-					break;
+			if (b.seam_neighbour_verts.size() == 2) {
+				for (uint32_t n = 0; n < b.seam_neighbour_verts.size(); n++) {
+					if (b.seam_neighbour_verts[n] == edge.a) {
+						breaks_line = false; // direct neighbour on scene line
+						break;
+					}
 				}
 			}
-		}
 
-		if (breaks_line) {
-			total_b *= 60;
-			total_b = MAX(total_b, 60.0);
-		} else {
-			// Normalized deviation from straight line
-			DEV_ASSERT(a.seam_neighbour_verts.size() == 2);
-			const Vector3i &v_prev = data.verts[a.seam_neighbour_verts[0]].position;
-			const Vector3i &v_next = data.verts[a.seam_neighbour_verts[1]].position;
+			if (breaks_line) {
+				total_a *= 60;
+				total_a = MAX(total_a, 60.0);
+			} else {
+				// Normalized deviation from straight line
+				DEV_ASSERT(b.seam_neighbour_verts.size() == 2);
+				const Vector3i &v_prev = data.verts[b.seam_neighbour_verts[0]].position;
+				const Vector3i &v_next = data.verts[b.seam_neighbour_verts[1]].position;
 
-			// Use normalized vectors to make it scale-invariant
-			Vector3_64 dir1 = Vector3_64(v_prev - a.position).normalized();
-			Vector3_64 dir2 = Vector3_64(v_next - a.position).normalized();
-			double angle_cos = dir1.dot(dir2);
+				// Use normalized vectors to make it scale-invariant
+				Vector3_64 dir1 = Vector3_64(v_prev - b.position).normalized();
+				Vector3_64 dir2 = Vector3_64(v_next - b.position).normalized();
+				double angle_cos = dir1.dot(dir2);
 
-			// Penalty based on how much it deviates from 180 degrees (straight line)
-			double deviation = 1.0 - angle_cos; // 0 = perfectly straight, 2 = 180 degree turn
+				// Penalty based on how much it deviates from 180 degrees (straight line)
+				double deviation = 1.0 - angle_cos; // 0 = perfectly straight, 2 = 180 degree turn
 
-			total_b += deviation * 30.0; // tune this constant
+				total_a += deviation * 30.0; // tune this constant
+			}
 		}
 	}
-	if (b.is_seam_or_boundary) {
-		bool breaks_line = true;
 
-		if (b.seam_neighbour_verts.size() == 2) {
-			for (uint32_t n = 0; n < b.seam_neighbour_verts.size(); n++) {
-				if (b.seam_neighbour_verts[n] == edge.a) {
-					breaks_line = false; // direct neighbour on scene line
-					break;
-				}
-			}
+	if (can_collapse_to_b) {
+		double geom_cost_b = _compute_quadric_error(b.position, Q_new);
+
+		// Only compute if UVs exist
+		double attr_b = 0;
+		if (input_data.uvs.size()) { // were these declared?
+
+			attr_b += _compute_attribute_error(b.position, b.uv.x, b.gradient_u);
+			attr_b += _compute_attribute_error(b.position, b.uv.y, b.gradient_v);
 		}
 
-		if (breaks_line) {
-			total_a *= 60;
-			total_a = MAX(total_a, 60.0);
-		} else {
-			// Normalized deviation from straight line
-			DEV_ASSERT(b.seam_neighbour_verts.size() == 2);
-			const Vector3i &v_prev = data.verts[b.seam_neighbour_verts[0]].position;
-			const Vector3i &v_next = data.verts[b.seam_neighbour_verts[1]].position;
+		total_b = distance_cost + geom_cost_b + beta * attr_b;
 
-			// Use normalized vectors to make it scale-invariant
-			Vector3_64 dir1 = Vector3_64(v_prev - b.position).normalized();
-			Vector3_64 dir2 = Vector3_64(v_next - b.position).normalized();
-			double angle_cos = dir1.dot(dir2);
+		// Add penalty for collapsing from a seam.
+		if (a.is_seam_or_boundary) {
+			bool breaks_line = true;
 
-			// Penalty based on how much it deviates from 180 degrees (straight line)
-			double deviation = 1.0 - angle_cos; // 0 = perfectly straight, 2 = 180 degree turn
+			if (a.seam_neighbour_verts.size() == 2) {
+				for (uint32_t n = 0; n < a.seam_neighbour_verts.size(); n++) {
+					if (a.seam_neighbour_verts[n] == edge.b) {
+						breaks_line = false; // direct neighbour on scene line
+						break;
+					}
+				}
+			}
 
-			total_a += deviation * 30.0; // tune this constant
+			if (breaks_line) {
+				total_b *= 60;
+				total_b = MAX(total_b, 60.0);
+			} else {
+				// Normalized deviation from straight line
+				DEV_ASSERT(a.seam_neighbour_verts.size() == 2);
+				const Vector3i &v_prev = data.verts[a.seam_neighbour_verts[0]].position;
+				const Vector3i &v_next = data.verts[a.seam_neighbour_verts[1]].position;
+
+				// Use normalized vectors to make it scale-invariant
+				Vector3_64 dir1 = Vector3_64(v_prev - a.position).normalized();
+				Vector3_64 dir2 = Vector3_64(v_next - a.position).normalized();
+				double angle_cos = dir1.dot(dir2);
+
+				// Penalty based on how much it deviates from 180 degrees (straight line)
+				double deviation = 1.0 - angle_cos; // 0 = perfectly straight, 2 = 180 degree turn
+
+				total_b += deviation * 30.0; // tune this constant
+			}
 		}
 	}
 
