@@ -398,8 +398,7 @@ public:
 template <class T, class I = int32_t, bool force_trivial = false>
 class LocalVectori : public LocalVector<T, I, force_trivial> {
 public:
-	using LocalVector<T, I, force_trivial>::operator=;
-	using LocalVector<T, I, force_trivial>::operator Vector<T>;
+	//using LocalVector<T, I, force_trivial>::operator=;
 
 	const T &get_wrapped(I p_index) const {
 		return this->data[wrap_index(p_index)];
@@ -410,14 +409,16 @@ public:
 	}
 
 	I wrap_index(I p_index) const {
-		if (p_index >= 0) {
-			p_index %= this->size();
-		} else {
-			p_index = -p_index;
-			p_index %= this->size();
-			p_index = this->size() - p_index;
+		I n = (I)this->size();
+
+		// We need to either assert or handle the empty case.
+		DEV_ASSERT(!this->empty());
+
+		I r = p_index % n;
+		if (r < 0) {
+			r += n;
 		}
-		return p_index;
+		return r;
 	}
 };
 

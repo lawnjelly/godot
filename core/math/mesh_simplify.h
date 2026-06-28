@@ -30,6 +30,17 @@ class MeshSimplify {
 			}
 			return res;
 		}
+		Quadric operator*(double p_val) const {
+			Quadric res;
+
+			const double *a = &m[0][0];
+			double *c = &res.m[0][0];
+
+			for (uint32_t n = 0; n < 16; n++) {
+				*c++ = *a++ * p_val;
+			}
+			return res;
+		}
 	};
 
 	struct InputData {

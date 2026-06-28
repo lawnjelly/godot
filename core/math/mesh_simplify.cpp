@@ -885,8 +885,13 @@ void MeshSimplify::_initialize_vertex_quadrics() {
 		// Then scale Kp by area before adding.
 #endif
 
+		double area = 0.5 * normal_length;
+
 		// 1. STANDARD POSITION GEOMETRY QUADRIC
 		Quadric Kp(t.plane);
+
+		// Apply area weighting to position quadrics.
+		Kp = Kp * area;
 
 		// Step B: Accumulate this plane's matrix into its three corner vertices
 		for (uint32_t i = 0; i < 3; i++) {
@@ -903,7 +908,6 @@ void MeshSimplify::_initialize_vertex_quadrics() {
 		// ATTRIBUTE GRADIENT (new reliable way)
 		if (input_data.uvs.size()) {
 			Vector3_64 normal = cross / normal_length;
-			double area = 0.5 * normal_length;
 
 			Vector4_64 gu = _solve_attribute_gradient(p0, p1, p2, normal, v0.uv.x, v1.uv.x, v2.uv.x);
 			Vector4_64 gv = _solve_attribute_gradient(p0, p1, p2, normal, v0.uv.y, v1.uv.y, v2.uv.y);
@@ -916,8 +920,10 @@ void MeshSimplify::_initialize_vertex_quadrics() {
 		}
 	}
 
+#if 0
 	_test_quadrics();
 	_test_attribute_quadrics();
+#endif
 }
 
 // Evaluates the error equation: v^T * Q * v
@@ -965,8 +971,8 @@ void MeshSimplify::_evaluate_edge_collapse(uint32_t p_edge_id) {
 	// 1.0 to 10.0 handles texture preservation nicely without stalling geometry changes.
 	const double beta = 150;
 
-	//double distance_cost = (a.pos() - b.pos()).length();
-	double distance_cost = 0;
+	// May need weighting relative to the rest.
+	double distance_cost = (a.pos() - b.pos()).length();
 
 	const double VERY_HIGH_COST = 1e30;
 	double total_a = VERY_HIGH_COST;
