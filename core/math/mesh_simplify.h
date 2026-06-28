@@ -117,6 +117,11 @@ class MeshSimplify {
 
 		// Edges that use this vertex.
 		LocalVector<uint32_t> edges;
+
+		// Tris that use this vertex.
+		LocalVector<uint32_t> tris;
+
+		// If this is a seam, the before and after verts of the seam.
 		LocalVector<uint32_t> seam_neighbour_verts;
 
 		Vector3_64 pos() const {
@@ -144,6 +149,7 @@ class MeshSimplify {
 
 	void _create_tris();
 	void _detect_seam_edges();
+	void _build_vertex_triangle_links();
 
 	void _triangle_calculate_plane(uint32_t p_tri_id);
 
@@ -163,8 +169,10 @@ class MeshSimplify {
 
 	int32_t _triangle_which_side(const Vector3i &p_a, const Vector3i &p_b, const Vector3i &p_c, const Vector3i &p_test) const;
 	bool _is_triangle_degenerate(const uint32_t p_inds[3]) const;
-	//bool _can_collapse_edge(const Edge& edge) const;
+
 	bool _can_collapse(uint32_t kept, uint32_t deleted) const;
+	bool _can_collapse_test_tri(uint32_t kept, uint32_t deleted, uint32_t p_tri_id) const;
+
 	bool _is_triangle_degenerate_from_positions(const Vector3i p[3]) const;
 
 	void _validate_and_rebuild();

@@ -75,95 +75,87 @@ bool MeshSimplify::_is_triangle_degenerate_from_positions(const Vector3i p[3]) c
 	return (crossX == 0 && crossY == 0 && crossZ == 0);
 }
 
-bool MeshSimplify::_can_collapse(uint32_t kept, uint32_t deleted) const {
-	// Disallow seams for now.
-#if 0
-	if (data.verts[deleted].is_seam_or_boundary) {
+bool MeshSimplify::_can_collapse_test_tri(uint32_t kept, uint32_t deleted, uint32_t p_tri_id) const {
+	const Tri &t = data.tris[p_tri_id];
+	if (!t.active)
+		return true;
+
+	bool touches_deleted = false;
+	Vector3i old_c[3];
+
+	for (int i = 0; i < 3; ++i) {
+		old_c[i] = data.verts[t.corn[i]].position;
+		if (t.corn[i] == deleted)
+			touches_deleted = true;
+	}
+
+	if (!touches_deleted)
+		return true;
+
+	if (t.corn[0] == kept || t.corn[1] == kept || t.corn[2] == kept)
+		return true;
+
+	Vector3i new_c[3];
+	for (int i = 0; i < 3; ++i) {
+		new_c[i] = (t.corn[i] == deleted) ? data.verts[kept].position : old_c[i];
+	}
+
+	if (_is_triangle_degenerate_from_positions(new_c)) {
+		MS_LOG("_can_collapse rejecting edge from " + itos(deleted) + " to " + itos(kept) + " - _is_triangle_degenerate_from_positions");
 		return false;
 	}
-#endif
 
-	for (uint32_t n = 0; n < data.tris.size(); n++) {
-		const Tri &t = data.tris[n];
-		if (!t.active)
-			continue;
+	// Strong normal protection
+	Vector3_64 v1b = Vector3_64(old_c[1] - old_c[0]);
+	Vector3_64 v2b = Vector3_64(old_c[2] - old_c[0]);
+	Vector3_64 before = v1b.cross(v2b);
 
-		bool touches_deleted = false;
-		Vector3i old_c[3];
+	Vector3_64 v1a = Vector3_64(new_c[1] - new_c[0]);
+	Vector3_64 v2a = Vector3_64(new_c[2] - new_c[0]);
+	Vector3_64 after = v1a.cross(v2a);
 
-		for (int i = 0; i < 3; ++i) {
-			old_c[i] = data.verts[t.corn[i]].position;
-			if (t.corn[i] == deleted)
-				touches_deleted = true;
-		}
+	double len_b2 = before.length_squared();
+	double len_a2 = after.length_squared();
 
-		if (!touches_deleted)
-			continue;
+	if (len_a2 < 1.0) {
+		MS_LOG("_can_collapse rejecting edge from " + itos(deleted) + " to " + itos(kept) + " - len_a2");
+		return false;
+	}
 
-		if (t.corn[0] == kept || t.corn[1] == kept || t.corn[2] == kept)
-			continue;
-
-		Vector3i new_c[3];
-		for (int i = 0; i < 3; ++i) {
-			new_c[i] = (t.corn[i] == deleted) ? data.verts[kept].position : old_c[i];
-		}
-
-		if (_is_triangle_degenerate_from_positions(new_c)) {
-			MS_LOG("_can_collapse rejecting edge from " + itos(deleted) + " to " + itos(kept) + " - _is_triangle_degenerate_from_positions");
+	if (len_b2 > 1.0 && len_a2 > 1.0) {
+		double cos_angle = before.dot(after) / (Math::sqrt(len_b2) * Math::sqrt(len_a2));
+		if (cos_angle < 0.1) { // Very strict - almost no inversion
+			MS_LOG("_can_collapse rejecting edge from " + itos(deleted) + " to " + itos(kept) + " - cos_angle");
 			return false;
 		}
+	}
 
-		// Strong normal protection
-		Vector3_64 v1b = Vector3_64(old_c[1] - old_c[0]);
-		Vector3_64 v2b = Vector3_64(old_c[2] - old_c[0]);
-		Vector3_64 before = v1b.cross(v2b);
+	// Strong perimeter protection for cylinders
+	double old_peri = (old_c[1] - old_c[0]).length() + (old_c[2] - old_c[1]).length() + (old_c[0] - old_c[2]).length();
+	double new_peri = (new_c[1] - new_c[0]).length() + (new_c[2] - new_c[1]).length() + (new_c[0] - new_c[2]).length();
 
-		Vector3_64 v1a = Vector3_64(new_c[1] - new_c[0]);
-		Vector3_64 v2a = Vector3_64(new_c[2] - new_c[0]);
-		Vector3_64 after = v1a.cross(v2a);
+	if (new_peri < old_peri * 0.85) {
+		MS_LOG("_can_collapse rejecting edge from " + itos(deleted) + " to " + itos(kept) + " - peri");
+		return false;
+	}
 
-		double len_b2 = before.length_squared();
-		double len_a2 = after.length_squared();
+	// Aspect ratio
+	double sides[3] = {
+		(new_c[1] - new_c[0]).length(),
+		(new_c[2] - new_c[1]).length(),
+		(new_c[0] - new_c[2]).length()
+	};
+	double max_s = MAX(sides[0], MAX(sides[1], sides[2]));
+	double min_s = MIN(sides[0], MIN(sides[1], sides[2]));
 
-		if (len_a2 < 1.0) {
-			MS_LOG("_can_collapse rejecting edge from " + itos(deleted) + " to " + itos(kept) + " - len_a2");
-			return false;
-		}
-
-		if (len_b2 > 1.0 && len_a2 > 1.0) {
-			double cos_angle = before.dot(after) / (Math::sqrt(len_b2) * Math::sqrt(len_a2));
-			if (cos_angle < 0.1) { // Very strict - almost no inversion
-				MS_LOG("_can_collapse rejecting edge from " + itos(deleted) + " to " + itos(kept) + " - cos_angle");
-				return false;
-			}
-		}
-
-		// Strong perimeter protection for cylinders
-		double old_peri = (old_c[1] - old_c[0]).length() + (old_c[2] - old_c[1]).length() + (old_c[0] - old_c[2]).length();
-		double new_peri = (new_c[1] - new_c[0]).length() + (new_c[2] - new_c[1]).length() + (new_c[0] - new_c[2]).length();
-
-		if (new_peri < old_peri * 0.85) {
-			MS_LOG("_can_collapse rejecting edge from " + itos(deleted) + " to " + itos(kept) + " - peri");
-			return false;
-		}
-
-		// Aspect ratio
-		double sides[3] = {
-			(new_c[1] - new_c[0]).length(),
-			(new_c[2] - new_c[1]).length(),
-			(new_c[0] - new_c[2]).length()
-		};
-		double max_s = MAX(sides[0], MAX(sides[1], sides[2]));
-		double min_s = MIN(sides[0], MIN(sides[1], sides[2]));
-
-		if (min_s > 0.0 && max_s / min_s > 12.0) {
-			MS_LOG("_can_collapse rejecting edge from " + itos(deleted) + " to " + itos(kept) + " - min_s");
-			return false;
-		}
+	if (min_s > 0.0 && max_s / min_s > 12.0) {
+		MS_LOG("_can_collapse rejecting edge from " + itos(deleted) + " to " + itos(kept) + " - min_s");
+		return false;
+	}
 
 #if 0
-		// STRONG CORNER / FEATURE EDGE PROTECTION
-		// Reject collapses that significantly change the local shape at corners
+	  // STRONG CORNER / FEATURE EDGE PROTECTION
+	  // Reject collapses that significantly change the local shape at corners
 		Vector3 old_dir_ab = Vector3(old_c[1] - old_c[0]).normalized();
 		Vector3 old_dir_ac = Vector3(old_c[2] - old_c[0]).normalized();
 		Vector3 new_dir_ab = Vector3(new_c[1] - new_c[0]).normalized();
@@ -179,14 +171,49 @@ bool MeshSimplify::_can_collapse(uint32_t kept, uint32_t deleted) const {
 #endif
 
 #if 0
-			   // Also reject large movement of corner vertices
+	  // Also reject large movement of corner vertices
 		double move_dist = (new_c[0] - old_c[0]).length();
 		if (move_dist > 300.0) { // tune to your model scale
 			MS_LOG("_can_collapse rejecting edge from " + itos (deleted) + " to " + itos(kept)  + " - move_dist");
 			return false;
 		}
 #endif
+
+	return true;
+}
+
+bool MeshSimplify::_can_collapse(uint32_t kept, uint32_t deleted) const {
+	const Vert &vert_to_delete = data.verts[deleted];
+	if (!vert_to_delete.active) {
+		return false;
 	}
+
+	// Only check triangles that touch the deleted vertex.
+	const LocalVector<uint32_t> &tri_list = vert_to_delete.tris;
+
+	// Disallow seams for now.
+#if 0
+	if (data.verts[deleted].is_seam_or_boundary) {
+		return false;
+	}
+#endif
+
+#define CAN_COLLAPSE_OPTIMIZED
+#ifdef CAN_COLLAPSE_OPTIMIZED
+	for (uint32_t n = 0; n < tri_list.size(); n++) {
+		if (!_can_collapse_test_tri(kept, deleted, tri_list[n])) {
+			return false;
+		}
+	}
+#else
+	// Reference.
+	for (uint32_t n = 0; n < data.tris.size(); n++) {
+		if (!_can_collapse_test_tri(kept, deleted, n)) {
+			return false;
+		}
+	}
+#endif
+
 	return true;
 }
 
@@ -454,6 +481,10 @@ bool MeshSimplify::simplify_mesh() {
 				}
 			}
 		}
+
+		// Ideally we should rebuild these incrementally, but doing the whole lot at each collapse
+		// is good for reference.
+		_build_vertex_triangle_links();
 
 #if 0
 		// Rebuild adjacency for kept vertex safely
@@ -1156,6 +1187,24 @@ void MeshSimplify::_detect_seam_edges() {
 	print_line("Detected " + itos(seam_count) + " seam/boundary edges out of " + itos(data.edges.size()));
 }
 
+void MeshSimplify::_build_vertex_triangle_links() {
+	for (uint32_t n = 0; n < data.verts.size(); n++) {
+		data.verts[n].tris.clear();
+	}
+
+	for (uint32_t t = 0; t < data.tris.size(); ++t) {
+		const Tri &tri = data.tris[t];
+		if (!tri.active)
+			continue;
+
+		for (int i = 0; i < 3; ++i) {
+			uint32_t vert_id = tri.corn[i];
+			DEV_ASSERT(vert_id < data.verts.size());
+			data.verts[vert_id].tris.push_back(t);
+		}
+	}
+}
+
 void MeshSimplify::_create_tris() {
 	uint32_t num_orig_tris = input_data.indices.size() / 3;
 
@@ -1218,5 +1267,7 @@ void MeshSimplify::_create_tris() {
 	}
 
 	_detect_seam_edges();
+	_build_vertex_triangle_links();
+
 	_initialize_vertex_quadrics();
 }
