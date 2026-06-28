@@ -973,8 +973,8 @@ void MeshSimplify::_evaluate_edge_collapse(uint32_t p_edge_id) {
 	double total_b = VERY_HIGH_COST;
 
 	// Test both directions.
-	bool can_collapse_to_a = _can_collapse(edge.b, edge.a); // keep b, delete a
-	bool can_collapse_to_b = _can_collapse(edge.a, edge.b); // keep a, delete b
+	bool can_collapse_to_a = _can_collapse(edge.a, edge.b); // keep a, delete b
+	bool can_collapse_to_b = _can_collapse(edge.b, edge.a); // keep b, delete a
 
 	// Don't even attempt this edge.
 	if (!can_collapse_to_b && !can_collapse_to_a) {
