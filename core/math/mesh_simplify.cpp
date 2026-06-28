@@ -1017,7 +1017,7 @@ void MeshSimplify::_evaluate_edge_collapse(uint32_t p_edge_id) {
 				const Vector3i &v_next = data.verts[b.seam_neighbour_verts[1]].position;
 
 				// Use normalized vectors to make it scale-invariant
-				Vector3_64 dir1 = Vector3_64(v_prev - b.position).normalized();
+				Vector3_64 dir1 = Vector3_64(b.position - v_prev).normalized();
 				Vector3_64 dir2 = Vector3_64(v_next - b.position).normalized();
 				double angle_cos = dir1.dot(dir2);
 
@@ -1065,7 +1065,7 @@ void MeshSimplify::_evaluate_edge_collapse(uint32_t p_edge_id) {
 				const Vector3i &v_next = data.verts[a.seam_neighbour_verts[1]].position;
 
 				// Use normalized vectors to make it scale-invariant
-				Vector3_64 dir1 = Vector3_64(v_prev - a.position).normalized();
+				Vector3_64 dir1 = Vector3_64(a.position - v_prev).normalized();
 				Vector3_64 dir2 = Vector3_64(v_next - a.position).normalized();
 				double angle_cos = dir1.dot(dir2);
 
