@@ -250,14 +250,13 @@ void MeshSimplify::_debug_log_input_data() {
 #endif
 }
 
-bool MeshSimplify::simplify_mesh() {
+bool MeshSimplify::prepare(MeshDeduplicator &r_dd) {
 	// Can't simplify when no indices.
 	if (!input_data.indices.size()) {
 		return false;
 	}
 
 	// Duduplicate.
-	MeshDeduplicator dd;
 
 	LocalVector<Vector3> verts;
 	LocalVector<uint32_t> inds;
@@ -270,30 +269,30 @@ bool MeshSimplify::simplify_mesh() {
 		num_streams++;
 	}
 
-	dd.set_num_attribute_streams(num_streams);
+	r_dd.set_num_attribute_streams(num_streams);
 
 	uint32_t fill_stream = 0;
 
-	MeshAttributeStream &as_pos = dd.get_input_attribute_stream(fill_stream++);
+	MeshAttributeStream &as_pos = r_dd.get_input_attribute_stream(fill_stream++);
 	as_pos.set_type(MeshAttributeStream::ATTR_POSITION);
 	as_pos.vec3 = input_data.positions;
 
 	if (input_data.uvs.size()) {
-		MeshAttributeStream &as = dd.get_input_attribute_stream(fill_stream++);
+		MeshAttributeStream &as = r_dd.get_input_attribute_stream(fill_stream++);
 		as.set_type(MeshAttributeStream::ATTR_UV);
 		as.vec2 = input_data.uvs;
 	}
 
 	if (input_data.uv2s.size()) {
-		MeshAttributeStream &as = dd.get_input_attribute_stream(fill_stream++);
+		MeshAttributeStream &as = r_dd.get_input_attribute_stream(fill_stream++);
 		as.set_type(MeshAttributeStream::ATTR_UV);
 		as.vec2 = input_data.uv2s;
 	}
 
-	if (!dd.process(input_data.indices, inds)) {
+	if (!r_dd.process(input_data.indices, inds)) {
 		return false;
 	}
-	verts = dd.get_output_attribute_stream(0).vec3;
+	verts = r_dd.get_output_attribute_stream(0).vec3;
 
 	// Save the deduplicated data.
 	input_data.indices = inds;
@@ -301,10 +300,10 @@ bool MeshSimplify::simplify_mesh() {
 
 	uint32_t uv_stream = 1;
 	if (input_data.uvs.size()) {
-		input_data.uvs = dd.get_output_attribute_stream(uv_stream++).vec2;
+		input_data.uvs = r_dd.get_output_attribute_stream(uv_stream++).vec2;
 	}
 	if (input_data.uv2s.size()) {
-		input_data.uv2s = dd.get_output_attribute_stream(uv_stream).vec2;
+		input_data.uv2s = r_dd.get_output_attribute_stream(uv_stream).vec2;
 	}
 
 	ERR_FAIL_COND_V(!input_data.indices.size(), false);
@@ -355,6 +354,16 @@ bool MeshSimplify::simplify_mesh() {
 
 	// No valid tris to simplify.
 	if (!data.tris.size()) {
+		return false;
+	}
+
+	return true;
+}
+
+bool MeshSimplify::simplify_mesh() {
+	MeshDeduplicator dd;
+
+	if (!prepare(dd)) {
 		return false;
 	}
 
@@ -1121,6 +1130,42 @@ void MeshSimplify::_evaluate_edge_collapse(uint32_t p_edge_id) {
 #ifdef MESH_SIMPLIFY_DEBUG_LOGGING
 	print_line("\tevaluating edge " + itos(edge.get_collapse_from()) + " to " + itos(edge.vertex_to_collapse_to) + " ... cost " + itos(edge.get_readable_cost()) + " .. from cost " + itos(edge.translate_readable_cost(from_cost)));
 #endif
+}
+
+void MeshSimplify::_update_edge_seam_status(uint32_t p_edge_id) {
+	if (p_edge_id >= data.edges.size())
+		return;
+	Edge &e = data.edges[p_edge_id];
+	if (!e.active) {
+		e.is_seam_or_boundary = false;
+		e.triangle_count = 0;
+		return;
+	}
+
+	// Re-count active triangles using this edge (simple but correct)
+	uint32_t count = 0;
+	for (uint32_t t = 0; t < data.tris.size(); ++t) {
+		const Tri &tri = data.tris[t];
+		if (!tri.active)
+			continue;
+		if (tri.edge_ids[0] == p_edge_id ||
+				tri.edge_ids[1] == p_edge_id ||
+				tri.edge_ids[2] == p_edge_id) {
+			count++;
+		}
+	}
+
+	e.triangle_count = count;
+	bool was_seam = e.is_seam_or_boundary;
+	e.is_seam_or_boundary = (count <= 1);
+
+	// Update vertex flags
+	if (e.is_seam_or_boundary) {
+		data.verts[e.a].is_seam_or_boundary = true;
+		data.verts[e.b].is_seam_or_boundary = true;
+	} else if (was_seam) {
+		// Could clear vertex seam flag if no other seams touch it, but it's harmless to leave it set
+	}
 }
 
 void MeshSimplify::_detect_seam_edges() {

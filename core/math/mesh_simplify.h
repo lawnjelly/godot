@@ -7,6 +7,8 @@
 #include <core/math/math_templated_types.h>
 #include <core/math/vector3i.h>
 
+class MeshDeduplicator;
+
 class MeshSimplify {
 	// Symmetric 4x4 matrix,
 	// can be stored as just half to save memory / calcs.
@@ -160,6 +162,8 @@ class MeshSimplify {
 
 	void _create_tris();
 	void _detect_seam_edges();
+	void _update_edge_seam_status(uint32_t p_edge_id);
+
 	void _build_vertex_triangle_links();
 
 	void _triangle_calculate_plane(uint32_t p_tri_id);
@@ -189,6 +193,8 @@ class MeshSimplify {
 	void _validate_and_rebuild();
 
 	void _debug_log_input_data();
+
+	bool prepare(MeshDeduplicator &r_dd);
 
 public:
 	void declare_indices(const Span<int> &p_indices);
