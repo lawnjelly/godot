@@ -165,8 +165,10 @@ class MeshSimplify {
 	void _rebuild_triangle_edge_ids();
 
 	void _update_edge_seam_status(uint32_t p_edge_id);
+	void _delete_triangle(uint32_t p_tri_id);
 
 	void _build_vertex_triangle_links();
+	void _debug_sanity_check();
 
 	void _triangle_calculate_plane(uint32_t p_tri_id);
 
