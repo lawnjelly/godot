@@ -114,8 +114,49 @@ class MeshSimplify {
 		}
 	};
 
-	struct Vert {
+	struct Wedge {
 		Vector3i position;
+		LocalVector<uint32_t> verts;
+	};
+
+	struct Vert {
+		////////////////////////////////////////
+		// Idea for enum / collapse matrix borrowed from
+		// Arseny Kapoulkine's MeshOptimizer
+		// Source: https://github.com/zeux/meshoptimizer
+		// Licensed under the MIT License
+		enum class Type : uint32_t {
+			MANIFOLD, // not on an attribute seam, not on any boundary
+			BORDER, // not on an attribute seam, has exactly two open edges
+			SEAM, // on an attribute seam with exactly two attribute seam edges
+			COMPLEX, // none of the above; these vertices can move as long as all wedges move to the target vertex
+			LOCKED, // none of the above; these vertices can't move
+
+			MAX
+
+		};
+
+		// manifold vertices can collapse onto anything
+		// border/seam vertices can collapse onto border/seam respectively, or locked
+		// complex vertices can collapse onto complex/locked
+		// a rule of thumb is that collapsing kind A into kind B preserves the kind B in the target vertex
+		// for example, while we could collapse Complex into Manifold, this would mean the target vertex isn't Manifold anymore
+		static constexpr uint8_t can_collapse[(uint32_t)Type::MAX][(uint32_t)Type::MAX] = {
+			{ 1, 1, 1, 1, 1 },
+			{ 0, 1, 0, 0, 1 },
+			{ 0, 0, 1, 0, 1 },
+			{ 0, 0, 0, 1, 1 },
+			{ 0, 0, 0, 0, 0 },
+		};
+
+		////////////////////////////////////////
+
+		Vector3i position;
+
+		// Wedge ID .. allows multiple vertex (different attributes)
+		// to share the same position.
+		uint32_t wedge = UINT32_MAX;
+
 		Quadric Q;
 
 		Vector4_64 gradient_u; // gx, gy, gz, c for U
@@ -123,6 +164,8 @@ class MeshSimplify {
 
 		Vector2 uv;
 		Vector2 uv2;
+
+		Type type = Type::MANIFOLD;
 
 		// A vertex is active until it has been collapsed
 		bool active = false;
@@ -153,6 +196,7 @@ class MeshSimplify {
 		LocalVector<Vert> verts;
 		LocalVector<Tri> tris;
 		LocalVector<Edge> edges;
+		LocalVector<Wedge> wedges;
 
 		Vector3i find_grid_pos(const Vector3 &p_pos) const;
 
@@ -169,6 +213,7 @@ class MeshSimplify {
 
 	void _build_vertex_triangle_links();
 	void _debug_sanity_check();
+	void _rebuild_vertex_wedges();
 
 	void _triangle_calculate_plane(uint32_t p_tri_id);
 

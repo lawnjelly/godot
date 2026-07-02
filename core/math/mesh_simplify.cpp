@@ -189,6 +189,13 @@ bool MeshSimplify::_can_collapse(uint32_t kept, uint32_t deleted) const {
 		return false;
 	}
 
+	// Use collapsable matrix.
+	const Vert &vert_to_keep = data.verts[kept];
+
+	if (!Vert::can_collapse[(uint32_t)vert_to_delete.type][(uint32_t)vert_to_keep.type]) {
+		return false;
+	}
+
 	// Only check triangles that touch the deleted vertex.
 	const LocalVector<uint32_t> &tri_list = vert_to_delete.tris;
 
@@ -682,6 +689,8 @@ bool MeshSimplify::simplify_mesh() {
 	print_line("simplify before_triangle_count: " + itos(before_triangle_count) + ", after_triangle_count: " + itos(current_triangle_count));
 
 	print_line("\nTook " + itos(time_after - time_before) + " milliseconds.");
+	print_line(itos(data.edges.size()) + " max edges.");
+	print_line(itos(data.tris.size()) + " max tris.");
 
 	return true;
 }
@@ -1292,7 +1301,9 @@ void MeshSimplify::_detect_seam_edges() {
 	}
 
 	// Flag true boundaries (edges with only 1 triangle)
+#ifdef MESH_SIMPLIFY_DEBUG_LOGGING
 	int seam_count = 0;
+#endif
 	for (uint32_t i = 0; i < data.edges.size(); i++) {
 		Edge &e = data.edges[i];
 		if (!e.active) {
@@ -1301,11 +1312,15 @@ void MeshSimplify::_detect_seam_edges() {
 
 		if (e.triangle_count <= 1) {
 			e.is_seam_or_boundary = true;
+#ifdef MESH_SIMPLIFY_DEBUG_LOGGING
 			seam_count++;
+#endif
 		} else if (e.triangle_count > 2) {
 			// Non-manifold edge - also protect
 			e.is_seam_or_boundary = true;
+#ifdef MESH_SIMPLIFY_DEBUG_LOGGING
 			seam_count++;
+#endif
 		}
 
 		// Make the verts on this edge as seams.
@@ -1325,8 +1340,42 @@ void MeshSimplify::_detect_seam_edges() {
 			sz += "\tSEAM";
 		}
 		MS_LOG(sz);
+
 #endif
 	}
+
+#define MESH_SIMPLIFY_COUNT_VERT_TYPES
+#ifdef MESH_SIMPLIFY_COUNT_VERT_TYPES
+	uint32_t vertex_type_count[(uint32_t)Vert::Type::MAX] = {};
+#endif
+
+	// Evaluate vertex types.
+	for (uint32_t n = 0; n < data.verts.size(); n++) {
+		Vert &vert = data.verts[n];
+		vert.type = Vert::Type::MANIFOLD;
+
+		DEV_ASSERT(vert.wedge != UINT32_MAX);
+		const Wedge &wedge = data.wedges[vert.wedge];
+		if (vert.is_seam_or_boundary) {
+			vert.type = Vert::Type::SEAM;
+		}
+
+		if (wedge.verts.size() > 1) {
+			vert.type = Vert::Type::LOCKED;
+		}
+#ifdef MESH_SIMPLIFY_COUNT_VERT_TYPES
+		vertex_type_count[(uint32_t)vert.type] += 1;
+#endif
+	}
+
+#ifdef MESH_SIMPLIFY_COUNT_VERT_TYPES
+	print_line("manifold : " + itos(vertex_type_count[(uint32_t)Vert::Type::MANIFOLD]));
+	print_line("border : " + itos(vertex_type_count[(uint32_t)Vert::Type::BORDER]));
+	print_line("seam : " + itos(vertex_type_count[(uint32_t)Vert::Type::SEAM]));
+	print_line("complex : " + itos(vertex_type_count[(uint32_t)Vert::Type::COMPLEX]));
+	print_line("locked : " + itos(vertex_type_count[(uint32_t)Vert::Type::LOCKED]));
+
+#endif
 
 #ifdef MESH_SIMPLIFY_DEBUG_LOGGING
 	for (uint32_t n = 0; n < data.verts.size(); n++) {
@@ -1338,12 +1387,13 @@ void MeshSimplify::_detect_seam_edges() {
 		sz += String(vert.position);
 		MS_LOG(sz);
 	}
-#endif
 
-	//	print_line("Detected " + itos(seam_count) + " seam/boundary edges out of " + itos(data.edges.size()));
+	print_line("Detected " + itos(seam_count) + " seam/boundary edges out of " + itos(data.edges.size()));
+#endif
 }
 
 void MeshSimplify::_debug_sanity_check() {
+	return;
 	// This is SLOOWWWW .. only do in debug for testing.
 #ifdef DEV_ENABLED
 	LocalVector<LocalVector<uint32_t>> vert_tri_lists;
@@ -1379,6 +1429,60 @@ void MeshSimplify::_debug_sanity_check() {
 	}
 
 #endif
+}
+
+void MeshSimplify::_rebuild_vertex_wedges() {
+	data.wedges.clear();
+
+	// Reserve to the max possible size, this prevents excessive resizing during population.
+	data.wedges.reserve(data.verts.size());
+
+	const uint32_t NUM_BUCKETS = 1024 * 5;
+	LocalVector<LocalVector<uint32_t>> wedge_buckets;
+	wedge_buckets.resize(NUM_BUCKETS);
+
+	for (uint32_t n = 0; n < data.verts.size(); n++) {
+		Vert &vert = data.verts[n];
+
+		uint32_t hash = vert.position.hash() % NUM_BUCKETS;
+		LocalVector<uint32_t> &bucket = wedge_buckets[hash];
+
+		bool found = false;
+
+		for (uint32_t w = 0; w < bucket.size(); w++) {
+			uint32_t wedge_id = bucket[w];
+			Wedge &wedge = data.wedges[wedge_id];
+
+			if (wedge.position == vert.position) {
+				// Record wedge ID in the vertex.
+				vert.wedge = wedge_id;
+
+				// Record the vertex ID in the wedge.
+				wedge.verts.push_back(n);
+				found = true;
+				break;
+			}
+		}
+
+		if (!found) {
+			// Create a new wedge.
+			uint32_t new_wedge_id = data.wedges.size();
+			data.wedges.resize(data.wedges.size() + 1);
+			Wedge &wedge = data.wedges[new_wedge_id];
+
+			// Store on the vertex.
+			vert.wedge = new_wedge_id;
+
+			// Add to the hash table bucket.
+			wedge_buckets[hash].push_back(new_wedge_id);
+
+			// Add the vertex and position to the wedge.
+			wedge.position = vert.position;
+			wedge.verts.push_back(n);
+		}
+	}
+
+	print_line("Built wedges... found " + itos(data.verts.size()) + " verts, " + itos(data.wedges.size()) + " wedges.");
 }
 
 void MeshSimplify::_build_vertex_triangle_links() {
@@ -1463,6 +1567,7 @@ void MeshSimplify::_create_tris() {
 		_triangle_calculate_plane(n);
 	}
 
+	_rebuild_vertex_wedges();
 	_detect_seam_edges();
 	_build_vertex_triangle_links();
 
