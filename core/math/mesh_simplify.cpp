@@ -1,4 +1,5 @@
 #include "mesh_simplify.h"
+#include "core/os/os.h"
 #include "mesh_deduplicator.h"
 
 //#define MESH_SIMPLIFY_DISALLOW_SEAMS
@@ -396,6 +397,8 @@ void MeshSimplify::_delete_triangle(uint32_t p_tri_id) {
 bool MeshSimplify::simplify_mesh() {
 	MeshDeduplicator dd;
 
+	uint64_t time_before = OS::get_singleton()->get_ticks_msec();
+
 	if (!prepare(dd)) {
 		return false;
 	}
@@ -496,9 +499,9 @@ bool MeshSimplify::simplify_mesh() {
 
 		// We only need to consider the triangles that touch the vertex to delete.
 		// We don't need to iterate all tris for a single collapse.
-		for (uint32_t z = 0; z < affected_tris.size(); z++) {
-			uint32_t n = affected_tris[z];
-			Tri &t = data.tris[n];
+		for (uint32_t n = 0; n < affected_tris.size(); n++) {
+			uint32_t tri_id = affected_tris[n];
+			Tri &t = data.tris[tri_id];
 			if (!t.active)
 				continue;
 
@@ -522,7 +525,7 @@ bool MeshSimplify::simplify_mesh() {
 
 			if (modified) {
 				if (kept_count > 1 || _is_triangle_degenerate(new_corn)) {
-					_delete_triangle(n);
+					_delete_triangle(tri_id);
 					current_triangle_count--;
 					continue; // no need to update edges
 				}
@@ -531,13 +534,13 @@ bool MeshSimplify::simplify_mesh() {
 				for (int i = 0; i < 3; i++) {
 					if (t.corn[i] != new_corn[i]) {
 						// Remove tri from old verex.
-						data.verts[t.corn[i]].tris.erase_unordered(n);
+						data.verts[t.corn[i]].tris.erase_unordered(tri_id);
 
 						// Check the triangle not on the new vertex already...
-						DEV_ASSERT(data.verts[new_corn[i]].tris.find(n) == -1);
+						DEV_ASSERT(data.verts[new_corn[i]].tris.find(tri_id) == -1);
 
 						// Add tri to new vertex list.
-						data.verts[new_corn[i]].tris.push_back(n);
+						data.verts[new_corn[i]].tris.push_back(tri_id);
 						t.corn[i] = new_corn[i];
 					}
 				}
@@ -545,7 +548,7 @@ bool MeshSimplify::simplify_mesh() {
 				// Re-assign edges for this triangle (this is the key change)
 				for (uint32_t i = 0; i < 3; i++) {
 					uint32_t old_edge_id = t.edge_ids[i];
-					uint32_t new_edge_id = _get_or_create_edge(t.corn[i], t.corn[(i + 1) % 3], n, old_edge_id);
+					uint32_t new_edge_id = _get_or_create_edge(t.corn[i], t.corn[(i + 1) % 3], tri_id, old_edge_id);
 					if (new_edge_id != t.edge_ids[i]) {
 						// Both the old edge id and the new edge id are changed,
 						// and need to be re-evaluated later.
@@ -673,8 +676,12 @@ bool MeshSimplify::simplify_mesh() {
 	}
 #endif
 
+	uint64_t time_after = OS::get_singleton()->get_ticks_msec();
+
 	// Debug
 	print_line("simplify before_triangle_count: " + itos(before_triangle_count) + ", after_triangle_count: " + itos(current_triangle_count));
+
+	print_line("\nTook " + itos(time_after - time_before) + " milliseconds.");
 
 	return true;
 }
@@ -1427,12 +1434,14 @@ void MeshSimplify::_create_tris() {
 		valid_tri_count++;
 	}
 
+#if 0
 	// Build vertex / edge adjacency.
 	for (uint32_t e = 0; e < data.edges.size(); ++e) {
 		const Edge &edge = data.edges[e];
 		data.verts[edge.a].edges.push_back(e);
 		data.verts[edge.b].edges.push_back(e);
 	}
+#endif
 
 	if (valid_tri_count) {
 		print_line("Simplify valid tris " + itos(valid_tri_count) + ", degenerate " + itos(num_orig_tris - valid_tri_count));

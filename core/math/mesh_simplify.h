@@ -81,7 +81,7 @@ class MeshSimplify {
 
 		uint32_t get_collapse_from() const { return vertex_to_collapse_to == a ? b : a; }
 
-		uint32_t translate_readable_cost(double p_cost) const { return p_cost / 100000000; }
+		uint32_t translate_readable_cost(double p_cost) const { return CLAMP(p_cost / 100000000, 0.0, (double)UINT32_MAX); }
 		uint32_t get_readable_cost() const { return translate_readable_cost(cost); }
 
 		String info() const;
@@ -129,7 +129,7 @@ class MeshSimplify {
 		bool is_seam_or_boundary = false;
 
 		// Edges that use this vertex.
-		LocalVector<uint32_t> edges;
+		// LocalVector<uint32_t> edges;
 
 		// Tris that use this vertex.
 		LocalVector<uint32_t> tris;
