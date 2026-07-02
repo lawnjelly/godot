@@ -238,6 +238,10 @@ public:
 		return -1;
 	}
 
+	// Returns true if added, return false if already in the vector.
+	bool push_back_if_not_present(const T &p_val) { return find_or_push_back(p_val) == size() - 1; }
+
+	// Returns the ID of the item, either found or added.
 	U find_or_push_back(const T &p_val) {
 		int64_t found = find(p_val);
 		if (found == -1) {

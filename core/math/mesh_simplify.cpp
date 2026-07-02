@@ -386,7 +386,19 @@ bool MeshSimplify::simplify_mesh() {
 		target = 1;
 	}
 
+	//	const uint32_t REFRESH_EVERY = 1; // Tune: 16-64 is usually fine
+	//	uint32_t collapse_counter = 0;
+
+	LocalVector<uint32_t> altered_edges;
+
 	while ((current_triangle_count > target && !queue.empty()) && current_triangle_count > 1) {
+		//		if ((++collapse_counter % REFRESH_EVERY) == 0) {
+		{
+			//_detect_seam_edges();
+			//_rebuild_triangle_edge_ids();
+			//_build_vertex_triangle_links();
+		}
+
 		SortedEdge se = queue.top();
 		queue.pop();
 
@@ -439,6 +451,96 @@ bool MeshSimplify::simplify_mesh() {
 		deleted_vert.active = false;
 		edge.active = false;
 
+		altered_edges.clear();
+
+		for (uint32_t n = 0; n < data.tris.size(); n++) {
+			Tri &t = data.tris[n];
+			if (!t.active)
+				continue;
+
+			// First pass: update corners
+			bool modified = false;
+			int kept_count = 0;
+
+			for (int i = 0; i < 3; i++) {
+				if (t.corn[i] == deleted) {
+					t.corn[i] = kept;
+					modified = true;
+				}
+				if (t.corn[i] == kept)
+					kept_count++;
+			}
+
+			if (modified) {
+				if (kept_count > 1 || _is_triangle_degenerate(t.corn)) {
+					t.active = false;
+					current_triangle_count--;
+					continue; // no need to update edges
+				}
+
+				// Re-assign edges for this triangle (this is the key change)
+				for (uint32_t i = 0; i < 3; i++) {
+					uint32_t old_edge_id = t.edge_ids[i];
+					uint32_t new_edge_id = _get_or_create_edge(t.corn[i], t.corn[(i + 1) % 3], n, old_edge_id);
+					if (new_edge_id != t.edge_ids[i]) {
+						// Both the old edge id and the new edge id are changed,
+						// and need to be re-evaluated later.
+						altered_edges.push_back_if_not_present(old_edge_id);
+						altered_edges.push_back_if_not_present(new_edge_id);
+						t.edge_ids[i] = new_edge_id;
+
+						// Reduce the triangle count on the old edge, increase tri count on the new edge.
+						data.edges[old_edge_id].triangle_count--;
+						data.edges[new_edge_id].triangle_count++;
+					}
+				}
+			}
+		}
+
+		// Do NOT deactivate all edges of deleted vertex blindly.
+		// Instead, update the ones that should survive (those connected to kept)
+		for (uint32_t n = 0; n < altered_edges.size(); n++) {
+			uint32_t e_idx = altered_edges[n];
+			Edge &e = data.edges[e_idx];
+			if (!e.active)
+				continue;
+
+			// If any edge has reached triangle count zero
+			// (i.e. no more triangles reference it),
+			// then delete.
+			if (e.triangle_count == 0) {
+				e.active = false;
+				continue;
+			}
+
+			// Update edge to point to kept instead of deleted
+			if (e.a == deleted) {
+				e.a = kept;
+				e.sort();
+			}
+			if (e.b == deleted) {
+				e.b = kept;
+				e.sort();
+			}
+			// Remove invalid edges.
+			if (e.a == e.b) {
+				e.active = false;
+			}
+		}
+
+		// Rebuild adjacency for altered edges.
+		for (uint32_t n = 0; n < altered_edges.size(); n++) {
+			uint32_t e_idx = altered_edges[n];
+			Edge &e = data.edges[e_idx];
+			if (!e.active)
+				continue;
+
+			_evaluate_edge_collapse(e_idx);
+			e.version++;
+			queue.push(SortedEdge(e_idx, e.cost, e.version));
+		}
+
+#ifdef OLD
 		// Do NOT deactivate all edges of deleted vertex blindly.
 		// Instead, update the ones that should survive (those connected to kept)
 		for (uint32_t n = 0; n < deleted_vert.edges.size(); n++) {
@@ -487,6 +589,11 @@ bool MeshSimplify::simplify_mesh() {
 				if (kept_count > 1 || _is_triangle_degenerate(t.corn)) {
 					t.active = false;
 					current_triangle_count--;
+
+					// NEW: Update affected edges
+					//					for (int i = 0; i < 3; ++i) {
+					//						_update_edge_seam_status(t.edge_ids[i]);
+					//					}
 				}
 			}
 		}
@@ -543,6 +650,7 @@ bool MeshSimplify::simplify_mesh() {
 			edge.version++;
 			queue.push(SortedEdge(e, edge.cost, edge.version));
 		}
+#endif // OLD
 
 		// ... after triangle update and adjacency rebuild ...
 		//_validate_and_rebuild();
@@ -678,14 +786,23 @@ bool MeshSimplify::_is_triangle_degenerate(const uint32_t p_inds[3]) const {
 	return false;
 }
 
-uint32_t MeshSimplify::_create_edge(uint32_t p_corn_a, uint32_t p_corn_b, uint32_t p_triangle_id) {
+uint32_t MeshSimplify::_get_or_create_edge(uint32_t p_corn_a, uint32_t p_corn_b, uint32_t p_triangle_id, uint32_t p_first_check_edge) {
 	Edge e;
 	e.a = p_corn_a;
 	e.b = p_corn_b;
 	e.sort();
 
+	// If there is an existing edge, check this first.
+	if (p_first_check_edge != UINT32_MAX) {
+		const Edge &edge = data.edges[p_first_check_edge];
+		if ((edge == e) && edge.active) {
+			return p_first_check_edge;
+		}
+	}
+
 	for (uint32_t n = 0; n < data.edges.size(); n++) {
-		if (data.edges[n] == e) {
+		const Edge &edge = data.edges[n];
+		if ((edge == e) && edge.active) {
 			return n;
 		}
 	}
@@ -1168,11 +1285,27 @@ void MeshSimplify::_update_edge_seam_status(uint32_t p_edge_id) {
 	}
 }
 
+void MeshSimplify::_rebuild_triangle_edge_ids() {
+	for (uint32_t t = 0; t < data.tris.size(); ++t) {
+		Tri &tri = data.tris[t];
+		if (!tri.active)
+			continue;
+
+		tri.edge_ids[0] = _get_or_create_edge(tri.corn[0], tri.corn[1], t);
+		tri.edge_ids[1] = _get_or_create_edge(tri.corn[1], tri.corn[2], t);
+		tri.edge_ids[2] = _get_or_create_edge(tri.corn[2], tri.corn[0], t);
+	}
+}
+
 void MeshSimplify::_detect_seam_edges() {
 	// Reset
 	for (uint32_t i = 0; i < data.edges.size(); i++) {
 		data.edges[i].is_seam_or_boundary = false;
 		data.edges[i].triangle_count = 0;
+	}
+
+	for (uint32_t i = 0; i < data.verts.size(); i++) {
+		data.verts[i].seam_neighbour_verts.clear();
 	}
 
 	// Count how many triangles use each edge
@@ -1193,6 +1326,9 @@ void MeshSimplify::_detect_seam_edges() {
 	int seam_count = 0;
 	for (uint32_t i = 0; i < data.edges.size(); i++) {
 		Edge &e = data.edges[i];
+		if (!e.active) {
+			continue;
+		}
 
 		if (e.triangle_count <= 1) {
 			e.is_seam_or_boundary = true;
@@ -1235,7 +1371,7 @@ void MeshSimplify::_detect_seam_edges() {
 	}
 #endif
 
-	print_line("Detected " + itos(seam_count) + " seam/boundary edges out of " + itos(data.edges.size()));
+	//	print_line("Detected " + itos(seam_count) + " seam/boundary edges out of " + itos(data.edges.size()));
 }
 
 void MeshSimplify::_build_vertex_triangle_links() {
@@ -1276,9 +1412,9 @@ void MeshSimplify::_create_tris() {
 			continue;
 		}
 
-		tri.edge_ids[0] = _create_edge(tri.corn[0], tri.corn[1], valid_tri_count);
-		tri.edge_ids[1] = _create_edge(tri.corn[1], tri.corn[2], valid_tri_count);
-		tri.edge_ids[2] = _create_edge(tri.corn[2], tri.corn[0], valid_tri_count);
+		tri.edge_ids[0] = _get_or_create_edge(tri.corn[0], tri.corn[1], valid_tri_count);
+		tri.edge_ids[1] = _get_or_create_edge(tri.corn[1], tri.corn[2], valid_tri_count);
+		tri.edge_ids[2] = _get_or_create_edge(tri.corn[2], tri.corn[0], valid_tri_count);
 
 		// Add the tri to the verts.
 		for (uint32_t c = 0; c < 3; c++) {

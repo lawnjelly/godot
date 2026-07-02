@@ -162,6 +162,8 @@ class MeshSimplify {
 
 	void _create_tris();
 	void _detect_seam_edges();
+	void _rebuild_triangle_edge_ids();
+
 	void _update_edge_seam_status(uint32_t p_edge_id);
 
 	void _build_vertex_triangle_links();
@@ -180,7 +182,7 @@ class MeshSimplify {
 	Vector4_64 _solve_attribute_gradient(const Vector3_64 &p0, const Vector3_64 &p1, const Vector3_64 &p2,
 			const Vector3_64 &normal, double u0, double u1, double u2);
 
-	uint32_t _create_edge(uint32_t p_corn_a, uint32_t p_corn_b, uint32_t p_triangle_id);
+	uint32_t _get_or_create_edge(uint32_t p_corn_a, uint32_t p_corn_b, uint32_t p_triangle_id, uint32_t p_first_check_edge = UINT32_MAX);
 
 	int32_t _triangle_which_side(const Vector3i &p_a, const Vector3i &p_b, const Vector3i &p_c, const Vector3i &p_test) const;
 	bool _is_triangle_degenerate(const uint32_t p_inds[3]) const;
