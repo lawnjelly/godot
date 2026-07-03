@@ -80,6 +80,7 @@ class MeshSimplify {
 		uint32_t triangle_count = 0;
 
 		uint32_t get_collapse_from() const { return vertex_to_collapse_to == a ? b : a; }
+		bool is_open_edge() const { return triangle_count == 1; }
 
 		uint32_t translate_readable_cost(double p_cost) const { return CLAMP(p_cost / 100000000, 0.0, (double)UINT32_MAX); }
 		uint32_t get_readable_cost() const { return translate_readable_cost(cost); }

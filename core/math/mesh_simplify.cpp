@@ -1284,6 +1284,7 @@ void MeshSimplify::_detect_seam_edges() {
 
 	for (uint32_t i = 0; i < data.verts.size(); i++) {
 		data.verts[i].seam_neighbour_verts.clear();
+		data.verts[i].type = Vert::Type::MANIFOLD; // default
 	}
 
 	// Count how many triangles use each edge
@@ -1315,6 +1316,8 @@ void MeshSimplify::_detect_seam_edges() {
 #ifdef MESH_SIMPLIFY_DEBUG_LOGGING
 			seam_count++;
 #endif
+			// Can 0 happen?
+			DEV_ASSERT(e.triangle_count > 0);
 		} else if (e.triangle_count > 2) {
 			// Non-manifold edge - also protect
 			e.is_seam_or_boundary = true;
@@ -1349,20 +1352,87 @@ void MeshSimplify::_detect_seam_edges() {
 	uint32_t vertex_type_count[(uint32_t)Vert::Type::MAX] = {};
 #endif
 
-	// Evaluate vertex types.
+	// Requires: wedges built, seam_neighbour_verts populated (both already true
+	// at this point in _detect_seam_edges).
+
+	LocalVector<uint32_t> true_border_count;
+	LocalVector<uint32_t> seam_pair_count;
+	LocalVector<uint32_t> nonmanifold_count;
+	true_border_count.resize(data.verts.size());
+	seam_pair_count.resize(data.verts.size());
+	nonmanifold_count.resize(data.verts.size());
+	for (uint32_t n = 0; n < data.verts.size(); n++) {
+		true_border_count[n] = 0;
+		seam_pair_count[n] = 0;
+		nonmanifold_count[n] = 0;
+	}
+
+	for (uint32_t i = 0; i < data.edges.size(); i++) {
+		const Edge &e = data.edges[i];
+		if (!e.active)
+			continue;
+
+		if (e.triangle_count > 2) {
+			nonmanifold_count[e.a]++;
+			nonmanifold_count[e.b]++;
+			continue;
+		}
+		if (e.triangle_count != 1)
+			continue; // interior edge
+
+		uint32_t wedge_a = data.verts[e.a].wedge;
+		uint32_t wedge_b = data.verts[e.b].wedge;
+		bool has_twin = false;
+
+		// Look for another open edge connecting a different member of a's wedge
+		// to a different member of b's wedge -- that's the "other side" of a seam.
+		const Wedge &wa = data.wedges[wedge_a];
+		for (uint32_t x = 0; x < wa.verts.size() && !has_twin; x++) {
+			uint32_t a2 = wa.verts[x];
+			if (a2 == e.a)
+				continue;
+			const LocalVector<uint32_t> &nbrs = data.verts[a2].seam_neighbour_verts;
+			for (uint32_t s = 0; s < nbrs.size(); s++) {
+				if (data.verts[nbrs[s]].wedge == wedge_b) {
+					has_twin = true;
+					break;
+				}
+			}
+		}
+
+		if (has_twin) {
+			seam_pair_count[e.a]++;
+			seam_pair_count[e.b]++;
+		} else {
+			true_border_count[e.a]++;
+			true_border_count[e.b]++;
+		}
+	}
+
 	for (uint32_t n = 0; n < data.verts.size(); n++) {
 		Vert &vert = data.verts[n];
-		vert.type = Vert::Type::MANIFOLD;
-
-		DEV_ASSERT(vert.wedge != UINT32_MAX);
 		const Wedge &wedge = data.wedges[vert.wedge];
-		if (vert.is_seam_or_boundary) {
-			vert.type = Vert::Type::SEAM;
+
+		uint32_t tb = true_border_count[n];
+		uint32_t sp = seam_pair_count[n];
+		uint32_t nm = nonmanifold_count[n];
+
+		if (nm > 0) {
+			vert.type = Vert::Type::LOCKED;
+		} else if (tb > 0) {
+			vert.type = (tb == 2 && sp == 0 && wedge.verts.size() == 1)
+					? Vert::Type::BORDER
+					: Vert::Type::COMPLEX;
+		} else if (sp > 0) {
+			vert.type = (sp == 2 && wedge.verts.size() == 2)
+					? Vert::Type::SEAM
+					: Vert::Type::COMPLEX;
+		} else if (wedge.verts.size() > 1) {
+			vert.type = Vert::Type::COMPLEX; // shares a position but no open edges — rare, be conservative
+		} else {
+			vert.type = Vert::Type::MANIFOLD;
 		}
 
-		if (wedge.verts.size() > 1) {
-			vert.type = Vert::Type::LOCKED;
-		}
 #ifdef MESH_SIMPLIFY_COUNT_VERT_TYPES
 		vertex_type_count[(uint32_t)vert.type] += 1;
 #endif
@@ -1443,6 +1513,11 @@ void MeshSimplify::_rebuild_vertex_wedges() {
 
 	for (uint32_t n = 0; n < data.verts.size(); n++) {
 		Vert &vert = data.verts[n];
+
+		// Don't count vertices in degenerate triangles etc in the wedge count.
+		if (!vert.active) {
+			continue;
+		}
 
 		uint32_t hash = vert.position.hash() % NUM_BUCKETS;
 		LocalVector<uint32_t> &bucket = wedge_buckets[hash];
@@ -1568,8 +1643,8 @@ void MeshSimplify::_create_tris() {
 	}
 
 	_rebuild_vertex_wedges();
-	_detect_seam_edges();
 	_build_vertex_triangle_links();
+	_detect_seam_edges();
 
 	_initialize_vertex_quadrics();
 }
