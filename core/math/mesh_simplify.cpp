@@ -475,9 +475,22 @@ bool MeshSimplify::simplify_mesh() {
 		}
 #endif
 
-		// Strong safety check - this is the main fix for bad visuals on the shark
+		// Strong safety check - this is the main fix for bad visuals on the shark.
+		//
+		// If this fails, it means something relevant changed since this edge was
+		// last evaluated without its version being bumped (e.g. a vertex a few
+		// hops away got reclassified, which can change what _can_collapse allows
+		// here without this specific edge being in that collapse's touched_edges
+		// set). Rather than permanently deactivating the edge -- which would
+		// throw away an edge that might be perfectly collapsible once its cost
+		// and direction are recomputed against current topology -- re-evaluate it
+		// and put it back in the queue. _evaluate_edge_collapse() already
+		// deactivates the edge itself if both directions are genuinely
+		// uncollapsable, so this can't loop forever.
 		if (!_can_collapse(kept, deleted)) {
-			edge.active = false;
+			_evaluate_edge_collapse(se.edge_id);
+			edge.version++;
+			queue.push(SortedEdge(se.edge_id, edge.cost, edge.version));
 			continue;
 		}
 
@@ -907,8 +920,11 @@ void MeshSimplify::_test_attribute_quadrics() {
 
 	Vector3i test_pos(1, 0, 0); // should have UV = 6.0
 
-	double err_correct = _compute_attribute_error(test_pos, 6.0, gradient);
-	double err_wrong = _compute_attribute_error(test_pos, 60.0, gradient);
+	Quadric Q_correct = _build_attribute_quadric(gradient, 6.0);
+	Quadric Q_wrong = _build_attribute_quadric(gradient, 60.0);
+
+	double err_correct = _compute_quadric_error(test_pos, Q_correct);
+	double err_wrong = _compute_quadric_error(test_pos, Q_wrong);
 
 	print_line("Error with CORRECT target (6.0): " + rtos(err_correct));
 	print_line("Error with WRONG target (60.0):   " + rtos(err_wrong));
@@ -931,6 +947,39 @@ MeshSimplify::Quadric::Quadric(const Plane_64 &p_plane) {
 	double b = p_plane.normal.y;
 	double c = p_plane.normal.z;
 	double d = -p_plane.d; // FLIP THE SIGN, Garland expects plane in reverse polarity to Godot standard.
+
+	m[0][0] = a * a;
+	m[0][1] = a * b;
+	m[0][2] = a * c;
+	m[0][3] = a * d;
+
+	m[1][0] = a * b;
+	m[1][1] = b * b;
+	m[1][2] = b * c;
+	m[1][3] = b * d;
+
+	m[2][0] = a * c;
+	m[2][1] = b * c;
+	m[2][2] = c * c;
+	m[2][3] = c * d;
+
+	m[3][0] = a * d;
+	m[3][1] = b * d;
+	m[3][2] = c * d;
+	m[3][3] = d * d;
+}
+
+// General outer-product quadric for an arbitrary 4-vector (a, b, c, d),
+// representing the squared-error functional (a*x + b*y + c*z + d)^2.
+// This is the same math as Quadric(const Plane_64&) above, just without
+// being restricted to vectors that come from a position plane -- it lets
+// us build quadrics for other linear error functions (attribute error)
+// that sum across triangles the same correct way position quadrics do.
+MeshSimplify::Quadric::Quadric(const Vector4_64 &p_v) {
+	double a = p_v.x;
+	double b = p_v.y;
+	double c = p_v.z;
+	double d = p_v.w;
 
 	m[0][0] = a * a;
 	m[0][1] = a * b;
@@ -1044,7 +1093,15 @@ void MeshSimplify::_initialize_vertex_quadrics() {
 #endif
 		}
 
-		// ATTRIBUTE GRADIENT (new reliable way)
+		// ATTRIBUTE QUADRIC
+		// Fit a single linear UV function per triangle (gu/gv, exact at all 3
+		// corners), then fold it into each corner's OWN attribute quadric using
+		// that corner's own recorded UV as the target. Each corner's quadric is
+		// exactly zero when evaluated at that corner's own position (since the
+		// gradient reproduces its own UV exactly by construction), and summing
+		// quadrics across triangles before evaluating -- rather than summing
+		// gradient vectors and evaluating once -- keeps that property true
+		// regardless of how many triangles touch the vertex.
 		if (input_data.uvs.size()) {
 			Vector3_64 normal = cross / normal_length;
 
@@ -1053,8 +1110,10 @@ void MeshSimplify::_initialize_vertex_quadrics() {
 
 			for (uint32_t i = 0; i < 3; i++) {
 				Vert &v = data.verts[t.corn[i]];
-				v.gradient_u += gu * area;
-				v.gradient_v += gv * area;
+				Quadric Qu_face = _build_attribute_quadric(gu, v.uv.x);
+				Quadric Qv_face = _build_attribute_quadric(gv, v.uv.y);
+				v.Qu = v.Qu + (Qu_face * area);
+				v.Qv = v.Qv + (Qv_face * area);
 			}
 		}
 	}
@@ -1087,14 +1146,24 @@ double MeshSimplify::_compute_quadric_error(const Vector3i &p_pos, const Quadric
 	return error;
 }
 
-double MeshSimplify::_compute_attribute_error(const Vector3i &p_pos, double p_attr, const Vector4_64 &gradient) {
-	double x = p_pos.x;
-	double y = p_pos.y;
-	double z = p_pos.z;
-
-	double predicted = gradient.x * x + gradient.y * y + gradient.z * z + gradient.w;
-	double diff = predicted - p_attr;
-	return diff * diff;
+// Builds one triangle's contribution to a vertex's attribute quadric.
+//
+// p_gradient is the linear function (fit exactly through this triangle's 3
+// corners) that predicts the attribute value from position: predicted(p) =
+// gradient . (p.x, p.y, p.z, 1). p_target is the attribute value we actually
+// want preserved at evaluation time (the vertex's own recorded UV).
+//
+// The squared error (gradient . p - p_target)^2 can be written as
+// ((gx, gy, gz, gw - p_target) . (x, y, z, 1))^2 -- exactly the same
+// "(a*x+b*y+c*z+d)^2" form as a position-plane quadric. That means we can
+// build it as an outer-product Quadric and accumulate/evaluate it with the
+// exact same machinery (operator+, _compute_quadric_error) as the geometry
+// quadric Q. Crucially, summing quadrics from multiple triangles *before*
+// evaluating gives the correct sum of per-triangle squared errors, unlike
+// summing the raw gradient vectors first and squaring once (which is what
+// this code used to do, and which scaled up incorrectly with vertex valence).
+MeshSimplify::Quadric MeshSimplify::_build_attribute_quadric(const Vector4_64 &p_gradient, double p_target) const {
+	return Quadric(Vector4_64(p_gradient.x, p_gradient.y, p_gradient.z, p_gradient.w - p_target));
 }
 
 void MeshSimplify::_evaluate_edge_collapse(uint32_t p_edge_id) {
@@ -1134,8 +1203,14 @@ void MeshSimplify::_evaluate_edge_collapse(uint32_t p_edge_id) {
 		// Only compute if UVs exist
 		double attr_a = 0;
 		if (input_data.uvs.size()) { // were these declared?
-			attr_a += _compute_attribute_error(a.position, a.uv.x, a.gradient_u);
-			attr_a += _compute_attribute_error(a.position, a.uv.y, a.gradient_v);
+			// Combine both endpoints' attribute quadrics before evaluating, the
+			// same way Q_new combines both endpoints' geometry quadrics -- this
+			// way the cost of collapsing to 'a' also accounts for how much 'b's
+			// neighbourhood would stretch by adopting a's position, not just a's
+			// own pre-existing error.
+			Quadric Qu_new = a.Qu + b.Qu;
+			Quadric Qv_new = a.Qv + b.Qv;
+			attr_a = _compute_quadric_error(a.position, Qu_new) + _compute_quadric_error(a.position, Qv_new);
 		}
 		total_a = distance_cost + geom_cost_a + beta * attr_a;
 
@@ -1180,9 +1255,9 @@ void MeshSimplify::_evaluate_edge_collapse(uint32_t p_edge_id) {
 		// Only compute if UVs exist
 		double attr_b = 0;
 		if (input_data.uvs.size()) { // were these declared?
-
-			attr_b += _compute_attribute_error(b.position, b.uv.x, b.gradient_u);
-			attr_b += _compute_attribute_error(b.position, b.uv.y, b.gradient_v);
+			Quadric Qu_new = a.Qu + b.Qu;
+			Quadric Qv_new = a.Qv + b.Qv;
+			attr_b = _compute_quadric_error(b.position, Qu_new) + _compute_quadric_error(b.position, Qv_new);
 		}
 
 		total_b = distance_cost + geom_cost_b + beta * attr_b;

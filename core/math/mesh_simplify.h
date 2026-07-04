@@ -17,6 +17,15 @@ class MeshSimplify {
 
 		//bool calculate_from_positions(const Vector3_64 &p0, const Vector3_64 &p1, const Vector3_64 &p2, const Plane_64 &p_plane);
 		Quadric(const Plane_64 &p_plane);
+
+		// General outer-product quadric v*v^T for an arbitrary 4-vector v = (a, b, c, d),
+		// representing the squared-error functional (a*x + b*y + c*z + d)^2.
+		// Quadric(const Plane_64&) above is just this specialized to a position plane;
+		// this general form is what lets us build quadrics for other linear
+		// error functions (e.g. attribute/UV error) that compose the same way
+		// position quadrics do when summed across triangles.
+		explicit Quadric(const Vector4_64 &p_v);
+
 		Quadric() = default;
 
 		// Add two quadric matrices together
@@ -160,8 +169,14 @@ class MeshSimplify {
 
 		Quadric Q;
 
-		Vector4_64 gradient_u; // gx, gy, gz, c for U
-		Vector4_64 gradient_v; // for V
+		// Attribute (UV) error quadrics, built and accumulated the same way as Q:
+		// each triangle contributes an area-weighted quadric encoding
+		// (gradient . position - this_vertex's_own_uv)^2, and quadrics from
+		// multiple triangles are summed *before* evaluating, so the accumulated
+		// error is the correct sum of per-triangle squared errors regardless of
+		// vertex valence (unlike summing raw gradient vectors first).
+		Quadric Qu; // attribute quadric for U
+		Quadric Qv; // attribute quadric for V
 
 		Vector2 uv;
 		Vector2 uv2;
@@ -232,7 +247,12 @@ class MeshSimplify {
 
 	void _evaluate_edge_collapse(uint32_t p_edge_id);
 	double _compute_quadric_error(const Vector3i &p_pos, const Quadric &Q);
-	double _compute_attribute_error(const Vector3i &p_pos, double p_attr, const Vector4_64 &gradient);
+
+	// Builds a single triangle's contribution to an attribute quadric: the
+	// squared-error functional (gradient . position - p_target)^2, expressed
+	// as an outer-product Quadric so it can be summed like Q and evaluated
+	// with the same _compute_quadric_error().
+	Quadric _build_attribute_quadric(const Vector4_64 &p_gradient, double p_target) const;
 
 	// Helper to solve gradient for one attribute (U or V)
 	Vector4_64 _solve_attribute_gradient(const Vector3_64 &p0, const Vector3_64 &p1, const Vector3_64 &p2,
