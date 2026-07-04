@@ -282,7 +282,7 @@ bool MeshSimplify::prepare(MeshDeduplicator &r_dd) {
 	uint32_t fill_stream = 0;
 
 	MeshAttributeStream &as_pos = r_dd.get_input_attribute_stream(fill_stream++);
-	as_pos.set_type(MeshAttributeStream::ATTR_POSITION);
+	as_pos.set_type(MeshAttributeStream::ATTR_POSITION, 0.1f);
 	as_pos.vec3 = input_data.positions;
 
 	if (input_data.uvs.size()) {

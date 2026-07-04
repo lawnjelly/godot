@@ -55,6 +55,7 @@ uint32_t MeshDeduplicator::Grid::hash_grid_pos(const Vector3i &p_pos) const {
 bool MeshDeduplicator::process(const Span<uint32_t> &p_indices, LocalVector<uint32_t> &p_output_indices) {
 	// The first attribute stream is required to be positions.
 	ERR_FAIL_COND_V(!data.attributes.size(), false);
+	ERR_FAIL_COND_V(data.position_attribute_id >= data.attributes.size(), false);
 	ERR_FAIL_COND_V(!p_indices.size(), false);
 
 	ERR_FAIL_COND_V(data.attributes[data.position_attribute_id].type != MeshAttributeStream::ATTR_POSITION, false);
@@ -76,9 +77,24 @@ bool MeshDeduplicator::process(const Span<uint32_t> &p_indices, LocalVector<uint
 	// Use some minimum bound, to prevent float error.
 	const real_t min_bound = 1e-4f;
 
-	if (grid.bound.size.length() < min_bound) {
-		grid.bound.size = Vector3(min_bound, min_bound, min_bound);
-	}
+	grid.bound.size.x = MAX(grid.bound.size.x, min_bound);
+	grid.bound.size.y = MAX(grid.bound.size.y, min_bound);
+	grid.bound.size.z = MAX(grid.bound.size.z, min_bound);
+
+	real_t bound_max_dimension = grid.bound.size.get_axis(grid.bound.size.max_axis());
+
+	// Dynamically compute grid_size based on position epsilon so that
+	// the fixed small neighbor search (+/-2) reliably covers the epsilon ball.
+	// This makes the position epsilon actually control the weld distance.
+	// We clamp to [4, 65535] to preserve the original "65535 integer range accuracy"
+	// for fine positioning when epsilon is small.
+	const MeshAttributeStream &pos_as = data.attributes[data.position_attribute_id];
+	real_t pos_epsilon = MAX(pos_as.epsilon, (real_t)0.001f);
+
+	grid.grid_size = 4;
+	grid.grid_size = (uint32_t)(bound_max_dimension / pos_epsilon + 0.5f);
+	print_line("DeDuplication selected grid size : " + itos(grid.grid_size));
+	grid.grid_size = CLAMP(grid.grid_size, 4, 65535);
 
 	// Create in verts, and find their grid pos.
 	grid.verts.clear();
@@ -95,22 +111,19 @@ bool MeshDeduplicator::process(const Span<uint32_t> &p_indices, LocalVector<uint
 
 		//print_line("input vertex " + itos(n) + " in_pos is " + in_pos + ", grid_pos is " + grid_pos);
 
-		// Assign in verts to buckets.
-		uint32_t bucket = grid.hash_grid_pos(grid_pos);
-
-		// Can it be combined with an existing vertex in the bucket? NYI
 		Vert *matching_vert = nullptr;
+		bool found_match = false;
 
 		// Search 27 neighbouring cells.
-		for (int32_t dz = -1; dz <= 1; dz++) {
-			for (int32_t dy = -1; dy <= 1; dy++) {
-				for (int32_t dx = -1; dx <= 1; dx++) {
+		for (int32_t dz = -1; dz <= 1 && !found_match; dz++) {
+			for (int32_t dy = -1; dy <= 1 && !found_match; dy++) {
+				for (int32_t dx = -1; dx <= 1 && !found_match; dx++) {
 					Vector3i test_pos = grid_pos + Vector3i(dx, dy, dz);
 					uint32_t test_bucket_id = grid.hash_grid_pos(test_pos);
 
 					const Bucket &bucket = grid.buckets[test_bucket_id];
 
-					for (uint32_t b = 0; b < bucket.vert_ids.size(); b++) {
+					for (uint32_t b = 0; b < bucket.vert_ids.size() && !found_match; b++) {
 						uint32_t test_vert_id = bucket.vert_ids[b];
 						Vert &test_vert = grid.verts[test_vert_id];
 
@@ -136,7 +149,10 @@ bool MeshDeduplicator::process(const Span<uint32_t> &p_indices, LocalVector<uint
 										}
 									} break;
 									case MeshAttributeStream::ATTR_NORMAL: {
-										//matching_vert->sum_normals[as.internal_vert_sum_index] += as.vec3[n];
+										// Use distance on (assumed unit) normal as approx for angle < epsilon (radians)
+										if (as.vec3[n].distance_squared_to(as.vec3[sid]) > as.internal_epsilon_squared) {
+											reject_merge = true;
+										}
 									} break;
 									case MeshAttributeStream::ATTR_POSITION: {
 										if (as.vec3[n].distance_squared_to(as.vec3[sid]) > as.internal_epsilon_squared) {
@@ -152,16 +168,17 @@ bool MeshDeduplicator::process(const Span<uint32_t> &p_indices, LocalVector<uint
 										DEV_ASSERT(0 && "attribute not supported.");
 									} break;
 								}
+
+// Force off the deduplication
+//#define DEDUPLICATE_BYPASS
+#ifdef DEDUPLICATE_BYPASS
+								reject_merge = true;
+#endif
+
 								if (reject_merge) {
 									break;
 								}
 							} // for a
-
-							// Force off the deduplication
-#define DEDUPLICATE_BYPASS
-#ifdef DEDUPLICATE_BYPASS
-							reject_merge = true;
-#endif
 
 							if (reject_merge) {
 								break;
@@ -174,9 +191,10 @@ bool MeshDeduplicator::process(const Span<uint32_t> &p_indices, LocalVector<uint
 						}
 
 						// Close enough to merge.
-						// Check other attributes NYI.
 						matching_vert = &test_vert;
 						vertex_remap[n] = test_vert_id;
+						found_match = true;
+						break; // stop this bucket
 					} // for b through bucket verts.
 				} // dx
 			} // dy
@@ -195,7 +213,8 @@ bool MeshDeduplicator::process(const Span<uint32_t> &p_indices, LocalVector<uint
 			new_vert.source_vert_ids.push_back(n);
 
 			// print_line("Adding vert to bucket " + itos(bucket));
-			grid.buckets[bucket].vert_ids.push_back(new_vert_id);
+			uint32_t bucket_id = grid.hash_grid_pos(grid_pos);
+			grid.buckets[bucket_id].vert_ids.push_back(new_vert_id);
 
 			vertex_remap[n] = new_vert_id;
 		}

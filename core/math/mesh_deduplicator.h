@@ -10,15 +10,15 @@
 struct MeshAttributeStream {
 	enum Type {
 		ATTR_POSITION = 0, // always required, uses distance
-		ATTR_NORMAL, // angular epsilon (radians)
+		ATTR_NORMAL, // angular epsilon (radians) - approximated via distance on unit sphere
 		ATTR_UV, // distance epsilon
-		ATTR_COLOR, // sum of absolute differences (RGBA)
+		ATTR_COLOR, // uses is_equal_approx (ignores epsilon)
 		ATTR_FLOAT, // absolute difference
 		ATTR_MAX,
 	};
 
 	String name;
-	float epsilon = 0; // meaning depends on type
+	real_t epsilon = 0; // meaning depends on type
 	LocalVector<Vector3> vec3;
 	LocalVector<Vector2> vec2;
 	LocalVector<Color> color;
