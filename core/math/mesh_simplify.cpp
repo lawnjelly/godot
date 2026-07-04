@@ -1673,6 +1673,9 @@ void MeshSimplify::_detect_seam_edges() {
 
 	for (uint32_t n = 0; n < data.verts.size(); n++) {
 		Vert &vert = data.verts[n];
+		if (!vert.active) {
+			continue;
+		}
 		const Wedge &wedge = data.wedges[vert.wedge];
 
 		uint32_t tb = true_border_count[n];
@@ -1837,6 +1840,7 @@ void MeshSimplify::_build_vertex_triangle_links() {
 			DEV_ASSERT(vert_id < data.verts.size());
 			DEV_ASSERT(data.verts[vert_id].active);
 			data.verts[vert_id].tris.push_back(t);
+			data.verts[vert_id].active = true;
 		}
 	}
 }
@@ -1904,8 +1908,8 @@ void MeshSimplify::_create_tris() {
 		_triangle_calculate_plane(n);
 	}
 
-	_rebuild_vertex_wedges();
 	_build_vertex_triangle_links();
+	_rebuild_vertex_wedges();
 	_detect_seam_edges();
 
 	_initialize_vertex_quadrics();

@@ -1,5 +1,12 @@
 #include "mesh_deduplicator.h"
 
+#define GODOT_MESH_DEDUPLICATOR_DEBUG_LOGGING
+#ifdef GODOT_MESH_DEDUPLICATOR_DEBUG_LOGGING
+#define GMD_LOG(a) print_line(a)
+#else
+#define GMD_LOG(a)
+#endif
+
 void MeshAttributeStream::set_type(Type p_type, float p_epsilon) {
 	type = p_type;
 	if (p_epsilon >= 0) {
@@ -100,10 +107,12 @@ bool MeshDeduplicator::process(const Span<uint32_t> &p_indices, LocalVector<uint
 	grid.verts.clear();
 	grid.prepare();
 
-	// We need a map going from the original vertices to the unique verts,
+	// We need a map going from the original vertices to the attribute verts,
 	// so that a new list of indices can be output.
 	LocalVector<uint32_t> vertex_remap;
 	vertex_remap.resize(in_verts.size());
+
+	real_t position_epsilon_squared = data.attributes[0].internal_epsilon_squared;
 
 	for (uint32_t n = 0; n < in_verts.size(); n++) {
 		const Vector3 &in_pos = in_verts[n];
@@ -111,8 +120,18 @@ bool MeshDeduplicator::process(const Span<uint32_t> &p_indices, LocalVector<uint
 
 		//print_line("input vertex " + itos(n) + " in_pos is " + in_pos + ", grid_pos is " + grid_pos);
 
-		Vert *matching_vert = nullptr;
 		bool found_match = false;
+
+		// Check we can fit the attribute streams inside the vert..
+		// Probably need to deal with this properly at runtime later.
+		DEV_ASSERT(data.attributes.size() - 1 < MAX_ATTRIBUTES_PER_VERT);
+
+		// Create an attribute stack ahead of time for this new vertex we want to add.
+		AttributeStack stack;
+		for (uint32_t a = 1; a < data.attributes.size(); a++) {
+			const MeshAttributeStream &as = data.attributes[a];
+			stack.a[a - 1].copy_from_stream(as, n);
+		}
 
 		// Search 27 neighbouring cells.
 		for (int32_t dz = -1; dz <= 1 && !found_match; dz++) {
@@ -123,100 +142,142 @@ bool MeshDeduplicator::process(const Span<uint32_t> &p_indices, LocalVector<uint
 
 					const Bucket &bucket = grid.buckets[test_bucket_id];
 
-					for (uint32_t b = 0; b < bucket.vert_ids.size() && !found_match; b++) {
-						uint32_t test_vert_id = bucket.vert_ids[b];
-						Vert &test_vert = grid.verts[test_vert_id];
+					for (uint32_t b = 0; b < bucket.wedge_ids.size() && !found_match; b++) {
+						uint32_t wedge_id = bucket.wedge_ids[b];
+						Wedge &wedge = grid.wedges[wedge_id];
 
-						bool reject_merge = false;
+						// Test wedge based on position only.
+						// Is it within range?
+						if (in_pos.distance_squared_to(wedge.position_average) <= position_epsilon_squared) {
+							// Merge the position into the existing wedge.
+							wedge.position_total += in_pos;
+							wedge.source_vertex_count += 1;
+							wedge.position_average = wedge.position_total / wedge.source_vertex_count;
 
-						// Test each attribute of each already held vertex in turn.
-						for (uint32_t h = 0; h < test_vert.source_vert_ids.size(); h++) {
-							// Test source vert id.
-							uint32_t sid = test_vert.source_vert_ids[h];
+							bool merged_into_attribute_vert = false;
 
-							for (uint32_t a = 0; a < data.attributes.size(); a++) {
-								const MeshAttributeStream &as = data.attributes[a];
-								switch (as.type) {
-									case MeshAttributeStream::ATTR_COLOR: {
-										if (!as.color[n].is_equal_approx(as.color[sid])) {
-											reject_merge = true;
-										}
-									} break;
-									case MeshAttributeStream::ATTR_FLOAT: {
-										float diff = as.float_input[n] - as.float_input[sid];
-										if (ABS(diff) > as.epsilon) {
-											reject_merge = true;
-										}
-									} break;
-									case MeshAttributeStream::ATTR_NORMAL: {
-										// Use distance on (assumed unit) normal as approx for angle < epsilon (radians)
-										if (as.vec3[n].distance_squared_to(as.vec3[sid]) > as.internal_epsilon_squared) {
-											reject_merge = true;
-										}
-									} break;
-									case MeshAttributeStream::ATTR_POSITION: {
-										if (as.vec3[n].distance_squared_to(as.vec3[sid]) > as.internal_epsilon_squared) {
-											reject_merge = true;
-										}
-									} break;
-									case MeshAttributeStream::ATTR_UV: {
-										if (as.vec2[n].distance_squared_to(as.vec2[sid]) > as.internal_epsilon_squared) {
-											reject_merge = true;
-										}
-									} break;
-									default: {
-										DEV_ASSERT(0 && "attribute not supported.");
-									} break;
+							// Either merge into an existing attribute Vertex,
+							// or create a new one, if too different.
+							for (uint32_t v = 0; v < wedge.vert_ids.size(); v++) {
+								Vert &vert = grid.verts[wedge.vert_ids[v]];
+
+								bool reject_merge = false;
+
+								// Skip the first position stream, already done with the wedge.
+								for (uint32_t a = 1; a < data.attributes.size(); a++) {
+									const MeshAttributeStream &as = data.attributes[a];
+
+									uint32_t am = a - 1;
+
+									switch (as.type) {
+										case MeshAttributeStream::ATTR_COLOR: {
+											if (!vert.averages.a[am].color.is_equal_approx(stack.a[am].color)) {
+												reject_merge = true;
+											}
+										} break;
+										case MeshAttributeStream::ATTR_FLOAT: {
+											real_t diff = vert.averages.a[am].flt - stack.a[am].flt;
+											if (ABS(diff) > as.epsilon) {
+												reject_merge = true;
+											}
+										} break;
+										case MeshAttributeStream::ATTR_NORMAL: {
+											// Use distance on (assumed unit) normal as approx for angle < epsilon (radians)
+											real_t sq = vert.averages.a[am].vec3.distance_squared_to(stack.a[am].vec3);
+											if (sq > as.internal_epsilon_squared) {
+												reject_merge = true;
+											}
+										} break;
+										case MeshAttributeStream::ATTR_POSITION: {
+											real_t sq = vert.averages.a[am].vec3.distance_squared_to(stack.a[am].vec3);
+											if (sq > as.internal_epsilon_squared) {
+												reject_merge = true;
+											}
+										} break;
+										case MeshAttributeStream::ATTR_UV: {
+											real_t sq = vert.averages.a[am].vec2.distance_squared_to(stack.a[am].vec2);
+											if (sq > as.internal_epsilon_squared) {
+												reject_merge = true;
+											}
+										} break;
+										default: {
+											DEV_ASSERT(0 && "attribute not supported.");
+										} break;
+									}
+								} // for a through attribute streams
+
+								if (!reject_merge) {
+									// Merge into existing attribute vert!
+									merged_into_attribute_vert = true;
+									vert.source_vertex_count += 1;
+
+									vert.totals += stack;
+									vert.averages = vert.totals;
+									vert.averages /= vert.source_vertex_count;
+
+									vert.source_vert_ids.push_back(n);
 								}
 
-// Force off the deduplication
-//#define DEDUPLICATE_BYPASS
-#ifdef DEDUPLICATE_BYPASS
-								reject_merge = true;
-#endif
+							} // for v through the verts on a wedge
 
-								if (reject_merge) {
-									break;
-								}
-							} // for a
+							// Deal with the case where we need to create a new attribute vert.
+							if (!merged_into_attribute_vert) {
+								// Create new attribute vertex.
+								uint32_t new_vert_id = grid.verts.size();
+								wedge.vert_ids.push_back(new_vert_id);
 
-							if (reject_merge) {
-								break;
+								grid.verts.resize(grid.verts.size() + 1);
+								Vert &vert = grid.verts[new_vert_id];
+								vert.totals = stack;
+								vert.averages = stack;
+								vert.source_vert_ids.push_back(n);
+								vert.source_vertex_count = 1;
+								vert.wedge_id = wedge_id;
+
+								vertex_remap[n] = new_vert_id;
 							}
 
-						} // for h
+							// Close enough to merge.
+							found_match = true;
+							break; // stop this bucket
+						} // if the wedge was close enough to merge
 
-						if (reject_merge) {
-							continue;
-						}
-
-						// Close enough to merge.
-						matching_vert = &test_vert;
-						vertex_remap[n] = test_vert_id;
-						found_match = true;
-						break; // stop this bucket
 					} // for b through bucket verts.
 				} // dx
 			} // dy
 		} // dz
 
-		if (matching_vert) {
-			// Can be combined.
-			matching_vert->source_vert_ids.push_back(n);
-			// print_line("Combining with vert in bucket " + itos(bucket));
-		} else {
-			// If it can't be combined, create new one...
-			uint32_t new_vert_id = grid.verts.size();
+		// No match, we need new everything.
+		if (!found_match) {
+			// New wedge.
+			uint32_t wedge_id = grid.wedges.size();
+			grid.wedges.resize(grid.wedges.size() + 1);
+			Wedge &wedge = grid.wedges[wedge_id];
 
-			grid.verts.resize(new_vert_id + 1);
-			Vert &new_vert = grid.verts[new_vert_id];
-			new_vert.source_vert_ids.push_back(n);
+			wedge.position_orig = in_pos;
+			wedge.position_average = in_pos;
+			wedge.position_total = in_pos;
+			wedge.grid_pos = grid.find_grid_pos(in_pos);
 
-			// print_line("Adding vert to bucket " + itos(bucket));
-			uint32_t bucket_id = grid.hash_grid_pos(grid_pos);
-			grid.buckets[bucket_id].vert_ids.push_back(new_vert_id);
+			wedge.source_vertex_count = 1;
 
-			vertex_remap[n] = new_vert_id;
+			// Add the wedge to a bucket.
+			uint32_t bucket_id = grid.hash_grid_pos(wedge.grid_pos);
+			grid.buckets[bucket_id].wedge_ids.push_back(wedge_id);
+
+			// New attribute vert.
+			uint32_t vert_id = grid.verts.size();
+			wedge.vert_ids.push_back(vert_id);
+
+			grid.verts.resize(grid.verts.size() + 1);
+			Vert &vert = grid.verts[vert_id];
+			vert.totals = stack;
+			vert.averages = stack;
+			vert.source_vert_ids.push_back(n);
+			vert.source_vertex_count = 1;
+			vert.wedge_id = wedge_id;
+
+			vertex_remap[n] = vert_id;
 		}
 
 		//print_line("\tvertex_remap to " + itos(vertex_remap[n]));
@@ -242,58 +303,59 @@ bool MeshDeduplicator::process(const Span<uint32_t> &p_indices, LocalVector<uint
 		os.type = is.type;
 		os.name = is.name;
 
-		uint32_t num_grid_verts = grid.verts.size();
+		uint32_t num_attr_verts = grid.verts.size();
 
 		// Most of these will be zero, but the used one will be non-zero.
-		os.color.resize(is.color.size() ? num_grid_verts : 0);
-		os.float_input.resize(is.float_input.size() ? num_grid_verts : 0);
-		os.vec2.resize(is.vec2.size() ? num_grid_verts : 0);
-		os.vec3.resize(is.vec3.size() ? num_grid_verts : 0);
+		os.color.resize(is.color.size() ? num_attr_verts : 0);
+		os.float_input.resize(is.float_input.size() ? num_attr_verts : 0);
+		os.vec2.resize(is.vec2.size() ? num_attr_verts : 0);
+		os.vec3.resize(is.vec3.size() ? num_attr_verts : 0);
 	}
 
 	for (uint32_t n = 0; n < grid.verts.size(); n++) {
-		const Vert &read_vert = grid.verts[n];
-		uint32_t num_merged_verts = read_vert.source_vert_ids.size();
+		const Vert &attr_vert = grid.verts[n];
+		const Wedge &wedge = grid.wedges[attr_vert.wedge_id];
 
-		// Combine the attributes of each merged vert.
-		for (uint32_t m = 0; m < num_merged_verts; m++) {
-			// Source merged vert id.
-			uint32_t sid = read_vert.source_vert_ids[m];
-			for (uint32_t a = 0; a < data.attributes.size(); a++) {
-				// Input stream, output stream.
-				const MeshAttributeStream &is = data.attributes[a];
-				MeshAttributeStream &os = data.out_attributes[a];
+		GMD_LOG("vert " + itos(n) + " : ");
+		// The averaging of the attributes has already been done on the fly,
+		// as we added them.
+		for (uint32_t a = 0; a < data.attributes.size(); a++) {
+			// Input stream, output stream.
+			MeshAttributeStream &os = data.out_attributes[a];
+			switch (os.type) {
+				case MeshAttributeStream::ATTR_POSITION: {
+					os.vec3[n] = wedge.position_average;
+					GMD_LOG("\tpos " + String(Variant(os.vec3[n])));
+				} break;
+				case MeshAttributeStream::ATTR_NORMAL: {
+					os.vec3[n] = attr_vert.averages.a[a - 1].vec3;
+					GMD_LOG("\tnorm " + String(Variant(os.vec3[n])));
+				} break;
+				case MeshAttributeStream::ATTR_UV: {
+					os.vec2[n] = attr_vert.averages.a[a - 1].vec2;
+					GMD_LOG("\tuv " + String(Variant(os.vec2[n])));
+				} break;
+				case MeshAttributeStream::ATTR_COLOR: {
+					os.color[n] = attr_vert.averages.a[a - 1].color;
+					GMD_LOG("\tcol " + String(Variant(os.color[n])));
+				} break;
+				case MeshAttributeStream::ATTR_FLOAT: {
+					os.float_input[n] = attr_vert.averages.a[a - 1].flt;
+					GMD_LOG("\tfloat " + String(Variant(os.float_input[n])));
+				} break;
+				default: {
+					DEV_ASSERT(0 && "attribute not supported.");
+				} break;
+			}
 
-				// Watch for precision issues with the divide.
-				// We could multiply, or do a single divide at the end.
-				switch (is.type) {
-					case MeshAttributeStream::ATTR_COLOR: {
-						os.color[n] += is.color[sid] / num_merged_verts;
-					} break;
-					case MeshAttributeStream::ATTR_FLOAT: {
-						os.float_input[n] += is.float_input[sid] / num_merged_verts;
-					} break;
-					case MeshAttributeStream::ATTR_NORMAL: {
-						os.vec3[n] += is.vec3[sid] / num_merged_verts;
-					} break;
-					case MeshAttributeStream::ATTR_POSITION: {
-						os.vec3[n] += is.vec3[sid] / num_merged_verts;
-					} break;
-					case MeshAttributeStream::ATTR_UV: {
-						os.vec2[n] += is.vec2[sid] / num_merged_verts;
-					} break;
-					default: {
-						DEV_ASSERT(0 && "attribute not supported.");
-					} break;
-				} // for a
-			} // for m
-		}
+		} // for a
 	}
 
 	// Store the final indices now referring to the unique verts.
 	data.out_indices.resize(p_indices.size());
 	for (uint32_t n = 0; n < p_indices.size(); n++) {
 		data.out_indices[n] = vertex_remap[p_indices[n]];
+		GMD_LOG("index " + itos(n) + " : " + itos(data.out_indices[n]));
 	}
 
 	print_line("Verts before " + itos(in_verts.size()) + ", after " + itos(data.out_attributes[data.position_attribute_id].vec3.size()) + ", indices " + itos(data.out_indices.size()));
@@ -303,3 +365,5 @@ bool MeshDeduplicator::process(const Span<uint32_t> &p_indices, LocalVector<uint
 
 	return true;
 }
+
+#undef GMD_LOG
