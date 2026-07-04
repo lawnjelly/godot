@@ -433,6 +433,9 @@ bool MeshSimplify::simplify_mesh() {
 	//	uint32_t collapse_counter = 0;
 
 	LocalVector<uint32_t> altered_edges;
+	LocalVector<uint32_t> touched_edges; // Superset of altered_edges: every edge whose
+										 // triangle_count changed this collapse, whether or not its (a,b) ids changed,
+										 // plus every edge now incident to `kept` (see below for why).
 	LocalVector<uint32_t> affected_tris;
 
 	while ((current_triangle_count > target && !queue.empty()) && current_triangle_count > 1) {
@@ -499,6 +502,7 @@ bool MeshSimplify::simplify_mesh() {
 		edge.active = false;
 
 		altered_edges.clear();
+		touched_edges.clear();
 
 		// Make a copy here, as the tris may be deleted from the original LocalVector,
 		// and we could get sync bugs.
@@ -532,9 +536,19 @@ bool MeshSimplify::simplify_mesh() {
 
 			if (modified) {
 				if (kept_count > 1 || _is_triangle_degenerate(new_corn)) {
+					// BUG FIX: this triangle is being discarded outright (it's the
+					// "flap" straddling the collapsed edge), not reassigned -- but its
+					// other two edges (kept<->c and deleted<->c) still lose a triangle
+					// user here. They were previously never added to altered_edges, so
+					// if this was their last remaining triangle they'd end up with
+					// triangle_count == 0 while staying "active" forever. Register them
+					// so the refresh pass below can retire/reclassify them correctly.
+					for (uint32_t i = 0; i < 3; i++) {
+						touched_edges.push_back_if_not_present(t.edge_ids[i]);
+					}
 					_delete_triangle(tri_id);
 					current_triangle_count--;
-					continue; // no need to update edges
+					continue; // corners/edges of this tri don't need reassigning
 				}
 
 				// If not deleted, we can assign the new corners.
@@ -571,6 +585,15 @@ bool MeshSimplify::simplify_mesh() {
 			}
 		}
 
+		// BUG FIX: kept_vert.Q was merged with deleted_vert.Q above, which changes
+		// the true cost of EVERY edge incident to `kept` -- not just the ones whose
+		// corner ids literally changed this round (altered_edges). Previously, an
+		// edge from kept to an untouched neighbour kept its pre-merge cached cost
+		// indefinitely, letting the queue make decisions on stale data. Pull in
+		// kept's full current incident-edge set so the refresh pass below catches
+		// all of them.
+		_get_edges_touching_vertex(kept, touched_edges);
+
 		_debug_sanity_check();
 
 		// Do NOT deactivate all edges of deleted vertex blindly.
@@ -606,12 +629,24 @@ bool MeshSimplify::simplify_mesh() {
 
 		_debug_sanity_check();
 
-		// Rebuild adjacency for altered edges.
-		for (uint32_t n = 0; n < altered_edges.size(); n++) {
-			uint32_t e_idx = altered_edges[n];
+		// Refresh every edge touched by this collapse -- not just the ones whose
+		// vertex ids structurally changed (altered_edges). See the two BUG FIX
+		// comments above for why touched_edges is the superset we need here.
+		for (uint32_t n = 0; n < touched_edges.size(); n++) {
+			uint32_t e_idx = touched_edges[n];
+
+			// Derive is_seam_or_boundary from the now-correct triangle_count, and
+			// retire the edge if it no longer touches any triangle at all.
+			_refresh_edge_seam_flag(e_idx);
+
 			Edge &e = data.edges[e_idx];
 			if (!e.active)
 				continue;
+
+			// Vertex classification (MANIFOLD/BORDER/SEAM/COMPLEX/LOCKED) depends on
+			// the seam flags just refreshed above, so reclassify after, not before.
+			_reclassify_vertex(e.a);
+			_reclassify_vertex(e.b);
 
 			_evaluate_edge_collapse(e_idx);
 			e.version++;
@@ -1260,6 +1295,158 @@ void MeshSimplify::_update_edge_seam_status(uint32_t p_edge_id) {
 		data.verts[e.b].is_seam_or_boundary = true;
 	} else if (was_seam) {
 		// Could clear vertex seam flag if no other seams touch it, but it's harmless to leave it set
+	}
+}
+
+// Collects every currently-active edge incident to p_vert_id, by walking
+// that vertex's (already-current) triangle list. Cheap and local -- O(valence),
+// not O(mesh) -- so it's safe to call once or twice per collapse.
+void MeshSimplify::_get_edges_touching_vertex(uint32_t p_vert_id, LocalVector<uint32_t> &r_edges) const {
+	const Vert &v = data.verts[p_vert_id];
+	if (!v.active) {
+		return;
+	}
+
+	for (uint32_t n = 0; n < v.tris.size(); n++) {
+		const Tri &t = data.tris[v.tris[n]];
+		if (!t.active) {
+			continue;
+		}
+		for (uint32_t i = 0; i < 3; i++) {
+			uint32_t eid = t.edge_ids[i];
+			const Edge &e = data.edges[eid];
+			if (e.a == p_vert_id || e.b == p_vert_id) {
+				r_edges.push_back_if_not_present(eid);
+			}
+		}
+	}
+}
+
+// Cheap sibling of _update_edge_seam_status(): that function is correct but
+// recounts triangles for the edge by scanning the ENTIRE triangle array, which
+// is too expensive to call once or twice per collapse. Here, e.triangle_count
+// is already being kept accurate incrementally by the caller (increment/decrement
+// on triangle add/remove) -- we just need to derive is_seam_or_boundary from it,
+// and retire the edge if it no longer touches any triangle at all.
+void MeshSimplify::_refresh_edge_seam_flag(uint32_t p_edge_id) {
+	Edge &e = data.edges[p_edge_id];
+	if (!e.active) {
+		return;
+	}
+
+	// BUG FIX: previously an edge could reach triangle_count == 0 (e.g. its last
+	// user was a "flap" triangle removed via the kept_count > 1 / degenerate path
+	// in simplify_mesh(), which never touched this edge) and simply stay active
+	// forever with stale a/b -- retire it here instead.
+	if (e.triangle_count == 0) {
+		e.active = false;
+		e.is_seam_or_boundary = false;
+		return;
+	}
+
+	// BUG FIX: previously this flag was only ever set once, in _detect_seam_edges(),
+	// before the collapse loop started, and never updated again -- so an edge that
+	// transitioned from interior (2 tris) to boundary (1 tri) mid-simplification
+	// kept reporting itself as interior for the rest of the run.
+	e.is_seam_or_boundary = (e.triangle_count == 1) || (e.triangle_count > 2);
+
+	if (e.is_seam_or_boundary) {
+		data.verts[e.a].is_seam_or_boundary = true;
+		data.verts[e.b].is_seam_or_boundary = true;
+	}
+}
+
+// Local, incremental version of the vertex-classification tail of
+// _detect_seam_edges() (MANIFOLD / BORDER / SEAM / COMPLEX / LOCKED + the
+// seam "twin" pairing), scoped to a single vertex using its CURRENT incident
+// edges instead of rescanning the whole mesh.
+//
+// Caveat: the "has_twin" search below looks at seam_neighbour_verts of other
+// members of this vertex's wedge, which is only accurate for members that have
+// themselves been reclassified since their neighbourhood last changed. In
+// practice this converges fine (any vertex whose neighbourhood changes gets
+// reclassified via the edges it touches), but for extra safety on seam-heavy
+// meshes consider periodically calling the full _detect_seam_edges() every
+// few hundred collapses as a resync, in addition to this incremental version.
+void MeshSimplify::_reclassify_vertex(uint32_t p_vert_id) {
+	Vert &vert = data.verts[p_vert_id];
+	if (!vert.active) {
+		return;
+	}
+
+	LocalVector<uint32_t> touching_edges;
+	_get_edges_touching_vertex(p_vert_id, touching_edges);
+
+	uint32_t true_border_count = 0;
+	uint32_t seam_pair_count = 0;
+	uint32_t nonmanifold_count = 0;
+
+	vert.seam_neighbour_verts.clear();
+	vert.is_seam_or_boundary = false;
+
+	for (uint32_t i = 0; i < touching_edges.size(); i++) {
+		const Edge &e = data.edges[touching_edges[i]];
+		if (!e.active) {
+			continue;
+		}
+
+		if (e.triangle_count > 2) {
+			nonmanifold_count++;
+			continue;
+		}
+		if (e.triangle_count != 1) {
+			continue; // interior edge, not a boundary from this vertex.
+		}
+
+		vert.is_seam_or_boundary = true;
+		uint32_t other = (e.a == p_vert_id) ? e.b : e.a;
+		vert.seam_neighbour_verts.push_back(other);
+
+		// Look for another open edge connecting a different member of our wedge
+		// to a different member of the neighbour's wedge -- that's the "other
+		// side" of a seam (same test as in _detect_seam_edges()).
+		uint32_t wedge_self = vert.wedge;
+		uint32_t wedge_other = data.verts[other].wedge;
+		bool has_twin = false;
+
+		const Wedge &w_self = data.wedges[wedge_self];
+		for (uint32_t x = 0; x < w_self.verts.size() && !has_twin; x++) {
+			uint32_t v2 = w_self.verts[x];
+			if (v2 == p_vert_id || !data.verts[v2].active) {
+				continue;
+			}
+			const LocalVector<uint32_t> &nbrs = data.verts[v2].seam_neighbour_verts;
+			for (uint32_t s = 0; s < nbrs.size(); s++) {
+				if (data.verts[nbrs[s]].wedge == wedge_other) {
+					has_twin = true;
+					break;
+				}
+			}
+		}
+
+		if (has_twin) {
+			seam_pair_count++;
+		} else {
+			true_border_count++;
+		}
+	}
+
+	const Wedge &wedge = data.wedges[vert.wedge];
+
+	if (nonmanifold_count > 0) {
+		vert.type = Vert::Type::LOCKED;
+	} else if (true_border_count > 0) {
+		vert.type = (true_border_count == 2 && seam_pair_count == 0 && wedge.verts.size() == 1)
+				? Vert::Type::BORDER
+				: Vert::Type::COMPLEX;
+	} else if (seam_pair_count > 0) {
+		vert.type = (seam_pair_count == 2 && wedge.verts.size() == 2)
+				? Vert::Type::SEAM
+				: Vert::Type::COMPLEX;
+	} else if (wedge.verts.size() > 1) {
+		vert.type = Vert::Type::COMPLEX;
+	} else {
+		vert.type = Vert::Type::MANIFOLD;
 	}
 }
 

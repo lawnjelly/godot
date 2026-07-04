@@ -212,6 +212,14 @@ class MeshSimplify {
 	void _update_edge_seam_status(uint32_t p_edge_id);
 	void _delete_triangle(uint32_t p_tri_id);
 
+	////////////////////////////////////
+	// Cheap incremental refresh used during the collapse loop (see .cpp for rationale).
+	// These keep triangle_count-derived state in sync without a full mesh rescan.
+	void _get_edges_touching_vertex(uint32_t p_vert_id, LocalVector<uint32_t> &r_edges) const;
+	void _refresh_edge_seam_flag(uint32_t p_edge_id);
+	void _reclassify_vertex(uint32_t p_vert_id);
+	////////////////////////////////////
+
 	void _build_vertex_triangle_links();
 	void _debug_sanity_check();
 	void _rebuild_vertex_wedges();
