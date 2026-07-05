@@ -61,6 +61,18 @@ void MeshSimplify::declare_positions(const Span<Vector3> &p_positions) {
 	input_data.positions = LocalVector<Vector3>(p_positions);
 }
 
+void MeshSimplify::declare_normals(const Span<Vector3> &p_normals) {
+	input_data.normals = LocalVector<Vector3>(p_normals);
+}
+
+void MeshSimplify::declare_colors(const Span<Color> &p_colors) {
+	input_data.colors = LocalVector<Color>(p_colors);
+}
+
+void MeshSimplify::declare_floats(const Span<float> &p_floats) {
+	input_data.floats = LocalVector<float>(p_floats);
+}
+
 bool MeshSimplify::_is_triangle_degenerate_from_positions(const Vector3i p[3]) const {
 	int64_t abx = (int64_t)p[1].x - p[0].x;
 	int64_t aby = (int64_t)p[1].y - p[0].y;
@@ -266,8 +278,12 @@ bool MeshSimplify::prepare(MeshDeduplicator &r_dd) {
 
 	// Duduplicate.
 
-	LocalVector<Vector3> verts;
 	LocalVector<uint32_t> inds;
+	LocalVector<Vector3> verts;
+	LocalVector<Vector3> normals;
+	LocalVector<Vector2> uvs;
+	LocalVector<Vector2> uv2s;
+	LocalVector<float> floats;
 
 	uint32_t num_streams = 1;
 	if (input_data.uvs.size()) {
@@ -276,13 +292,23 @@ bool MeshSimplify::prepare(MeshDeduplicator &r_dd) {
 	if (input_data.uv2s.size()) {
 		num_streams++;
 	}
+	if (input_data.normals.size()) {
+		num_streams++;
+	}
+	if (input_data.colors.size()) {
+		num_streams++;
+	}
+	if (input_data.floats.size()) {
+		num_streams++;
+	}
 
 	r_dd.set_num_attribute_streams(num_streams);
 
 	uint32_t fill_stream = 0;
 
 	MeshAttributeStream &as_pos = r_dd.get_input_attribute_stream(fill_stream++);
-	as_pos.set_type(MeshAttributeStream::ATTR_POSITION, 0.1f);
+	//as_pos.set_type(MeshAttributeStream::ATTR_POSITION, 0.1f);
+	as_pos.set_type(MeshAttributeStream::ATTR_POSITION, 1.0f);
 	as_pos.vec3 = input_data.positions;
 
 	if (input_data.uvs.size()) {
@@ -297,6 +323,24 @@ bool MeshSimplify::prepare(MeshDeduplicator &r_dd) {
 		as.vec2 = input_data.uv2s;
 	}
 
+	if (input_data.normals.size()) {
+		MeshAttributeStream &as = r_dd.get_input_attribute_stream(fill_stream++);
+		as.set_type(MeshAttributeStream::ATTR_NORMAL);
+		as.vec3 = input_data.normals;
+	}
+
+	if (input_data.colors.size()) {
+		MeshAttributeStream &as = r_dd.get_input_attribute_stream(fill_stream++);
+		as.set_type(MeshAttributeStream::ATTR_COLOR);
+		as.color = input_data.colors;
+	}
+
+	if (input_data.floats.size()) {
+		MeshAttributeStream &as = r_dd.get_input_attribute_stream(fill_stream++);
+		as.set_type(MeshAttributeStream::ATTR_FLOAT);
+		as.float_input = input_data.floats;
+	}
+
 	if (!r_dd.process(input_data.indices, inds)) {
 		return false;
 	}
@@ -308,12 +352,32 @@ bool MeshSimplify::prepare(MeshDeduplicator &r_dd) {
 
 	uint32_t uv_stream = 1;
 	if (input_data.uvs.size()) {
-		input_data.uvs = r_dd.get_output_attribute_stream(uv_stream++).vec2;
+		const MeshAttributeStream &as = r_dd.get_output_attribute_stream(uv_stream++);
+		DEV_ASSERT(as.get_type() == MeshAttributeStream::ATTR_UV);
+		input_data.uvs = as.vec2;
 	}
 	if (input_data.uv2s.size()) {
-		input_data.uv2s = r_dd.get_output_attribute_stream(uv_stream).vec2;
+		const MeshAttributeStream &as = r_dd.get_output_attribute_stream(uv_stream++);
+		DEV_ASSERT(as.get_type() == MeshAttributeStream::ATTR_UV);
+		input_data.uv2s = as.vec2;
+	}
+	if (input_data.normals.size()) {
+		const MeshAttributeStream &as = r_dd.get_output_attribute_stream(uv_stream++);
+		DEV_ASSERT(as.get_type() == MeshAttributeStream::ATTR_NORMAL);
+		input_data.normals = as.vec3;
+	}
+	if (input_data.colors.size()) {
+		const MeshAttributeStream &as = r_dd.get_output_attribute_stream(uv_stream++);
+		DEV_ASSERT(as.get_type() == MeshAttributeStream::ATTR_COLOR);
+		input_data.colors = as.color;
+	}
+	if (input_data.floats.size()) {
+		const MeshAttributeStream &as = r_dd.get_output_attribute_stream(uv_stream++);
+		DEV_ASSERT(as.get_type() == MeshAttributeStream::ATTR_FLOAT);
+		input_data.floats = as.float_input;
 	}
 
+	// Basic requirements to do anything, is we need indices and positions.
 	ERR_FAIL_COND_V(!input_data.indices.size(), false);
 	ERR_FAIL_COND_V(!input_data.positions.size(), false);
 
@@ -439,6 +503,7 @@ bool MeshSimplify::simplify_mesh() {
 	LocalVector<uint32_t> affected_tris;
 
 	while ((current_triangle_count > target && !queue.empty()) && current_triangle_count > 1) {
+		break;
 		//		if ((++collapse_counter % REFRESH_EVERY) == 0) {
 		{
 			//_detect_seam_edges();

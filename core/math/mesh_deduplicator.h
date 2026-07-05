@@ -7,6 +7,13 @@
 #include <core/math/vector3.h>
 #include <core/math/vector3i.h>
 
+// Note we are using grid binning here, and comparison of distance to the first added vertex.
+// That makes the grouping ORDER DEPENDENT.
+// If we want order independent at a later date we can e.g.:
+// 1) Build graph - connect pairs of verts within dist E
+// 2) Find connected groups - graph algorithm to find isolated groups
+// 3) Merge groups - to a single vertex
+
 struct MeshAttributeStream {
 	enum Type {
 		ATTR_POSITION = 0, // always required, uses distance
@@ -25,6 +32,7 @@ struct MeshAttributeStream {
 	LocalVector<float> float_input;
 
 	void set_type(Type p_type, float p_epsilon = -1);
+	Type get_type() const { return type; }
 
 private:
 	friend class MeshDeduplicator;

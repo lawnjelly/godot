@@ -1,6 +1,6 @@
 #include "mesh_deduplicator.h"
 
-#define GODOT_MESH_DEDUPLICATOR_DEBUG_LOGGING
+//#define GODOT_MESH_DEDUPLICATOR_DEBUG_LOGGING
 #ifdef GODOT_MESH_DEDUPLICATOR_DEBUG_LOGGING
 #define GMD_LOG(a) print_line(a)
 #else
@@ -111,6 +111,7 @@ bool MeshDeduplicator::process(const Span<uint32_t> &p_indices, LocalVector<uint
 	// so that a new list of indices can be output.
 	LocalVector<uint32_t> vertex_remap;
 	vertex_remap.resize(in_verts.size());
+	vertex_remap.fill(UINT32_MAX);
 
 	real_t position_epsilon_squared = data.attributes[0].internal_epsilon_squared;
 
@@ -146,9 +147,12 @@ bool MeshDeduplicator::process(const Span<uint32_t> &p_indices, LocalVector<uint
 						uint32_t wedge_id = bucket.wedge_ids[b];
 						Wedge &wedge = grid.wedges[wedge_id];
 
+						// Should we test the average position, or the original position?
+						// Average position creates drift.
+
 						// Test wedge based on position only.
 						// Is it within range?
-						if (in_pos.distance_squared_to(wedge.position_average) <= position_epsilon_squared) {
+						if (in_pos.distance_squared_to(wedge.position_orig) <= position_epsilon_squared) {
 							// Merge the position into the existing wedge.
 							wedge.position_total += in_pos;
 							wedge.source_vertex_count += 1;
@@ -159,7 +163,8 @@ bool MeshDeduplicator::process(const Span<uint32_t> &p_indices, LocalVector<uint
 							// Either merge into an existing attribute Vertex,
 							// or create a new one, if too different.
 							for (uint32_t v = 0; v < wedge.vert_ids.size(); v++) {
-								Vert &vert = grid.verts[wedge.vert_ids[v]];
+								uint32_t wedge_vert_id = wedge.vert_ids[v];
+								Vert &vert = grid.verts[wedge_vert_id];
 
 								bool reject_merge = false;
 
@@ -216,6 +221,8 @@ bool MeshDeduplicator::process(const Span<uint32_t> &p_indices, LocalVector<uint
 									vert.averages /= vert.source_vertex_count;
 
 									vert.source_vert_ids.push_back(n);
+
+									vertex_remap[n] = wedge_vert_id;
 								}
 
 							} // for v through the verts on a wedge
@@ -288,6 +295,8 @@ bool MeshDeduplicator::process(const Span<uint32_t> &p_indices, LocalVector<uint
 	data.out_mapping.resize(grid.verts.size());
 	for (uint32_t n = 0; n < grid.verts.size(); n++) {
 		// The mapping to return will be simplified, and just contain the first source vertex.
+		uint32_t orig_index = grid.verts[n].source_vert_ids[0];
+		DEV_ASSERT(orig_index != UINT32_MAX);
 		data.out_mapping[n] = grid.verts[n].source_vert_ids[0];
 	}
 
@@ -354,12 +363,14 @@ bool MeshDeduplicator::process(const Span<uint32_t> &p_indices, LocalVector<uint
 	// Store the final indices now referring to the unique verts.
 	data.out_indices.resize(p_indices.size());
 	for (uint32_t n = 0; n < p_indices.size(); n++) {
-		data.out_indices[n] = vertex_remap[p_indices[n]];
-		GMD_LOG("index " + itos(n) + " : " + itos(data.out_indices[n]));
+		uint32_t orig_index = vertex_remap[p_indices[n]];
+		DEV_ASSERT(orig_index != UINT32_MAX);
+		data.out_indices[n] = orig_index;
+		GMD_LOG("index " + itos(n) + " : " + itos(orig_index));
 	}
 
 	print_line("Verts before " + itos(in_verts.size()) + ", after " + itos(data.out_attributes[data.position_attribute_id].vec3.size()) + ", indices " + itos(data.out_indices.size()));
-	print_line("Deduplication ratio: " + rtos((float)in_verts.size() / grid.verts.size()));
+	print_line("Deduplication ratio: " + rtos(grid.verts.size() / (float)in_verts.size()));
 
 	p_output_indices = data.out_indices;
 

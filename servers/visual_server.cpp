@@ -422,6 +422,16 @@ Error VisualServer::_surface_set_data(Array p_arrays, uint32_t p_format, uint32_
 					}
 
 				} break;
+
+				case VS::ARRAY_NORMAL: {
+					ERR_FAIL_COND_V(p_arrays[ai].get_type() != Variant::POOL_VECTOR3_ARRAY, ERR_INVALID_PARAMETER);
+
+					PoolVector<Vector3> array = p_arrays[ai];
+					ERR_FAIL_COND_V(array.size() != p_vertex_array_len, ERR_INVALID_PARAMETER);
+
+					simplifier.declare_normals(array);
+				} break;
+
 				case VS::ARRAY_TEX_UV: {
 					ERR_FAIL_COND_V(p_arrays[ai].get_type() != Variant::POOL_VECTOR3_ARRAY && p_arrays[ai].get_type() != Variant::POOL_VECTOR2_ARRAY, ERR_INVALID_PARAMETER);
 					PoolVector<Vector2> array = p_arrays[ai];

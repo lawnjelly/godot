@@ -8,6 +8,7 @@
 #include <core/math/vector3i.h>
 
 class MeshDeduplicator;
+struct Color;
 
 class MeshSimplify {
 	// Symmetric 4x4 matrix,
@@ -59,6 +60,9 @@ class MeshSimplify {
 		LocalVector<Vector3> positions;
 		LocalVector<Vector2> uvs;
 		LocalVector<Vector2> uv2s;
+		LocalVector<Vector3> normals;
+		LocalVector<Color> colors;
+		LocalVector<float> floats;
 	} input_data;
 
 	struct Tri {
@@ -279,6 +283,9 @@ public:
 	void declare_positions(const Span<Vector3> &p_positions);
 	void declare_uvs(const Span<Vector2> &p_uvs);
 	void declare_uv2s(const Span<Vector2> &p_uvs);
+	void declare_normals(const Span<Vector3> &p_normals);
+	void declare_colors(const Span<Color> &p_colors);
+	void declare_floats(const Span<float> &p_floats);
 
 	bool simplify_mesh();
 
