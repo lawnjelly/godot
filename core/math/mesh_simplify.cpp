@@ -484,6 +484,181 @@ void MeshSimplify::_delete_triangle(uint32_t p_tri_id) {
 	_debug_sanity_check();
 }
 
+void MeshSimplify::_collapse_vertex_pair(uint32_t p_kept, uint32_t p_deleted, Edge &r_edge, LocalVector<uint32_t> &r_altered_edges, LocalVector<uint32_t> &r_touched_edges, LocalVector<uint32_t> &r_affected_tris, std::priority_queue<SortedEdge> &r_queue, uint32_t &r_current_triangle_count, int32_t &r_edges_to_collapse) {
+	print_line("collapse_vertex_pair " + itos(p_kept) + " to " + itos(p_deleted));
+
+	// Collapse to one of the original endpoints only
+	Vert &kept_vert = data.verts[p_kept];
+	Vert &deleted_vert = data.verts[p_deleted];
+
+	kept_vert.Q = kept_vert.Q + deleted_vert.Q;
+	deleted_vert.active = false;
+	r_edge.active = false;
+
+	r_altered_edges.clear();
+	r_touched_edges.clear();
+
+	// Make a copy here, as the tris may be deleted from the original LocalVector,
+	// and we could get sync bugs.
+	r_affected_tris = data.verts[p_deleted].tris;
+
+	// We only need to consider the triangles that touch the vertex to delete.
+	// We don't need to iterate all tris for a single collapse.
+	for (uint32_t n = 0; n < r_affected_tris.size(); n++) {
+		uint32_t tri_id = r_affected_tris[n];
+		Tri &t = data.tris[tri_id];
+		if (!t.active)
+			continue;
+
+		// First pass: update corners
+		bool modified = false;
+		int kept_count = 0;
+
+		uint32_t new_corn[3];
+		new_corn[0] = t.corn[0];
+		new_corn[1] = t.corn[1];
+		new_corn[2] = t.corn[2];
+
+		for (int i = 0; i < 3; i++) {
+			if (new_corn[i] == p_deleted) {
+				new_corn[i] = p_kept;
+				modified = true;
+			}
+			if (new_corn[i] == p_kept)
+				kept_count++;
+		}
+
+		if (modified) {
+			if (kept_count > 1 || _is_triangle_degenerate(new_corn)) {
+				// BUG FIX: this triangle is being discarded outright (it's the
+				// "flap" straddling the collapsed edge), not reassigned -- but its
+				// other two edges (kept<->c and deleted<->c) still lose a triangle
+				// user here. They were previously never added to altered_edges, so
+				// if this was their last remaining triangle they'd end up with
+				// triangle_count == 0 while staying "active" forever. Register them
+				// so the refresh pass below can retire/reclassify them correctly.
+				for (uint32_t i = 0; i < 3; i++) {
+					r_touched_edges.push_back_if_not_present(t.edge_ids[i]);
+				}
+				_delete_triangle(tri_id);
+				r_current_triangle_count--;
+				continue; // corners/edges of this tri don't need reassigning
+			}
+
+			// If not deleted, we can assign the new corners.
+			for (int i = 0; i < 3; i++) {
+				if (t.corn[i] != new_corn[i]) {
+					// Remove tri from old verex.
+					data.verts[t.corn[i]].tris.erase_unordered(tri_id);
+
+					// Check the triangle not on the new vertex already...
+					DEV_ASSERT(data.verts[new_corn[i]].tris.find(tri_id) == -1);
+
+					// Add tri to new vertex list.
+					data.verts[new_corn[i]].tris.push_back(tri_id);
+					t.corn[i] = new_corn[i];
+				}
+			}
+
+			// Re-assign edges for this triangle (this is the key change)
+			for (uint32_t i = 0; i < 3; i++) {
+				uint32_t old_edge_id = t.edge_ids[i];
+				uint32_t new_edge_id = _get_or_create_edge(t.corn[i], t.corn[(i + 1) % 3], tri_id, old_edge_id);
+				if (new_edge_id != t.edge_ids[i]) {
+					// Both the old edge id and the new edge id are changed,
+					// and need to be re-evaluated later.
+					r_altered_edges.push_back_if_not_present(old_edge_id);
+					r_altered_edges.push_back_if_not_present(new_edge_id);
+					t.edge_ids[i] = new_edge_id;
+
+					// Reduce the triangle count on the old edge, increase tri count on the new edge.
+					data.edges[old_edge_id].triangle_count--;
+					data.edges[new_edge_id].triangle_count++;
+				}
+			}
+		}
+	}
+
+	// BUG FIX: kept_vert.Q was merged with deleted_vert.Q above, which changes
+	// the true cost of EVERY edge incident to `kept` -- not just the ones whose
+	// corner ids literally changed this round (altered_edges). Previously, an
+	// edge from kept to an untouched neighbour kept its pre-merge cached cost
+	// indefinitely, letting the queue make decisions on stale data. Pull in
+	// kept's full current incident-edge set so the refresh pass below catches
+	// all of them.
+	_get_edges_touching_vertex(p_kept, r_touched_edges);
+
+	_debug_sanity_check();
+
+	// Do NOT deactivate all edges of deleted vertex blindly.
+	// Instead, update the ones that should survive (those connected to kept)
+	for (uint32_t n = 0; n < r_altered_edges.size(); n++) {
+		uint32_t e_idx = r_altered_edges[n];
+		Edge &e = data.edges[e_idx];
+		if (!e.active)
+			continue;
+
+		// If any edge has reached triangle count zero
+		// (i.e. no more triangles reference it),
+		// then delete.
+		if (e.triangle_count == 0) {
+			e.active = false;
+			continue;
+		}
+
+		// Update edge to point to kept instead of deleted
+		if (e.a == p_deleted) {
+			e.a = p_kept;
+			e.sort();
+		}
+		if (e.b == p_deleted) {
+			e.b = p_kept;
+			e.sort();
+		}
+		// Remove invalid edges.
+		if (e.a == e.b) {
+			e.active = false;
+		}
+	}
+
+	_debug_sanity_check();
+
+	// Refresh every edge touched by this collapse -- not just the ones whose
+	// vertex ids structurally changed (altered_edges). See the two BUG FIX
+	// comments above for why touched_edges is the superset we need here.
+	for (uint32_t n = 0; n < r_touched_edges.size(); n++) {
+		uint32_t e_idx = r_touched_edges[n];
+
+		// Derive is_seam_or_boundary from the now-correct triangle_count, and
+		// retire the edge if it no longer touches any triangle at all.
+		_refresh_edge_seam_flag(e_idx);
+
+		Edge &e = data.edges[e_idx];
+		if (!e.active)
+			continue;
+
+		// Vertex classification (MANIFOLD/BORDER/SEAM/COMPLEX/LOCKED) depends on
+		// the seam flags just refreshed above, so reclassify after, not before.
+		_reclassify_vertex(e.a);
+		_reclassify_vertex(e.b);
+
+		_evaluate_edge_collapse(e_idx);
+		e.version++;
+		r_queue.push(SortedEdge(e_idx, e.cost, e.version));
+	}
+
+	// Ideally we should rebuild these incrementally, but doing the whole lot at each collapse
+	// is good for reference.
+	//_build_vertex_triangle_links();
+
+	_debug_sanity_check();
+
+	// ... after triangle update and adjacency rebuild ...
+	//_validate_and_rebuild();
+
+	r_edges_to_collapse--;
+}
+
 bool MeshSimplify::simplify_mesh() {
 	MeshDeduplicator dd;
 
@@ -506,7 +681,7 @@ bool MeshSimplify::simplify_mesh() {
 
 	uint32_t target = MESH_SIMPLIFY_FACTOR(before_triangle_count);
 
-	uint32_t edges_to_collapse = UINT32_MAX;
+	int32_t edges_to_collapse = INT32_MAX;
 	if (MESH_NUM_EDGES_TO_COLLAPSE != 0) {
 		edges_to_collapse = MESH_NUM_EDGES_TO_COLLAPSE;
 		target = 1;
@@ -521,7 +696,14 @@ bool MeshSimplify::simplify_mesh() {
 										 // plus every edge now incident to `kept` (see below for why).
 	LocalVector<uint32_t> affected_tris;
 
+	uint32_t infinite_loop_breaker = 1024;
+
 	while ((current_triangle_count > target && !queue.empty()) && current_triangle_count > 1) {
+		infinite_loop_breaker--;
+		if (infinite_loop_breaker == 0) {
+			break;
+		}
+
 		//break;
 		//		if ((++collapse_counter % REFRESH_EVERY) == 0) {
 		{
@@ -549,10 +731,11 @@ bool MeshSimplify::simplify_mesh() {
 
 		// Collapse to one of the original endpoints only
 		Vert &kept_vert = data.verts[kept];
-		Vert &deleted_vert = data.verts[deleted];
 
 		// Disallow collapsing edges for now.
 #ifdef MESH_SIMPLIFY_DISALLOW_SEAMS
+		Vert &deleted_vert = data.verts[deleted];
+
 		if (deleted_vert.is_seam_or_boundary) {
 			edge.active = false;
 			continue;
@@ -594,179 +777,46 @@ bool MeshSimplify::simplify_mesh() {
 
 		_debug_sanity_check();
 
-		kept_vert.Q = kept_vert.Q + deleted_vert.Q;
-		deleted_vert.active = false;
-		edge.active = false;
+		// Deal with collapses across twin edges where seams meet.
+		// We must collapse these twins together, otherwise we will get holes
+		// appearing in the geometry at seams.
+		uint32_t twin_edge_id = _find_twin_edge(se.edge_id);
+		if (twin_edge_id != UINT32_MAX) {
+			print_line("twin_edge found " + itos(se.edge_id) + " and " + itos(twin_edge_id));
 
-		altered_edges.clear();
-		touched_edges.clear();
+			Edge &twin_edge = data.edges[twin_edge_id];
+			const Vert &twin_a = data.verts[twin_edge.a];
+			const Vert &twin_b = data.verts[twin_edge.b];
 
-		// Make a copy here, as the tris may be deleted from the original LocalVector,
-		// and we could get sync bugs.
-		affected_tris = data.verts[deleted].tris;
+			// Decide which way to collapse the twin.
+			uint32_t twin_kept = twin_edge.a;
+			uint32_t twin_deleted = twin_edge.b;
 
-		// We only need to consider the triangles that touch the vertex to delete.
-		// We don't need to iterate all tris for a single collapse.
-		for (uint32_t n = 0; n < affected_tris.size(); n++) {
-			uint32_t tri_id = affected_tris[n];
-			Tri &t = data.tris[tri_id];
-			if (!t.active)
-				continue;
-
-			// First pass: update corners
-			bool modified = false;
-			int kept_count = 0;
-
-			uint32_t new_corn[3];
-			new_corn[0] = t.corn[0];
-			new_corn[1] = t.corn[1];
-			new_corn[2] = t.corn[2];
-
-			for (int i = 0; i < 3; i++) {
-				if (new_corn[i] == deleted) {
-					new_corn[i] = kept;
-					modified = true;
-				}
-				if (new_corn[i] == kept)
-					kept_count++;
+			if (kept_vert.wedge != twin_a.wedge) {
+				DEV_ASSERT(kept_vert.wedge == twin_b.wedge);
+				SWAP(twin_kept, twin_deleted);
 			}
 
-			if (modified) {
-				if (kept_count > 1 || _is_triangle_degenerate(new_corn)) {
-					// BUG FIX: this triangle is being discarded outright (it's the
-					// "flap" straddling the collapsed edge), not reassigned -- but its
-					// other two edges (kept<->c and deleted<->c) still lose a triangle
-					// user here. They were previously never added to altered_edges, so
-					// if this was their last remaining triangle they'd end up with
-					// triangle_count == 0 while staying "active" forever. Register them
-					// so the refresh pass below can retire/reclassify them correctly.
-					for (uint32_t i = 0; i < 3; i++) {
-						touched_edges.push_back_if_not_present(t.edge_ids[i]);
-					}
-					_delete_triangle(tri_id);
-					current_triangle_count--;
-					continue; // corners/edges of this tri don't need reassigning
-				}
-
-				// If not deleted, we can assign the new corners.
-				for (int i = 0; i < 3; i++) {
-					if (t.corn[i] != new_corn[i]) {
-						// Remove tri from old verex.
-						data.verts[t.corn[i]].tris.erase_unordered(tri_id);
-
-						// Check the triangle not on the new vertex already...
-						DEV_ASSERT(data.verts[new_corn[i]].tris.find(tri_id) == -1);
-
-						// Add tri to new vertex list.
-						data.verts[new_corn[i]].tris.push_back(tri_id);
-						t.corn[i] = new_corn[i];
-					}
-				}
-
-				// Re-assign edges for this triangle (this is the key change)
-				for (uint32_t i = 0; i < 3; i++) {
-					uint32_t old_edge_id = t.edge_ids[i];
-					uint32_t new_edge_id = _get_or_create_edge(t.corn[i], t.corn[(i + 1) % 3], tri_id, old_edge_id);
-					if (new_edge_id != t.edge_ids[i]) {
-						// Both the old edge id and the new edge id are changed,
-						// and need to be re-evaluated later.
-						altered_edges.push_back_if_not_present(old_edge_id);
-						altered_edges.push_back_if_not_present(new_edge_id);
-						t.edge_ids[i] = new_edge_id;
-
-						// Reduce the triangle count on the old edge, increase tri count on the new edge.
-						data.edges[old_edge_id].triangle_count--;
-						data.edges[new_edge_id].triangle_count++;
-					}
-				}
+			// If we can't collapse the twin, we shouldn't do either.
+			if (!_can_collapse(twin_kept, twin_deleted)) {
+				_evaluate_edge_collapse(se.edge_id);
+				edge.version++;
+				queue.push(SortedEdge(se.edge_id, edge.cost, edge.version));
+				continue; // Debug check this continues to the right place - we want to abort this vertex collapse.
 			}
+
+			// We'll collapse the twin first, just for code simplicity here.
+			_collapse_vertex_pair(twin_kept, twin_deleted, twin_edge, altered_edges, touched_edges, affected_tris, queue, current_triangle_count, edges_to_collapse);
 		}
 
-		// BUG FIX: kept_vert.Q was merged with deleted_vert.Q above, which changes
-		// the true cost of EVERY edge incident to `kept` -- not just the ones whose
-		// corner ids literally changed this round (altered_edges). Previously, an
-		// edge from kept to an untouched neighbour kept its pre-merge cached cost
-		// indefinitely, letting the queue make decisions on stale data. Pull in
-		// kept's full current incident-edge set so the refresh pass below catches
-		// all of them.
-		_get_edges_touching_vertex(kept, touched_edges);
+		_collapse_vertex_pair(kept, deleted, edge, altered_edges, touched_edges, affected_tris, queue, current_triangle_count, edges_to_collapse);
 
-		_debug_sanity_check();
-
-		// Do NOT deactivate all edges of deleted vertex blindly.
-		// Instead, update the ones that should survive (those connected to kept)
-		for (uint32_t n = 0; n < altered_edges.size(); n++) {
-			uint32_t e_idx = altered_edges[n];
-			Edge &e = data.edges[e_idx];
-			if (!e.active)
-				continue;
-
-			// If any edge has reached triangle count zero
-			// (i.e. no more triangles reference it),
-			// then delete.
-			if (e.triangle_count == 0) {
-				e.active = false;
-				continue;
-			}
-
-			// Update edge to point to kept instead of deleted
-			if (e.a == deleted) {
-				e.a = kept;
-				e.sort();
-			}
-			if (e.b == deleted) {
-				e.b = kept;
-				e.sort();
-			}
-			// Remove invalid edges.
-			if (e.a == e.b) {
-				e.active = false;
-			}
-		}
-
-		_debug_sanity_check();
-
-		// Refresh every edge touched by this collapse -- not just the ones whose
-		// vertex ids structurally changed (altered_edges). See the two BUG FIX
-		// comments above for why touched_edges is the superset we need here.
-		for (uint32_t n = 0; n < touched_edges.size(); n++) {
-			uint32_t e_idx = touched_edges[n];
-
-			// Derive is_seam_or_boundary from the now-correct triangle_count, and
-			// retire the edge if it no longer touches any triangle at all.
-			_refresh_edge_seam_flag(e_idx);
-
-			Edge &e = data.edges[e_idx];
-			if (!e.active)
-				continue;
-
-			// Vertex classification (MANIFOLD/BORDER/SEAM/COMPLEX/LOCKED) depends on
-			// the seam flags just refreshed above, so reclassify after, not before.
-			_reclassify_vertex(e.a);
-			_reclassify_vertex(e.b);
-
-			_evaluate_edge_collapse(e_idx);
-			e.version++;
-			queue.push(SortedEdge(e_idx, e.cost, e.version));
-		}
-
-		// Ideally we should rebuild these incrementally, but doing the whole lot at each collapse
-		// is good for reference.
-		//_build_vertex_triangle_links();
-
-		_debug_sanity_check();
-
-		// ... after triangle update and adjacency rebuild ...
-		//_validate_and_rebuild();
-
-#ifdef MESH_SIMPLIFY_ONE_AT_A_TIME
-		break;
-#endif
-
-		edges_to_collapse--;
 		if (edges_to_collapse <= 0) {
 			break;
 		}
+#ifdef MESH_SIMPLIFY_ONE_AT_A_TIME
+		break;
+#endif
 	}
 
 	// Final cleanup of any new degenerates
@@ -1479,6 +1529,43 @@ void MeshSimplify::_get_edges_touching_vertex(uint32_t p_vert_id, LocalVector<ui
 			}
 		}
 	}
+}
+
+// Given an edge whose endpoints are both SEAM-classified, find the matching
+// edge on the other UV island: the edge connecting the *other* member of
+// edge.a's wedge to the *other* member of edge.b's wedge.
+uint32_t MeshSimplify::_find_twin_edge(uint32_t p_edge_id) const {
+	const Edge &e = data.edges[p_edge_id];
+	if (!e.active)
+		return UINT32_MAX;
+
+	const Vert &va = data.verts[e.a];
+	const Vert &vb = data.verts[e.b];
+	if (va.type != Vert::Type::SEAM || vb.type != Vert::Type::SEAM) {
+		return UINT32_MAX;
+	}
+
+	const Wedge &wa = data.wedges[va.wedge];
+	const Wedge &wb = data.wedges[vb.wedge];
+	if (wa.verts.size() != 2 || wb.verts.size() != 2) {
+		return UINT32_MAX; // classifier guarantees this for true SEAM verts
+	}
+
+	uint32_t a2 = (wa.verts[0] == e.a) ? wa.verts[1] : wa.verts[0];
+	uint32_t b2 = (wb.verts[0] == e.b) ? wb.verts[1] : wb.verts[0];
+	if (!data.verts[a2].active || !data.verts[b2].active) {
+		return UINT32_MAX;
+	}
+
+	LocalVector<uint32_t> touching;
+	_get_edges_touching_vertex(a2, touching);
+	for (uint32_t i = 0; i < touching.size(); i++) {
+		const Edge &te = data.edges[touching[i]];
+		if (te.active && ((te.a == a2 && te.b == b2) || (te.a == b2 && te.b == a2))) {
+			return touching[i];
+		}
+	}
+	return UINT32_MAX;
 }
 
 // Cheap sibling of _update_edge_seam_status(): that function is correct but

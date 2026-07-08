@@ -6,6 +6,7 @@
 #include <core/math/aabb.h>
 #include <core/math/math_templated_types.h>
 #include <core/math/vector3i.h>
+#include <queue>
 
 class MeshDeduplicator;
 struct Color;
@@ -242,6 +243,7 @@ class MeshSimplify {
 	void _refresh_edge_seam_flag(uint32_t p_edge_id);
 	void _reclassify_vertex(uint32_t p_vert_id);
 	////////////////////////////////////
+	uint32_t _find_twin_edge(uint32_t p_edge_id) const;
 
 	void _build_vertex_triangle_links();
 	void _debug_sanity_check();
@@ -281,6 +283,8 @@ class MeshSimplify {
 	void _debug_log_input_data();
 
 	bool prepare(MeshDeduplicator &r_dd);
+
+	void _collapse_vertex_pair(uint32_t p_kept, uint32_t p_deleted, Edge &r_edge, LocalVector<uint32_t> &r_altered_edges, LocalVector<uint32_t> &r_touched_edges, LocalVector<uint32_t> &r_affected_tris, std::priority_queue<SortedEdge> &r_queue, uint32_t &r_current_triangle_count, int32_t &r_edges_to_collapse);
 
 public:
 	void declare_indices(const Span<int> &p_indices);
