@@ -182,8 +182,12 @@ class MeshSimplify {
 		Quadric Qu; // attribute quadric for U
 		Quadric Qv; // attribute quadric for V
 
+		// All these attributes are optional.
 		Vector2 uv;
 		Vector2 uv2;
+		Vector3 normal;
+		Color color;
+		float flt = 0;
 
 		Type type = Type::MANIFOLD;
 

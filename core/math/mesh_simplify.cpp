@@ -279,11 +279,6 @@ bool MeshSimplify::prepare(MeshDeduplicator &r_dd) {
 	// Duduplicate.
 
 	LocalVector<uint32_t> inds;
-	LocalVector<Vector3> verts;
-	LocalVector<Vector3> normals;
-	LocalVector<Vector2> uvs;
-	LocalVector<Vector2> uv2s;
-	LocalVector<float> floats;
 
 	uint32_t num_streams = 1;
 	if (input_data.uvs.size()) {
@@ -307,72 +302,82 @@ bool MeshSimplify::prepare(MeshDeduplicator &r_dd) {
 	uint32_t fill_stream = 0;
 
 	MeshAttributeStream &as_pos = r_dd.get_input_attribute_stream(fill_stream++);
-	//as_pos.set_type(MeshAttributeStream::ATTR_POSITION, 0.1f);
-	as_pos.set_type(MeshAttributeStream::ATTR_POSITION, 1.0f);
+	as_pos.set_type(MeshAttributeStream::ATTR_POSITION);
+	//as_pos.set_type(MeshAttributeStream::ATTR_POSITION, 1.0f);
 	as_pos.vec3 = input_data.positions;
 
+	// Store the attribute stream ID so it can be retreived from the output later.
+	uint32_t as_id_uvs = UINT32_MAX;
+	uint32_t as_id_uv2s = UINT32_MAX;
+	uint32_t as_id_normals = UINT32_MAX;
+	uint32_t as_id_colors = UINT32_MAX;
+	uint32_t as_id_floats = UINT32_MAX;
+
 	if (input_data.uvs.size()) {
+		as_id_uvs = fill_stream;
 		MeshAttributeStream &as = r_dd.get_input_attribute_stream(fill_stream++);
 		as.set_type(MeshAttributeStream::ATTR_UV);
 		as.vec2 = input_data.uvs;
 	}
 
 	if (input_data.uv2s.size()) {
+		as_id_uv2s = fill_stream;
 		MeshAttributeStream &as = r_dd.get_input_attribute_stream(fill_stream++);
 		as.set_type(MeshAttributeStream::ATTR_UV);
 		as.vec2 = input_data.uv2s;
 	}
 
 	if (input_data.normals.size()) {
+		as_id_normals = fill_stream;
 		MeshAttributeStream &as = r_dd.get_input_attribute_stream(fill_stream++);
 		as.set_type(MeshAttributeStream::ATTR_NORMAL);
 		as.vec3 = input_data.normals;
 	}
 
 	if (input_data.colors.size()) {
+		as_id_colors = fill_stream;
 		MeshAttributeStream &as = r_dd.get_input_attribute_stream(fill_stream++);
 		as.set_type(MeshAttributeStream::ATTR_COLOR);
 		as.color = input_data.colors;
 	}
 
 	if (input_data.floats.size()) {
+		as_id_floats = fill_stream;
 		MeshAttributeStream &as = r_dd.get_input_attribute_stream(fill_stream++);
 		as.set_type(MeshAttributeStream::ATTR_FLOAT);
 		as.float_input = input_data.floats;
 	}
 
+	// Process and return the data from deduplicator.
 	if (!r_dd.process(input_data.indices, inds)) {
 		return false;
 	}
-	verts = r_dd.get_output_attribute_stream(0).vec3;
 
 	// Save the deduplicated data.
 	input_data.indices = inds;
-	input_data.positions = verts;
-
-	uint32_t uv_stream = 1;
-	if (input_data.uvs.size()) {
-		const MeshAttributeStream &as = r_dd.get_output_attribute_stream(uv_stream++);
+	input_data.positions = r_dd.get_output_attribute_stream(0).vec3;
+	if (as_id_uvs != UINT32_MAX) {
+		const MeshAttributeStream &as = r_dd.get_output_attribute_stream(as_id_uvs);
 		DEV_ASSERT(as.get_type() == MeshAttributeStream::ATTR_UV);
 		input_data.uvs = as.vec2;
 	}
-	if (input_data.uv2s.size()) {
-		const MeshAttributeStream &as = r_dd.get_output_attribute_stream(uv_stream++);
+	if (as_id_uv2s != UINT32_MAX) {
+		const MeshAttributeStream &as = r_dd.get_output_attribute_stream(as_id_uv2s);
 		DEV_ASSERT(as.get_type() == MeshAttributeStream::ATTR_UV);
 		input_data.uv2s = as.vec2;
 	}
-	if (input_data.normals.size()) {
-		const MeshAttributeStream &as = r_dd.get_output_attribute_stream(uv_stream++);
+	if (as_id_normals != UINT32_MAX) {
+		const MeshAttributeStream &as = r_dd.get_output_attribute_stream(as_id_normals);
 		DEV_ASSERT(as.get_type() == MeshAttributeStream::ATTR_NORMAL);
 		input_data.normals = as.vec3;
 	}
-	if (input_data.colors.size()) {
-		const MeshAttributeStream &as = r_dd.get_output_attribute_stream(uv_stream++);
+	if (as_id_colors != UINT32_MAX) {
+		const MeshAttributeStream &as = r_dd.get_output_attribute_stream(as_id_colors);
 		DEV_ASSERT(as.get_type() == MeshAttributeStream::ATTR_COLOR);
 		input_data.colors = as.color;
 	}
-	if (input_data.floats.size()) {
-		const MeshAttributeStream &as = r_dd.get_output_attribute_stream(uv_stream++);
+	if (as_id_floats != UINT32_MAX) {
+		const MeshAttributeStream &as = r_dd.get_output_attribute_stream(as_id_floats);
 		DEV_ASSERT(as.get_type() == MeshAttributeStream::ATTR_FLOAT);
 		input_data.floats = as.float_input;
 	}
@@ -385,8 +390,6 @@ bool MeshSimplify::prepare(MeshDeduplicator &r_dd) {
 
 	// Find world bound.
 	Span<Vector3> in_verts = Span<Vector3>(input_data.positions);
-	Span<Vector2> in_uvs = Span<Vector2>(input_data.uvs);
-	Span<Vector2> in_uv2s = Span<Vector2>(input_data.uv2s);
 
 	// Find bounds.
 	data.bound.position = in_verts[0];
@@ -411,6 +414,13 @@ bool MeshSimplify::prepare(MeshDeduplicator &r_dd) {
 	// Create in verts, and find their grid pos.
 	data.verts.resize(in_verts.size());
 
+	// Aliases for brevity.
+	Span<Vector2> in_uvs = Span<Vector2>(input_data.uvs);
+	Span<Vector2> in_uv2s = Span<Vector2>(input_data.uv2s);
+	Span<Vector3> in_normals = Span<Vector3>(input_data.normals);
+	Span<Color> in_colors = Span<Color>(input_data.colors);
+	Span<float> in_floats = Span<float>(input_data.floats);
+
 	for (uint32_t n = 0; n < in_verts.size(); n++) {
 		data.verts[n].position = data.find_grid_pos(in_verts[n]);
 
@@ -419,6 +429,15 @@ bool MeshSimplify::prepare(MeshDeduplicator &r_dd) {
 		}
 		if (in_uv2s.size()) {
 			data.verts[n].uv2 = in_uv2s[n];
+		}
+		if (in_normals.size()) {
+			data.verts[n].normal = in_normals[n];
+		}
+		if (in_colors.size()) {
+			data.verts[n].color = in_colors[n];
+		}
+		if (in_floats.size()) {
+			data.verts[n].flt = in_floats[n];
 		}
 	}
 
@@ -503,7 +522,7 @@ bool MeshSimplify::simplify_mesh() {
 	LocalVector<uint32_t> affected_tris;
 
 	while ((current_triangle_count > target && !queue.empty()) && current_triangle_count > 1) {
-		break;
+		//break;
 		//		if ((++collapse_counter % REFRESH_EVERY) == 0) {
 		{
 			//_detect_seam_edges();
@@ -928,9 +947,9 @@ void MeshSimplify::_test_quadrics() {
 	Plane_64 plane2(p0, p2, p1); // reversed winding
 	Plane_64 plane3(p3, p4, p5);
 
-	print_line("Distance from p3 to plane3: " + rtos(plane3.normal.dot(p3) + plane3.d));
-	print_line("Distance from p4 to plane3: " + rtos(plane3.normal.dot(p4) + plane3.d));
-	print_line("Distance from p5 to plane3: " + rtos(plane3.normal.dot(p5) + plane3.d));
+	print_line("Distance from p3 to plane3: " + rtos(plane3.distance_to(p3)));
+	print_line("Distance from p4 to plane3: " + rtos(plane3.distance_to(p4)));
+	print_line("Distance from p5 to plane3: " + rtos(plane3.distance_to(p5)));
 
 	print_line("Plane1: " + String(plane1.normal) + " d=" + rtos(plane1.d));
 	print_line("Plane2: " + String(plane2.normal) + " d=" + rtos(plane2.d));
@@ -947,7 +966,7 @@ void MeshSimplify::_test_quadrics() {
 
 	print_line("d = " + rtos(plane3.d) + ", Kp3[3][3] = " + rtos(Kp3.m[3][3]));
 	Vector3_64 test_p(test_pos3.x, test_pos3.y, test_pos3.z);
-	print_line("test point dot normal + d = " + rtos(plane3.normal.dot(test_p) + plane3.d));
+	print_line("test point distance  = " + rtos(plane3.distance_to(test_p)));
 
 	double error1 = _compute_quadric_error(test_pos, Kp1);
 	double error2 = _compute_quadric_error(test_pos, Kp2);

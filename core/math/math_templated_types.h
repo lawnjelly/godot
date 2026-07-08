@@ -36,14 +36,14 @@ struct Vector3T {
 	}
 
 	Vector3T<T> &operator-=(const Vector3T<T> &p_v) {
-		x *= p_v.x;
-		y *= p_v.y;
-		z *= p_v.z;
+		x -= p_v.x;
+		y -= p_v.y;
+		z -= p_v.z;
 		return *this;
 	}
 
 	Vector3T<T> operator*(const Vector3T<T> &p_v) const {
-		return Vector3(x * p_v.x, y * p_v.y, z * p_v.z);
+		return Vector3T<T>(x * p_v.x, y * p_v.y, z * p_v.z);
 	}
 
 	Vector3T<T> &operator*=(T p_scalar) {
