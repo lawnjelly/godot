@@ -286,6 +286,11 @@ class MeshSimplify {
 
 	void _collapse_vertex_pair(uint32_t p_kept, uint32_t p_deleted, Edge &r_edge, LocalVector<uint32_t> &r_altered_edges, LocalVector<uint32_t> &r_touched_edges, LocalVector<uint32_t> &r_affected_tris, std::priority_queue<SortedEdge> &r_queue, uint32_t &r_current_triangle_count, int32_t &r_edges_to_collapse);
 
+	// Returns number of *active* vertices currently in the wedge (ignores deleted ones).
+	// This is important for correct classification after seam collapses which delete
+	// one member of a wedge pair.
+	uint32_t _count_active_wedge_verts(uint32_t p_wedge_id) const;
+
 public:
 	void declare_indices(const Span<int> &p_indices);
 	void declare_positions(const Span<Vector3> &p_positions);

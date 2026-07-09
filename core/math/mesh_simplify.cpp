@@ -485,7 +485,7 @@ void MeshSimplify::_delete_triangle(uint32_t p_tri_id) {
 }
 
 void MeshSimplify::_collapse_vertex_pair(uint32_t p_kept, uint32_t p_deleted, Edge &r_edge, LocalVector<uint32_t> &r_altered_edges, LocalVector<uint32_t> &r_touched_edges, LocalVector<uint32_t> &r_affected_tris, std::priority_queue<SortedEdge> &r_queue, uint32_t &r_current_triangle_count, int32_t &r_edges_to_collapse) {
-	print_line("collapse_vertex_pair " + itos(p_kept) + " to " + itos(p_deleted));
+	print_line(String("collapse_vertex_pair ") + itos(p_kept) + " to " + itos(p_deleted));
 
 	// Collapse to one of the original endpoints only
 	Vert &kept_vert = data.verts[p_kept];
@@ -802,7 +802,18 @@ bool MeshSimplify::simplify_mesh() {
 				_evaluate_edge_collapse(se.edge_id);
 				edge.version++;
 				queue.push(SortedEdge(se.edge_id, edge.cost, edge.version));
-				continue; // Debug check this continues to the right place - we want to abort this vertex collapse.
+				// IMPROVEMENT for twin seam correctness + loop prevention:
+				// Also refresh the twin edge. This gives the twin a chance to pick
+				// a collapse direction that *is* compatible with the current main
+				// edge direction (or vice versa) on the next pop. Without this,
+				// a low-cost seam edge whose twin-partner direction is temporarily
+				// invalid can be re-queued and immediately re-popped in a tight
+				// loop (hitting the infinite_loop_breaker and stalling simplification
+				// of seam regions).
+				_evaluate_edge_collapse(twin_edge_id);
+				twin_edge.version++;
+				queue.push(SortedEdge(twin_edge_id, twin_edge.cost, twin_edge.version));
+				continue;
 			}
 
 			// We'll collapse the twin first, just for code simplicity here.
@@ -1677,19 +1688,25 @@ void MeshSimplify::_reclassify_vertex(uint32_t p_vert_id) {
 		}
 	}
 
-	const Wedge &wedge = data.wedges[vert.wedge];
+	// CORRECTNESS FIX: wedge.verts.size() includes verts that have been
+	// deactivated by previous collapses (especially seam twin collapses).
+	// We must count only *active* members, otherwise after collapsing one
+	// side of a seam the remaining verts can be mis-classified (e.g. still
+	// treated as SEAM when only one active member remains), leading to
+	// wrong seam penalties and potential further misbehavior.
+	uint32_t active_wedge_size = _count_active_wedge_verts(vert.wedge);
 
 	if (nonmanifold_count > 0) {
 		vert.type = Vert::Type::LOCKED;
 	} else if (true_border_count > 0) {
-		vert.type = (true_border_count == 2 && seam_pair_count == 0 && wedge.verts.size() == 1)
+		vert.type = (true_border_count == 2 && seam_pair_count == 0 && active_wedge_size == 1)
 				? Vert::Type::BORDER
 				: Vert::Type::COMPLEX;
 	} else if (seam_pair_count > 0) {
-		vert.type = (seam_pair_count == 2 && wedge.verts.size() == 2)
+		vert.type = (seam_pair_count == 2 && active_wedge_size == 2)
 				? Vert::Type::SEAM
 				: Vert::Type::COMPLEX;
-	} else if (wedge.verts.size() > 1) {
+	} else if (active_wedge_size > 1) {
 		vert.type = Vert::Type::COMPLEX;
 	} else {
 		vert.type = Vert::Type::MANIFOLD;
@@ -1847,23 +1864,26 @@ void MeshSimplify::_detect_seam_edges() {
 		if (!vert.active) {
 			continue;
 		}
-		const Wedge &wedge = data.wedges[vert.wedge];
 
 		uint32_t tb = true_border_count[n];
 		uint32_t sp = seam_pair_count[n];
 		uint32_t nm = nonmanifold_count[n];
 
+		// Use active count for initial classification too (defensive; at start
+		// all are active so identical to .size(), but keeps logic consistent).
+		uint32_t active_wedge_size = _count_active_wedge_verts(vert.wedge);
+
 		if (nm > 0) {
 			vert.type = Vert::Type::LOCKED;
 		} else if (tb > 0) {
-			vert.type = (tb == 2 && sp == 0 && wedge.verts.size() == 1)
+			vert.type = (tb == 2 && sp == 0 && active_wedge_size == 1)
 					? Vert::Type::BORDER
 					: Vert::Type::COMPLEX;
 		} else if (sp > 0) {
-			vert.type = (sp == 2 && wedge.verts.size() == 2)
+			vert.type = (sp == 2 && active_wedge_size == 2)
 					? Vert::Type::SEAM
 					: Vert::Type::COMPLEX;
-		} else if (wedge.verts.size() > 1) {
+		} else if (active_wedge_size > 1) {
 			vert.type = Vert::Type::COMPLEX; // shares a position but no open edges — rare, be conservative
 		} else {
 			vert.type = Vert::Type::MANIFOLD;
@@ -2084,4 +2104,15 @@ void MeshSimplify::_create_tris() {
 	_detect_seam_edges();
 
 	_initialize_vertex_quadrics();
+}
+
+uint32_t MeshSimplify::_count_active_wedge_verts(uint32_t p_wedge_id) const {
+	const Wedge &w = data.wedges[p_wedge_id];
+	uint32_t cnt = 0;
+	for (uint32_t n = 0; n < w.verts.size(); n++) {
+		if (data.verts[w.verts[n]].active) {
+			cnt++;
+		}
+	}
+	return cnt;
 }
