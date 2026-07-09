@@ -696,11 +696,12 @@ bool MeshSimplify::simplify_mesh() {
 										 // plus every edge now incident to `kept` (see below for why).
 	LocalVector<uint32_t> affected_tris;
 
-	uint32_t infinite_loop_breaker = 1024;
+	uint32_t infinite_loop_breaker = 1024 * 10;
 
 	while ((current_triangle_count > target && !queue.empty()) && current_triangle_count > 1) {
 		infinite_loop_breaker--;
 		if (infinite_loop_breaker == 0) {
+			print_line("Infinite loop breaker activated.");
 			break;
 		}
 
@@ -785,42 +786,93 @@ bool MeshSimplify::simplify_mesh() {
 			print_line("twin_edge found " + itos(se.edge_id) + " and " + itos(twin_edge_id));
 
 			Edge &twin_edge = data.edges[twin_edge_id];
-			const Vert &twin_a = data.verts[twin_edge.a];
-			const Vert &twin_b = data.verts[twin_edge.b];
+			uint32_t twin_edge_a = twin_edge.a;
+			uint32_t twin_edge_b = twin_edge.b;
 
-			// Decide which way to collapse the twin.
-			uint32_t twin_kept = twin_edge.a;
-			uint32_t twin_deleted = twin_edge.b;
+			// There are exactly two coherent ways to collapse a twin pair together:
+			// either main keeps `kept` and twin keeps whichever of its endpoints
+			// shares `kept`'s wedge (dir1), or main keeps `deleted` instead and twin
+			// keeps the other endpoint (dir2). Try dir1 first, since that's the
+			// direction _evaluate_edge_collapse() already picked as cheapest for the
+			// main edge considered on its own.
+			//
+			// BUG FIX: the old code only ever tried dir1. If the twin couldn't
+			// collapse that way it just re-evaluated and re-queued both edges
+			// unchanged -- but _evaluate_edge_collapse() doesn't know anything
+			// about twins, so it recomputes the exact same cost/direction, the
+			// edge immediately resurfaces at the top of the queue, and the whole
+			// thing repeats forever (only stopped by the blunt infinite_loop_breaker
+			// aborting simplification early). Trying dir2 as a fallback resolves
+			// most of these cases outright.
+			uint32_t twin_kept_dir1 = (data.verts[twin_edge_a].wedge == kept_vert.wedge) ? twin_edge_a : twin_edge_b;
+			uint32_t twin_deleted_dir1 = (twin_kept_dir1 == twin_edge_a) ? twin_edge_b : twin_edge_a;
 
-			if (kept_vert.wedge != twin_a.wedge) {
-				DEV_ASSERT(kept_vert.wedge == twin_b.wedge);
-				SWAP(twin_kept, twin_deleted);
+			// `kept`/`deleted` already passed _can_collapse() above, so dir1 only
+			// needs the twin side checked.
+			bool found_dir = _can_collapse(twin_kept_dir1, twin_deleted_dir1);
+
+			uint32_t twin_kept = twin_kept_dir1;
+			uint32_t twin_deleted = twin_deleted_dir1;
+
+			if (!found_dir) {
+				uint32_t alt_kept = deleted;
+				uint32_t alt_deleted = kept;
+				uint32_t alt_twin_kept = twin_deleted_dir1;
+				uint32_t alt_twin_deleted = twin_kept_dir1;
+
+				if (_can_collapse(alt_kept, alt_deleted) && _can_collapse(alt_twin_kept, alt_twin_deleted)) {
+					kept = alt_kept;
+					deleted = alt_deleted;
+					twin_kept = alt_twin_kept;
+					twin_deleted = alt_twin_deleted;
+					found_dir = true;
+				}
 			}
 
-			// If we can't collapse the twin, we shouldn't do either.
-			if (!_can_collapse(twin_kept, twin_deleted)) {
-				_evaluate_edge_collapse(se.edge_id);
+			if (!found_dir) {
+				// Neither combined direction works right now. Don't permanently
+				// kill the pair -- nearby topology may still change and make one
+				// of these directions valid later (same reasoning as the
+				// single-edge safety check above) -- but do heavily penalize the
+				// cost so the queue moves on to other, actually-collapsible edges
+				// instead of re-popping this exact stuck pair over and over. A
+				// later legitimate _evaluate_edge_collapse() call (triggered when
+				// neighbouring topology actually changes) will recompute the real
+				// cost from scratch and clear the penalty.
+				edge.cost = MAX(edge.cost, 1.0) * 1000.0;
 				edge.version++;
 				queue.push(SortedEdge(se.edge_id, edge.cost, edge.version));
-				// IMPROVEMENT for twin seam correctness + loop prevention:
-				// Also refresh the twin edge. This gives the twin a chance to pick
-				// a collapse direction that *is* compatible with the current main
-				// edge direction (or vice versa) on the next pop. Without this,
-				// a low-cost seam edge whose twin-partner direction is temporarily
-				// invalid can be re-queued and immediately re-popped in a tight
-				// loop (hitting the infinite_loop_breaker and stalling simplification
-				// of seam regions).
-				_evaluate_edge_collapse(twin_edge_id);
+
+				twin_edge.cost = MAX(twin_edge.cost, 1.0) * 1000.0;
 				twin_edge.version++;
 				queue.push(SortedEdge(twin_edge_id, twin_edge.cost, twin_edge.version));
 				continue;
 			}
 
 			// We'll collapse the twin first, just for code simplicity here.
+			//
+			// BUG FIX: _collapse_vertex_pair() can call _get_or_create_edge(),
+			// which can push_back() onto data.edges and reallocate it. That
+			// invalidates *every* outstanding Edge& into data.edges, including
+			// `twin_edge` (used only above, so that's fine) and -- critically --
+			// the outer `edge` reference taken near the top of this loop
+			// iteration, which was then still being passed by reference into the
+			// second _collapse_vertex_pair() call below. That call started by
+			// writing `r_edge.active = false`, i.e. a write-after-free on a
+			// stale/moved buffer: undefined behaviour that could silently fail to
+			// deactivate the real edge, corrupt nearby heap data, or otherwise
+			// produce exactly the kind of erratic "same pair keeps coming back"
+			// symptom this function was trying to track down. Fixed below by
+			// re-fetching the reference from data.edges by index (indices stay
+			// valid across a reallocation; only references/pointers don't) right
+			// before it's used again.
 			_collapse_vertex_pair(twin_kept, twin_deleted, twin_edge, altered_edges, touched_edges, affected_tris, queue, current_triangle_count, edges_to_collapse);
 		}
 
-		_collapse_vertex_pair(kept, deleted, edge, altered_edges, touched_edges, affected_tris, queue, current_triangle_count, edges_to_collapse);
+		// Re-fetch by index rather than reusing the `edge` reference taken
+		// earlier: the twin collapse above (if it ran) may have reallocated
+		// data.edges and left that reference dangling. See BUG FIX comment above.
+		_collapse_vertex_pair(kept, deleted, data.edges[se.edge_id], altered_edges, touched_edges, affected_tris, queue, current_triangle_count, edges_to_collapse);
 
 		if (edges_to_collapse <= 0) {
 			break;
