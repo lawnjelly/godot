@@ -233,6 +233,7 @@ class MeshSimplify {
 	void _get_edges_touching_wedge(uint32_t p_wedge_id, LocalVector<uint32_t> &r_edges) const;
 	void _refresh_edge_seam_flag(uint32_t p_edge_id);
 	void _reclassify_wedge(uint32_t p_wedge_id);
+	void _change_wedge_type(uint32_t p_wedge_id, Wedge::Type p_type);
 
 	void _build_vertex_triangle_links();
 	void _debug_sanity_check();

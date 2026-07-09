@@ -464,10 +464,12 @@ uint32_t MeshSimplify::_find_best_matching_vertex_in_wedge(uint32_t p_v_deleted,
 }
 
 void MeshSimplify::_collapse_wedge_pair(uint32_t p_kept, uint32_t p_deleted, uint32_t p_edge_idx, LocalVector<uint32_t> &r_altered_edges, LocalVector<uint32_t> &r_touched_edges, LocalVector<uint32_t> &r_affected_tris, std::priority_queue<SortedEdge> &r_queue, uint32_t &r_current_triangle_count, int32_t &r_edges_to_collapse) {
-	// print_line(String("collapse_wedge_pair ") + itos(p_kept) + " to " + itos(p_deleted));
-
 	Wedge &kept_wedge = data.wedges[p_kept];
 	Wedge &deleted_wedge = data.wedges[p_deleted];
+
+	print_line(String("collapse_wedge_pair from ") + itos(p_deleted) + " [" + itos((uint32_t)deleted_wedge.type) + "] to " + itos(p_kept) + " [" + itos((uint32_t)kept_wedge.type) + "]");
+
+	DEV_ASSERT(Wedge::can_collapse[(uint32_t)deleted_wedge.type][(uint32_t)kept_wedge.type]);
 
 	kept_wedge.Q = kept_wedge.Q + deleted_wedge.Q;
 
@@ -1504,21 +1506,39 @@ void MeshSimplify::_reclassify_wedge(uint32_t p_wedge_id) {
 		// If a wedge is on the geometric border but has an attribute seam (active_wedge_size > 1),
 		// lock it entirely to prevent its collapse from pulling the border into the mesh.
 		if (active_wedge_size > 1) {
-			wedge.type = Wedge::Type::LOCKED;
+			_change_wedge_type(p_wedge_id, Wedge::Type::LOCKED);
 		} else {
-			wedge.type = (true_border_count == 2 && seam_pair_count == 0)
-					? Wedge::Type::BORDER
-					: Wedge::Type::COMPLEX;
+			_change_wedge_type(p_wedge_id, (true_border_count == 2 && seam_pair_count == 0) ? Wedge::Type::BORDER : Wedge::Type::COMPLEX);
+
+			// Any active wedge on a boundary (true_border_count > 0) should remain classified as BORDER,
+			// preventing boundary endpoints or corners from degrading into COMPLEX.
+			//_change_wedge_type(p_wedge_id, Wedge::Type::BORDER);
 		}
 	} else if (seam_pair_count > 0) {
-		wedge.type = (seam_pair_count == 2 && active_wedge_size == 2)
-				? Wedge::Type::SEAM
-				: Wedge::Type::COMPLEX;
+		_change_wedge_type(p_wedge_id, (seam_pair_count == 2 && active_wedge_size == 2) ? Wedge::Type::SEAM : Wedge::Type::COMPLEX);
+
+		// Prevent active seam endpoints from degrading into COMPLEX.
+		//if (active_wedge_size > 2) {
+		//	_change_wedge_type(p_wedge_id, Wedge::Type::LOCKED);
+		//} else {
+		//	_change_wedge_type(p_wedge_id, Wedge::Type::SEAM);
+		//}
 	} else if (active_wedge_size > 1) {
-		wedge.type = Wedge::Type::COMPLEX;
+		_change_wedge_type(p_wedge_id, Wedge::Type::COMPLEX);
 	} else {
-		wedge.type = Wedge::Type::MANIFOLD;
+		_change_wedge_type(p_wedge_id, Wedge::Type::MANIFOLD);
 	}
+}
+
+void MeshSimplify::_change_wedge_type(uint32_t p_wedge_id, Wedge::Type p_type) {
+	// Just a wrapper to allow debugging.
+	Wedge &wedge = data.wedges[p_wedge_id];
+
+	if (wedge.type != p_type) {
+		print_line("changing wedge " + itos(p_wedge_id) + " from type [" + itos((uint32_t)wedge.type) + "] to [" + itos((uint32_t)p_type) + "]");
+	}
+
+	wedge.type = p_type;
 }
 
 void MeshSimplify::_rebuild_triangle_edge_ids() {
@@ -1577,11 +1597,13 @@ void MeshSimplify::_detect_seam_edges() {
 		_reclassify_wedge(n);
 	}
 
+#define MESH_SIMPLIFY_COUNT_VERT_TYPES
 #ifdef MESH_SIMPLIFY_COUNT_VERT_TYPES
 	uint32_t wedge_type_count[(uint32_t)Wedge::Type::MAX] = {};
 	for (uint32_t n = 0; n < data.wedges.size(); n++) {
 		if (_count_active_wedge_verts(n) > 0) {
 			wedge_type_count[(uint32_t)data.wedges[n].type]++;
+			print_line("\twedge " + itos(n) + " type is " + itos((uint32_t)data.wedges[n].type));
 		}
 	}
 	print_line("manifold wedges : " + itos(wedge_type_count[(uint32_t)Wedge::Type::MANIFOLD]));
