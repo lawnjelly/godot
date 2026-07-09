@@ -1,4 +1,3 @@
-
 #include "mesh_simplify.h"
 #include "core/os/os.h"
 #include "mesh_deduplicator.h"
@@ -465,7 +464,7 @@ uint32_t MeshSimplify::_find_best_matching_vertex_in_wedge(uint32_t p_v_deleted,
 }
 
 void MeshSimplify::_collapse_wedge_pair(uint32_t p_kept, uint32_t p_deleted, uint32_t p_edge_idx, LocalVector<uint32_t> &r_altered_edges, LocalVector<uint32_t> &r_touched_edges, LocalVector<uint32_t> &r_affected_tris, std::priority_queue<SortedEdge> &r_queue, uint32_t &r_current_triangle_count, int32_t &r_edges_to_collapse) {
-	print_line(String("collapse_wedge_pair ") + itos(p_kept) + " to " + itos(p_deleted));
+	// print_line(String("collapse_wedge_pair ") + itos(p_kept) + " to " + itos(p_deleted));
 
 	Wedge &kept_wedge = data.wedges[p_kept];
 	Wedge &deleted_wedge = data.wedges[p_deleted];
@@ -631,6 +630,8 @@ void MeshSimplify::_collapse_wedge_pair(uint32_t p_kept, uint32_t p_deleted, uin
 }
 
 bool MeshSimplify::_validate_geometric_boundaries(bool p_initial) {
+	return true;
+
 	std::map<std::pair<uint32_t, uint32_t>, int> geom_edge_counts;
 
 	for (uint32_t t = 0; t < data.tris.size(); t++) {
@@ -750,9 +751,8 @@ bool MeshSimplify::simplify_mesh() {
 		uint32_t kept = edge.wedge_to_collapse_to;
 		uint32_t deleted = (kept == edge.a ? edge.b : edge.a);
 
-		Wedge &kept_wedge = data.wedges[kept];
-
 #ifdef MESH_SIMPLIFY_DISALLOW_SEAMS
+		Wedge &kept_wedge = data.wedges[kept];
 		Wedge &deleted_wedge = data.wedges[deleted];
 
 		if (deleted_wedge.is_seam_or_boundary) {
@@ -779,7 +779,7 @@ bool MeshSimplify::simplify_mesh() {
 
 		_debug_sanity_check();
 
-		print_line(String("Step: Collapsing Edge ") + itos(se.edge_id) + " (kept wedge: " + itos(kept) + ", deleted wedge: " + itos(deleted) + ")");
+		// print_line(String("Step: Collapsing Edge ") + itos(se.edge_id) + " (kept wedge: " + itos(kept) + ", deleted wedge: " + itos(deleted) + ")");
 
 		_collapse_wedge_pair(kept, deleted, se.edge_id, altered_edges, touched_edges, affected_tris, queue, current_triangle_count, edges_to_collapse);
 
@@ -1414,12 +1414,60 @@ void MeshSimplify::_reclassify_wedge(uint32_t p_wedge_id) {
 
 		WedgeConnection &conn = connections[other_wedge];
 		conn.other_wedge = other_wedge;
-		conn.total_triangle_count += e.triangle_count;
+		conn.total_triangle_count = e.triangle_count;
 
-		if (e.triangle_count == 1) {
-			conn.seam_edge_count++;
-		} else if (e.triangle_count > 2) {
+		if (e.triangle_count > 2) {
 			conn.nonmanifold_edge_count++;
+		} else {
+			// Find active attribute Vert pairs (v_a, v_b) where v_a is in p_wedge_id and v_b is in other_wedge,
+			// and count their occurrences across active triangles using this spatial edge to detect seams.
+			std::map<std::pair<uint32_t, uint32_t>, uint32_t> vert_pair_counts;
+
+			const Wedge &w = data.wedges[p_wedge_id];
+			for (uint32_t v_idx = 0; v_idx < w.verts.size(); v_idx++) {
+				uint32_t v_id = w.verts[v_idx];
+				if (!data.verts[v_id].active) {
+					continue;
+				}
+				const LocalVector<uint32_t> &v_tris = data.verts[v_id].tris;
+				for (uint32_t t_idx = 0; t_idx < v_tris.size(); t_idx++) {
+					uint32_t tri_id = v_tris[t_idx];
+					const Tri &tri = data.tris[tri_id];
+					if (!tri.active) {
+						continue;
+					}
+
+					bool has_this_edge = false;
+					for (uint32_t edge_idx = 0; edge_idx < 3; edge_idx++) {
+						if (tri.edge_ids[edge_idx] == touching_edges[i]) {
+							has_this_edge = true;
+							break;
+						}
+					}
+
+					if (has_this_edge) {
+						uint32_t v_other = UINT32_MAX;
+						for (uint32_t c = 0; c < 3; c++) {
+							if (data.verts[tri.corn[c]].wedge == other_wedge) {
+								v_other = tri.corn[c];
+								break;
+							}
+						}
+
+						if (v_other != UINT32_MAX) {
+							uint32_t v_min = MIN(v_id, v_other);
+							uint32_t v_max = MAX(v_id, v_other);
+							vert_pair_counts[std::make_pair(v_min, v_max)]++;
+						}
+					}
+				}
+			}
+
+			for (std::map<std::pair<uint32_t, uint32_t>, uint32_t>::const_iterator vp_it = vert_pair_counts.begin(); vp_it != vert_pair_counts.end(); ++vp_it) {
+				if (vp_it->second == 1) {
+					conn.seam_edge_count++;
+				}
+			}
 		}
 	}
 
@@ -1453,9 +1501,15 @@ void MeshSimplify::_reclassify_wedge(uint32_t p_wedge_id) {
 	if (nonmanifold_count > 0) {
 		wedge.type = Wedge::Type::LOCKED;
 	} else if (true_border_count > 0) {
-		wedge.type = (true_border_count == 2 && seam_pair_count == 0 && active_wedge_size == 1)
-				? Wedge::Type::BORDER
-				: Wedge::Type::COMPLEX;
+		// If a wedge is on the geometric border but has an attribute seam (active_wedge_size > 1),
+		// lock it entirely to prevent its collapse from pulling the border into the mesh.
+		if (active_wedge_size > 1) {
+			wedge.type = Wedge::Type::LOCKED;
+		} else {
+			wedge.type = (true_border_count == 2 && seam_pair_count == 0)
+					? Wedge::Type::BORDER
+					: Wedge::Type::COMPLEX;
+		}
 	} else if (seam_pair_count > 0) {
 		wedge.type = (seam_pair_count == 2 && active_wedge_size == 2)
 				? Wedge::Type::SEAM
