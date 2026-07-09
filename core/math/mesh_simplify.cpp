@@ -170,6 +170,86 @@ bool MeshSimplify::_can_collapse_test_tri(uint32_t kept_vert, uint32_t deleted_v
 		return false;
 	}
 
+	// UV Distortion and Inversion Protection
+	if (input_data.uvs.size() > 0) {
+		Vector2 old_uv[3];
+		Vector2 new_uv[3];
+
+		for (int i = 0; i < 3; ++i) {
+			old_uv[i] = data.verts[t.corn[i]].uv;
+			new_uv[i] = (t.corn[i] == deleted_vert) ? data.verts[kept_vert].uv : old_uv[i];
+		}
+
+		// Calculate 2D cross product of UV coordinates (proportional to signed UV area)
+		double cross_before = (old_uv[1].x - old_uv[0].x) * (old_uv[2].y - old_uv[0].y) - (old_uv[2].x - old_uv[0].x) * (old_uv[1].y - old_uv[0].y);
+		double cross_after = (new_uv[1].x - new_uv[0].x) * (new_uv[2].y - new_uv[0].y) - (new_uv[2].x - new_uv[0].x) * (new_uv[1].y - new_uv[0].y);
+
+		if (Math::abs(cross_before) > 1e-7) {
+			// 1. Detect UV mirror/flip inversion
+			if (cross_before * cross_after < 0.0) {
+				MS_LOG("_can_collapse rejecting edge from " + itos(deleted_vert) + " to " + itos(kept_vert) + " - uv flipped");
+				return false;
+			}
+
+			// 2. Detect UV degeneracy (triangle squashed to a line or point in UV space)
+			if (Math::abs(cross_after) < 1e-7) {
+				MS_LOG("_can_collapse rejecting edge from " + itos(deleted_vert) + " to " + itos(kept_vert) + " - uv degenerate");
+				return false;
+			}
+
+			// 3. Detect disproportionate stretching relative to 3D geometric scale change
+			double len_b = Math::sqrt(len_b2);
+			double len_a = Math::sqrt(len_a2);
+			if (len_b > 1e-7 && len_a > 1e-7) {
+				double scale_3d = len_a / len_b;
+				double scale_uv = Math::abs(cross_after) / Math::abs(cross_before);
+				double distortion = scale_uv / scale_3d;
+				if (distortion < 0.15 || distortion > 6.0) {
+					MS_LOG("_can_collapse rejecting edge from " + itos(deleted_vert) + " to " + itos(kept_vert) + " - uv scale distortion: " + rtos(distortion));
+					return false;
+				}
+			}
+		}
+	}
+
+	// UV2 Distortion and Inversion Protection
+	if (input_data.uv2s.size() > 0) {
+		Vector2 old_uv2[3];
+		Vector2 new_uv2[3];
+
+		for (int i = 0; i < 3; ++i) {
+			old_uv2[i] = data.verts[t.corn[i]].uv2;
+			new_uv2[i] = (t.corn[i] == deleted_vert) ? data.verts[kept_vert].uv2 : old_uv2[i];
+		}
+
+		double cross_before = (old_uv2[1].x - old_uv2[0].x) * (old_uv2[2].y - old_uv2[0].y) - (old_uv2[2].x - old_uv2[0].x) * (old_uv2[1].y - old_uv2[0].y);
+		double cross_after = (new_uv2[1].x - new_uv2[0].x) * (new_uv2[2].y - new_uv2[0].y) - (new_uv2[2].x - new_uv2[0].x) * (new_uv2[1].y - new_uv2[0].y);
+
+		if (Math::abs(cross_before) > 1e-7) {
+			if (cross_before * cross_after < 0.0) {
+				MS_LOG("_can_collapse rejecting edge from " + itos(deleted_vert) + " to " + itos(kept_vert) + " - uv2 flipped");
+				return false;
+			}
+
+			if (Math::abs(cross_after) < 1e-7) {
+				MS_LOG("_can_collapse rejecting edge from " + itos(deleted_vert) + " to " + itos(kept_vert) + " - uv2 degenerate");
+				return false;
+			}
+
+			double len_b = Math::sqrt(len_b2);
+			double len_a = Math::sqrt(len_a2);
+			if (len_b > 1e-7 && len_a > 1e-7) {
+				double scale_3d = len_a / len_b;
+				double scale_uv = Math::abs(cross_after) / Math::abs(cross_before);
+				double distortion = scale_uv / scale_3d;
+				if (distortion < 0.15 || distortion > 6.0) {
+					MS_LOG("_can_collapse rejecting edge from " + itos(deleted_vert) + " to " + itos(kept_vert) + " - uv2 scale distortion: " + rtos(distortion));
+					return false;
+				}
+			}
+		}
+	}
+
 	return true;
 }
 
