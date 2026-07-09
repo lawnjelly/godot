@@ -147,7 +147,16 @@ class MeshSimplify {
 		Vector3i position;
 		LocalVector<uint32_t> verts;
 		Type type = Type::MANIFOLD;
+		Type original_type = Type::MANIFOLD;
+
 		bool is_seam_or_boundary = false;
+		bool is_border = false;
+		bool is_seam = false;
+
+		bool original_is_seam_or_boundary = false;
+		bool original_is_border = false;
+		bool original_is_seam = false;
+
 		LocalVector<uint32_t> seam_neighbour_wedges;
 		Quadric Q; // Accumulated geometric error for the entire wedge position
 
@@ -262,7 +271,7 @@ class MeshSimplify {
 	int32_t _triangle_which_side(const Vector3i &p_a, const Vector3i &p_b, const Vector3i &p_c, const Vector3i &p_test) const;
 	bool _is_triangle_degenerate(const uint32_t p_inds[3]) const;
 
-	bool _can_collapse(uint32_t kept_wedge, uint32_t deleted_wedge) const;
+	bool _can_collapse(uint32_t kept_wedge, uint32_t deleted_wedge, uint32_t p_edge_id = UINT32_MAX) const;
 	bool _can_collapse_test_tri(uint32_t kept_vert, uint32_t deleted_vert, uint32_t p_tri_id) const;
 
 	bool _is_triangle_degenerate_from_positions(const Vector3i p[3]) const;

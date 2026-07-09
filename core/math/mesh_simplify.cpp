@@ -173,12 +173,58 @@ bool MeshSimplify::_can_collapse_test_tri(uint32_t kept_vert, uint32_t deleted_v
 	return true;
 }
 
-bool MeshSimplify::_can_collapse(uint32_t kept_wedge, uint32_t deleted_wedge) const {
+bool MeshSimplify::_can_collapse(uint32_t kept_wedge, uint32_t deleted_wedge, uint32_t p_edge_id) const {
 	const Wedge &w_del = data.wedges[deleted_wedge];
 	const Wedge &w_kep = data.wedges[kept_wedge];
 
+	// Constraint 1: Original structure compatibility
+	if (!Wedge::can_collapse[(uint32_t)w_del.original_type][(uint32_t)w_kep.original_type]) {
+		return false;
+	}
+
+	// Constraint 2: Dynamic topological compatibility
 	if (!Wedge::can_collapse[(uint32_t)w_del.type][(uint32_t)w_kep.type]) {
 		return false;
+	}
+
+	// Rule 1: A border wedge can only collapse to another border wedge.
+	if (w_del.original_is_border && !w_kep.original_is_border) {
+		return false;
+	}
+	if (w_del.is_border && !w_kep.is_border) {
+		return false;
+	}
+
+	// Rule 2: A seam wedge can only collapse to another seam wedge.
+	if (w_del.original_is_seam && !w_kep.original_is_seam) {
+		return false;
+	}
+	if (w_del.is_seam && !w_kep.is_seam) {
+		return false;
+	}
+
+	// Rule 3: Topology-preserving boundary edge collapse check (Link Condition).
+	if ((w_del.original_is_border && w_kep.original_is_border) || (w_del.is_border && w_kep.is_border)) {
+		bool found_border_edge = false;
+		if (p_edge_id != UINT32_MAX && p_edge_id < data.edges.size()) {
+			const Edge &e = data.edges[p_edge_id];
+			if (e.active && e.triangle_count == 1) {
+				found_border_edge = true;
+			}
+		} else {
+			for (uint32_t i = 0; i < data.edges.size(); i++) {
+				const Edge &e = data.edges[i];
+				if (e.active && ((e.a == kept_wedge && e.b == deleted_wedge) || (e.a == deleted_wedge && e.b == kept_wedge))) {
+					if (e.triangle_count == 1) {
+						found_border_edge = true;
+					}
+					break;
+				}
+			}
+		}
+		if (!found_border_edge) {
+			return false; // Prevent pinching across interior manifold structures
+		}
 	}
 
 	// For each active vertex in the deleted wedge, we verify that its triangles can collapse to its matched vertex in the kept wedge.
@@ -467,8 +513,9 @@ void MeshSimplify::_collapse_wedge_pair(uint32_t p_kept, uint32_t p_deleted, uin
 	Wedge &kept_wedge = data.wedges[p_kept];
 	Wedge &deleted_wedge = data.wedges[p_deleted];
 
-	print_line(String("collapse_wedge_pair from ") + itos(p_deleted) + " [" + itos((uint32_t)deleted_wedge.type) + "] to " + itos(p_kept) + " [" + itos((uint32_t)kept_wedge.type) + "]");
+	// print_line(String("collapse_wedge_pair from ") + itos(p_deleted) + " [" + itos((uint32_t)deleted_wedge.type) + "] to " + itos(p_kept) + " [" + itos((uint32_t)kept_wedge.type) + "]");
 
+	DEV_ASSERT(Wedge::can_collapse[(uint32_t)deleted_wedge.original_type][(uint32_t)kept_wedge.original_type]);
 	DEV_ASSERT(Wedge::can_collapse[(uint32_t)deleted_wedge.type][(uint32_t)kept_wedge.type]);
 
 	kept_wedge.Q = kept_wedge.Q + deleted_wedge.Q;
@@ -757,13 +804,13 @@ bool MeshSimplify::simplify_mesh() {
 		Wedge &kept_wedge = data.wedges[kept];
 		Wedge &deleted_wedge = data.wedges[deleted];
 
-		if (deleted_wedge.is_seam_or_boundary) {
+		if (deleted_wedge.is_seam_or_boundary || deleted_wedge.original_is_seam_or_boundary) {
 			edge.active = false;
 			continue;
 		}
 #endif
 
-		if (!_can_collapse(kept, deleted)) {
+		if (!_can_collapse(kept, deleted, se.edge_id)) {
 			_evaluate_edge_collapse(se.edge_id);
 			edge.version++;
 			queue.push(SortedEdge(se.edge_id, edge.cost, edge.version));
@@ -1185,8 +1232,8 @@ void MeshSimplify::_evaluate_edge_collapse(uint32_t p_edge_id) {
 	double total_a = VERY_HIGH_COST;
 	double total_b = VERY_HIGH_COST;
 
-	bool can_collapse_to_a = _can_collapse(edge.a, edge.b);
-	bool can_collapse_to_b = _can_collapse(edge.b, edge.a);
+	bool can_collapse_to_a = _can_collapse(edge.a, edge.b, p_edge_id);
+	bool can_collapse_to_b = _can_collapse(edge.b, edge.a, p_edge_id);
 
 	if (!can_collapse_to_b && !can_collapse_to_a) {
 		edge.active = false;
@@ -1216,7 +1263,7 @@ void MeshSimplify::_evaluate_edge_collapse(uint32_t p_edge_id) {
 		}
 		total_a = distance_cost + geom_cost_a + beta * attr_a;
 
-		if (b.is_seam_or_boundary) {
+		if (b.is_seam_or_boundary || b.original_is_seam_or_boundary) {
 			bool breaks_line = true;
 
 			if (b.seam_neighbour_wedges.size() == 2) {
@@ -1270,7 +1317,7 @@ void MeshSimplify::_evaluate_edge_collapse(uint32_t p_edge_id) {
 
 		total_b = distance_cost + geom_cost_b + beta * attr_b;
 
-		if (a.is_seam_or_boundary) {
+		if (a.is_seam_or_boundary || a.original_is_seam_or_boundary) {
 			bool breaks_line = true;
 
 			if (a.seam_neighbour_wedges.size() == 2) {
@@ -1500,29 +1547,24 @@ void MeshSimplify::_reclassify_wedge(uint32_t p_wedge_id) {
 		}
 	}
 
+	// Dynamic Layout Flags to guarantee topology preservation across types
+	wedge.is_border = (true_border_count > 0);
+	wedge.is_seam = (seam_pair_count > 0);
+
 	if (nonmanifold_count > 0) {
-		wedge.type = Wedge::Type::LOCKED;
+		_change_wedge_type(p_wedge_id, Wedge::Type::LOCKED);
 	} else if (true_border_count > 0) {
 		// If a wedge is on the geometric border but has an attribute seam (active_wedge_size > 1),
 		// lock it entirely to prevent its collapse from pulling the border into the mesh.
 		if (active_wedge_size > 1) {
 			_change_wedge_type(p_wedge_id, Wedge::Type::LOCKED);
 		} else {
-			_change_wedge_type(p_wedge_id, (true_border_count == 2 && seam_pair_count == 0) ? Wedge::Type::BORDER : Wedge::Type::COMPLEX);
-
-			// Any active wedge on a boundary (true_border_count > 0) should remain classified as BORDER,
+			// Any active wedge on a boundary (true_border_count > 0) is classified as BORDER,
 			// preventing boundary endpoints or corners from degrading into COMPLEX.
-			//_change_wedge_type(p_wedge_id, Wedge::Type::BORDER);
+			_change_wedge_type(p_wedge_id, Wedge::Type::BORDER);
 		}
 	} else if (seam_pair_count > 0) {
 		_change_wedge_type(p_wedge_id, (seam_pair_count == 2 && active_wedge_size == 2) ? Wedge::Type::SEAM : Wedge::Type::COMPLEX);
-
-		// Prevent active seam endpoints from degrading into COMPLEX.
-		//if (active_wedge_size > 2) {
-		//	_change_wedge_type(p_wedge_id, Wedge::Type::LOCKED);
-		//} else {
-		//	_change_wedge_type(p_wedge_id, Wedge::Type::SEAM);
-		//}
 	} else if (active_wedge_size > 1) {
 		_change_wedge_type(p_wedge_id, Wedge::Type::COMPLEX);
 	} else {
@@ -1535,7 +1577,7 @@ void MeshSimplify::_change_wedge_type(uint32_t p_wedge_id, Wedge::Type p_type) {
 	Wedge &wedge = data.wedges[p_wedge_id];
 
 	if (wedge.type != p_type) {
-		print_line("changing wedge " + itos(p_wedge_id) + " from type [" + itos((uint32_t)wedge.type) + "] to [" + itos((uint32_t)p_type) + "]");
+		// print_line("changing wedge " + itos(p_wedge_id) + " from type [" + itos((uint32_t)wedge.type) + "] to [" + itos((uint32_t)p_type) + "]");
 	}
 
 	wedge.type = p_type;
@@ -1567,6 +1609,8 @@ void MeshSimplify::_detect_seam_edges() {
 		data.wedges[i].seam_neighbour_wedges.clear();
 		data.wedges[i].type = Wedge::Type::MANIFOLD;
 		data.wedges[i].is_seam_or_boundary = false;
+		data.wedges[i].is_border = false;
+		data.wedges[i].is_seam = false;
 	}
 
 	for (uint32_t n = 0; n < data.tris.size(); n++) {
@@ -1595,6 +1639,14 @@ void MeshSimplify::_detect_seam_edges() {
 
 	for (uint32_t n = 0; n < data.wedges.size(); n++) {
 		_reclassify_wedge(n);
+	}
+
+	// Capture the original classifications once during generation
+	for (uint32_t n = 0; n < data.wedges.size(); n++) {
+		data.wedges[n].original_type = data.wedges[n].type;
+		data.wedges[n].original_is_border = data.wedges[n].is_border;
+		data.wedges[n].original_is_seam = data.wedges[n].is_seam;
+		data.wedges[n].original_is_seam_or_boundary = data.wedges[n].is_seam_or_boundary;
 	}
 
 #define MESH_SIMPLIFY_COUNT_VERT_TYPES
