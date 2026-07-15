@@ -176,7 +176,9 @@ bool MultiRect::add(const Rect2 &p_rect, const Rect2 &p_src_rect, bool p_commit_
 void MultiRect::flush() {
 	if (!is_empty()) {
 		if (VisualServerCanvasHelper::_multirect_enabled) {
-			VisualServer::get_singleton()->canvas_item_add_texture_multirect_region(state.item, rects, state.texture, sources, state.modulate, state.flags, state.normal_map);
+			Vector<Rect2> rects_vector(rects);
+			Vector<Rect2> sources_vector(sources);
+			VisualServer::get_singleton()->canvas_item_add_texture_multirect_region(state.item, rects_vector, state.texture, sources_vector, state.modulate, state.flags, state.normal_map);
 
 		} else {
 			// legacy path

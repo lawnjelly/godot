@@ -383,6 +383,7 @@ CowData<T>::CowData() {
 
 template <typename T>
 CowData<T>::CowData(Span<T> p_span) {
+	_ptr = nullptr;
 	CRASH_COND(resize(p_span.size()));
 	for (size_t i = 0; i < p_span.size(); i++) {
 		_ptr[i] = p_span[i];
