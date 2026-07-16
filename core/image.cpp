@@ -2483,9 +2483,7 @@ void Image::fill(const Color &p_color) {
 	ERR_FAIL_COND_MSG(!_can_modify(format), "Cannot fill in compressed or custom image formats.");
 
 	lock();
-
-	PoolVector<uint8_t>::Write wp = data.write();
-	uint8_t *dst_data_ptr = wp.ptr();
+	uint8_t *dst_data_ptr = write_lock.ptr();
 
 	int pixel_size = get_format_pixel_size(format);
 
