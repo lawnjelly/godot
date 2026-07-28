@@ -156,6 +156,20 @@ public:
 
 	PoolVector<uint8_t>::Write write_lock;
 
+	// By keeping a refcount on locks, we can allow users
+	// to manually lock, but still allow calling functions which require their own lock,
+	// by reusing the existing lock.
+	SafeRefCount write_lock_refcount;
+
+	// Use this, NOT write_lock.ptr() (because that will be NULL for zero size images).
+	bool _is_locked() const { return write_lock.is_active(); }
+
+	// Returns pointer to locked data, or NULL on failure.
+	uint8_t *_lock_refcounted();
+
+	// Returns true when lock released when refcount reaches zero.
+	bool _unlock_refcounted();
+
 protected:
 	static void _bind_methods();
 
@@ -169,6 +183,9 @@ private:
 	}
 
 	Format format;
+
+	// Don't lock this manually, use `_lock_refcounted()` /  `_unlock_refcounted()`,
+	// to ensure engine locks play nicely with user locks via `lock()` / `unlock()`.
 	PoolVector<uint8_t> data;
 	int width, height;
 	bool mipmaps;
@@ -349,8 +366,8 @@ public:
 
 	virtual Ref<Resource> duplicate(bool p_subresources = false) const;
 
-	void lock();
-	void unlock();
+	bool lock();
+	bool unlock();
 
 	//this is used for compression
 	enum DetectChannels {

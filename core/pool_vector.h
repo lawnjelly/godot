@@ -262,6 +262,11 @@ public:
 		}
 
 	public:
+		// Use is_active() to determine whether an Access is locked
+		// NOT ptr(), because ptr() can be NULL in the case of a zero
+		// length array, but still be locked.
+		bool is_active() const { return shared != nullptr; }
+
 		void release() {
 			_unref();
 		}
