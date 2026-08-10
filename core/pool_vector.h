@@ -100,13 +100,15 @@ struct PoolVectorLockTracker {
 template <class T>
 class PoolVector {
 	struct SharedData {
-		// How many PoolVector instances share this data?
-		// This now reflects ALL live owners, including Read / Writes.
+		// Lifetime refcount tracks ALL live owners, including Read / Writes.
 		SafeRefCount refcount;
+		// How many PoolVector instances share this data (for COW).
+		SafeRefCount handle_refcount;
 		LocalVector<T> v;
 
 		SharedData() {
 			refcount.init();
+			handle_refcount.init();
 		}
 	};
 
@@ -120,7 +122,7 @@ class PoolVector {
 		// Active shared pointer must have at least one owner.
 		DEV_ASSERT(shared_data->refcount.get() > 0);
 
-		if (shared_data->refcount.get() == 1) {
+		if (shared_data->handle_refcount.get() == 1) {
 			return;
 		}
 
@@ -136,6 +138,8 @@ class PoolVector {
 
 		// This is the atomic operation, for thread safety
 		// with multiple PoolVectors sharing a `SharedData`.
+		old_shared->handle_refcount.unref();
+
 		if (old_shared->refcount.unref()) {
 			memdelete(old_shared);
 		}
@@ -174,6 +178,7 @@ class PoolVector {
 		DEV_ASSERT(p_pool_vector.shared_data->refcount.get() > 0);
 
 		if (p_pool_vector.shared_data->refcount.ref()) {
+			p_pool_vector.shared_data->handle_refcount.ref();
 			shared_data = p_pool_vector.shared_data;
 		}
 	}
@@ -183,6 +188,8 @@ class PoolVector {
 		if (!shared_data) {
 			return;
 		}
+
+		shared_data->handle_refcount.unref();
 
 		if (shared_data->refcount.unref()) {
 			memdelete(shared_data);
@@ -198,6 +205,13 @@ class PoolVector {
 		return PoolVectorLockTracker::is_locally_locked(shared_data);
 	}
 
+	bool _is_locked() const {
+		if (!shared_data) {
+			return false;
+		}
+		return _is_locally_locked() || (shared_data->refcount.get() > shared_data->handle_refcount.get());
+	}
+
 	_FORCE_INLINE_ static const char *_err_locked_string() { return "Cannot modify locked PoolVector."; }
 
 public:
@@ -210,8 +224,9 @@ public:
 	protected:
 		SharedData *shared = nullptr;
 		T *mem = nullptr;
+		bool write_lock = false;
 
-		_FORCE_INLINE_ void _ref(SharedData *p_shared) {
+		_FORCE_INLINE_ void _ref(SharedData *p_shared, bool p_write) {
 			if (!p_shared) {
 				return;
 			}
@@ -219,9 +234,12 @@ public:
 			// Access now also co-owns SharedData.
 			if (p_shared->refcount.ref()) {
 				shared = p_shared;
+				write_lock = p_write;
 
-				// Lock prevents resizes / relocations of the buffer while the Access exists.
-				PoolVectorLockTracker::register_lock(p_shared);
+				if (write_lock) {
+					// Lock prevents resizes / relocations of the buffer while the Access exists.
+					PoolVectorLockTracker::register_lock(p_shared);
+				}
 
 				if (shared->v.size() > 0) {
 					mem = shared->v.ptr();
@@ -237,13 +255,16 @@ public:
 
 		_FORCE_INLINE_ void _unref() {
 			if (shared) {
-				PoolVectorLockTracker::unregister_lock(shared);
+				if (write_lock) {
+					PoolVectorLockTracker::unregister_lock(shared);
+				}
 
 				if (shared->refcount.unref()) {
 					memdelete(shared);
 				}
 				shared = nullptr;
 				mem = nullptr;
+				write_lock = false;
 			}
 		}
 
@@ -279,20 +300,22 @@ public:
 				return *this;
 			}
 			this->_unref();
-			this->_ref(p_read.shared);
+			this->_ref(p_read.shared, false);
 			return *this;
 		}
 
 		Read(const Read &p_read) {
-			this->_ref(p_read.shared);
+			this->_ref(p_read.shared, false);
 		}
 
 		// Move semantics.
 		Read(Read &&p_read) {
 			this->shared = p_read.shared;
 			this->mem = p_read.mem;
+			this->write_lock = p_read.write_lock;
 			p_read.shared = nullptr;
 			p_read.mem = nullptr;
+			p_read.write_lock = false;
 		}
 
 		Read &operator=(Read &&p_read) {
@@ -302,8 +325,10 @@ public:
 			this->_unref();
 			this->shared = p_read.shared;
 			this->mem = p_read.mem;
+			this->write_lock = p_read.write_lock;
 			p_read.shared = nullptr;
 			p_read.mem = nullptr;
+			p_read.write_lock = false;
 			return *this;
 		}
 
@@ -320,20 +345,22 @@ public:
 				return *this;
 			}
 			this->_unref();
-			this->_ref(p_write.shared);
+			this->_ref(p_write.shared, true);
 			return *this;
 		}
 
 		Write(const Write &p_write) {
-			this->_ref(p_write.shared);
+			this->_ref(p_write.shared, true);
 		}
 
 		// Move semantics.
 		Write(Write &&p_write) {
 			this->shared = p_write.shared;
 			this->mem = p_write.mem;
+			this->write_lock = p_write.write_lock;
 			p_write.shared = nullptr;
 			p_write.mem = nullptr;
+			p_write.write_lock = false;
 		}
 
 		Write &operator=(Write &&p_write) {
@@ -343,8 +370,10 @@ public:
 			this->_unref();
 			this->shared = p_write.shared;
 			this->mem = p_write.mem;
+			this->write_lock = p_write.write_lock;
 			p_write.shared = nullptr;
 			p_write.mem = nullptr;
+			p_write.write_lock = false;
 			return *this;
 		}
 
@@ -355,19 +384,21 @@ public:
 	Read read() const _LIFETIME_BOUND_ {
 		Read r;
 		if (shared_data) {
-			r._ref(shared_data);
+			r._ref(shared_data, false);
 		}
 		return r;
 	}
 
 	// Locks the array for write access (and COWs if shared).
 	Write write() _LIFETIME_BOUND_ {
-		ERR_FAIL_COND_V_MSG(_is_locally_locked(), Write(), _err_locked_string());
-		Write w;
-		if (shared_data) {
+		if (!shared_data) {
+			shared_data = memnew(SharedData);
+		} else {
 			_copy_on_write();
-			w._ref(shared_data);
 		}
+		ERR_FAIL_COND_V_MSG(_is_locked(), Write(), _err_locked_string());
+		Write w;
+		w._ref(shared_data, true);
 		return w;
 	}
 
@@ -376,7 +407,7 @@ public:
 		return shared_data->v[p_index];
 	}
 
-	bool is_locked() const { return _is_locally_locked(); }
+	bool is_locked() const { return _is_locked(); }
 
 	_FORCE_INLINE_ Span<T> span() const _LIFETIME_BOUND_ { return shared_data ? shared_data->v.span() : Span<T>(); }
 	_FORCE_INLINE_ operator Span<T>() const _LIFETIME_BOUND_ { return span(); }
@@ -432,8 +463,8 @@ public:
 	}
 
 	PoolVector &operator=(const Span<T> &p_span) {
-		ERR_FAIL_COND_V_MSG(_is_locally_locked(), *this, _err_locked_string());
 		if (p_span.size() == 0) {
+			ERR_FAIL_COND_V_MSG(_is_locked(), *this, _err_locked_string());
 			_unreference();
 			return *this;
 		}
@@ -442,6 +473,7 @@ public:
 		} else {
 			_copy_on_write();
 		}
+		ERR_FAIL_COND_V_MSG(_is_locked(), *this, _err_locked_string());
 		shared_data->v = p_span;
 		return *this;
 	}
@@ -469,8 +501,8 @@ template <class T>
 void PoolVector<T>::remove(int p_index) {
 	int s = size();
 	ERR_FAIL_INDEX(p_index, s);
-	ERR_FAIL_COND_MSG(_is_locally_locked(), _err_locked_string());
 	_copy_on_write();
+	ERR_FAIL_COND_MSG(_is_locked(), _err_locked_string());
 	shared_data->v.remove(p_index);
 
 	// The local vector remove can result in zero length result,
@@ -486,7 +518,6 @@ void PoolVector<T>::remove(int p_index) {
 template <class T>
 template <class MC>
 void PoolVector<T>::fill_with(const MC &p_mc) {
-	ERR_FAIL_COND_MSG(_is_locally_locked(), _err_locked_string());
 	int c = p_mc.size();
 	resize(c);
 	Write w = write();
@@ -530,14 +561,13 @@ void PoolVector<T>::append_array(const PoolVector<T> &p_arr) {
 	if (ds == 0) {
 		return;
 	}
-	// Intentional check AFTER checking for ds == 0 (i.e. no change).
-	ERR_FAIL_COND_MSG(_is_locally_locked(), _err_locked_string());
 
 	if (!shared_data) {
 		shared_data = memnew(SharedData);
 	} else {
 		_copy_on_write();
 	}
+	ERR_FAIL_COND_MSG(_is_locked(), _err_locked_string());
 
 	if (p_arr.shared_data) {
 		int current_size = shared_data->v.size();
@@ -610,12 +640,12 @@ template <class T>
 Error PoolVector<T>::insert(int p_pos, const T &p_val) {
 	int s = size();
 	ERR_FAIL_INDEX_V(p_pos, s + 1, ERR_INVALID_PARAMETER);
-	ERR_FAIL_COND_V_MSG(_is_locally_locked(), ERR_LOCKED, _err_locked_string());
 	if (!shared_data) {
 		shared_data = memnew(SharedData);
 	} else {
 		_copy_on_write();
 	}
+	ERR_FAIL_COND_V_MSG(_is_locked(), ERR_LOCKED, _err_locked_string());
 	shared_data->v.insert(p_pos, p_val);
 	return OK;
 }
@@ -623,28 +653,28 @@ Error PoolVector<T>::insert(int p_pos, const T &p_val) {
 template <class T>
 void PoolVector<T>::set(int p_index, const T &p_val) {
 	ERR_FAIL_INDEX(p_index, size());
-	ERR_FAIL_COND_MSG(_is_locally_locked(), _err_locked_string());
 	_copy_on_write();
+	ERR_FAIL_COND_MSG(_is_locally_locked(), _err_locked_string());
 	shared_data->v[p_index] = p_val;
 }
 
 template <class T>
 void PoolVector<T>::fill(const T &p_val) {
 	if (size() > 0) {
-		ERR_FAIL_COND_MSG(_is_locally_locked(), _err_locked_string());
 		_copy_on_write();
+		ERR_FAIL_COND_MSG(_is_locally_locked(), _err_locked_string());
 		shared_data->v.fill(p_val);
 	}
 }
 
 template <class T>
 void PoolVector<T>::push_back(const T &p_val) {
-	ERR_FAIL_COND_MSG(_is_locally_locked(), _err_locked_string());
 	if (!shared_data) {
 		shared_data = memnew(SharedData);
 	} else {
 		_copy_on_write();
 	}
+	ERR_FAIL_COND_MSG(_is_locked(), _err_locked_string());
 	shared_data->v.push_back(p_val);
 }
 
@@ -656,7 +686,7 @@ Error PoolVector<T>::resize(int p_size) {
 	// of zero, we want to be able to unreference before hitting the NOOP check.
 	if (p_size == 0) {
 		if (shared_data) {
-			ERR_FAIL_COND_V_MSG(_is_locally_locked(), ERR_LOCKED, "Cannot resize locked PoolVector.");
+			ERR_FAIL_COND_V_MSG(_is_locked(), ERR_LOCKED, "Cannot resize locked PoolVector.");
 			_unreference();
 		}
 		return OK;
@@ -670,9 +700,9 @@ Error PoolVector<T>::resize(int p_size) {
 	if (shared_data == nullptr) {
 		shared_data = memnew(SharedData);
 	} else {
-		ERR_FAIL_COND_V_MSG(_is_locally_locked(), ERR_LOCKED, "Cannot resize locked PoolVector.");
 		_copy_on_write();
 	}
+	ERR_FAIL_COND_V_MSG(_is_locked(), ERR_LOCKED, "Cannot resize locked PoolVector.");
 
 	shared_data->v.resize_initialized(p_size);
 	return OK;
@@ -681,8 +711,8 @@ Error PoolVector<T>::resize(int p_size) {
 template <class T>
 void PoolVector<T>::invert() {
 	if (size() > 0) {
-		ERR_FAIL_COND_MSG(_is_locally_locked(), _err_locked_string());
 		_copy_on_write();
+		ERR_FAIL_COND_MSG(_is_locally_locked(), _err_locked_string());
 		shared_data->v.invert();
 	}
 }
@@ -690,8 +720,8 @@ void PoolVector<T>::invert() {
 template <class T>
 void PoolVector<T>::sort() {
 	if (size() > 0) {
-		ERR_FAIL_COND_MSG(_is_locally_locked(), _err_locked_string());
 		_copy_on_write();
+		ERR_FAIL_COND_MSG(_is_locally_locked(), _err_locked_string());
 		shared_data->v.sort();
 	}
 }
