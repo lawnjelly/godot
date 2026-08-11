@@ -163,7 +163,7 @@ public:
 		return _ptr[p_index];
 	}
 
-	Error resize(int p_size);
+	SafeError resize(int p_size);
 
 	_FORCE_INLINE_ void remove(int p_index) {
 		ERR_FAIL_INDEX(p_index, size());
@@ -176,7 +176,7 @@ public:
 		resize(len - 1);
 	}
 
-	Error insert(int p_pos, const T &p_val) {
+	SafeError insert(int p_pos, const T &p_val) {
 		int new_size = size() + 1;
 		ERR_FAIL_INDEX_V(p_pos, new_size, ERR_INVALID_PARAMETER);
 		Error err = resize(new_size);
@@ -279,7 +279,7 @@ uint32_t CowData<T>::_copy_on_write() {
 }
 
 template <class T>
-Error CowData<T>::resize(int p_size) {
+SafeError CowData<T>::resize(int p_size) {
 	ERR_FAIL_COND_V(p_size < 0, ERR_INVALID_PARAMETER);
 
 	int current_size = size();
@@ -401,7 +401,7 @@ CowData<T>::CowData(Span<T> p_span) {
 	if (p_span.is_empty()) {
 		return;
 	}
-	CRASH_COND(resize(p_span.size()));
+	CRASH_COND(resize(p_span.size()) != OK);
 	for (size_t i = 0; i < p_span.size(); i++) {
 		_ptr[i] = p_span[i];
 	}

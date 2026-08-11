@@ -1169,7 +1169,7 @@ Variant Object::_emit_signal(const Variant **p_args, int p_argcount, Variant::Ca
 	return Variant();
 }
 
-Error Object::emit_signal(const StringName &p_name, const Variant **p_args, int p_argcount) {
+SafeError Object::emit_signal(const StringName &p_name, const Variant **p_args, int p_argcount) {
 	if (_block_signals) {
 		return ERR_CANT_ACQUIRE_RESOURCE; //no emit, signals blocked
 	}
@@ -1275,7 +1275,7 @@ Error Object::emit_signal(const StringName &p_name, const Variant **p_args, int 
 	return err;
 }
 
-Error Object::emit_signal(const StringName &p_name, VARIANT_ARG_DECLARE) {
+SafeError Object::emit_signal(const StringName &p_name, VARIANT_ARG_DECLARE) {
 	VARIANT_ARGPTRS;
 
 	int argc = 0;

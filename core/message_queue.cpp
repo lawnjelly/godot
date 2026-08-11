@@ -39,7 +39,7 @@ MessageQueue *MessageQueue::get_singleton() {
 	return singleton;
 }
 
-Error MessageQueue::push_call(ObjectID p_id, const StringName &p_method, const Variant **p_args, int p_argcount, bool p_show_error) {
+SafeError MessageQueue::push_call(ObjectID p_id, const StringName &p_method, const Variant **p_args, int p_argcount, bool p_show_error) {
 	_THREAD_SAFE_METHOD_
 
 	int room_needed = sizeof(Message) + sizeof(Variant) * p_argcount;
@@ -81,7 +81,7 @@ Error MessageQueue::push_call(ObjectID p_id, const StringName &p_method, const V
 	return OK;
 }
 
-Error MessageQueue::push_call(ObjectID p_id, const StringName &p_method, VARIANT_ARG_DECLARE) {
+SafeError MessageQueue::push_call(ObjectID p_id, const StringName &p_method, VARIANT_ARG_DECLARE) {
 	VARIANT_ARGPTRS;
 
 	int argc = 0;
@@ -96,7 +96,7 @@ Error MessageQueue::push_call(ObjectID p_id, const StringName &p_method, VARIANT
 	return push_call(p_id, p_method, argptr, argc, false);
 }
 
-Error MessageQueue::push_set(ObjectID p_id, const StringName &p_prop, const Variant &p_value) {
+SafeError MessageQueue::push_set(ObjectID p_id, const StringName &p_prop, const Variant &p_value) {
 	_THREAD_SAFE_METHOD_
 
 	uint8_t room_needed = sizeof(Message) + sizeof(Variant);
@@ -133,7 +133,7 @@ Error MessageQueue::push_set(ObjectID p_id, const StringName &p_prop, const Vari
 	return OK;
 }
 
-Error MessageQueue::push_notification(ObjectID p_id, int p_notification) {
+SafeError MessageQueue::push_notification(ObjectID p_id, int p_notification) {
 	_THREAD_SAFE_METHOD_
 
 	ERR_FAIL_COND_V(p_notification < 0, ERR_INVALID_PARAMETER);
@@ -168,14 +168,14 @@ Error MessageQueue::push_notification(ObjectID p_id, int p_notification) {
 	return OK;
 }
 
-Error MessageQueue::push_call(Object *p_object, const StringName &p_method, VARIANT_ARG_DECLARE) {
+SafeError MessageQueue::push_call(Object *p_object, const StringName &p_method, VARIANT_ARG_DECLARE) {
 	return push_call(p_object->get_instance_id(), p_method, VARIANT_ARG_PASS);
 }
 
-Error MessageQueue::push_notification(Object *p_object, int p_notification) {
+SafeError MessageQueue::push_notification(Object *p_object, int p_notification) {
 	return push_notification(p_object->get_instance_id(), p_notification);
 }
-Error MessageQueue::push_set(Object *p_object, const StringName &p_prop, const Variant &p_value) {
+SafeError MessageQueue::push_set(Object *p_object, const StringName &p_prop, const Variant &p_value) {
 	return push_set(p_object->get_instance_id(), p_prop, p_value);
 }
 
