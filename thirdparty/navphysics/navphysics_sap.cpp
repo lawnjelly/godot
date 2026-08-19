@@ -1,3 +1,6 @@
+// Copyright 2026-present Lawnjelly
+// SPDX-License-Identifier: MIT
+
 #include "navphysics_sap.h"
 #include "navphysics_map.h"
 #include "navphysics_rect.h"
