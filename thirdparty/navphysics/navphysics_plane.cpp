@@ -6,8 +6,7 @@
 namespace NavPhysics {
 
 bool Plane::intersects_ray(const FPoint3 &p_from, const FPoint3 &p_dir, FPoint3 *p_intersection) const {
-	FPoint3 segment = p_dir;
-	freal den = normal.dot(segment);
+	freal den = normal.dot(p_dir);
 
 	if (Math::is_zero_approx(den)) {
 		return false;
@@ -21,7 +20,7 @@ bool Plane::intersects_ray(const FPoint3 &p_from, const FPoint3 &p_dir, FPoint3 
 	}
 
 	dist = -dist;
-	*p_intersection = p_from + segment * dist;
+	*p_intersection = p_from + p_dir * dist;
 
 	return true;
 }

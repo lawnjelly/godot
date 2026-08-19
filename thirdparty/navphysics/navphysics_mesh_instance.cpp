@@ -93,7 +93,7 @@ freal MeshInstance::find_agent_jump_fit(Agent &r_agent, JumpFinderData p_jump_da
 	aabb_jump.position = jd.pt_from;
 	aabb_jump.expand_to(jd.pt_far);
 
-	if (!aabb.contains_aabb_or_above(aabb_jump)) {
+	if (!aabb.overlaps_aabb_or_above(aabb_jump)) {
 		NP_LLOG("\tnot in aabb");
 		return 1000000;
 	}

@@ -38,7 +38,6 @@ struct TraceResult {
 
 		u32 num_hit = 0;
 		np_handle bodies_hit[MAX_OBSTACLES];
-		// Object *objects_hit[MAX_OBSTACLES];
 	} obstacles;
 
 	void blank() {
@@ -71,7 +70,7 @@ struct BodyInfo {
 		blocking_zone_used = 0;
 	}
 	u32 checksum() const {
-		return poly_id + narrowing_id + narrowing_available - narrowing_used + blocking_zone_id + blocking_zone_available - narrowing_used;
+		return poly_id + narrowing_id + narrowing_available - narrowing_used + blocking_zone_id + blocking_zone_available - blocking_zone_used;
 	}
 };
 

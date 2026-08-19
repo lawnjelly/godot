@@ -4,6 +4,7 @@
 #pragma once
 
 #include <stdlib.h>
+#include <new>
 
 namespace NavPhysics {
 
@@ -18,8 +19,10 @@ public:
 
 	template <class T>
 	static void deleteT(T *t) {
-		t->~T();
-		DefaultAllocator::free(t);
+		if (t) {
+			t->~T();
+			DefaultAllocator::free(t);
+		}
 	}
 
 	static void *alloc(u32 p_bytes) {

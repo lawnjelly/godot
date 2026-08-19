@@ -41,10 +41,10 @@ typedef void (*np_log_callback)(const char *userdata);
 
 void set_log_callback(np_log_callback p_callback);
 
-void loga(String p_sz, u32 p_priority = 0);
-void log(String p_sz, u32 p_depth = 0, u32 p_priority = 0);
+void loga(const String &p_sz, u32 p_priority = 0);
+void log(const String &p_sz, u32 p_depth = 0, u32 p_priority = 0);
 
-void print_line(String p_sz);
+void print_line(const String &p_sz);
 String itos(i32 p_val);
 
 struct IPoint2;
