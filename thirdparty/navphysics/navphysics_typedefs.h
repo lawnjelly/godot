@@ -16,8 +16,10 @@ using i16 = int16_t;
 using i32 = int32_t;
 using i64 = int64_t;
 
+#if defined(__GNUC__) || defined(__clang__)
 // __int128 is non-standard, should only be compiled in for debugging 64 bit overflow.
 using i128 = __int128;
+#endif
 
 using f32 = float;
 using f64 = double;
@@ -41,7 +43,11 @@ using freal = f32;
 #define NAVPHYSICS_MESH_FP_RANGE ((1 << 20) - 1)
 /////////////////////////////////////////////////////////////
 
-#define navphysics_unlikely
+#if defined(__GNUC__) || defined(__clang__)
+#define navphysics_unlikely(x) __builtin_expect(!!(x), 0)
+#else
+#define navphysics_unlikely(x) (x)
+#endif
 
 #define NAVPHYSICS_OPERATOR_RET(T, OP)               \
 	T operator OP(const T &p_v) const {              \

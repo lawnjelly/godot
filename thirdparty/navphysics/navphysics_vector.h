@@ -14,6 +14,9 @@ namespace NavPhysics {
 
 template <class T, class U = u32, bool force_trivial = false, bool USE_EXTERNAL_DATA = false>
 class Vector {
+	// T should be trivially relocatable (rather than trivially copyable), for use with realloc.
+	// This cannot be static asserted in standard c++ unfortunately, and workarounds are omitted here.
+	// Don't use with any non-relocatable T types.
 private:
 	U count = 0;
 	U capacity = 0;
@@ -133,7 +136,7 @@ public:
 	// Removes the item copying the last value into the position of the one to
 	// remove. It's generally faster than `remove`.
 	void remove_unordered(U p_index) {
-		NP_ERR_FAIL_INDEX(p_index, count);
+		NP_ERR_FAIL_UNSIGNED_INDEX(p_index, count);
 		count--;
 		if (count > p_index) {
 			data[p_index] = data[count];

@@ -12,19 +12,17 @@
 namespace NavPhysics {
 
 bool String::write_as_text_file(String p_path) const {
-	const char *cstring = get_cstring();
-	if (!cstring) {
-		return false;
-	}
+	NP_ERR_FAIL_COND_V(p_path.is_empty(), false);
 
 	FILE *file = fopen(p_path.get_cstring(), "wb");
 	if (!file) {
 		return false;
 	}
 
-	int l = strlen(cstring);
-
-	fwrite(get_cstring(), 1, l, file);
+	if (!_chars.is_empty()) {
+		// _chars will contain a null terminator which we don't want to write.
+		fwrite(_chars.ptr(), 1, length() - 1, file);
+	}
 
 	fflush(file);
 	fclose(file);
@@ -45,8 +43,9 @@ void String::set(const char *p_sz) {
 }
 
 String String::operator+(const char *p_o) const {
-	String o(p_o);
-	return *this + o;
+	String tmp = *this;
+	tmp += p_o;
+	return tmp;
 }
 
 String String::operator+(const String &p_o) const {
@@ -59,20 +58,25 @@ void String::operator+=(const String &p_o) {
 	if (p_o.is_empty())
 		return;
 
-	String tmp = *this;
-
 	i32 l = length();
-	i32 new_length = l + p_o.length() + 1;
-	_chars.resize(new_length);
-	strncpy(_chars.ptr(), tmp.get_cstring(), l);
-	strncpy(_chars.ptr() + l, p_o.get_cstring(), p_o.length());
+	i32 o_l = p_o.length();
+	_chars.resize(l + o_l + 1);
 
-	_chars[new_length - 1] = 0;
+	memcpy(_chars.ptr() + l, p_o.get_cstring(), o_l);
+	_chars[l + o_l] = 0;
 }
 
 void String::operator+=(const char *p_o) {
-	String o(p_o);
-	(*this) += o;
+	if (!p_o)
+		return;
+
+	i32 l = length();
+	i32 o_l = strlen(p_o);
+
+	_chars.resize(l + o_l + 1);
+
+	memcpy(_chars.ptr() + l, p_o, o_l);
+	_chars[l + o_l] = 0;
 }
 
 String::String(i64 p_value) {
@@ -148,7 +152,7 @@ String::String(FPoint3 p_value) {
 }
 
 String::String(Basis p_value) {
-	*this = String("[ ( ") + String(p_value[0]) + " ), ( " + String(p_value[1]) + " ), ( " + String(p_value[2]) + " )";
+	*this = String("[ ( ") + String(p_value[0]) + " ), ( " + String(p_value[1]) + " ), ( " + String(p_value[2]) + " ) ] ";
 }
 
 String::String(Transform p_value) {
