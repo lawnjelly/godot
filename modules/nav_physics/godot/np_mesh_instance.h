@@ -1,8 +1,8 @@
 #pragma once
 
-#include "../source/navphysics_defines.h"
 #include "np_mesh.h"
 #include "scene/3d/spatial.h"
+#include "thirdparty/navphysics/navphysics_defines.h"
 
 class NPMeshInstance : public Spatial {
 	GDCLASS(NPMeshInstance, Spatial);

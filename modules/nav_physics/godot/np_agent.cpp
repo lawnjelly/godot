@@ -1,13 +1,13 @@
 #include "np_agent.h"
-//#include "../source/navphysics_vector.h"
-//#include "../source/navphysics_map.h"
-#include "../source/navphysics_loader.h"
-#include "../source/navphysics_log.h"
-#include "../source/navphysics_map.h"
-#include "../source/navphysics_pointf.h"
-#include "../source/navphysics_pointi.h"
-#include "../source/navphysics_vector.h"
+//#include "thirdparty/navphysics/navphysics_vector.h"
+//#include "thirdparty/navphysics/navphysics_map.h"
 #include "core/fixed_array.h"
+#include "thirdparty/navphysics/navphysics_loader.h"
+#include "thirdparty/navphysics/navphysics_log.h"
+#include "thirdparty/navphysics/navphysics_map.h"
+#include "thirdparty/navphysics/navphysics_pointf.h"
+#include "thirdparty/navphysics/navphysics_pointi.h"
+#include "thirdparty/navphysics/navphysics_vector.h"
 
 #include <core/engine.h>
 
