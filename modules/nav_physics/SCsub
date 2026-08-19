@@ -40,8 +40,8 @@ env_nav_physics.Prepend(CPPPATH=[thirdparty_dir + "Include"])
 
 
 sources = [
-    "source/navphysics_all.cpp",
-    "source/navphysics_godot_classes.cpp",
+    "#thirdparty/navphysics/navphysics_all.cpp",
+    "navphysics_godot_classes.cpp",
 ]
 
 # module_env = env.Clone()
