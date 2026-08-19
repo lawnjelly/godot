@@ -3,7 +3,6 @@
 
 #pragma once
 
-//#include "navphysics_structs.h"
 #include "navphysics_pointi.h"
 #include "navphysics_vector.h"
 

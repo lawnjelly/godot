@@ -14,7 +14,7 @@ void set_log_callback(np_log_callback p_callback) {
 	g_log_callback = p_callback;
 }
 
-void loga(String p_sz, u32 p_priority) {
+void loga(const String &p_sz, u32 p_priority) {
 	if (g_log_callback) {
 		g_log_callback(p_sz.get_cstring());
 	} else {
@@ -22,7 +22,7 @@ void loga(String p_sz, u32 p_priority) {
 	}
 }
 
-void log(String p_sz, u32 p_depth, u32 p_priority) {
+void log(const String &p_sz, u32 p_depth, u32 p_priority) {
 	String sz;
 	for (u32 n = 0; n < p_depth; n++) {
 		sz += "\t";
@@ -36,7 +36,7 @@ void log(String p_sz, u32 p_depth, u32 p_priority) {
 }
 
 // Compatibility .. remove later.
-void print_line(String p_sz) {
+void print_line(const String &p_sz) {
 	log(p_sz);
 }
 String itos(i32 p_val) {

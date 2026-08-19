@@ -22,16 +22,17 @@ struct [[nodiscard]] IRect2 {
 	}
 
 	void expand_to(const IRect2 &o) {
+		IPoint2 begin = position;
 		IPoint2 end = position + size;
 		IPoint2 end_o = o.end();
 
-		// The begin is easy, no plus 1...
-		expand_to_fast(o.position);
+		for (u32 n = 0; n < 2; n++) {
+			begin.coord[n] = MIN(begin.coord[n], o.position.coord[n]);
+			end.coord[n] = MAX(end.coord[n], end_o.coord[n]);
+		}
 
-		end.x = MAX(end.x, end_o.x);
-		end.y = MAX(end.y, end_o.y);
-
-		size = end - position;
+		position = begin;
+		size = end - begin;
 	}
 
 	void expand_to_fast(const IPoint2 &p_vector) {
@@ -90,7 +91,7 @@ struct [[nodiscard]] AABB {
 	FPoint3 position;
 	FPoint3 size;
 
-	freal get_area() const { return size.x * size.y * size.z; }
+	freal get_volume() const { return size.x * size.y * size.z; }
 	void zero() {
 		position.zero();
 		size.zero();
@@ -111,7 +112,7 @@ struct [[nodiscard]] AABB {
 	}
 
 	// p_aabb is above, NOT this AABB.
-	bool contains_aabb_or_above(const AABB &p_aabb) const {
+	bool overlaps_aabb_or_above(const AABB &p_aabb) const {
 		for (u32 n = 0; n < 3; n++) {
 			if (p_aabb.end(n) < position.coord[n]) {
 				return false;
