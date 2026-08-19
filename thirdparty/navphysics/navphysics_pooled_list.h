@@ -3,9 +3,9 @@
 
 #pragma once
 
-namespace NavPhysics {
-
 #include "navphysics_vector.h"
+
+namespace NavPhysics {
 
 template <class T, class U = u32, bool force_trivial = false, bool zero_on_first_request = false, u32 SIZE_LIMIT = 0>
 class PooledList {

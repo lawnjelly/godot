@@ -41,11 +41,11 @@ bool Math::is_equal_approx(f32 a, f32 b, f32 tolerance) {
 	if (a == b) {
 		return true;
 	}
-	return abs(a - b) < tolerance;
+	return ::fabsf(a - b) <= tolerance;
 }
 
 bool Math::is_zero_approx(f32 s, f32 tolerance) {
-	return abs(s) < NP_CMP_EPSILON;
+	return ::fabsf(s) <= tolerance;
 }
 
 f32 Math::shift_angle(f32 p_from, f32 p_to, f32 p_max_change) {

@@ -415,8 +415,7 @@ void _NP_ERR_flush_stdout();
 		((void)0)
 
 /**
- * Prints a warning message without returning. To warn about deprecated usage,
- * use `NP_WARN_DEPRECATED` or `NP_WARN_DEPRECATED_MSG` instead.
+ * Prints a warning message without returning.
  */
 #define NP_WARN_PRINT(m_string) \
 	_NP_ERR_print_error(FUNCTION_STR, __FILE__, __LINE__, m_string, NP_ERR_HANDLER_WARNING)
@@ -433,34 +432,6 @@ void _NP_ERR_flush_stdout();
 			first_print = false;                                                                     \
 		}                                                                                            \
 	} else                                                                                           \
-		((void)0)
-
-/**
- * Prints a generic deprecation warning message without returning.
- * This should be preferred to `NP_WARN_PRINT` for deprecation warnings.
- */
-#define NP_WARN_DEPRECATED                                                                                                                                       \
-	if (true) {                                                                                                                                                  \
-		static SafeFlag warning_shown;                                                                                                                           \
-		if (!warning_shown.is_set()) {                                                                                                                           \
-			_NP_ERR_print_error(FUNCTION_STR, __FILE__, __LINE__, "This method has been deprecated and will be removed in the future.", NP_ERR_HANDLER_WARNING); \
-			warning_shown.set();                                                                                                                                 \
-		}                                                                                                                                                        \
-	} else                                                                                                                                                       \
-		((void)0)
-
-/**
- * Prints a custom deprecation warning message without returning.
- * This should be preferred to `NP_WARN_PRINT` for deprecation warnings.
- */
-#define NP_WARN_DEPRECATED_MSG(m_msg)                                                                                                                                   \
-	if (true) {                                                                                                                                                         \
-		static SafeFlag warning_shown;                                                                                                                                  \
-		if (!warning_shown.is_set()) {                                                                                                                                  \
-			_NP_ERR_print_error(FUNCTION_STR, __FILE__, __LINE__, "This method has been deprecated and will be removed in the future.", m_msg, NP_ERR_HANDLER_WARNING); \
-			warning_shown.set();                                                                                                                                        \
-		}                                                                                                                                                               \
-	} else                                                                                                                                                              \
 		((void)0)
 
 /**
