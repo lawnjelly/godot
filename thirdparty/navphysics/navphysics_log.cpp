@@ -1,3 +1,6 @@
+// Copyright 2026-present Lawnjelly
+// SPDX-License-Identifier: MIT
+
 #include "navphysics_log.h"
 #include "navphysics_pointf.h"
 #include "navphysics_pointi.h"
