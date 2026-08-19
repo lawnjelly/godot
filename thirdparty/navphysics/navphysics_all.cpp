@@ -1,3 +1,6 @@
+// Copyright 2026-present Lawnjelly
+// SPDX-License-Identifier: MIT
+
 #pragma clang diagnostic ignored "-Wmissing-braces"
 
 //#include "navphysics_bsp.cpp"

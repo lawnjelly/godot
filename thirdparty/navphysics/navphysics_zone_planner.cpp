@@ -1,3 +1,6 @@
+// Copyright 2026-present Lawnjelly
+// SPDX-License-Identifier: MIT
+
 #include "navphysics_zone_planner.h"
 #include "navphysics_map.h"
 #include "navphysics_mesh.h"
