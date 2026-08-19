@@ -1,3 +1,6 @@
+// Copyright 2026-present Lawnjelly
+// SPDX-License-Identifier: MIT
+
 #include "navphysics_mesh_funcs.h"
 #include "navphysics_loader.h"
 #include "navphysics_mesh.h"

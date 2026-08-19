@@ -424,6 +424,12 @@ Files extracted from the upstream source:
 library.
 
 
+## navphysics
+
+- Upstream: N/A
+- Version: N/A
+- License: MIT
+
 ## oidn
 
 - Upstream: https://github.com/OpenImageDenoise/oidn
