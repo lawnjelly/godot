@@ -158,23 +158,32 @@ public:
 		jump_velocity = 0;
 	}
 	void iterate_jump(const freal *p_ceiling_height = nullptr) {
+		// Initial jump off the floor.
 		if (on_floor && (jump_velocity > 0)) {
 			agent_height = floor_height + jump_velocity;
 			on_floor = false;
+			return;
 		}
 
 		if (on_floor) {
+			// If we are on the floor, and no upward velocity,
+			// tightly match the floor surface.
 			agent_height = floor_height;
 		} else {
+			// Move height up or down...
 			agent_height += jump_velocity;
+
+			// If we hit the floor?
 			if (agent_height <= floor_height) {
 				agent_height = floor_height;
 				jump_velocity = 0;
 				on_floor = true;
 				grounded = true;
 			} else {
+				// Apply gravity for the next tick.
 				jump_velocity -= gravity;
 
+				// Have we hit the ceiling?
 				if (p_ceiling_height && (agent_height > *p_ceiling_height)) {
 					// Ceiling should always be above the floor, but just in case...
 					// Could be an assert?

@@ -32,7 +32,11 @@ struct [[nodiscard]] IPoint2 {
 		return ((i64)x * p_v.y) - ((i64)y * p_v.x);
 	}
 	static i64 which_side(const IPoint2 &a, const IPoint2 &b, const IPoint2 &c) {
+		NP_CHECK_32(b.x - a.x);
+		NP_CHECK_32(b.y - a.y);
 		IPoint2 wall_vec = b - a;
+		NP_CHECK_32(c.x - a.x);
+		NP_CHECK_32(c.y - a.y);
 		IPoint2 pt_vec = c - a;
 
 		// log(String("wall vec ") + wall_vec + ", pt_vec " + pt_vec + ", cross " + wall_vec.cross(pt_vec));
@@ -44,6 +48,7 @@ struct [[nodiscard]] IPoint2 {
 		return IPoint2::make(p_v.x, p_v.y);
 	}
 	void from_f32(const FPoint2 &p_v) {
+		// FixMe: could use round() here.
 		x = p_v.x;
 		y = p_v.y;
 	}

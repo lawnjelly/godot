@@ -29,10 +29,11 @@ struct [[nodiscard]] FPoint2 {
 	freal distance_to(const FPoint2 &p_v) const { return (p_v - *this).length(); }
 	void normalize() {
 		freal sl = length_squared();
-		if (sl != 0) {
+		if (sl >= Math::NP_CMP_EPSILON) {
 			freal l = Math::sqrt_real(sl);
-			freal inv_l = 1 / l;
-			(*this) *= inv_l;
+			(*this) /= l;
+		} else {
+			zero();
 		}
 	}
 	FPoint2 normalized() const {
