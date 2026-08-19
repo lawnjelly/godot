@@ -1,8 +1,8 @@
 #pragma once
 
-#include "../source/navphysics_defines.h"
 #include "core/resource.h"
 #include "np_bake_params.h"
+#include "thirdparty/navphysics/navphysics_defines.h"
 #include <Recast.h>
 
 class NavigationMeshInstance;

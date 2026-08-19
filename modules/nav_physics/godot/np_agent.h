@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../source/navphysics_defines.h"
 #include "scene/3d/spatial.h"
+#include "thirdparty/navphysics/navphysics_defines.h"
 
 class NPAgentClass {
 public:
