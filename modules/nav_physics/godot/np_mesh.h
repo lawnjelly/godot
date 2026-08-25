@@ -208,10 +208,10 @@ public:
 	bool get_collision_mask_bit(int p_bit) const;
 
 	LocalVector<Vector3> get_vertices(bool p_ceiling = false) const;
-	LocalVector<int> get_indices(bool p_ceiling = false) const;
+	LocalVector<int32_t> get_indices(bool p_ceiling = false) const;
 	LocalVector<Poly> get_polys(bool p_ceiling = false) const;
-	LocalVector<int> get_external_wall_connection_indices() const;
-	LocalVector<int> get_internal_wall_connection_indices() const;
+	LocalVector<int32_t> get_external_wall_connection_indices() const;
+	LocalVector<int32_t> get_internal_wall_connection_indices() const;
 
 	void set_data(const Vector<uint8_t> &p_data);
 	Vector<uint8_t> get_data() const;
