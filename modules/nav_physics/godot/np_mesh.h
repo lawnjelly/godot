@@ -207,11 +207,11 @@ public:
 	void set_collision_mask_bit(int p_bit, bool p_value);
 	bool get_collision_mask_bit(int p_bit) const;
 
-	Vector<Vector3> get_vertices(bool p_ceiling = false) const;
-	Vector<int> get_indices(bool p_ceiling = false) const;
-	Vector<Poly> get_polys(bool p_ceiling = false) const;
-	Vector<int> get_external_wall_connection_indices() const;
-	Vector<int> get_internal_wall_connection_indices() const;
+	LocalVector<Vector3> get_vertices(bool p_ceiling = false) const;
+	LocalVector<int> get_indices(bool p_ceiling = false) const;
+	LocalVector<Poly> get_polys(bool p_ceiling = false) const;
+	LocalVector<int> get_external_wall_connection_indices() const;
+	LocalVector<int> get_internal_wall_connection_indices() const;
 
 	void set_data(const Vector<uint8_t> &p_data);
 	Vector<uint8_t> get_data() const;
