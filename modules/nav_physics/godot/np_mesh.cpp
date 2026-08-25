@@ -814,52 +814,49 @@ LocalVector<Vector3> NPMesh::get_vertices(bool p_ceiling) const {
 	return ret;
 }
 
-LocalVector<int> NPMesh::get_external_wall_connection_indices() const {
+LocalVector<int32_t> NPMesh::get_external_wall_connection_indices() const {
 	NavPhysics::Loader loader;
 	NavPhysics::Mesh *mesh = NavPhysics::g_world.safe_get_mesh(data.h_mesh);
 	NP_DEV_ASSERT(mesh);
 	NavPhysics::Loader::WorkingMeshData md;
 	loader.extract_working_data(md, *mesh);
 
-	LocalVector<int> ret;
+	LocalVector<int32_t> ret;
 	if (md.floor.num_indices) {
 		ret.resize(md.num_external_connecting_walls * 2);
-		static_assert(sizeof(int) == 4, "Expects 32 bit int.");
 		memcpy(ret.ptr(), md.external_connecting_wall_indices, md.num_external_connecting_walls * 2 * sizeof(int32_t));
 	}
 	return ret;
 }
 
-LocalVector<int> NPMesh::get_internal_wall_connection_indices() const {
+LocalVector<int32_t> NPMesh::get_internal_wall_connection_indices() const {
 	NavPhysics::Loader loader;
 	NavPhysics::Mesh *mesh = NavPhysics::g_world.safe_get_mesh(data.h_mesh);
 	NP_DEV_ASSERT(mesh);
 	NavPhysics::Loader::WorkingMeshData md;
 	loader.extract_working_data(md, *mesh);
 
-	LocalVector<int> ret;
+	LocalVector<int32_t> ret;
 	if (md.floor.num_indices) {
 		ret.resize(md.num_internal_connecting_walls * 2);
-		static_assert(sizeof(int) == 4, "Expects 32 bit int.");
 		memcpy(ret.ptr(), md.internal_connecting_wall_indices, md.num_internal_connecting_walls * 2 * sizeof(int32_t));
 	}
 	return ret;
 }
 
-LocalVector<int> NPMesh::get_indices(bool p_ceiling) const {
+LocalVector<int32_t> NPMesh::get_indices(bool p_ceiling) const {
 	NavPhysics::Loader loader;
 	NavPhysics::Mesh *mesh = NavPhysics::g_world.safe_get_mesh(data.h_mesh);
 	NP_DEV_ASSERT(mesh);
 	NavPhysics::Loader::WorkingMeshData md;
 	loader.extract_working_data(md, *mesh);
 
-	LocalVector<int> ret;
+	LocalVector<int32_t> ret;
 
 	NavPhysics::Loader::WorkingMeshData::SubMesh *sm = p_ceiling ? &md.ceiling : &md.floor;
 
 	if (sm->num_indices) {
 		ret.resize(sm->num_indices);
-		static_assert(sizeof(int) == 4, "Expects 32 bit int.");
 		memcpy(ret.ptr(), sm->indices, sm->num_indices * sizeof(int32_t));
 	}
 
