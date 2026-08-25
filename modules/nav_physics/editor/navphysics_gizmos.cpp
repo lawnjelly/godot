@@ -36,25 +36,25 @@ void NavPhysicsMeshSpatialGizmoPlugin::redraw(EditorSpatialGizmo *p_gizmo) {
 		return;
 	}
 
-	Vector<Vector3> verts = mesh->get_vertices();
+	LocalVector<Vector3> verts = mesh->get_vertices();
 	if (!verts.size()) {
 		return;
 	}
-	Vector<int> inds = mesh->get_indices();
+	LocalVector<int> inds = mesh->get_indices();
 	if (!inds.size()) {
 		return;
 	}
-	Vector<NPMesh::Poly> polys = mesh->get_polys();
+	LocalVector<NPMesh::Poly> polys = mesh->get_polys();
 	if (!polys.size()) {
 		return;
 	}
 
-	Vector<Vector3> ceil_verts = mesh->get_vertices(true);
-	Vector<int> ceil_inds = mesh->get_indices(true);
-	Vector<NPMesh::Poly> ceil_polys = mesh->get_polys(true);
+	LocalVector<Vector3> ceil_verts = mesh->get_vertices(true);
+	LocalVector<int> ceil_inds = mesh->get_indices(true);
+	LocalVector<NPMesh::Poly> ceil_polys = mesh->get_polys(true);
 
-	Vector<int> external_wall_connection_inds = mesh->get_external_wall_connection_indices();
-	Vector<int> internal_wall_connection_inds = mesh->get_internal_wall_connection_indices();
+	LocalVector<int> external_wall_connection_inds = mesh->get_external_wall_connection_indices();
+	LocalVector<int> internal_wall_connection_inds = mesh->get_internal_wall_connection_indices();
 
 	PoolVector<Vector3> tmeshfaces;
 	//tmeshfaces.resize(inds.size());
