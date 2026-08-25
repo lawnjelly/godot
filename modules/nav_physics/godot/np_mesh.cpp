@@ -734,7 +734,7 @@ RID NPMesh::_refresh_debug_geometry(bool p_show) {
 
 		Vector<Vector3> tris_area;
 		Vector<Vector3> tris_narrowing;
-		Vector<NPMesh::Poly> polys = get_polys();
+		LocalVector<NPMesh::Poly> polys = get_polys();
 
 		// Display offset.
 		Vector3 off(0, 0.25, 0);
@@ -795,85 +795,85 @@ RID NPMesh::_refresh_debug_geometry(bool p_show) {
 	return rid_mesh;
 }
 
-Vector<Vector3> NPMesh::get_vertices(bool p_ceiling) const {
+LocalVector<Vector3> NPMesh::get_vertices(bool p_ceiling) const {
 	NavPhysics::Loader loader;
 	NavPhysics::Mesh *mesh = NavPhysics::g_world.safe_get_mesh(data.h_mesh);
 	NP_DEV_ASSERT(mesh);
 	NavPhysics::Loader::WorkingMeshData md;
 	loader.extract_working_data(md, *mesh);
 
-	Vector<Vector3> ret;
+	LocalVector<Vector3> ret;
 
 	NavPhysics::Loader::WorkingMeshData::SubMesh *sm = p_ceiling ? &md.ceiling : &md.floor;
 
 	if (sm->num_verts) {
 		ret.resize(sm->num_verts);
-		memcpy(ret.ptrw(), sm->verts, sm->num_verts * sizeof(Vector3));
+		memcpy(ret.ptr(), sm->verts, sm->num_verts * sizeof(Vector3));
 	}
 
 	return ret;
 }
 
-Vector<int> NPMesh::get_external_wall_connection_indices() const {
+LocalVector<int> NPMesh::get_external_wall_connection_indices() const {
 	NavPhysics::Loader loader;
 	NavPhysics::Mesh *mesh = NavPhysics::g_world.safe_get_mesh(data.h_mesh);
 	NP_DEV_ASSERT(mesh);
 	NavPhysics::Loader::WorkingMeshData md;
 	loader.extract_working_data(md, *mesh);
 
-	Vector<int> ret;
+	LocalVector<int> ret;
 	if (md.floor.num_indices) {
 		ret.resize(md.num_external_connecting_walls * 2);
 		static_assert(sizeof(int) == 4, "Expects 32 bit int.");
-		memcpy(ret.ptrw(), md.external_connecting_wall_indices, md.num_external_connecting_walls * 2 * sizeof(int32_t));
+		memcpy(ret.ptr(), md.external_connecting_wall_indices, md.num_external_connecting_walls * 2 * sizeof(int32_t));
 	}
 	return ret;
 }
 
-Vector<int> NPMesh::get_internal_wall_connection_indices() const {
+LocalVector<int> NPMesh::get_internal_wall_connection_indices() const {
 	NavPhysics::Loader loader;
 	NavPhysics::Mesh *mesh = NavPhysics::g_world.safe_get_mesh(data.h_mesh);
 	NP_DEV_ASSERT(mesh);
 	NavPhysics::Loader::WorkingMeshData md;
 	loader.extract_working_data(md, *mesh);
 
-	Vector<int> ret;
+	LocalVector<int> ret;
 	if (md.floor.num_indices) {
 		ret.resize(md.num_internal_connecting_walls * 2);
 		static_assert(sizeof(int) == 4, "Expects 32 bit int.");
-		memcpy(ret.ptrw(), md.internal_connecting_wall_indices, md.num_internal_connecting_walls * 2 * sizeof(int32_t));
+		memcpy(ret.ptr(), md.internal_connecting_wall_indices, md.num_internal_connecting_walls * 2 * sizeof(int32_t));
 	}
 	return ret;
 }
 
-Vector<int> NPMesh::get_indices(bool p_ceiling) const {
+LocalVector<int> NPMesh::get_indices(bool p_ceiling) const {
 	NavPhysics::Loader loader;
 	NavPhysics::Mesh *mesh = NavPhysics::g_world.safe_get_mesh(data.h_mesh);
 	NP_DEV_ASSERT(mesh);
 	NavPhysics::Loader::WorkingMeshData md;
 	loader.extract_working_data(md, *mesh);
 
-	Vector<int> ret;
+	LocalVector<int> ret;
 
 	NavPhysics::Loader::WorkingMeshData::SubMesh *sm = p_ceiling ? &md.ceiling : &md.floor;
 
 	if (sm->num_indices) {
 		ret.resize(sm->num_indices);
 		static_assert(sizeof(int) == 4, "Expects 32 bit int.");
-		memcpy(ret.ptrw(), sm->indices, sm->num_indices * sizeof(int32_t));
+		memcpy(ret.ptr(), sm->indices, sm->num_indices * sizeof(int32_t));
 	}
 
 	return ret;
 }
 
-Vector<NPMesh::Poly> NPMesh::get_polys(bool p_ceiling) const {
+LocalVector<NPMesh::Poly> NPMesh::get_polys(bool p_ceiling) const {
 	NavPhysics::Loader loader;
 	NavPhysics::Mesh *mesh = NavPhysics::g_world.safe_get_mesh(data.h_mesh);
 	NP_DEV_ASSERT(mesh);
 	NavPhysics::Loader::WorkingMeshData md;
 	loader.extract_working_data(md, *mesh);
 
-	Vector<Poly> ret;
+	LocalVector<Poly> ret;
 
 	NavPhysics::Loader::WorkingMeshData::SubMesh *sm = p_ceiling ? &md.ceiling : &md.floor;
 
@@ -890,7 +890,7 @@ Vector<NPMesh::Poly> NPMesh::get_polys(bool p_ceiling) const {
 				p.type = sm->poly_type[n];
 			}
 			index_count += p.num_indices;
-			ret.set(n, p);
+			ret[n] = p;
 		}
 	}
 
