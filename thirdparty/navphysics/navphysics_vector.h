@@ -6,9 +6,11 @@
 #include "navphysics_allocator.h"
 #include "navphysics_error.h"
 #include "navphysics_sort_array.h"
+#include "navphysics_span.h"
 #include "navphysics_typedefs.h"
 
 #include <type_traits>
+#include <utility>
 
 namespace NavPhysics {
 
@@ -155,7 +157,7 @@ public:
 
 	U erase_multiple_unordered(const T &p_val) {
 		U from = 0;
-		U count = 0;
+		U removed = 0;
 		while (true) {
 			i64 idx = find(p_val, from);
 
@@ -164,9 +166,9 @@ public:
 			}
 			remove_unordered(idx);
 			from = idx;
-			count++;
+			removed++;
 		}
-		return count;
+		return removed;
 	}
 
 	void invert() {
@@ -251,13 +253,22 @@ public:
 	void insert(U p_pos, T p_val) {
 		NP_ERR_FAIL_UNSIGNED_INDEX(p_pos, count + 1);
 		if (p_pos == count) {
-			push_back(p_val);
+			push_back(std::move(p_val));
 		} else {
-			NP_ERR_FAIL_COND(resize(count + 1) == false);
-			for (U i = count - 1; i > p_pos; i--) {
-				data[i] = data[i - 1];
+			resize(count + 1);
+
+			if constexpr (std::is_trivially_copyable<T>::value) {
+				U num_elements = count - 1 - p_pos;
+				if (num_elements) {
+					memmove(&data[p_pos + 1], &data[p_pos], num_elements * sizeof(T));
+				}
+			} else {
+				for (U i = count - 1; i > p_pos; i--) {
+					data[i] = std::move(data[i - 1]);
+				}
 			}
-			data[p_pos] = p_val;
+
+			data[p_pos] = std::move(p_val);
 		}
 	}
 
