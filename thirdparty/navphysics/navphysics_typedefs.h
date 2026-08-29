@@ -6,6 +6,10 @@
 #include <float.h>
 #include <stdint.h>
 
+#include <string.h>
+#include <cstddef>
+#include <type_traits>
+
 using u8 = uint8_t;
 using u16 = uint16_t;
 using u32 = uint32_t;
@@ -48,6 +52,31 @@ using freal = f32;
 #else
 #define navphysics_unlikely(x) (x)
 #endif
+
+#if defined(__has_cpp_attribute)
+#define NP_HAS_CPP_ATTRIBUTE(m_feature) __has_cpp_attribute(m_feature)
+#else
+#define NP_HAS_CPP_ATTRIBUTE(m_feature) 0
+#endif
+
+#if NP_HAS_CPP_ATTRIBUTE(clang::lifetimebound)
+#define _NP_LIFETIME_BOUND_ [[clang::lifetimebound]]
+#elif NP_HAS_CPP_ATTRIBUTE(gnu::lifetimebound)
+#define _NP_LIFETIME_BOUND_ [[gnu::lifetimebound]]
+#elif NP_HAS_CPP_ATTRIBUTE(msvc::lifetimebound)
+#define _NP_LIFETIME_BOUND_ [[msvc::lifetimebound]]
+#elif NP_HAS_CPP_ATTRIBUTE(lifetimebound)
+#define _NP_LIFETIME_BOUND_ [[lifetimebound]]
+#else
+#define _NP_LIFETIME_BOUND_
+#endif
+
+namespace NavPhysics {
+template <class T>
+struct Comparator {
+	bool operator()(const T &p_a, const T &p_b) const { return (p_a < p_b); }
+};
+} //namespace NavPhysics
 
 #define NAVPHYSICS_OPERATOR_RET(T, OP)               \
 	T operator OP(const T &p_v) const {              \
@@ -217,4 +246,18 @@ static T np_nearest_power_of_2_templated(T x) {
 	}
 
 	return ++x;
+}
+
+// Convenient alternative to a loop copy pattern.
+template <typename T>
+void np_copy_arr(T *p_dst, const T *p_src, size_t p_num) {
+	if constexpr (std::is_trivially_copyable<T>::value) {
+		if (p_num) {
+			memcpy((uint8_t *)p_dst, (uint8_t *)p_src, p_num * sizeof(T));
+		}
+	} else {
+		for (size_t i = 0; i < p_num; i++) {
+			p_dst[i] = p_src[i];
+		}
+	}
 }
