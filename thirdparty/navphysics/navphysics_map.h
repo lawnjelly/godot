@@ -53,33 +53,20 @@ public:
 class World {
 	friend class NavPhysicsServer;
 
-	struct MapContainer {
+	template <class T>
+	class Container {
+	public:
 		u32 revision;
-		Map *map;
-	};
-
-	struct RegionContainer {
-		u32 revision;
-		Region *region;
-	};
-
-	struct MeshContainer {
-		u32 revision;
-		Mesh *mesh;
-	};
-
-	struct MeshInstanceContainer {
-		u32 revision;
-		MeshInstance *mesh_instance;
+		T *object;
 	};
 
 	// The pooled list zeros on first request .. this is important
 	// so that we initialize the revision to zero. Other than that, it
 	// is treated as a POD type.
-	TrackedPooledList<MapContainer, u32, true, true> _maps;
-	TrackedPooledList<RegionContainer, u32, true, true> _regions;
-	TrackedPooledList<MeshContainer, u32, true, true> _meshes;
-	TrackedPooledList<MeshInstanceContainer, u32, true, true> _mesh_instances;
+	TrackedPooledList<Container<Map>, u32, true, true> _maps;
+	TrackedPooledList<Container<Region>, u32, true, true> _regions;
+	TrackedPooledList<Container<Mesh>, u32, true, true> _meshes;
+	TrackedPooledList<Container<MeshInstance>, u32, true, true> _mesh_instances;
 	TrackedPooledList<Agent, u32, true, true> _agents;
 
 	PlanStore _plan_store;
@@ -126,12 +113,12 @@ public:
 	NavPhysics::Map *safe_get_map(np_handle p_map, u32 *r_id = nullptr);
 
 	NavPhysics::Agent &get_body(u32 p_id) { return _agents[p_id]; }
-	NavPhysics::Mesh &get_mesh(u32 p_id) { return *_meshes[p_id].mesh; }
-	NavPhysics::MeshInstance &get_mesh_instance(u32 p_id) { return *_mesh_instances[p_id].mesh_instance; }
-	NavPhysics::Region &get_region(u32 p_id) { return *_regions[p_id].region; }
-	NavPhysics::Map &get_map(u32 p_id) { return *_maps[p_id].map; }
+	NavPhysics::Mesh &get_mesh(u32 p_id) { return *_meshes[p_id].object; }
+	NavPhysics::MeshInstance &get_mesh_instance(u32 p_id) { return *_mesh_instances[p_id].object; }
+	NavPhysics::Region &get_region(u32 p_id) { return *_regions[p_id].object; }
+	NavPhysics::Map &get_map(u32 p_id) { return *_maps[p_id].object; }
 
-	const NavPhysics::Mesh &get_mesh(u32 p_id) const { return *_meshes[p_id].mesh; }
+	const NavPhysics::Mesh &get_mesh(u32 p_id) const { return *_meshes[p_id].object; }
 	np_handle get_mesh_instance_handle(u32 p_id) const;
 
 	np_handle safe_body_create();
