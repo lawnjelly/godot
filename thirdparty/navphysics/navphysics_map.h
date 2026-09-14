@@ -22,7 +22,7 @@ class Map {
 	TrackedPooledList<u32> _mesh_instances;
 	SAP _sap;
 	u32 _map_id = UINT32_MAX;
-	bool update_agent_mesh(Agent &r_agent, u32 p_agent_id, bool p_teleport_if_changed);
+	bool update_agent_mesh(Agent &r_agent, bool p_teleport_if_changed);
 
 public:
 	struct IterateResult {
