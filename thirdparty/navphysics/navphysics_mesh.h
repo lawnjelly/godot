@@ -197,18 +197,22 @@ public:
 	const PolyExtra &get_poly_extra(u32 p_idx) const { return _polys_extra[p_idx]; }
 
 protected:
-	// accessors
+	// Accessors.
+	
+	// Indices.
 	u32 get_ind(u32 p_idx, bool p_ceiling = false) const { return p_ceiling ? ceiling.inds[p_idx] : floor.inds[p_idx]; }
 	u32 get_num_inds(bool p_ceiling = false) const { return p_ceiling ? ceiling.inds.size() : floor.inds.size(); }
 
 	u32 get_ind_next(u32 p_idx) const { return _inds_next[p_idx]; }
-
+	
+	// Verts.
 	const IPoint2 &get_vert(u32 p_idx, bool p_ceiling = false) const { return p_ceiling ? ceiling.verts[p_idx] : floor.verts[p_idx]; }
 	u32 get_num_verts(bool p_ceiling = false) const { return p_ceiling ? ceiling.get_num_verts() : floor.get_num_verts(); }
 
 	FPoint2 get_fvert(u32 p_idx, bool p_ceiling = false) const { return get_fvert3(p_idx, p_ceiling).xz(); }
 	const FPoint3 &get_fvert3(u32 p_idx, bool p_ceiling = false) const { return p_ceiling ? ceiling.fverts3[p_idx] : floor.fverts3[p_idx]; }
-
+	
+	// Links.
 	u32 get_link(u32 p_idx) const { return _links[p_idx]; }
 	u32 get_num_links() const { return _links.size(); }
 
@@ -216,13 +220,17 @@ protected:
 	bool is_link_external(u32 p_idx) const { return get_link(p_idx) & LINK_FLAG_EXTERNAL; }
 	bool is_link_internal(u32 p_idx) const { return get_link(p_idx) & LINK_FLAG_INTERNAL; }
 	bool is_link_regular(u32 p_idx) const { return (get_link(p_idx) & (LINK_FLAG_INTERNAL | LINK_FLAG_EXTERNAL | LINK_FLAG_HARD)) == 0; }
-
+	
+	// Walls.
 	const Wall &get_wall(u32 p_idx) const { return _walls[p_idx]; }
 	u32 get_num_walls() const { return _walls.size(); }
-
+	
+	// Polys.
 	u32 get_num_polys(bool p_ceiling = false) const { return p_ceiling ? ceiling.get_num_polys() : floor.get_num_polys(); }
+	
 	const Poly &get_poly(u32 p_idx, bool p_ceiling = false) const { return p_ceiling ? ceiling.polys[p_idx] : floor.polys[p_idx]; }
 	Poly &get_poly(u32 p_idx, bool p_ceiling = false) { return p_ceiling ? ceiling.polys[p_idx] : floor.polys[p_idx]; }
+	
 	PolyExtra &get_poly_extra(u32 p_idx) { return _polys_extra[p_idx]; }
 	const IRect2 &get_poly_bound(u32 p_idx, bool p_ceiling = false) const { return p_ceiling ? ceiling.poly_bounds[p_idx] : floor.poly_bounds[p_idx]; }
 
@@ -235,7 +243,8 @@ protected:
 		}
 		return num_verts;
 	}
-
+	
+	// Zones.
 	const Zone &get_poly_zone(u32 p_idx) const {
 		NP_DEV_ASSERT(get_poly_extra(p_idx).zone_id != UINT32_MAX);
 		return _zones[get_poly_extra(p_idx).zone_id];
@@ -244,13 +253,15 @@ protected:
 	const Zone &get_zone(u32 p_idx) const { return _zones[p_idx]; }
 	u32 get_num_zones() const { return _zones.size(); }
 	const ZoneLink &get_zone_link(u32 p_idx) const { return _zone_links[p_idx]; }
-
-	void debug_poly(u32 p_poly_id) const;
-
+	
+	// Narrowings.
 	const Narrowing &get_narrowing(u32 p_idx) const { return _narrowings[p_idx]; }
 	u32 get_num_narrowings() const { return _narrowings.size(); }
 	u32 get_num_areas() const { return _areas.size(); }
-
+	
+	void debug_poly(u32 p_poly_id) const;
+	
+	// Conversion helpers.
 	IPoint2 float_to_fixed_point_vel(const FPoint2 &p_vel) const {
 		return IPoint2::make(p_vel * _f32_to_fp_scale);
 	}
@@ -284,7 +295,6 @@ private:
 	bool poly_contains_point_debug(u32 p_poly_id, const IPoint2 &p_pt) const;
 
 	bool poly_contains_vert(u32 p_poly_id, u32 p_vert_id) const;
-	bool debug_poly_contains_point(u32 p_poly_id, const IPoint2 &p_pt) const;
 	bool wall_in_front_cross(u32 p_wall_id, const IPoint2 &p_pt) const;
 	i64 wall_cross(u32 p_wall_id, const IPoint2 &p_pt) const;
 	freal find_height_on_poly_plane(u32 p_poly_id, const IPoint2 &p_pt, bool p_ceiling = false) const;
@@ -300,7 +310,6 @@ private:
 	struct TraceInfo {
 		u32 poly_id = UINT32_MAX;
 		u32 slide_wall = UINT32_MAX;
-		//IPoint2 hit_point{ 0, 0 };
 		IPoint2 hit_point;
 	};
 	enum MoveResult {
@@ -309,10 +318,6 @@ private:
 	};
 
 public:
-	//	struct JumpLinkInfo {
-	//		u32 wall_id = UINT32_MAX;
-	//		IPoint2 target_pos;
-	//	};
 
 	struct MoveInfo {
 		u32 poly_id = UINT32_MAX;
@@ -360,7 +365,7 @@ public:
 		u32 label;
 		SVGPoint(const IPoint2 p_pos, u32 p_label) {
 			pos = p_pos;
-			p_label = label;
+			label = p_label;
 		}
 		SVGPoint() = default;
 	};
