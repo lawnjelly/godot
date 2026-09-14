@@ -445,10 +445,10 @@ public:
 	u32 find_best_jump_poly_within(const Agent &p_agent, const JumpFinderData &p_jd, freal p_max_drop, freal p_max_step_up, freal &r_goodness_of_fit) const;
 
 	bool find_ceiling_height(u32 p_floor_poly_id, const IPoint2 &p_pt, freal &r_height, u32 &r_ceiling_poly_id_hint) const;
-
-	void init() {
+	
+	void init(np_handle p_handle) {
 		_unit_test_find_lines_intersect_integer();
-	}
+	}	
 
 	void refresh_local_agent_position_from_fixed_point(Agent &r_agent) const {
 		FPoint2 new_fpos = fixed_point_to_float_2(r_agent.pos);
