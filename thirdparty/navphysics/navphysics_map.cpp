@@ -438,25 +438,13 @@ void Map::body_teleport(Agent &r_agent, u32 p_agent_id, const FPoint3 &p_pos) {
 NavPhysics::Agent *World::safe_get_body(np_handle p_body, u32 *r_id) {
 	NP_ERR_FAIL_COND_V(!p_body, nullptr);
 	u32 revision;
-	u32 id = handle_to_id(p_body, revision);
+	u32 id = _meshes.handle_to_id(p_body, revision);
 	if (r_id) {
 		*r_id = id;
 	}
 	NavPhysics::Agent &agent = _agents[id];
 	NP_ERR_FAIL_COND_V(agent.revision != revision, nullptr);
 	return &agent;
-}
-
-NavPhysics::Mesh *World::safe_get_mesh(np_handle p_mesh, u32 *r_id) {
-	NP_ERR_FAIL_COND_V(!p_mesh, nullptr);
-	u32 revision;
-	u32 id = handle_to_id(p_mesh, revision);
-	if (r_id) {
-		*r_id = id;
-	}
-	Container<Mesh> &mesh = _meshes[id];
-	NP_ERR_FAIL_COND_V(mesh.revision != revision, nullptr);
-	return mesh.object;
 }
 
 bool World::safe_link_body(np_handle p_body, np_handle p_map) {
@@ -529,44 +517,8 @@ bool World::safe_link_mesh(np_handle p_mesh_instance, np_handle p_mesh) {
 	return true;
 }
 
-NavPhysics::MeshInstance *World::safe_get_mesh_instance(np_handle p_mesh_instance, u32 *r_id) {
-	NP_ERR_FAIL_COND_V(!p_mesh_instance, nullptr);
-	u32 revision;
-	u32 id = handle_to_id(p_mesh_instance, revision);
-	if (r_id) {
-		*r_id = id;
-	}
-	Container<MeshInstance> &mesh_instance = _mesh_instances[id];
-	NP_ERR_FAIL_COND_V(mesh_instance.revision != revision, nullptr);
-	return mesh_instance.object;
-}
-
-NavPhysics::Region *World::safe_get_region(np_handle p_region, u32 *r_id) {
-	NP_ERR_FAIL_COND_V(!p_region, nullptr);
-	u32 revision;
-	u32 id = handle_to_id(p_region, revision);
-	if (r_id) {
-		*r_id = id;
-	}
-	Container<Region> &region = _regions[id];
-	NP_ERR_FAIL_COND_V(region.revision != revision, nullptr);
-	return region.object;
-}
-
-NavPhysics::Map *World::safe_get_map(np_handle p_map, u32 *r_id) {
-	NP_ERR_FAIL_COND_V(!p_map, nullptr);
-	u32 revision;
-	u32 id = handle_to_id(p_map, revision);
-	if (r_id) {
-		*r_id = id;
-	}
-	Container<Map> &map = _maps[id];
-	NP_ERR_FAIL_COND_V(map.revision != revision, nullptr);
-	return map.object;
-}
-
 np_handle World::get_mesh_instance_handle(u32 p_id) const {
-	return _mesh_instances[p_id].object->get_handle();
+	return _mesh_instances.pool[p_id].object->get_handle();
 }
 
 np_handle World::safe_body_create() {
@@ -585,142 +537,27 @@ np_handle World::safe_body_create() {
 			// special case, zero is reserved
 			agent->revision = 1;
 		}
-		return id_to_handle(id, agent->revision);
-	}
-	return 0;
-}
-
-np_handle World::safe_mesh_create() {
-	u32 id = UINT32_MAX;
-	Container<Mesh> *mesh = _meshes.request(id);
-	if (mesh) {
-		NP_DEV_CHECK(!mesh->object);
-		mesh->object = ALLOCATOR::newT<Mesh>();
-		mesh->object->init();
-		if (!mesh->revision) {
-			// special case, zero is reserved
-			mesh->revision = 1;
-		}
-		return id_to_handle(id, mesh->revision);
-	}
-	return 0;
-}
-
-np_handle World::safe_mesh_instance_create() {
-	u32 id = UINT32_MAX;
-	Container<MeshInstance> *mesh_instance = _mesh_instances.request(id);
-	if (mesh_instance) {
-		NP_DEV_CHECK(!mesh_instance->object);
-		mesh_instance->object = ALLOCATOR::newT<MeshInstance>();
-		if (!mesh_instance->revision) {
-			// special case, zero is reserved
-			mesh_instance->revision = 1;
-		}
-
-		np_handle handle = id_to_handle(id, mesh_instance->revision);
-		mesh_instance->object->init(handle);
-
-		return handle;
+		return _meshes.id_to_handle(id, agent->revision);
 	}
 	return 0;
 }
 
 np_handle World::safe_region_create() {
-	u32 id = UINT32_MAX;
-	Container<Region> *region = _regions.request(id);
-	if (region) {
-		NP_DEV_CHECK(!region->object);
-		region->object = ALLOCATOR::newT<Region>();
-		if (!region->revision) {
-			// special case, zero is reserved
-			region->revision = 1;
-		}
-		return id_to_handle(id, region->revision);
-	}
-	return 0;
+	return _regions.safe_object_create();
 }
 
-np_handle World::safe_map_create() {
-	u32 id = UINT32_MAX;
-	Container<Map> *map = _maps.request(id);
-	if (map) {
-		NP_DEV_CHECK(!map->object);
-		map->object = ALLOCATOR::newT<Map>();
-		map->object->set_map_id(id);
-
-		if (!map->revision) {
-			// special case, zero is reserved
-			map->revision = 1;
-		}
-		return id_to_handle(id, map->revision);
-	}
-	return 0;
+void World::safe_region_free(np_handle p_region) {
+	_regions.safe_object_free(p_region);
 }
 
 void World::safe_body_free(np_handle p_body) {
 	NP_ERR_FAIL_COND(!p_body);
 	u32 revision;
-	u32 id = handle_to_id(p_body, revision);
+	u32 id = _meshes.handle_to_id(p_body, revision);
 	NavPhysics::Agent &agent = _agents[id];
 	NP_ERR_FAIL_COND(agent.revision != revision);
-	wrapped_increment_revision(agent.revision);
+	_meshes.wrapped_increment_revision(agent.revision);
 	_agents.free(id);
-}
-
-void World::safe_mesh_free(np_handle p_mesh) {
-	NP_ERR_FAIL_COND(!p_mesh);
-	u32 revision;
-	u32 id = handle_to_id(p_mesh, revision);
-	Container<Mesh> &mesh = _meshes[id];
-	NP_ERR_FAIL_COND(mesh.revision != revision);
-	wrapped_increment_revision(mesh.revision);
-	if (mesh.object) {
-		ALLOCATOR::deleteT(mesh.object);
-		mesh.object = nullptr;
-	}
-	_meshes.free(id);
-}
-
-void World::safe_mesh_instance_free(np_handle p_mesh_instance) {
-	NP_ERR_FAIL_COND(!p_mesh_instance);
-	u32 revision;
-	u32 id = handle_to_id(p_mesh_instance, revision);
-	Container<MeshInstance> &mesh_instance = _mesh_instances[id];
-	NP_ERR_FAIL_COND(mesh_instance.revision != revision);
-	wrapped_increment_revision(mesh_instance.revision);
-	if (mesh_instance.object) {
-		ALLOCATOR::deleteT(mesh_instance.object);
-		mesh_instance.object = nullptr;
-	}
-	_mesh_instances.free(id);
-}
-
-void World::safe_region_free(np_handle p_region) {
-	NP_ERR_FAIL_COND(!p_region);
-	u32 revision;
-	u32 id = handle_to_id(p_region, revision);
-	Container<Region> &region = _regions[id];
-	NP_ERR_FAIL_COND(region.revision != revision);
-	wrapped_increment_revision(region.revision);
-	if (region.object) {
-		ALLOCATOR::deleteT(region.object);
-		region.object = nullptr;
-	}
-	_regions.free(id);
-}
-
-void World::safe_map_free(np_handle p_map) {
-	NP_ERR_FAIL_COND(!p_map);
-	u32 revision;
-	u32 id = handle_to_id(p_map, revision);
-	Container<Map> &map = _maps[id];
-	NP_ERR_FAIL_COND(map.revision != revision);
-	wrapped_increment_revision(map.revision);
-	if (map.object) {
-		ALLOCATOR::deleteT(map.object);
-		map.object = nullptr;
-	}
-	_maps.free(id);
 }
 
 void World::set_timestep(freal p_delta) {
@@ -746,8 +583,8 @@ void World::tick_update(u64 p_tick, freal p_delta) {
 	get_plan_store().iterate();
 
 	// do agent-agent bouncing
-	for (u32 n = 0; n < _maps.active_size(); n++) {
-		Container<Map> &map = _maps.get_active(n);
+	for (u32 n = 0; n < _maps.pool.active_size(); n++) {
+		Container<Map> &map = _maps.pool.get_active(n);
 		if (map.object) {
 			map.object->tick_update(p_delta);
 		}
@@ -803,40 +640,9 @@ void World::tick_update(u64 p_tick, freal p_delta) {
 void World::clear() {
 	_agents.clear();
 
-	for (u32 n = 0; n < _mesh_instances.active_size(); n++) {
-		Container<MeshInstance> &mesh_instance = _mesh_instances.get_active(n);
-		if (mesh_instance.object) {
-			delete (mesh_instance.object);
-			mesh_instance.object = nullptr;
-		}
-	}
 	_mesh_instances.clear();
-
-	for (u32 n = 0; n < _meshes.active_size(); n++) {
-		Container<Mesh> &mesh = _meshes.get_active(n);
-		if (mesh.object) {
-			delete (mesh.object);
-			mesh.object = nullptr;
-		}
-	}
 	_meshes.clear();
-
-	for (u32 n = 0; n < _regions.active_size(); n++) {
-		Container<Region> &region = _regions.get_active(n);
-		if (region.object) {
-			delete (region.object);
-			region.object = nullptr;
-		}
-	}
 	_regions.clear();
-
-	for (u32 n = 0; n < _maps.active_size(); n++) {
-		Container<Map> &map = _maps.get_active(n);
-		if (map.object) {
-			delete (map.object);
-			map.object = nullptr;
-		}
-	}
 	_maps.clear();
 }
 
