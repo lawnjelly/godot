@@ -524,6 +524,9 @@ FPoint3 MeshInstance::choose_random_location() const {
 		total += mesh.get_poly_extra(n).area;
 	}
 
+	// Just for safety, shouldn't get hit.
+	NP_ERR_FAIL_COND_V(total < 0.1f, FPoint3());
+
 	f32 val = Math::randf() * total;
 
 	total = 0;
