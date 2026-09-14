@@ -31,7 +31,9 @@ public:
 
 	u32 register_mesh(u32 p_mesh_id);
 	void unregister_mesh(u32 p_mesh_id, u32 p_mesh_slot_id);
-
+	
+	void init(np_handle p_handle) {
+	}	
 	//	PoolVector<Face3> region_get_faces() const;
 };
 
