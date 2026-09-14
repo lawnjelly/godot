@@ -942,7 +942,7 @@ bool Mesh::debug_check_agent_integrity(const IPoint2 &p_pos, u32 p_poly_id, u32 
 	// to be correct.
 	if (p_poly_id != UINT32_MAX) {
 		if (p_hug_wall_id == UINT32_MAX) {
-			return debug_poly_contains_point(p_poly_id, p_pos);
+			return poly_contains_point_debug(p_poly_id, p_pos);
 		}
 	}
 #endif
@@ -960,18 +960,14 @@ Mesh::TraceResult Mesh::recursive_trace(i32 p_depth, IPoint2 p_from, const IPoin
 	const Poly &poly = get_poly(p_poly_id);
 	freal smallest_dist = FLT_MAX;
 	u32 best_wall_id = UINT32_MAX;
-	//IPoint2 best_intersect{ 0, 0 };
 	IPoint2 best_intersect;
-
-	// bool crossed_any_wall = false;
 
 	for (u32 w = 0; w < poly.num_inds; w++) {
 		u32 wall_id = poly.first_ind + w;
 		i64 cross_to = -wall_cross(wall_id, p_to);
 
-		// crossed wall
+		// Crossed wall.
 		if (cross_to > 0) {
-			// crossed_any_wall = true;
 			IPoint2 intersect;
 			if (wall_find_intersect(wall_id, p_from, p_to, intersect)) {
 				freal dist = p_from.distancef_to(intersect);
@@ -998,7 +994,7 @@ Mesh::TraceResult Mesh::recursive_trace(i32 p_depth, IPoint2 p_from, const IPoin
 	}
 
 	if (best_wall_id == UINT32_MAX) {
-		// move okay
+		// Move okay.
 		r_info.poly_id = p_poly_id;
 
 		NP_DEV_ASSERT(debug_check_agent_integrity(p_to, p_poly_id, best_wall_id));
@@ -1010,13 +1006,12 @@ Mesh::TraceResult Mesh::recursive_trace(i32 p_depth, IPoint2 p_from, const IPoin
 //		NP_DEV_ASSERT(poly_contains_point(p_poly_id, p_to));
 #endif
 		return TR_CLEAR;
-		//return [0, poly_id]
 	}
 
 	u32 linked_poly_id = get_link(best_wall_id);
 
 	if (is_link_hard(best_wall_id)) {
-		// indicates slide and which wall
+		// Indicates slide and which wall.
 		r_info.poly_id = p_poly_id;
 		r_info.slide_wall = best_wall_id;
 		r_info.hit_point = best_intersect;
@@ -1070,7 +1065,7 @@ Mesh::TraceResult Mesh::recursive_trace(i32 p_depth, IPoint2 p_from, const IPoin
 		} else if (poly_contains_point(linked_poly_id, best_intersect)) {
 			r_info.poly_id = linked_poly_id;
 		} else {
-			// last ditch attempt
+			// Last ditch attempt.
 			r_info.poly_id = p_poly_id;
 			r_info.hit_point = get_poly(p_poly_id).center;
 		}
@@ -1079,7 +1074,7 @@ Mesh::TraceResult Mesh::recursive_trace(i32 p_depth, IPoint2 p_from, const IPoin
 		return TR_LIMIT;
 	}
 
-	// recurse into neighbouring cell
+	// Recurse into neighbouring cell.
 	return recursive_trace(p_depth + 1, p_from, p_to, linked_poly_id, r_info);
 }
 
@@ -1434,14 +1429,16 @@ bool Mesh::poly_contains_vert(u32 p_poly_id, u32 p_vert_id) const {
 
 bool Mesh::poly_contains_point_debug(u32 p_poly_id, const IPoint2 &p_pt) const {
 	const Poly &poly = get_poly(p_poly_id);
+	//log(String("debug_poly_contains_point for poly ") + p_poly_id);
 
 	for (u32 n = 0; n < poly.num_inds; n++) {
 		u32 wall_id = poly.first_ind + n;
 
-		IPoint2 wa, wb;
-		get_wall_verts(wall_id, wa, wb);
+		// IPoint2 wa, wb;
+		// get_wall_verts(wall_id, wa, wb);
 
 		i64 cross = wall_cross(wall_id, p_pt);
+		//log(String("\twall ") + wall_id + ", cross " + cross);
 		if (cross < 0) {
 			log(String("Mesh::poly_contains_point_debug failed cross was ") + cross);
 			return false;
@@ -1520,22 +1517,6 @@ bool Mesh::poly_contains_point(u32 p_poly_id, const IPoint2 &p_pt, bool p_ceilin
 		if (wall_in_front_cross(wall_id, p_pt)) {
 			return false;
 		}
-	}
-
-	return true;
-}
-
-bool Mesh::debug_poly_contains_point(u32 p_poly_id, const IPoint2 &p_pt) const {
-	const Poly &poly = get_poly(p_poly_id);
-	//log(String("debug_poly_contains_point for poly ") + p_poly_id);
-
-	for (u32 n = 0; n < poly.num_inds; n++) {
-		u32 wall_id = poly.first_ind + n;
-
-		i64 cross = wall_cross(wall_id, p_pt);
-		//log(String("\twall ") + wall_id + ", cross " + cross);
-		if (cross < 0)
-			return false;
 	}
 
 	return true;
@@ -1670,8 +1651,6 @@ void Mesh::_unit_test_find_lines_intersect_integer() {
 	find_lines_intersect_integer(p1, p2, p3, p4, hit);
 }
 
-// https://stackoverflow.com/questions/21224361/calculate-intersection-of-two-lines-using-integers-only
-// intersect 2 lines using integer math
 bool Mesh::find_lines_intersect_integer(const IPoint2 &p_from_a, const IPoint2 &p_to_a, const IPoint2 &p_from_b, const IPoint2 &p_to_b, IPoint2 &r_hit) const {
 	i32 x1 = p_from_a.x;
 	i32 y1 = p_from_a.y;
@@ -1819,8 +1798,6 @@ bool Mesh::find_lines_intersect_integer(const IPoint2 &p_from_a, const IPoint2 &
 	return true;
 }
 
-// https://stackoverflow.com/questions/21224361/calculate-intersection-of-two-lines-using-integers-only
-// intersect 2 lines using integer math
 bool Mesh::find_line_segments_intersect_integer(const IPoint2 &p_from_a, const IPoint2 &p_to_a, const IPoint2 &p_from_b, const IPoint2 &p_to_b, IPoint2 &r_hit) const {
 	i32 x1 = p_from_a.x;
 	i32 y1 = p_from_a.y;
