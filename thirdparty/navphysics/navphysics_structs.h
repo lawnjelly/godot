@@ -91,8 +91,8 @@ public:
 	freal agent_height = 0;
 	freal jump_velocity = 0;
 
-	u32 poly_id = 0;
-	u32 wall_id = 0;
+	u32 poly_id = UINT32_MAX;
+	u32 wall_id = UINT32_MAX;
 	u32 ceiling_poly_id = UINT32_MAX;
 	u32 zone_id = UINT32_MAX;
 	u32 blocking_zone_id = UINT32_MAX;
