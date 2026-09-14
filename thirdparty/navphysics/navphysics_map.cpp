@@ -179,9 +179,9 @@ u32 Map::find_best_fit_agent_mesh(Agent &r_agent, const FPoint3 &p_world_pos, u3
 	return best_mesh_instance_id;
 }
 
-bool Map::update_agent_mesh(Agent &r_agent, u32 p_agent_id, bool p_teleport_if_changed) {
+bool Map::update_agent_mesh(Agent &r_agent, bool p_teleport_if_changed) {
 	//Agent &agent = _agents[p_agent_id];
-
+	
 	// no mesh yet?
 	if (r_agent.get_mesh_instance_id() == UINT32_MAX) {
 		// find one (SLOW)
@@ -194,12 +194,12 @@ bool Map::update_agent_mesh(Agent &r_agent, u32 p_agent_id, bool p_teleport_if_c
 			// and not be an error.
 			return false;
 		}
-		NP_LOG(String("Agent ") + String(p_agent_id) + " is on mesh " + String(best_mesh_instance_id) + ".");
+		NP_LOG(String("Agent ") + String(r_agent.agent_id) + " is on mesh " + String(best_mesh_instance_id) + ".");
 		r_agent.set_mesh_instance_id(best_mesh_instance_id);
 
 		// teleport
 		if (p_teleport_if_changed) {
-			body_teleport(r_agent, p_agent_id, r_agent.fpos3_teleport);
+			body_teleport(r_agent, r_agent.agent_id, r_agent.fpos3_teleport);
 			//g_world.body_teleport(p_agent_id, r_agent.fpos3_teleport);
 			//navphysics_teleport(p_agent_id, agent.fpos3_teleport);
 			//		Mesh *mesh = _meshes[agent.mesh_id];
@@ -214,12 +214,13 @@ bool Map::update_agent_mesh(Agent &r_agent, u32 p_agent_id, bool p_teleport_if_c
 bool Map::iterate_agent(u32 p_agent_id, IterateResult &r_result) {
 	AgentStatus::reset();
 	Agent &agent = g_world.get_body(p_agent_id);
+	NP_DEV_ASSERT(agent.agent_id == p_agent_id);
 
 	// Initialize the agent state each tick. This may already have been set to colliding by the agent - agent collision detection,
 	// which happens before iterate_agent().
 	agent.state = (agent.state != AGENT_STATE_PENDING_COLLIDING) ? AGENT_STATE_CLEAR : AGENT_STATE_COLLIDING;
-
-	if (!update_agent_mesh(agent, p_agent_id, true)) {
+	
+	if (!update_agent_mesh(agent, true)) {
 		return false;
 	}
 
@@ -396,8 +397,9 @@ void Map::body_teleport(Agent &r_agent, u32 p_agent_id, const FPoint3 &p_pos) {
 	r_agent.fpos3 = p_pos;
 
 	NP_LOG(String("teleporting to ") + p_pos + ", mesh id was: " + r_agent.get_mesh_instance_id());
-
-	if (update_agent_mesh(r_agent, p_agent_id, false)) {
+	
+	NP_DEV_ASSERT(r_agent.agent_id == p_agent_id);
+	if (update_agent_mesh(r_agent, false)) {
 		MeshInstance &meshi = g_world.get_mesh_instance(r_agent.get_mesh_instance_id());
 		NP_LOG(String("\tmesh id is now: ") + r_agent.get_mesh_instance_id());
 
