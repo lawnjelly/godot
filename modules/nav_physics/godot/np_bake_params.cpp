@@ -1,5 +1,27 @@
 #include "np_bake_params.h"
 
+void NPBakeParams_Agent::_bind_methods() {
+	BIND_ENUM_CONSTANT(PARAM_AGENT_HEIGHT);
+	BIND_ENUM_CONSTANT(PARAM_AGENT_RADIUS);
+	BIND_ENUM_CONSTANT(PARAM_AGENT_MAX_CLIMB);
+	BIND_ENUM_CONSTANT(PARAM_AGENT_MAX_SLOPE);
+
+	ClassDB::bind_method(D_METHOD("set_param", "param", "value"), &NPBakeParams_Agent::set_param);
+	ClassDB::bind_method(D_METHOD("get_param", "param"), &NPBakeParams_Agent::get_param);
+
+	ADD_PROPERTYI(PropertyInfo(Variant::REAL, "agent_height", PROPERTY_HINT_RANGE, "0.01,500.0,0.01,or_greater"), "set_param", "get_param", NPBakeParams_Agent::PARAM_AGENT_HEIGHT);
+	ADD_PROPERTYI(PropertyInfo(Variant::REAL, "agent_radius", PROPERTY_HINT_RANGE, "0.01,500.0,0.01,or_greater"), "set_param", "get_param", NPBakeParams_Agent::PARAM_AGENT_RADIUS);
+	ADD_PROPERTYI(PropertyInfo(Variant::REAL, "agent_max_climb", PROPERTY_HINT_RANGE, "0.01,500.0,0.01,or_greater"), "set_param", "get_param", NPBakeParams_Agent::PARAM_AGENT_MAX_CLIMB);
+	ADD_PROPERTYI(PropertyInfo(Variant::REAL, "agent_max_slope", PROPERTY_HINT_RANGE, "0.02,90.0,0.01"), "set_param", "get_param", NPBakeParams_Agent::PARAM_AGENT_MAX_SLOPE);
+}
+
+NPBakeParams_Agent::Data::Data() {
+	params[PARAM_AGENT_HEIGHT] = 1.5;
+	params[PARAM_AGENT_RADIUS] = 0.5;
+	params[PARAM_AGENT_MAX_CLIMB] = 0.25;
+	params[PARAM_AGENT_MAX_SLOPE] = 45;
+}
+
 void NPBakeParams::_bind_methods() {
 	BIND_ENUM_CONSTANT(PARAM_ENABLED_FILTER_LOW_HANGING_OBSTACLES);
 	BIND_ENUM_CONSTANT(PARAM_ENABLED_FILTER_LEDGE_SPANS);
