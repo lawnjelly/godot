@@ -103,26 +103,6 @@ public:
 		SOURCE_GEOMETRY_MAX
 	};
 
-	enum Param {
-		PARAM_CELL_SIZE,
-		PARAM_CELL_HEIGHT,
-		PARAM_AGENT_HEIGHT,
-		PARAM_AGENT_RADIUS,
-		PARAM_AGENT_MAX_CLIMB,
-		PARAM_AGENT_MAX_SLOPE,
-		PARAM_REGION_MIN_SIZE,
-		PARAM_REGION_MERGE_SIZE,
-		PARAM_EDGE_MAX_LENGTH,
-		PARAM_EDGE_MAX_ERROR,
-		PARAM_VERTS_PER_POLY,
-		PARAM_DETAIL_SAMPLE_DISTANCE,
-		PARAM_DETAIL_SAMPLE_MAX_ERROR,
-		PARAM_EXIT_LIP,
-		PARAM_EXIT_MAX_STEP_UP,
-		PARAM_EXIT_MAX_DROP,
-		PARAM_MAX,
-	};
-
 	enum ParamEnabled {
 		PARAM_ENABLED_FILTER_LOW_HANGING_OBSTACLES,
 		PARAM_ENABLED_FILTER_LEDGE_SPANS,
@@ -132,7 +112,6 @@ public:
 
 protected:
 	struct Data {
-		float params[PARAM_MAX];
 		bool params_enabled[PARAM_ENABLED_MAX];
 		Data();
 	} data;
@@ -152,9 +131,6 @@ protected:
 
 	void set_param_enabled(ParamEnabled p_param, bool p_enabled);
 	bool get_param_enabled(ParamEnabled p_param) const;
-
-	void set_param(Param p_param, float p_value);
-	float get_param(Param p_param) const;
 
 	static void _bind_methods();
 
@@ -179,7 +155,6 @@ public:
 	StringName get_source_group_name() const;
 };
 
-VARIANT_ENUM_CAST(NPBakeParams::Param);
 VARIANT_ENUM_CAST(NPBakeParams::ParamEnabled);
 VARIANT_ENUM_CAST(NPBakeParams::SamplePartitionType);
 VARIANT_ENUM_CAST(NPBakeParams::ParsedGeometryType);
