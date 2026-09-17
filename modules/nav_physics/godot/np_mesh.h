@@ -154,12 +154,15 @@ private:
 		}
 	};
 
-	void _prepare_recast_for_baking(const NPBakeParams &p_params,
+	void _prepare_recast_for_baking(const NPBakeParams_Agent &p_params_agent,
+			const NPBakeParams_Mesh &p_params_mesh,
+			const NPBakeParams &p_params,
 			const Vector<float> &p_vertices,
 			const Vector<int> &p_indices,
 			rcBakeData &r_bd);
 
-	void _build_recast_navigation_mesh(
+	void _build_recast_navigation_mesh(const NPBakeParams_Agent &p_params_agent,
+			const NPBakeParams_Mesh &p_params_mesh,
 			const NPBakeParams &p_params,
 #ifdef TOOLS_ENABLED
 			EditorProgress *ep,
@@ -168,13 +171,14 @@ private:
 			const Vector<int> &p_indices,
 			BakedMeshData &r_res);
 
-	void _build_recast_ceiling_mesh(
+	void _build_recast_ceiling_mesh(const NPBakeParams_Agent &p_params_agent,
+			const NPBakeParams_Mesh &p_params_mesh,
 			const NPBakeParams &p_params,
 			const Vector<float> &p_vertices,
 			const Vector<int> &p_indices,
 			BakedMeshData &r_res);
 
-	void _duplicate_bake_params(const NPBakeParams &p_params, NPBakeParams &r_dest) const;
+	void _duplicate_bake_params(const NPBakeParams_Agent &p_params, NPBakeParams_Agent &r_dest) const;
 
 	void _ground_detail_mesh(LocalVector<Vector3> &r_detail_verts, const Vector<float> &p_geom_vertices, const Vector<int> &p_geom_indices);
 
@@ -184,9 +188,6 @@ private:
 
 	void set_param_enabled(NPBakeParams::ParamEnabled p_param, bool p_enabled);
 	bool get_param_enabled(NPBakeParams::ParamEnabled p_param);
-
-	void set_param(NPBakeParams::Param p_param, float p_value);
-	float get_param(NPBakeParams::Param p_param);
 
 protected:
 	static void _bind_methods();
