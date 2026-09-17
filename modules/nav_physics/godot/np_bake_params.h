@@ -1,6 +1,39 @@
 #pragma once
 
+#include "core/resource.h"
 #include "scene/3d/spatial.h"
+
+class NPBakeParams_Agent : public Resource {
+	GDCLASS(NPBakeParams_Agent, Resource);
+	OBJ_SAVE_TYPE(NPBakeParams_Agent);
+	RES_BASE_EXTENSION("npbake_ag");
+
+public:
+	enum Param {
+		PARAM_AGENT_HEIGHT = 0,
+		PARAM_AGENT_RADIUS,
+		PARAM_AGENT_MAX_CLIMB,
+		PARAM_AGENT_MAX_SLOPE,
+		PARAM_MAX
+	};
+
+protected:
+	struct Data {
+		float params[PARAM_MAX] = {};
+		Data();
+	} data;
+
+	static void _bind_methods();
+
+public:
+	void set_param(Param p_param, float p_value) {
+		ERR_FAIL_COND(p_value < 0);
+		data.params[p_param] = p_value;
+	}
+	float get_param(Param p_param) const { return data.params[p_param]; }
+};
+
+VARIANT_ENUM_CAST(NPBakeParams_Agent::Param);
 
 //class NPBakeParams {
 class NPBakeParams : public Object {
