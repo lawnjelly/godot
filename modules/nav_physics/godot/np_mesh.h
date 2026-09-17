@@ -125,6 +125,7 @@ private:
 		np_handle h_mesh = 0;
 		NPBakeParams bake_params;
 		Ref<NPBakeParams_Agent> bake_params_agent;
+		Ref<NPBakeParams_Mesh> bake_params_mesh;
 	} data;
 
 	struct DebugData {
@@ -196,6 +197,9 @@ public:
 
 	void set_bake_params_agent(const Ref<NPBakeParams_Agent> &p_params);
 	Ref<NPBakeParams_Agent> get_bake_params_agent() const;
+
+	void set_bake_params_mesh(const Ref<NPBakeParams_Mesh> &p_params);
+	Ref<NPBakeParams_Mesh> get_bake_params_mesh() const;
 
 	RID _refresh_debug_geometry(bool p_show);
 

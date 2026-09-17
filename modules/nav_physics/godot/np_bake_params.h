@@ -6,7 +6,7 @@
 class NPBakeParams_Agent : public Resource {
 	GDCLASS(NPBakeParams_Agent, Resource);
 	OBJ_SAVE_TYPE(NPBakeParams_Agent);
-	RES_BASE_EXTENSION("npbake_ag");
+	RES_BASE_EXTENSION("npbake_agent");
 
 public:
 	enum Param {
@@ -34,6 +34,46 @@ public:
 };
 
 VARIANT_ENUM_CAST(NPBakeParams_Agent::Param);
+
+class NPBakeParams_Mesh : public Resource {
+	GDCLASS(NPBakeParams_Mesh, Resource);
+	OBJ_SAVE_TYPE(NPBakeParams_Mesh);
+	RES_BASE_EXTENSION("npbake_mesh");
+
+public:
+	enum Param {
+		PARAM_CELL_SIZE = 0,
+		PARAM_CELL_HEIGHT,
+		PARAM_REGION_MIN_SIZE,
+		PARAM_REGION_MERGE_SIZE,
+		PARAM_EDGE_MAX_LENGTH,
+		PARAM_EDGE_MAX_ERROR,
+		PARAM_VERTS_PER_POLY,
+		PARAM_DETAIL_SAMPLE_DISTANCE,
+		PARAM_DETAIL_SAMPLE_MAX_ERROR,
+		PARAM_EXIT_LIP,
+		PARAM_EXIT_MAX_STEP_UP,
+		PARAM_EXIT_MAX_DROP,
+		PARAM_MAX,
+	};
+
+protected:
+	struct Data {
+		float params[PARAM_MAX] = {};
+		Data();
+	} data;
+
+	static void _bind_methods();
+
+public:
+	void set_param(Param p_param, float p_value) {
+		ERR_FAIL_COND(p_value < 0);
+		data.params[p_param] = p_value;
+	}
+	float get_param(Param p_param) const { return data.params[p_param]; }
+};
+
+VARIANT_ENUM_CAST(NPBakeParams_Mesh::Param);
 
 //class NPBakeParams {
 class NPBakeParams : public Object {

@@ -542,13 +542,27 @@ void NPMesh::set_bake_params_agent(const Ref<NPBakeParams_Agent> &p_params) {
 	if (data.bake_params_agent.is_valid()) {
 		data.bake_params_agent->register_owner(this);
 	}
-
-	//update_gizmo();
-	//update_configuration_warning();
 }
 
 Ref<NPBakeParams_Agent> NPMesh::get_bake_params_agent() const {
 	return data.bake_params_agent;
+}
+
+void NPMesh::set_bake_params_mesh(const Ref<NPBakeParams_Mesh> &p_params) {
+	if (p_params == data.bake_params_mesh) {
+		return;
+	}
+	if (!data.bake_params_mesh.is_null()) {
+		data.bake_params_mesh->unregister_owner(this);
+	}
+	data.bake_params_mesh = p_params;
+	if (data.bake_params_mesh.is_valid()) {
+		data.bake_params_mesh->register_owner(this);
+	}
+}
+
+Ref<NPBakeParams_Mesh> NPMesh::get_bake_params_mesh() const {
+	return data.bake_params_mesh;
 }
 
 void NPMesh::_nav_physics_log_callback(const char *p_string) {
@@ -586,8 +600,12 @@ void NPMesh::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_bake_params_agent", "params"), &NPMesh::set_bake_params_agent);
 	ClassDB::bind_method(D_METHOD("get_bake_params_agent"), &NPMesh::get_bake_params_agent);
 
+	ClassDB::bind_method(D_METHOD("set_bake_params_mesh", "params"), &NPMesh::set_bake_params_mesh);
+	ClassDB::bind_method(D_METHOD("get_bake_params_mesh"), &NPMesh::get_bake_params_mesh);
+
 	ADD_GROUP("Baking", "bake_params_");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "bake_params_agent", PROPERTY_HINT_RESOURCE_TYPE, "NPBakeParams_Agent"), "set_bake_params_agent", "get_bake_params_agent");
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "bake_params_mesh", PROPERTY_HINT_RESOURCE_TYPE, "NPBakeParams_Mesh"), "set_bake_params_mesh", "get_bake_params_mesh");
 
 	ClassDB::bind_method(D_METHOD("set_sample_partition_type", "sample_partition_type"), &NPMesh::set_sample_partition_type);
 	ClassDB::bind_method(D_METHOD("get_sample_partition_type"), &NPMesh::get_sample_partition_type);

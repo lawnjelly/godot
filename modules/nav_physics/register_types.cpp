@@ -16,6 +16,7 @@ void register_nav_physics_types() {
 	ClassDB::register_class<NPMesh>();
 	ClassDB::register_class<NPAgent>();
 	ClassDB::register_class<NPBakeParams_Agent>();
+	ClassDB::register_class<NPBakeParams_Mesh>();
 	ClassDB::register_class<NPBakeParams>();
 
 #ifdef TOOLS_ENABLED
