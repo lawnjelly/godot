@@ -577,14 +577,6 @@ bool NPMesh::get_param_enabled(NPBakeParams::ParamEnabled p_param) {
 	return data.bake_params.get_param_enabled(p_param);
 }
 
-void NPMesh::set_param(NPBakeParams::Param p_param, float p_value) {
-	data.bake_params.set_param(p_param, p_value);
-}
-
-float NPMesh::get_param(NPBakeParams::Param p_param) {
-	return data.bake_params.get_param(p_param);
-}
-
 void NPMesh::_bind_methods() {
 	//	ClassDB::bind_method(D_METHOD("set_vertices", "vertices"), &NPMesh::set_vertices);
 	//	ClassDB::bind_method(D_METHOD("get_vertices"), &NPMesh::get_vertices);
@@ -619,47 +611,14 @@ void NPMesh::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_collision_mask_bit", "bit", "value"), &NPMesh::set_collision_mask_bit);
 	ClassDB::bind_method(D_METHOD("get_collision_mask_bit", "bit"), &NPMesh::get_collision_mask_bit);
 
-	ClassDB::bind_method(D_METHOD("set_param", "param", "value"), &NPMesh::set_param);
-	ClassDB::bind_method(D_METHOD("get_param", "param"), &NPMesh::get_param);
-
 	ClassDB::bind_method(D_METHOD("set_param_enabled", "param", "value"), &NPMesh::set_param_enabled);
 	ClassDB::bind_method(D_METHOD("get_param_enabled", "param"), &NPMesh::get_param_enabled);
-
-	ADD_GROUP("Exit", "exit_");
-	ADD_PROPERTYI(PropertyInfo(Variant::REAL, "exit_lip", PROPERTY_HINT_RANGE, "0.01,100.0,0.01,or_greater"), "set_param", "get_param", NPBakeParams::PARAM_EXIT_LIP);
-	ADD_PROPERTYI(PropertyInfo(Variant::REAL, "exit_max_step_up", PROPERTY_HINT_RANGE, "0.01,100.0,0.01,or_greater"), "set_param", "get_param", NPBakeParams::PARAM_EXIT_MAX_STEP_UP);
-	ADD_PROPERTYI(PropertyInfo(Variant::REAL, "exit_max_drop", PROPERTY_HINT_RANGE, "0.01,100.0,0.01,or_greater"), "set_param", "get_param", NPBakeParams::PARAM_EXIT_MAX_DROP);
 
 	ADD_GROUP("Sampling", "sample_");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "sample_partition_type", PROPERTY_HINT_ENUM, "Watershed,Monotone,Layers"), "set_sample_partition_type", "get_sample_partition_type");
 	ADD_GROUP("Geometry", "geometry_");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "geometry_parsed_geometry_type", PROPERTY_HINT_ENUM, "Mesh Instances,Static Colliders,Both"), "set_parsed_geometry_type", "get_parsed_geometry_type");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "geometry_collision_mask", PROPERTY_HINT_LAYERS_3D_PHYSICS), "set_collision_mask", "get_collision_mask");
-
-	ADD_GROUP("Cells", "cell_");
-	ADD_PROPERTYI(PropertyInfo(Variant::REAL, "cell_size", PROPERTY_HINT_RANGE, "0.01,500.0,0.01,or_greater"), "set_param", "get_param", NPBakeParams::PARAM_CELL_SIZE);
-	ADD_PROPERTYI(PropertyInfo(Variant::REAL, "cell_height", PROPERTY_HINT_RANGE, "0.01,500.0,0.01,or_greater"), "set_param", "get_param", NPBakeParams::PARAM_CELL_HEIGHT);
-
-	ADD_GROUP("Agents", "agent_");
-	ADD_PROPERTYI(PropertyInfo(Variant::REAL, "agent_height", PROPERTY_HINT_RANGE, "0.01,500.0,0.01,or_greater"), "set_param", "get_param", NPBakeParams::PARAM_AGENT_HEIGHT);
-	ADD_PROPERTYI(PropertyInfo(Variant::REAL, "agent_radius", PROPERTY_HINT_RANGE, "0.01,500.0,0.01,or_greater"), "set_param", "get_param", NPBakeParams::PARAM_AGENT_RADIUS);
-	ADD_PROPERTYI(PropertyInfo(Variant::REAL, "agent_max_climb", PROPERTY_HINT_RANGE, "0.01,500.0,0.01,or_greater"), "set_param", "get_param", NPBakeParams::PARAM_AGENT_MAX_CLIMB);
-	ADD_PROPERTYI(PropertyInfo(Variant::REAL, "agent_max_slope", PROPERTY_HINT_RANGE, "0.02,90.0,0.01"), "set_param", "get_param", NPBakeParams::PARAM_AGENT_MAX_SLOPE);
-
-	ADD_GROUP("Regions", "region_");
-	ADD_PROPERTYI(PropertyInfo(Variant::REAL, "region_min_size", PROPERTY_HINT_RANGE, "0.0,150.0,0.01,or_greater"), "set_param", "get_param", NPBakeParams::PARAM_REGION_MIN_SIZE);
-	ADD_PROPERTYI(PropertyInfo(Variant::REAL, "region_merge_size", PROPERTY_HINT_RANGE, "0.0,150.0,0.01,or_greater"), "set_param", "get_param", NPBakeParams::PARAM_REGION_MERGE_SIZE);
-
-	ADD_GROUP("Edges", "edge_");
-	ADD_PROPERTYI(PropertyInfo(Variant::REAL, "edge_max_length", PROPERTY_HINT_RANGE, "0.0,50.0,0.01,or_greater"), "set_param", "get_param", NPBakeParams::PARAM_EDGE_MAX_LENGTH);
-	ADD_PROPERTYI(PropertyInfo(Variant::REAL, "edge_max_error", PROPERTY_HINT_RANGE, "0.1,3.0,0.01,or_greater"), "set_param", "get_param", NPBakeParams::PARAM_EDGE_MAX_ERROR);
-
-	ADD_GROUP("Polygons", "polygon_");
-	ADD_PROPERTYI(PropertyInfo(Variant::REAL, "polygon_verts_per_poly", PROPERTY_HINT_RANGE, "3.0,12.0,1.0,or_greater"), "set_param", "get_param", NPBakeParams::PARAM_VERTS_PER_POLY);
-
-	ADD_GROUP("Details", "detail_");
-	ADD_PROPERTYI(PropertyInfo(Variant::REAL, "detail_sample_distance", PROPERTY_HINT_RANGE, "0.1,16.0,0.01,or_greater"), "set_param", "get_param", NPBakeParams::PARAM_DETAIL_SAMPLE_DISTANCE);
-	ADD_PROPERTYI(PropertyInfo(Variant::REAL, "detail_sample_max_error", PROPERTY_HINT_RANGE, "0.1,16.0,0.01,or_greater"), "set_param", "get_param", NPBakeParams::PARAM_DETAIL_SAMPLE_MAX_ERROR);
 
 	ClassDB::bind_method(D_METHOD("set_data", "data"), &NPMesh::set_data);
 	ClassDB::bind_method(D_METHOD("get_data"), &NPMesh::get_data);
@@ -721,11 +680,22 @@ void NPMesh::set_data(const Vector<uint8_t> &p_data) {
 	if (p_data.size()) {
 		NavPhysics::Mesh::MeshParams params;
 
-		params.agent_radius = data.bake_params.get_param(NPBakeParams::PARAM_AGENT_RADIUS);
-		params.agent_height = data.bake_params.get_param(NPBakeParams::PARAM_AGENT_HEIGHT);
-		params.exit_lip = data.bake_params.get_param(NPBakeParams::PARAM_EXIT_LIP);
-		params.exit_max_step_up = data.bake_params.get_param(NPBakeParams::PARAM_EXIT_MAX_STEP_UP);
-		params.exit_max_drop = data.bake_params.get_param(NPBakeParams::PARAM_EXIT_MAX_DROP);
+		Ref<NPBakeParams_Agent> bpa = get_bake_params_agent();
+		if (bpa.is_valid()) {
+			params.agent_radius = bpa->get_param(NPBakeParams_Agent::PARAM_AGENT_RADIUS);
+			params.agent_height = bpa->get_param(NPBakeParams_Agent::PARAM_AGENT_HEIGHT);
+		} else {
+			WARN_PRINT("NPMesh has no NPBakeParams_Agent set, using defaults.");
+		}
+
+		Ref<NPBakeParams_Mesh> bpm = get_bake_params_mesh();
+		if (bpm.is_valid()) {
+			params.exit_lip = bpm->get_param(NPBakeParams_Mesh::PARAM_EXIT_LIP);
+			params.exit_max_step_up = bpm->get_param(NPBakeParams_Mesh::PARAM_EXIT_MAX_STEP_UP);
+			params.exit_max_drop = bpm->get_param(NPBakeParams_Mesh::PARAM_EXIT_MAX_DROP);
+		} else {
+			WARN_PRINT("NPMesh has no NPBakeParams_Mesh set, using defaults.");
+		}
 
 		loader.load_raw_data(p_data.ptr(), p_data.size(), *mesh, params);
 	}
@@ -947,6 +917,15 @@ bool NPMesh::toggle_wall_connection(const Vector3 &p_start, const Vector3 &p_end
 }
 
 bool NPMesh::bake(Node *p_node) {
+	if (get_bake_params_agent().is_null()) {
+		ERR_PRINT("Cannot bake, NPBakeParams_Agent is not set.");
+		return false;
+	}
+	if (get_bake_params_mesh().is_null()) {
+		ERR_PRINT("Cannot bake, NPBakeParams_Mesh is not set.");
+		return false;
+	}
+
 #ifdef TOOLS_ENABLED
 	EditorProgress *ep(nullptr);
 	// FIXME
@@ -965,6 +944,7 @@ bool NPMesh::bake(Node *p_node) {
 #endif
 
 	const NPBakeParams &params = data.bake_params;
+
 	Vector<float> vertices;
 	Vector<int> indices;
 
@@ -996,7 +976,7 @@ bool NPMesh::bake(Node *p_node) {
 		BakedMeshData nav_mesh;
 		BakedMeshData ceiling_mesh;
 
-		_build_recast_navigation_mesh(
+		_build_recast_navigation_mesh(*get_bake_params_agent().ptr(), *get_bake_params_mesh().ptr(),
 				params,
 #ifdef TOOLS_ENABLED
 				ep,
@@ -1005,7 +985,7 @@ bool NPMesh::bake(Node *p_node) {
 				indices,
 				nav_mesh);
 
-		_build_recast_ceiling_mesh(params, vertices, indices, ceiling_mesh);
+		_build_recast_ceiling_mesh(*get_bake_params_agent().ptr(), *get_bake_params_mesh().ptr(), params, vertices, indices, ceiling_mesh);
 
 		//bake_load(nav_mesh.vertices.ptr(), nav_mesh.vertices.size(), (const u32 *)nav_mesh.indices.ptr(), nav_mesh.indices.size());
 		bake_load(nav_mesh, ceiling_mesh);
@@ -1022,7 +1002,9 @@ bool NPMesh::bake(Node *p_node) {
 	return true;
 }
 
-void NPMesh::_prepare_recast_for_baking(const NPBakeParams &p_params,
+void NPMesh::_prepare_recast_for_baking(const NPBakeParams_Agent &p_params_agent,
+		const NPBakeParams_Mesh &p_params_mesh,
+		const NPBakeParams &p_params,
 		const Vector<float> &p_vertices,
 		const Vector<int> &p_indices,
 		rcBakeData &r_bd) {
@@ -1037,19 +1019,19 @@ void NPMesh::_prepare_recast_for_baking(const NPBakeParams &p_params,
 	rcConfig cfg;
 	memset(&cfg, 0, sizeof(cfg));
 
-	cfg.cs = p_params.get_param(NPBakeParams::PARAM_CELL_SIZE);
-	cfg.ch = p_params.get_param(NPBakeParams::PARAM_CELL_HEIGHT);
-	cfg.walkableSlopeAngle = p_params.get_param(NPBakeParams::PARAM_AGENT_MAX_SLOPE);
-	cfg.walkableHeight = (int)Math::ceil(p_params.get_param(NPBakeParams::PARAM_AGENT_HEIGHT) / cfg.ch);
-	cfg.walkableClimb = (int)Math::floor(p_params.get_param(NPBakeParams::PARAM_AGENT_MAX_CLIMB) / cfg.ch);
-	cfg.walkableRadius = (int)Math::ceil(p_params.get_param(NPBakeParams::PARAM_AGENT_RADIUS) / cfg.cs);
-	cfg.maxEdgeLen = (int)(p_params.get_param(NPBakeParams::PARAM_EDGE_MAX_LENGTH) / cfg.cs);
-	cfg.maxSimplificationError = p_params.get_param(NPBakeParams::PARAM_EDGE_MAX_ERROR);
-	cfg.minRegionArea = (int)(p_params.get_param(NPBakeParams::PARAM_REGION_MIN_SIZE) * p_params.get_param(NPBakeParams::PARAM_REGION_MIN_SIZE));
-	cfg.mergeRegionArea = (int)(p_params.get_param(NPBakeParams::PARAM_REGION_MERGE_SIZE) * p_params.get_param(NPBakeParams::PARAM_REGION_MERGE_SIZE));
-	cfg.maxVertsPerPoly = (int)p_params.get_param(NPBakeParams::PARAM_VERTS_PER_POLY);
-	cfg.detailSampleDist = MAX(cfg.cs * p_params.get_param(NPBakeParams::PARAM_DETAIL_SAMPLE_DISTANCE), 0.1f);
-	cfg.detailSampleMaxError = cfg.ch * p_params.get_param(NPBakeParams::PARAM_DETAIL_SAMPLE_MAX_ERROR);
+	cfg.cs = p_params_mesh.get_param(NPBakeParams_Mesh::PARAM_CELL_SIZE);
+	cfg.ch = p_params_mesh.get_param(NPBakeParams_Mesh::PARAM_CELL_HEIGHT);
+	cfg.walkableSlopeAngle = p_params_agent.get_param(NPBakeParams_Agent::PARAM_AGENT_MAX_SLOPE);
+	cfg.walkableHeight = (int)Math::ceil(p_params_agent.get_param(NPBakeParams_Agent::PARAM_AGENT_HEIGHT) / cfg.ch);
+	cfg.walkableClimb = (int)Math::floor(p_params_agent.get_param(NPBakeParams_Agent::PARAM_AGENT_MAX_CLIMB) / cfg.ch);
+	cfg.walkableRadius = (int)Math::ceil(p_params_agent.get_param(NPBakeParams_Agent::PARAM_AGENT_RADIUS) / cfg.cs);
+	cfg.maxEdgeLen = (int)(p_params_mesh.get_param(NPBakeParams_Mesh::PARAM_EDGE_MAX_LENGTH) / cfg.cs);
+	cfg.maxSimplificationError = p_params_mesh.get_param(NPBakeParams_Mesh::PARAM_EDGE_MAX_ERROR);
+	cfg.minRegionArea = (int)(p_params_mesh.get_param(NPBakeParams_Mesh::PARAM_REGION_MIN_SIZE) * p_params_mesh.get_param(NPBakeParams_Mesh::PARAM_REGION_MIN_SIZE));
+	cfg.mergeRegionArea = (int)(p_params_mesh.get_param(NPBakeParams_Mesh::PARAM_REGION_MERGE_SIZE) * p_params_mesh.get_param(NPBakeParams_Mesh::PARAM_REGION_MERGE_SIZE));
+	cfg.maxVertsPerPoly = (int)p_params_mesh.get_param(NPBakeParams_Mesh::PARAM_VERTS_PER_POLY);
+	cfg.detailSampleDist = MAX(cfg.cs * p_params_mesh.get_param(NPBakeParams_Mesh::PARAM_DETAIL_SAMPLE_DISTANCE), 0.1f);
+	cfg.detailSampleMaxError = cfg.ch * p_params_mesh.get_param(NPBakeParams_Mesh::PARAM_DETAIL_SAMPLE_MAX_ERROR);
 
 	cfg.bmin[0] = bmin[0];
 	cfg.bmin[1] = bmin[1];
@@ -1191,7 +1173,7 @@ void NPMesh::_prepare_recast_for_baking(const NPBakeParams &p_params,
 }
 
 // Mostly copied from Resource::duplicate()
-void NPMesh::_duplicate_bake_params(const NPBakeParams &p_params, NPBakeParams &r_dest) const {
+void NPMesh::_duplicate_bake_params(const NPBakeParams_Agent &p_params, NPBakeParams_Agent &r_dest) const {
 	List<PropertyInfo> plist;
 	p_params.get_property_list(&plist);
 
@@ -1216,7 +1198,8 @@ void NPMesh::_duplicate_bake_params(const NPBakeParams &p_params, NPBakeParams &
 	}
 }
 
-void NPMesh::_build_recast_ceiling_mesh(
+void NPMesh::_build_recast_ceiling_mesh(const NPBakeParams_Agent &p_params_agent,
+		const NPBakeParams_Mesh &p_params_mesh,
 		const NPBakeParams &p_params,
 		const Vector<float> &p_vertices,
 		const Vector<int> &p_indices,
@@ -1259,14 +1242,14 @@ void NPMesh::_build_recast_ceiling_mesh(
 	}
 
 	// Change parameters specifically for ceiling baking.
-	NPBakeParams params;
-	_duplicate_bake_params(p_params, params);
+	NPBakeParams_Agent params_agent;
+	_duplicate_bake_params(p_params_agent, params_agent);
 
-	params.set_param(NPBakeParams::PARAM_AGENT_RADIUS, 0);
-	params.set_param(NPBakeParams::PARAM_AGENT_MAX_SLOPE, 80);
+	params_agent.set_param(NPBakeParams_Agent::PARAM_AGENT_RADIUS, 0);
+	params_agent.set_param(NPBakeParams_Agent::PARAM_AGENT_MAX_SLOPE, 80);
 	//params.set_param(NPBakeParams::PARAM_AGENT_MAX_CLIMB, 10);
 
-	_prepare_recast_for_baking(params, flipped_verts, flipped_indices, bd);
+	_prepare_recast_for_baking(params_agent, p_params_mesh, p_params, flipped_verts, flipped_indices, bd);
 
 	NP_MESH_LOG("CEILING");
 	_convert_detail_mesh_to_baked_mesh_data(bd.detail_mesh, r_res);
@@ -1298,7 +1281,8 @@ void NPMesh::_build_recast_ceiling_mesh(
 	bd.detail_mesh = nullptr;
 }
 
-void NPMesh::_build_recast_navigation_mesh(
+void NPMesh::_build_recast_navigation_mesh(const NPBakeParams_Agent &p_params_agent,
+		const NPBakeParams_Mesh &p_params_mesh,
 		const NPBakeParams &p_params,
 #ifdef TOOLS_ENABLED
 		EditorProgress *ep,
@@ -1314,7 +1298,7 @@ void NPMesh::_build_recast_navigation_mesh(
 		ep->step(TTR("Setting up Configuration..."), 1);
 #endif
 
-	_prepare_recast_for_baking(p_params, p_vertices, p_indices, bd);
+	_prepare_recast_for_baking(p_params_agent, p_params_mesh, p_params, p_vertices, p_indices, bd);
 
 #ifdef TOOLS_ENABLED
 	if (ep)
@@ -1336,11 +1320,13 @@ void NPMesh::_build_recast_navigation_mesh(
 }
 
 void NPMesh::_ground_detail_mesh(LocalVector<Vector3> &r_detail_verts, const Vector<float> &p_geom_vertices, const Vector<int> &p_geom_indices) {
+	ERR_FAIL_COND(data.bake_params_agent.is_null());
+
 	// First build a ray caster
 	NPRayCaster rayc;
 	rayc.create(p_geom_vertices, p_geom_indices);
 
-	float radius = data.bake_params.get_param(NPBakeParams::PARAM_AGENT_RADIUS);
+	float radius = data.bake_params_agent->get_param(NPBakeParams_Agent::PARAM_AGENT_RADIUS);
 
 	for (uint32_t n = 0; n < r_detail_verts.size(); n++) {
 		Vector3 &pt = r_detail_verts[n];
@@ -1423,8 +1409,16 @@ bool NPMesh::bake_load(const BakedMeshData &p_navmesh, const BakedMeshData &p_ce
 	source.num_polys = poly_num_inds.size();
 	source.poly_num_indices = poly_num_inds.ptr();
 
-	source.params.agent_radius = data.bake_params.get_param(NPBakeParams::PARAM_AGENT_RADIUS);
-	source.params.exit_lip = data.bake_params.get_param(NPBakeParams::PARAM_EXIT_LIP);
+	if (data.bake_params_agent.is_valid()) {
+		source.params.agent_radius = data.bake_params_agent->get_param(NPBakeParams_Agent::PARAM_AGENT_RADIUS);
+	} else {
+		WARN_PRINT("NPBackParams_Agent is unset, using default.");
+	}
+	if (data.bake_params_mesh.is_valid()) {
+		source.params.exit_lip = data.bake_params_mesh->get_param(NPBakeParams_Mesh::PARAM_EXIT_LIP);
+	} else {
+		WARN_PRINT("NPBackParams_Mesh is unset, using default.");
+	}
 
 	source_ceiling.num_verts = np_ceil_verts.size();
 	source_ceiling.verts = np_ceil_verts.ptr();
