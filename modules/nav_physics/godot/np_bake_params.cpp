@@ -22,6 +22,67 @@ NPBakeParams_Agent::Data::Data() {
 	params[PARAM_AGENT_MAX_SLOPE] = 45;
 }
 
+////////////////////////////////////////////////////////////
+
+void NPBakeParams_Mesh::_bind_methods() {
+	BIND_ENUM_CONSTANT(PARAM_CELL_SIZE);
+	BIND_ENUM_CONSTANT(PARAM_CELL_HEIGHT);
+	BIND_ENUM_CONSTANT(PARAM_REGION_MIN_SIZE);
+	BIND_ENUM_CONSTANT(PARAM_REGION_MERGE_SIZE);
+	BIND_ENUM_CONSTANT(PARAM_EDGE_MAX_LENGTH);
+	BIND_ENUM_CONSTANT(PARAM_EDGE_MAX_ERROR);
+	BIND_ENUM_CONSTANT(PARAM_VERTS_PER_POLY);
+	BIND_ENUM_CONSTANT(PARAM_DETAIL_SAMPLE_DISTANCE);
+	BIND_ENUM_CONSTANT(PARAM_DETAIL_SAMPLE_MAX_ERROR);
+	BIND_ENUM_CONSTANT(PARAM_EXIT_LIP);
+	BIND_ENUM_CONSTANT(PARAM_EXIT_MAX_STEP_UP);
+	BIND_ENUM_CONSTANT(PARAM_EXIT_MAX_DROP);
+
+	ClassDB::bind_method(D_METHOD("set_param", "param", "value"), &NPBakeParams_Mesh::set_param);
+	ClassDB::bind_method(D_METHOD("get_param", "param"), &NPBakeParams_Mesh::get_param);
+
+	ADD_GROUP("Exit", "exit_");
+	ADD_PROPERTYI(PropertyInfo(Variant::REAL, "exit_lip", PROPERTY_HINT_RANGE, "0.01,100.0,0.01,or_greater"), "set_param", "get_param", NPBakeParams::PARAM_EXIT_LIP);
+	ADD_PROPERTYI(PropertyInfo(Variant::REAL, "exit_max_step_up", PROPERTY_HINT_RANGE, "0.01,100.0,0.01,or_greater"), "set_param", "get_param", NPBakeParams::PARAM_EXIT_MAX_STEP_UP);
+	ADD_PROPERTYI(PropertyInfo(Variant::REAL, "exit_max_drop", PROPERTY_HINT_RANGE, "0.01,100.0,0.01,or_greater"), "set_param", "get_param", NPBakeParams::PARAM_EXIT_MAX_DROP);
+
+	ADD_GROUP("Cells", "cell_");
+	ADD_PROPERTYI(PropertyInfo(Variant::REAL, "cell_size", PROPERTY_HINT_RANGE, "0.01,500.0,0.01,or_greater"), "set_param", "get_param", NPBakeParams::PARAM_CELL_SIZE);
+	ADD_PROPERTYI(PropertyInfo(Variant::REAL, "cell_height", PROPERTY_HINT_RANGE, "0.01,500.0,0.01,or_greater"), "set_param", "get_param", NPBakeParams::PARAM_CELL_HEIGHT);
+
+	ADD_GROUP("Regions", "region_");
+	ADD_PROPERTYI(PropertyInfo(Variant::REAL, "region_min_size", PROPERTY_HINT_RANGE, "0.0,150.0,0.01,or_greater"), "set_param", "get_param", NPBakeParams::PARAM_REGION_MIN_SIZE);
+	ADD_PROPERTYI(PropertyInfo(Variant::REAL, "region_merge_size", PROPERTY_HINT_RANGE, "0.0,150.0,0.01,or_greater"), "set_param", "get_param", NPBakeParams::PARAM_REGION_MERGE_SIZE);
+
+	ADD_GROUP("Edges", "edge_");
+	ADD_PROPERTYI(PropertyInfo(Variant::REAL, "edge_max_length", PROPERTY_HINT_RANGE, "0.0,50.0,0.01,or_greater"), "set_param", "get_param", NPBakeParams::PARAM_EDGE_MAX_LENGTH);
+	ADD_PROPERTYI(PropertyInfo(Variant::REAL, "edge_max_error", PROPERTY_HINT_RANGE, "0.1,3.0,0.01,or_greater"), "set_param", "get_param", NPBakeParams::PARAM_EDGE_MAX_ERROR);
+
+	ADD_GROUP("Polygons", "polygon_");
+	ADD_PROPERTYI(PropertyInfo(Variant::REAL, "polygon_verts_per_poly", PROPERTY_HINT_RANGE, "3.0,12.0,1.0,or_greater"), "set_param", "get_param", NPBakeParams::PARAM_VERTS_PER_POLY);
+
+	ADD_GROUP("Details", "detail_");
+	ADD_PROPERTYI(PropertyInfo(Variant::REAL, "detail_sample_distance", PROPERTY_HINT_RANGE, "0.1,16.0,0.01,or_greater"), "set_param", "get_param", NPBakeParams::PARAM_DETAIL_SAMPLE_DISTANCE);
+	ADD_PROPERTYI(PropertyInfo(Variant::REAL, "detail_sample_max_error", PROPERTY_HINT_RANGE, "0.1,16.0,0.01,or_greater"), "set_param", "get_param", NPBakeParams::PARAM_DETAIL_SAMPLE_MAX_ERROR);
+}
+
+NPBakeParams_Mesh::Data::Data() {
+	params[PARAM_CELL_SIZE] = 0.25;
+	params[PARAM_CELL_HEIGHT] = 0.25;
+	params[PARAM_REGION_MIN_SIZE] = 2;
+	params[PARAM_REGION_MERGE_SIZE] = 20;
+	params[PARAM_EDGE_MAX_LENGTH] = 12;
+	params[PARAM_EDGE_MAX_ERROR] = 1.3;
+	params[PARAM_VERTS_PER_POLY] = 6;
+	params[PARAM_DETAIL_SAMPLE_DISTANCE] = 6;
+	params[PARAM_DETAIL_SAMPLE_MAX_ERROR] = 1;
+	params[PARAM_EXIT_LIP] = 0.1;
+	params[PARAM_EXIT_MAX_STEP_UP] = 0.5;
+	params[PARAM_EXIT_MAX_DROP] = 1.0;
+}
+
+////////////////////////////////////////////////////////////
+
 void NPBakeParams::_bind_methods() {
 	BIND_ENUM_CONSTANT(PARAM_ENABLED_FILTER_LOW_HANGING_OBSTACLES);
 	BIND_ENUM_CONSTANT(PARAM_ENABLED_FILTER_LEDGE_SPANS);
