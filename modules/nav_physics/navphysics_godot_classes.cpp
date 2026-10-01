@@ -1,3 +1,4 @@
+#ifndef _3D_DISABLED
 #pragma clang diagnostic ignored "-Wmissing-braces"
 
 #include "editor/navphysics_gizmos.cpp"
@@ -7,4 +8,6 @@
 #include "godot/np_mesh.cpp"
 #include "godot/np_mesh_instance.cpp"
 #include "godot/np_ticker.cpp"
+#endif
+
 #include "register_types.cpp"
