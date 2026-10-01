@@ -83,6 +83,11 @@ private:
 		}
 	} data;
 
+	struct Physics {
+		RID rid_body;
+		RID rid_shape;
+	} physics;
+
 	static Transform _dummy_xform;
 
 	void _update_process_mode();
@@ -90,6 +95,7 @@ private:
 	void _update_params();
 	float _shift_yaw(float p_from, float p_to, float p_max_change) const;
 	void update_yaw();
+	void _nav_physics_update_transform(const Transform &p_xform);
 
 protected:
 	static void _bind_methods();
