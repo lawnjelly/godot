@@ -1,6 +1,8 @@
 // Copyright 2026-present Lawnjelly
 // SPDX-License-Identifier: MIT
 
+#ifndef _3D_DISABLED
+
 #pragma clang diagnostic ignored "-Wmissing-braces"
 
 //#include "navphysics_bsp.cpp"
@@ -28,3 +30,5 @@
 #include "navphysics_structs.cpp"
 #include "navphysics_transform.cpp"
 #include "navphysics_zone_planner.cpp"
+
+#endif
