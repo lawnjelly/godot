@@ -40,5 +40,5 @@ void NPTicker::_agent_callback(uint64_t p_user_data, const NavPhysics::FPoint3 &
 
 	//tr.basis = Basis(Vector3(0, Math::randf(), 0));
 	tr.basis = Basis(Vector3(0, (Math_PI / 2) - agent->data.yaw, 0));
-	agent->set_transform(tr);
+	agent->_nav_physics_update_transform(tr);
 }

@@ -109,8 +109,51 @@ void NPAgent::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "links_pathfind_external"), "set_pathfind_external_jump_links", "get_pathfind_external_jump_links");
 }
 
+void NPAgent::_nav_physics_update_transform(const Transform &p_xform) {
+	set_transform(p_xform);
+	PhysicsServer *ps = PhysicsServer::get_singleton();
+	if (!ps || !physics.rid_body.is_valid()) {
+		return;
+	}
+	ps->body_set_state(physics.rid_body, PhysicsServer::BODY_STATE_TRANSFORM, get_global_transform());
+}
+
 void NPAgent::_notification(int p_what) {
 	switch (p_what) {
+		case NOTIFICATION_READY: {
+			PhysicsServer *ps = PhysicsServer::get_singleton();
+			ERR_FAIL_NULL(ps);
+			physics.rid_body = ps->body_create(PhysicsServer::BODY_MODE_KINEMATIC);
+			if (get_world().is_valid()) {
+				RID rid_space = get_world()->get_space();
+				ps->body_set_space(physics.rid_body, rid_space);
+			}
+
+			physics.rid_shape = ps->shape_create(PhysicsServer::SHAPE_CAPSULE);
+
+			Dictionary capsule_data;
+			capsule_data["radius"] = data.radius * 0.5f;
+			capsule_data["height"] = data.radius;
+			ps->shape_set_data(physics.rid_shape, capsule_data);
+
+			ps->body_add_shape(physics.rid_body, physics.rid_shape, Transform());
+			ps->body_set_collision_layer(physics.rid_body, 1);
+			ps->body_set_collision_mask(physics.rid_body, 1);
+
+			ps->body_set_state(physics.rid_body, PhysicsServer::BODY_STATE_TRANSFORM, get_global_transform());
+		} break;
+		case NOTIFICATION_EXIT_TREE: {
+			PhysicsServer *ps = PhysicsServer::get_singleton();
+			ERR_FAIL_NULL(ps);
+			if (physics.rid_body.is_valid()) {
+				ps->free(physics.rid_body);
+				physics.rid_body = RID();
+			}
+			if (physics.rid_shape.is_valid()) {
+				ps->free(physics.rid_shape);
+				physics.rid_shape = RID();
+			}
+		} break;
 		case NOTIFICATION_INTERNAL_PHYSICS_PROCESS: {
 			//_nav_update();
 		} break;
