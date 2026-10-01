@@ -18,9 +18,12 @@ NPMeshInstance::NPMeshInstance() {
 	NavPhysics::g_world.safe_link_mesh_instance(data.h_mesh_instance, NavPhysics::g_world.get_handle_default_map());
 
 	set_notify_transform(true);
+	NPTicker::_ref_count++;
 }
 
 NPMeshInstance::~NPMeshInstance() {
+	NPTicker::_ref_count--;
+
 	set_debug_visuals(false);
 
 	if (data.h_mesh_instance) {
@@ -190,50 +193,4 @@ void NPMeshInstance::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "debug_visuals"), "set_debug_visuals", "has_debug_visuals");
 
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "mesh", PROPERTY_HINT_RESOURCE_TYPE, "NPMesh"), "set_mesh", "get_mesh");
-}
-
-/////////////////////////////////
-
-void NPMap::_agent_callback(uint64_t p_user_data, const NavPhysics::FPoint3 &p_position, const NavPhysics::FPoint3 &p_velocity) {
-	NPAgent *agent = (NPAgent *)p_user_data;
-	ERR_FAIL_NULL(agent);
-	Transform tr = agent->get_transform();
-	//Transform tr;
-	tr.origin = *(Vector3 *)&p_position;
-
-	agent->data.vel = *(Vector3 *)&p_velocity;
-
-	//print_line("vel " + String(Variant(agent->data.vel)));
-
-	// Calculate yaw
-	agent->update_yaw();
-
-	//agent->data.vel.zero();
-
-	//tr.basis = Basis(Vector3(0, Math::randf(), 0));
-	tr.basis = Basis(Vector3(0, (Math_PI / 2) - agent->data.yaw, 0));
-	agent->set_transform(tr);
-}
-
-void NPMap::_notification(int p_what) {
-	switch (p_what) {
-		default: {
-		} break;
-		case NOTIFICATION_INTERNAL_PHYSICS_PROCESS: {
-			if (!Engine::get_singleton()->is_editor_hint()) {
-				NPWORLD.tick_update(Engine::get_singleton()->get_physics_frames(), get_physics_process_delta_time());
-			}
-		} break;
-	}
-}
-
-void NPMap::_bind_methods() {
-}
-
-NPMap::NPMap() {
-	set_process_priority(100);
-	if (!Engine::get_singleton()->is_editor_hint()) {
-		set_physics_process_internal(true);
-	}
-	NavPhysics::World::set_agent_callback(&_agent_callback);
 }

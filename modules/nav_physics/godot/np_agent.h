@@ -1,5 +1,6 @@
 #pragma once
 
+#include "np_ticker.h"
 #include "scene/3d/spatial.h"
 #include "thirdparty/navphysics/navphysics_defines.h"
 
@@ -20,7 +21,7 @@ public:
 	};
 
 private:
-	friend class NPMap;
+	friend class NPTicker;
 
 	struct PathInfo {
 		// Current path being followed.

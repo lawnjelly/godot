@@ -57,6 +57,10 @@
 
 #include "modules/modules_enabled.gen.h" // For freetype.
 
+#ifndef _3D_DISABLED
+#include "modules/nav_physics/godot/np_ticker.h"
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -599,6 +603,12 @@ bool SceneTree::iteration(float p_time) {
 	physics_process_time = p_time;
 
 	emit_signal("physics_frame");
+
+#ifndef _3D_DISABLED
+	if (!Engine::get_singleton()->is_editor_hint()) {
+		NPTicker::tick(Engine::get_singleton()->get_physics_frames(), p_time);
+	}
+#endif
 
 	_notify_group_pause("physics_process_internal", Node::NOTIFICATION_INTERNAL_PHYSICS_PROCESS);
 	if (GLOBAL_GET_CACHED(bool, "physics/common/enable_pause_aware_picking")) {
