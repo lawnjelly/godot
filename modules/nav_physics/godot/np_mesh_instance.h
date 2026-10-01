@@ -39,15 +39,3 @@ public:
 	NPMeshInstance();
 	~NPMeshInstance();
 };
-
-class NPMap : public Node {
-	GDCLASS(NPMap, Node);
-
-protected:
-	void _notification(int p_what);
-	static void _bind_methods();
-	static void _agent_callback(uint64_t p_user_data, const NavPhysics::FPoint3 &p_position, const NavPhysics::FPoint3 &p_velocity);
-
-public:
-	NPMap();
-};
