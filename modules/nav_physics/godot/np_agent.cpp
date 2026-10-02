@@ -36,6 +36,9 @@ void NPAgent::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_radius", "radius"), &NPAgent::set_radius);
 	ClassDB::bind_method(D_METHOD("get_radius"), &NPAgent::get_radius);
 
+	ClassDB::bind_method(D_METHOD("set_height", "height"), &NPAgent::set_height);
+	ClassDB::bind_method(D_METHOD("get_height"), &NPAgent::get_height);
+
 	ClassDB::bind_method(D_METHOD("set_friction", "friction"), &NPAgent::set_friction);
 	ClassDB::bind_method(D_METHOD("get_friction"), &NPAgent::get_friction);
 
@@ -97,6 +100,7 @@ void NPAgent::_bind_methods() {
 
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "NPC"), "set_npc", "is_npc");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "radius", PROPERTY_HINT_RANGE, "0,1024"), "set_radius", "get_radius");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "height", PROPERTY_HINT_RANGE, "0,1024"), "set_height", "get_height");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "friction", PROPERTY_HINT_RANGE, "0,1"), "set_friction", "get_friction");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "gravity", PROPERTY_HINT_RANGE, "0,1"), "set_gravity", "get_gravity");
 
@@ -124,7 +128,11 @@ void NPAgent::_nav_physics_update_transform(const Transform &p_xform) {
 	}
 	PhysicsServer *ps = PhysicsServer::get_singleton();
 	ERR_FAIL_NULL(ps);
-	ps->body_set_transform(physics.rid_body, get_global_transform(), PhysicsServer::BODY_TRANSFORM_MODE_WAKE_NEIGHBOURS);
+
+	Transform tr = get_global_transform();
+	tr = tr * physics.shape_xform;
+
+	ps->body_set_transform(physics.rid_body, tr, PhysicsServer::BODY_TRANSFORM_MODE_WAKE_NEIGHBOURS);
 }
 
 void NPAgent::set_physics_enabled(bool p_enable) {
@@ -138,6 +146,43 @@ void NPAgent::set_physics_enabled(bool p_enable) {
 		return;
 	}
 	_update_physics_enabled();
+}
+
+void NPAgent::_update_physics_shape() {
+	if (!physics.rid_body.is_valid()) {
+		return;
+	}
+
+	// Logic should prevent creating physics body when we are in the editor.
+	DEV_ASSERT(!Engine::get_singleton()->is_editor_hint());
+
+	// Assuming single threaded here.
+	DEV_ASSERT(physics.enabled);
+	DEV_ASSERT(is_inside_tree());
+
+	PhysicsServer *ps = PhysicsServer::get_singleton();
+	ERR_FAIL_NULL(ps);
+
+	DEV_ASSERT(physics.rid_shape.is_valid());
+
+	Dictionary capsule_data;
+	capsule_data["radius"] = data.radius;
+
+	// In Godot the "height" of a cylinder is the height
+	// of the middle section, not the overall height.
+	// This is confusing, so we standardize the agent height as being "real height",
+	// which can be no lower in practice than twice the radius (i.e. a sphere).
+	float mid_height = data.height - (data.radius * 2);
+	mid_height = MAX(mid_height, 0.0f);
+
+	capsule_data["height"] = mid_height;
+	ps->shape_set_data(physics.rid_shape, capsule_data);
+
+	Transform &tr = physics.shape_xform;
+
+	// Rotate around x axis 90 degrees, and push up by half the height of the agent.
+	tr.origin = Vector3(0, data.height * 0.5f, 0);
+	tr.basis = Basis(Vector3(1, 0, 0), Math::deg2rad(90.0f), Vector3(1, 1, 1));
 }
 
 void NPAgent::_update_physics_enabled(bool p_exiting_tree) {
@@ -161,17 +206,13 @@ void NPAgent::_update_physics_enabled(bool p_exiting_tree) {
 
 			DEV_ASSERT(!physics.rid_shape.is_valid());
 			physics.rid_shape = ps->shape_create(PhysicsServer::SHAPE_CAPSULE);
-
-			Dictionary capsule_data;
-			capsule_data["radius"] = data.radius * 0.5f;
-			capsule_data["height"] = data.radius;
-			ps->shape_set_data(physics.rid_shape, capsule_data);
+			_update_physics_shape();
 
 			ps->body_add_shape(physics.rid_body, physics.rid_shape, Transform());
 			ps->body_set_collision_layer(physics.rid_body, 1);
 			ps->body_set_collision_mask(physics.rid_body, 1);
 
-			ps->body_set_state(physics.rid_body, PhysicsServer::BODY_STATE_TRANSFORM, get_global_transform());
+			_nav_physics_update_transform(get_transform());
 		}
 	} else {
 		if (physics.rid_body.is_valid()) {
@@ -541,9 +582,18 @@ void NPAgent::set_pathfind_external_jump_links(bool p_enable) {
 	_update_params();
 }
 
+void NPAgent::set_height(float p_height) {
+	if (p_height == data.height) {
+		return;
+	}
+	data.height = p_height;
+	_update_physics_shape();
+}
+
 void NPAgent::set_radius(float p_radius) {
 	data.radius = p_radius;
 	_update_params();
+	_update_physics_shape();
 }
 
 void NPAgent::set_friction(float p_friction) {
