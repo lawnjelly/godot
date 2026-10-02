@@ -84,6 +84,7 @@ private:
 	} data;
 
 	struct Physics {
+		bool enabled = false;
 		RID rid_body;
 		RID rid_shape;
 	} physics;
@@ -96,6 +97,7 @@ private:
 	float _shift_yaw(float p_from, float p_to, float p_max_change) const;
 	void update_yaw();
 	void _nav_physics_update_transform(const Transform &p_xform);
+	void _update_physics_enabled(bool p_exiting_tree = false);
 
 protected:
 	static void _bind_methods();
@@ -139,6 +141,9 @@ public:
 
 	void set_modifier_air_friction(float p_value);
 	float get_modifier_air_friction() const { return data.air_friction; }
+
+	void set_physics_enabled(bool p_enable);
+	bool is_physics_enabled() const { return physics.enabled; }
 
 	Vector3 get_debug_pos(int p_which) const;
 
