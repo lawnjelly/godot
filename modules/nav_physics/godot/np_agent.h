@@ -57,6 +57,7 @@ private:
 		float friction = 0.2;
 		float gravity = 0.02;
 		float radius = 0.5;
+		float height = 2;
 
 		// Modifiers
 		float uphill = -0.2;
@@ -87,6 +88,11 @@ private:
 		bool enabled = false;
 		RID rid_body;
 		RID rid_shape;
+
+		// The collision shape may need some local xform
+		// in order to line up with the agent global_xform
+		// (which is the base of the agent).
+		Transform shape_xform;
 	} physics;
 
 	static Transform _dummy_xform;
@@ -94,6 +100,7 @@ private:
 	void _update_process_mode();
 	//void _nav_update();
 	void _update_params();
+	void _update_physics_shape();
 	float _shift_yaw(float p_from, float p_to, float p_max_change) const;
 	void update_yaw();
 	void _nav_physics_update_transform(const Transform &p_xform);
@@ -123,6 +130,9 @@ public:
 
 	void set_radius(float p_radius);
 	float get_radius() const { return data.radius; }
+
+	void set_height(float p_height);
+	float get_height() const { return data.height; }
 
 	void set_friction(float p_friction);
 	float get_friction() const { return data.friction; }
