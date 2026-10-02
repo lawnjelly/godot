@@ -7,6 +7,7 @@
 
 namespace NavPhysics {
 
+// Sweep and Prune collision detection.
 class SAP {
 public:
 	struct Intersection {

@@ -118,11 +118,13 @@ void NPAgent::_bind_methods() {
 
 void NPAgent::_nav_physics_update_transform(const Transform &p_xform) {
 	set_transform(p_xform);
-	PhysicsServer *ps = PhysicsServer::get_singleton();
-	if (!ps || !physics.rid_body.is_valid()) {
+
+	if (!physics.rid_body.is_valid()) {
 		return;
 	}
-	ps->body_set_state(physics.rid_body, PhysicsServer::BODY_STATE_TRANSFORM, get_global_transform());
+	PhysicsServer *ps = PhysicsServer::get_singleton();
+	ERR_FAIL_NULL(ps);
+	ps->body_set_transform(physics.rid_body, get_global_transform(), PhysicsServer::BODY_TRANSFORM_MODE_WAKE_NEIGHBOURS);
 }
 
 void NPAgent::set_physics_enabled(bool p_enable) {
