@@ -107,6 +107,11 @@ public:
 	bool is_npc : 1;
 	bool on_floor : 1;
 
+	// We need two flags to maintain the on_agent flag, as we want a single tick delay
+	// to clear it, because of order of operations.
+	bool on_agent : 1;
+	bool on_agent_prev_tick : 1;
+
 	// When crossing jump links, we aren't grounded until
 	// we hit the floor after the link, so we can prevent ceiling collisions
 	// during the transition.
@@ -135,7 +140,11 @@ public:
 	freal downhill_modifier = 0;
 
 	freal gravity = 0;
+
+	// Height is the physical height of the agent,
+	// whereas agent_height is the height above the ground.
 	freal radius = 1.0;
+	freal height = 2.0;
 
 	// Final input and output,
 	// these may be transformed by the mesh,
@@ -146,6 +155,11 @@ public:
 	FPoint3 fpos3_teleport;
 
 	bool is_on_floor() const { return on_floor; }
+	bool is_on_agent() const { return on_agent; }
+	void set_on_agent() {
+		on_agent = true;
+		on_agent_prev_tick = true;
+	}
 	void apply_jump(float p_vel) {
 		jump_velocity += p_vel;
 	}
@@ -158,6 +172,17 @@ public:
 		jump_velocity = 0;
 	}
 	void iterate_jump(const freal *p_ceiling_height = nullptr) {
+		// Remove on_agent flag, it must be continuously set if we are
+		// walking on another agent.
+		if (on_agent) {
+			if (on_agent_prev_tick) {
+				on_agent_prev_tick = false;
+			} else {
+				on_agent = false;
+				// print_line("clearing on_agent");
+			}
+		}
+
 		// Initial jump off the floor.
 		if (on_floor && (jump_velocity > 0)) {
 			agent_height = floor_height + jump_velocity;
@@ -226,10 +251,12 @@ public:
 		state = AGENT_STATE_CLEAR;
 		is_npc = true;
 		on_floor = true;
+		on_agent = false;
+		on_agent_prev_tick = false;
 		grounded = true;
 		zone_id = UINT32_MAX;
 		blocking_zone_id = UINT32_MAX;
-		friction = 0.4;
+		friction = 0.5;
 
 		air_friction_modifier = 0;
 		uphill_modifier = 0;
@@ -237,6 +264,7 @@ public:
 
 		gravity = 0.1;
 		radius = 1;
+		height = 2;
 		fpos3.zero();
 		fvel3.zero();
 		fpos3_teleport.zero();

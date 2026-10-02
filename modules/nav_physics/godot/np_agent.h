@@ -54,7 +54,7 @@ private:
 		float yaw = 0;
 
 		float jump_vel = 0;
-		float friction = 0.2;
+		float friction = 0.5;
 		float gravity = 0.02;
 		float radius = 0.5;
 		float height = 2;
@@ -111,10 +111,16 @@ protected:
 	void _notification(int p_what);
 
 public:
+	enum FloorStatus : uint32_t {
+		ON_AIR = 0,
+		ON_FLOOR,
+		ON_AGENT,
+	};
+
 	void nav_teleport(const Vector3 &p_pos);
 	void apply_impulse(const Vector3 &p_impulse);
 	void apply_jump(float p_impulse);
-	bool is_on_floor() const;
+	FloorStatus is_on_floor() const;
 
 	bool get_guard_internal_jump_links() const { return data.guard_internal_jump_links; }
 	bool get_guard_external_jump_links() const { return data.guard_external_jump_links; }
@@ -188,4 +194,5 @@ public:
 };
 
 VARIANT_ENUM_CAST(NPAgent::PathStatus);
+VARIANT_ENUM_CAST(NPAgent::FloorStatus);
 VARIANT_ENUM_CAST(NPAgent::PathResult);

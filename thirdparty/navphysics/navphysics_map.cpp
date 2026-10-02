@@ -38,6 +38,66 @@ void Map::unregister_body(u32 p_body_id) {
 	_sap.remove_item(p_body_id);
 }
 
+bool Map::calculate_vertical_overlap_push(Agent &p_agent_a, Agent &p_agent_b) const {
+	// Height overlap.
+	freal a_bottom = p_agent_a.fpos3.y;
+	freal b_bottom = p_agent_b.fpos3.y;
+
+	Agent *lower = nullptr;
+	Agent *upper = nullptr;
+
+	if (a_bottom >= b_bottom) {
+		// A higher than B
+		lower = &p_agent_b;
+		upper = &p_agent_a;
+	} else {
+		// B higher than A
+		lower = &p_agent_a;
+		upper = &p_agent_b;
+	}
+
+	freal bottom = upper->fpos3.y;
+	freal top = lower->fpos3.y + lower->height;
+	freal overlap = top - bottom;
+
+	if (overlap <= 0) {
+		// No collision on the y axis.
+		// Still mark as on an agent if the upper is within a certain small threshold,
+		// to prevent vibration float error preventing jumps off agents.
+		if (overlap >= -0.1f) {
+			upper->set_on_agent();
+		}
+
+		return false;
+	}
+
+	freal radius = lower->radius;
+	NP_DEV_ASSERT(radius > 0);
+
+	if (overlap < radius) {
+		upper->set_on_agent();
+#if 0
+		freal push = overlap / radius;
+		push *= 0.01f;
+		push = 0;
+		upper->agent_height = lower->agent_height + lower->height;
+#endif
+
+		if (lower->is_on_floor()) {
+			upper->jump_velocity = MAX(lower->jump_velocity, upper->jump_velocity);
+		} else {
+			// Average the jump velocities.
+			// This isn't really any hard rules, just something that looks good.
+			freal average_jump_vel = (lower->jump_velocity + upper->jump_velocity) * 0.5f;
+
+			upper->jump_velocity = MAX(average_jump_vel, upper->jump_velocity);
+			lower->jump_velocity = average_jump_vel;
+		}
+	}
+
+	return true;
+}
+
 void Map::tick_update(freal p_delta) {
 	_sap.update();
 
@@ -47,22 +107,33 @@ void Map::tick_update(freal p_delta) {
 		Agent &agent_a = g_world.get_body(i.agent_id_a);
 		Agent &agent_b = g_world.get_body(i.agent_id_b);
 
-		FPoint3 offset = agent_b.fpos3 - agent_a.fpos3;
-		freal prox = offset.length();
-		freal radii = agent_a.radius + agent_b.radius;
-
-		// User could have chosen zero radius for both
-		if (radii <= 0) {
+		if (!calculate_vertical_overlap_push(agent_a, agent_b)) {
+			// No collision on the y axis.
 			continue;
 		}
 
+		// Debugging, stop moving on agents.
+		if (agent_a.on_agent || agent_b.on_agent) {
+			continue;
+		}
+
+		freal radii = agent_a.radius + agent_b.radius;
+
+		// Should be already checked in the SAP code.
+		NP_DEV_ASSERT(radii > 0);
+
+		/////////////////////////////////////////////
+		// 2D check first.
+		FPoint2 offset = agent_b.fpos3.xz() - agent_a.fpos3.xz();
+		freal prox = Math::sqrt_real(i.dist_squared);
+
 		// SAP should guarantee this
+#ifdef NP_DEV_ENABLED
 		NP_ERR_CONTINUE(prox > radii);
+#endif
 
 		// Scaled 0 with max overlap, 1 with no overlap.
 		freal overlap_fraction = (prox / radii);
-
-		//overlap_fraction = CLAMP(overlap_fraction, 0.5f, 1.0f);
 
 		// Apply some damping.
 		overlap_fraction *= overlap_fraction;
@@ -77,17 +148,17 @@ void Map::tick_update(freal p_delta) {
 			offset *= overlap_fraction / prox;
 		} else {
 			// choose random vector to push apart
-			offset = FPoint3::make(overlap_fraction, 0, 0);
+			offset = FPoint2::make(overlap_fraction, 0);
 		}
 
+		FPoint3 push = FPoint3::make(offset.x, 0, offset.y);
+
 		if (agent_a.priority > agent_b.priority) {
-			agent_a.avoidance_fvel3 -= offset * 2;
-			agent_b.avoidance_fvel3 += offset;
-			// agent_a.fvel3 -= offset * 2;
-			// agent_b.fvel3 += offset;
+			agent_a.avoidance_fvel3 -= push * 2;
+			agent_b.avoidance_fvel3 += push;
 		} else {
-			agent_a.avoidance_fvel3 -= offset;
-			agent_b.avoidance_fvel3 += offset * 2;
+			agent_a.avoidance_fvel3 -= push;
+			agent_b.avoidance_fvel3 += push * 2;
 		}
 
 		agent_a.fvel3 *= 0.5f;

@@ -21,6 +21,10 @@ void NPAgent::_bind_methods() {
 	BIND_ENUM_CONSTANT(PATH_FINISHED);
 	BIND_ENUM_CONSTANT(PATH_FAILED);
 
+	BIND_ENUM_CONSTANT(ON_AIR);
+	BIND_ENUM_CONSTANT(ON_FLOOR);
+	BIND_ENUM_CONSTANT(ON_AGENT);
+
 	BIND_ENUM_CONSTANT(PATH_RESULT_MOVING);
 	BIND_ENUM_CONSTANT(PATH_RESULT_BLOCKED);
 	//BIND_ENUM_CONSTANT(PATH_RESULT_REACHED_WAYPOINT);
@@ -430,6 +434,7 @@ void NPAgent::_update_params() {
 	ERR_FAIL_NULL(agent);
 
 	agent->radius = data.radius;
+	agent->height = data.height;
 	agent->friction = 1 - friction_multiplier;
 	agent->gravity = data.gravity;
 
@@ -520,17 +525,23 @@ void NPAgent::apply_jump(float p_impulse) {
 	}
 }
 
-bool NPAgent::is_on_floor() const {
+NPAgent::FloorStatus NPAgent::is_on_floor() const {
 #ifdef TOOLS_ENABLED
 	if (Engine::get_singleton()->is_editor_hint()) {
-		return false;
+		return ON_AIR;
 	}
 #endif
 	u32 agent_id;
 	NavPhysics::Agent *agent = NPWORLD.safe_get_body(data.h_agent, &agent_id);
-	ERR_FAIL_NULL_V(agent, false);
+	ERR_FAIL_NULL_V(agent, ON_AIR);
 
-	return agent->is_on_floor();
+	if (agent->is_on_floor()) {
+		return ON_FLOOR;
+	}
+	if (agent->is_on_agent()) {
+		return ON_AGENT;
+	}
+	return ON_AIR;
 }
 
 void NPAgent::apply_impulse(const Vector3 &p_impulse) {
@@ -540,7 +551,7 @@ void NPAgent::apply_impulse(const Vector3 &p_impulse) {
 	}
 #endif
 
-	Vector3 impulse = is_on_floor() ? p_impulse : p_impulse * data.air;
+	Vector3 impulse = (is_on_floor() != ON_AIR) ? p_impulse : p_impulse * data.air;
 
 	// Send to NavPhysics.
 	u32 agent_id;
@@ -587,6 +598,7 @@ void NPAgent::set_height(float p_height) {
 		return;
 	}
 	data.height = p_height;
+	_update_params();
 	_update_physics_shape();
 }
 
