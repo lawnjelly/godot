@@ -402,8 +402,16 @@ public:
 		BODY_STATE_CAN_SLEEP
 	};
 
+	enum BodyTransformMode {
+		BODY_TRANSFORM_MODE_DEFAULT,
+		BODY_TRANSFORM_MODE_WAKE_NEIGHBOURS,
+	};
+
 	virtual void body_set_state(RID p_body, BodyState p_state, const Variant &p_variant) = 0;
 	virtual Variant body_get_state(RID p_body, BodyState p_state) const = 0;
+
+	// The default mode can alternatively be set via body_set_state.
+	virtual void body_set_transform(RID p_body, const Transform &p_xform, BodyTransformMode p_mode) = 0;
 
 	//do something about it
 	virtual void body_set_applied_force(RID p_body, const Vector3 &p_force) = 0;
