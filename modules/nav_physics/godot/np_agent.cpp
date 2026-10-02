@@ -74,6 +74,10 @@ void NPAgent::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_npc", "enable"), &NPAgent::set_npc);
 	ClassDB::bind_method(D_METHOD("is_npc"), &NPAgent::is_npc);
 
+	// Physics
+	ClassDB::bind_method(D_METHOD("set_physics_enabled", "enable"), &NPAgent::set_physics_enabled);
+	ClassDB::bind_method(D_METHOD("is_physics_enabled"), &NPAgent::is_physics_enabled);
+
 	// Pathfinding.
 	ClassDB::bind_method(D_METHOD("move_to_agent", "agent"), &NPAgent::move_to_agent);
 	ClassDB::bind_method(D_METHOD("get_path_status"), &NPAgent::get_path_status);
@@ -102,6 +106,9 @@ void NPAgent::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "modifier_uphill", PROPERTY_HINT_RANGE, "-1,1"), "set_modifier_uphill", "get_modifier_uphill");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "modifier_downhill", PROPERTY_HINT_RANGE, "-1,1"), "set_modifier_downhill", "get_modifier_downhill");
 
+	ADD_GROUP("Physics", "physics_");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "physics_enabled"), "set_physics_enabled", "is_physics_enabled");
+
 	ADD_GROUP("Links", "links_");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "links_guard_internal"), "set_guard_internal_jump_links", "get_guard_internal_jump_links");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "links_guard_external"), "set_guard_external_jump_links", "get_guard_external_jump_links");
@@ -118,17 +125,39 @@ void NPAgent::_nav_physics_update_transform(const Transform &p_xform) {
 	ps->body_set_state(physics.rid_body, PhysicsServer::BODY_STATE_TRANSFORM, get_global_transform());
 }
 
-void NPAgent::_notification(int p_what) {
-	switch (p_what) {
-		case NOTIFICATION_READY: {
-			PhysicsServer *ps = PhysicsServer::get_singleton();
-			ERR_FAIL_NULL(ps);
+void NPAgent::set_physics_enabled(bool p_enable) {
+	if (p_enable == physics.enabled) {
+		return;
+	}
+
+	physics.enabled = p_enable;
+
+	if (!is_inside_tree()) {
+		return;
+	}
+	_update_physics_enabled();
+}
+
+void NPAgent::_update_physics_enabled(bool p_exiting_tree) {
+	DEV_ASSERT(is_inside_tree());
+
+	if (Engine::get_singleton()->is_editor_hint()) {
+		return;
+	}
+
+	PhysicsServer *ps = PhysicsServer::get_singleton();
+	ERR_FAIL_NULL(ps);
+
+	if (physics.enabled && !p_exiting_tree) {
+		DEV_CHECK(!physics.rid_body.is_valid());
+		if (!physics.rid_body.is_valid()) {
 			physics.rid_body = ps->body_create(PhysicsServer::BODY_MODE_KINEMATIC);
 			if (get_world().is_valid()) {
 				RID rid_space = get_world()->get_space();
 				ps->body_set_space(physics.rid_body, rid_space);
 			}
 
+			DEV_ASSERT(!physics.rid_shape.is_valid());
 			physics.rid_shape = ps->shape_create(PhysicsServer::SHAPE_CAPSULE);
 
 			Dictionary capsule_data;
@@ -141,18 +170,26 @@ void NPAgent::_notification(int p_what) {
 			ps->body_set_collision_mask(physics.rid_body, 1);
 
 			ps->body_set_state(physics.rid_body, PhysicsServer::BODY_STATE_TRANSFORM, get_global_transform());
+		}
+	} else {
+		if (physics.rid_body.is_valid()) {
+			ps->free(physics.rid_body);
+			physics.rid_body = RID();
+		}
+		if (physics.rid_shape.is_valid()) {
+			ps->free(physics.rid_shape);
+			physics.rid_shape = RID();
+		}
+	}
+}
+
+void NPAgent::_notification(int p_what) {
+	switch (p_what) {
+		case NOTIFICATION_READY: {
+			_update_physics_enabled();
 		} break;
 		case NOTIFICATION_EXIT_TREE: {
-			PhysicsServer *ps = PhysicsServer::get_singleton();
-			ERR_FAIL_NULL(ps);
-			if (physics.rid_body.is_valid()) {
-				ps->free(physics.rid_body);
-				physics.rid_body = RID();
-			}
-			if (physics.rid_shape.is_valid()) {
-				ps->free(physics.rid_shape);
-				physics.rid_shape = RID();
-			}
+			_update_physics_enabled(true);
 		} break;
 		case NOTIFICATION_INTERNAL_PHYSICS_PROCESS: {
 			//_nav_update();
