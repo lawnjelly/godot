@@ -23,6 +23,7 @@ class Map {
 	SAP _sap;
 	u32 _map_id = UINT32_MAX;
 	bool update_agent_mesh(Agent &r_agent, bool p_teleport_if_changed);
+	bool calculate_vertical_overlap_push(Agent &p_agent_a, Agent &p_agent_b) const;
 
 public:
 	struct IterateResult {

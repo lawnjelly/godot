@@ -13,6 +13,7 @@ public:
 	struct Intersection {
 		u32 agent_id_a = UINT32_MAX;
 		u32 agent_id_b = UINT32_MAX;
+		freal dist_squared = 0;
 	};
 
 private:

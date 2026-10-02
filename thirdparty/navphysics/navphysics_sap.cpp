@@ -81,15 +81,28 @@ void SAP::update() {
 			// possible collision, do in depth check
 			Agent &agent_b = g_world.get_body(b.agent_id);
 
+			// User could have chosen zero radius for both,
+			// in which case no collision can happen.
+			// (N.B. maybe this check can be omitted if we force non-zero size).
+			if (agent_a.radius <= 0) {
+				continue;
+			}
+			if (agent_b.radius <= 0) {
+				continue;
+			}
+
 			freal combined_radii = agent_a.radius + agent_b.radius;
 			combined_radii *= combined_radii;
 
-			freal dist = (agent_b.fpos3 - agent_a.fpos3).length_squared();
+			// 2D collision check only, handle heights in the avoidance code.
+			freal dist = (agent_b.fpos3.xz() - agent_a.fpos3.xz()).length_squared();
+
 			if (dist < combined_radii) {
 				// hit
 				Intersection it;
 				it.agent_id_a = a.agent_id;
 				it.agent_id_b = b.agent_id;
+				it.dist_squared = dist;
 				_intersections.push_back(it);
 			}
 		}
