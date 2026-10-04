@@ -16,6 +16,10 @@
 #define NP_LLOG_ACTIVE
 #endif
 
+#if 0
+#define NP_LLLOG_ACTIVE
+#endif
+
 #endif
 
 #ifdef NP_LOG_ACTIVE
@@ -25,15 +29,21 @@
 #endif
 
 #ifdef NP_LLOG_ACTIVE
-#define NP_LLOG(a) llog(a)
+#define NP_LLOG(a) log(a)
 #else
 #define NP_LLOG(a)
 #endif
 
 #ifdef NP_LLOG_ACTIVE
-#define NP_LLOG2(a, b) llog(a, b)
+#define NP_LLOG2(a, b) log(a, b)
 #else
 #define NP_LLOG2(a, b)
+#endif
+
+#ifdef NP_LLLOG_ACTIVE
+#define NP_LLLOG(a) log(a)
+#else
+#define NP_LLLOG(a)
 #endif
 
 namespace NavPhysics {

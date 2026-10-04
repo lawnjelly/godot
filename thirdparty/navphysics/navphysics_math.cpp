@@ -23,6 +23,18 @@ freal Math::atan2_real(freal p_a, freal p_b) {
 	return ::atan2(p_a, p_b);
 }
 
+freal Math::fabs_real(freal p_v) {
+	return fabs(p_v);
+}
+
+freal Math::fabs(f32 p_v) {
+	return ::fabsf(p_v);
+}
+
+freal Math::fabs(f64 p_v) {
+	return ::fabs(p_v);
+}
+
 u32 Math::rand() {
 	return ::rand();
 }

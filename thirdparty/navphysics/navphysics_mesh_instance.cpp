@@ -188,10 +188,10 @@ void MeshInstance::teleport_agent(Agent &r_agent) {
 
 	// Get the fixed point velocity into the new local space.
 	//r_agent.vel.zero();
-	FPoint3 vel_local = get_transform_inverse().basis.xform(r_agent.fvel3);
+	FPoint3 vel_local = get_transform_inverse().basis.xform(r_agent.fimpulse3);
 	r_agent.vel = mesh.float_to_fixed_point_vel(FPoint2::make(vel_local.x, vel_local.z));
 
-	NP_LOG(String("teleport world vel: ") + r_agent.fvel3 + ", local vel: " + vel_local + ", vec FP: " + r_agent.vel);
+	NP_LOG(String("teleport world vel: ") + r_agent.fimpulse3 + ", local vel: " + vel_local + ", vec FP: " + r_agent.vel);
 
 	r_agent.pos = mesh.float_to_fixed_point_2(r_agent.fpos);
 
@@ -276,8 +276,6 @@ void MeshInstance::agent_get_info(const Agent &p_agent, BodyInfo &r_body_info) c
 void MeshInstance::iterate_agent(Agent &r_agent, Mesh::MoveInfo &r_move_info) {
 	//print_line("c++ agent at pos " + String(Variant(r_agent.fpos)));
 
-	r_agent.fvel = FPoint2::make(r_agent.fvel3.x, r_agent.fvel3.z);
-
 	// has the f32 position moved significantly? if not, retain
 	// the fixed point position as this is the gold standard
 	//IPoint2 new_pos_fp = float_to_fixed_point_2(r_agent.fpos);
@@ -289,12 +287,13 @@ void MeshInstance::iterate_agent(Agent &r_agent, Mesh::MoveInfo &r_move_info) {
 	const Mesh &mesh = get_mesh();
 
 	if (!AgentStatus::is_in_jump_link()) {
-		IPoint2 vel_add = mesh.float_to_fixed_point_vel(r_agent.fvel);
-		r_agent.vel += vel_add;
+		IPoint2 impulse = mesh.float_to_fixed_point_vel(r_agent.fimpulse3.xz());
+		r_agent.vel += impulse;
 	}
 
 	_iterate_agent(r_agent, r_move_info);
-
+	r_agent.instant_impulse.zero();
+	
 	bool changed_mesh_instance = r_move_info.new_mesh_instance_id != UINT32_MAX;
 
 	if (!changed_mesh_instance) {
@@ -305,8 +304,10 @@ void MeshInstance::iterate_agent(Agent &r_agent, Mesh::MoveInfo &r_move_info) {
 	} else {
 		NP_LLOG("changed mesh instance");
 	}
-
-	r_agent.fvel = mesh.fixed_point_vel_to_float(r_agent.vel);
+	
+	// Return the fixed point space to float space after iteration,
+	// to allow avoidance etc on the next tick.
+	// r_agent.fvel = mesh.fixed_point_vel_to_float(r_agent.vel);
 }
 
 void MeshInstance::refresh_world_space_agent_position(Agent &r_agent, bool p_remake_pos) const {
@@ -773,8 +774,13 @@ void MeshInstance::_agent_slide_on_ceiling(Agent &r_agent, Mesh::MoveInfo &r_mov
 
 void MeshInstance::_iterate_agent(Agent &r_agent, Mesh::MoveInfo &r_move_info) {
 	Agent &ag = r_agent;
-
-	IPoint2 agent_remaining_velocity = ag.vel;
+	
+	// The acting velocity also takes into account the instant impulse,
+	// which is not proper physics, but allows separation bodges on a single tick.
+	NP_LLLOG(String("\tvel : ") + ag.vel.x + ", instant_vel : " + ag.instant_impulse.x);
+	IPoint2 acting_velocity = ag.vel;// + ag.instant_impulse;
+	
+	IPoint2 agent_remaining_velocity = acting_velocity;
 	freal agent_remaining_magnitude = agent_remaining_velocity.lengthf();
 
 	// The old pos is used to calculate the velocity in the next iteration,
@@ -811,8 +817,7 @@ void MeshInstance::_iterate_agent(Agent &r_agent, Mesh::MoveInfo &r_move_info) {
 
 	//IPoint2 old_pos = ag.pos;
 
-	IPoint2 dir = ag.vel;
-	//var dir = agent._vel
+	IPoint2 dir = acting_velocity;
 	dir.normalize();
 #ifdef NP_DEV_EXCESSIVE_CHECKS
 	NP_LLOG(String("iterate pos ") + str(ag.pos) + ", vel " + str(ag.vel) + ", poly " + itos(ag.poly_id));
@@ -882,6 +887,7 @@ void MeshInstance::_iterate_agent(Agent &r_agent, Mesh::MoveInfo &r_move_info) {
 		ag.wall_id = minfo.wall_id;
 
 		ag.vel = ag.pos - old_pos;
+		//ag.vel -= ag.instant_impulse;
 		//		ag.blocking_zone_id = UINT32_MAX;
 	} else {
 		// debugging, record the blocking narrowing
