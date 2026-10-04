@@ -98,6 +98,164 @@ bool Map::calculate_vertical_overlap_push(Agent &p_agent_a, Agent &p_agent_b) co
 	return true;
 }
 
+void Map::resolve_zero_bounce_collision(Agent &p_agent_a, Agent &p_agent_b) const {
+	IPoint2 &a_pos = p_agent_a.pos;
+	IPoint2 &a_vel = p_agent_a.vel;
+	IPoint2 &b_pos = p_agent_b.pos;
+	IPoint2 &b_vel = p_agent_b.vel;
+
+	/*
+	// We can work out whether the agents are moving closer to each other using their next
+	// predicted position (although note this doesn't take account of prior avoidance).
+	IPoint2 predicted_a_pos = a_pos + a_vel;
+	IPoint2 predicted_b_pos = b_pos + b_vel;
+	u64 current_prox = (b_pos - a_pos).length_squared();
+	u64 predicted_prox = (predicted_b_pos - predicted_a_pos).length_squared();
+
+	// If they are moving away, do nothing.
+	if (predicted_prox >= current_prox)
+	{
+		return;
+	}
+	*/
+
+#if 0	
+	//
+	if (predicted_prox < current_prox) {
+		//	}
+
+		//	freal dot_vel = a_vel.dot_normalized(b_vel);
+		//	print_line(dot_vel);
+
+		//	// If they are moving together, combine their velocities.
+		//	if (dot_vel > 0)
+		//	{
+		// Find normal collision vector.
+		IPoint2 rel_pos = b_pos - a_pos;
+		IPoint2 rel_normal = rel_pos;
+		rel_normal.normalize();
+
+		// Extract normal velocities.
+		freal v_a_n = a_vel.dot_normalized(rel_normal);
+		freal v_b_n = b_vel.dot_normalized(rel_normal);
+
+		// Calculate the shared target velocity.
+		// The two circles must have the same velocity along the normal axis after impact.
+		//IPoint2 vel_shared = v_a_n
+	}
+#endif
+
+	// 1. Convert positions to float space for precise geometric operations
+
+	FPoint2 pos_a = p_agent_a.pos.to_f32();
+	FPoint2 pos_b = p_agent_b.pos.to_f32();
+
+	// 2. Calculate relative positions and distance
+	FPoint2 rel_pos = pos_b - pos_a;
+	freal distance = rel_pos.length();
+
+	// Guard against identical overlapping center coordinates to avoid dividing by zero
+	if (distance == 0) {
+		return;
+	}
+
+	//freal radii = p_agent_a.radius + p_agent_b.radius;
+
+#if 0
+		   // 3. Check if they are actually intersecting
+	float totalRadius = static_cast<float>(a_rad + b.radius);
+	float overlap = totalRadius - distance;
+	
+	if (overlap <= 0.0f) {
+		return; // No intersection, no action needed
+	}
+#endif
+
+	// 4. Determine normal unit vector
+	FPoint2 normal(rel_pos.x / distance, rel_pos.y / distance);
+
+	// 5. Positional Correction (The "Push" apart)
+	// Distribute push based on mass inverse ratios (lighter objects move more)
+	freal a_mass = 1;
+	freal b_mass = 1;
+
+	freal total_mass = a_mass + b_mass;
+	if (total_mass <= 0)
+		return; // Guard against invalid mass data
+
+	freal correctionRatioA = b_mass / total_mass;
+	freal correctionRatioB = a_mass / total_mass;
+
+#if 0
+	posA = posA - (normal * overlap * correctionRatioA);
+	posB = posB + (normal * overlap * correctionRatioB);
+	
+		   // Write corrected float positions back into the integer structures (using round)
+	a.position.x = static_cast<int>(std::round(posA.x));
+	a.position.y = static_cast<int>(std::round(posA.y));
+	b.position.x = static_cast<int>(std::round(posB.x));
+	b.position.y = static_cast<int>(std::round(posB.y));
+#endif
+
+	// 6. Velocity Modification (Combine along normal axis)
+	FPoint2 vel_a = a_vel.to_f32();
+	FPoint2 vel_b = b_vel.to_f32();
+
+	// Extract scalar normal components via dot product
+	freal vel_a_normal = vel_a.dot(normal);
+	freal vel_b_normal = vel_b.dot(normal);
+
+	// Only modify velocities if they are moving TOWARD each other
+	// This prevents stuck edge-cases where objects get glued while separating
+	freal relative_normal_vel = vel_b_normal - vel_a_normal;
+	if (relative_normal_vel < 0.0f) {
+		// Calculate shared inelastic target velocity using conservation of momentum
+		freal shared_vel_normal = (a_mass * vel_a_normal + b_mass * vel_b_normal) / total_mass;
+
+		// Spacing push, assumes they are on the same mesh.
+		freal radii = p_agent_a.radius_mesh_units + p_agent_b.radius_mesh_units;
+		IPoint2 instant_impulse;
+		if (distance < radii) {
+			freal overlap = radii - distance;
+			NP_LLLOG(String("\toverlap : ") + overlap);
+
+			freal spacing_push = overlap / (1);
+			instant_impulse.from_f32(normal * spacing_push);
+		}
+
+		// Apply delta impulses back to float velocities
+		//		velA = velA + normal * (sharedVelNormal - velANormal - spacing_push);
+		//		velB = velB + normal * (sharedVelNormal - velBNormal + spacing_push);
+
+		freal a_mult = shared_vel_normal - vel_a_normal;
+		freal b_mult = shared_vel_normal - vel_b_normal;
+
+		// Decide which is dominant.
+		if (Math::fabs_real(vel_a_normal) >= Math::fabs_real(vel_b_normal)) {
+			p_agent_b.instant_impulse += instant_impulse;
+		} else {
+			p_agent_a.instant_impulse -= instant_impulse;
+		}
+		vel_a += normal * a_mult;
+		vel_b += normal * b_mult;
+
+		// Convert modified velocities back to your integer space structures
+		a_vel.from_f32(vel_a);
+		b_vel.from_f32(vel_b);
+
+#if 1
+		IPoint2 predicted_a = a_pos + a_vel + p_agent_a.instant_impulse;
+		IPoint2 predicted_b = b_pos + b_vel + p_agent_b.instant_impulse;
+		freal predicted_separation = (predicted_b - predicted_a).lengthf();
+		freal predicted_overlap = radii - predicted_separation;
+		NP_LLLOG(String("\tradii : ") + radii + ", predicted_overlap : " + predicted_overlap);
+
+#endif
+
+		//log(String(a_vel) + ", " + b_vel);
+	}
+}
+
 void Map::tick_update(freal p_delta) {
 	_sap.update();
 
@@ -132,6 +290,9 @@ void Map::tick_update(freal p_delta) {
 		NP_ERR_CONTINUE(prox > radii);
 #endif
 
+		resolve_zero_bounce_collision(agent_a, agent_b);
+		continue;
+
 		// Scaled 0 with max overlap, 1 with no overlap.
 		freal overlap_fraction = (prox / radii);
 
@@ -141,7 +302,7 @@ void Map::tick_update(freal p_delta) {
 		overlap_fraction = 1 - overlap_fraction;
 
 		// scale the push apart force
-		overlap_fraction *= 0.01f; // 0.3
+		overlap_fraction *= 0.3f; // 0.3
 
 		if (prox > 0.001f) {
 			// Normalize offset and scale by overlap_fraction.
@@ -153,6 +314,7 @@ void Map::tick_update(freal p_delta) {
 
 		FPoint3 push = FPoint3::make(offset.x, 0, offset.y);
 
+#if 0
 		if (agent_a.priority > agent_b.priority) {
 			agent_a.avoidance_fvel3 -= push * 2;
 			agent_b.avoidance_fvel3 += push;
@@ -160,9 +322,16 @@ void Map::tick_update(freal p_delta) {
 			agent_a.avoidance_fvel3 -= push;
 			agent_b.avoidance_fvel3 += push * 2;
 		}
+#else
+		agent_a.avoidance_fvel3 -= push;
+		agent_b.avoidance_fvel3 += push;
+#endif
 
-		agent_a.fvel3 *= 0.5f;
-		agent_b.fvel3 *= 0.5f;
+		// Not sure what this was for, so commenting out.
+		// Both these seem to be zeroed at this point, and only
+		// the fixed point vel is valid.
+		// agent_a.fvel3 *= 0.5f;
+		// agent_b.fvel3 *= 0.5f;
 
 		agent_a.state = AGENT_STATE_PENDING_COLLIDING;
 		agent_b.state = AGENT_STATE_PENDING_COLLIDING;
@@ -268,6 +437,11 @@ bool Map::update_agent_mesh(Agent &r_agent, bool p_teleport_if_changed) {
 		NP_LOG(String("Agent ") + String(r_agent.agent_id) + " is on mesh " + String(best_mesh_instance_id) + ".");
 		r_agent.set_mesh_instance_id(best_mesh_instance_id);
 
+		// Make sure we keep the mesh unit radius up to date when changing mesh.
+		MeshInstance &meshi = g_world.get_mesh_instance(r_agent.get_mesh_instance_id());
+		const Mesh &mesh = meshi.get_mesh();
+		r_agent.radius_mesh_units = mesh.get_agent_radius();
+
 		// teleport
 		if (p_teleport_if_changed) {
 			body_teleport(r_agent, r_agent.agent_id, r_agent.fpos3_teleport);
@@ -280,6 +454,37 @@ bool Map::update_agent_mesh(Agent &r_agent, bool p_teleport_if_changed) {
 		}
 	}
 	return true;
+}
+
+void Map::prepare_agent(u32 p_agent_id) {
+	AgentStatus::reset();
+	Agent &agent = g_world.get_body(p_agent_id);
+	NP_DEV_ASSERT(agent.agent_id == p_agent_id);
+
+	if (!agent.map) {
+		return;
+	}
+
+	NavPhysics::Map *map = NavPhysics::g_world.safe_get_map(agent.map);
+	NP_ERR_FAIL_NULL(map);
+
+	if (!update_agent_mesh(agent, true)) {
+		return;
+	}
+
+	NP_DEV_ASSERT(agent.get_mesh_instance_id() != UINT32_MAX);
+	MeshInstance &mesh_instance = g_world.get_mesh_instance(agent.get_mesh_instance_id());
+
+	// Get the velocity into local navmesh space
+	FPoint3 local_impulse = mesh_instance.get_transform_inverse().basis.xform(agent.fimpulse3);
+
+	if (!AgentStatus::is_in_jump_link()) {
+		const Mesh &mesh = mesh_instance.get_mesh();
+
+		IPoint2 impulse = mesh.float_to_fixed_point_vel(local_impulse.xz());
+		agent.vel += impulse;
+		agent.fimpulse3.zero();
+	}
 }
 
 bool Map::iterate_agent(u32 p_agent_id, IterateResult &r_result) {
@@ -336,7 +541,7 @@ bool Map::iterate_agent(u32 p_agent_id, IterateResult &r_result) {
 				FPoint3 avel = agent.avoidance_fvel3.normalized() * l;
 
 				// Apply avoidance.
-				agent.fvel3 += avel;
+				agent.fimpulse3 += avel;
 			}
 #else
 			agent.fvel3 += agent.avoidance_fvel3;
@@ -344,7 +549,9 @@ bool Map::iterate_agent(u32 p_agent_id, IterateResult &r_result) {
 		}
 
 		// Get the velocity into local navmesh space
-		agent.fvel3 = mesh_instance.get_transform_inverse().basis.xform(agent.fvel3);
+		agent.fimpulse3 = mesh_instance.get_transform_inverse().basis.xform(agent.fimpulse3);
+
+		NP_LLLOG(String("agent : ") + p_agent_id);
 		mesh_instance.iterate_agent(agent, move_info);
 
 		if (!AgentStatus::changing_mesh()) {
@@ -362,7 +569,7 @@ bool Map::iterate_agent(u32 p_agent_id, IterateResult &r_result) {
 			// so the two coordinate spaces of the previous and new mesh match.
 			//agent.fvel3 = mesh_instance.get_transform().basis.xform(FPoint3(agent.fvel));
 
-			NP_LOG(String("Changing mesh instance to ") + move_info.new_mesh_instance_id + ", new world space vel: " + agent.fvel3 + ", new world space pos: " + agent.fpos3);
+			NP_LOG(String("Changing mesh instance to ") + move_info.new_mesh_instance_id + ", new world space vel: " + agent.fimpulse3 + ", new world space pos: " + agent.fpos3);
 
 			body_teleport_to_agent_status_jump_target(agent, p_agent_id);
 
@@ -378,9 +585,9 @@ bool Map::iterate_agent(u32 p_agent_id, IterateResult &r_result) {
 			mesh_instance_new.refresh_world_space_agent_position(agent, true);
 		}
 
-		r_result.velocity = agent.fvel3;
+		r_result.velocity = agent.fimpulse3;
 		r_result.position = agent.fpos3;
-		agent.fvel3.zero();
+		agent.fimpulse3.zero();
 
 		NP_LOG(String("ITERATE final pos ") + agent.fpos3);
 	}
@@ -435,6 +642,7 @@ void Map::body_teleport_to_agent_status_jump_target(Agent &r_agent, u32 p_agent_
 
 	MeshInstance &meshi = g_world.get_mesh_instance(r_agent.get_mesh_instance_id());
 	const Mesh &mesh = meshi.get_mesh();
+	r_agent.radius_mesh_units = mesh.get_agent_radius();
 
 	// Compare the result of the world space velocity.
 	// If the mesh instance has rotated since the jump, we will use
@@ -652,8 +860,24 @@ void World::tick_update(u64 p_tick, freal p_delta) {
 		return;
 	}
 
-	// Update pathfinding.
+	// 1. Update pathfinding.
 	get_plan_store().iterate();
+
+	// 2. Apply impulses to local velocity.
+	for (u32 n = 0; n < _agents.active_size(); n++) {
+		u32 agent_id = _agents.get_active_id(n);
+
+		Agent &agent = g_world.get_body(agent_id);
+		NP_DEV_ASSERT(agent.agent_id == agent_id);
+
+		if (!agent.map) {
+			continue;
+		}
+
+		NavPhysics::Map *map = NavPhysics::g_world.safe_get_map(agent.map);
+		NP_ERR_CONTINUE(!map);
+		map->prepare_agent(agent_id);
+	}
 
 	// do agent-agent bouncing
 	for (u32 n = 0; n < _maps.pool.active_size(); n++) {

@@ -24,8 +24,10 @@ class Map {
 	u32 _map_id = UINT32_MAX;
 	bool update_agent_mesh(Agent &r_agent, bool p_teleport_if_changed);
 	bool calculate_vertical_overlap_push(Agent &p_agent_a, Agent &p_agent_b) const;
+	void resolve_zero_bounce_collision(Agent &p_agent_a, Agent &p_agent_b) const;
 
 public:
+	
 	struct IterateResult {
 		FPoint3 position;
 		FPoint3 velocity;
@@ -36,6 +38,8 @@ public:
 
 	void body_teleport(Agent &r_agent, u32 p_agent_id, const FPoint3 &p_pos);
 	void body_teleport_to_agent_status_jump_target(Agent &r_agent, u32 p_agent_id);
+	
+	void prepare_agent(u32 p_agent_id);
 	bool iterate_agent(u32 p_agent_id, IterateResult &r_result);
 
 	void register_body(u32 p_body_id);

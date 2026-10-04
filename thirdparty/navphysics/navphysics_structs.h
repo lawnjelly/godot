@@ -82,7 +82,7 @@ public:
 	IPoint2 pos;
 	IPoint2 vel;
 	FPoint2 fpos;
-	FPoint2 fvel;
+	//FPoint2 fvel;
 	float yaw = 0;
 	float worldspace_yaw = 0;
 
@@ -128,6 +128,10 @@ public:
 
 	u16 priority = 0;
 
+	// Keep this up to date as we move between meshes,
+	// use it for collision response.
+	u32 radius_mesh_units = 0;
+
 	// each obstacle has an effect here, this is reported back to the client
 	// for avoidance
 	FPoint3 avoidance_fvel3;
@@ -150,7 +154,12 @@ public:
 	// these may be transformed by the mesh,
 	// and may not be in mesh space except during iteration.
 	FPoint3 fpos3;
-	FPoint3 fvel3;
+	FPoint3 fimpulse3;
+	
+	// This is a separation bodge for agent collision.
+	// It is added to the velocity on the next frame only,
+	// then re-zeroed, so that there is no bouncing.
+	IPoint2 instant_impulse;
 
 	FPoint3 fpos3_teleport;
 
@@ -243,6 +252,7 @@ public:
 		mesh_instance_id = UINT32_MAX;
 		pos.zero();
 		vel.zero();
+		instant_impulse.zero();
 		floor_height = 0;
 		agent_height = 0;
 		jump_velocity = 0;
@@ -266,7 +276,7 @@ public:
 		radius = 1;
 		height = 2;
 		fpos3.zero();
-		fvel3.zero();
+		fimpulse3.zero();
 		fpos3_teleport.zero();
 		// callback.receiver = nullptr;
 		priority = 0;

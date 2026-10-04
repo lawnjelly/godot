@@ -557,7 +557,7 @@ void NPAgent::apply_impulse(const Vector3 &p_impulse) {
 	u32 agent_id;
 	NavPhysics::Agent *agent = NPWORLD.safe_get_body(data.h_agent, &agent_id);
 	ERR_FAIL_NULL(agent);
-	agent->fvel3 += *(NavPhysics::FPoint3 *)&impulse;
+	agent->fimpulse3 += *(NavPhysics::FPoint3 *)&impulse;
 }
 
 NPAgent::NPAgent() {
