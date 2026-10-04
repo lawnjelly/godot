@@ -7,7 +7,11 @@
 
 namespace NavPhysics {
 
-struct Math {
+class Math {
+	static freal fabs(f32 p_v);
+	static freal fabs(f64 p_v);
+	
+public:
 	static constexpr f32 NP_CMP_EPSILON = 0.00001;
 
 	static constexpr f64 NP_TAU = 6.2831853071795864769252867666;
@@ -17,6 +21,8 @@ struct Math {
 	static f64 sqrt64(f64 p_v);
 	static freal sqrt_real(freal p_v);
 	static freal atan2_real(freal p_a, freal p_b);
+
+	static freal fabs_real(freal p_v);
 
 	static u32 rand();
 	static f32 randf();

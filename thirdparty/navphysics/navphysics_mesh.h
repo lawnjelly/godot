@@ -195,6 +195,7 @@ public:
 
 	const MeshParams &get_mesh_params() const { return mesh_params; }
 	const PolyExtra &get_poly_extra(u32 p_idx) const { return _polys_extra[p_idx]; }
+	u32 get_agent_radius() const {return extension_data.agent_radius;}
 
 protected:
 	// Accessors.
@@ -262,10 +263,11 @@ protected:
 	void debug_poly(u32 p_poly_id) const;
 	
 	// Conversion helpers.
+public:
 	IPoint2 float_to_fixed_point_vel(const FPoint2 &p_vel) const {
 		return IPoint2::make(p_vel * _f32_to_fp_scale);
 	}
-
+protected:
 	FPoint2 fixed_point_vel_to_float(const IPoint2 &p_vel) const {
 		return FPoint2::make(p_vel.x, p_vel.y) * _fp_to_f32_scale;
 	}
