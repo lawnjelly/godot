@@ -52,13 +52,17 @@ struct [[nodiscard]] IPoint2 {
 		x = p_v.x;
 		y = p_v.y;
 	}
-	void normalize_to_scale(freal p_scale) {
+	freal normalize_to_scale(freal p_scale) {
 		FPoint2 temp = to_f32();
-		temp.normalize();
+		freal length = temp.normalize();
 		temp *= p_scale;
 		from_f32(temp);
+		return length;
 	}
-	void normalize() { normalize_to_scale(NORMALIZE_RANGE); }
+	freal normalize() { return normalize_to_scale(NORMALIZE_RANGE); }
+
+	i64 dot(const IPoint2 &p_v) const { return ((i64)x * p_v.x) + ((i64)y * p_v.y); }
+
 	freal dot_normalized(const IPoint2 &p_o) const {
 		FPoint2 v0 = to_f32();
 		FPoint2 v1 = p_o.to_f32();
