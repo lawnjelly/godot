@@ -104,146 +104,90 @@ void Map::resolve_zero_bounce_collision(Agent &p_agent_a, Agent &p_agent_b) cons
 	IPoint2 &b_pos = p_agent_b.pos;
 	IPoint2 &b_vel = p_agent_b.vel;
 
-	/*
-	// We can work out whether the agents are moving closer to each other using their next
-	// predicted position (although note this doesn't take account of prior avoidance).
-	IPoint2 predicted_a_pos = a_pos + a_vel;
-	IPoint2 predicted_b_pos = b_pos + b_vel;
-	u64 current_prox = (b_pos - a_pos).length_squared();
-	u64 predicted_prox = (predicted_b_pos - predicted_a_pos).length_squared();
+	// Relative position, normal and distance.
+	IPoint2 rel_pos = b_pos - a_pos;
+	IPoint2 normal = rel_pos;
 
-	// If they are moving away, do nothing.
-	if (predicted_prox >= current_prox)
-	{
-		return;
-	}
-	*/
+	// Length will be freal, but we only need int accuracy here.
+	u32 distance = normal.normalize();
 
-#if 0	
-	//
-	if (predicted_prox < current_prox) {
-		//	}
-
-		//	freal dot_vel = a_vel.dot_normalized(b_vel);
-		//	print_line(dot_vel);
-
-		//	// If they are moving together, combine their velocities.
-		//	if (dot_vel > 0)
-		//	{
-		// Find normal collision vector.
-		IPoint2 rel_pos = b_pos - a_pos;
-		IPoint2 rel_normal = rel_pos;
-		rel_normal.normalize();
-
-		// Extract normal velocities.
-		freal v_a_n = a_vel.dot_normalized(rel_normal);
-		freal v_b_n = b_vel.dot_normalized(rel_normal);
-
-		// Calculate the shared target velocity.
-		// The two circles must have the same velocity along the normal axis after impact.
-		//IPoint2 vel_shared = v_a_n
-	}
-#endif
-
-	// 1. Convert positions to float space for precise geometric operations
-
-	FPoint2 pos_a = p_agent_a.pos.to_f32();
-	FPoint2 pos_b = p_agent_b.pos.to_f32();
-
-	// 2. Calculate relative positions and distance
-	FPoint2 rel_pos = pos_b - pos_a;
-	freal distance = rel_pos.length();
-
-	// Guard against identical overlapping center coordinates to avoid dividing by zero
+	// Guard against identical overlapping center coordinates to avoid dividing by zero.
+	// Todo: this could use a random vector to repel.
 	if (distance == 0) {
 		return;
 	}
 
-	//freal radii = p_agent_a.radius + p_agent_b.radius;
-
-#if 0
-		   // 3. Check if they are actually intersecting
-	float totalRadius = static_cast<float>(a_rad + b.radius);
-	float overlap = totalRadius - distance;
-	
-	if (overlap <= 0.0f) {
-		return; // No intersection, no action needed
-	}
-#endif
-
-	// 4. Determine normal unit vector
-	FPoint2 normal(rel_pos.x / distance, rel_pos.y / distance);
-
-	// 5. Positional Correction (The "Push" apart)
-	// Distribute push based on mass inverse ratios (lighter objects move more)
-	freal a_mass = 1;
-	freal b_mass = 1;
-
-	freal total_mass = a_mass + b_mass;
-	if (total_mass <= 0)
-		return; // Guard against invalid mass data
-
-	freal correctionRatioA = b_mass / total_mass;
-	freal correctionRatioB = a_mass / total_mass;
-
-#if 0
-	posA = posA - (normal * overlap * correctionRatioA);
-	posB = posB + (normal * overlap * correctionRatioB);
-	
-		   // Write corrected float positions back into the integer structures (using round)
-	a.position.x = static_cast<int>(std::round(posA.x));
-	a.position.y = static_cast<int>(std::round(posA.y));
-	b.position.x = static_cast<int>(std::round(posB.x));
-	b.position.y = static_cast<int>(std::round(posB.y));
-#endif
-
-	// 6. Velocity Modification (Combine along normal axis)
-	FPoint2 vel_a = a_vel.to_f32();
-	FPoint2 vel_b = b_vel.to_f32();
-
-	// Extract scalar normal components via dot product
-	freal vel_a_normal = vel_a.dot(normal);
-	freal vel_b_normal = vel_b.dot(normal);
+	i32 vel_a_normal = a_vel.dot(normal) / IPoint2::NORMALIZE_RANGE;
+	i32 vel_b_normal = b_vel.dot(normal) / IPoint2::NORMALIZE_RANGE;
 
 	// Only modify velocities if they are moving TOWARD each other
 	// This prevents stuck edge-cases where objects get glued while separating
-	freal relative_normal_vel = vel_b_normal - vel_a_normal;
-	if (relative_normal_vel < 0.0f) {
+	i32 relative_normal_vel = vel_b_normal - vel_a_normal;
+
+	if (relative_normal_vel < 0) {
+		i32 a_mass = 1;
+		i32 b_mass = 1;
+		i32 total_mass = 2;
+
 		// Calculate shared inelastic target velocity using conservation of momentum
-		freal shared_vel_normal = (a_mass * vel_a_normal + b_mass * vel_b_normal) / total_mass;
+		i32 shared_vel_normal = (a_mass * vel_a_normal + b_mass * vel_b_normal) / total_mass;
 
 		// Spacing push, assumes they are on the same mesh.
-		freal radii = p_agent_a.radius_mesh_units + p_agent_b.radius_mesh_units;
-		IPoint2 instant_impulse;
+		// Only apply if they are closer together than the radii.
+		// Should always be the case?
+		u32 radii = p_agent_a.radius_mesh_units + p_agent_b.radius_mesh_units;
+
+		// Both distance and radii must be positive, by definition.
 		if (distance < radii) {
-			freal overlap = radii - distance;
+			// Overlap MUST be positive if distance is less than radii.
+			u32 overlap = radii - distance;
 			NP_LLLOG(String("\toverlap : ") + overlap);
 
-			freal spacing_push = overlap / (1);
-			instant_impulse.from_f32(normal * spacing_push);
+			// The scale is the spacing push length.
+			u32 instant_magnitude = overlap / 1;
+
+			// Reduce it by a small episilon, to ensure the broadphase
+			// catches the pair again on the next tick (prevent vibrations
+			// where they move in and outside range of each other).
+			// Note that the SAP broadphase is currently done with floats,
+			// so this is a big larger than ideal.
+			u32 epsilon = ((u64)radii * 257) / 256;
+
+			if (instant_magnitude > epsilon) {
+				instant_magnitude -= epsilon;
+			}
+
+			IPoint2 instant_impulse = rel_pos;
+			instant_impulse.normalize_to_scale(instant_magnitude);
+
+			// Decide which is dominant.
+			if (Math::abs(vel_a_normal) >= Math::abs(vel_b_normal)) {
+				p_agent_b.instant_impulse += instant_impulse;
+			} else {
+				p_agent_a.instant_impulse -= instant_impulse;
+			}
 		}
 
-		// Apply delta impulses back to float velocities
-		//		velA = velA + normal * (sharedVelNormal - velANormal - spacing_push);
-		//		velB = velB + normal * (sharedVelNormal - velBNormal + spacing_push);
+#if 0
+	freal correctionRatioA = b_mass / total_mass;
+	freal correctionRatioB = a_mass / total_mass;
 
-		freal a_mult = shared_vel_normal - vel_a_normal;
-		freal b_mult = shared_vel_normal - vel_b_normal;
+	posA = posA - (normal * overlap * correctionRatioA);
+	posB = posB + (normal * overlap * correctionRatioB);
+#endif
 
-		// Decide which is dominant.
-		if (Math::fabs_real(vel_a_normal) >= Math::fabs_real(vel_b_normal)) {
-			p_agent_b.instant_impulse += instant_impulse;
-		} else {
-			p_agent_a.instant_impulse -= instant_impulse;
-		}
-		vel_a += normal * a_mult;
-		vel_b += normal * b_mult;
+		i32 a_mult = shared_vel_normal - vel_a_normal;
+		i32 b_mult = shared_vel_normal - vel_b_normal;
 
-		// Convert modified velocities back to your integer space structures
-		a_vel.from_f32(vel_a);
-		b_vel.from_f32(vel_b);
+		IPoint2 a_impulse = rel_pos;
+		a_impulse.normalize_to_scale(a_mult);
+		a_vel += a_impulse;
 
-#if 1
+		IPoint2 b_impulse = rel_pos;
+		b_impulse.normalize_to_scale(b_mult);
+		b_vel += b_impulse;
+
+#if 0
 		IPoint2 predicted_a = a_pos + a_vel + p_agent_a.instant_impulse;
 		IPoint2 predicted_b = b_pos + b_vel + p_agent_b.instant_impulse;
 		freal predicted_separation = (predicted_b - predicted_a).lengthf();

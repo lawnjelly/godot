@@ -10,7 +10,7 @@ namespace NavPhysics {
 class Math {
 	static freal fabs(f32 p_v);
 	static freal fabs(f64 p_v);
-	
+
 public:
 	static constexpr f32 NP_CMP_EPSILON = 0.00001;
 
@@ -23,6 +23,8 @@ public:
 	static freal atan2_real(freal p_a, freal p_b);
 
 	static freal fabs_real(freal p_v);
+	static u32 abs(i32 p_v);
+	static u64 abs(i64 p_v);
 
 	static u32 rand();
 	static f32 randf();
