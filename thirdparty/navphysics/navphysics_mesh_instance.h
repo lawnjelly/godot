@@ -40,6 +40,7 @@ public:
 	const Mesh &get_mesh() const;
 
 	bool _iterate_agent_on_jump_link(Agent &r_agent, Mesh::MoveInfo &r_move_info, freal &r_distance);
+	u32 calculate_agent_radius_in_mesh_units(freal p_radius) const;
 
 	void refresh_world_space_agent_position(Agent &r_agent, bool p_remake_pos) const;
 

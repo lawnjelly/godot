@@ -291,9 +291,27 @@ void MeshInstance::iterate_agent(Agent &r_agent, Mesh::MoveInfo &r_move_info) {
 		r_agent.vel += impulse;
 	}
 
-	_iterate_agent(r_agent, r_move_info);
-	r_agent.instant_impulse.zero();
-	
+	// Add the instant impulse before the move, then remove it afterwards
+	if (r_agent.instant_impulse != IPoint2()) {
+		freal instant_length = r_agent.instant_impulse.lengthf();
+		r_agent.vel += r_agent.instant_impulse;
+
+		_iterate_agent(r_agent, r_move_info);
+
+		// Remove the instant impulse from the remaining velocity.
+		freal after_length = r_agent.vel.lengthf();
+		freal new_length = after_length - instant_length;
+
+		if (new_length >= 1) {
+			r_agent.vel.normalize_to_scale(new_length);
+		} else {
+			r_agent.vel.zero();
+		}
+		r_agent.instant_impulse.zero();
+	} else {
+		_iterate_agent(r_agent, r_move_info);
+	}
+
 	bool changed_mesh_instance = r_move_info.new_mesh_instance_id != UINT32_MAX;
 
 	if (!changed_mesh_instance) {
@@ -304,10 +322,22 @@ void MeshInstance::iterate_agent(Agent &r_agent, Mesh::MoveInfo &r_move_info) {
 	} else {
 		NP_LLOG("changed mesh instance");
 	}
-	
+
 	// Return the fixed point space to float space after iteration,
 	// to allow avoidance etc on the next tick.
 	// r_agent.fvel = mesh.fixed_point_vel_to_float(r_agent.vel);
+}
+
+u32 MeshInstance::calculate_agent_radius_in_mesh_units(freal p_radius) const {
+	NP_DEV_ASSERT(p_radius >= 0);
+
+	// First transform the world space radius into mesh instance space.
+	FPoint3 pt = _transform.basis.xform(FPoint3(p_radius, 0, 0));
+	freal radius_mesh_space = pt.length();
+
+	const Mesh &mesh = get_mesh();
+	i32 fp_radius = mesh.float_dist_to_fixed_point_dist(radius_mesh_space);
+	return Math::abs(fp_radius);
 }
 
 void MeshInstance::refresh_world_space_agent_position(Agent &r_agent, bool p_remake_pos) const {
@@ -774,13 +804,13 @@ void MeshInstance::_agent_slide_on_ceiling(Agent &r_agent, Mesh::MoveInfo &r_mov
 
 void MeshInstance::_iterate_agent(Agent &r_agent, Mesh::MoveInfo &r_move_info) {
 	Agent &ag = r_agent;
-	
+
 	// The acting velocity also takes into account the instant impulse,
 	// which is not proper physics, but allows separation bodges on a single tick.
-	NP_LLLOG(String("\tvel : ") + ag.vel.x + ", instant_vel : " + ag.instant_impulse.x);
-	IPoint2 acting_velocity = ag.vel;// + ag.instant_impulse;
-	
-	IPoint2 agent_remaining_velocity = acting_velocity;
+	NP_LLLOG(String("\tpos : ") + ag.pos.x + String(", vel : ") + ag.vel.x + ", instant_vel : " + ag.instant_impulse.x);
+	//IPoint2 acting_velocity = ag.vel + ag.instant_impulse;
+
+	IPoint2 agent_remaining_velocity = ag.vel;
 	freal agent_remaining_magnitude = agent_remaining_velocity.lengthf();
 
 	// The old pos is used to calculate the velocity in the next iteration,
@@ -817,7 +847,7 @@ void MeshInstance::_iterate_agent(Agent &r_agent, Mesh::MoveInfo &r_move_info) {
 
 	//IPoint2 old_pos = ag.pos;
 
-	IPoint2 dir = acting_velocity;
+	IPoint2 dir = ag.vel;
 	dir.normalize();
 #ifdef NP_DEV_EXCESSIVE_CHECKS
 	NP_LLOG(String("iterate pos ") + str(ag.pos) + ", vel " + str(ag.vel) + ", poly " + itos(ag.poly_id));
