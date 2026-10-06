@@ -98,6 +98,76 @@ bool Map::calculate_vertical_overlap_push(Agent &p_agent_a, Agent &p_agent_b) co
 	return true;
 }
 
+bool Map::resolve_squishy_collision(Agent &p_agent_a, Agent &p_agent_b) const {
+	// We can resolve the collision based on the predicted position,
+	// rather than where we are currently?
+	IPoint2 &a_vel = p_agent_a.vel;
+	IPoint2 &b_vel = p_agent_b.vel;
+	IPoint2 a_pos = p_agent_a.pos + a_vel;
+	IPoint2 b_pos = p_agent_b.pos + b_vel;
+
+	// Relative position, normal and distance.
+	IPoint2 offset = b_pos - a_pos;
+	//IPoint2 normal = offset;
+
+	// Length will be freal, but we only need int accuracy here.
+	//u32 proximity = normal.normalize();
+	u32 proximity = offset.lengthf();
+	u32 radii = p_agent_a.radius_mesh_units + p_agent_b.radius_mesh_units;
+	if (proximity >= radii)
+	{
+		return false;
+	}
+
+	// Scaled 0 with max overlap, 1 with no overlap.
+	//freal proximity_fraction = (proximity / radii);
+	
+	// Apply some damping.
+	//proximity_fraction *= proximity_fraction;
+	//proximity_fraction *= proximity_fraction;
+	
+	//freal overlap_fraction = 1 - proximity_fraction;
+	
+	// Apply some damping.
+	//overlap_fraction *= overlap_fraction;
+	
+	// scale the push apart force
+	//overlap_fraction *= 0.3f; // 0.3
+	//freal push_scale = overlap_fraction * radii * 0.15f;
+	freal push_scale = (radii - proximity) / 4;
+
+	if (proximity > 0) {
+		// Normalize offset and scale by overlap_fraction.
+		offset.normalize_to_scale(push_scale);
+	} else {
+		// choose random vector to push apart
+		offset = IPoint2(push_scale, 0);
+	}
+
+#if 0
+		if (agent_a.priority > agent_b.priority) {
+			agent_a.avoidance_fvel3 -= push * 2;
+			agent_b.avoidance_fvel3 += push;
+		} else {
+			agent_a.avoidance_fvel3 -= push;
+			agent_b.avoidance_fvel3 += push * 2;
+		}
+#else
+	a_vel -= offset;
+	b_vel += offset;
+#endif
+
+	// Not sure what this was for, so commenting out.
+	// Both these seem to be zeroed at this point, and only
+	// the fixed point vel is valid.
+	// agent_a.fvel3 *= 0.5f;
+	// agent_b.fvel3 *= 0.5f;
+
+	p_agent_a.state = AGENT_STATE_PENDING_COLLIDING;
+	p_agent_b.state = AGENT_STATE_PENDING_COLLIDING;
+	return true;
+}
+
 void Map::resolve_zero_bounce_collision(Agent &p_agent_a, Agent &p_agent_b) const {
 	IPoint2 &a_pos = p_agent_a.pos;
 	IPoint2 &a_vel = p_agent_a.vel;
@@ -110,10 +180,21 @@ void Map::resolve_zero_bounce_collision(Agent &p_agent_a, Agent &p_agent_b) cons
 
 	// Length will be freal, but we only need int accuracy here.
 	u32 distance = normal.normalize();
+	u32 radii = p_agent_a.radius_mesh_units + p_agent_b.radius_mesh_units;
 
 	// Guard against identical overlapping center coordinates to avoid dividing by zero.
 	// Todo: this could use a random vector to repel.
 	if (distance == 0) {
+		//i32 center_push = radii / 2;
+		i32 center_push = 1;
+
+		p_agent_a.instant_impulse = IPoint2(center_push, 0);
+		p_agent_b.instant_impulse = IPoint2(-center_push, 0);
+		//		a_vel += IPoint2(p_agent_a.radius_mesh_units/128, 0);
+		//		b_vel -= IPoint2(p_agent_b.radius_mesh_units/128,0);
+		//rel_pos = IPoint2(1, 0);
+		//normal = rel_pos;
+		//distance = normal.normalize();
 		return;
 	}
 
@@ -124,7 +205,7 @@ void Map::resolve_zero_bounce_collision(Agent &p_agent_a, Agent &p_agent_b) cons
 	// This prevents stuck edge-cases where objects get glued while separating
 	i32 relative_normal_vel = vel_b_normal - vel_a_normal;
 
-	if (relative_normal_vel < 0) {
+	if (relative_normal_vel <= 0) {
 		i32 a_mass = 1;
 		i32 b_mass = 1;
 		i32 total_mass = 2;
@@ -135,13 +216,13 @@ void Map::resolve_zero_bounce_collision(Agent &p_agent_a, Agent &p_agent_b) cons
 		// Spacing push, assumes they are on the same mesh.
 		// Only apply if they are closer together than the radii.
 		// Should always be the case?
-		u32 radii = p_agent_a.radius_mesh_units + p_agent_b.radius_mesh_units;
 
 		// Both distance and radii must be positive, by definition.
-		if (distance < radii) {
+		if (false) {
+			// if (distance < radii) {
 			// Overlap MUST be positive if distance is less than radii.
 			u32 overlap = radii - distance;
-			NP_LLLOG(String("\toverlap : ") + overlap);
+			// NP_LLLOG(String("\toverlap : ") + overlap);
 
 			// The scale is the spacing push length.
 			u32 instant_magnitude = overlap / 1;
@@ -151,11 +232,13 @@ void Map::resolve_zero_bounce_collision(Agent &p_agent_a, Agent &p_agent_b) cons
 			// where they move in and outside range of each other).
 			// Note that the SAP broadphase is currently done with floats,
 			// so this is a big larger than ideal.
+			/*
 			u32 epsilon = ((u64)radii * 257) / 256;
 
 			if (instant_magnitude > epsilon) {
 				instant_magnitude -= epsilon;
 			}
+*/
 
 			IPoint2 instant_impulse = rel_pos;
 			instant_impulse.normalize_to_scale(instant_magnitude);
@@ -187,12 +270,13 @@ void Map::resolve_zero_bounce_collision(Agent &p_agent_a, Agent &p_agent_b) cons
 		b_impulse.normalize_to_scale(b_mult);
 		b_vel += b_impulse;
 
-#if 0
+#if 1
 		IPoint2 predicted_a = a_pos + a_vel + p_agent_a.instant_impulse;
 		IPoint2 predicted_b = b_pos + b_vel + p_agent_b.instant_impulse;
 		freal predicted_separation = (predicted_b - predicted_a).lengthf();
 		freal predicted_overlap = radii - predicted_separation;
-		NP_LLLOG(String("\tradii : ") + radii + ", predicted_overlap : " + predicted_overlap);
+		NP_LLLOG(String("\tcurr_a : ") + a_pos.x + ", curr_b : " + b_pos.x + ", radii : " + radii);
+		NP_LLLOG(String("\tpredicted_a : ") + predicted_a.x + ", predicted_b : " + predicted_b.x + ", predicted_overlap : " + predicted_overlap);
 
 #endif
 
@@ -227,18 +311,19 @@ void Map::tick_update(freal p_delta) {
 		/////////////////////////////////////////////
 		// 2D check first.
 		FPoint2 offset = agent_b.fpos3.xz() - agent_a.fpos3.xz();
-		freal prox = Math::sqrt_real(i.dist_squared);
+		freal proximity = Math::sqrt_real(i.dist_squared);
 
 		// SAP should guarantee this
 #ifdef NP_DEV_ENABLED
-		NP_ERR_CONTINUE(prox > radii);
+		NP_ERR_CONTINUE(proximity > radii);
 #endif
 
-		resolve_zero_bounce_collision(agent_a, agent_b);
+		resolve_squishy_collision(agent_a, agent_b);
+		//resolve_zero_bounce_collision(agent_a, agent_b);
 		continue;
 
 		// Scaled 0 with max overlap, 1 with no overlap.
-		freal overlap_fraction = (prox / radii);
+		freal overlap_fraction = (proximity / radii);
 
 		// Apply some damping.
 		overlap_fraction *= overlap_fraction;
@@ -248,9 +333,9 @@ void Map::tick_update(freal p_delta) {
 		// scale the push apart force
 		overlap_fraction *= 0.3f; // 0.3
 
-		if (prox > 0.001f) {
+		if (proximity > 0.001f) {
 			// Normalize offset and scale by overlap_fraction.
-			offset *= overlap_fraction / prox;
+			offset *= overlap_fraction / proximity;
 		} else {
 			// choose random vector to push apart
 			offset = FPoint2::make(overlap_fraction, 0);
@@ -383,8 +468,7 @@ bool Map::update_agent_mesh(Agent &r_agent, bool p_teleport_if_changed) {
 
 		// Make sure we keep the mesh unit radius up to date when changing mesh.
 		MeshInstance &meshi = g_world.get_mesh_instance(r_agent.get_mesh_instance_id());
-		const Mesh &mesh = meshi.get_mesh();
-		r_agent.radius_mesh_units = mesh.get_agent_radius();
+		r_agent.radius_mesh_units = meshi.calculate_agent_radius_in_mesh_units(r_agent.radius);
 
 		// teleport
 		if (p_teleport_if_changed) {
@@ -586,7 +670,7 @@ void Map::body_teleport_to_agent_status_jump_target(Agent &r_agent, u32 p_agent_
 
 	MeshInstance &meshi = g_world.get_mesh_instance(r_agent.get_mesh_instance_id());
 	const Mesh &mesh = meshi.get_mesh();
-	r_agent.radius_mesh_units = mesh.get_agent_radius();
+	r_agent.radius_mesh_units = meshi.calculate_agent_radius_in_mesh_units(r_agent.radius);
 
 	// Compare the result of the world space velocity.
 	// If the mesh instance has rotated since the jump, we will use

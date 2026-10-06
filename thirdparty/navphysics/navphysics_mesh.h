@@ -195,24 +195,24 @@ public:
 
 	const MeshParams &get_mesh_params() const { return mesh_params; }
 	const PolyExtra &get_poly_extra(u32 p_idx) const { return _polys_extra[p_idx]; }
-	u32 get_agent_radius() const {return extension_data.agent_radius;}
+	u32 get_baked_agent_radius() const { return extension_data.agent_radius; }
 
 protected:
 	// Accessors.
-	
+
 	// Indices.
 	u32 get_ind(u32 p_idx, bool p_ceiling = false) const { return p_ceiling ? ceiling.inds[p_idx] : floor.inds[p_idx]; }
 	u32 get_num_inds(bool p_ceiling = false) const { return p_ceiling ? ceiling.inds.size() : floor.inds.size(); }
 
 	u32 get_ind_next(u32 p_idx) const { return _inds_next[p_idx]; }
-	
+
 	// Verts.
 	const IPoint2 &get_vert(u32 p_idx, bool p_ceiling = false) const { return p_ceiling ? ceiling.verts[p_idx] : floor.verts[p_idx]; }
 	u32 get_num_verts(bool p_ceiling = false) const { return p_ceiling ? ceiling.get_num_verts() : floor.get_num_verts(); }
 
 	FPoint2 get_fvert(u32 p_idx, bool p_ceiling = false) const { return get_fvert3(p_idx, p_ceiling).xz(); }
 	const FPoint3 &get_fvert3(u32 p_idx, bool p_ceiling = false) const { return p_ceiling ? ceiling.fverts3[p_idx] : floor.fverts3[p_idx]; }
-	
+
 	// Links.
 	u32 get_link(u32 p_idx) const { return _links[p_idx]; }
 	u32 get_num_links() const { return _links.size(); }
@@ -221,17 +221,17 @@ protected:
 	bool is_link_external(u32 p_idx) const { return get_link(p_idx) & LINK_FLAG_EXTERNAL; }
 	bool is_link_internal(u32 p_idx) const { return get_link(p_idx) & LINK_FLAG_INTERNAL; }
 	bool is_link_regular(u32 p_idx) const { return (get_link(p_idx) & (LINK_FLAG_INTERNAL | LINK_FLAG_EXTERNAL | LINK_FLAG_HARD)) == 0; }
-	
+
 	// Walls.
 	const Wall &get_wall(u32 p_idx) const { return _walls[p_idx]; }
 	u32 get_num_walls() const { return _walls.size(); }
-	
+
 	// Polys.
 	u32 get_num_polys(bool p_ceiling = false) const { return p_ceiling ? ceiling.get_num_polys() : floor.get_num_polys(); }
-	
+
 	const Poly &get_poly(u32 p_idx, bool p_ceiling = false) const { return p_ceiling ? ceiling.polys[p_idx] : floor.polys[p_idx]; }
 	Poly &get_poly(u32 p_idx, bool p_ceiling = false) { return p_ceiling ? ceiling.polys[p_idx] : floor.polys[p_idx]; }
-	
+
 	PolyExtra &get_poly_extra(u32 p_idx) { return _polys_extra[p_idx]; }
 	const IRect2 &get_poly_bound(u32 p_idx, bool p_ceiling = false) const { return p_ceiling ? ceiling.poly_bounds[p_idx] : floor.poly_bounds[p_idx]; }
 
@@ -244,7 +244,7 @@ protected:
 		}
 		return num_verts;
 	}
-	
+
 	// Zones.
 	const Zone &get_poly_zone(u32 p_idx) const {
 		NP_DEV_ASSERT(get_poly_extra(p_idx).zone_id != UINT32_MAX);
@@ -254,19 +254,24 @@ protected:
 	const Zone &get_zone(u32 p_idx) const { return _zones[p_idx]; }
 	u32 get_num_zones() const { return _zones.size(); }
 	const ZoneLink &get_zone_link(u32 p_idx) const { return _zone_links[p_idx]; }
-	
+
 	// Narrowings.
 	const Narrowing &get_narrowing(u32 p_idx) const { return _narrowings[p_idx]; }
 	u32 get_num_narrowings() const { return _narrowings.size(); }
 	u32 get_num_areas() const { return _areas.size(); }
-	
+
 	void debug_poly(u32 p_poly_id) const;
-	
+
 	// Conversion helpers.
 public:
+	i32 float_dist_to_fixed_point_dist(freal p_dest) const {
+		return p_dest * _f32_to_fp_scale;
+	}
+
 	IPoint2 float_to_fixed_point_vel(const FPoint2 &p_vel) const {
 		return IPoint2::make(p_vel * _f32_to_fp_scale);
 	}
+
 protected:
 	FPoint2 fixed_point_vel_to_float(const IPoint2 &p_vel) const {
 		return FPoint2::make(p_vel.x, p_vel.y) * _fp_to_f32_scale;
@@ -320,7 +325,6 @@ private:
 	};
 
 public:
-
 	struct MoveInfo {
 		u32 poly_id = UINT32_MAX;
 		u32 wall_id = UINT32_MAX;
@@ -452,10 +456,10 @@ public:
 	u32 find_best_jump_poly_within(const Agent &p_agent, const JumpFinderData &p_jd, freal p_max_drop, freal p_max_step_up, freal &r_goodness_of_fit) const;
 
 	bool find_ceiling_height(u32 p_floor_poly_id, const IPoint2 &p_pt, freal &r_height, u32 &r_ceiling_poly_id_hint) const;
-	
+
 	void init(np_handle p_handle) {
 		_unit_test_find_lines_intersect_integer();
-	}	
+	}
 
 	void refresh_local_agent_position_from_fixed_point(Agent &r_agent) const {
 		FPoint2 new_fpos = fixed_point_to_float_2(r_agent.pos);
