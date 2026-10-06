@@ -25,6 +25,7 @@ class Map {
 	bool update_agent_mesh(Agent &r_agent, bool p_teleport_if_changed);
 	bool calculate_vertical_overlap_push(Agent &p_agent_a, Agent &p_agent_b) const;
 	void resolve_zero_bounce_collision(Agent &p_agent_a, Agent &p_agent_b) const;
+	bool resolve_squishy_collision(Agent &p_agent_a, Agent &p_agent_b) const;
 
 public:
 	
