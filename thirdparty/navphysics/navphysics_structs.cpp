@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 #include "navphysics_structs.h"
+#include "navphysics_mesh.h"
 
 namespace NavPhysics {
 
@@ -23,6 +24,14 @@ void AgentStatus::debug_print(String p_sz) {
 void Agent::set_mesh_instance_id(uint32_t p_mesh_id) {
 	NP_LOG(String("setting mesh ID of agent at ") + (i64)this + " to " + p_mesh_id);
 	mesh_instance_id = p_mesh_id;
+}
+
+void Agent::apply_impulse(FPoint3 p_impulse) {
+	fimpulse3 += p_impulse * Mesh::_timestep;
+}
+
+void Agent::apply_jump(float p_vel) {
+	jump_velocity += p_vel * Mesh::_timestep;
 }
 
 //void Agent::seek_yaw(float p_yaw) {
