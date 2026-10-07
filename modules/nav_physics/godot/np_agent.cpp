@@ -52,8 +52,8 @@ void NPAgent::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_modifier_air_friction", "air_friction"), &NPAgent::set_modifier_air_friction);
 	ClassDB::bind_method(D_METHOD("get_modifier_air_friction"), &NPAgent::get_modifier_air_friction);
 
-	ClassDB::bind_method(D_METHOD("set_modifier_air", "air"), &NPAgent::set_modifier_air);
-	ClassDB::bind_method(D_METHOD("get_modifier_air"), &NPAgent::get_modifier_air);
+	ClassDB::bind_method(D_METHOD("set_modifier_air_control", "air_control"), &NPAgent::set_modifier_air_control);
+	ClassDB::bind_method(D_METHOD("get_modifier_air_control"), &NPAgent::get_modifier_air_control);
 
 	ClassDB::bind_method(D_METHOD("set_modifier_uphill", "uphill"), &NPAgent::set_modifier_uphill);
 	ClassDB::bind_method(D_METHOD("get_modifier_uphill"), &NPAgent::get_modifier_uphill);
@@ -110,7 +110,7 @@ void NPAgent::_bind_methods() {
 
 	ADD_GROUP("Modifiers", "modifier_");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "modifier_air_friction", PROPERTY_HINT_RANGE, "0,1"), "set_modifier_air_friction", "get_modifier_air_friction");
-	ADD_PROPERTY(PropertyInfo(Variant::REAL, "modifier_air", PROPERTY_HINT_RANGE, "0,1"), "set_modifier_air", "get_modifier_air");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "modifier_air_control", PROPERTY_HINT_RANGE, "0,1"), "set_modifier_air_control", "get_modifier_air_control");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "modifier_uphill", PROPERTY_HINT_RANGE, "-1,1"), "set_modifier_uphill", "get_modifier_uphill");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "modifier_downhill", PROPERTY_HINT_RANGE, "-1,1"), "set_modifier_downhill", "get_modifier_downhill");
 
@@ -427,18 +427,45 @@ const Transform &NPAgent::get_mesh_instance_transform() const {
 }
 
 void NPAgent::_update_params() {
-	float friction_multiplier = 1.0 - (data.friction * data.friction);
-	// print_line("Setting friction_multiplier to " + rtos(friction_multiplier));
-
 	NavPhysics::Agent *agent = NPWORLD.safe_get_body(data.h_agent);
 	ERR_FAIL_NULL(agent);
 
+	// Calculations to give consistent parameters at different physics TPS.
+	// float speedMultiplier = pow(1.0 - fractionLossPerSecond, deltaTime)
+
+	int tps = Engine::get_singleton()->get_iterations_per_second();
+	double delta = 1.0 / tps;
+	double tps_linear_adjustment = (60.0 / tps) * (60.0 / tps);
+
+// Takes in the value calibrated at 60tps, and spits out the value relative to our tps.
+#define NPAGENT_EXP_ADJUSTMENT(a) (Math::pow(Math::pow(a, 60.0), delta))
+#define NPAGENT_LINEAR_ADJUSTMENT(a) (a * tps_linear_adjustment)
+
 	agent->radius = data.radius;
 	agent->height = data.height;
-	agent->friction = 1 - friction_multiplier;
-	agent->gravity = data.gravity;
 
-	agent->air_friction_modifier = data.air_friction;
+	double gravity = Math::pow((double)data.gravity, 2.0);
+	gravity *= (1.0 / 60.0);
+	agent->gravity = NPAGENT_LINEAR_ADJUSTMENT(gravity);
+
+	// More friction is a lower multiplier, so we need to reverse the polarity.
+	double friction = 1.0 - data.friction;
+	double air_friction = 1.0 - data.air_friction;
+
+	// Some kind of initial scaling, such that 0 is no friction, 1 is maximum damping,
+	// and 0.5 is medium damping.
+	// Note that this should ultimately be a multiplier for velocity, per tick.s
+	// 0.95 is a good mid point for friction at 60 tps, from 0.5 input, and 0.074001 gives this result.
+	//const double friction_mapping = 0.074001;
+	const double friction_mapping = 0.15;
+
+	friction = Math::pow(friction, friction_mapping);
+	air_friction = Math::pow(air_friction, friction_mapping);
+
+	// print_line("Setting friction_multiplier to " + rtos(friction_multiplier));
+	agent->friction = NPAGENT_EXP_ADJUSTMENT(friction);
+	agent->air_friction = NPAGENT_EXP_ADJUSTMENT(air_friction);
+
 	agent->uphill_modifier = data.uphill;
 	agent->downhill_modifier = data.downhill;
 
@@ -450,6 +477,9 @@ void NPAgent::_update_params() {
 	agent->pathfind_external_jump_links = data.pathfind_external_jump_links;
 
 	agent->is_npc = data.is_npc;
+
+#undef NPAGENT_LINEAR_ADJUSTMENT
+#undef NPAGENT_EXP_ADJUSTMENT
 }
 
 void NPAgent::_update_process_mode() {
@@ -551,13 +581,13 @@ void NPAgent::apply_impulse(const Vector3 &p_impulse) {
 	}
 #endif
 
-	Vector3 impulse = (is_on_floor() != ON_AIR) ? p_impulse : p_impulse * data.air;
+	Vector3 impulse = (is_on_floor() != ON_AIR) ? p_impulse : p_impulse * data.air_control;
 
 	// Send to NavPhysics.
 	u32 agent_id;
 	NavPhysics::Agent *agent = NPWORLD.safe_get_body(data.h_agent, &agent_id);
 	ERR_FAIL_NULL(agent);
-	agent->fimpulse3 += *(NavPhysics::FPoint3 *)&impulse;
+	agent->apply_impulse(*(NavPhysics::FPoint3 *)&impulse);
 }
 
 NPAgent::NPAgent() {
@@ -628,8 +658,8 @@ void NPAgent::set_modifier_downhill(float p_value) {
 	_update_params();
 }
 
-void NPAgent::set_modifier_air(float p_value) {
-	data.air = p_value;
+void NPAgent::set_modifier_air_control(float p_value) {
+	data.air_control = p_value;
 	_update_params();
 }
 
