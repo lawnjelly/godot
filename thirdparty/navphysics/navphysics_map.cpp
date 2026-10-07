@@ -100,7 +100,7 @@ bool Map::calculate_vertical_overlap_push(Agent &p_agent_a, Agent &p_agent_b) co
 
 bool Map::resolve_squishy_collision(Agent &p_agent_a, Agent &p_agent_b) const {
 	// We can resolve the collision based on the predicted position,
-	// rather than where we are currently?
+	// rather than where we are currently.
 	IPoint2 &a_vel = p_agent_a.vel;
 	IPoint2 &b_vel = p_agent_b.vel;
 	IPoint2 a_pos = p_agent_a.pos + a_vel;
@@ -108,39 +108,25 @@ bool Map::resolve_squishy_collision(Agent &p_agent_a, Agent &p_agent_b) const {
 
 	// Relative position, normal and distance.
 	IPoint2 offset = b_pos - a_pos;
-	//IPoint2 normal = offset;
 
 	// Length will be freal, but we only need int accuracy here.
-	//u32 proximity = normal.normalize();
 	u32 proximity = offset.lengthf();
 	u32 radii = p_agent_a.radius_mesh_units + p_agent_b.radius_mesh_units;
-	if (proximity >= radii)
-	{
+
+	// Because we are using predicted positions, the prediction may be further
+	// apart than the radius, so there is no need to push them apart, and we
+	// must prevent overflow / divide by zero.
+	if (proximity >= radii) {
 		return false;
 	}
 
-	// Scaled 0 with max overlap, 1 with no overlap.
-	//freal proximity_fraction = (proximity / radii);
-	
-	// Apply some damping.
-	//proximity_fraction *= proximity_fraction;
-	//proximity_fraction *= proximity_fraction;
-	
-	//freal overlap_fraction = 1 - proximity_fraction;
-	
-	// Apply some damping.
-	//overlap_fraction *= overlap_fraction;
-	
-	// scale the push apart force
-	//overlap_fraction *= 0.3f; // 0.3
-	//freal push_scale = overlap_fraction * radii * 0.15f;
+	// Scale the push apart force.
 	freal push_scale = (radii - proximity) / 4;
 
 	if (proximity > 0) {
-		// Normalize offset and scale by overlap_fraction.
 		offset.normalize_to_scale(push_scale);
 	} else {
-		// choose random vector to push apart
+		// Choose random vector to push apart.
 		offset = IPoint2(push_scale, 0);
 	}
 
@@ -153,15 +139,10 @@ bool Map::resolve_squishy_collision(Agent &p_agent_a, Agent &p_agent_b) const {
 			agent_b.avoidance_fvel3 += push * 2;
 		}
 #else
+	// Apply immediately, so this can be taken into account in the zero bounce collision.
 	a_vel -= offset;
 	b_vel += offset;
 #endif
-
-	// Not sure what this was for, so commenting out.
-	// Both these seem to be zeroed at this point, and only
-	// the fixed point vel is valid.
-	// agent_a.fvel3 *= 0.5f;
-	// agent_b.fvel3 *= 0.5f;
 
 	p_agent_a.state = AGENT_STATE_PENDING_COLLIDING;
 	p_agent_b.state = AGENT_STATE_PENDING_COLLIDING;

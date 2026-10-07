@@ -31,6 +31,14 @@ u64 Math::abs(i64 p_v) {
 	return ::abs(p_v);
 }
 
+double Math::pow(double p_v, double p_factor) {
+	return ::pow(p_v, p_factor);
+}
+
+float Math::pow(float p_v, float p_factor) {
+	return ::powf(p_v, p_factor);
+}
+
 freal Math::fabs_real(freal p_v) {
 	return fabs(p_v);
 }

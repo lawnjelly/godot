@@ -135,15 +135,18 @@ public:
 	// each obstacle has an effect here, this is reported back to the client
 	// for avoidance
 	FPoint3 avoidance_fvel3;
-
+	
+	// The client code is responsible for scaling these to physics TPS.
+	// They are straight velocity multipliers.
 	freal friction = 0;
+	freal air_friction = 0;
 
 	// Modifiers
-	freal air_friction_modifier = 0;
 	freal uphill_modifier = 0;
 	freal downhill_modifier = 0;
-
+	
 	freal gravity = 0;
+	//freal gravity_half_step = 0;
 
 	// Height is the physical height of the agent,
 	// whereas agent_height is the height above the ground.
@@ -169,9 +172,9 @@ public:
 		on_agent = true;
 		on_agent_prev_tick = true;
 	}
-	void apply_jump(float p_vel) {
-		jump_velocity += p_vel;
-	}
+	void apply_impulse(FPoint3 p_impulse);
+	void apply_jump(float p_vel);
+	
 	void force_off_floor() {
 		on_floor = false;
 		grounded = false;
@@ -205,7 +208,7 @@ public:
 			agent_height = floor_height;
 		} else {
 			// Move height up or down...
-			agent_height += jump_velocity;
+			agent_height += jump_velocity;// - gravity_half_step;
 
 			// If we hit the floor?
 			if (agent_height <= floor_height) {
@@ -266,9 +269,10 @@ public:
 		grounded = true;
 		zone_id = UINT32_MAX;
 		blocking_zone_id = UINT32_MAX;
-		friction = 0.5;
-
-		air_friction_modifier = 0;
+		
+		friction = 0.99;
+		air_friction = 0.99;
+		
 		uphill_modifier = 0;
 		downhill_modifier = 0;
 

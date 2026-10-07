@@ -55,14 +55,14 @@ private:
 
 		float jump_vel = 0;
 		float friction = 0.5;
-		float gravity = 0.02;
+		float gravity = 0.5;
 		float radius = 0.5;
 		float height = 2;
 
 		// Modifiers
 		float uphill = -0.2;
 		float downhill = -0.2;
-		float air = 0.3;
+		float air_control = 0.3;
 		float air_friction = 0.2;
 
 		PathInfo path;
@@ -152,8 +152,8 @@ public:
 	void set_modifier_downhill(float p_value);
 	float get_modifier_downhill() const { return data.downhill; }
 
-	void set_modifier_air(float p_value);
-	float get_modifier_air() const { return data.air; }
+	void set_modifier_air_control(float p_value);
+	float get_modifier_air_control() const { return data.air_control; }
 
 	void set_modifier_air_friction(float p_value);
 	float get_modifier_air_friction() const { return data.air_friction; }

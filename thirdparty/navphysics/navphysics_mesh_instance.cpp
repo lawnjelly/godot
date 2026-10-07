@@ -367,12 +367,12 @@ void MeshInstance::iterate_agent_housekeeping(Agent &r_agent) {
 	const Mesh &mesh = get_mesh();
 
 	if (!AgentStatus::is_in_jump_link()) {
-		// apply friction
-		if (r_agent.is_on_floor()) {
-			r_agent.vel *= (1 - r_agent.friction);
-		} else {
-			r_agent.vel *= 1 - (r_agent.friction * r_agent.air_friction_modifier);
-		}
+		// Apply friction.
+		// The friction multipliers should be adjusted according to the physics TPS
+		// in the client code to give consistent friction at different TPS.
+		// e.g. friction = pow(friction, 60 * physics_delta).
+		freal friction = r_agent.is_on_floor() ? r_agent.friction : r_agent.air_friction;
+		r_agent.vel *= friction;
 
 		if (r_agent.poly_id != UINT32_MAX) {
 			r_agent.floor_height = mesh.find_height_on_poly_plane(r_agent.poly_id, r_agent.pos);

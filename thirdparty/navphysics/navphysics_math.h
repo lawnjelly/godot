@@ -26,6 +26,9 @@ public:
 	static u32 abs(i32 p_v);
 	static u64 abs(i64 p_v);
 
+	static double pow(double p_v, double p_factor);
+	static float pow(float p_v, float p_factor);
+
 	static u32 rand();
 	static f32 randf();
 	static f32 rand_range(f32 from, f32 to);
