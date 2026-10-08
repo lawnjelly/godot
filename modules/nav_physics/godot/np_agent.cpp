@@ -436,10 +436,14 @@ void NPAgent::_update_params() {
 	int tps = Engine::get_singleton()->get_iterations_per_second();
 	double delta = 1.0 / tps;
 	double tps_linear_adjustment = (60.0 / tps) * (60.0 / tps);
+	double time_ratio = tps / 60.0;
 
 // Takes in the value calibrated at 60tps, and spits out the value relative to our tps.
 #define NPAGENT_EXP_ADJUSTMENT(a) (Math::pow(Math::pow(a, 60.0), delta))
 #define NPAGENT_LINEAR_ADJUSTMENT(a) (a * tps_linear_adjustment)
+	//#define NPAGENT_FRICTION_ADJUSTMENT(a) (Math::pow(a, time_ratio))
+
+#define NPAGENT_FRICTION_ADJUSTMENT(friction_per_second) (Math::pow(friction_per_second, delta))
 
 	agent->radius = data.radius;
 	agent->height = data.height;
@@ -462,9 +466,12 @@ void NPAgent::_update_params() {
 	friction = Math::pow(friction, friction_mapping);
 	air_friction = Math::pow(air_friction, friction_mapping);
 
+	friction = 1.0 - friction;
+	air_friction = 1.0 - air_friction;
+
 	// print_line("Setting friction_multiplier to " + rtos(friction_multiplier));
-	agent->friction = NPAGENT_EXP_ADJUSTMENT(friction);
-	agent->air_friction = NPAGENT_EXP_ADJUSTMENT(air_friction);
+	agent->friction = NPAGENT_FRICTION_ADJUSTMENT(friction);
+	agent->air_friction = NPAGENT_FRICTION_ADJUSTMENT(air_friction);
 
 	agent->uphill_modifier = data.uphill;
 	agent->downhill_modifier = data.downhill;
