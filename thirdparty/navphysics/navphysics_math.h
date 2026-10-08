@@ -39,6 +39,9 @@ public:
 	static f32 fmod(f32 p_x, f32 p_y);
 	static f32 lerp_angle(f32 p_from, f32 p_to, f32 p_weight);
 	static f32 shift_angle(f32 p_from, f32 p_to, f32 p_max_change);
+
+	static f32 get_adjusted_friction(f32 p_friction_at_60_tps, i32 p_target_tps);
+	static f32 get_adjusted_friction_LUT(f32 p_friction_at_60_tps, i32 p_target_tps);
 };
 
 } // namespace NavPhysics
