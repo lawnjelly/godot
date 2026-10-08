@@ -62,7 +62,6 @@ void NPMeshInstance::_update_visibility() {
 void NPMeshInstance::_notification(int p_what) {
 	switch (p_what) {
 		case NOTIFICATION_ENTER_TREE: {
-			NavPhysics::World::set_timestep(1.0 / Engine::get_singleton()->get_iterations_per_second());
 			_update_visibility();
 			_update_server();
 			_refresh_debug_visuals();

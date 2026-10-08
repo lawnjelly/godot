@@ -426,6 +426,24 @@ const Transform &NPAgent::get_mesh_instance_transform() const {
 	return *(Transform *)(&NPWORLD.safe_get_agent_mesh_instance_transform(data.h_agent));
 }
 
+double NPAgent::_scale_friction_param(double p_friction, double p_delta) const {
+	if (p_friction <= 0) {
+		return 1;
+	}
+	if (p_friction >= 1) {
+		return 0;
+	}
+
+	// More means 0.5 maps to more friction, and vice versa.
+	const double friction_mapping = 8; // 5
+
+	double f = 1 - p_friction;
+	f = Math::pow(f, friction_mapping);
+	f = 1 - f;
+	f = Math::pow(1 - f, p_delta);
+	return f;
+}
+
 void NPAgent::_update_params() {
 	NavPhysics::Agent *agent = NPWORLD.safe_get_body(data.h_agent);
 	ERR_FAIL_NULL(agent);
@@ -436,14 +454,15 @@ void NPAgent::_update_params() {
 	int tps = Engine::get_singleton()->get_iterations_per_second();
 	double delta = 1.0 / tps;
 	double tps_linear_adjustment = (60.0 / tps) * (60.0 / tps);
-	double time_ratio = tps / 60.0;
+//	double time_ratio = tps / 60.0;
 
 // Takes in the value calibrated at 60tps, and spits out the value relative to our tps.
-#define NPAGENT_EXP_ADJUSTMENT(a) (Math::pow(Math::pow(a, 60.0), delta))
+//#define NPAGENT_EXP_ADJUSTMENT(a) (Math::pow(Math::pow(a, 60.0), delta))
 #define NPAGENT_LINEAR_ADJUSTMENT(a) (a * tps_linear_adjustment)
 	//#define NPAGENT_FRICTION_ADJUSTMENT(a) (Math::pow(a, time_ratio))
+	//#define NPAGENT_FRICTION_ADJUSTMENT(a) (Math::pow(1.0 - a, delta))
 
-#define NPAGENT_FRICTION_ADJUSTMENT(friction_per_second) (Math::pow(friction_per_second, delta))
+	//#define NPAGENT_FRICTION_ADJUSTMENT(friction_per_second) (Math::pow(friction_per_second, delta))
 
 	agent->radius = data.radius;
 	agent->height = data.height;
@@ -452,26 +471,8 @@ void NPAgent::_update_params() {
 	gravity *= (1.0 / 60.0);
 	agent->gravity = NPAGENT_LINEAR_ADJUSTMENT(gravity);
 
-	// More friction is a lower multiplier, so we need to reverse the polarity.
-	double friction = 1.0 - data.friction;
-	double air_friction = 1.0 - data.air_friction;
-
-	// Some kind of initial scaling, such that 0 is no friction, 1 is maximum damping,
-	// and 0.5 is medium damping.
-	// Note that this should ultimately be a multiplier for velocity, per tick.s
-	// 0.95 is a good mid point for friction at 60 tps, from 0.5 input, and 0.074001 gives this result.
-	//const double friction_mapping = 0.074001;
-	const double friction_mapping = 0.15;
-
-	friction = Math::pow(friction, friction_mapping);
-	air_friction = Math::pow(air_friction, friction_mapping);
-
-	friction = 1.0 - friction;
-	air_friction = 1.0 - air_friction;
-
-	// print_line("Setting friction_multiplier to " + rtos(friction_multiplier));
-	agent->friction = NPAGENT_FRICTION_ADJUSTMENT(friction);
-	agent->air_friction = NPAGENT_FRICTION_ADJUSTMENT(air_friction);
+	agent->set_friction(_scale_friction_param(data.friction, delta));
+	agent->set_air_friction(_scale_friction_param(data.air_friction, delta));
 
 	agent->uphill_modifier = data.uphill;
 	agent->downhill_modifier = data.downhill;
@@ -485,8 +486,8 @@ void NPAgent::_update_params() {
 
 	agent->is_npc = data.is_npc;
 
-#undef NPAGENT_LINEAR_ADJUSTMENT
-#undef NPAGENT_EXP_ADJUSTMENT
+	//#undef NPAGENT_LINEAR_ADJUSTMENT
+	//#undef NPAGENT_EXP_ADJUSTMENT
 }
 
 void NPAgent::_update_process_mode() {
@@ -557,7 +558,10 @@ void NPAgent::apply_jump(float p_impulse) {
 		NavPhysics::Agent *agent = NPWORLD.safe_get_body(data.h_agent, &agent_id);
 		ERR_FAIL_NULL(agent);
 
-		agent->apply_jump(data.jump_vel);
+		// NavPhysics takes a TPS agnostic jump velocity.
+		float jump = data.jump_vel * NPTicker::tps_data.multiplier_jump;
+
+		agent->apply_jump(jump);
 		data.jump_vel = 0;
 	}
 }
@@ -589,6 +593,11 @@ void NPAgent::apply_impulse(const Vector3 &p_impulse) {
 #endif
 
 	Vector3 impulse = (is_on_floor() != ON_AIR) ? p_impulse : p_impulse * data.air_control;
+
+	// Fudge for TPS and delta combined.
+	// Navphysics takes a raw impulse to add to velocity,
+	// it is TPS agnostic.
+	impulse *= NPTicker::tps_data.multiplier_impulse;
 
 	// Send to NavPhysics.
 	u32 agent_id;
