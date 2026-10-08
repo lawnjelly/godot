@@ -28,7 +28,6 @@ class Map {
 	bool resolve_squishy_collision(Agent &p_agent_a, Agent &p_agent_b) const;
 
 public:
-	
 	struct IterateResult {
 		FPoint3 position;
 		FPoint3 velocity;
@@ -39,7 +38,7 @@ public:
 
 	void body_teleport(Agent &r_agent, u32 p_agent_id, const FPoint3 &p_pos);
 	void body_teleport_to_agent_status_jump_target(Agent &r_agent, u32 p_agent_id);
-	
+
 	void prepare_agent(u32 p_agent_id);
 	bool iterate_agent(u32 p_agent_id, IterateResult &r_result);
 
@@ -178,6 +177,7 @@ public:
 	void clear();
 	void tick_update(u64 p_tick, freal p_delta);
 	static void set_timestep(freal p_delta);
+	static void set_ticks_per_second(u32 p_tps);
 	static void set_agent_callback(np_agent_callback p_callback);
 
 	NavPhysics::Agent *safe_get_body(np_handle p_body, u32 *r_id = nullptr);

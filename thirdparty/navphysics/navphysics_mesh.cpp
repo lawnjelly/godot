@@ -16,6 +16,8 @@ freal Mesh::_inverse_timestep = 1.0 / 0.033;
 freal Mesh::_timestep = 0.033;
 u64 Mesh::_tick = 0;
 u32 Mesh::_ticks_per_sec = 60;
+bool Mesh::_timestep_initialized = false;
+//freal Mesh::_tps_force_fudge = 1;
 
 String Mesh::fverts_to_string() const {
 	String sz = "fverts:\n";

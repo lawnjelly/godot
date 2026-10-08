@@ -58,7 +58,12 @@ struct AgentStatus {
 struct Agent {
 private:
 	u32 mesh_instance_id = UINT32_MAX;
-
+	
+	// The client code is responsible for scaling these to physics TPS.
+	// They are straight velocity multipliers.
+	freal friction = 0;
+	freal air_friction = 0;
+	
 public:
 	struct CallbackData {
 		// Used by client code to identify the agent,
@@ -135,16 +140,11 @@ public:
 	// each obstacle has an effect here, this is reported back to the client
 	// for avoidance
 	FPoint3 avoidance_fvel3;
-	
-	// The client code is responsible for scaling these to physics TPS.
-	// They are straight velocity multipliers.
-	freal friction = 0;
-	freal air_friction = 0;
 
 	// Modifiers
 	freal uphill_modifier = 0;
 	freal downhill_modifier = 0;
-	
+
 	freal gravity = 0;
 	//freal gravity_half_step = 0;
 
@@ -158,7 +158,7 @@ public:
 	// and may not be in mesh space except during iteration.
 	FPoint3 fpos3;
 	FPoint3 fimpulse3;
-	
+
 	// This is a separation bodge for agent collision.
 	// It is added to the velocity on the next frame only,
 	// then re-zeroed, so that there is no bouncing.
@@ -174,6 +174,14 @@ public:
 	}
 	void apply_impulse(FPoint3 p_impulse);
 	void apply_jump(float p_vel);
+	void apply_friction();
+	
+	// E.g. 0.95 is gamey type friction.
+	// As if multiplied by the velocity each tick
+	// (in reality this is fudged for tick rate independence).
+	void set_friction(f32 p_friction);
+	void set_air_friction(f32 p_friction);
+	
 	
 	void force_off_floor() {
 		on_floor = false;
@@ -208,7 +216,7 @@ public:
 			agent_height = floor_height;
 		} else {
 			// Move height up or down...
-			agent_height += jump_velocity;// - gravity_half_step;
+			agent_height += jump_velocity; // - gravity_half_step;
 
 			// If we hit the floor?
 			if (agent_height <= floor_height) {
@@ -269,10 +277,10 @@ public:
 		grounded = true;
 		zone_id = UINT32_MAX;
 		blocking_zone_id = UINT32_MAX;
-		
+
 		friction = 0.99;
 		air_friction = 0.99;
-		
+
 		uphill_modifier = 0;
 		downhill_modifier = 0;
 
