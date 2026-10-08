@@ -22,4 +22,13 @@ class NPTicker {
 
 public:
 	static void tick(uint32_t p_physics_tick, real_t p_physics_delta);
+	static void initialize(uint32_t p_physics_ticks_per_second);
+
+	// Data that needs to be adjusted according to TPS,
+	// to give vaguely consistent results as we change TPS.
+	static struct TPSData {
+		float multiplier_impulse = 1;
+		float multiplier_jump = 1;
+		void initialize(uint32_t p_tps);
+	} tps_data;
 };

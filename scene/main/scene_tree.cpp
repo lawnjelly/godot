@@ -2464,6 +2464,12 @@ SceneTree::SceneTree() {
 	live_edit_root = NodePath("/root");
 
 #endif
+
+#ifndef _3D_DISABLED
+	if (!Engine::get_singleton()->is_editor_hint()) {
+		NPTicker::initialize(Engine::get_singleton()->get_iterations_per_second());
+	}
+#endif
 }
 
 SceneTree::~SceneTree() {

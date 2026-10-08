@@ -850,12 +850,65 @@ void World::safe_body_free(np_handle p_body) {
 	_agents.free(id);
 }
 
-void World::set_timestep(freal p_delta) {
-	Mesh::_timestep = p_delta;
-	Mesh::_inverse_timestep = 1.0 / p_delta;
+void World::set_ticks_per_second(u32 p_tps) {
+	if (!Mesh::_timestep_initialized) {
+		log(String("NavPhysics setting TPS to ") + p_tps);
+		set_timestep(1.0 / p_tps);
 
-	// Rounded, approx.
-	Mesh::_ticks_per_sec = (Mesh::_inverse_timestep + 0.5);
+		// Exact.
+		Mesh::_ticks_per_sec = p_tps;
+
+		// TPS fudge factor, so forces applied will result in similarish speed
+		// at different tick rates.
+#if 0
+		struct Fudge {
+			u32 tps = 0;
+			freal fudge = 1;
+			Fudge(u32 p_tps, freal p_fudge) {
+				tps = p_tps;
+				fudge = p_fudge;
+			}
+			Fudge() {}
+		};
+		Vector<Fudge> fudges;
+		fudges.push_back(Fudge(1, 1.6f));
+		//fudges.push_back(Fudge(10, 1.5f));
+		fudges.push_back(Fudge(30, 1.3f));
+		fudges.push_back(Fudge(60, 1.0f));
+		fudges.push_back(Fudge(120, 0.8f));
+		fudges.push_back(Fudge(240, 0.4f));
+		fudges.push_back(Fudge(1024, 0.2f));
+
+		// User is on their own after 1024 tps!!
+		for (u32 n = 1; n < fudges.size(); n++) {
+			const Fudge &a = fudges[n - 1];
+			const Fudge &b = fudges[n];
+
+			if (p_tps <= b.tps) {
+				u32 diff = b.tps - a.tps;
+				freal offset = p_tps - a.tps;
+				freal fraction = offset / diff;
+				Mesh::_tps_force_fudge = a.fudge + ((b.fudge - a.fudge) * fraction);
+				log(String("NavPhysics setting TPS fudge factor to ") + Mesh::_tps_force_fudge);
+				Mesh::_tps_force_fudge *= Mesh::_timestep;
+				break;
+			}
+		}
+#endif
+	}
+}
+
+void World::set_timestep(freal p_delta) {
+	if (!Mesh::_timestep_initialized) {
+		Mesh::_timestep = p_delta;
+		Mesh::_inverse_timestep = 1.0 / p_delta;
+
+		// Rounded, approx.
+		Mesh::_ticks_per_sec = (Mesh::_inverse_timestep + 0.5);
+		Mesh::_timestep_initialized = true;
+	} else {
+		log("NavPhysics ERROR : Timestep already initialized, ignoring.");
+	}
 }
 
 void World::set_agent_callback(np_agent_callback p_callback) {

@@ -99,6 +99,7 @@ private:
 
 	void _update_process_mode();
 	//void _nav_update();
+	double _scale_friction_param(double p_friction, double p_delta) const;
 	void _update_params();
 	void _update_physics_shape();
 	float _shift_yaw(float p_from, float p_to, float p_max_change) const;

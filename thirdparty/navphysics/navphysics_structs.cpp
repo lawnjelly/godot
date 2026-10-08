@@ -26,12 +26,30 @@ void Agent::set_mesh_instance_id(uint32_t p_mesh_id) {
 	mesh_instance_id = p_mesh_id;
 }
 
+void Agent::set_friction(f32 p_friction) {
+	friction = p_friction;
+	log(String("agent_adjusted_friction is ") + friction);	
+}
+
+void Agent::set_air_friction(f32 p_friction) {
+	air_friction = p_friction;
+}
+
+void Agent::apply_friction() {
+	// Apply friction.
+	// The friction multipliers should be adjusted according to the physics TPS
+	// in the client code to give consistent friction at different TPS.
+	// e.g. friction = pow(friction, 60 * physics_delta).
+	freal f = is_on_floor() ? friction : air_friction;
+	vel *= f;
+}
+
 void Agent::apply_impulse(FPoint3 p_impulse) {
-	fimpulse3 += p_impulse * Mesh::_timestep;
+	fimpulse3 += p_impulse;
 }
 
 void Agent::apply_jump(float p_vel) {
-	jump_velocity += p_vel * Mesh::_timestep;
+	jump_velocity += p_vel;
 }
 
 //void Agent::seek_yaw(float p_yaw) {

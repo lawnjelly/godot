@@ -155,10 +155,12 @@ private:
 	u32 _mesh_id_map_slot = UINT32_MAX;
 
 public:
+	static bool _timestep_initialized;
 	static freal _inverse_timestep;
 	static freal _timestep;
 	static u64 _tick;
 	static u32 _ticks_per_sec;
+	//static freal _tps_force_fudge;
 
 	void clear(bool p_preserve_extended_data = false) {
 		if (!p_preserve_extended_data) {
