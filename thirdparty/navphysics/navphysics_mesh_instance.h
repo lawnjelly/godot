@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "navphysics_poi.h"
 #include "navphysics_pointf.h"
 #include "navphysics_pointi.h"
 #include "navphysics_structs.h"
@@ -27,6 +28,7 @@ class MeshInstance {
 	u32 _mesh_id = UINT32_MAX;
 	u32 _map_slot = UINT32_MAX;
 
+	Vector<POI_Instance> _POIs;
 	Vector<ZoneInstance> _zone_instances;
 
 	const ZoneInstance &get_zone_instance(u32 p_idx) const { return _zone_instances[p_idx]; }
@@ -72,6 +74,8 @@ public:
 	FPoint3 local_pos_to_world_space(const Mesh &p_mesh, const IPoint2 &p_pt_local, freal p_agent_height) const;
 	IPoint2 world_space_pos_to_local(const Mesh &p_mesh, const FPoint3 &p_pt_world, freal &r_agent_height) const;
 
+	FPoint3 world_space_pos_to_local3(const FPoint3 &p_pt_world) const;
+
 	FPoint3 local_velocity_to_world_space(const Mesh &p_mesh, const IPoint2 &p_vel_local) const;
 	IPoint2 world_space_velocity_to_local(const Mesh &p_mesh, const FPoint3 &p_vel_world) const;
 	////////////////////////////////////////////
@@ -82,6 +86,13 @@ public:
 	u32 get_map_slot() const { return _map_slot; }
 
 	np_handle get_handle() const { return _handle; }
+
+	POI_Instance &get_poi(u32 p_id) { return _POIs[p_id]; }
+	const POI_Instance &get_poi(u32 p_id) const { return _POIs[p_id]; }
+	POI_Instance &request_poi(u32 &r_id, const FPoint3 &p_pt_world);
+	void clear_pois() {
+		_POIs.clear();
+	}
 
 	void init(np_handle p_handle) {
 		_transform.init();

@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "navphysics_poi.h"
 #include "navphysics_pointf.h"
 #include "navphysics_pointi.h"
 #include "navphysics_poly_finder.h"
@@ -67,6 +68,9 @@ class Mesh {
 	// a number of these are referenced from PolyExtra
 	// and enable quickly finding height from the floor poly.
 	Vector<u32> _ceiling_links;
+
+	// Points of Interest (Baked).
+	Vector<POI> _POIs;
 
 	struct WallPair {
 		u32 vert_ids[2] = {};
@@ -182,6 +186,14 @@ public:
 		_links.clear();
 		_walls.clear();
 		_narrowings.clear();
+		_POIs.clear();
+	}
+
+	POI &get_poi(u32 p_id) { return _POIs[p_id]; }
+	POI &request_poi(u32 &r_id) {
+		r_id = _POIs.size();
+		_POIs.resize(r_id + 1);
+		return get_poi(r_id);
 	}
 
 	u32 get_mesh_id() const { return _mesh_id; }
