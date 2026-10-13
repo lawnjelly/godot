@@ -6,6 +6,7 @@
 #include "godot/np_bake_params.h"
 #include "godot/np_mesh.h"
 #include "godot/np_mesh_instance.h"
+#include "godot/np_point.h"
 
 #ifdef TOOLS_ENABLED
 #include "editor/navphysics_mesh_editor_plugin.h"
@@ -20,6 +21,7 @@ void register_nav_physics_types() {
 	ClassDB::register_class<NPBakeParams_Agent>();
 	ClassDB::register_class<NPBakeParams_Mesh>();
 	ClassDB::register_class<NPBakeParams>();
+	ClassDB::register_class<NPPoint>();
 
 #ifdef TOOLS_ENABLED
 	EditorPlugins::add_by_type<NPMeshEditorPlugin>();

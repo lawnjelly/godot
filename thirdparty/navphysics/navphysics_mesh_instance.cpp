@@ -19,8 +19,12 @@ FPoint3 MeshInstance::local_pos_to_world_space(const Mesh &p_mesh, const IPoint2
 	return get_transform().xform(pt_world);
 }
 
+FPoint3 MeshInstance::world_space_pos_to_local3(const FPoint3 &p_pt_world) const {
+	return get_transform_inverse().xform(p_pt_world);
+}
+
 IPoint2 MeshInstance::world_space_pos_to_local(const Mesh &p_mesh, const FPoint3 &p_pt_world, freal &r_agent_height) const {
-	FPoint3 pos_local = get_transform_inverse().xform(p_pt_world);
+	FPoint3 pos_local = world_space_pos_to_local3(p_pt_world);
 	r_agent_height = pos_local.y;
 	return p_mesh.float_to_fixed_point_2(pos_local.xz());
 }
@@ -33,6 +37,21 @@ FPoint3 MeshInstance::local_velocity_to_world_space(const Mesh &p_mesh, const IP
 IPoint2 MeshInstance::world_space_velocity_to_local(const Mesh &p_mesh, const FPoint3 &p_vel_world) const {
 	FPoint3 vel_local = get_transform_inverse().basis.xform(p_vel_world);
 	return p_mesh.float_to_fixed_point_vel(vel_local.xz());
+}
+
+POI_Instance &MeshInstance::request_poi(u32 &r_id, const FPoint3 &p_pt_world) {
+	r_id = _POIs.size();
+	_POIs.resize(r_id + 1);
+
+	// Calculate the poi local space position relative to the mesh instance.
+	POI_Instance &inst = get_poi(r_id);
+	inst.local_pos3 = world_space_pos_to_local3(p_pt_world);
+
+	if (_mesh_id != UINT32_MAX) {
+		inst.local_pos = world_space_pos_to_local(get_mesh(), inst.local_pos3, inst.height);
+	}
+
+	return inst;
 }
 
 void MeshInstance::set_active(bool p_active) {
