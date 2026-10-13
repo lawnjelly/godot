@@ -19,6 +19,7 @@
 #include "navphysics_path.cpp"
 #include "navphysics_plane.cpp"
 #include "navphysics_planner.cpp"
+#include "navphysics_poi.cpp"
 #include "navphysics_pointf.cpp"
 #include "navphysics_pointi.cpp"
 #include "navphysics_poly_finder.cpp"

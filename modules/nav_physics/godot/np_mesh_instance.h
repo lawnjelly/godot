@@ -4,12 +4,23 @@
 #include "scene/3d/spatial.h"
 #include "thirdparty/navphysics/navphysics_defines.h"
 
+class NPPoint;
+
 class NPMeshInstance : public Spatial {
 	GDCLASS(NPMeshInstance, Spatial);
+
+	friend class NPPoint;
+
+	struct PointRef {
+		NPPoint *point = nullptr;
+		uint32_t nav_physics_id = UINT32_MAX;
+	};
 
 	struct Data {
 		np_handle h_mesh_instance = 0;
 		Ref<NPMesh> mesh;
+
+		LocalVector<PointRef> points;
 	} data;
 
 	struct DebugData {
@@ -21,6 +32,7 @@ class NPMeshInstance : public Spatial {
 	void _update_server();
 	void _update_visibility();
 	bool _refresh_debug_visuals();
+	void resync_points();
 
 protected:
 	void _notification(int p_what);

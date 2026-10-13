@@ -3,6 +3,7 @@
 #include "core/engine.h"
 
 #include "np_agent.h"
+#include "np_point.h"
 #include "thirdparty/navphysics/navphysics_loader.h"
 #include "thirdparty/navphysics/navphysics_log.h"
 #include "thirdparty/navphysics/navphysics_map.h"
@@ -56,6 +57,35 @@ void NPMeshInstance::_update_visibility() {
 		if (data.h_mesh_instance) {
 			NPWORLD.safe_set_mesh_instance_active(data.h_mesh_instance, is_visible_in_tree());
 		}
+	}
+}
+
+void NPMeshInstance::resync_points() {
+	data.points.clear();
+
+	if (data.h_mesh_instance) {
+		NavPhysics::MeshInstance *mi = NavPhysics::g_world.safe_get_mesh_instance(data.h_mesh_instance);
+		if (mi) {
+			mi->clear_pois();
+
+			int num_children = get_child_count();
+
+			for (int n = 0; n < num_children; n++) {
+				NPPoint *point = Object::cast_to<NPPoint>(get_child(n));
+				if (point) {
+					PointRef ref;
+					ref.point = point;
+
+					Vector3 origin = point->get_global_transform().origin;
+					NavPhysics::POI_Instance &poi = mi->request_poi(ref.nav_physics_id, *(NavPhysics::FPoint3 *)&origin);
+
+					data.points.push_back(ref);
+
+					// Back pointer to the scene side.
+					poi.user_data = (u64)point;
+				}
+			}
+		} // if mi
 	}
 }
 
