@@ -60,13 +60,57 @@ void NPMeshInstance::_update_visibility() {
 	}
 }
 
+void NPMeshInstance::point_add(NPPoint &p_point) {
+	NavPhysics::MeshInstance *mi = NavPhysics::g_world.safe_get_mesh_instance(data.h_mesh_instance);
+	ERR_FAIL_NULL(mi);
+
+	//Vector3 origin = p_point.get_global_transform().origin;
+
+	NavPhysics::POI *poi = NavPhysics::g_world.safe_get_poi(p_point.get_handle_poi());
+	DEV_ASSERT(poi);
+	//mi->add_poi(poi, *(NavPhysics::FPoint3 *)&origin);
+	mi->poi_add(poi);
+
+	// Back pointer to the scene side.
+	poi->user_data = (u64)&p_point;
+
+	PointRef ref;
+	ref.point = &p_point;
+	data.points.push_back(ref);
+}
+
+void NPMeshInstance::point_remove(NPPoint &p_point) {
+	NavPhysics::MeshInstance *mi = NavPhysics::g_world.safe_get_mesh_instance(data.h_mesh_instance);
+	ERR_FAIL_NULL(mi);
+
+	NavPhysics::POI *poi = NavPhysics::g_world.safe_get_poi(p_point.get_handle_poi());
+	DEV_ASSERT(poi);
+	mi->poi_remove(poi);
+
+	PointRef ref;
+	ref.point = &p_point;
+	ERR_FAIL_COND(data.points.erase_unordered(ref) == false);
+}
+
+void NPMeshInstance::point_notify_transform(NPPoint &p_point) {
+	NavPhysics::MeshInstance *mi = NavPhysics::g_world.safe_get_mesh_instance(data.h_mesh_instance);
+	ERR_FAIL_NULL(mi);
+
+	Vector3 origin = p_point.get_global_transform().origin;
+
+	NavPhysics::POI *poi = NavPhysics::g_world.safe_get_poi(p_point.get_handle_poi());
+	DEV_ASSERT(poi);
+
+	mi->poi_set_position(poi, *(NavPhysics::FPoint3 *)&origin);
+}
+
 void NPMeshInstance::resync_points() {
 	data.points.clear();
 
 	if (data.h_mesh_instance) {
 		NavPhysics::MeshInstance *mi = NavPhysics::g_world.safe_get_mesh_instance(data.h_mesh_instance);
 		if (mi) {
-			mi->clear_pois();
+			mi->pois_clear();
 
 			int num_children = get_child_count();
 
@@ -76,13 +120,17 @@ void NPMeshInstance::resync_points() {
 					PointRef ref;
 					ref.point = point;
 
-					Vector3 origin = point->get_global_transform().origin;
-					NavPhysics::POI_Instance &poi = mi->request_poi(ref.nav_physics_id, *(NavPhysics::FPoint3 *)&origin);
+					//Vector3 origin = point->get_global_transform().origin;
 
-					data.points.push_back(ref);
+					NavPhysics::POI *poi = NavPhysics::g_world.safe_get_poi(point->get_handle_poi());
+					DEV_ASSERT(poi);
+					//mi->poi_add(poi, *(NavPhysics::FPoint3 *)&origin);
+					mi->poi_add(poi);
 
 					// Back pointer to the scene side.
-					poi.user_data = (u64)point;
+					poi->user_data = (u64)point;
+
+					data.points.push_back(ref);
 				}
 			}
 		} // if mi
@@ -103,6 +151,8 @@ void NPMeshInstance::_notification(int p_what) {
 		} break;
 		case NOTIFICATION_VISIBILITY_CHANGED: {
 			_update_visibility();
+		} break;
+		case NOTIFICATION_CHILD_ORDER_CHANGED: {
 		} break;
 	}
 }

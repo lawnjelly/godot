@@ -28,7 +28,7 @@ class MeshInstance {
 	u32 _mesh_id = UINT32_MAX;
 	u32 _map_slot = UINT32_MAX;
 
-	Vector<POI_Instance> _POIs;
+	Vector<POI *> _POIs;
 	Vector<ZoneInstance> _zone_instances;
 
 	const ZoneInstance &get_zone_instance(u32 p_idx) const { return _zone_instances[p_idx]; }
@@ -87,10 +87,11 @@ public:
 
 	np_handle get_handle() const { return _handle; }
 
-	POI_Instance &get_poi(u32 p_id) { return _POIs[p_id]; }
-	const POI_Instance &get_poi(u32 p_id) const { return _POIs[p_id]; }
-	POI_Instance &request_poi(u32 &r_id, const FPoint3 &p_pt_world);
-	void clear_pois() {
+	void poi_add(POI * p_poi);
+	void poi_set_position(POI * p_poi, const FPoint3 &p_pt_world);
+	bool poi_remove(POI * p_poi);
+	uint32_t poi_find(POI * p_poi) const;
+	void pois_clear() {
 		_POIs.clear();
 	}
 

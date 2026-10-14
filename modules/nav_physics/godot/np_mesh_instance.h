@@ -13,7 +13,10 @@ class NPMeshInstance : public Spatial {
 
 	struct PointRef {
 		NPPoint *point = nullptr;
-		uint32_t nav_physics_id = UINT32_MAX;
+		//uint32_t nav_physics_id = UINT32_MAX;
+		bool operator==(const PointRef &p_other) const {
+			return this->point == p_other.point;
+		}
 	};
 
 	struct Data {
@@ -33,6 +36,10 @@ class NPMeshInstance : public Spatial {
 	void _update_visibility();
 	bool _refresh_debug_visuals();
 	void resync_points();
+
+	void point_add(NPPoint &p_point);
+	void point_remove(NPPoint &p_point);
+	void point_notify_transform(NPPoint &p_point);
 
 protected:
 	void _notification(int p_what);
