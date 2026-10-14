@@ -16,6 +16,7 @@ typedef void (*np_agent_callback)(u64 p_user_data, const FPoint3 &p_position, co
 class Mesh;
 class MeshInstance;
 class Region;
+class POI;
 struct Agent;
 
 class Map {
@@ -160,6 +161,7 @@ class World {
 	WorldPool<Region> _regions;
 	WorldPool<Mesh> _meshes;
 	WorldPool<MeshInstance> _mesh_instances;
+	WorldPool<POI> _pois;
 
 	// Agent is stored directly rather than as a WorldPool
 	// so as to prevent an indirection and give fast access.
@@ -185,6 +187,7 @@ public:
 	NavPhysics::MeshInstance *safe_get_mesh_instance(np_handle p_mesh_instance, u32 *r_id = nullptr) { return _mesh_instances.safe_get_object(p_mesh_instance, r_id); }
 	NavPhysics::Region *safe_get_region(np_handle p_region, u32 *r_id = nullptr) { return _regions.safe_get_object(p_region, r_id); }
 	NavPhysics::Map *safe_get_map(np_handle p_map, u32 *r_id = nullptr) { return _maps.safe_get_object(p_map, r_id); }
+	NavPhysics::POI *safe_get_poi(np_handle p_poi, u32 *r_id = nullptr) { return _pois.safe_get_object(p_poi, r_id); }
 
 	NavPhysics::Agent &get_body(u32 p_id) { return _agents[p_id]; }
 	NavPhysics::Mesh &get_mesh(u32 p_id) { return *_meshes.pool[p_id].object; }
@@ -199,12 +202,14 @@ public:
 	np_handle safe_mesh_create() { return _meshes.safe_object_create(); }
 	np_handle safe_mesh_instance_create() { return _mesh_instances.safe_object_create(); }
 	np_handle safe_region_create();
+	np_handle safe_poi_create();
 	np_handle safe_map_create() { return _maps.safe_object_create(); }
 
 	void safe_body_free(np_handle p_body);
 	void safe_mesh_free(np_handle p_mesh) { _meshes.safe_object_free(p_mesh); }
 	void safe_mesh_instance_free(np_handle p_mesh_instance) { _mesh_instances.safe_object_free(p_mesh_instance); }
 	void safe_region_free(np_handle p_region);
+	void safe_poi_free(np_handle p_poi);
 	void safe_map_free(np_handle p_map) { _maps.safe_object_free(p_map); }
 
 	bool safe_link_mesh(np_handle p_mesh_instance, np_handle p_mesh);

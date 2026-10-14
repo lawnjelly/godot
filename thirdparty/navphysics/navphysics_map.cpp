@@ -6,6 +6,7 @@
 #include "navphysics_mesh.h"
 #include "navphysics_mesh_funcs.h"
 #include "navphysics_mesh_instance.h"
+#include "navphysics_poi.h"
 #include "navphysics_region.h"
 
 namespace NavPhysics {
@@ -832,12 +833,20 @@ np_handle World::safe_body_create() {
 	return 0;
 }
 
+np_handle World::safe_poi_create() {
+	return _pois.safe_object_create();
+}
+
 np_handle World::safe_region_create() {
 	return _regions.safe_object_create();
 }
 
 void World::safe_region_free(np_handle p_region) {
 	_regions.safe_object_free(p_region);
+}
+
+void World::safe_poi_free(np_handle p_poi) {
+	_pois.safe_object_free(p_poi);
 }
 
 void World::safe_body_free(np_handle p_body) {
@@ -1003,6 +1012,7 @@ void World::clear() {
 	_meshes.clear();
 	_regions.clear();
 	_maps.clear();
+	_pois.clear();
 }
 
 np_handle World::safe_get_agent_mesh_instance_handle(np_handle p_body) {
