@@ -3,26 +3,34 @@
 
 void NPPoint::_notification(int p_what) {
 	switch (p_what) {
-		case NOTIFICATION_EXIT_TREE: {
-			_resync_parent();
+		case NOTIFICATION_PARENTED: {
+			NPMeshInstance *mi = Object::cast_to<NPMeshInstance>(get_parent());
+			if (mi) {
+				mi->point_add(*this);
+			}
+		} break;
+		case NOTIFICATION_UNPARENTED: {
+			NPMeshInstance *mi = Object::cast_to<NPMeshInstance>(get_parent());
+			if (mi) {
+				mi->point_remove(*this);
+			}
 		} break;
 		case NOTIFICATION_ENTER_TREE: {
+			NPMeshInstance *mi = Object::cast_to<NPMeshInstance>(get_parent());
+			if (mi) {
+				mi->point_notify_transform(*this);
+			}
 		} break;
-		case NOTIFICATION_PARENTED: {
-			_resync_parent();
+		case NOTIFICATION_LOCAL_TRANSFORM_CHANGED: {
+			if (is_inside_tree()) {
+				NPMeshInstance *mi = Object::cast_to<NPMeshInstance>(get_parent());
+				if (mi) {
+					mi->point_notify_transform(*this);
+				}
+			}
 		} break;
 		default:
 			break;
-	}
-}
-
-void NPPoint::_resync_parent() {
-	// We will be getting a new ID from the navphysics.
-	data.id = UINT32_MAX;
-
-	NPMeshInstance *mi = Object::cast_to<NPMeshInstance>(get_parent_spatial());
-	if (mi) {
-		mi->resync_points();
 	}
 }
 
@@ -46,4 +54,16 @@ void NPPoint::set_type(int32_t p_type) {
 
 int32_t NPPoint::get_type() const {
 	return data.type;
+}
+
+NPPoint::NPPoint() {
+	data.h_poi = NavPhysics::g_world.safe_poi_create();
+	set_notify_local_transform(true);
+}
+
+NPPoint::~NPPoint() {
+	if (data.h_poi) {
+		NavPhysics::g_world.safe_poi_free(data.h_poi);
+		data.h_poi = 0;
+	}
 }

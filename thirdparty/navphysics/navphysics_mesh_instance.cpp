@@ -39,19 +39,44 @@ IPoint2 MeshInstance::world_space_velocity_to_local(const Mesh &p_mesh, const FP
 	return p_mesh.float_to_fixed_point_vel(vel_local.xz());
 }
 
-POI_Instance &MeshInstance::request_poi(u32 &r_id, const FPoint3 &p_pt_world) {
-	r_id = _POIs.size();
-	_POIs.resize(r_id + 1);
+void MeshInstance::poi_add(POI *p_poi) {
+	NP_DEV_ASSERT(p_poi);
+	_POIs.push_back(p_poi);
+}
+
+void MeshInstance::poi_set_position(POI *p_poi, const FPoint3 &p_pt_world) {
+	NP_DEV_ASSERT(p_poi);
+
+#ifdef NP_DEV_ENABLED
+	uint32_t id = poi_find(p_poi);
+	NP_ERR_FAIL_COND(id == UINT32_MAX);
+#endif
 
 	// Calculate the poi local space position relative to the mesh instance.
-	POI_Instance &inst = get_poi(r_id);
-	inst.local_pos3 = world_space_pos_to_local3(p_pt_world);
+	p_poi->local_pos3 = world_space_pos_to_local3(p_pt_world);
 
-	if (_mesh_id != UINT32_MAX) {
-		inst.local_pos = world_space_pos_to_local(get_mesh(), inst.local_pos3, inst.height);
+	NP_ERR_FAIL_COND(_mesh_id == UINT32_MAX);
+	p_poi->local_pos = world_space_pos_to_local(get_mesh(), p_poi->local_pos3, p_poi->height);
+}
+
+uint32_t MeshInstance::poi_find(POI *p_poi) const {
+	for (uint32_t n = 0; n < _POIs.size(); n++) {
+		if (_POIs[n] == p_poi) {
+			return n;
+		}
 	}
 
-	return inst;
+	return UINT32_MAX;
+}
+
+bool MeshInstance::poi_remove(POI *p_poi) {
+	uint32_t id = poi_find(p_poi);
+	if (id != UINT32_MAX) {
+		_POIs.remove_unordered(id);
+		return true;
+	}
+
+	return false;
 }
 
 void MeshInstance::set_active(bool p_active) {
