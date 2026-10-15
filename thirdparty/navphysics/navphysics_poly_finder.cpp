@@ -204,7 +204,8 @@ const u32 *PolyFinder::find_leaf(const IPoint2 &p_pt, u32 &r_num_polys) const {
 		// Off map.
 		return nullptr;
 	}
-
+	
+	NP_DEV_ASSERT(_cell_size);
 	pt.x /= _cell_size;
 	pt.y /= _cell_size;
 

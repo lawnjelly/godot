@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "navphysics_agent.h"
 #include "navphysics_poi.h"
 #include "navphysics_pointf.h"
 #include "navphysics_pointi.h"
@@ -396,7 +397,11 @@ public:
 		r_x = p_pt.x / 65;
 		r_y = p_pt.y / 65;
 	}
-
+	
+	
+	// Simple fast ray tracing routine for AI queries.
+	bool ray_trace(IPoint2 p_from, const IPoint2 &p_to, u32 p_source_poly_id, u32 p_dest_poly_id) const;
+	
 private:
 	String _svg_header(float p_scale = 1) const;
 	void modify_velocity_for_poly_slope(const MoveInfo &p_info, IPoint2 &r_vel, u32 p_poly_id) const;

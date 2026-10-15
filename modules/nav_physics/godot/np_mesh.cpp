@@ -518,7 +518,7 @@ void NPMesh::log(String p_string) const {
 
 NPMesh::NPMesh() {
 	NavPhysics::set_log_callback(_nav_physics_log_callback);
-	NavPhysics::Loader::set_editor_only(Engine::get_singleton()->is_editor_hint());
+	NavPhysics::Loader::set_is_editor(Engine::get_singleton()->is_editor_hint());
 	data.h_mesh = NavPhysics::g_world.safe_mesh_create();
 }
 
