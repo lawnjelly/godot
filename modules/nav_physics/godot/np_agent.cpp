@@ -18,6 +18,13 @@
 Transform NPAgent::_dummy_xform;
 
 void NPAgent::_bind_methods() {
+	BIND_ENUM_CONSTANT(TEST_RESULT_CLEAR);
+	BIND_ENUM_CONSTANT(TEST_RESULT_FAILED);
+	BIND_ENUM_CONSTANT(TEST_RESULT_INVALID_PARAMETER);
+	BIND_ENUM_CONSTANT(TEST_RESULT_DIFFERENT_MESH);
+	BIND_ENUM_CONSTANT(TEST_RESULT_INVALID_MESH);
+	BIND_ENUM_CONSTANT(TEST_RESULT_BLOCKED_WALL);
+
 	BIND_ENUM_CONSTANT(PATH_OK);
 	BIND_ENUM_CONSTANT(PATH_PENDING);
 	BIND_ENUM_CONSTANT(PATH_FINISHED);
@@ -33,6 +40,9 @@ void NPAgent::_bind_methods() {
 	BIND_ENUM_CONSTANT(PATH_RESULT_PENDING);
 	BIND_ENUM_CONSTANT(PATH_RESULT_FINISHED);
 	BIND_ENUM_CONSTANT(PATH_RESULT_FAILED);
+
+	ClassDB::bind_method(D_METHOD("ray_test_point", "point"), &NPAgent::ray_test_point);
+	ClassDB::bind_method(D_METHOD("ray_test_agent", "agent"), &NPAgent::ray_test_agent);
 
 	ClassDB::bind_method(D_METHOD("nav_teleport", "position"), &NPAgent::nav_teleport);
 	ClassDB::bind_method(D_METHOD("apply_impulse", "impulse"), &NPAgent::apply_impulse);
@@ -533,19 +543,40 @@ void NPAgent::_nav_update() {
 }
 #endif
 
-bool NPAgent::ray_trace_point(const NPPoint &p_point) const {
-	NavPhysics::POI *poi = p_point.get_poi();
-	ERR_FAIL_NULL_V(poi, false);
+NPAgent::TestResult NPAgent::ray_test_agent(const Node *p_np_agent) const {
+	const NPAgent *np_agent = Object::cast_to<NPAgent>(p_np_agent);
+	ERR_FAIL_NULL_V_MSG(np_agent, TEST_RESULT_INVALID_PARAMETER, "Parameter must be an NPAgent");
+
+	NavPhysics::Agent *agent_A = NPWORLD.safe_get_body(np_agent->data.h_agent);
+	ERR_FAIL_NULL_V(agent_A, TEST_RESULT_INVALID_PARAMETER);
+
+	NavPhysics::Agent *agent_B = NPWORLD.safe_get_body(data.h_agent);
+	ERR_FAIL_NULL_V(agent_B, TEST_RESULT_FAILED);
+
+	ERR_FAIL_COND_V(agent_A->get_mesh_instance_id() != agent_B->get_mesh_instance_id(), TEST_RESULT_DIFFERENT_MESH);
+	ERR_FAIL_COND_V(agent_B->get_mesh_instance_id() == UINT32_MAX, TEST_RESULT_INVALID_MESH);
+
+	NavPhysics::MeshInstance &mi = NPWORLD.get_mesh_instance(agent_B->get_mesh_instance_id());
+
+	return mi.get_mesh().ray_test(agent_A->pos, agent_A->poly_id, agent_B->pos, agent_B->poly_id) ? TEST_RESULT_CLEAR : TEST_RESULT_BLOCKED_WALL;
+}
+
+NPAgent::TestResult NPAgent::ray_test_point(const Node *p_np_point) const {
+	const NPPoint *point = Object::cast_to<NPPoint>(p_np_point);
+	ERR_FAIL_NULL_V_MSG(point, TEST_RESULT_INVALID_PARAMETER, "Parameter must be an NPPoint");
+
+	NavPhysics::POI *poi = point->get_poi();
+	ERR_FAIL_NULL_V(poi, TEST_RESULT_FAILED);
 
 	NavPhysics::Agent *agent = NPWORLD.safe_get_body(data.h_agent);
-	ERR_FAIL_NULL_V(agent, false);
+	ERR_FAIL_NULL_V(agent, TEST_RESULT_FAILED);
 
-	ERR_FAIL_COND_V(agent->get_mesh_instance_id() == UINT32_MAX, false);
+	ERR_FAIL_COND_V(agent->get_mesh_instance_id() == UINT32_MAX, TEST_RESULT_INVALID_MESH);
 
 	NavPhysics::MeshInstance &mi = NPWORLD.get_mesh_instance(agent->get_mesh_instance_id());
-	ERR_FAIL_COND_V(mi.get_handle() != poi->handle_mesh_instance, false);
+	ERR_FAIL_COND_V(mi.get_handle() != poi->handle_mesh_instance, TEST_RESULT_DIFFERENT_MESH);
 
-	return mi.get_mesh().ray_trace(agent->pos, poi->local_pos, agent->poly_id, poi->poly_id);
+	return mi.get_mesh().ray_test(agent->pos, agent->poly_id, poi->local_pos, poi->poly_id) ? TEST_RESULT_CLEAR : TEST_RESULT_BLOCKED_WALL;
 }
 
 void NPAgent::nav_teleport(const Vector3 &p_pos) {

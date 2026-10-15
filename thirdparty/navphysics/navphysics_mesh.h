@@ -400,7 +400,7 @@ public:
 	
 	
 	// Simple fast ray tracing routine for AI queries.
-	bool ray_trace(IPoint2 p_from, const IPoint2 &p_to, u32 p_source_poly_id, u32 p_dest_poly_id) const;
+	bool ray_test(IPoint2 p_from, u32 p_source_poly_id, const IPoint2 &p_to, u32 p_dest_poly_id) const;
 	
 private:
 	String _svg_header(float p_scale = 1) const;

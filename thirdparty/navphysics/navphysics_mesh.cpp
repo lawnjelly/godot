@@ -951,7 +951,7 @@ bool Mesh::debug_check_agent_integrity(const IPoint2 &p_pos, u32 p_poly_id, u32 
 	return true;
 }
 
-bool Mesh::ray_trace(IPoint2 p_from, const IPoint2 &p_to, u32 p_source_poly_id, u32 p_dest_poly_id) const {
+bool Mesh::ray_test(IPoint2 p_from, u32 p_source_poly_id, const IPoint2 &p_to, u32 p_dest_poly_id) const {
 	u32 poly_id = p_source_poly_id;
 	IPoint2 best_intersect;
 
