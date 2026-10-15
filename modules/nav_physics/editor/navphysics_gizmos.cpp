@@ -1,6 +1,37 @@
 #include "navphysics_gizmos.h"
 #include "modules/nav_physics/godot/np_mesh.h"
 #include "modules/nav_physics/godot/np_mesh_instance.h"
+#include "modules/nav_physics/godot/np_point.h"
+
+NavPhysicsPointSpatialGizmoPlugin::NavPhysicsPointSpatialGizmoPlugin() {
+	create_material("nav_physics_poi_solid_material", EDITOR_DEF("editors/3d_gizmos/gizmo_colors/nav_physics_point", Color(1.0, 0.5, 0.5, 1.0)));
+	//create_icon_material("nav_physics_poi_icon", SpatialEditor::get_singleton()->get_icon("GizmoPortal", "EditorIcons"), true);
+}
+
+bool NavPhysicsPointSpatialGizmoPlugin::has_gizmo(Spatial *p_spatial) {
+	return Object::cast_to<NPPoint>(p_spatial) != nullptr;
+}
+
+String NavPhysicsPointSpatialGizmoPlugin::get_name() const {
+	return "NPPoint";
+}
+
+int NavPhysicsPointSpatialGizmoPlugin::get_priority() const {
+	return -1;
+}
+
+void NavPhysicsPointSpatialGizmoPlugin::redraw(EditorSpatialGizmo *p_gizmo) {
+	p_gizmo->clear();
+	NPPoint *point = Object::cast_to<NPPoint>(p_gizmo->get_spatial_node());
+
+	//Ref<Material> icon = get_material("nav_physics_poi_icon", p_gizmo);
+	//p_gizmo->add_unscaled_billboard(icon, 0.05);
+
+	Ref<Material> solid_material = get_material("nav_physics_poi_solid_material", p_gizmo);
+	p_gizmo->add_solid_box(solid_material, Vector3(0.25f, 0.25f, 0.25f));
+}
+
+///////////////////////////////////
 
 NavPhysicsMeshSpatialGizmoPlugin::NavPhysicsMeshSpatialGizmoPlugin() {
 	create_material("nav_physics_edge_material", EDITOR_DEF("editors/3d_gizmos/gizmo_colors/nav_physics_edge", Color(0.5, 1, 0)));
