@@ -22,6 +22,15 @@ public:
 		PATH_RESULT_FAILED,
 	};
 
+	enum TestResult : u32 {
+		TEST_RESULT_CLEAR,
+		TEST_RESULT_FAILED,
+		TEST_RESULT_INVALID_PARAMETER,
+		TEST_RESULT_DIFFERENT_MESH,
+		TEST_RESULT_INVALID_MESH,
+		TEST_RESULT_BLOCKED_WALL,
+	};
+
 private:
 	friend class NPTicker;
 
@@ -121,7 +130,8 @@ public:
 	};
 
 	// Utility functions.
-	bool ray_trace_point(const NPPoint &p_point) const;
+	TestResult ray_test_point(const Node *p_np_point) const;
+	TestResult ray_test_agent(const Node *p_np_agent) const;
 
 	void nav_teleport(const Vector3 &p_pos);
 	void apply_impulse(const Vector3 &p_impulse);
@@ -199,6 +209,7 @@ public:
 	~NPAgent();
 };
 
+VARIANT_ENUM_CAST(NPAgent::TestResult);
 VARIANT_ENUM_CAST(NPAgent::PathStatus);
 VARIANT_ENUM_CAST(NPAgent::FloorStatus);
 VARIANT_ENUM_CAST(NPAgent::PathResult);
