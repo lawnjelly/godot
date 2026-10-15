@@ -121,7 +121,7 @@ void RawLoader::write_fpoint2(TVector<uint8_t> &r_data, const FPoint2 &p_point) 
 
 ////////////////////////////////////////////////////////
 
-bool Loader::_editor_only = false;
+bool Loader::_is_editor = false;
 
 void Loader::llog(String p_sz) {
 	//log(p_sz);
@@ -1544,7 +1544,7 @@ bool Loader::load_working_data(const WorkingMeshData &p_data, Mesh &r_mesh) {
 	// The poly bounds and finder for the ceiling only need to be done once.
 	// No need to recalculate during _load() which is called after re-extending the mesh.
 	_calculate_poly_bounds(r_mesh.ceiling);
-	if (!_editor_only) {
+	if (!_is_editor) {
 		r_mesh.ceiling.poly_finder.build(r_mesh, true);
 	}
 
@@ -1552,7 +1552,7 @@ bool Loader::load_working_data(const WorkingMeshData &p_data, Mesh &r_mesh) {
 
 	extend_mesh(r_mesh);
 
-	if (!_editor_only) {
+	if (!_is_editor) {
 		_calculate_poly_areas(r_mesh);
 		floodfill_islands(r_mesh);
 		find_bottlenecks(r_mesh);
@@ -1561,8 +1561,8 @@ bool Loader::load_working_data(const WorkingMeshData &p_data, Mesh &r_mesh) {
 	return true;
 }
 
-void Loader::set_editor_only(bool p_editor_only) {
-	_editor_only = p_editor_only;
+void Loader::set_is_editor(bool p_editor) {
+	_is_editor = p_editor;
 }
 
 void Loader::extend_mesh(Mesh &r_mesh) {
@@ -1575,10 +1575,9 @@ void Loader::extend_mesh(Mesh &r_mesh) {
 	_load(r_mesh);
 
 	r_mesh._check_for_duplicate_verts();
-
-	if (!_editor_only) {
+	
+	if (!_is_editor) {
 		r_mesh.floor.poly_finder.build(r_mesh, false);
-
 		JumpFinder finder;
 		finder.find_jumps(r_mesh);
 	}

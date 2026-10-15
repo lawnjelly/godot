@@ -3,6 +3,10 @@
 #include "scene/3d/spatial.h"
 #include "thirdparty/navphysics/navphysics_defines.h"
 
+namespace NavPhysics {
+class POI;
+}
+
 class NPPoint : public Spatial {
 	GDCLASS(NPPoint, Spatial);
 
@@ -28,4 +32,5 @@ public:
 	int32_t get_type() const;
 
 	np_handle get_handle_poi() const { return data.h_poi; }
+	NavPhysics::POI *get_poi() const;
 };

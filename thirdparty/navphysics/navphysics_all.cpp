@@ -6,6 +6,7 @@
 #pragma clang diagnostic ignored "-Wmissing-braces"
 
 //#include "navphysics_bsp.cpp"
+#include "navphysics_agent.cpp"
 #include "navphysics_error.cpp"
 #include "navphysics_extender.cpp"
 #include "navphysics_jump_finder.cpp"

@@ -4,6 +4,8 @@
 #include "scene/3d/spatial.h"
 #include "thirdparty/navphysics/navphysics_defines.h"
 
+class NPPoint;
+
 class NPAgentClass {
 public:
 };
@@ -117,6 +119,9 @@ public:
 		ON_FLOOR,
 		ON_AGENT,
 	};
+
+	// Utility functions.
+	bool ray_trace_point(const NPPoint &p_point) const;
 
 	void nav_teleport(const Vector3 &p_pos);
 	void apply_impulse(const Vector3 &p_impulse);

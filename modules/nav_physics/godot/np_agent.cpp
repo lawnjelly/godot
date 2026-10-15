@@ -1,10 +1,12 @@
 #include "np_agent.h"
+#include "np_point.h"
 //#include "thirdparty/navphysics/navphysics_vector.h"
 //#include "thirdparty/navphysics/navphysics_map.h"
 #include "core/fixed_array.h"
 #include "thirdparty/navphysics/navphysics_loader.h"
 #include "thirdparty/navphysics/navphysics_log.h"
 #include "thirdparty/navphysics/navphysics_map.h"
+#include "thirdparty/navphysics/navphysics_mesh_instance.h"
 #include "thirdparty/navphysics/navphysics_pointf.h"
 #include "thirdparty/navphysics/navphysics_pointi.h"
 #include "thirdparty/navphysics/navphysics_vector.h"
@@ -530,6 +532,21 @@ void NPAgent::_nav_update() {
 	//data.vel *= data.friction_multiplier;
 }
 #endif
+
+bool NPAgent::ray_trace_point(const NPPoint &p_point) const {
+	NavPhysics::POI *poi = p_point.get_poi();
+	ERR_FAIL_NULL_V(poi, false);
+
+	NavPhysics::Agent *agent = NPWORLD.safe_get_body(data.h_agent);
+	ERR_FAIL_NULL_V(agent, false);
+
+	ERR_FAIL_COND_V(agent->get_mesh_instance_id() == UINT32_MAX, false);
+
+	NavPhysics::MeshInstance &mi = NPWORLD.get_mesh_instance(agent->get_mesh_instance_id());
+	ERR_FAIL_COND_V(mi.get_handle() != poi->handle_mesh_instance, false);
+
+	return mi.get_mesh().ray_trace(agent->pos, poi->local_pos, agent->poly_id, poi->poly_id);
+}
 
 void NPAgent::nav_teleport(const Vector3 &p_pos) {
 #ifdef TOOLS_ENABLED

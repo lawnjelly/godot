@@ -42,6 +42,11 @@ IPoint2 MeshInstance::world_space_velocity_to_local(const Mesh &p_mesh, const FP
 void MeshInstance::poi_add(POI *p_poi) {
 	NP_DEV_ASSERT(p_poi);
 	_POIs.push_back(p_poi);
+
+	if (p_poi->handle_mesh_instance != 0) {
+		NP_WARN_PRINT_ONCE("poi_add() :  poi already is assigned to a mesh instance.");
+	}
+	p_poi->handle_mesh_instance = get_handle();
 }
 
 void MeshInstance::poi_set_position(POI *p_poi, const FPoint3 &p_pt_world) {
@@ -56,7 +61,14 @@ void MeshInstance::poi_set_position(POI *p_poi, const FPoint3 &p_pt_world) {
 	p_poi->local_pos3 = world_space_pos_to_local3(p_pt_world);
 
 	NP_ERR_FAIL_COND(_mesh_id == UINT32_MAX);
-	p_poi->local_pos = world_space_pos_to_local(get_mesh(), p_poi->local_pos3, p_poi->height);
+	const Mesh &mesh = get_mesh();
+
+	p_poi->local_pos = world_space_pos_to_local(mesh, p_poi->local_pos3, p_poi->height);
+
+	// Find the polygon.
+	freal fit = 0;
+	p_poi->poly_id = mesh.find_best_poly_within(p_poi->local_pos, p_poi->height, 10.0f, 0.5f, fit);
+	print_line(String("Best polygon is ") + itos(p_poi->poly_id));
 }
 
 uint32_t MeshInstance::poi_find(POI *p_poi) const {
@@ -73,6 +85,7 @@ bool MeshInstance::poi_remove(POI *p_poi) {
 	uint32_t id = poi_find(p_poi);
 	if (id != UINT32_MAX) {
 		_POIs.remove_unordered(id);
+		p_poi->handle_mesh_instance = 0;
 		return true;
 	}
 

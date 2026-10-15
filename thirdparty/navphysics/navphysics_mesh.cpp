@@ -951,6 +951,72 @@ bool Mesh::debug_check_agent_integrity(const IPoint2 &p_pos, u32 p_poly_id, u32 
 	return true;
 }
 
+bool Mesh::ray_trace(IPoint2 p_from, const IPoint2 &p_to, u32 p_source_poly_id, u32 p_dest_poly_id) const {
+	u32 poly_id = p_source_poly_id;
+	IPoint2 best_intersect;
+
+	while (true) {
+		if (poly_id == p_dest_poly_id) {
+			// If we hit the destination poly via a straight path, the trace is true.
+			return true;
+		}
+
+		// Something has gone wrong...
+		NP_ERR_FAIL_COND_V(poly_id == UINT32_MAX, false);
+
+		const Poly &poly = get_poly(poly_id);
+
+		// Find the best wall crossed.
+		freal smallest_dist = FLT_MAX;
+		u32 best_wall_id = UINT32_MAX;
+
+		for (u32 w = 0; w < poly.num_inds; w++) {
+			u32 wall_id = poly.first_ind + w;
+			i64 cross_to = -wall_cross(wall_id, p_to);
+
+			// Crossed wall.
+			if (cross_to > 0) {
+				IPoint2 intersect;
+				if (wall_find_intersect(wall_id, p_from, p_to, intersect)) {
+					freal dist = p_from.distancef_to(intersect);
+					if (dist < smallest_dist) {
+						smallest_dist = dist;
+						best_wall_id = wall_id;
+						best_intersect = intersect;
+					}
+
+					NP_DEV_ASSERT(dist < FLT_MAX);
+				} else {
+					// Have some fallback for robustness purposes.
+					best_wall_id = wall_id;
+
+					// Assuming we are moving right onto the wall.
+					best_intersect = p_to;
+
+#ifdef NP_DEV_ENABLED
+					// Why did the wall_find_intersect fail?
+					//wall_find_intersect(wall_id, p_from, p_to, intersect);
+#endif
+				}
+			}
+		}
+
+		// Shouldn't happen as we aren't in p_dest_poly_id,
+		// but just in case...
+		if (best_wall_id == UINT32_MAX) {
+			return true;
+		}
+
+		if (is_link_hard(best_wall_id)) {
+			return false;
+		}
+
+		// Transition into the next poly.
+		poly_id = get_link(best_wall_id);
+	}
+	return false;
+}
+
 Mesh::TraceResult Mesh::recursive_trace(i32 p_depth, IPoint2 p_from, const IPoint2 &p_to, u32 p_poly_id, TraceInfo &r_info) const {
 	//	if (p_depth >= 8) {
 	//		NP_LLOG("\t\ttrace recursion depth limit reached");

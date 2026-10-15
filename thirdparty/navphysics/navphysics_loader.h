@@ -43,7 +43,7 @@ class Loader {
 
 	} data;
 
-	static bool _editor_only;
+	static bool _is_editor;
 
 public:
 	struct SourceMeshData {
@@ -106,7 +106,7 @@ public:
 	void extend_mesh(Mesh &r_mesh);
 	void unextend_mesh(Mesh &r_mesh);
 
-	static void set_editor_only(bool p_editor_only);
+	static void set_is_editor(bool p_editor);
 
 private:
 	bool load_working_data(const WorkingMeshData &p_data, Mesh &r_mesh);
