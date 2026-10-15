@@ -2215,22 +2215,24 @@ void Loader::find_zone_links(Mesh &r_dest) {
 	// Sort the link edges to a continuous edge.
 	for (u32 a = 0; a < zlinks.size(); a++) {
 		ZLinks &links = zlinks[a];
-
+		
+		// Each zone can have multiple links.
+		// Each link can consist of multiple edges.
 		for (u32 l = 0; l < links.links.size(); l++) {
-			ZLink &link = links.links[l];
+			ZLink *link = &links.links[l];
 
 			// First find edge with no neighbour.
 			u32 first_id = UINT32_MAX;
 			bool found_neighbour = false;
-
-			for (u32 n = 0; n < link.edges.size(); n++) {
-				const ZEdge &edge_a = link.edges[n];
-
-				for (u32 m = 0; m < link.edges.size(); m++) {
+			
+			for (u32 n = 0; n < link->edges.size(); n++) {
+				const ZEdge &edge_a = link->edges[n];
+				
+				for (u32 m = 0; m < link->edges.size(); m++) {
 					if (n == m)
 						continue;
-
-					const ZEdge &edge_b = link.edges[m];
+					
+					const ZEdge &edge_b = link->edges[m];
 
 					if (edge_a.wall_vert_a == edge_b.wall_vert_b) {
 						found_neighbour = true;
@@ -2250,21 +2252,21 @@ void Loader::find_zone_links(Mesh &r_dest) {
 
 			// Start from first edge.
 			Vector<ZEdge> sorted_edges;
-			sorted_edges.push_back(link.edges[first_id]);
-			link.edges.remove_unordered(first_id);
+			sorted_edges.push_back(link->edges[first_id]);
+			link->edges.remove_unordered(first_id);
 
 			// Watch for potential infinite loop here.
-			while (link.edges.size()) {
+			while (link->edges.size()) {
 				const ZEdge &edge_prev = sorted_edges.last();
 
 				bool match = false;
-
-				for (u32 n = 0; n < link.edges.size(); n++) {
-					const ZEdge &edge = link.edges[n];
+				
+				for (u32 n = 0; n < link->edges.size(); n++) {
+					const ZEdge &edge = link->edges[n];
 					if (edge_prev.wall_vert_b == edge.wall_vert_a) {
 						// We have a match!
 						sorted_edges.push_back(edge);
-						link.edges.remove_unordered(n);
+						link->edges.remove_unordered(n);
 						match = true;
 						break;
 					}
@@ -2272,14 +2274,19 @@ void Loader::find_zone_links(Mesh &r_dest) {
 
 				// If we got here without a match, we have a broken edge.
 				if (!match) {
-					log(String("Adding split link to zone ") + link.to_zone_id + " containing " + link.edges.size() + " edges.");
+					log(String("Adding split link to zone ") + link->to_zone_id + " containing " + link->edges.size() + " edges.");
 					ZLink &split_link = links.links.request();
-					split_link.edges = link.edges;
-					split_link.to_zone_id = link.to_zone_id;
-					link.edges.clear();
+					
+					// Important - as we have requested from links.links, we need to resync as the allocation may
+					// have moved in memory.
+					link = &links.links[l];
+					
+					split_link.edges = link->edges;
+					split_link.to_zone_id = link->to_zone_id;
+					link->edges.clear();
 				}
 			}
-			link.edges = sorted_edges;
+			link->edges = sorted_edges;
 
 			// Debug
 #if 1
