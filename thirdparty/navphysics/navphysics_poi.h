@@ -22,6 +22,8 @@ public:
 	FPoint3 local_pos3;
 	bool active = true;
 	
+	np_handle handle_mesh_instance = UINT32_MAX;
+	
 	void init(np_handle p_handle) {
 	}
 	

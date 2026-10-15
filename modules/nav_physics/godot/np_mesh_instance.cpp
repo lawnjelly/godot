@@ -93,6 +93,12 @@ void NPMeshInstance::point_remove(NPPoint &p_point) {
 }
 
 void NPMeshInstance::point_notify_transform(NPPoint &p_point) {
+#ifdef TOOLS_ENABLED
+	if (Engine::get_singleton()->is_editor_hint()) {
+		return;
+	}
+#endif
+
 	NavPhysics::MeshInstance *mi = NavPhysics::g_world.safe_get_mesh_instance(data.h_mesh_instance);
 	ERR_FAIL_NULL(mi);
 

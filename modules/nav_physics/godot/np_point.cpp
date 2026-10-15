@@ -56,6 +56,11 @@ int32_t NPPoint::get_type() const {
 	return data.type;
 }
 
+NavPhysics::POI *NPPoint::get_poi() const {
+	ERR_FAIL_COND_V(data.h_poi == 0, nullptr);
+	return NavPhysics::g_world.safe_get_poi(data.h_poi);
+}
+
 NPPoint::NPPoint() {
 	data.h_poi = NavPhysics::g_world.safe_poi_create();
 	set_notify_local_transform(true);
