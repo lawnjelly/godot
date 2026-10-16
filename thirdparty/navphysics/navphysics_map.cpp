@@ -980,7 +980,11 @@ void World::tick_update(u64 p_tick, freal p_delta) {
 
 		if (map->iterate_agent(agent_id, res)) {
 			if (agent.callback.user_data) {
-				agent_callback(agent.callback.user_data, res.position, res.velocity);
+				AgentCallbackData d;
+				d.user_data = agent.callback.user_data;
+				d.position = res.position;
+				d.velocity = res.velocity;
+				agent_callback(d);
 			}
 		}
 
