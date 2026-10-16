@@ -4,7 +4,8 @@
 
 namespace NavPhysics {
 struct FPoint3;
-}
+struct AgentCallbackData;
+} //namespace NavPhysics
 
 // This class is responsible for updating ticking NavPhysics on each physics tick,
 // and also holds the agent callback where the NavPhysics can move agents
@@ -18,7 +19,7 @@ class NPTicker {
 	static int32_t _ref_count;
 	static bool _initialized;
 
-	static void _agent_callback(uint64_t p_user_data, const NavPhysics::FPoint3 &p_position, const NavPhysics::FPoint3 &p_velocity);
+	static void _agent_callback(const NavPhysics::AgentCallbackData &p_data);
 
 public:
 	static void tick(uint32_t p_physics_tick, real_t p_physics_delta);

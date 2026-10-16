@@ -67,14 +67,14 @@ void NPTicker::tick(uint32_t p_physics_tick, real_t p_physics_delta) {
 	}
 }
 
-void NPTicker::_agent_callback(uint64_t p_user_data, const NavPhysics::FPoint3 &p_position, const NavPhysics::FPoint3 &p_velocity) {
-	NPAgent *agent = (NPAgent *)p_user_data;
+void NPTicker::_agent_callback(const NavPhysics::AgentCallbackData &p_data) {
+	NPAgent *agent = (NPAgent *)p_data.user_data;
 	ERR_FAIL_NULL(agent);
 	Transform tr = agent->get_transform();
 	//Transform tr;
-	tr.origin = *(Vector3 *)&p_position;
+	tr.origin = *(Vector3 *)&p_data.position;
 
-	agent->data.vel = *(Vector3 *)&p_velocity;
+	agent->data.vel = *(Vector3 *)&p_data.velocity;
 
 	//print_line("vel " + String(Variant(agent->data.vel)));
 

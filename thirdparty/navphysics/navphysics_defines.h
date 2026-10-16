@@ -18,6 +18,13 @@ enum AgentState : u32 {
 	AGENT_STATE_BLOCKED_BY_FULL_ZONE,
 };
 
+struct AgentCallbackData {
+	uint64_t user_data = UINT64_MAX;
+	NavPhysics::FPoint3 position;
+	NavPhysics::FPoint3 velocity;
+	freal yaw = 0;
+};
+
 struct TraceResult {
 	struct MeshTraceResult {
 		bool hit = false;

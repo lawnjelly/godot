@@ -11,7 +11,7 @@
 
 namespace NavPhysics {
 
-typedef void (*np_agent_callback)(u64 p_user_data, const FPoint3 &p_position, const FPoint3 &p_velocity);
+typedef void (*np_agent_callback)(const AgentCallbackData &p_data);
 
 class Mesh;
 class MeshInstance;
