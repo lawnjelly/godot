@@ -14,6 +14,8 @@ class NPAgent : public Spatial {
 	GDCLASS(NPAgent, Spatial);
 
 public:
+	void _agent_callback(const NavPhysics::AgentCallbackData &p_data);
+
 	enum PathResult : u32 {
 		PATH_RESULT_MOVING,
 		PATH_RESULT_BLOCKED,
@@ -60,11 +62,16 @@ private:
 
 	struct Data {
 		np_handle h_agent = 0;
-		Vector3 vel;
 
+		// Returned data from the NavPhysics.
+		Vector3 velocity_mesh_space;
+
+		// Scene side retains master control of yaw,
+		// in order to specify vehicles, and determine
+		//rate of turn.
 		float yaw = 0;
 
-		float jump_vel = 0;
+		//float jump_velocity = 0;
 		float friction = 0.5;
 		float gravity = 0.5;
 		float radius = 0.5;

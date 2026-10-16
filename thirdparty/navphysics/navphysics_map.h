@@ -30,7 +30,7 @@ class Map {
 
 public:
 	struct IterateResult {
-		FPoint3 position;
+		//FPoint3 position;
 		FPoint3 velocity;
 	};
 

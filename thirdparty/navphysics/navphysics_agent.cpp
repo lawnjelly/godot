@@ -51,9 +51,11 @@ void Agent::apply_jump(float p_vel) {
 	jump_velocity += p_vel;
 }
 
-//void Agent::seek_yaw(float p_yaw) {
-//	yaw = Math::shift_angle(yaw, p_yaw, 0.1f);
-//}
+#if 0
+void Agent::seek_yaw(float p_yaw) {
+	yaw = Math::shift_angle(yaw, p_yaw, 0.1f);
+}
+#endif
 
 
 } // namespace NavPhysics

@@ -20,9 +20,8 @@ enum AgentState : u32 {
 
 struct AgentCallbackData {
 	uint64_t user_data = UINT64_MAX;
-	NavPhysics::FPoint3 position;
-	NavPhysics::FPoint3 velocity;
-	freal yaw = 0;
+	NavPhysics::FPoint3 position_world_space;
+	NavPhysics::FPoint3 velocity_mesh_space;
 };
 
 struct TraceResult {
