@@ -568,6 +568,7 @@ bool Map::iterate_agent(u32 p_agent_id, IterateResult &r_result) {
 			//			agent.fpos3 = mesh_instance.get_transform().xform(agent.fpos3);
 			//			NP_DEV_ASSERT(agent.fpos3.isfinite());
 			mesh_instance.refresh_world_space_agent_position(agent, false);
+			r_result.impulse_world_space = mesh_instance.local_velocity3_to_world_space(agent.fimpulse3);
 		}
 		// Changing mesh instance?
 		else {
@@ -592,10 +593,10 @@ bool Map::iterate_agent(u32 p_agent_id, IterateResult &r_result) {
 
 			mesh_instance_new.iterate_agent_housekeeping(agent);
 			mesh_instance_new.refresh_world_space_agent_position(agent, true);
+			r_result.impulse_world_space = mesh_instance_new.local_velocity3_to_world_space(agent.fimpulse3);
 		}
 
-		r_result.velocity = agent.fimpulse3;
-		//r_result.position = agent.fpos3;
+		r_result.impulse_mesh_space = agent.fimpulse3;
 
 		// Only zero the impulse AFTER returning it to the client code,
 		// (used for calculating yaw)
@@ -980,13 +981,17 @@ void World::tick_update(u64 p_tick, freal p_delta) {
 
 		NavPhysics::Map *map = NavPhysics::g_world.safe_get_map(agent.map);
 		NP_ERR_CONTINUE(!map);
-
+		
+		u32 old_mesh_instance_id = agent.get_mesh_instance_id();
+		
 		if (map->iterate_agent(agent_id, res)) {
 			if (agent.callback.user_data) {
 				AgentCallbackData d;
 				d.user_data = agent.callback.user_data;
 				d.position_world_space = agent.fpos3;
-				d.velocity_mesh_space = res.velocity;
+				d.impulse_mesh_space = res.impulse_mesh_space;
+				d.impulse_world_space = res.impulse_world_space;
+				d.changing_mesh = old_mesh_instance_id != agent.get_mesh_instance_id();
 				agent_callback(d);
 			}
 		}
@@ -1064,6 +1069,7 @@ bool World::safe_toggle_mesh_wall_connection(np_handle p_mesh, const FPoint3 &p_
 
 World::World() {
 	_default_map = safe_map_create();
+	safe_get_default_map()->set_map_id(0);
 }
 
 World::~World() {

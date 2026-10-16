@@ -21,7 +21,9 @@ enum AgentState : u32 {
 struct AgentCallbackData {
 	uint64_t user_data = UINT64_MAX;
 	NavPhysics::FPoint3 position_world_space;
-	NavPhysics::FPoint3 velocity_mesh_space;
+	NavPhysics::FPoint3 impulse_world_space;
+	NavPhysics::FPoint3 impulse_mesh_space;
+	bool changing_mesh = false;
 };
 
 struct TraceResult {

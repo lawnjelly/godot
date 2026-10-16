@@ -64,12 +64,16 @@ private:
 		np_handle h_agent = 0;
 
 		// Returned data from the NavPhysics.
-		Vector3 velocity_mesh_space;
+		Vector3 impulse_mesh_space;
+		Vector3 impulse_world_space;
 
 		// Scene side retains master control of yaw,
 		// in order to specify vehicles, and determine
 		//rate of turn.
+		// Yaw is in MESH space, not world space,
+		// therefore needs to change suddenly sometimes when changing mesh.
 		float yaw = 0;
+		Vector3 yaw_direction_world_space;
 
 		//float jump_velocity = 0;
 		float friction = 0.5;
