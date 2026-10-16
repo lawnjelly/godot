@@ -30,8 +30,8 @@ class Map {
 
 public:
 	struct IterateResult {
-		//FPoint3 position;
-		FPoint3 velocity;
+		FPoint3 impulse_mesh_space;
+		FPoint3 impulse_world_space;
 	};
 
 	void clear();

@@ -29,9 +29,14 @@ IPoint2 MeshInstance::world_space_pos_to_local(const Mesh &p_mesh, const FPoint3
 	return p_mesh.float_to_fixed_point_2(pos_local.xz());
 }
 
+FPoint3 MeshInstance::local_velocity3_to_world_space(const FPoint3 &p_vel_local) const {
+	return get_transform().basis.xform(p_vel_local);
+}
+
 FPoint3 MeshInstance::local_velocity_to_world_space(const Mesh &p_mesh, const IPoint2 &p_vel_local) const {
 	FPoint2 vel2 = p_mesh.fixed_point_vel_to_float(p_vel_local);
-	return get_transform().basis.xform(FPoint3(vel2));
+	return local_velocity3_to_world_space(FPoint3(vel2));
+	//return get_transform().basis.xform(FPoint3(vel2));
 }
 
 IPoint2 MeshInstance::world_space_velocity_to_local(const Mesh &p_mesh, const FPoint3 &p_vel_world) const {

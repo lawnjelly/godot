@@ -137,20 +137,41 @@ void NPAgent::_bind_methods() {
 }
 
 void NPAgent::_agent_callback(const NavPhysics::AgentCallbackData &p_data) {
-	Transform tr = get_transform();
-	tr.origin = *(Vector3 *)&p_data.position_world_space;
+	//Transform tr = get_transform();
+	// tr.origin = *(Vector3 *)&p_data.position_world_space;
 
-	data.velocity_mesh_space = *(Vector3 *)&p_data.velocity_mesh_space;
+	data.impulse_mesh_space = *(Vector3 *)&p_data.impulse_mesh_space;
+	data.impulse_world_space = *(Vector3 *)&p_data.impulse_world_space;
 
-	print_line("returned impulse " + String(Variant(data.velocity_mesh_space)));
+	// print_line("returned impulse " + String(Variant(data.impulse_world_space)));
+
+	Transform tr = get_mesh_instance_transform();
+
+	// When we change mesh, we need a sudden change in yaw to resync,
+	// because yaw is measured in mesh space.
+	if (p_data.changing_mesh) {
+		// Get the previous yaw direction into mesh space.
+		Vector3 new_yaw_direction = tr.basis.xform_normal(data.yaw_direction_world_space);
+		Vector2 yaw_dir = Vector2(new_yaw_direction.x, new_yaw_direction.z);
+		data.yaw = yaw_dir.angle();
+	}
 
 	// Calculate yaw
 	update_yaw();
 
 	//data.vel.zero();
 
-	//tr.basis = Basis(Vector3(0, Math::randf(), 0));
-	tr.basis = Basis(Vector3(0, (Math_PI / 2) - data.yaw, 0));
+	// Get the forward vector for the mesh instance.
+	tr.origin = *(Vector3 *)&p_data.position_world_space;
+
+	Basis yaw_basis = Basis(Vector3(0, (Math_PI / 2) - data.yaw, 0));
+	;
+	tr.basis *= yaw_basis;
+
+	// Store the yaw direction in case we change mesh next tick, so we have a frame of reference.
+	data.yaw_direction_world_space = tr.basis.xform_normal(Vector3(0, 0, 1));
+
+	//tr.basis = Basis(Vector3(0, (Math_PI / 2) - data.yaw, 0));
 	_nav_physics_update_transform(tr);
 }
 
@@ -771,7 +792,7 @@ float NPAgent::_shift_yaw(float p_from, float p_to, float p_max_change) const {
 }
 
 void NPAgent::update_yaw() {
-	Vector2 vel = Vector2(data.velocity_mesh_space.x, data.velocity_mesh_space.z);
+	Vector2 vel = Vector2(data.impulse_mesh_space.x, data.impulse_mesh_space.z);
 	if (vel.length_squared() > 0) {
 		data.yaw = _shift_yaw(data.yaw, vel.angle(), 0.1f);
 	}

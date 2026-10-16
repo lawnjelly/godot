@@ -77,6 +77,7 @@ public:
 	FPoint3 world_space_pos_to_local3(const FPoint3 &p_pt_world) const;
 
 	FPoint3 local_velocity_to_world_space(const Mesh &p_mesh, const IPoint2 &p_vel_local) const;
+	FPoint3 local_velocity3_to_world_space(const FPoint3 &p_vel_local) const;
 	IPoint2 world_space_velocity_to_local(const Mesh &p_mesh, const FPoint3 &p_vel_world) const;
 	////////////////////////////////////////////
 
