@@ -22,7 +22,7 @@ int NavPhysicsPointSpatialGizmoPlugin::get_priority() const {
 
 void NavPhysicsPointSpatialGizmoPlugin::redraw(EditorSpatialGizmo *p_gizmo) {
 	p_gizmo->clear();
-	NPPoint *point = Object::cast_to<NPPoint>(p_gizmo->get_spatial_node());
+	//NPPoint *point = Object::cast_to<NPPoint>(p_gizmo->get_spatial_node());
 
 	//Ref<Material> icon = get_material("nav_physics_poi_icon", p_gizmo);
 	//p_gizmo->add_unscaled_billboard(icon, 0.05);

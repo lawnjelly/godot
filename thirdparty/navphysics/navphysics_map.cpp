@@ -493,7 +493,6 @@ void Map::prepare_agent(u32 p_agent_id) {
 
 		IPoint2 impulse = mesh.float_to_fixed_point_vel(local_impulse.xz());
 		agent.vel += impulse;
-		agent.fimpulse3.zero();
 	}
 }
 
@@ -596,7 +595,11 @@ bool Map::iterate_agent(u32 p_agent_id, IterateResult &r_result) {
 		}
 
 		r_result.velocity = agent.fimpulse3;
-		r_result.position = agent.fpos3;
+		//r_result.position = agent.fpos3;
+
+		// Only zero the impulse AFTER returning it to the client code,
+		// (used for calculating yaw)
+		// so it can be added to in the next iteration.
 		agent.fimpulse3.zero();
 
 		NP_LOG(String("ITERATE final pos ") + agent.fpos3);
@@ -982,8 +985,8 @@ void World::tick_update(u64 p_tick, freal p_delta) {
 			if (agent.callback.user_data) {
 				AgentCallbackData d;
 				d.user_data = agent.callback.user_data;
-				d.position = res.position;
-				d.velocity = res.velocity;
+				d.position_world_space = agent.fpos3;
+				d.velocity_mesh_space = res.velocity;
 				agent_callback(d);
 			}
 		}

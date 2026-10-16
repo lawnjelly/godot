@@ -1,6 +1,7 @@
 #include "np_ticker.h"
 
 #include "core/error_macros.h"
+#include "np_agent.h"
 
 #include "thirdparty/navphysics/navphysics_defines.h"
 #include "thirdparty/navphysics/navphysics_map.h"
@@ -70,20 +71,6 @@ void NPTicker::tick(uint32_t p_physics_tick, real_t p_physics_delta) {
 void NPTicker::_agent_callback(const NavPhysics::AgentCallbackData &p_data) {
 	NPAgent *agent = (NPAgent *)p_data.user_data;
 	ERR_FAIL_NULL(agent);
-	Transform tr = agent->get_transform();
-	//Transform tr;
-	tr.origin = *(Vector3 *)&p_data.position;
 
-	agent->data.vel = *(Vector3 *)&p_data.velocity;
-
-	//print_line("vel " + String(Variant(agent->data.vel)));
-
-	// Calculate yaw
-	agent->update_yaw();
-
-	//agent->data.vel.zero();
-
-	//tr.basis = Basis(Vector3(0, Math::randf(), 0));
-	tr.basis = Basis(Vector3(0, (Math_PI / 2) - agent->data.yaw, 0));
-	agent->_nav_physics_update_transform(tr);
+	agent->_agent_callback(p_data);
 }

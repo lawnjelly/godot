@@ -136,6 +136,24 @@ void NPAgent::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "links_pathfind_external"), "set_pathfind_external_jump_links", "get_pathfind_external_jump_links");
 }
 
+void NPAgent::_agent_callback(const NavPhysics::AgentCallbackData &p_data) {
+	Transform tr = get_transform();
+	tr.origin = *(Vector3 *)&p_data.position_world_space;
+
+	data.velocity_mesh_space = *(Vector3 *)&p_data.velocity_mesh_space;
+
+	print_line("returned impulse " + String(Variant(data.velocity_mesh_space)));
+
+	// Calculate yaw
+	update_yaw();
+
+	//data.vel.zero();
+
+	//tr.basis = Basis(Vector3(0, Math::randf(), 0));
+	tr.basis = Basis(Vector3(0, (Math_PI / 2) - data.yaw, 0));
+	_nav_physics_update_transform(tr);
+}
+
 void NPAgent::_nav_physics_update_transform(const Transform &p_xform) {
 	set_transform(p_xform);
 
@@ -598,19 +616,19 @@ void NPAgent::apply_jump(float p_impulse) {
 		return;
 	}
 #endif
-	data.jump_vel += p_impulse;
+	//data.jump_velocity += p_impulse;
 
-	if (data.jump_vel != 0) {
+	if (p_impulse != 0) {
 		// Send to NavPhysics.
 		u32 agent_id;
 		NavPhysics::Agent *agent = NPWORLD.safe_get_body(data.h_agent, &agent_id);
 		ERR_FAIL_NULL(agent);
 
 		// NavPhysics takes a TPS agnostic jump velocity.
-		float jump = data.jump_vel * NPTicker::tps_data.multiplier_jump;
+		float jump = p_impulse * NPTicker::tps_data.multiplier_jump;
 
 		agent->apply_jump(jump);
-		data.jump_vel = 0;
+		//data.jump_velocity = 0;
 	}
 }
 
@@ -753,7 +771,7 @@ float NPAgent::_shift_yaw(float p_from, float p_to, float p_max_change) const {
 }
 
 void NPAgent::update_yaw() {
-	Vector2 vel = Vector2(data.vel.x, data.vel.z);
+	Vector2 vel = Vector2(data.velocity_mesh_space.x, data.velocity_mesh_space.z);
 	if (vel.length_squared() > 0) {
 		data.yaw = _shift_yaw(data.yaw, vel.angle(), 0.1f);
 	}
