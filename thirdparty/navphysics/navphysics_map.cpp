@@ -581,11 +581,10 @@ bool Map::iterate_agent(u32 p_agent_id, IterateResult &r_result) {
 			//agent.fvel3 = mesh_instance.get_transform().basis.xform(FPoint3(agent.fvel));
 
 			NP_LOG(String("Changing mesh instance to ") + move_info.new_mesh_instance_id + ", new world space vel: " + agent.fimpulse3 + ", new world space pos: " + agent.fpos3);
-			
-			
+
 			// The impulse is currently in old mesh coords.
 			r_result.impulse_world_space = mesh_instance.local_velocity3_to_world_space(agent.fimpulse3);
-			
+
 			body_teleport_to_agent_status_jump_target(agent, p_agent_id);
 
 			MeshInstance &mesh_instance_new = g_world.get_mesh_instance(agent.get_mesh_instance_id());
@@ -599,12 +598,11 @@ bool Map::iterate_agent(u32 p_agent_id, IterateResult &r_result) {
 			mesh_instance_new.iterate_agent_housekeeping(agent);
 			mesh_instance_new.refresh_world_space_agent_position(agent, true);
 			//r_result.impulse_world_space = mesh_instance_new.local_velocity3_to_world_space(agent.fimpulse3);
-			
+
 			// Back transform the world space impulse back to the new mesh space, for consistency in the client code.
 			r_result.impulse_mesh_space = mesh_instance_new.world_space_velocity_to_local3(mesh_instance_new.get_mesh(), r_result.impulse_world_space);
 		}
 
-		
 		// Only zero the impulse AFTER returning it to the client code,
 		// (used for calculating yaw)
 		// so it can be added to in the next iteration.
@@ -736,6 +734,19 @@ void Map::body_teleport(Agent &r_agent, u32 p_agent_id, const FPoint3 &p_pos) {
 }
 
 //////////////////////////////////////////////////////////////////////////
+
+NavPhysics::MeshInstance *World::safe_get_body_mesh_instance(np_handle p_body) {
+	NavPhysics::Agent *agent = safe_get_body(p_body);
+	if (!agent) {
+		return nullptr;
+	}
+
+	if (agent->get_mesh_instance_id() == UINT32_MAX) {
+		return nullptr;
+	}
+
+	return &get_mesh_instance(agent->get_mesh_instance_id());
+}
 
 NavPhysics::Agent *World::safe_get_body(np_handle p_body, u32 *r_id) {
 	NP_ERR_FAIL_COND_V(!p_body, nullptr);
@@ -988,9 +999,9 @@ void World::tick_update(u64 p_tick, freal p_delta) {
 
 		NavPhysics::Map *map = NavPhysics::g_world.safe_get_map(agent.map);
 		NP_ERR_CONTINUE(!map);
-		
+
 		u32 old_mesh_instance_id = agent.get_mesh_instance_id();
-		
+
 		if (map->iterate_agent(agent_id, res)) {
 			if (agent.callback.user_data) {
 				AgentCallbackData d;

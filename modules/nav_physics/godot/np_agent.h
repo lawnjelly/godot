@@ -75,6 +75,14 @@ private:
 		float yaw = 0;
 		Vector3 yaw_direction_world_space;
 
+		// When transitioning between mesh instances,
+		// the agent keeps track of the previous and current,
+		// and blends across the basis between them for a few ticks so the orientation looks smooth.
+		ObjectID mesh_instance_id_prev = 0;
+		ObjectID mesh_instance_id_curr = 0;
+		Basis mesh_instance_transition_start_basis;
+		uint32_t mesh_instance_transition_ticks = 0;
+
 		//float jump_velocity = 0;
 		float friction = 0.5;
 		float gravity = 0.5;
@@ -210,6 +218,9 @@ public:
 
 	PathResult iterate_path();
 	void force_repath();
+
+	// If the agent is not currently assigned to a mesh instance, returns ObjectID().
+	ObjectID get_mesh_instance_object_id();
 
 	// Intended for debugging visuals, not for path following.
 	Vector<Vector3> get_current_path(int p_level) const;
