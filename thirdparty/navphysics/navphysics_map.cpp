@@ -569,6 +569,7 @@ bool Map::iterate_agent(u32 p_agent_id, IterateResult &r_result) {
 			//			NP_DEV_ASSERT(agent.fpos3.isfinite());
 			mesh_instance.refresh_world_space_agent_position(agent, false);
 			r_result.impulse_world_space = mesh_instance.local_velocity3_to_world_space(agent.fimpulse3);
+			r_result.impulse_mesh_space = agent.fimpulse3;
 		}
 		// Changing mesh instance?
 		else {
@@ -580,7 +581,11 @@ bool Map::iterate_agent(u32 p_agent_id, IterateResult &r_result) {
 			//agent.fvel3 = mesh_instance.get_transform().basis.xform(FPoint3(agent.fvel));
 
 			NP_LOG(String("Changing mesh instance to ") + move_info.new_mesh_instance_id + ", new world space vel: " + agent.fimpulse3 + ", new world space pos: " + agent.fpos3);
-
+			
+			
+			// The impulse is currently in old mesh coords.
+			r_result.impulse_world_space = mesh_instance.local_velocity3_to_world_space(agent.fimpulse3);
+			
 			body_teleport_to_agent_status_jump_target(agent, p_agent_id);
 
 			MeshInstance &mesh_instance_new = g_world.get_mesh_instance(agent.get_mesh_instance_id());
@@ -593,11 +598,13 @@ bool Map::iterate_agent(u32 p_agent_id, IterateResult &r_result) {
 
 			mesh_instance_new.iterate_agent_housekeeping(agent);
 			mesh_instance_new.refresh_world_space_agent_position(agent, true);
-			r_result.impulse_world_space = mesh_instance_new.local_velocity3_to_world_space(agent.fimpulse3);
+			//r_result.impulse_world_space = mesh_instance_new.local_velocity3_to_world_space(agent.fimpulse3);
+			
+			// Back transform the world space impulse back to the new mesh space, for consistency in the client code.
+			r_result.impulse_mesh_space = mesh_instance_new.world_space_velocity_to_local3(mesh_instance_new.get_mesh(), r_result.impulse_world_space);
 		}
 
-		r_result.impulse_mesh_space = agent.fimpulse3;
-
+		
 		// Only zero the impulse AFTER returning it to the client code,
 		// (used for calculating yaw)
 		// so it can be added to in the next iteration.
