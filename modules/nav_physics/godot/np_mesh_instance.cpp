@@ -15,8 +15,12 @@
 
 NPMeshInstance::NPMeshInstance() {
 	data.h_mesh_instance = NavPhysics::g_world.safe_mesh_instance_create();
+	DEV_ASSERT(data.h_mesh_instance);
 
 	NavPhysics::g_world.safe_link_mesh_instance(data.h_mesh_instance, NavPhysics::g_world.get_handle_default_map());
+	NavPhysics::MeshInstance *mi = NavPhysics::g_world.safe_get_mesh_instance(data.h_mesh_instance);
+	DEV_ASSERT(mi);
+	mi->set_user_data(get_instance_id());
 
 	set_notify_transform(true);
 	NPTicker::_ref_count++;

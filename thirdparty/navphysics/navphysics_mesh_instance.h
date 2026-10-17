@@ -27,6 +27,9 @@ class MeshInstance {
 	np_handle _handle = UINT32_MAX;
 	u32 _mesh_id = UINT32_MAX;
 	u32 _map_slot = UINT32_MAX;
+	
+	// Can be passed from client code to identify this MeshInstance.
+	u64 _user_data = 0;
 
 	Vector<POI *> _POIs;
 	Vector<ZoneInstance> _zone_instances;
@@ -64,6 +67,10 @@ public:
 	void set_transform(const Transform &p_xform);
 	void set_active(bool p_active);
 	bool is_active() const { return _active; }
+	
+	// Allows client code to identify the MeshInstance.
+	void set_user_data(u64 p_data) {_user_data = p_data;}
+	u64 get_user_data() const {return _user_data;}
 
 	const Transform &get_transform() const { return _transform; }
 	const Transform &get_transform_inverse() const { return _transform_inverse; }

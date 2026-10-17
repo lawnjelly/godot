@@ -198,6 +198,9 @@ public:
 	const NavPhysics::Mesh &get_mesh(u32 p_id) const { return *_meshes.pool[p_id].object; }
 	np_handle get_mesh_instance_handle(u32 p_id) const;
 
+	// Helpers.
+	NavPhysics::MeshInstance *safe_get_body_mesh_instance(np_handle p_body);
+
 	np_handle safe_body_create();
 	np_handle safe_mesh_create() { return _meshes.safe_object_create(); }
 	np_handle safe_mesh_instance_create() { return _mesh_instances.safe_object_create(); }

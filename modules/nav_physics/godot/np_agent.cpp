@@ -145,10 +145,29 @@ void NPAgent::_agent_callback(const NavPhysics::AgentCallbackData &p_data) {
 
 	Transform tr = get_mesh_instance_transform();
 
+	const uint32_t TRANSITION_TICKS = MAX(Engine::get_singleton()->get_iterations_per_second() / 2, 1);
+
 	// When we change mesh, we need a sudden change in yaw to resync,
 	// because yaw is measured in mesh space.
 	if (p_data.changing_mesh) {
-		print_line("changing mesh");
+		//print_line("changing mesh");
+		data.mesh_instance_id_prev = data.mesh_instance_id_curr;
+		data.mesh_instance_id_curr = get_mesh_instance_object_id();
+
+		// TODO : scale this according to time, and TPS.
+		data.mesh_instance_transition_ticks = TRANSITION_TICKS;
+
+		if (data.mesh_instance_id_prev) {
+			NPMeshInstance *mi = Object::cast_to<NPMeshInstance>(ObjectDB::get_instance(data.mesh_instance_id_prev));
+			if (mi) {
+				data.mesh_instance_transition_start_basis = mi->get_global_transform().basis;
+			} else {
+				data.mesh_instance_transition_start_basis = Basis();
+			}
+		} else {
+			data.mesh_instance_transition_start_basis = Basis();
+		}
+
 		// Get the previous yaw direction into mesh space.
 		Vector3 new_yaw_direction = tr.basis.xform_normal(data.yaw_direction_world_space);
 		Vector2 yaw_dir = Vector2(new_yaw_direction.x, new_yaw_direction.z);
@@ -164,15 +183,37 @@ void NPAgent::_agent_callback(const NavPhysics::AgentCallbackData &p_data) {
 	tr.origin = *(Vector3 *)&p_data.position_world_space;
 
 	Basis yaw_basis = Basis(Vector3(0, (Math_PI / 2) - data.yaw, 0));
+
 	tr.basis *= yaw_basis;
 
 	// Store the yaw direction in case we change mesh next tick, so we have a frame of reference.
 	data.yaw_direction_world_space = tr.basis.xform_normal(Vector3(0, 0, 1));
 
+#if 0
 	String sz = "mesh impulse " + String(Variant(data.impulse_mesh_space));
 	sz += ", world impulse " + String(Variant(data.impulse_world_space));
 	sz += ", yaw : " + itos(Math::rad2deg(data.yaw)) + ", yaw_dir : " + String(Variant(data.yaw_direction_world_space));
 	print_line(sz);
+#endif
+
+	// Special case, if we are in a transition.
+	if (data.mesh_instance_transition_ticks) {
+		data.mesh_instance_transition_ticks--;
+		if (data.mesh_instance_transition_ticks) {
+			float blend_fraction = data.mesh_instance_transition_ticks / (float)TRANSITION_TICKS;
+
+			// Get the up vectors from the old mesh and the new one.
+			Vector3 prev_up = data.mesh_instance_transition_start_basis.get_axis(1).normalized();
+			Vector3 curr_up = tr.basis.get_axis(1).normalized();
+
+			// Construct a quat rotation to go between them, then use slerp to get a smooth blend
+			// from the prev_up orientation to the curr_up orientation.
+			Quat quat = Quat(curr_up, prev_up);
+			quat = Quat().slerp(quat, blend_fraction);
+
+			tr.basis = quat * tr.basis;
+		}
+	}
 
 	//tr.basis = Basis(Vector3(0, (Math_PI / 2) - data.yaw, 0));
 	_nav_physics_update_transform(tr);
@@ -400,6 +441,14 @@ bool NPAgent::reached_waypoint() {
 //	return false;
 }
 #endif
+
+ObjectID NPAgent::get_mesh_instance_object_id() {
+	NavPhysics::MeshInstance *mi = NPWORLD.safe_get_body_mesh_instance(data.h_agent);
+	if (!mi) {
+		return 0;
+	}
+	return (ObjectID)mi->get_user_data();
+}
 
 NPAgent::PathResult NPAgent::iterate_path() {
 	if (data.path.path_id == UINT32_MAX) {
@@ -632,6 +681,11 @@ void NPAgent::nav_teleport(const Vector3 &p_pos) {
 	ERR_FAIL_NULL(agent);
 
 	NPWORLD.safe_get_default_map()->body_teleport(*agent, agent_id, *(const NavPhysics::FPoint3 *)&p_pos);
+
+	// Make sure the mesh instance ID is up to date, and there is no transition set.
+	data.mesh_instance_id_prev = data.mesh_instance_id_curr;
+	data.mesh_instance_id_curr = get_mesh_instance_object_id();
+	data.mesh_instance_transition_ticks = 0;
 }
 
 void NPAgent::apply_jump(float p_impulse) {
