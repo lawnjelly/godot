@@ -39,8 +39,13 @@ FPoint3 MeshInstance::local_velocity_to_world_space(const Mesh &p_mesh, const IP
 	//return get_transform().basis.xform(FPoint3(vel2));
 }
 
+FPoint3 MeshInstance::world_space_velocity_to_local3(const Mesh &p_mesh, const FPoint3 &p_vel_world) const {
+	return get_transform_inverse().basis.xform(p_vel_world);
+}
+
 IPoint2 MeshInstance::world_space_velocity_to_local(const Mesh &p_mesh, const FPoint3 &p_vel_world) const {
-	FPoint3 vel_local = get_transform_inverse().basis.xform(p_vel_world);
+	//FPoint3 vel_local = get_transform_inverse().basis.xform(p_vel_world);
+	FPoint3 vel_local = world_space_velocity_to_local3(p_mesh, p_vel_world);
 	return p_mesh.float_to_fixed_point_vel(vel_local.xz());
 }
 

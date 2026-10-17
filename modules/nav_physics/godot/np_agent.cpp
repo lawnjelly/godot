@@ -143,13 +143,12 @@ void NPAgent::_agent_callback(const NavPhysics::AgentCallbackData &p_data) {
 	data.impulse_mesh_space = *(Vector3 *)&p_data.impulse_mesh_space;
 	data.impulse_world_space = *(Vector3 *)&p_data.impulse_world_space;
 
-	// print_line("returned impulse " + String(Variant(data.impulse_world_space)));
-
 	Transform tr = get_mesh_instance_transform();
 
 	// When we change mesh, we need a sudden change in yaw to resync,
 	// because yaw is measured in mesh space.
 	if (p_data.changing_mesh) {
+		print_line("changing mesh");
 		// Get the previous yaw direction into mesh space.
 		Vector3 new_yaw_direction = tr.basis.xform_normal(data.yaw_direction_world_space);
 		Vector2 yaw_dir = Vector2(new_yaw_direction.x, new_yaw_direction.z);
@@ -165,11 +164,15 @@ void NPAgent::_agent_callback(const NavPhysics::AgentCallbackData &p_data) {
 	tr.origin = *(Vector3 *)&p_data.position_world_space;
 
 	Basis yaw_basis = Basis(Vector3(0, (Math_PI / 2) - data.yaw, 0));
-	;
 	tr.basis *= yaw_basis;
 
 	// Store the yaw direction in case we change mesh next tick, so we have a frame of reference.
 	data.yaw_direction_world_space = tr.basis.xform_normal(Vector3(0, 0, 1));
+
+	String sz = "mesh impulse " + String(Variant(data.impulse_mesh_space));
+	sz += ", world impulse " + String(Variant(data.impulse_world_space));
+	sz += ", yaw : " + itos(Math::rad2deg(data.yaw)) + ", yaw_dir : " + String(Variant(data.yaw_direction_world_space));
+	print_line(sz);
 
 	//tr.basis = Basis(Vector3(0, (Math_PI / 2) - data.yaw, 0));
 	_nav_physics_update_transform(tr);
