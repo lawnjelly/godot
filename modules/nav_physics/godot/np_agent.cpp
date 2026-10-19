@@ -18,6 +18,10 @@
 Transform NPAgent::_dummy_xform;
 
 void NPAgent::_bind_methods() {
+	BIND_ENUM_CONSTANT(UP_ALIGN_MESH);
+	BIND_ENUM_CONSTANT(UP_ALIGN_MESH_TANGENT);
+	BIND_ENUM_CONSTANT(UP_ALIGN_WORLD_UP);
+
 	BIND_ENUM_CONSTANT(TEST_RESULT_CLEAR);
 	BIND_ENUM_CONSTANT(TEST_RESULT_FAILED);
 	BIND_ENUM_CONSTANT(TEST_RESULT_INVALID_PARAMETER);
@@ -60,6 +64,9 @@ void NPAgent::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("set_gravity", "gravity"), &NPAgent::set_gravity);
 	ClassDB::bind_method(D_METHOD("get_gravity"), &NPAgent::get_gravity);
+
+	ClassDB::bind_method(D_METHOD("set_up_align", "up_align"), &NPAgent::set_up_align);
+	ClassDB::bind_method(D_METHOD("get_up_align"), &NPAgent::get_up_align);
 
 	ClassDB::bind_method(D_METHOD("set_modifier_air_friction", "air_friction"), &NPAgent::set_modifier_air_friction);
 	ClassDB::bind_method(D_METHOD("get_modifier_air_friction"), &NPAgent::get_modifier_air_friction);
@@ -119,6 +126,8 @@ void NPAgent::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "height", PROPERTY_HINT_RANGE, "0,1024"), "set_height", "get_height");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "friction", PROPERTY_HINT_RANGE, "0,1"), "set_friction", "get_friction");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "gravity", PROPERTY_HINT_RANGE, "0,1"), "set_gravity", "get_gravity");
+
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "up_align", PROPERTY_HINT_ENUM, "Mesh,Mesh Tangent,World"), "set_up_align", "get_up_align");
 
 	ADD_GROUP("Modifiers", "modifier_");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "modifier_air_friction", PROPERTY_HINT_RANGE, "0,1"), "set_modifier_air_friction", "get_modifier_air_friction");
@@ -184,7 +193,15 @@ void NPAgent::_agent_callback(const NavPhysics::AgentCallbackData &p_data) {
 
 	Basis yaw_basis = Basis(Vector3(0, (Math_PI / 2) - data.yaw, 0));
 
-	tr.basis *= yaw_basis;
+	switch (data.up_align) {
+		case UP_ALIGN_WORLD_UP: {
+			tr.basis = yaw_basis;
+		} break;
+		default: {
+			// Mesh align
+			tr.basis *= yaw_basis;
+		} break;
+	}
 
 	// Store the yaw direction in case we change mesh next tick, so we have a frame of reference.
 	data.yaw_direction_world_space = tr.basis.xform_normal(Vector3(0, 0, 1));
@@ -202,16 +219,34 @@ void NPAgent::_agent_callback(const NavPhysics::AgentCallbackData &p_data) {
 		if (data.mesh_instance_transition_ticks) {
 			float blend_fraction = data.mesh_instance_transition_ticks / (float)TRANSITION_TICKS;
 
-			// Get the up vectors from the old mesh and the new one.
-			Vector3 prev_up = data.mesh_instance_transition_start_basis.get_axis(1).normalized();
-			Vector3 curr_up = tr.basis.get_axis(1).normalized();
+			switch (data.up_align) {
+				case UP_ALIGN_MESH: {
+					// Get the up vectors from the old mesh and the new one.
+					Vector3 prev_up = data.mesh_instance_transition_start_basis.get_axis(1).normalized();
+					Vector3 curr_up = tr.basis.get_axis(1).normalized();
 
-			// Construct a quat rotation to go between them, then use slerp to get a smooth blend
-			// from the prev_up orientation to the curr_up orientation.
-			Quat quat = Quat(curr_up, prev_up);
-			quat = Quat().slerp(quat, blend_fraction);
+					// Construct a quat rotation to go between them, then use slerp to get a smooth blend
+					// from the prev_up orientation to the curr_up orientation.
+					Quat quat = Quat(curr_up, prev_up);
+					quat = Quat().slerp(quat, blend_fraction);
 
-			tr.basis = quat * tr.basis;
+					tr.basis = quat * tr.basis;
+				} break;
+				case UP_ALIGN_WORLD_UP: {
+					/*
+					data.up_align_capsule_offset = (data.height * 0.5f) * blend_fraction;
+					Vector3 test_pt = Vector3();
+					test_pt = tr.xform(test_pt);
+					tr.translate(Vector3(0, -data.up_align_capsule_offset, 0));
+					Vector3 test_pt2 = Vector3();
+					test_pt2 = tr.xform(test_pt2);
+
+					print_line(String(Variant(test_pt)) + " to " + String(Variant(test_pt2)));
+					*/
+				} break;
+				default:
+					break;
+			}
 		}
 	}
 
@@ -232,6 +267,10 @@ void NPAgent::_nav_physics_update_transform(const Transform &p_xform) {
 	tr = tr * physics.shape_xform;
 
 	ps->body_set_transform(physics.rid_body, tr, PhysicsServer::BODY_TRANSFORM_MODE_WAKE_NEIGHBOURS);
+}
+
+void NPAgent::set_up_align(UpAlign p_up_align) {
+	data.up_align = p_up_align;
 }
 
 void NPAgent::set_physics_enabled(bool p_enable) {
