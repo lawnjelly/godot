@@ -33,6 +33,13 @@ public:
 		TEST_RESULT_BLOCKED_WALL,
 	};
 
+	// The orientation of the capsule when on a wall (like a wall climb or spiderman).
+	enum UpAlign : u32 {
+		UP_ALIGN_MESH, // Up is the current mesh instance up vector.
+		UP_ALIGN_MESH_TANGENT, // Up is the closest tangent on the wall that points upward in world space.
+		UP_ALIGN_WORLD_UP, // Up is always world space up (simple wall climbing).
+	};
+
 private:
 	friend class NPTicker;
 
@@ -75,6 +82,10 @@ private:
 		float yaw = 0;
 		Vector3 yaw_direction_world_space;
 
+		// Up alignment.
+		UpAlign up_align = UP_ALIGN_MESH;
+		//float up_align_capsule_offset = 0;
+
 		// When transitioning between mesh instances,
 		// the agent keeps track of the previous and current,
 		// and blends across the basis between them for a few ticks so the orientation looks smooth.
@@ -83,7 +94,6 @@ private:
 		Basis mesh_instance_transition_start_basis;
 		uint32_t mesh_instance_transition_ticks = 0;
 
-		//float jump_velocity = 0;
 		float friction = 0.5;
 		float gravity = 0.5;
 		float radius = 0.5;
@@ -196,6 +206,9 @@ public:
 	void set_physics_enabled(bool p_enable);
 	bool is_physics_enabled() const { return physics.enabled; }
 
+	void set_up_align(UpAlign p_up_align);
+	UpAlign get_up_align() const { return data.up_align; }
+
 	Vector3 get_debug_pos(int p_which) const;
 
 	const Transform &get_mesh_instance_transform() const;
@@ -231,6 +244,7 @@ public:
 	~NPAgent();
 };
 
+VARIANT_ENUM_CAST(NPAgent::UpAlign);
 VARIANT_ENUM_CAST(NPAgent::TestResult);
 VARIANT_ENUM_CAST(NPAgent::PathStatus);
 VARIANT_ENUM_CAST(NPAgent::FloorStatus);
