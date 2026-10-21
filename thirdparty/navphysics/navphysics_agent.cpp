@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 #include "navphysics_agent.h"
+#include "navphysics_mesh_instance.h"
 
 namespace NavPhysics {
 
@@ -40,6 +41,7 @@ void Agent::apply_friction() {
 	// in the client code to give consistent friction at different TPS.
 	// e.g. friction = pow(friction, 60 * physics_delta).
 	freal f = is_on_floor() ? friction : air_friction;
+	log(String("vel ") + vel);
 	vel *= f;
 }
 
@@ -49,6 +51,76 @@ void Agent::apply_impulse(FPoint3 p_impulse) {
 
 void Agent::apply_jump(float p_vel) {
 	jump_velocity += p_vel;
+}
+
+void Agent::iterate_jump(const MeshInstance &p_mesh_instance, const freal *p_ceiling_height) {
+	// Remove on_agent flag, it must be continuously set if we are
+	// walking on another agent.
+	if (on_agent) {
+		if (on_agent_prev_tick) {
+			on_agent_prev_tick = false;
+		} else {
+			on_agent = false;
+			// print_line("clearing on_agent");
+		}
+	}
+	
+		   // Initial jump off the floor.
+	if (on_floor && (jump_velocity > 0)) {
+		agent_height = floor_height + jump_velocity;
+		on_floor = false;
+		return;
+	}
+	
+	if (on_floor) {
+		// If we are on the floor, and no upward velocity,
+		// tightly match the floor surface.
+		agent_height = floor_height;
+	} else {
+		// Move height up or down...
+		agent_height += jump_velocity; // - gravity_half_step;
+		
+			   // If we hit the floor?
+		if (agent_height <= floor_height) {
+			agent_height = floor_height;
+			jump_velocity = 0;
+			on_floor = true;
+			grounded = true;
+		} else {
+			// Apply gravity for the next tick.
+			if (world_space_gravity)
+			{
+				FPoint3 g(0, -gravity, 0);
+				
+				const Mesh &mesh = p_mesh_instance.get_mesh();
+				FPoint3 g_local = p_mesh_instance.world_space_velocity_to_local3(mesh, g);
+				IPoint2 v = mesh.float_to_fixed_point_vel(g_local.xz());
+				//IPoint2 v = p_mesh_instance.world_space_velocity_to_local(mesh, g);
+				//g = p_mesh_instance.get_transform().basis.xform(g);
+				
+				// Hack for upside down / 90 degree meshes.
+				// We want to force agents to always falls back to the mesh at the bottom, otherwise
+				// the behaviour is nonsense if it can't leave the mesh.
+				g_local.y = MIN(g_local.y, -0.1f);
+				jump_velocity += g_local.y;
+				vel += v;
+			}
+			else
+			{
+				jump_velocity -= gravity;
+			}
+			
+				   // Have we hit the ceiling?
+			if (p_ceiling_height && (agent_height > *p_ceiling_height)) {
+				// Ceiling should always be above the floor, but just in case...
+				// Could be an assert?
+				agent_height = MAX(*p_ceiling_height, floor_height);
+				
+					   // Eliminate any upward jump velocity so bounce off ceiling.
+				jump_velocity = MIN(jump_velocity, 0);
+			}
+		}
+	}
 }
 
 #if 0

@@ -84,20 +84,20 @@ struct Wall {
 
 struct JumpFinderData {
 	FPoint3 pt_from;
-	FPoint3 pt_curr;
+	FPoint3 pt_to;
 	FPoint3 pt_far;
 	IPoint2 pt_from_local;
-	IPoint2 pt_curr_local;
+	IPoint2 pt_to_local;
 	IPoint2 pt_far_local;
 
 //#define NP_VERIFY_JUMP_FINDER_VELOCITY
 #ifdef NP_VERIFY_JUMP_FINDER_VELOCITY
 	FPoint3 pt_verify_curr_plus_vel;
-	IPoint2 pt_verify_curr_plus_vel_local;
+	IPoint2 pt_verify_to_plus_vel_local;
 #endif
 
-	FPoint3 vel;
-	IPoint2 vel_local;
+	FPoint3 vel_world;
+	IPoint2 vel_local2;
 };
 
 enum ZoneType : u32 {

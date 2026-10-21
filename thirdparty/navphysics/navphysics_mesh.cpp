@@ -113,7 +113,7 @@ bool Mesh::_agent_enter_poly(u32 p_old_poly_id, u32 p_new_poly_id, bool p_force_
 u32 Mesh::find_best_jump_poly_within(const Agent &p_agent, const JumpFinderData &p_jd, freal p_max_drop, freal p_max_step_up, freal &r_goodness_of_fit) const {
 	// Go through the list of external connecting edges and see if
 	// the jump crosses any.
-	freal p_height = p_jd.pt_curr.y;
+	freal p_height = p_jd.pt_to.y;
 
 	IPoint2 a, b;
 	IPoint2 pt_hit;
@@ -147,12 +147,12 @@ u32 Mesh::find_best_jump_poly_within(const Agent &p_agent, const JumpFinderData 
 		// Return information in the form of a jump,
 		// but ONLY if the wall edge is IN FRONT of us
 		// and not behind.
-		IPoint2 pt_curr_perpendicular = p_jd.pt_curr_local;
-		IPoint2 vel = p_jd.pt_curr_local - p_jd.pt_from_local;
+		IPoint2 pt_curr_perpendicular = p_jd.pt_to_local;
+		IPoint2 vel = p_jd.pt_to_local - p_jd.pt_from_local;
 		pt_curr_perpendicular += IPoint2(vel.y, -vel.x);
 
-		IPoint2 wall_vec = pt_curr_perpendicular - p_jd.pt_curr_local;
-		IPoint2 point_vec = pt_hit - p_jd.pt_curr_local;
+		IPoint2 wall_vec = pt_curr_perpendicular - p_jd.pt_to_local;
+		IPoint2 point_vec = pt_hit - p_jd.pt_to_local;
 		cross = wall_vec.cross(point_vec);
 
 		// We will allow the move EITHER
@@ -166,8 +166,8 @@ u32 Mesh::find_best_jump_poly_within(const Agent &p_agent, const JumpFinderData 
 		if (ahead) {
 			allow = true;
 		} else {
-			if (poly_contains_point(poly_id, p_jd.pt_curr_local)) {
-				pt_hit = p_jd.pt_curr_local;
+			if (poly_contains_point(poly_id, p_jd.pt_to_local)) {
+				pt_hit = p_jd.pt_to_local;
 				allow = true;
 			}
 		}
@@ -179,7 +179,7 @@ u32 Mesh::find_best_jump_poly_within(const Agent &p_agent, const JumpFinderData 
 			// Calculate the height of the agent AFTER the jump to the ledge,
 			// at the current velocity.
 			// This is potentially slow calculation, or can use look up table.
-			freal agent_height_after_jump = _estimate_height_after_ledge_jump(p_agent, p_height, p_jd.vel_local.lengthf(), (pt_hit - p_jd.pt_curr_local).lengthf());
+			freal agent_height_after_jump = _estimate_height_after_ledge_jump(p_agent, p_height, p_jd.vel_local2.lengthf(), (pt_hit - p_jd.pt_to_local).lengthf());
 
 			//log(String("\t\tpredicted jump to ledge is ") + (agent_height_after_jump - p_height) + " different than current agent height for poly ID " + poly_id + ".");
 
@@ -211,9 +211,9 @@ u32 Mesh::find_best_jump_poly_within(const Agent &p_agent, const JumpFinderData 
 				freal fit = ABS(best_height);
 
 				if (fit < r_goodness_of_fit) {
-					AgentStatus::jump_target_vel = p_jd.vel_local;
-					AgentStatus::jump_target_cross_pos = p_jd.pt_curr_local;
-					AgentStatus::jump_target_local_height = p_jd.pt_curr.y;
+					AgentStatus::jump_target_vel = p_jd.vel_local2;
+					AgentStatus::jump_target_cross_pos = p_jd.pt_to_local;
+					AgentStatus::jump_target_local_height = p_jd.pt_to.y;
 
 					if (ahead) {
 						//log(String("Mesh::find_best_jump_poly_within JUMP to connecting wall ") + wid);
@@ -854,7 +854,14 @@ bool Mesh::move_to_new_mesh(const IPoint2 &p_from, const IPoint2 &p_vel, MoveInf
 	if (r_info.agent->guard_external_jump_links) {
 		return false;
 	}
-
+	
+	// We are constructing 3 points:
+	// Current (where we are now plus velocity (i.e. after the move)), IPoint2 and agent height
+	// Near (where we are now but backtracked by the current velocity)
+	// Far (where we are now plus the velocity times a distance related to the agent radius)
+	
+	// Ideally we would calculate agent height at each, but for now we are just using the current height for all.
+	
 	IPoint2 to = p_from + p_vel;
 
 	// Construct a far vector for jumps to ledges on the next mesh.
@@ -863,7 +870,9 @@ bool Mesh::move_to_new_mesh(const IPoint2 &p_from, const IPoint2 &p_vel, MoveInf
 
 	IPoint2 far_vel = p_vel;
 	far_vel.normalize_to_scale(scaled_momentum);
-	IPoint2 far = p_from + far_vel;
+	
+	// Ensure that far is always further than to.
+	IPoint2 far = to + far_vel;
 
 	// Use a point near backtracking from the current direction,
 	// so we can catch already crossed edges.
@@ -897,13 +906,15 @@ bool Mesh::move_to_new_mesh(const IPoint2 &p_from, const IPoint2 &p_vel, MoveInf
 
 	NP_MOVE_FP_TO_WORLD_SPACE(near, pt_from);
 	NP_MOVE_FP_TO_WORLD_SPACE(far, pt_far);
-	NP_MOVE_FP_TO_WORLD_SPACE(to, pt_curr);
+	NP_MOVE_FP_TO_WORLD_SPACE(to, pt_to);
 
 #undef NP_MOVE_FP_TO_WORLD_SPACE
 
 	// Get the velocity into world space from the old mesh coordinate space.
-	jfd.vel = old_mesh_instance.local_velocity_to_world_space(*this, p_vel);
-
+	//jfd.vel = old_mesh_instance.local_velocity_to_world_space(*this, p_vel);
+	
+	jfd.vel_world = old_mesh_instance.local_velocity_with_jump_velocity_to_world_space(*this, p_vel, agent.jump_velocity);
+	
 	//log(String("move_to_new_mesh pt_curr (to) in WORLD_SPACE ") + jfd.pt_curr);
 
 	u32 mesh_instance_id = map.find_best_fit_agent_mesh(agent, agent.fpos3, old_mesh_instance_id, &jfd);

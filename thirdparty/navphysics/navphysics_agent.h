@@ -10,6 +10,8 @@
 
 namespace NavPhysics {
 
+class MeshInstance;
+
 // Single threaded way of passing around data
 
 struct AgentStatus {
@@ -93,8 +95,14 @@ public:
 
 	// The agent may be jumping *above* the floor
 	freal floor_height = 0;
+	
+	// Agent height is in local MeshInstance space,
+	// NOT in fixed point space.
 	freal agent_height = 0;
+	
 	freal jump_velocity = 0;
+	
+	//FPoint3 world_space_air_velocity;
 
 	u32 poly_id = UINT32_MAX;
 	u32 wall_id = UINT32_MAX;
@@ -111,6 +119,7 @@ public:
 	AgentState state : 4;
 	bool is_npc : 1;
 	bool on_floor : 1;
+	bool world_space_gravity : 1;
 
 	// We need two flags to maintain the on_agent flag, as we want a single tick delay
 	// to clear it, because of order of operations.
@@ -144,9 +153,9 @@ public:
 	// Modifiers
 	freal uphill_modifier = 0;
 	freal downhill_modifier = 0;
-
+	
+	//  This is in local mesh space, or world space if the up_align is not mesh.
 	freal gravity = 0;
-	//freal gravity_half_step = 0;
 
 	// Height is the physical height of the agent,
 	// whereas agent_height is the height above the ground.
@@ -190,55 +199,7 @@ public:
 		on_floor = false;
 		jump_velocity = 0;
 	}
-	void iterate_jump(const freal *p_ceiling_height = nullptr) {
-		// Remove on_agent flag, it must be continuously set if we are
-		// walking on another agent.
-		if (on_agent) {
-			if (on_agent_prev_tick) {
-				on_agent_prev_tick = false;
-			} else {
-				on_agent = false;
-				// print_line("clearing on_agent");
-			}
-		}
-
-		// Initial jump off the floor.
-		if (on_floor && (jump_velocity > 0)) {
-			agent_height = floor_height + jump_velocity;
-			on_floor = false;
-			return;
-		}
-
-		if (on_floor) {
-			// If we are on the floor, and no upward velocity,
-			// tightly match the floor surface.
-			agent_height = floor_height;
-		} else {
-			// Move height up or down...
-			agent_height += jump_velocity; // - gravity_half_step;
-
-			// If we hit the floor?
-			if (agent_height <= floor_height) {
-				agent_height = floor_height;
-				jump_velocity = 0;
-				on_floor = true;
-				grounded = true;
-			} else {
-				// Apply gravity for the next tick.
-				jump_velocity -= gravity;
-
-				// Have we hit the ceiling?
-				if (p_ceiling_height && (agent_height > *p_ceiling_height)) {
-					// Ceiling should always be above the floor, but just in case...
-					// Could be an assert?
-					agent_height = MAX(*p_ceiling_height, floor_height);
-
-					// Eliminate any upward jump velocity so bounce off ceiling.
-					jump_velocity = MIN(jump_velocity, 0);
-				}
-			}
-		}
-	}
+	void iterate_jump(const MeshInstance &p_mesh_instance, const freal *p_ceiling_height = nullptr);
 	// void seek_yaw(float p_yaw);
 
 	// Call to blank relevant data when jumping between meshes.
@@ -271,6 +232,7 @@ public:
 		state = AGENT_STATE_CLEAR;
 		is_npc = true;
 		on_floor = true;
+		world_space_gravity = false;
 		on_agent = false;
 		on_agent_prev_tick = false;
 		grounded = true;

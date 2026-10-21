@@ -271,6 +271,10 @@ void NPAgent::_nav_physics_update_transform(const Transform &p_xform) {
 
 void NPAgent::set_up_align(UpAlign p_up_align) {
 	data.up_align = p_up_align;
+
+	NavPhysics::Agent *agent = NPWORLD.safe_get_body(data.h_agent);
+	ERR_FAIL_NULL(agent);
+	agent->world_space_gravity = p_up_align != UP_ALIGN_MESH;
 }
 
 void NPAgent::set_physics_enabled(bool p_enable) {
@@ -783,8 +787,7 @@ void NPAgent::apply_impulse(const Vector3 &p_impulse) {
 	impulse *= NPTicker::tps_data.multiplier_impulse;
 
 	// Send to NavPhysics.
-	u32 agent_id;
-	NavPhysics::Agent *agent = NPWORLD.safe_get_body(data.h_agent, &agent_id);
+	NavPhysics::Agent *agent = NPWORLD.safe_get_body(data.h_agent);
 	ERR_FAIL_NULL(agent);
 	agent->apply_impulse(*(NavPhysics::FPoint3 *)&impulse);
 }

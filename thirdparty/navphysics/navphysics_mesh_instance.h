@@ -9,10 +9,11 @@
 #include "navphysics_structs.h"
 #include "navphysics_transform.h"
 #include "navphysics_vector.h"
+#include "navphysics_mesh.h"
 
 namespace NavPhysics {
 
-class Mesh;
+//class Mesh;
 
 class MeshInstance {
 	void _iterate_agent(Agent &r_agent, Mesh::MoveInfo &r_move_info);
@@ -82,7 +83,8 @@ public:
 	IPoint2 world_space_pos_to_local(const Mesh &p_mesh, const FPoint3 &p_pt_world, freal &r_agent_height) const;
 
 	FPoint3 world_space_pos_to_local3(const FPoint3 &p_pt_world) const;
-
+	
+	FPoint3 local_velocity_with_jump_velocity_to_world_space(const Mesh &p_mesh, const IPoint2 &p_vel_local, freal p_jump_velocity) const;
 	FPoint3 local_velocity_to_world_space(const Mesh &p_mesh, const IPoint2 &p_vel_local) const;
 	FPoint3 local_velocity3_to_world_space(const FPoint3 &p_vel_local) const;
 	
