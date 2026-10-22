@@ -266,7 +266,7 @@ void NPAgent::_nav_physics_update_transform(const Transform &p_xform) {
 	Transform tr = get_global_transform();
 	tr = tr * physics.shape_xform;
 
-	ps->body_set_transform(physics.rid_body, tr, PhysicsServer::BODY_TRANSFORM_MODE_WAKE_NEIGHBOURS);
+	ps->body_set_state(physics.rid_body, PhysicsServer::BODY_STATE_TRANSFORM, tr);
 }
 
 void NPAgent::set_up_align(UpAlign p_up_align) {
