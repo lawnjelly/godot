@@ -10,12 +10,14 @@ u32 AgentStatus::jump_wall_id = UINT32_MAX;
 IPoint2 AgentStatus::jump_target_wall_pos = IPoint2();
 IPoint2 AgentStatus::jump_target_cross_pos = IPoint2();
 IPoint2 AgentStatus::jump_target_vel = IPoint2();
+freal AgentStatus::jump_target_jump_vel = 0;
 //FPoint3 AgentStatus::jump_target_world_space_vel = FPoint3();
 
 freal AgentStatus::jump_target_local_height = 0;
 bool AgentStatus::jump_cross_only = false;
 u32 AgentStatus::suggested_poly_id = UINT32_MAX;
 u32 AgentStatus::jump_mesh_instance_id = UINT32_MAX;
+
 
 void AgentStatus::debug_print(String p_sz) {
 	log(p_sz + String(" ... AgentStatus : wall_id ") + jump_wall_id + ", wall_pos " + jump_target_wall_pos + ", cross_pos " + jump_target_cross_pos + ", poly " + suggested_poly_id + ", meshi_id " + jump_mesh_instance_id + ", target_set " + jump_cross_only + ", height " + jump_target_local_height);

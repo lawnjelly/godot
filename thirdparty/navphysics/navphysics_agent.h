@@ -22,6 +22,7 @@ struct AgentStatus {
 	static IPoint2 jump_target_cross_pos;
 
 	static IPoint2 jump_target_vel;
+	static freal jump_target_jump_vel;
 	//static FPoint3 jump_target_world_space_vel;
 
 	static freal jump_target_local_height;
@@ -100,6 +101,7 @@ public:
 	// NOT in fixed point space.
 	freal agent_height = 0;
 	
+	// Jump velocity is also in local MeshInstance space.
 	freal jump_velocity = 0;
 	
 	//FPoint3 world_space_air_velocity;

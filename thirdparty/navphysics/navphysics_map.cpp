@@ -659,6 +659,10 @@ void Map::body_teleport_to_agent_status_jump_target(Agent &r_agent, u32 p_agent_
 	r_agent.agent_height = AgentStatus::jump_target_local_height;
 	r_agent.vel = AgentStatus::jump_target_vel;
 	NP_DEV_ASSERT(r_agent.vel != IPoint2(INT32_MAX, INT32_MAX));
+	
+	// Note this is tested with jumping between meshes.
+	// TODO: make sure this is correct for internal jumps.
+	r_agent.jump_velocity = AgentStatus::jump_target_jump_vel;
 
 	MeshInstance &meshi = g_world.get_mesh_instance(r_agent.get_mesh_instance_id());
 	const Mesh &mesh = meshi.get_mesh();

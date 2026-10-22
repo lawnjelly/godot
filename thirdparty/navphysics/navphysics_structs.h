@@ -98,6 +98,7 @@ struct JumpFinderData {
 
 	FPoint3 vel_world;
 	IPoint2 vel_local2;
+	freal vel_local_jump = 0;
 };
 
 enum ZoneType : u32 {

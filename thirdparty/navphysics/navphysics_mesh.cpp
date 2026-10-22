@@ -212,6 +212,7 @@ u32 Mesh::find_best_jump_poly_within(const Agent &p_agent, const JumpFinderData 
 
 				if (fit < r_goodness_of_fit) {
 					AgentStatus::jump_target_vel = p_jd.vel_local2;
+					AgentStatus::jump_target_jump_vel = p_jd.vel_local_jump;
 					AgentStatus::jump_target_cross_pos = p_jd.pt_to_local;
 					AgentStatus::jump_target_local_height = p_jd.pt_to.y;
 
@@ -914,8 +915,9 @@ bool Mesh::move_to_new_mesh(const IPoint2 &p_from, const IPoint2 &p_vel, MoveInf
 	//jfd.vel = old_mesh_instance.local_velocity_to_world_space(*this, p_vel);
 	
 	jfd.vel_world = old_mesh_instance.local_velocity_with_jump_velocity_to_world_space(*this, p_vel, agent.jump_velocity);
+	log(String("world vel before jump calculated as : ") + jfd.vel_world);
 	
-	//log(String("move_to_new_mesh pt_curr (to) in WORLD_SPACE ") + jfd.pt_curr);
+	//log(String("move_to_n ew_mesh pt_curr (to) in WORLD_SPACE ") + jfd.pt_curr);
 
 	u32 mesh_instance_id = map.find_best_fit_agent_mesh(agent, agent.fpos3, old_mesh_instance_id, &jfd);
 
