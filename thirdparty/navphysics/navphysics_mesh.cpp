@@ -855,14 +855,14 @@ bool Mesh::move_to_new_mesh(const IPoint2 &p_from, const IPoint2 &p_vel, MoveInf
 	if (r_info.agent->guard_external_jump_links) {
 		return false;
 	}
-	
+
 	// We are constructing 3 points:
 	// Current (where we are now plus velocity (i.e. after the move)), IPoint2 and agent height
 	// Near (where we are now but backtracked by the current velocity)
 	// Far (where we are now plus the velocity times a distance related to the agent radius)
-	
+
 	// Ideally we would calculate agent height at each, but for now we are just using the current height for all.
-	
+
 	IPoint2 to = p_from + p_vel;
 
 	// Construct a far vector for jumps to ledges on the next mesh.
@@ -871,7 +871,7 @@ bool Mesh::move_to_new_mesh(const IPoint2 &p_from, const IPoint2 &p_vel, MoveInf
 
 	IPoint2 far_vel = p_vel;
 	far_vel.normalize_to_scale(scaled_momentum);
-	
+
 	// Ensure that far is always further than to.
 	IPoint2 far = to + far_vel;
 
@@ -913,10 +913,10 @@ bool Mesh::move_to_new_mesh(const IPoint2 &p_from, const IPoint2 &p_vel, MoveInf
 
 	// Get the velocity into world space from the old mesh coordinate space.
 	//jfd.vel = old_mesh_instance.local_velocity_to_world_space(*this, p_vel);
-	
+
 	jfd.vel_world = old_mesh_instance.local_velocity_with_jump_velocity_to_world_space(*this, p_vel, agent.jump_velocity);
 	log(String("world vel before jump calculated as : ") + jfd.vel_world);
-	
+
 	//log(String("move_to_n ew_mesh pt_curr (to) in WORLD_SPACE ") + jfd.pt_curr);
 
 	u32 mesh_instance_id = map.find_best_fit_agent_mesh(agent, agent.fpos3, old_mesh_instance_id, &jfd);
@@ -943,12 +943,9 @@ bool Mesh::debug_check_agent_integrity(const IPoint2 &p_pos, u32 p_poly_id, u32 
 #ifdef NP_DEV_ENABLED
 
 	for (u32 n = 0; n < 2; n++) {
-		if (ABS(p_pos.coord[n]) > NAVPHYSICS_MESH_FP_RANGE) {
+		if (ABS(p_pos.coord[n]) > NAVPHYSICS_MESH_FP_RANGE_WITH_LIP) {
 			return false;
 		}
-		//		if (((i64)p_pos.coord[n] * (i64)p_pos.coord[n]) > UINT32_MAX) {
-		//			return false;
-		//		}
 	}
 	//NP_CHECK_32(y2 - y1);
 

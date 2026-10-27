@@ -127,7 +127,8 @@ freal MeshInstance::find_agent_jump_fit(Agent &r_agent, JumpFinderData p_jump_da
 	JumpFinderData &jd = p_jump_data;
 
 	r_best_poly_id = UINT32_MAX;
-
+	
+	// This is the mesh being JUMPED TO, not the mesh being jumped from.
 	const Mesh &mesh = get_mesh();
 
 	// COPY of jump data, not reference, as we will be changing to local space.
@@ -142,7 +143,9 @@ freal MeshInstance::find_agent_jump_fit(Agent &r_agent, JumpFinderData p_jump_da
 	NP_FIND_AGENT_JUMP_WORLD_TO_FP(pt_from, pt_from_local);
 	NP_FIND_AGENT_JUMP_WORLD_TO_FP(pt_to, pt_to_local);
 	NP_FIND_AGENT_JUMP_WORLD_TO_FP(pt_far, pt_far_local);
-
+	
+	// TODO: Can these local velocities be calculated after the AABB check?
+	
 	// FROM IS TOO FAR FORWARD, WE NEED TO BACK TRACK
 	FPoint3 vel_local = get_transform_inverse().basis.xform(jd.vel_world);
 	jd.vel_local2 = mesh.float_to_fixed_point_vel(vel_local.xz());
@@ -196,6 +199,7 @@ freal MeshInstance::find_agent_jump_fit(Agent &r_agent, JumpFinderData p_jump_da
 		if ((r_best_poly_id != UINT32_MAX) && (fit < p_best_fit_so_far)) {
 			AgentStatus::jump_target_cross_pos = jd.pt_to_local;
 			AgentStatus::jump_target_vel = jd.vel_local2;
+			AgentStatus::jump_target_jump_vel = jd.vel_local_jump;
 			AgentStatus::jump_cross_only = true;
 			AgentStatus::jump_target_local_height = jd.pt_to.y;
 

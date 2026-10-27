@@ -660,6 +660,9 @@ void Map::body_teleport_to_agent_status_jump_target(Agent &r_agent, u32 p_agent_
 	r_agent.vel = AgentStatus::jump_target_vel;
 	NP_DEV_ASSERT(r_agent.vel != IPoint2(INT32_MAX, INT32_MAX));
 	
+	
+	log(String("Old jump velocity : ") + r_agent.jump_velocity + ", New jump vel : " + AgentStatus::jump_target_jump_vel);
+	
 	// Note this is tested with jumping between meshes.
 	// TODO: make sure this is correct for internal jumps.
 	r_agent.jump_velocity = AgentStatus::jump_target_jump_vel;
