@@ -493,7 +493,7 @@ void Map::prepare_agent(u32 p_agent_id) {
 
 		IPoint2 impulse = mesh.float_to_fixed_point_vel(local_impulse.xz());
 		agent.vel += impulse;
-		log(String("prepare_agent : adding to vel ") + agent.vel);
+		//log(String("prepare_agent : adding to vel ") + agent.vel);
 	}
 }
 

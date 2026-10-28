@@ -143,7 +143,7 @@ private:
 	void _update_params();
 	void _update_physics_shape();
 	float _shift_yaw(float p_from, float p_to, float p_max_change) const;
-	void update_yaw();
+	void _default_update_yaw();
 	void _nav_physics_update_transform(const Transform &p_xform);
 	void _update_physics_enabled(bool p_exiting_tree = false);
 
@@ -178,6 +178,13 @@ public:
 	void set_pathfind_internal_jump_links(bool p_enable);
 	void set_pathfind_external_jump_links(bool p_enable);
 	void set_npc(bool p_enable);
+
+	// In mesh space.
+	// YAW can either be handled automatically by the agent (to follow movement),
+	// or set by the user in order to restrict movement (e.g. for vehicles).
+	void set_yaw(float p_yaw);
+	void shift_yaw(float p_yaw, float p_max_shift);
+	float get_yaw() const { return data.yaw; }
 
 	void set_radius(float p_radius);
 	float get_radius() const { return data.radius; }

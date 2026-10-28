@@ -91,22 +91,29 @@ f32 Math::shift_angle(f32 p_from, f32 p_to, f32 p_max_change) {
 }
 
 f32 Math::lerp_angle(f32 p_from, f32 p_to, f32 p_weight) {
-	float difference = fmod(p_to - p_from, (f32)NP_TAU);
-	float distance = fmod(2.0f * difference, (f32)NP_TAU) - difference;
+	f32 difference = fmod(p_to - p_from, (f32)NP_TAU);
+	f32 distance = fmod(2.0f * difference, (f32)NP_TAU) - difference;
 	return p_from + distance * p_weight;
 }
 
+f32 Math::normalize_angle(f32 p_angle) {
+	f32 a = fmod(p_angle + (f32)NP_PI, (f32)NP_TAU);
+	if (a < 0) {
+		a += (f32)NP_TAU;
+	}
+	return a - (f32)NP_PI;
+}
+
 f32 Math::get_adjusted_friction(f32 p_friction, u32 p_tps) {
-	
 	double delta = 1.0 / p_tps;
-	
+
 	double f = 1.0 - p_friction;
 	f = Math::pow(f, delta);
-	
+
 	// Fudge.
 	//f = Math::pow(f, 0.9);
 	return f;
-	
+
 	/*
 	// Clamp inputs to safe limits.
 	if (p_friction_at_60_tps <= 0.0f || p_friction_at_60_tps >= 1.0f) {
@@ -122,6 +129,5 @@ f32 Math::get_adjusted_friction(f32 p_friction, u32 p_tps) {
 	return std::pow(p_friction_at_60_tps, time_ratio);
 */
 }
-
 
 } // namespace NavPhysics

@@ -184,7 +184,7 @@ void NPAgent::_agent_callback(const NavPhysics::AgentCallbackData &p_data) {
 	}
 
 	// Calculate yaw
-	update_yaw();
+	_default_update_yaw();
 
 	//data.vel.zero();
 
@@ -890,10 +890,30 @@ float NPAgent::_shift_yaw(float p_from, float p_to, float p_max_change) const {
 	return p_from + distance;
 }
 
-void NPAgent::update_yaw() {
+void NPAgent::shift_yaw(float p_yaw, float p_max_shift) {
+	set_yaw(_shift_yaw(data.yaw, p_yaw, p_max_shift));
+}
+
+void NPAgent::set_yaw(float p_yaw) {
+	if (p_yaw == data.yaw) {
+		return;
+	}
+
+	data.yaw = p_yaw;
+	if (data.h_agent) {
+		// This could probably be combined with setting impulse for efficiency,
+		// but calling separately is easiest conceptually for users.
+		NavPhysics::Agent *agent = NPWORLD.safe_get_body(data.h_agent);
+		ERR_FAIL_NULL(agent);
+
+		agent->set_yaw(p_yaw);
+	}
+}
+
+void NPAgent::_default_update_yaw() {
 	Vector2 vel = Vector2(data.impulse_mesh_space.x, data.impulse_mesh_space.z);
 	if (vel.length_squared() > 0) {
-		data.yaw = _shift_yaw(data.yaw, vel.angle(), 0.1f);
+		shift_yaw(vel.angle(), 6.0f / Engine::get_singleton()->get_iterations_per_second());
 	}
 }
 

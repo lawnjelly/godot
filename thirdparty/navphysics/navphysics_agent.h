@@ -66,7 +66,18 @@ private:
 	// They are straight velocity multipliers.
 	freal friction = 0;
 	freal air_friction = 0;
-
+	
+	// Yaw is in MESH space, not world space.
+	// It is supplied by the calling code (which is responsible
+	// for deciding an agent's yaw), and is ONLY used in order
+	// to restrict forces being applied along the agent's move axis
+	// (say in the case of vehicles).
+	// -PI to +PI.
+	freal yaw = 0;
+	
+	// Between 0 and 1, 1 only allows force to be applied in the direction of yaw.
+	freal yaw_movement_restriction = 0;
+	
 public:
 	struct CallbackData {
 		// Used by client code to identify the agent,
@@ -89,10 +100,6 @@ public:
 	IPoint2 pos;
 	IPoint2 vel;
 	FPoint2 fpos;
-#if 0
-	float yaw = 0;
-	float worldspace_yaw = 0;
-#endif
 
 	// The agent may be jumping *above* the floor
 	freal floor_height = 0;
@@ -183,6 +190,10 @@ public:
 		on_agent = true;
 		on_agent_prev_tick = true;
 	}
+	
+	void set_yaw(freal p_yaw) {yaw = Math::normalize_angle(p_yaw);}
+	void set_yaw_movement_restriction(freal p_value) {yaw_movement_restriction = CLAMP(p_value, 0.0f, 1.0f);}
+			
 	void apply_impulse(FPoint3 p_impulse);
 	void apply_jump(float p_vel);
 	void apply_friction();

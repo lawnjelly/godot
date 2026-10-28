@@ -43,7 +43,7 @@ void Agent::apply_friction() {
 	// in the client code to give consistent friction at different TPS.
 	// e.g. friction = pow(friction, 60 * physics_delta).
 	freal f = is_on_floor() ? friction : air_friction;
-	log(String("vel ") + vel);
+	//log(String("vel ") + vel);
 	vel *= f;
 }
 
