@@ -55,7 +55,8 @@ public:
 	static f32 normalize_angle(f32 p_angle);
 
 	// Restriction is from 0 to 1.
-	static void constrain_velocity_to_angle(IPoint2 &r_velocity, f32 p_angle, f32 p_restriction);
+	static void restrict_velocity_to_angle(IPoint2 &r_velocity, f32 p_angle, f32 p_restriction);
+	static void constrain_velocity_to_angle(IPoint2 &r_velocity, f32 p_angle);
 
 	static f32 get_adjusted_friction(f32 p_friction, u32 p_tps);
 };

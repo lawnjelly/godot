@@ -52,6 +52,10 @@ struct [[nodiscard]] FPoint2 {
 		x = Math::cos_real(p_angle);
 		y = Math::sin_real(p_angle);
 	}
+	void lerp(const FPoint2 &p_v, f32 p_fraction) {
+		FPoint2 diff = p_v - *this;
+		*this = *this + (diff * p_fraction);
+	}
 
 	FPoint2() {
 		zero();
