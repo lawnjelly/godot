@@ -18,7 +18,6 @@ bool AgentStatus::jump_cross_only = false;
 u32 AgentStatus::suggested_poly_id = UINT32_MAX;
 u32 AgentStatus::jump_mesh_instance_id = UINT32_MAX;
 
-
 void AgentStatus::debug_print(String p_sz) {
 	log(p_sz + String(" ... AgentStatus : wall_id ") + jump_wall_id + ", wall_pos " + jump_target_wall_pos + ", cross_pos " + jump_target_cross_pos + ", poly " + suggested_poly_id + ", meshi_id " + jump_mesh_instance_id + ", target_set " + jump_cross_only + ", height " + jump_target_local_height);
 }
@@ -28,13 +27,18 @@ void Agent::set_mesh_instance_id(uint32_t p_mesh_id) {
 	mesh_instance_id = p_mesh_id;
 }
 
-void Agent::set_friction(f32 p_friction) {
-	friction = p_friction;
-	log(String("agent_adjusted_friction is ") + friction);	
+void Agent::set_friction(f32 p_friction, bool p_air) {
+	if (p_air) {
+		friction = p_friction;
+		log(String("agent_adjusted_friction is ") + friction);
+	} else {
+		air_friction = p_friction;
+	}
 }
 
-void Agent::set_air_friction(f32 p_friction) {
-	air_friction = p_friction;
+void Agent::set_yaw_movement_restriction(freal p_value, bool p_air)
+{
+	yaw_movement_restriction[p_air? 0 : 1] = CLAMP(p_value, 0.0f, 1.0f);
 }
 
 void Agent::apply_friction() {
@@ -45,6 +49,21 @@ void Agent::apply_friction() {
 	freal f = is_on_floor() ? friction : air_friction;
 	//log(String("vel ") + vel);
 	vel *= f;
+}
+
+void Agent::apply_restricted_velocity(const IPoint2 &p_new_velocity_before_restriction) {
+	f32 restriction = yaw_movement_restriction[is_on_floor() ? 0 : 1];
+	
+	// Simplest case, there is no restriction in progress, pass through.
+	if (restriction <= 0) {
+		vel = p_new_velocity_before_restriction;
+	}
+
+	// Apply the restriction to the CHANGE, not to the existing velocity.
+	IPoint2 diff = p_new_velocity_before_restriction - vel;
+
+	Math::constrain_velocity_to_angle(diff, yaw, restriction);
+	vel += diff;
 }
 
 void Agent::apply_impulse(FPoint3 p_impulse) {
@@ -66,14 +85,14 @@ void Agent::iterate_jump(const MeshInstance &p_mesh_instance, const freal *p_cei
 			// print_line("clearing on_agent");
 		}
 	}
-	
-		   // Initial jump off the floor.
+
+	// Initial jump off the floor.
 	if (on_floor && (jump_velocity > 0)) {
 		agent_height = floor_height + jump_velocity;
 		on_floor = false;
 		return;
 	}
-	
+
 	if (on_floor) {
 		// If we are on the floor, and no upward velocity,
 		// tightly match the floor surface.
@@ -81,8 +100,8 @@ void Agent::iterate_jump(const MeshInstance &p_mesh_instance, const freal *p_cei
 	} else {
 		// Move height up or down...
 		agent_height += jump_velocity; // - gravity_half_step;
-		
-			   // If we hit the floor?
+
+		// If we hit the floor?
 		if (agent_height <= floor_height) {
 			agent_height = floor_height;
 			jump_velocity = 0;
@@ -90,35 +109,32 @@ void Agent::iterate_jump(const MeshInstance &p_mesh_instance, const freal *p_cei
 			grounded = true;
 		} else {
 			// Apply gravity for the next tick.
-			if (world_space_gravity)
-			{
+			if (world_space_gravity) {
 				FPoint3 g(0, -gravity, 0);
-				
+
 				const Mesh &mesh = p_mesh_instance.get_mesh();
 				FPoint3 g_local = p_mesh_instance.world_space_velocity_to_local3(mesh, g);
 				IPoint2 v = mesh.float_to_fixed_point_vel(g_local.xz());
 				//IPoint2 v = p_mesh_instance.world_space_velocity_to_local(mesh, g);
 				//g = p_mesh_instance.get_transform().basis.xform(g);
-				
+
 				// Hack for upside down / 90 degree meshes.
 				// We want to force agents to always falls back to the mesh at the bottom, otherwise
 				// the behaviour is nonsense if it can't leave the mesh.
 				g_local.y = MIN(g_local.y, -0.1f);
 				jump_velocity += g_local.y;
 				vel += v;
-			}
-			else
-			{
+			} else {
 				jump_velocity -= gravity;
 			}
-			
-				   // Have we hit the ceiling?
+
+			// Have we hit the ceiling?
 			if (p_ceiling_height && (agent_height > *p_ceiling_height)) {
 				// Ceiling should always be above the floor, but just in case...
 				// Could be an assert?
 				agent_height = MAX(*p_ceiling_height, floor_height);
-				
-					   // Eliminate any upward jump velocity so bounce off ceiling.
+
+				// Eliminate any upward jump velocity so bounce off ceiling.
 				jump_velocity = MIN(jump_velocity, 0);
 			}
 		}
@@ -130,6 +146,5 @@ void Agent::seek_yaw(float p_yaw) {
 	yaw = Math::shift_angle(yaw, p_yaw, 0.1f);
 }
 #endif
-
 
 } // namespace NavPhysics

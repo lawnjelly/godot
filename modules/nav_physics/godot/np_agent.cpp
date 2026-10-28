@@ -617,8 +617,8 @@ void NPAgent::_update_params() {
 	gravity *= (1.0 / 60.0);
 	agent->gravity = NPAGENT_LINEAR_ADJUSTMENT(gravity);
 
-	agent->set_friction(_scale_friction_param(data.friction, delta));
-	agent->set_air_friction(_scale_friction_param(data.air_friction, delta));
+	agent->set_friction(_scale_friction_param(data.friction, delta), false);
+	agent->set_friction(_scale_friction_param(data.air_friction, delta), true);
 
 	agent->uphill_modifier = data.uphill;
 	agent->downhill_modifier = data.downhill;

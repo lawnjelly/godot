@@ -16,6 +16,34 @@ freal Math::sqrt_real(freal p_v) {
 	return ::sqrt(p_v);
 }
 
+i32 Math::round32(f32 p_v) {
+	return ::lround(p_v);
+}
+
+freal Math::sin_real(freal p_v) {
+	return Math::_sin(p_v);
+}
+
+f32 Math::_sin(f32 p_v) {
+	return ::sinf(p_v);
+}
+
+f64 Math::_sin(f64 p_v) {
+	return ::sin(p_v);
+}
+
+freal Math::cos_real(freal p_v) {
+	return Math::_cos(p_v);
+}
+
+f32 Math::_cos(f32 p_v) {
+	return ::cosf(p_v);
+}
+
+f64 Math::_cos(f64 p_v) {
+	return ::cos(p_v);
+}
+
 f32 Math::fmod(f32 p_x, f32 p_y) {
 	return ::fmodf(p_x, p_y);
 }
@@ -41,14 +69,18 @@ float Math::pow(float p_v, float p_factor) {
 }
 
 freal Math::fabs_real(freal p_v) {
-	return fabs(p_v);
+	return Math::_fabs(p_v);
 }
 
-freal Math::fabs(f32 p_v) {
+f32 Math::fabs32(f32 p_v) {
 	return ::fabsf(p_v);
 }
 
-freal Math::fabs(f64 p_v) {
+freal Math::_fabs(f32 p_v) {
+	return ::fabsf(p_v);
+}
+
+freal Math::_fabs(f64 p_v) {
 	return ::fabs(p_v);
 }
 
@@ -102,6 +134,52 @@ f32 Math::normalize_angle(f32 p_angle) {
 		a += (f32)NP_TAU;
 	}
 	return a - (f32)NP_PI;
+}
+
+void Math::constrain_velocity_to_angle(IPoint2 &r_velocity, f32 p_angle, f32 p_restriction) {
+	NP_DEV_ASSERT(p_restriction >= 0);
+	if (p_restriction <= 0.001f) {
+		return;
+	}
+	NP_DEV_ASSERT(p_restriction <= 1);
+
+	FPoint2 vel = r_velocity.to_f32();
+
+	FPoint2 restrict_dir;
+	restrict_dir.from_angle(p_angle);
+
+	f32 dot = restrict_dir.dot(vel);
+	f32 abs_dot = Math::fabs32(dot);
+
+	// Special case for 90 degrees to the
+	if (abs_dot <= 0.01f) {
+		r_velocity.zero();
+		return;
+	}
+
+	// Special case, velocity is aligned with the angle.
+	// Shortcut to revent overshooting due to float error.
+	if (abs_dot >= (0.99f)) {
+		// No change.
+		return;
+	}
+
+	// The dot is the magnitude of the new direction.
+	restrict_dir *= dot;
+
+	u64 sq_before = r_velocity.length_squared();
+	IPoint2 new_vel;
+
+	new_vel.from_f32(restrict_dir);
+	u64 sq_after = new_vel.length_squared();
+
+	// Note it is still possible the output could be larger than the input, due to rounding.
+	// May or may not be worth checking this.
+	// This extra check may not be necessary for high performance
+	// (it may not be possible, but just in case, due to rounding).
+	if (sq_after < sq_before) {
+		r_velocity = new_vel;
+	}
 }
 
 f32 Math::get_adjusted_friction(f32 p_friction, u32 p_tps) {

@@ -48,6 +48,11 @@ struct [[nodiscard]] FPoint2 {
 	freal angle_to_point(const FPoint2 &p_v) const { return (p_v - (*this)).angle(); }
 	bool is_equal_approx(const FPoint2 &p_v, f32 p_tolerance = Math::NP_CMP_EPSILON) const { return Math::is_equal_approx(x, p_v.x, p_tolerance) && Math::is_equal_approx(y, p_v.y, p_tolerance); }
 
+	void from_angle(freal p_angle) {
+		x = Math::cos_real(p_angle);
+		y = Math::sin_real(p_angle);
+	}
+
 	FPoint2() {
 		zero();
 	}

@@ -492,7 +492,7 @@ void Map::prepare_agent(u32 p_agent_id) {
 		const Mesh &mesh = mesh_instance.get_mesh();
 
 		IPoint2 impulse = mesh.float_to_fixed_point_vel(local_impulse.xz());
-		agent.vel += impulse;
+		agent.apply_restricted_velocity(agent.vel + impulse);
 		//log(String("prepare_agent : adding to vel ") + agent.vel);
 	}
 }

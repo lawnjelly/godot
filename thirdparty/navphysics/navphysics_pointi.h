@@ -48,9 +48,15 @@ struct [[nodiscard]] IPoint2 {
 		return IPoint2::make(p_v.x, p_v.y);
 	}
 	void from_f32(const FPoint2 &p_v) {
-		// FixMe: could use round() here.
-		x = p_v.x;
-		y = p_v.y;
+		x = Math::round32(p_v.x);
+		y = Math::round32(p_v.y);
+	}
+	void from_angle(freal p_angle)
+	{
+		FPoint2 pt;
+		pt.from_angle(p_angle);
+		pt *= 65535.0f;
+		from_f32(pt);
 	}
 	freal normalize_to_scale(freal p_scale) {
 		FPoint2 temp = to_f32();

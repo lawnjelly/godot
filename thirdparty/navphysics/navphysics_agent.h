@@ -66,18 +66,18 @@ private:
 	// They are straight velocity multipliers.
 	freal friction = 0;
 	freal air_friction = 0;
-	
+
 	// Yaw is in MESH space, not world space.
 	// It is supplied by the calling code (which is responsible
 	// for deciding an agent's yaw), and is ONLY used in order
 	// to restrict forces being applied along the agent's move axis
 	// (say in the case of vehicles).
 	// -PI to +PI.
-	freal yaw = 0;
-	
+	f32 yaw = 0;
+
 	// Between 0 and 1, 1 only allows force to be applied in the direction of yaw.
-	freal yaw_movement_restriction = 0;
-	
+	f32 yaw_movement_restriction[2] = {};
+
 public:
 	struct CallbackData {
 		// Used by client code to identify the agent,
@@ -103,14 +103,14 @@ public:
 
 	// The agent may be jumping *above* the floor
 	freal floor_height = 0;
-	
+
 	// Agent height is in local MeshInstance space,
 	// NOT in fixed point space.
 	freal agent_height = 0;
-	
+
 	// Jump velocity is also in local MeshInstance space.
 	freal jump_velocity = 0;
-	
+
 	//FPoint3 world_space_air_velocity;
 
 	u32 poly_id = UINT32_MAX;
@@ -162,7 +162,7 @@ public:
 	// Modifiers
 	freal uphill_modifier = 0;
 	freal downhill_modifier = 0;
-	
+
 	//  This is in local mesh space, or world space if the up_align is not mesh.
 	freal gravity = 0;
 
@@ -190,19 +190,20 @@ public:
 		on_agent = true;
 		on_agent_prev_tick = true;
 	}
-	
-	void set_yaw(freal p_yaw) {yaw = Math::normalize_angle(p_yaw);}
-	void set_yaw_movement_restriction(freal p_value) {yaw_movement_restriction = CLAMP(p_value, 0.0f, 1.0f);}
-			
+
+	void set_yaw(f32 p_yaw) { yaw = Math::normalize_angle(p_yaw); }
+	void set_yaw_movement_restriction(f32 p_value, bool p_air);
+
 	void apply_impulse(FPoint3 p_impulse);
 	void apply_jump(float p_vel);
 	void apply_friction();
 
+	void apply_restricted_velocity(const IPoint2 &p_new_velocity_before_restriction);
+
 	// E.g. 0.95 is gamey type friction.
 	// As if multiplied by the velocity each tick
 	// (in reality this is fudged for tick rate independence).
-	void set_friction(f32 p_friction);
-	void set_air_friction(f32 p_friction);
+	void set_friction(f32 p_friction, bool p_air);
 
 	void force_off_floor() {
 		on_floor = false;
