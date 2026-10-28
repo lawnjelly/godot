@@ -142,14 +142,20 @@ void Math::constrain_velocity_to_angle(IPoint2 &r_velocity, f32 p_angle, f32 p_r
 		return;
 	}
 	NP_DEV_ASSERT(p_restriction <= 1);
-
+	
+	u64 sq_before = r_velocity.length_squared();
+	f32 length_before = Math::sqrt64(sq_before);
+	
 	FPoint2 vel = r_velocity.to_f32();
 
 	FPoint2 restrict_dir;
 	restrict_dir.from_angle(p_angle);
 
 	f32 dot = restrict_dir.dot(vel);
-	f32 abs_dot = Math::fabs32(dot);
+	f32 dot_normalized = length_before > 0 ? (dot / length_before) : 0;
+	
+	
+	f32 abs_dot = Math::fabs32(dot_normalized);
 
 	// Special case for 90 degrees to the
 	if (abs_dot <= 0.01f) {
@@ -167,7 +173,6 @@ void Math::constrain_velocity_to_angle(IPoint2 &r_velocity, f32 p_angle, f32 p_r
 	// The dot is the magnitude of the new direction.
 	restrict_dir *= dot;
 
-	u64 sq_before = r_velocity.length_squared();
 	IPoint2 new_vel;
 
 	new_vel.from_f32(restrict_dir);

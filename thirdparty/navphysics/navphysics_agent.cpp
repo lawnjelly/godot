@@ -28,7 +28,7 @@ void Agent::set_mesh_instance_id(uint32_t p_mesh_id) {
 }
 
 void Agent::set_friction(f32 p_friction, bool p_air) {
-	if (p_air) {
+	if (!p_air) {
 		friction = p_friction;
 		log(String("agent_adjusted_friction is ") + friction);
 	} else {
@@ -38,7 +38,7 @@ void Agent::set_friction(f32 p_friction, bool p_air) {
 
 void Agent::set_yaw_movement_restriction(freal p_value, bool p_air)
 {
-	yaw_movement_restriction[p_air? 0 : 1] = CLAMP(p_value, 0.0f, 1.0f);
+	yaw_movement_restriction[p_air? 1 : 0] = CLAMP(p_value, 0.0f, 1.0f);
 }
 
 void Agent::apply_friction() {
@@ -52,6 +52,12 @@ void Agent::apply_friction() {
 }
 
 void Agent::apply_restricted_velocity(const IPoint2 &p_new_velocity_before_restriction) {
+	if (p_new_velocity_before_restriction.is_zero())
+	{
+		vel = p_new_velocity_before_restriction;
+		return;
+	}
+	
 	f32 restriction = yaw_movement_restriction[is_on_floor() ? 0 : 1];
 	
 	// Simplest case, there is no restriction in progress, pass through.

@@ -51,8 +51,7 @@ struct [[nodiscard]] IPoint2 {
 		x = Math::round32(p_v.x);
 		y = Math::round32(p_v.y);
 	}
-	void from_angle(freal p_angle)
-	{
+	void from_angle(freal p_angle) {
 		FPoint2 pt;
 		pt.from_angle(p_angle);
 		pt *= 65535.0f;
@@ -76,6 +75,7 @@ struct [[nodiscard]] IPoint2 {
 		v1.normalize();
 		return v0.dot(v1);
 	}
+	bool is_zero() const { return (x == 0) && (y == 0); }
 	// Just for easy reading of large fixed point numbers.
 	IPoint2 readable() const { return *this / 1000000; }
 

@@ -105,6 +105,9 @@ private:
 		float air_control = 0.3;
 		float air_friction = 0.2;
 
+		float yaw_movement_restriction = 0;
+		float air_yaw_movement_restriction = 0;
+
 		PathInfo path;
 		Waypoint waypoint;
 
@@ -209,6 +212,12 @@ public:
 
 	void set_modifier_air_friction(float p_value);
 	float get_modifier_air_friction() const { return data.air_friction; }
+
+	void set_yaw_movement_restriction(float p_value);
+	float get_yaw_movement_restriction() const { return data.yaw_movement_restriction; }
+
+	void set_air_yaw_movement_restriction(float p_value);
+	float get_air_yaw_movement_restriction() const { return data.air_yaw_movement_restriction; }
 
 	void set_physics_enabled(bool p_enable);
 	bool is_physics_enabled() const { return physics.enabled; }

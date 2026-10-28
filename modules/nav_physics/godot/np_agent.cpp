@@ -100,6 +100,15 @@ void NPAgent::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_npc", "enable"), &NPAgent::set_npc);
 	ClassDB::bind_method(D_METHOD("is_npc"), &NPAgent::is_npc);
 
+	ClassDB::bind_method(D_METHOD("set_yaw", "yaw"), &NPAgent::set_yaw);
+	ClassDB::bind_method(D_METHOD("get_yaw"), &NPAgent::get_yaw);
+
+	ClassDB::bind_method(D_METHOD("set_yaw_movement_restriction", "restriction"), &NPAgent::set_yaw_movement_restriction);
+	ClassDB::bind_method(D_METHOD("get_yaw_movement_restriction"), &NPAgent::get_yaw_movement_restriction);
+
+	ClassDB::bind_method(D_METHOD("set_air_yaw_movement_restriction", "restriction"), &NPAgent::set_air_yaw_movement_restriction);
+	ClassDB::bind_method(D_METHOD("get_air_yaw_movement_restriction"), &NPAgent::get_air_yaw_movement_restriction);
+
 	// Physics
 	ClassDB::bind_method(D_METHOD("set_physics_enabled", "enable"), &NPAgent::set_physics_enabled);
 	ClassDB::bind_method(D_METHOD("is_physics_enabled"), &NPAgent::is_physics_enabled);
@@ -126,6 +135,9 @@ void NPAgent::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "height", PROPERTY_HINT_RANGE, "0,1024"), "set_height", "get_height");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "friction", PROPERTY_HINT_RANGE, "0,1"), "set_friction", "get_friction");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "gravity", PROPERTY_HINT_RANGE, "0,1"), "set_gravity", "get_gravity");
+
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "yaw_movement_restriction", PROPERTY_HINT_RANGE, "0,1"), "set_yaw_movement_restriction", "get_yaw_movement_restriction");
+	ADD_PROPERTY(PropertyInfo(Variant::REAL, "air_yaw_movement_restriction", PROPERTY_HINT_RANGE, "0,1"), "set_air_yaw_movement_restriction", "get_air_yaw_movement_restriction");
 
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "up_align", PROPERTY_HINT_ENUM, "Mesh,Mesh Tangent,World"), "set_up_align", "get_up_align");
 
@@ -184,7 +196,7 @@ void NPAgent::_agent_callback(const NavPhysics::AgentCallbackData &p_data) {
 	}
 
 	// Calculate yaw
-	_default_update_yaw();
+	//_default_update_yaw();
 
 	//data.vel.zero();
 
@@ -632,6 +644,9 @@ void NPAgent::_update_params() {
 
 	agent->is_npc = data.is_npc;
 
+	agent->set_yaw_movement_restriction(data.yaw_movement_restriction, false);
+	agent->set_yaw_movement_restriction(data.air_yaw_movement_restriction, true);
+
 	//#undef NPAGENT_LINEAR_ADJUSTMENT
 	//#undef NPAGENT_EXP_ADJUSTMENT
 }
@@ -862,6 +877,16 @@ void NPAgent::set_modifier_downhill(float p_value) {
 
 void NPAgent::set_modifier_air_control(float p_value) {
 	data.air_control = p_value;
+	_update_params();
+}
+
+void NPAgent::set_yaw_movement_restriction(float p_value) {
+	data.yaw_movement_restriction = p_value;
+	_update_params();
+}
+
+void NPAgent::set_air_yaw_movement_restriction(float p_value) {
+	data.air_yaw_movement_restriction = p_value;
 	_update_params();
 }
 
