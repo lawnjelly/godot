@@ -118,12 +118,17 @@ private:
 
 		bool is_npc : 1;
 
+		bool is_active_desired : 1;
+		bool is_active_state : 1;
+
 		Data() {
 			guard_internal_jump_links = false;
 			guard_external_jump_links = false;
 			pathfind_internal_jump_links = true;
 			pathfind_external_jump_links = true;
 			is_npc = true;
+			is_active_desired = true;
+			is_active_state = false;
 		}
 	} data;
 
@@ -144,6 +149,7 @@ private:
 	//void _nav_update();
 	double _scale_friction_param(double p_friction, double p_delta) const;
 	void _update_params();
+	void _update_active(bool p_exiting_tree = false);
 	void _update_physics_shape();
 	float _shift_yaw(float p_from, float p_to, float p_max_change) const;
 	void _default_update_yaw();
@@ -181,6 +187,8 @@ public:
 	void set_pathfind_internal_jump_links(bool p_enable);
 	void set_pathfind_external_jump_links(bool p_enable);
 	void set_npc(bool p_enable);
+	void set_active(bool p_enable);
+	bool is_active() const { return data.is_active_desired; }
 
 	// In mesh space.
 	// YAW can either be handled automatically by the agent (to follow movement),

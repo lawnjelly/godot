@@ -53,6 +53,9 @@ void NPAgent::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("get_debug_pos", "which"), &NPAgent::get_debug_pos);
 
+	ClassDB::bind_method(D_METHOD("set_active", "enable"), &NPAgent::set_active);
+	ClassDB::bind_method(D_METHOD("is_active"), &NPAgent::is_active);
+
 	ClassDB::bind_method(D_METHOD("set_radius", "radius"), &NPAgent::set_radius);
 	ClassDB::bind_method(D_METHOD("get_radius"), &NPAgent::get_radius);
 
@@ -130,6 +133,7 @@ void NPAgent::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("get_current_path", "level"), &NPAgent::get_current_path);
 
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "active"), "set_active", "is_active");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "NPC"), "set_npc", "is_npc");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "radius", PROPERTY_HINT_RANGE, "0,1024"), "set_radius", "get_radius");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "height", PROPERTY_HINT_RANGE, "0,1024"), "set_height", "get_height");
@@ -387,12 +391,14 @@ void NPAgent::_notification(int p_what) {
 		} break;
 		case NOTIFICATION_EXIT_TREE: {
 			_update_physics_enabled(true);
+			_update_active(true);
 		} break;
 		case NOTIFICATION_INTERNAL_PHYSICS_PROCESS: {
 			//_nav_update();
 		} break;
 		case NOTIFICATION_ENTER_TREE: {
 			_update_process_mode();
+			_update_active();
 			nav_teleport(get_global_transform().origin);
 		} break;
 	}
@@ -816,14 +822,6 @@ void NPAgent::apply_impulse(const Vector3 &p_impulse) {
 	agent->apply_impulse(*(NavPhysics::FPoint3 *)&impulse);
 }
 
-NPAgent::NPAgent() {
-	data.h_agent = NPWORLD.safe_body_create();
-
-	NPWORLD.safe_link_body(data.h_agent, NPWORLD.get_handle_default_map());
-
-	_update_params();
-}
-
 void NPAgent::set_guard_internal_jump_links(bool p_enable) {
 	data.guard_internal_jump_links = p_enable;
 	_update_params();
@@ -837,6 +835,15 @@ void NPAgent::set_guard_external_jump_links(bool p_enable) {
 void NPAgent::set_pathfind_internal_jump_links(bool p_enable) {
 	data.pathfind_internal_jump_links = p_enable;
 	_update_params();
+}
+
+void NPAgent::set_active(bool p_enable) {
+	if (p_enable == data.is_active_desired) {
+		return;
+	}
+
+	data.is_active_desired = p_enable;
+	_update_active();
 }
 
 void NPAgent::set_npc(bool p_enable) {
@@ -951,11 +958,40 @@ void NPAgent::_default_update_yaw() {
 	}
 }
 
+NPAgent::NPAgent() {
+	data.h_agent = NPWORLD.safe_body_create();
+
+	_update_params();
+}
+
+void NPAgent::_update_active(bool p_exiting_tree) {
+	ERR_FAIL_COND(!data.h_agent);
+
+	if (is_inside_tree() && !p_exiting_tree) {
+		if (data.is_active_desired) {
+			if (!data.is_active_state) {
+				NPWORLD.safe_link_body(data.h_agent, NPWORLD.get_handle_default_map());
+				data.is_active_state = true;
+			}
+		} else {
+			if (data.is_active_state) {
+				NPWORLD.safe_unlink_body(data.h_agent, NPWORLD.get_handle_default_map());
+				data.is_active_state = false;
+			}
+		}
+	} else {
+		if (data.is_active_state) {
+			NPWORLD.safe_unlink_body(data.h_agent, NPWORLD.get_handle_default_map());
+			data.is_active_state = false;
+		}
+	}
+}
+
 NPAgent::~NPAgent() {
 	free_current_path();
 
 	if (data.h_agent) {
-		NPWORLD.safe_unlink_body(data.h_agent, NavPhysics::g_world.get_handle_default_map());
+		_update_active(true);
 
 		NPWORLD.safe_body_free(data.h_agent);
 		data.h_agent = 0;
