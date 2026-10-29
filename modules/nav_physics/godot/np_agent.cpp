@@ -1,8 +1,7 @@
 #include "np_agent.h"
-#include "np_point.h"
-//#include "thirdparty/navphysics/navphysics_vector.h"
-//#include "thirdparty/navphysics/navphysics_map.h"
 #include "core/fixed_array.h"
+#include "np_defines.h"
+#include "np_point.h"
 #include "thirdparty/navphysics/navphysics_loader.h"
 #include "thirdparty/navphysics/navphysics_log.h"
 #include "thirdparty/navphysics/navphysics_map.h"
@@ -162,11 +161,8 @@ void NPAgent::_bind_methods() {
 }
 
 void NPAgent::_agent_callback(const NavPhysics::AgentCallbackData &p_data) {
-	//Transform tr = get_transform();
-	// tr.origin = *(Vector3 *)&p_data.position_world_space;
-
-	data.impulse_mesh_space = *(Vector3 *)&p_data.impulse_mesh_space;
-	data.impulse_world_space = *(Vector3 *)&p_data.impulse_world_space;
+	data.impulse_mesh_space = NPHelper::np_fpoint3_to_vector3(p_data.impulse_mesh_space);
+	data.impulse_world_space = NPHelper::np_fpoint3_to_vector3(p_data.impulse_world_space);
 
 	Transform tr = get_mesh_instance_transform();
 
@@ -205,7 +201,7 @@ void NPAgent::_agent_callback(const NavPhysics::AgentCallbackData &p_data) {
 	//data.vel.zero();
 
 	// Get the forward vector for the mesh instance.
-	tr.origin = *(Vector3 *)&p_data.position_world_space;
+	tr.origin = NPHelper::np_fpoint3_to_vector3(p_data.position_world_space);
 
 	Basis yaw_basis = Basis(Vector3(0, (Math_PI / 2) - data.yaw, 0));
 
@@ -396,6 +392,9 @@ void NPAgent::_notification(int p_what) {
 		case NOTIFICATION_INTERNAL_PHYSICS_PROCESS: {
 			//_nav_update();
 		} break;
+		case NOTIFICATION_VISIBILITY_CHANGED: {
+			_update_active();
+		} break;
 		case NOTIFICATION_ENTER_TREE: {
 			_update_process_mode();
 			_update_active();
@@ -409,8 +408,7 @@ Vector3 NPAgent::get_debug_pos(int p_which) const {
 	ERR_FAIL_NULL_V(agent, Vector3());
 
 #ifdef NP_DEV_ENABLED
-	Vector3 pos = *(Vector3 *)&agent->debug_pos[p_which];
-	return pos;
+	return NPHelper::np_fpoint3_to_vector3(agent->debug_pos[p_which]);
 #else
 	return Vector3();
 #endif
@@ -528,7 +526,12 @@ NPAgent::PathResult NPAgent::iterate_path() {
 	NavPhysics::Plan &plan = NPWORLD.get_plan_store().get_plan(data.path.path_id);
 
 	Vector3 agent_pos = get_global_transform().origin;
-	NPAgent::PathResult res = (NPAgent::PathResult)plan.iterate_move(*(NavPhysics::FPoint3 *)&agent_pos, *(NavPhysics::FPoint3 *)&data.waypoint.pos, data.waypoint.poly_id);
+
+	// TODO: This may not need to be set, could be left as zero, check this.
+	NavPhysics::FPoint3 waypoint_pos_temp = NPHelper::vector3_to_np_fpoint3(data.waypoint.pos);
+
+	NPAgent::PathResult res = (NPAgent::PathResult)plan.iterate_move(NPHelper::vector3_to_np_fpoint3(agent_pos), waypoint_pos_temp, data.waypoint.poly_id);
+	data.waypoint.pos = NPHelper::np_fpoint3_to_vector3(waypoint_pos_temp);
 	data.waypoint.reached_waypoint = plan.reached_waypoint();
 
 	if ((res == PATH_RESULT_FINISHED) || (res == PATH_RESULT_FAILED)) {
@@ -543,7 +546,7 @@ Vector3 NPAgent::get_next_waypoint() {
 #if 0
 	ERR_FAIL_COND_V(data.path.path_id == UINT32_MAX, Vector3());
 	NavPhysics::Plan &plan = NPWORLD.get_plan_store().get_plan(data.path.path_id);
-	ERR_FAIL_COND_V(!plan.get_next_world_pos(*(NavPhysics::FPoint3 *)&data.waypoint.pos, data.waypoint.poly_id), Vector3());
+	ERR_FAIL_COND_V(!plan.get_next_world_pos(NPHelper::vector3_to_np_fpoint3(data.waypoint.pos), data.waypoint.poly_id), Vector3());
 
 	// Detect getting stuck.
 	uint32_t tps = Engine::get_singleton()->get_iterations_per_second();
@@ -587,7 +590,7 @@ bool NPAgent::move_to_agent(Node *p_agent) {
 }
 
 const Transform &NPAgent::get_mesh_instance_transform() const {
-	return *(Transform *)(&NPWORLD.safe_get_agent_mesh_instance_transform(data.h_agent));
+	return NPHelper::np_transform_to_transform(NPWORLD.safe_get_agent_mesh_instance_transform(data.h_agent));
 }
 
 double NPAgent::_scale_friction_param(double p_friction, double p_delta) const {
@@ -819,7 +822,7 @@ void NPAgent::apply_impulse(const Vector3 &p_impulse) {
 	// Send to NavPhysics.
 	NavPhysics::Agent *agent = NPWORLD.safe_get_body(data.h_agent);
 	ERR_FAIL_NULL(agent);
-	agent->apply_impulse(*(NavPhysics::FPoint3 *)&impulse);
+	agent->apply_impulse(NPHelper::vector3_to_np_fpoint3(impulse));
 }
 
 void NPAgent::set_guard_internal_jump_links(bool p_enable) {
@@ -968,7 +971,7 @@ void NPAgent::_update_active(bool p_exiting_tree) {
 	ERR_FAIL_COND(!data.h_agent);
 
 	if (is_inside_tree() && !p_exiting_tree) {
-		if (data.is_active_desired) {
+		if (data.is_active_desired && is_visible_in_tree()) {
 			if (!data.is_active_state) {
 				NPWORLD.safe_link_body(data.h_agent, NPWORLD.get_handle_default_map());
 				data.is_active_state = true;

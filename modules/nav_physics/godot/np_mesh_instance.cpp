@@ -3,6 +3,7 @@
 #include "core/engine.h"
 
 #include "np_agent.h"
+#include "np_defines.h"
 #include "np_point.h"
 #include "thirdparty/navphysics/navphysics_loader.h"
 #include "thirdparty/navphysics/navphysics_log.h"
@@ -51,7 +52,7 @@ void NPMeshInstance::_update_server() {
 		NavPhysics::MeshInstance *mi = NavPhysics::g_world.safe_get_mesh_instance(data.h_mesh_instance);
 		if (mi) {
 			Transform tr = get_global_transform();
-			mi->set_transform(*(NavPhysics::Transform *)&tr);
+			mi->set_transform(NPHelper::transform_to_np_transform(tr));
 		}
 	}
 }
@@ -111,7 +112,7 @@ void NPMeshInstance::point_notify_transform(NPPoint &p_point) {
 	NavPhysics::POI *poi = NavPhysics::g_world.safe_get_poi(p_point.get_handle_poi());
 	DEV_ASSERT(poi);
 
-	mi->poi_set_position(poi, *(NavPhysics::FPoint3 *)&origin);
+	mi->poi_set_position(poi, NPHelper::vector3_to_np_fpoint3(origin));
 }
 
 void NPMeshInstance::resync_points() {
@@ -220,7 +221,7 @@ Vector3 NPMeshInstance::choose_random_location() const {
 		NavPhysics::MeshInstance *mi = NavPhysics::g_world.safe_get_mesh_instance(data.h_mesh_instance);
 		if (mi) {
 			NavPhysics::FPoint3 pos = mi->choose_random_location();
-			return Vector3(pos.x, pos.y, pos.z);
+			return NPHelper::np_fpoint3_to_vector3(pos);
 		}
 	}
 
