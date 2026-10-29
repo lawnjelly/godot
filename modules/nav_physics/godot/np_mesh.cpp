@@ -529,6 +529,13 @@ NPMesh::~NPMesh() {
 		NavPhysics::g_world.safe_mesh_free(data.h_mesh);
 		data.h_mesh = 0;
 	}
+
+	if (!data.bake_params_agent.is_null()) {
+		data.bake_params_agent->unregister_owner(this);
+	}
+	if (!data.bake_params_mesh.is_null()) {
+		data.bake_params_mesh->unregister_owner(this);
+	}
 }
 
 void NPMesh::set_bake_params_agent(const Ref<NPBakeParams_Agent> &p_params) {
