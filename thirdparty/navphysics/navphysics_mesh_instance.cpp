@@ -154,8 +154,8 @@ freal MeshInstance::find_agent_jump_fit(Agent &r_agent, JumpFinderData p_jump_da
 	jd.vel_local_jump = vel_local.y;
 
 #ifdef NP_DEV_ENABLED
-	FPoint3 unit_test_world_vel = local_velocity_with_jump_velocity_to_world_space(mesh, jd.vel_local2, jd.vel_local_jump);
-	log(String("world vel after jump calculated as : ") + unit_test_world_vel);
+	// FPoint3 unit_test_world_vel = local_velocity_with_jump_velocity_to_world_space(mesh, jd.vel_local2, jd.vel_local_jump);
+	//log(String("world vel after jump calculated as : ") + unit_test_world_vel);
 #endif
 
 

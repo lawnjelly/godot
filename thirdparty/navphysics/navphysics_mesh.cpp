@@ -915,7 +915,7 @@ bool Mesh::move_to_new_mesh(const IPoint2 &p_from, const IPoint2 &p_vel, MoveInf
 	//jfd.vel = old_mesh_instance.local_velocity_to_world_space(*this, p_vel);
 
 	jfd.vel_world = old_mesh_instance.local_velocity_with_jump_velocity_to_world_space(*this, p_vel, agent.jump_velocity);
-	log(String("world vel before jump calculated as : ") + jfd.vel_world);
+	// log(String("world vel before jump calculated as : ") + jfd.vel_world);
 
 	//log(String("move_to_n ew_mesh pt_curr (to) in WORLD_SPACE ") + jfd.pt_curr);
 

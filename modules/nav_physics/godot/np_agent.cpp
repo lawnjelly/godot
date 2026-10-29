@@ -26,7 +26,7 @@ void NPAgent::_bind_methods() {
 	BIND_ENUM_CONSTANT(TEST_RESULT_FAILED);
 	BIND_ENUM_CONSTANT(TEST_RESULT_INVALID_PARAMETER);
 	BIND_ENUM_CONSTANT(TEST_RESULT_DIFFERENT_MESH);
-	BIND_ENUM_CONSTANT(TEST_RESULT_INVALID_MESH);
+	BIND_ENUM_CONSTANT(TEST_RESULT_MESH_UNSET);
 	BIND_ENUM_CONSTANT(TEST_RESULT_BLOCKED_WALL);
 
 	BIND_ENUM_CONSTANT(PATH_OK);
@@ -196,7 +196,7 @@ void NPAgent::_agent_callback(const NavPhysics::AgentCallbackData &p_data) {
 	}
 
 	// Calculate yaw
-	//_default_update_yaw();
+	_default_update_yaw();
 
 	//data.vel.zero();
 
@@ -702,8 +702,13 @@ NPAgent::TestResult NPAgent::ray_test_agent(const Node *p_np_agent) const {
 	NavPhysics::Agent *agent_B = NPWORLD.safe_get_body(data.h_agent);
 	ERR_FAIL_NULL_V(agent_B, TEST_RESULT_FAILED);
 
-	ERR_FAIL_COND_V(agent_A->get_mesh_instance_id() != agent_B->get_mesh_instance_id(), TEST_RESULT_DIFFERENT_MESH);
-	ERR_FAIL_COND_V(agent_B->get_mesh_instance_id() == UINT32_MAX, TEST_RESULT_INVALID_MESH);
+	if (agent_A->get_mesh_instance_id() != agent_B->get_mesh_instance_id()) {
+		return TEST_RESULT_DIFFERENT_MESH;
+	}
+
+	if (agent_A->get_mesh_instance_id() == UINT32_MAX) {
+		return TEST_RESULT_MESH_UNSET;
+	}
 
 	NavPhysics::MeshInstance &mi = NPWORLD.get_mesh_instance(agent_B->get_mesh_instance_id());
 
@@ -720,10 +725,14 @@ NPAgent::TestResult NPAgent::ray_test_point(const Node *p_np_point) const {
 	NavPhysics::Agent *agent = NPWORLD.safe_get_body(data.h_agent);
 	ERR_FAIL_NULL_V(agent, TEST_RESULT_FAILED);
 
-	ERR_FAIL_COND_V(agent->get_mesh_instance_id() == UINT32_MAX, TEST_RESULT_INVALID_MESH);
+	if (agent->get_mesh_instance_id() == UINT32_MAX) {
+		return TEST_RESULT_MESH_UNSET;
+	}
 
 	NavPhysics::MeshInstance &mi = NPWORLD.get_mesh_instance(agent->get_mesh_instance_id());
-	ERR_FAIL_COND_V(mi.get_handle() != poi->handle_mesh_instance, TEST_RESULT_DIFFERENT_MESH);
+	if (mi.get_handle() != poi->handle_mesh_instance) {
+		return TEST_RESULT_DIFFERENT_MESH;
+	}
 
 	return mi.get_mesh().ray_test(agent->pos, agent->poly_id, poi->local_pos, poi->poly_id) ? TEST_RESULT_CLEAR : TEST_RESULT_BLOCKED_WALL;
 }
