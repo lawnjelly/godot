@@ -57,10 +57,25 @@ void NPMeshInstance::_update_server() {
 	}
 }
 
-void NPMeshInstance::_update_visibility() {
-	if (is_inside_tree()) {
-		if (data.h_mesh_instance) {
-			NPWORLD.safe_set_mesh_instance_active(data.h_mesh_instance, is_visible_in_tree());
+void NPMeshInstance::_update_active(bool p_exiting_tree) {
+	ERR_FAIL_COND(!data.h_mesh_instance);
+
+	if (is_inside_tree() && !p_exiting_tree) {
+		if (data.is_active_desired && is_visible_in_tree()) {
+			if (!data.is_active_state) {
+				NPWORLD.safe_set_mesh_instance_active(data.h_mesh_instance, true);
+				data.is_active_state = true;
+			}
+		} else {
+			if (data.is_active_state) {
+				NPWORLD.safe_set_mesh_instance_active(data.h_mesh_instance, false);
+				data.is_active_state = false;
+			}
+		}
+	} else {
+		if (data.is_active_state) {
+			NPWORLD.safe_set_mesh_instance_active(data.h_mesh_instance, false);
+			data.is_active_state = false;
 		}
 	}
 }
@@ -151,9 +166,12 @@ void NPMeshInstance::resync_points() {
 void NPMeshInstance::_notification(int p_what) {
 	switch (p_what) {
 		case NOTIFICATION_ENTER_TREE: {
-			_update_visibility();
+			_update_active();
 			_update_server();
 			_refresh_debug_visuals();
+		} break;
+		case NOTIFICATION_EXIT_TREE: {
+			_update_active(true);
 		} break;
 		case NOTIFICATION_TRANSFORM_CHANGED: {
 			if (is_visible_in_tree()) {
@@ -161,7 +179,7 @@ void NPMeshInstance::_notification(int p_what) {
 			}
 		} break;
 		case NOTIFICATION_VISIBILITY_CHANGED: {
-			_update_visibility();
+			_update_active();
 		} break;
 		case NOTIFICATION_CHILD_ORDER_CHANGED: {
 		} break;
@@ -170,6 +188,14 @@ void NPMeshInstance::_notification(int p_what) {
 
 void NPMeshInstance::resource_changed(RES res) {
 	update_gizmo();
+}
+
+void NPMeshInstance::set_active(bool p_enable) {
+	if (p_enable == data.is_active_desired) {
+		return;
+	}
+	data.is_active_desired = p_enable;
+	_update_active();
 }
 
 void NPMeshInstance::set_mesh(const Ref<NPMesh> &p_mesh) {
@@ -278,6 +304,11 @@ void NPMeshInstance::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("choose_random_location"), &NPMeshInstance::choose_random_location);
 	ClassDB::bind_method(D_METHOD("set_debug_visuals", "enable"), &NPMeshInstance::set_debug_visuals);
 	ClassDB::bind_method(D_METHOD("has_debug_visuals"), &NPMeshInstance::has_debug_visuals);
+
+	ClassDB::bind_method(D_METHOD("set_active", "enable"), &NPMeshInstance::set_active);
+	ClassDB::bind_method(D_METHOD("is_active"), &NPMeshInstance::is_active);
+
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "active"), "set_active", "is_active");
 
 	ADD_GROUP("Debug", "debug_");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "debug_visuals"), "set_debug_visuals", "has_debug_visuals");

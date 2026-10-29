@@ -24,6 +24,8 @@ class NPMeshInstance : public Spatial {
 		Ref<NPMesh> mesh;
 
 		LocalVector<PointRef> points;
+		bool is_active_desired = true;
+		bool is_active_state = false;
 	} data;
 
 	struct DebugData {
@@ -33,7 +35,7 @@ class NPMeshInstance : public Spatial {
 
 	void resource_changed(RES res);
 	void _update_server();
-	void _update_visibility();
+	void _update_active(bool p_exiting_tree = false);
 	bool _refresh_debug_visuals();
 	void resync_points();
 
@@ -46,6 +48,9 @@ protected:
 	static void _bind_methods();
 
 public:
+	void set_active(bool p_enable);
+	bool is_active() const { return data.is_active_desired; }
+
 	void set_mesh(const Ref<NPMesh> &p_mesh);
 	Ref<NPMesh> get_mesh() const;
 	Vector3 choose_random_location() const;
