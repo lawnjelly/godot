@@ -425,6 +425,13 @@ u32 Map::find_best_fit_agent_mesh(Agent &r_agent, const FPoint3 &p_world_pos, u3
 		}
 	}
 
+	// If we didn't find a decent fit, we will have a last ditch attempt at finding a good poly on the best matching
+	// mesh instance.
+	if ((AgentStatus::suggested_poly_id == UINT32_MAX) && (best_mesh_instance_id != UINT32_MAX)) {
+		MeshInstance &mesh_instance = g_world.get_mesh_instance(best_mesh_instance_id);
+		AgentStatus::suggested_poly_id = mesh_instance.find_agent_last_ditch_nearest_poly(r_agent, p_world_pos);
+	}
+
 	//	best_mesh_instance_id = 1;
 	NP_LOG(String("find_best_fit_agent_mesh : ") + best_mesh_instance_id);
 	return best_mesh_instance_id;
@@ -432,6 +439,14 @@ u32 Map::find_best_fit_agent_mesh(Agent &r_agent, const FPoint3 &p_world_pos, u3
 
 bool Map::update_agent_mesh(Agent &r_agent, bool p_teleport_if_changed) {
 	//Agent &agent = _agents[p_agent_id];
+
+	// Special case, if the current mesh instance has been inactivated, we want to find a new mesh instance to sit on.
+	if (r_agent.get_mesh_instance_id() != UINT32_MAX) {
+		const MeshInstance &mi = g_world.get_mesh_instance(r_agent.get_mesh_instance_id());
+		if (!mi.is_active()) {
+			r_agent.set_mesh_instance_id(UINT32_MAX);
+		}
+	}
 
 	// no mesh yet?
 	if (r_agent.get_mesh_instance_id() == UINT32_MAX) {
@@ -659,10 +674,9 @@ void Map::body_teleport_to_agent_status_jump_target(Agent &r_agent, u32 p_agent_
 	r_agent.agent_height = AgentStatus::jump_target_local_height;
 	r_agent.vel = AgentStatus::jump_target_vel;
 	NP_DEV_ASSERT(r_agent.vel != IPoint2(INT32_MAX, INT32_MAX));
-	
-	
+
 	log(String("Old jump velocity : ") + r_agent.jump_velocity + ", New jump vel : " + AgentStatus::jump_target_jump_vel);
-	
+
 	// Note this is tested with jumping between meshes.
 	// TODO: make sure this is correct for internal jumps.
 	r_agent.jump_velocity = AgentStatus::jump_target_jump_vel;

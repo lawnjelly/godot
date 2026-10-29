@@ -225,6 +225,24 @@ freal MeshInstance::find_agent_jump_fit(Agent &r_agent, JumpFinderData p_jump_da
 	return fit;
 }
 
+u32 MeshInstance::find_agent_last_ditch_nearest_poly(Agent &r_agent, const FPoint3 &p_world_pos) const
+{
+	// xform agent world space to local space
+	FPoint3 pos = get_transform_inverse().xform(p_world_pos);
+	const Mesh &mesh = get_mesh();
+	
+	// Confine the test point to the AABB of the mesh.
+	// There is no hope of a hit unless we are within the AABB.
+	AABB aabb = mesh._extended_aabb;
+	aabb.confine_point(pos);
+	
+	// Convert position to fixed point.
+	IPoint2 ipos = mesh.float_to_fixed_point_2(pos.xz());
+	
+	return mesh.find_best_poly_within_last_ditch(pos, ipos);
+}
+
+
 freal MeshInstance::find_agent_fit(Agent &r_agent, const FPoint3 &p_world_pos, u32 &r_best_poly_id, freal p_max_step_up, freal p_max_drop) const {
 	r_best_poly_id = UINT32_MAX;
 
@@ -243,7 +261,15 @@ freal MeshInstance::find_agent_fit(Agent &r_agent, const FPoint3 &p_world_pos, u
 
 	if (!aabb.contains_point_or_above(pos)) {
 		NP_LLOG("\tnot in aabb");
-		return 1000000;
+		
+		// Calculate the distance to the AABB, so we can preferentially choose with ties.
+		freal proximity = aabb.distance_to(pos);
+		
+		// Convert proximity to world space.
+		FPoint3 proximity_vec = get_transform().basis.xform(FPoint3(proximity, 0, 0));
+		proximity = proximity_vec.length();
+		
+		return 1000000 + proximity;
 	}
 
 	// Convert position to fixed point.

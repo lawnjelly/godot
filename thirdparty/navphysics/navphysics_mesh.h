@@ -397,11 +397,10 @@ public:
 		r_x = p_pt.x / 65;
 		r_y = p_pt.y / 65;
 	}
-	
-	
+
 	// Simple fast ray tracing routine for AI queries.
 	bool ray_test(IPoint2 p_from, u32 p_source_poly_id, const IPoint2 &p_to, u32 p_dest_poly_id) const;
-	
+
 private:
 	String _svg_header(float p_scale = 1) const;
 	void modify_velocity_for_poly_slope(const MoveInfo &p_info, IPoint2 &r_vel, u32 p_poly_id) const;
@@ -424,6 +423,7 @@ private:
 	bool find_lines_intersect_integer(const IPoint2 &p_from_a, const IPoint2 &p_to_a, const IPoint2 &p_from_b, const IPoint2 &p_to_b, IPoint2 &r_hit) const;
 	bool wall_segments_find_intersect(u32 p_wall_id, const IPoint2 &p_from, const IPoint2 &p_to, IPoint2 &r_hit) const;
 	bool find_line_segments_intersect_integer(const IPoint2 &p_from_a, const IPoint2 &p_to_a, const IPoint2 &p_from_b, const IPoint2 &p_to_b, IPoint2 &r_hit) const;
+	freal _assess_last_ditch_floor_poly(u32 p_poly_id, const FPoint3 &p_pt) const;
 
 	void _unit_test_find_lines_intersect_integer();
 
@@ -471,8 +471,8 @@ public:
 	u32 find_poly_within(const IPoint2 &p_pt, u32 p_poly_id_hint = UINT32_MAX) const;
 
 	u32 find_best_poly_within(const IPoint2 &p_pt, freal p_height, freal p_max_drop, freal p_max_step_up, freal &r_goodness_of_fit) const;
-
 	u32 find_best_jump_poly_within(const Agent &p_agent, const JumpFinderData &p_jd, freal p_max_drop, freal p_max_step_up, freal &r_goodness_of_fit) const;
+	u32 find_best_poly_within_last_ditch(const FPoint3 &p_pt, const IPoint2 &p_pt2) const;
 
 	bool find_ceiling_height(u32 p_floor_poly_id, const IPoint2 &p_pt, freal &r_height, u32 &r_ceiling_poly_id_hint) const;
 

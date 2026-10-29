@@ -149,6 +149,54 @@ struct [[nodiscard]] AABB {
 		return true;
 	}
 
+	freal distance_squared_to(const FPoint3 &p_pt) const {
+		freal sq_distance = 0;
+
+		freal min_x = position.x;
+		freal max_x = position.x + size.x;
+		if (p_pt.x < min_x) {
+			freal v = p_pt.x - min_x;
+			sq_distance += v * v;
+		} else if (p_pt.x > max_x) {
+			freal v = p_pt.x - max_x;
+			sq_distance += v * v;
+		}
+
+		freal min_y = position.y;
+		freal max_y = position.y + size.y;
+		if (p_pt.y < min_y) {
+			freal v = p_pt.y - min_y;
+			sq_distance += v * v;
+		} else if (p_pt.y > max_y) {
+			freal v = p_pt.y - max_y;
+			sq_distance += v * v;
+		}
+
+		freal min_z = position.z;
+		freal max_z = position.z + size.z;
+		if (p_pt.z < min_z) {
+			freal v = p_pt.z - min_z;
+			sq_distance += v * v;
+		} else if (p_pt.z > max_z) {
+			freal v = p_pt.z - max_z;
+			sq_distance += v * v;
+		}
+
+		return sq_distance;
+	}
+
+	freal distance_to(const FPoint3 &p_pt) const {
+		return Math::sqrt_real(distance_squared_to(p_pt));
+	}
+
+	void confine_point(FPoint3 &r_pt) const {
+		FPoint3 end = position + size;
+		for (u32 n = 0; n < 3; n++) {
+			r_pt.coord[n] = MAX(r_pt.coord[n], position.coord[n]);
+			r_pt.coord[n] = MIN(r_pt.coord[n], end.coord[n]);
+		}
+	}
+
 	bool contains_point(const FPoint3 &p_pt) const {
 		FPoint3 pt = p_pt - position;
 		for (u32 n = 0; n < 3; n++) {

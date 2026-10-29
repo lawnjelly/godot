@@ -112,6 +112,8 @@ struct [[nodiscard]] FPoint3 {
 	}
 	FPoint2 xz() const { return FPoint2::make(x, z); }
 	bool isfinite() const { return std::isfinite(x) && std::isfinite(y) && std::isfinite(z); }
+
+	freal distance_point_from_triangle(const FPoint3 &p_a, const FPoint3 &p_b, const FPoint3 &p_c) const;
 };
 
 inline FPoint3 operator*(freal lhs, FPoint3 rhs) {

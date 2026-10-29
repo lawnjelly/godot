@@ -53,6 +53,7 @@ public:
 	// less is better fit
 	freal find_agent_fit(Agent &r_agent, const FPoint3 &p_world_pos, u32 &r_best_poly_id, freal p_max_step_up, freal p_max_drop) const;
 	freal find_agent_jump_fit(Agent &r_agent, JumpFinderData p_jump_data, u32 &r_best_poly_id, freal p_max_step_up, freal p_max_drop, freal p_best_fit_so_far) const;
+	u32 find_agent_last_ditch_nearest_poly(Agent &r_agent, const FPoint3 &p_world_pos) const;
 
 	void iterate_agent(Agent &r_agent, Mesh::MoveInfo &r_move_info);
 	void iterate_agent_housekeeping(Agent &r_agent);

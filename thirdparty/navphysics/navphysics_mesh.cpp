@@ -241,6 +241,65 @@ u32 Mesh::find_best_jump_poly_within(const Agent &p_agent, const JumpFinderData 
 	return best_poly_id;
 }
 
+freal Mesh::_assess_last_ditch_floor_poly(u32 p_poly_id, const FPoint3 &p_pt) const {
+	/*
+	if (poly_contains_point(p_poly_id, p_pt)) {
+		freal height = find_height_on_poly_plane(p_poly_id, p_pt);
+		return Math::fabs_real(p_height - height);
+	}
+	*/
+	// Try the corners.
+
+	const Poly &poly = get_poly(p_poly_id);
+
+	// Different routine for ceiling, as no walls.
+	u32 ind_a = get_ind(poly.first_ind);
+	u32 ind_b = get_ind(poly.first_ind + 1);
+	const FPoint3 *a = &get_fvert3(ind_a);
+	const FPoint3 *b = &get_fvert3(ind_b);
+
+	freal dist = FLT_MAX;
+
+	for (u32 n = 2; n < poly.num_inds; n++) {
+		u32 ind_c = get_ind(poly.first_ind + n);
+		const FPoint3 *c = &get_fvert3(ind_c);
+
+		dist = MIN(p_pt.distance_point_from_triangle(*a, *b, *c), dist);
+	}
+
+	//freal Mesh::get_distance_from_wall_edge(u32 p_wall_id, const IPoint2 &p_pt) const {
+
+	return dist;
+}
+
+u32 Mesh::find_best_poly_within_last_ditch(const FPoint3 &p_pt, const IPoint2 &p_pt2) const {
+	// First test the leaf.
+	u32 num_test_polys = 0;
+	const u32 *test_poly_ids = floor.poly_finder.find_leaf(p_pt2, num_test_polys);
+
+	u32 best_poly_id = UINT32_MAX;
+	freal best_fit = FLT_MAX;
+
+	if (test_poly_ids) {
+		for (u32 p = 0; p < num_test_polys; p++) {
+			u32 poly_id = test_poly_ids[p];
+			freal fit = _assess_last_ditch_floor_poly(poly_id, p_pt);
+
+			if (fit < best_fit) {
+				best_fit = fit;
+				best_poly_id = poly_id;
+			}
+		}
+
+		return best_poly_id;
+	}
+
+	// Test ALL the polys, very slow, backup path.
+	// (We could alternatively tile out from the first tile, but that's more complex.)
+
+	return best_poly_id;
+}
+
 u32 Mesh::find_best_poly_within(const IPoint2 &p_pt, freal p_height, freal p_max_drop, freal p_max_step_up, freal &r_goodness_of_fit) const {
 	u32 num_test_polys = 0;
 	const u32 *test_poly_ids = floor.poly_finder.find_leaf(p_pt, num_test_polys);
