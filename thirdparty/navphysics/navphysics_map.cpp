@@ -252,7 +252,7 @@ void Map::resolve_zero_bounce_collision(Agent &p_agent_a, Agent &p_agent_b) cons
 		b_impulse.normalize_to_scale(b_mult);
 		b_vel += b_impulse;
 
-#if 1
+#if 0
 		IPoint2 predicted_a = a_pos + a_vel + p_agent_a.instant_impulse;
 		IPoint2 predicted_b = b_pos + b_vel + p_agent_b.instant_impulse;
 		freal predicted_separation = (predicted_b - predicted_a).lengthf();
@@ -361,6 +361,96 @@ void NavPhysics::Map::unload_mesh_callback(u32 p_mesh_id) {
 }
 */
 
+bool Map::jump_to_new_mesh(Agent &r_agent, const FPoint3 &p_world_pos, u32 p_ignore_mesh_id, const JumpFinderData *p_jump_data) const {
+	NP_DEV_ASSERT(r_agent.get_mesh_instance_id() == UINT32_MAX);
+	r_agent.poly_id = UINT32_MAX;
+	r_agent.wall_id = UINT32_MAX;
+
+	freal best_fit = FLT_MAX;
+
+	// If we are exploring connections outside of meshes,
+	// we only want to find a new mesh if it is "perfect",
+	// i.e. we will land on it on a poly.
+	// We don't want to find meshes that are a way away,
+	// which we may want to find when teleporting.
+	if (p_ignore_mesh_id != UINT32_MAX) {
+		best_fit = 1000;
+	}
+
+	if (!_mesh_instances.active_size()) {
+		log("teleport before mesh instances loaded");
+	}
+
+	freal max_step_up = 0;
+	freal max_drop = 0;
+
+	// The step up and max drop come from the mesh we are LEAVING, not the mesh we are joining,
+	// except when ignore mesh is not set, then they come from the mesh we are joining.
+	if (p_ignore_mesh_id != UINT32_MAX) {
+		MeshInstance &mesh_instance = g_world.get_mesh_instance(p_ignore_mesh_id);
+		max_step_up = mesh_instance.get_mesh().get_mesh_params().exit_max_step_up;
+		max_drop = mesh_instance.get_mesh().get_mesh_params().exit_max_drop;
+	}
+
+	for (u32 n = 0; n < _mesh_instances.active_size(); n++) {
+		u32 mi_id = _mesh_instances.get_active(n);
+
+		if (mi_id == p_ignore_mesh_id) {
+			continue;
+		}
+
+		MeshInstance &mesh_instance = g_world.get_mesh_instance(mi_id);
+		if (!mesh_instance.is_active()) {
+			continue;
+		}
+
+		// Step up and drop come from the mesh we are joining, if no ignore is et.
+		if (p_ignore_mesh_id == UINT32_MAX) {
+			max_step_up = mesh_instance.get_mesh().get_mesh_params().exit_max_step_up;
+			max_drop = mesh_instance.get_mesh().get_mesh_params().exit_max_drop;
+		}
+
+		u32 poly_id = UINT32_MAX;
+		freal fit = 0;
+
+		if (p_jump_data) {
+			fit = mesh_instance.find_agent_jump_fit(r_agent, *p_jump_data, poly_id, max_step_up, max_drop, best_fit);
+		} else {
+			fit = mesh_instance.find_agent_fit(r_agent, p_world_pos, poly_id, max_step_up, max_drop);
+		}
+
+		if (fit < best_fit) {
+			best_fit = fit;
+			r_agent.set_mesh_instance_id(mi_id);
+			r_agent.poly_id = poly_id;
+			//best_mesh_instance_id = mi_id;
+			//log(String("NavPhysics::Map::find_best_fit_agent_mesh best MeshInstance ID ") + n);
+		}
+	}
+
+	// If we didn't find a decent fit, we will have a last ditch attempt at finding a good poly on the best matching
+	// mesh instance.
+	if ((r_agent.get_mesh_instance_id() != UINT32_MAX) && (r_agent.poly_id == UINT32_MAX)) {
+		MeshInstance &mesh_instance = g_world.get_mesh_instance(r_agent.get_mesh_instance_id());
+		if (mesh_instance.find_last_ditch_poly(r_agent, p_world_pos)) {
+			// Resync the local position from the pos.
+			//r_agent.
+		}
+	}
+
+	if (r_agent.get_mesh_instance_id() != UINT32_MAX) {
+		// Make sure we keep the mesh unit radius up to date when changing mesh.
+		MeshInstance &meshi = g_world.get_mesh_instance(r_agent.get_mesh_instance_id());
+		r_agent.radius_mesh_units = meshi.calculate_agent_radius_in_mesh_units(r_agent.radius);
+		return true;
+	}
+
+	//	best_mesh_instance_id = 1;
+	//NP_LOG(String("find_best_fit_agent_mesh : ") + best_mesh_instance_id);
+	//return r_agent.get_mesh_instance_id() != UINT32_MAX;
+	return false;
+}
+
 u32 Map::find_best_fit_agent_mesh(Agent &r_agent, const FPoint3 &p_world_pos, u32 p_ignore_mesh_id, const JumpFinderData *p_jump_data) const {
 	freal best_fit = FLT_MAX;
 	u32 best_mesh_instance_id = UINT32_MAX;
@@ -429,7 +519,9 @@ u32 Map::find_best_fit_agent_mesh(Agent &r_agent, const FPoint3 &p_world_pos, u3
 	// mesh instance.
 	if ((AgentStatus::suggested_poly_id == UINT32_MAX) && (best_mesh_instance_id != UINT32_MAX)) {
 		MeshInstance &mesh_instance = g_world.get_mesh_instance(best_mesh_instance_id);
-		AgentStatus::suggested_poly_id = mesh_instance.find_agent_last_ditch_nearest_poly(r_agent, p_world_pos);
+		//AgentStatus::suggested_poly_id = mesh_instance.find_last_ditch_nearest_poly(p_world_pos);
+		mesh_instance.find_last_ditch_poly(r_agent, p_world_pos);
+		AgentStatus::suggested_poly_id = r_agent.poly_id;
 	}
 
 	//	best_mesh_instance_id = 1;
@@ -440,11 +532,15 @@ u32 Map::find_best_fit_agent_mesh(Agent &r_agent, const FPoint3 &p_world_pos, u3
 bool Map::update_agent_mesh(Agent &r_agent, bool p_teleport_if_changed) {
 	//Agent &agent = _agents[p_agent_id];
 
+	u32 old_mesh_instance_id = r_agent.get_mesh_instance_id();
+
 	// Special case, if the current mesh instance has been inactivated, we want to find a new mesh instance to sit on.
-	if (r_agent.get_mesh_instance_id() != UINT32_MAX) {
+	if (old_mesh_instance_id != UINT32_MAX) {
 		const MeshInstance &mi = g_world.get_mesh_instance(r_agent.get_mesh_instance_id());
 		if (!mi.is_active()) {
 			r_agent.set_mesh_instance_id(UINT32_MAX);
+			r_agent.fpos3_teleport = r_agent.fpos3;
+			r_agent.set_is_changing_mesh(true);
 		}
 	}
 
@@ -452,12 +548,18 @@ bool Map::update_agent_mesh(Agent &r_agent, bool p_teleport_if_changed) {
 	if (r_agent.get_mesh_instance_id() == UINT32_MAX) {
 		// find one (SLOW)
 
+		jump_to_new_mesh(r_agent, r_agent.fpos3, UINT32_MAX);
+		/*
+
 		u32 best_mesh_instance_id = find_best_fit_agent_mesh(r_agent, r_agent.fpos3, UINT32_MAX);
 
 		if (best_mesh_instance_id == UINT32_MAX) {
 			// Can't iterate, no decent meshs for this agent.
 			// Could ERR here, but it may happen in normal circumstances sometimes
 			// and not be an error.
+
+			// FixMe: Should this be true or false?
+			r_agent.set_is_changing_mesh(true);
 			return false;
 		}
 		NP_LOG(String("Agent ") + String(r_agent.agent_id) + " is on mesh " + String(best_mesh_instance_id) + ".");
@@ -477,7 +579,10 @@ bool Map::update_agent_mesh(Agent &r_agent, bool p_teleport_if_changed) {
 			//		agent.fpos = FPoint2(pos_local.x, pos_local.z);
 			//		mesh->teleport_agent(agent);
 		}
+		*/
 	}
+
+	r_agent.set_is_changing_mesh(r_agent.get_mesh_instance_id() != old_mesh_instance_id);
 	return true;
 }
 
@@ -521,9 +626,14 @@ bool Map::iterate_agent(u32 p_agent_id, IterateResult &r_result) {
 	// which happens before iterate_agent().
 	agent.state = (agent.state != AGENT_STATE_PENDING_COLLIDING) ? AGENT_STATE_CLEAR : AGENT_STATE_COLLIDING;
 
-	if (!update_agent_mesh(agent, true)) {
+	// If the update agent mesh failed to find one in prepare, do nothing in iterate.
+	if (agent.get_mesh_instance_id() == UINT32_MAX) {
 		return false;
 	}
+
+	//	if (!update_agent_mesh(agent, true)) {
+	//		return false;
+	//	}
 
 	NP_DEV_ASSERT(agent.get_mesh_instance_id() != UINT32_MAX);
 	MeshInstance &mesh_instance = g_world.get_mesh_instance(agent.get_mesh_instance_id());
@@ -1031,7 +1141,7 @@ void World::tick_update(u64 p_tick, freal p_delta) {
 				d.position_world_space = agent.fpos3;
 				d.impulse_mesh_space = res.impulse_mesh_space;
 				d.impulse_world_space = res.impulse_world_space;
-				d.changing_mesh = old_mesh_instance_id != agent.get_mesh_instance_id();
+				d.changing_mesh = (old_mesh_instance_id != agent.get_mesh_instance_id()) || agent.is_changing_mesh();
 				agent_callback(d);
 			}
 		}

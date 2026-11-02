@@ -241,63 +241,88 @@ u32 Mesh::find_best_jump_poly_within(const Agent &p_agent, const JumpFinderData 
 	return best_poly_id;
 }
 
-freal Mesh::_assess_last_ditch_floor_poly(u32 p_poly_id, const FPoint3 &p_pt) const {
-	/*
-	if (poly_contains_point(p_poly_id, p_pt)) {
-		freal height = find_height_on_poly_plane(p_poly_id, p_pt);
-		return Math::fabs_real(p_height - height);
-	}
-	*/
-	// Try the corners.
-
+void Mesh::_find_last_ditch_poly(Agent &r_agent, u32 p_poly_id, const FPoint3 &p_pt_local, freal &r_best_fit) const {
 	const Poly &poly = get_poly(p_poly_id);
 
-	// Different routine for ceiling, as no walls.
-	u32 ind_a = get_ind(poly.first_ind);
-	u32 ind_b = get_ind(poly.first_ind + 1);
-	const FPoint3 *a = &get_fvert3(ind_a);
-	const FPoint3 *b = &get_fvert3(ind_b);
 
-	freal dist = FLT_MAX;
+	u32 best_wall = UINT32_MAX;
+	freal best_fraction = 0;
 
-	for (u32 n = 2; n < poly.num_inds; n++) {
-		u32 ind_c = get_ind(poly.first_ind + n);
-		const FPoint3 *c = &get_fvert3(ind_c);
+#if 0
+	// Unit test
+	{
+		FPoint3 a(0, 0, 0);
+		FPoint3 b(1, 0, 0);
+		FPoint3 c(0.5f,  0, 1);
+		freal f = 0;
+		freal dist_sq = c.clamped_edge_projection(a, b, f);
+		
+		log(String("Unit test ") + p_pt_local);
+		
+	}
+#endif
+	
+	log(String("\t_find_last_ditch_poly pt_local  ") + p_pt_local);
+	for (u32 n = 0; n < poly.num_inds; n++) {
+		
+		u32 ind_a = get_ind(poly.first_ind + n);
+		u32 ind_b = get_ind(poly.first_ind +((n + 1) % poly.num_inds));
+		
+		const FPoint3 &a = get_fvert3(ind_a);
+		const FPoint3 &b = get_fvert3(ind_b);
 
-		dist = MIN(p_pt.distance_point_from_triangle(*a, *b, *c), dist);
+		freal f = 0;
+		freal dist_sq = p_pt_local.clamped_edge_projection(a, b, f);
+		
+		log(String("\t\tedge ") + n + " [wall " + ind_a +  "], (" + a.xz() + ") to (" + b.xz() + ") dist_sq " + dist_sq);
+		
+		if (dist_sq < r_best_fit) {
+			r_best_fit = dist_sq;
+			best_wall = ind_a;
+			best_fraction = f;
+		}
 	}
 
-	//freal Mesh::get_distance_from_wall_edge(u32 p_wall_id, const IPoint2 &p_pt) const {
-
-	return dist;
+	if (best_wall != UINT32_MAX) {
+		log(String("\tbest_poly ") + p_poly_id + ", best_wall " + best_wall + ", fraction " + best_fraction);
+		r_agent.poly_id = p_poly_id;
+		r_agent.wall_id = best_wall;
+		r_agent.pos = _calculate_position_along_wall(best_wall, best_fraction);
+	}
 }
 
-u32 Mesh::find_best_poly_within_last_ditch(const FPoint3 &p_pt, const IPoint2 &p_pt2) const {
+bool Mesh::find_best_poly_within_last_ditch_FINAL(Agent &r_agent, const FPoint3 &p_pt_local, const IPoint2 &p_pt2) const {
+	//NP_DEV_ASSERT(r_agent.poly_id == UINT32_MAX);
+	
+	log(String("find_best_poly_within_last_ditch_FINAL : ") + p_pt2 + ", local space : " + p_pt_local);
+	
 	// First test the leaf.
 	u32 num_test_polys = 0;
 	const u32 *test_poly_ids = floor.poly_finder.find_leaf(p_pt2, num_test_polys);
 
-	u32 best_poly_id = UINT32_MAX;
 	freal best_fit = FLT_MAX;
-
+	
+	log(String("\t") + num_test_polys + " test polys.");
 	if (test_poly_ids) {
 		for (u32 p = 0; p < num_test_polys; p++) {
 			u32 poly_id = test_poly_ids[p];
-			freal fit = _assess_last_ditch_floor_poly(poly_id, p_pt);
-
-			if (fit < best_fit) {
-				best_fit = fit;
-				best_poly_id = poly_id;
-			}
+			_find_last_ditch_poly(r_agent, poly_id, p_pt_local, best_fit);
 		}
-
-		return best_poly_id;
 	}
 
 	// Test ALL the polys, very slow, backup path.
 	// (We could alternatively tile out from the first tile, but that's more complex.)
 
-	return best_poly_id;
+	// NOTE that this isn't correct completely.
+	// The nearest poly could easily be outside the poly_finder leaf, but in most cases it should work.
+	if (r_agent.poly_id == UINT32_MAX) {
+		num_test_polys = get_num_polys();
+		for (u32 p = 0; p < num_test_polys; p++) {
+			_find_last_ditch_poly(r_agent, p, p_pt_local, best_fit);
+		}
+	}
+
+	return r_agent.poly_id != UINT32_MAX;
 }
 
 u32 Mesh::find_best_poly_within(const IPoint2 &p_pt, freal p_height, freal p_max_drop, freal p_max_step_up, freal &r_goodness_of_fit) const {
@@ -520,6 +545,15 @@ bool Mesh::cross_internal_or_external_link(u32 p_wall_id, const IPoint2 &p_from,
 	return false;
 }
 
+IPoint2 Mesh::_calculate_position_along_wall(u32 p_wall_id, freal p_fraction) const {
+	// NP_DEV_ASSERT(p_fraction >= 0);
+	// NP_DEV_ASSERT(p_fraction <= 1);
+
+	const Wall &wall = get_wall(p_wall_id);
+	const IPoint2 &wall_start = get_vert(wall.vert_a);
+	return wall_start + (wall.wall_vec * p_fraction);
+}
+
 Mesh::MoveResult Mesh::recursive_move(i32 p_depth, IPoint2 p_from, IPoint2 p_vel, u32 p_poly_id, u32 p_poly_from_id, u32 p_hug_wall_id, MoveInfo &r_info) const {
 	if (p_depth >= 8) {
 		NP_LLOG("\t\trecursive_move depth limit reached");
@@ -579,7 +613,8 @@ Mesh::MoveResult Mesh::recursive_move(i32 p_depth, IPoint2 p_from, IPoint2 p_vel
 			freal dist = dist_along_wall + vel_length;
 
 			freal fract = dist / wall_length;
-			IPoint2 to = wall_start + (wall.wall_vec * fract);
+			//IPoint2 to = wall_start + (wall.wall_vec * fract);
+			IPoint2 to = _calculate_position_along_wall(p_hug_wall_id, fract);
 			NP_LLOG(String("\t\twall dot: ") + String(wall_dot));
 
 			// goes along wall forwards or backwards?

@@ -77,7 +77,9 @@ private:
 
 	// Between 0 and 1, 1 only allows force to be applied in the direction of yaw.
 	f32 yaw_movement_restriction[2] = {};
-
+	
+	bool _is_changing_mesh : 1;
+	
 public:
 	struct CallbackData {
 		// Used by client code to identify the agent,
@@ -87,6 +89,9 @@ public:
 
 	u32 get_mesh_instance_id() const { return mesh_instance_id; }
 	void set_mesh_instance_id(u32 p_mesh_id);
+	
+	void set_is_changing_mesh(bool p_changing) {_is_changing_mesh = p_changing;}
+	bool is_changing_mesh() const {return _is_changing_mesh;}
 
 	np_handle map = 0;
 	u32 revision = 0;
@@ -245,6 +250,7 @@ public:
 		wall_id = UINT32_MAX;
 		state = AGENT_STATE_CLEAR;
 		is_npc = true;
+		_is_changing_mesh = false;
 		on_floor = true;
 		world_space_gravity = false;
 		on_agent = false;

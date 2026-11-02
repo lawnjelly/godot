@@ -114,6 +114,10 @@ struct [[nodiscard]] FPoint3 {
 	bool isfinite() const { return std::isfinite(x) && std::isfinite(y) && std::isfinite(z); }
 
 	freal distance_point_from_triangle(const FPoint3 &p_a, const FPoint3 &p_b, const FPoint3 &p_c) const;
+	u32 find_triangle_closest_edge(const FPoint3 &p_a, const FPoint3 &p_b, const FPoint3 &p_c, freal &r_edge_fraction) const;
+	
+	// Returns the squared distance to this closest point.
+	freal clamped_edge_projection(const FPoint3 &p_a, const FPoint3 &p_b, freal &r_edge_fraction) const;
 };
 
 inline FPoint3 operator*(freal lhs, FPoint3 rhs) {

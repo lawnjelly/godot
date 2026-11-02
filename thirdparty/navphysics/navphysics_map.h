@@ -50,7 +50,9 @@ public:
 	void unregister_mesh_instance(u32 p_mesh_instance_id, u32 p_mesh_slot_id);
 
 	u32 find_best_fit_agent_mesh(Agent &r_agent, const FPoint3 &p_world_pos, u32 p_ignore_mesh_id, const JumpFinderData *p_jump_data = nullptr) const;
-
+	
+	bool jump_to_new_mesh(Agent &r_agent, const FPoint3 &p_world_pos, u32 p_ignore_mesh_id, const JumpFinderData *p_jump_data = nullptr) const;
+	
 	void set_map_id(u32 p_id) { _map_id = p_id; }
 
 	void init(np_handle p_handle) {

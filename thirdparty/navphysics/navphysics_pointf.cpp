@@ -5,6 +5,50 @@
 
 namespace NavPhysics {
 
+freal FPoint3::clamped_edge_projection(const FPoint3 &p_a, const FPoint3 &p_b, freal &r_edge_fraction) const
+{
+	FPoint3 edge = p_b - p_a;
+	FPoint3 to_point = *this - p_a;
+
+	f32 length_sq = edge.length_squared();
+	r_edge_fraction = 0;
+
+	// Handle degenerate edge (p_a == p_b).
+	if (length_sq > 1e-6f) {
+		r_edge_fraction = to_point.dot(edge) / length_sq;
+		
+		// Clamp to edge boundaries.
+		r_edge_fraction = MAX(0.0f, MIN(1.0f, r_edge_fraction));
+	}
+
+	FPoint3 closest_point = p_a + edge * r_edge_fraction;
+	return (*this - closest_point).length_squared();
+
+}
+
+u32 FPoint3::find_triangle_closest_edge(const FPoint3 &p_a, const FPoint3 &p_b, const FPoint3 &p_c, freal &r_edge_fraction) const {
+	freal f0, f1, f2;
+
+	// Project point onto all 3 edges.
+	freal d0 = clamped_edge_projection(p_a, p_b, f0);
+	freal d1 = clamped_edge_projection(p_b, p_c, f1);
+	freal d2 = clamped_edge_projection(p_c, p_a, f2);
+
+	// Find the minimum distance.
+	if (d0 <= d1 && d0 <= d2) {
+		r_edge_fraction = f0;
+		return 0;
+	} else if (d1 <= d0 && d1 <= d2) {
+		r_edge_fraction = f1;
+		return 1;
+	} else {
+		r_edge_fraction = f2;
+		return 2;
+	}
+	
+	return UINT32_MAX;
+}
+
 freal FPoint3::distance_point_from_triangle(const FPoint3 &p_a, const FPoint3 &p_b, const FPoint3 &p_c) const {
 	const FPoint3 &pt = *this;
 

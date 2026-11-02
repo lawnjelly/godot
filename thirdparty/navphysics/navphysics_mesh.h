@@ -408,7 +408,10 @@ private:
 
 	MoveResult recursive_move(i32 p_depth, IPoint2 p_from, IPoint2 p_vel, u32 p_poly_id, u32 p_poly_from_id, u32 p_hug_wall_id, MoveInfo &r_info) const;
 	TraceResult recursive_trace(i32 p_depth, IPoint2 p_from, const IPoint2 &p_to, u32 p_poly_id, TraceInfo &r_info) const;
-
+	
+	
+	IPoint2 _calculate_position_along_wall(u32 p_wall_id, freal p_fraction) const;
+	
 	bool cross_internal_or_external_link(u32 p_wall_id, const IPoint2 &p_from, const IPoint2 &p_vel, MoveInfo &r_info) const;
 	freal _calculate_jump_range_from_momentum(freal p_momentum, bool p_apply_minimum) const;
 	freal _estimate_height_after_ledge_jump(const Agent &p_agent, freal p_agent_height, freal p_forward_velocity, freal p_dist_to_ledge) const;
@@ -423,8 +426,9 @@ private:
 	bool find_lines_intersect_integer(const IPoint2 &p_from_a, const IPoint2 &p_to_a, const IPoint2 &p_from_b, const IPoint2 &p_to_b, IPoint2 &r_hit) const;
 	bool wall_segments_find_intersect(u32 p_wall_id, const IPoint2 &p_from, const IPoint2 &p_to, IPoint2 &r_hit) const;
 	bool find_line_segments_intersect_integer(const IPoint2 &p_from_a, const IPoint2 &p_to_a, const IPoint2 &p_from_b, const IPoint2 &p_to_b, IPoint2 &r_hit) const;
-	freal _assess_last_ditch_floor_poly(u32 p_poly_id, const FPoint3 &p_pt) const;
-
+	void _find_last_ditch_poly(Agent &r_agent, u32 p_poly_id, const FPoint3 &p_pt_local, freal &r_best_fit) const;
+	
+	
 	void _unit_test_find_lines_intersect_integer();
 
 	// helpers
@@ -472,7 +476,8 @@ public:
 
 	u32 find_best_poly_within(const IPoint2 &p_pt, freal p_height, freal p_max_drop, freal p_max_step_up, freal &r_goodness_of_fit) const;
 	u32 find_best_jump_poly_within(const Agent &p_agent, const JumpFinderData &p_jd, freal p_max_drop, freal p_max_step_up, freal &r_goodness_of_fit) const;
-	u32 find_best_poly_within_last_ditch(const FPoint3 &p_pt, const IPoint2 &p_pt2) const;
+	
+	bool find_best_poly_within_last_ditch_FINAL(Agent &r_agent, const FPoint3 &p_pt_local, const IPoint2 &p_pt2) const;
 
 	bool find_ceiling_height(u32 p_floor_poly_id, const IPoint2 &p_pt, freal &r_height, u32 &r_ceiling_poly_id_hint) const;
 

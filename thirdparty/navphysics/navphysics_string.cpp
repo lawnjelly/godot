@@ -119,13 +119,13 @@ String::String(u32 p_value) {
 
 String::String(f32 p_value) {
 	char buffer[64];
-	snprintf(buffer, 64, "%f", p_value);
+	snprintf(buffer, 64, "%.3f", p_value);
 	set(buffer);
 }
 
 String::String(f64 p_value) {
 	char buffer[64];
-	snprintf(buffer, 64, "%f", p_value);
+	snprintf(buffer, 64, "%.5f", p_value);
 	set(buffer);
 }
 
