@@ -285,8 +285,8 @@ void Mesh::_find_last_ditch_poly(Agent &r_agent, u32 p_poly_id, const FPoint3 &p
 
 	if (best_wall != UINT32_MAX) {
 		log(String("\tbest_poly ") + p_poly_id + ", best_wall " + best_wall + ", fraction " + best_fraction);
-		r_agent.poly_id = p_poly_id;
-		r_agent.wall_id = best_wall;
+		r_agent.set_poly_id(p_poly_id);
+		r_agent.set_wall_id(best_wall);
 		r_agent.pos = _calculate_position_along_wall(best_wall, best_fraction);
 	}
 }
@@ -315,14 +315,14 @@ bool Mesh::find_best_poly_within_last_ditch_FINAL(Agent &r_agent, const FPoint3 
 
 	// NOTE that this isn't correct completely.
 	// The nearest poly could easily be outside the poly_finder leaf, but in most cases it should work.
-	if (r_agent.poly_id == UINT32_MAX) {
+	if (r_agent.is_poly_id_null()) {
 		num_test_polys = get_num_polys();
 		for (u32 p = 0; p < num_test_polys; p++) {
 			_find_last_ditch_poly(r_agent, p, p_pt_local, best_fit);
 		}
 	}
-
-	return r_agent.poly_id != UINT32_MAX;
+	
+	return !r_agent.is_poly_id_null();
 }
 
 u32 Mesh::find_best_poly_within(const IPoint2 &p_pt, freal p_height, freal p_max_drop, freal p_max_step_up, freal &r_goodness_of_fit) const {
@@ -1013,8 +1013,25 @@ bool Mesh::move_to_new_mesh(const IPoint2 &p_from, const IPoint2 &p_vel, MoveInf
 
 	//log(String("move_to_n ew_mesh pt_curr (to) in WORLD_SPACE ") + jfd.pt_curr);
 
-	u32 mesh_instance_id = map.find_best_fit_agent_mesh(agent, agent.fpos3, old_mesh_instance_id, &jfd);
+	//u32 mesh_instance_id = map.find_best_fit_agent_mesh(agent, agent.fpos3, old_mesh_instance_id, &jfd);
+	
+	// Use new generatic jump mesh routine.
+	u32 old_poly_id = agent.get_poly_id();
+	u32 old_wall_id = agent.get_wall_id();
+	agent.set_mesh_instance_id(UINT32_MAX);
+	if (!map.jump_to_new_mesh(agent, agent.fpos3, old_mesh_instance_id, &jfd))
+	{
+		agent.set_poly_id(old_poly_id);
+		agent.set_wall_id(old_wall_id);
+		agent.set_mesh_instance_id(old_mesh_instance_id);
+		
+		return false;
+	}
+	
+	
+	return true;
 
+#if 0
 	// If we started a jump, hack to force later check to pass.
 	// TODO - can be improved, maybe by passing r_info to find_best_fit_agent_mesh()?
 	//	if (agent.is_in_jump_link())
@@ -1031,6 +1048,7 @@ bool Mesh::move_to_new_mesh(const IPoint2 &p_from, const IPoint2 &p_vel, MoveInf
 	}
 
 	return false;
+#endif
 }
 
 bool Mesh::debug_check_agent_integrity(const IPoint2 &p_pos, u32 p_poly_id, u32 p_hug_wall_id) const {

@@ -363,17 +363,22 @@ void NavPhysics::Map::unload_mesh_callback(u32 p_mesh_id) {
 
 bool Map::jump_to_new_mesh(Agent &r_agent, const FPoint3 &p_world_pos, u32 p_ignore_mesh_id, const JumpFinderData *p_jump_data) const {
 	NP_DEV_ASSERT(r_agent.get_mesh_instance_id() == UINT32_MAX);
-	r_agent.poly_id = UINT32_MAX;
-	r_agent.wall_id = UINT32_MAX;
+	r_agent.clear_poly_id();
+	r_agent.clear_wall_id();
 
 	freal best_fit = FLT_MAX;
-
+	
+	// If we are following a jump link from a previous mesh, we don't want to make the jump
+	// unless we are exactly entering a poly, no last ditch attempts.
+	bool want_exact_match = p_ignore_mesh_id != UINT32_MAX;
+	
+	
 	// If we are exploring connections outside of meshes,
 	// we only want to find a new mesh if it is "perfect",
 	// i.e. we will land on it on a poly.
 	// We don't want to find meshes that are a way away,
 	// which we may want to find when teleporting.
-	if (p_ignore_mesh_id != UINT32_MAX) {
+	if (want_exact_match) {
 		best_fit = 1000;
 	}
 
@@ -422,7 +427,7 @@ bool Map::jump_to_new_mesh(Agent &r_agent, const FPoint3 &p_world_pos, u32 p_ign
 		if (fit < best_fit) {
 			best_fit = fit;
 			r_agent.set_mesh_instance_id(mi_id);
-			r_agent.poly_id = poly_id;
+			r_agent.set_poly_id(poly_id);
 			//best_mesh_instance_id = mi_id;
 			//log(String("NavPhysics::Map::find_best_fit_agent_mesh best MeshInstance ID ") + n);
 		}
@@ -430,7 +435,7 @@ bool Map::jump_to_new_mesh(Agent &r_agent, const FPoint3 &p_world_pos, u32 p_ign
 
 	// If we didn't find a decent fit, we will have a last ditch attempt at finding a good poly on the best matching
 	// mesh instance.
-	if ((r_agent.get_mesh_instance_id() != UINT32_MAX) && (r_agent.poly_id == UINT32_MAX)) {
+	if ((r_agent.get_mesh_instance_id() != UINT32_MAX) && (r_agent.is_poly_id_null())) {
 		MeshInstance &mesh_instance = g_world.get_mesh_instance(r_agent.get_mesh_instance_id());
 		if (mesh_instance.find_last_ditch_poly(r_agent, p_world_pos)) {
 			// Resync the local position from the pos.
@@ -521,7 +526,7 @@ u32 Map::find_best_fit_agent_mesh(Agent &r_agent, const FPoint3 &p_world_pos, u3
 		MeshInstance &mesh_instance = g_world.get_mesh_instance(best_mesh_instance_id);
 		//AgentStatus::suggested_poly_id = mesh_instance.find_last_ditch_nearest_poly(p_world_pos);
 		mesh_instance.find_last_ditch_poly(r_agent, p_world_pos);
-		AgentStatus::suggested_poly_id = r_agent.poly_id;
+		AgentStatus::suggested_poly_id = r_agent.get_poly_id();
 	}
 
 	//	best_mesh_instance_id = 1;
@@ -803,8 +808,8 @@ void Map::body_teleport_to_agent_status_jump_target(Agent &r_agent, u32 p_agent_
 	//	if (difference > 0) {
 	//		r_agent.vel = world_vel;
 	//	}
-
-	r_agent.poly_id = AgentStatus::jump_cross_only ? AgentStatus::suggested_poly_id : UINT32_MAX;
+	
+	r_agent.set_poly_id(AgentStatus::jump_cross_only ? AgentStatus::suggested_poly_id : UINT32_MAX);
 
 	// Make sure it starts in off ground state, so it can settle to a lower mesh,
 	// rather than instantaneously dropping down when changing meshes.

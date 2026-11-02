@@ -274,8 +274,8 @@ bool Plan::_repath_refresh_start_from_agent(bool p_ensure_same_zone) {
 	// Only allow changing within the same zone, otherwise it is too complicated,
 	// and we will simply backtrack.
 	if (p_ensure_same_zone) {
-		if (agent->poly_id != UINT32_MAX) {
-			u32 new_zone_id = mesh_from.get_poly_extra(agent->poly_id).zone_id;
+		if (!agent->is_poly_id_null()) {
+			u32 new_zone_id = mesh_from.get_poly_extra(agent->get_poly_id()).zone_id;
 			u32 old_zone_id = mesh_from.get_poly_extra(data.start.poly_id).zone_id;
 
 			if (new_zone_id != old_zone_id) {
@@ -286,8 +286,8 @@ bool Plan::_repath_refresh_start_from_agent(bool p_ensure_same_zone) {
 			return false;
 		}
 	}
-
-	data.start.poly_id = agent->poly_id;
+	
+	data.start.poly_id = agent->get_poly_id();
 	data.start.pt_local = agent->pos;
 	data.start.pt_local3 = mesh_from.local_point_to_point3(data.start.pt_local, data.start.poly_id);
 	return true;
@@ -303,7 +303,7 @@ bool Plan::_setup_agent_agent(bool p_repath) {
 	if (agent->get_mesh_instance_id() != agent_to->get_mesh_instance_id()) {
 		return false;
 	}
-	if ((agent->poly_id == UINT32_MAX) || (agent_to->poly_id == UINT32_MAX)) {
+	if (agent->is_poly_id_null() || agent_to->is_poly_id_null()) {
 		return false;
 	}
 
@@ -326,13 +326,13 @@ bool Plan::_setup_agent_agent(bool p_repath) {
 	data.current_mesh_instance = h_mi_from;
 
 	data.start.mesh_instance = h_mi_from;
-	data.start.poly_id = agent->poly_id;
+	data.start.poly_id = agent->get_poly_id();
 	data.start.pt_local = agent->pos;
 	data.start.pt_local3 = mesh_from.local_point_to_point3(data.start.pt_local, data.start.poly_id);
 
 	if (!p_repath) {
 		data.destination.mesh_instance = h_mi_to;
-		data.destination.poly_id = agent_to->poly_id;
+		data.destination.poly_id = agent_to->get_poly_id();
 		data.destination.pt_local = agent_to->pos;
 		data.destination.pt_local3 = mesh_to.local_point_to_point3(data.destination.pt_local, data.destination.poly_id);
 	}

@@ -293,7 +293,7 @@ freal MeshInstance::find_agent_fit(Agent &r_agent, const FPoint3 &p_world_pos, u
 
 void MeshInstance::teleport_agent(Agent &r_agent) {
 	// Make sure wall is reset.
-	r_agent.wall_id = UINT32_MAX;
+	r_agent.clear_wall_id();
 
 	const Mesh &mesh = get_mesh();
 
@@ -326,8 +326,8 @@ void MeshInstance::teleport_agent(Agent &r_agent) {
 	AgentStatus::suggested_poly_id = UINT32_MAX;
 
 	_agent_enter_poly(r_agent, new_poly_id, true);
-
-	if (r_agent.poly_id == UINT32_MAX) {
+	
+	if (r_agent.is_poly_id_null()) {
 		NP_WARN_PRINT("not within poly : Is MAX_DROP and MAX_STEP_UP correct? Guessing a poly centre.");
 
 		// just guess a poly
@@ -343,8 +343,8 @@ void MeshInstance::teleport_agent(Agent &r_agent) {
 
 	//	if (ag.wall_id == UINT32_MAX) {
 #ifdef NP_DEV_ENABLED
-	NP_DEV_ASSERT(mesh.poly_contains_point(r_agent.poly_id, r_agent.pos));
-	NP_LOG(String("Confirm ") + r_agent.pos + " is within poly " + r_agent.poly_id);
+	NP_DEV_ASSERT(mesh.poly_contains_point(r_agent.get_poly_id(), r_agent.pos));
+	NP_LOG(String("Confirm ") + r_agent.pos + " is within poly " + r_agent.get_poly_id());
 #endif
 	//	}
 
@@ -355,7 +355,7 @@ void MeshInstance::teleport_agent(Agent &r_agent) {
 }
 
 void MeshInstance::agent_get_info(const Agent &p_agent, BodyInfo &r_body_info) const {
-	r_body_info.poly_id = p_agent.poly_id;
+	r_body_info.poly_id = p_agent.get_poly_id();
 	r_body_info.blocking_zone_id = p_agent.blocking_zone_id;
 
 #if 0
@@ -483,9 +483,9 @@ void MeshInstance::iterate_agent_housekeeping(Agent &r_agent) {
 
 	if (!AgentStatus::is_in_jump_link()) {
 		r_agent.apply_friction();
-
-		if (r_agent.poly_id != UINT32_MAX) {
-			r_agent.floor_height = mesh.find_height_on_poly_plane(r_agent.poly_id, r_agent.pos);
+		
+		if (!r_agent.is_poly_id_null()) {
+			r_agent.floor_height = mesh.find_height_on_poly_plane(r_agent.get_poly_id(), r_agent.pos);
 		}
 	} else {
 		// Calculate the new floor height based on the jump poly destination.
@@ -496,9 +496,9 @@ void MeshInstance::iterate_agent_housekeeping(Agent &r_agent) {
 	}
 
 	// Keep the agent height updated if we are jumping.
-	if ((!r_agent.is_on_floor() || r_agent.jump_velocity > 0) && (r_agent.poly_id != UINT32_MAX) && r_agent.grounded) {
+	if ((!r_agent.is_on_floor() || r_agent.jump_velocity > 0) && !r_agent.is_poly_id_null() && r_agent.grounded) {
 		freal height;
-		if (mesh.find_ceiling_height(r_agent.poly_id, r_agent.pos, height, r_agent.ceiling_poly_id)) {
+		if (mesh.find_ceiling_height(r_agent.get_poly_id(), r_agent.pos, height, r_agent.ceiling_poly_id)) {
 #ifdef NP_DEV_ENABLED
 			// Set debug position for client.
 			FPoint2 target_fpos = mesh.fixed_point_to_float_2(r_agent.pos);
@@ -521,7 +521,7 @@ bool MeshInstance::_agent_enter_poly(Agent &r_agent, u32 p_new_poly_id, bool p_f
 	if (!r_agent.is_npc) {
 #ifdef NP_DEV_ENABLED
 		const Mesh &mesh = get_mesh();
-		u32 old_zone_id = r_agent.poly_id == UINT32_MAX ? UINT32_MAX : mesh.get_poly_extra(r_agent.poly_id).zone_id;
+		u32 old_zone_id = r_agent.get_poly_id() == UINT32_MAX ? UINT32_MAX : mesh.get_poly_extra(r_agent.get_poly_id()).zone_id;
 		u32 new_zone_id = p_new_poly_id == UINT32_MAX ? UINT32_MAX : mesh.get_poly_extra(p_new_poly_id).zone_id;
 		if (old_zone_id != new_zone_id) {
 			String sz = String("Player entering zone_id ") + new_zone_id;
@@ -536,12 +536,12 @@ bool MeshInstance::_agent_enter_poly(Agent &r_agent, u32 p_new_poly_id, bool p_f
 			log(sz);
 		}
 #endif
-
-		r_agent.poly_id = p_new_poly_id;
+		
+		r_agent.set_poly_id(p_new_poly_id);
 		return true;
 	}
-
-	u32 old_poly_id = r_agent.poly_id;
+	
+	u32 old_poly_id = r_agent.get_poly_id();
 
 	// Nothing blocking by default.
 	r_agent.blocking_zone_id = UINT32_MAX;
@@ -590,7 +590,7 @@ bool MeshInstance::_agent_enter_poly(Agent &r_agent, u32 p_new_poly_id, bool p_f
 	if (new_poly) {
 		// special case, both polys are in the same zone
 		if (old_poly && (old_poly->zone_id == new_poly->zone_id)) {
-			r_agent.poly_id = p_new_poly_id;
+			r_agent.set_poly_id(p_new_poly_id);
 			return true;
 		}
 
@@ -633,7 +633,7 @@ bool MeshInstance::_agent_enter_poly(Agent &r_agent, u32 p_new_poly_id, bool p_f
 
 	// save the new poly id
 	r_agent.zone_id = new_poly ? new_poly->zone_id : UINT32_MAX;
-	r_agent.poly_id = p_new_poly_id;
+	r_agent.set_poly_id(p_new_poly_id);
 
 #if 1
 	if (old_zone_instance) {
@@ -694,8 +694,8 @@ void MeshInstance::body_dual_trace(const Agent &p_agent, FPoint3 p_intermediate_
 	// transform destination to mesh space
 	p_intermediate_destination = get_transform_inverse().xform(p_intermediate_destination);
 	IPoint2 intermediate_to = mesh.float_to_fixed_point_2(FPoint2::make(p_intermediate_destination.x, p_intermediate_destination.z));
-
-	Mesh::TraceResult res = mesh.recursive_trace(0, p_agent.pos, intermediate_to, p_agent.poly_id, trace_info);
+	
+	Mesh::TraceResult res = mesh.recursive_trace(0, p_agent.pos, intermediate_to, p_agent.get_poly_id(), trace_info);
 	r_result.mesh.first_trace_hit = (res != Mesh::TR_CLEAR);
 
 	if (r_result.mesh.first_trace_hit) {
@@ -736,8 +736,8 @@ void MeshInstance::body_trace(const Agent &p_agent, NavPhysics::TraceResult &r_r
 	dest = get_transform_inverse().xform(dest);
 
 	IPoint2 to = mesh.float_to_fixed_point_2(FPoint2::make(dest.x, dest.z));
-
-	Mesh::TraceResult res = mesh.recursive_trace(0, p_agent.pos, to, p_agent.poly_id, trace_info);
+	
+	Mesh::TraceResult res = mesh.recursive_trace(0, p_agent.pos, to, p_agent.get_poly_id(), trace_info);
 	r_result.mesh.hit = (res != Mesh::TR_CLEAR);
 
 	if (r_result.mesh.hit) {
@@ -809,22 +809,22 @@ bool MeshInstance::_iterate_agent_on_jump_link(Agent &r_agent, Mesh::MoveInfo &r
 	// End condition, we have crossed the wall
 	if (!mesh.wall_in_front_cross(wall_id, ag.pos) || (offset.length_squared() == 0)) {
 		NP_LOG(String("in front of jump link wall"));
-		ag.poly_id = wall.poly_id;
+		ag.set_poly_id(wall.poly_id);
 		NP_LOG(String("jump link finished to poly ") + ag.poly_id);
 
 		// Note that the agent position is approximate, due to rounding error
 		// it may be outside the poly.
 		// So to prevent poly inside errors, we immediately set the agent hug wall ID
 		// to the jump wall id.
-		ag.wall_id = wall_id;
+		ag.set_wall_id(wall_id);
 
 		// Reset the jump link, as no longer active.
-		wall_id = UINT32_MAX;
+		ag.jump_link_wall_id = UINT32_MAX;
 
 		// Calculate the remaining velocity magnitude.
 		freal dist_to_targ = (dest - orig_agent_pos).lengthf();
 		r_distance -= dist_to_targ;
-		r_distance = MAX(r_distance, 0.0f);
+		r_distance = MAX(r_distance, (freal) 0);
 
 		ag.pos = dest;
 		ag.force_off_floor();
@@ -840,7 +840,7 @@ bool MeshInstance::_iterate_agent_on_jump_link(Agent &r_agent, Mesh::MoveInfo &r
 }
 
 void MeshInstance::_agent_slide_on_ceiling(Agent &r_agent, Mesh::MoveInfo &r_move_info, IPoint2 &r_agent_velocity) {
-	if ((r_agent.is_on_floor() && r_agent.jump_velocity <= 0) || (r_agent.poly_id == UINT32_MAX) || !r_agent.grounded) {
+	if ((r_agent.is_on_floor() && r_agent.jump_velocity <= 0) || (r_agent.is_poly_id_null()) || !r_agent.grounded) {
 		return;
 	}
 
@@ -848,7 +848,7 @@ void MeshInstance::_agent_slide_on_ceiling(Agent &r_agent, Mesh::MoveInfo &r_mov
 
 	IPoint2 dest_pos = r_agent.pos + r_agent_velocity;
 	freal height;
-	if (!mesh.find_ceiling_height(r_agent.poly_id, dest_pos, height, r_agent.ceiling_poly_id)) {
+	if (!mesh.find_ceiling_height(r_agent.get_poly_id(), dest_pos, height, r_agent.ceiling_poly_id)) {
 		return;
 	}
 
@@ -937,7 +937,7 @@ void MeshInstance::_iterate_agent(Agent &r_agent, Mesh::MoveInfo &r_move_info) {
 	const Mesh &mesh = get_mesh();
 
 	// This shouldn't happen normally?
-	if (ag.poly_id == UINT32_MAX) {
+	if (ag.is_poly_id_null()) {
 		// Non-height sensitive routine.
 		u32 new_poly_id = mesh.find_poly_within(ag.pos);
 
@@ -945,7 +945,7 @@ void MeshInstance::_iterate_agent(Agent &r_agent, Mesh::MoveInfo &r_move_info) {
 			NP_WARN_PRINT("not within poly");
 			return;
 		} else {
-			log(String("c++ agent within poly ") + itos(ag.poly_id));
+			log(String("c++ agent within poly ") + itos(ag.get_poly_id()));
 			_agent_enter_poly(r_agent, new_poly_id, true);
 		}
 	}
@@ -955,16 +955,14 @@ void MeshInstance::_iterate_agent(Agent &r_agent, Mesh::MoveInfo &r_move_info) {
 		return;
 	}
 
-	//IPoint2 old_pos = ag.pos;
-
-	IPoint2 dir = ag.vel;
-	dir.normalize();
+	//IPoint2 dir = ag.vel;
+	//dir.normalize();
 #ifdef NP_DEV_EXCESSIVE_CHECKS
 	NP_LLOG(String("iterate pos ") + str(ag.pos) + ", vel " + str(ag.vel) + ", poly " + itos(ag.poly_id));
 #endif
-
-	if (ag.wall_id == UINT32_MAX) {
-		NP_DEV_ASSERT(mesh.poly_contains_point(ag.poly_id, ag.pos));
+	
+	if (ag.is_wall_id_null()) {
+		NP_DEV_ASSERT(mesh.poly_contains_point(ag.get_poly_id(), ag.pos));
 	}
 
 	// Is the move blocked by a ceiling?
@@ -974,14 +972,7 @@ void MeshInstance::_iterate_agent(Agent &r_agent, Mesh::MoveInfo &r_move_info) {
 	Mesh::MoveInfo &minfo = r_move_info;
 	minfo.on_floor = ag.is_on_floor();
 	minfo.momentum = agent_remaining_magnitude;
-	mesh.recursive_move(0, ag.pos, agent_remaining_velocity, ag.poly_id, -2, ag.wall_id, minfo);
-
-	// poly, intersect, dir
-	//if res == null:
-	//	return
-
-	//freal dist_moved = (minfo.pos_reached - ag.pos).length();
-	//NP_LLOG("\t\tdistance moved overall : " + String(Variant(dist_moved)));
+	mesh.recursive_move(0, ag.pos, agent_remaining_velocity, ag.get_poly_id(), -2, ag.get_wall_id(), minfo);
 
 	bool early_return = false;
 
@@ -993,7 +984,7 @@ void MeshInstance::_iterate_agent(Agent &r_agent, Mesh::MoveInfo &r_move_info) {
 	}
 
 	if (AgentStatus::is_in_jump_link()) {
-		ag.wall_id = UINT32_MAX;
+		ag.clear_wall_id();
 		ag.jump_link_wall_id = AgentStatus::jump_wall_id;
 		ag.jump_link_target_pos = AgentStatus::jump_target_wall_pos;
 		ag.force_off_floor();
@@ -1024,7 +1015,7 @@ void MeshInstance::_iterate_agent(Agent &r_agent, Mesh::MoveInfo &r_move_info) {
 	// if the move allowed by poly agent limits
 	if (_agent_enter_poly(r_agent, minfo.poly_id)) {
 		ag.pos = minfo.pos_reached;
-		ag.wall_id = minfo.wall_id;
+		ag.set_wall_id(minfo.wall_id);
 
 		ag.vel = ag.pos - old_pos;
 		//ag.vel -= ag.instant_impulse;

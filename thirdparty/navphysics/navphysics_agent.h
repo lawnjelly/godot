@@ -77,9 +77,12 @@ private:
 
 	// Between 0 and 1, 1 only allows force to be applied in the direction of yaw.
 	f32 yaw_movement_restriction[2] = {};
-	
+
 	bool _is_changing_mesh : 1;
-	
+
+	u32 poly_id = UINT32_MAX;
+	u32 wall_id = UINT32_MAX;
+
 public:
 	struct CallbackData {
 		// Used by client code to identify the agent,
@@ -89,9 +92,32 @@ public:
 
 	u32 get_mesh_instance_id() const { return mesh_instance_id; }
 	void set_mesh_instance_id(u32 p_mesh_id);
-	
-	void set_is_changing_mesh(bool p_changing) {_is_changing_mesh = p_changing;}
-	bool is_changing_mesh() const {return _is_changing_mesh;}
+
+	void set_is_changing_mesh(bool p_changing) { _is_changing_mesh = p_changing; }
+	bool is_changing_mesh() const { return _is_changing_mesh; }
+
+	void set_poly_id(u32 p_poly_id) {
+		poly_id = p_poly_id;
+	}
+	void clear_poly_id() {
+		poly_id = UINT32_MAX;
+	}
+	bool is_poly_id_null() const {
+		return poly_id == UINT32_MAX;
+	}
+	u32 get_poly_id() const {
+		return poly_id;
+	}
+	void set_wall_id(u32 p_wall_id) {
+		wall_id = p_wall_id;
+	}
+	bool is_wall_id_null() const {
+		return wall_id == UINT32_MAX;
+	}
+	void clear_wall_id() {
+		wall_id = UINT32_MAX;
+	}
+	u32 get_wall_id() const { return wall_id; }
 
 	np_handle map = 0;
 	u32 revision = 0;
@@ -118,8 +144,6 @@ public:
 
 	//FPoint3 world_space_air_velocity;
 
-	u32 poly_id = UINT32_MAX;
-	u32 wall_id = UINT32_MAX;
 	u32 ceiling_poly_id = UINT32_MAX;
 	u32 zone_id = UINT32_MAX;
 	u32 blocking_zone_id = UINT32_MAX;
@@ -223,9 +247,9 @@ public:
 
 	// Call to blank relevant data when jumping between meshes.
 	void changing_mesh() {
-		poly_id = UINT32_MAX;
+		clear_poly_id();
+		clear_wall_id();
 		ceiling_poly_id = UINT32_MAX;
-		wall_id = UINT32_MAX;
 		grounded = false;
 	}
 
@@ -246,8 +270,8 @@ public:
 		floor_height = 0;
 		agent_height = 0;
 		jump_velocity = 0;
-		poly_id = UINT32_MAX;
-		wall_id = UINT32_MAX;
+		clear_poly_id();
+		clear_wall_id();
 		state = AGENT_STATE_CLEAR;
 		is_npc = true;
 		_is_changing_mesh = false;
