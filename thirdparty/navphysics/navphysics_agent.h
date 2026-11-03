@@ -82,8 +82,34 @@ private:
 
 	u32 poly_id = UINT32_MAX;
 	u32 wall_id = UINT32_MAX;
-
+	
+	LocalPoint3 pos;
+	
+	//IPoint2 pos;
+	
+	// Agent height is in local MeshInstance space,
+	// NOT in fixed point space.
+	//freal agent_height = 0;
+	
 public:
+	
+	/*
+	enum class AgentProperty
+	{
+		MESH_INSTANCE_ID,
+		POLY_ID,
+		WALL_ID,
+		POS,
+		VEL,
+		FPOS,
+		AGENT_HEIGHT,
+		JUMP_VELOCITY,
+		JUMP_LINK_WALL_ID,
+		JUMP_LINK_TARGET_POS,
+		
+	};
+	*/
+	
 	struct CallbackData {
 		// Used by client code to identify the agent,
 		// could be an ID or pointer or handle.
@@ -95,12 +121,10 @@ public:
 
 	void set_is_changing_mesh(bool p_changing) { _is_changing_mesh = p_changing; }
 	bool is_changing_mesh() const { return _is_changing_mesh; }
-
-	void set_poly_id(u32 p_poly_id) {
-		poly_id = p_poly_id;
-	}
+	
+	void set_poly_id(u32 p_poly_id);
 	void clear_poly_id() {
-		poly_id = UINT32_MAX;
+		set_poly_id(UINT32_MAX);
 	}
 	bool is_poly_id_null() const {
 		return poly_id == UINT32_MAX;
@@ -108,17 +132,21 @@ public:
 	u32 get_poly_id() const {
 		return poly_id;
 	}
-	void set_wall_id(u32 p_wall_id) {
-		wall_id = p_wall_id;
-	}
+	void set_wall_id(u32 p_wall_id);
 	bool is_wall_id_null() const {
 		return wall_id == UINT32_MAX;
 	}
 	void clear_wall_id() {
-		wall_id = UINT32_MAX;
+		set_wall_id(UINT32_MAX);
 	}
 	u32 get_wall_id() const { return wall_id; }
-
+	
+	void set_pos(const IPoint2 &p_pos);
+	const IPoint2 &get_pos() const {return pos.xy;}
+	
+	void set_height(freal p_height);
+	freal get_height() const {return pos.height;}
+	
 	np_handle map = 0;
 	u32 revision = 0;
 	u32 agent_id = 0;
@@ -128,16 +156,11 @@ public:
 	FPoint3 debug_pos[3];
 #endif
 
-	IPoint2 pos;
 	IPoint2 vel;
 	FPoint2 fpos;
 
 	// The agent may be jumping *above* the floor
 	freal floor_height = 0;
-
-	// Agent height is in local MeshInstance space,
-	// NOT in fixed point space.
-	freal agent_height = 0;
 
 	// Jump velocity is also in local MeshInstance space.
 	freal jump_velocity = 0;
@@ -197,8 +220,8 @@ public:
 
 	// Height is the physical height of the agent,
 	// whereas agent_height is the height above the ground.
-	freal radius = 1.0;
-	freal height = 2.0;
+	freal collision_radius = 1.0;
+	freal collision_height = 2.0;
 
 	// Final input and output,
 	// these may be transformed by the mesh,
@@ -268,7 +291,7 @@ public:
 		vel.zero();
 		instant_impulse.zero();
 		floor_height = 0;
-		agent_height = 0;
+		//agent_height = 0;
 		jump_velocity = 0;
 		clear_poly_id();
 		clear_wall_id();
@@ -290,8 +313,8 @@ public:
 		downhill_modifier = 0;
 
 		gravity = 0.1;
-		radius = 1;
-		height = 2;
+		collision_radius = 1;
+		collision_height = 2;
 		fpos3.zero();
 		fimpulse3.zero();
 		fpos3_teleport.zero();

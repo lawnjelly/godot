@@ -486,11 +486,11 @@ public:
 	}
 
 	void refresh_local_agent_position_from_fixed_point(Agent &r_agent) const {
-		FPoint2 new_fpos = fixed_point_to_float_2(r_agent.pos);
+		FPoint2 new_fpos = fixed_point_to_float_2(r_agent.get_pos());
 		if (!new_fpos.is_equal_approx(r_agent.fpos)) {
 			r_agent.fpos = new_fpos;
 		}
-		r_agent.fpos3 = FPoint3::make(r_agent.fpos.x, r_agent.agent_height, r_agent.fpos.y);
+		r_agent.fpos3 = FPoint3::make(r_agent.fpos.x, r_agent.get_height(), r_agent.fpos.y);
 	}
 };
 

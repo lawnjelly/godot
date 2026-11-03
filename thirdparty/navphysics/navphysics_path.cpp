@@ -288,7 +288,7 @@ bool Plan::_repath_refresh_start_from_agent(bool p_ensure_same_zone) {
 	}
 	
 	data.start.poly_id = agent->get_poly_id();
-	data.start.pt_local = agent->pos;
+	data.start.pt_local = agent->get_pos();
 	data.start.pt_local3 = mesh_from.local_point_to_point3(data.start.pt_local, data.start.poly_id);
 	return true;
 }
@@ -327,13 +327,13 @@ bool Plan::_setup_agent_agent(bool p_repath) {
 
 	data.start.mesh_instance = h_mi_from;
 	data.start.poly_id = agent->get_poly_id();
-	data.start.pt_local = agent->pos;
+	data.start.pt_local = agent->get_pos();
 	data.start.pt_local3 = mesh_from.local_point_to_point3(data.start.pt_local, data.start.poly_id);
 
 	if (!p_repath) {
 		data.destination.mesh_instance = h_mi_to;
 		data.destination.poly_id = agent_to->get_poly_id();
-		data.destination.pt_local = agent_to->pos;
+		data.destination.pt_local = agent_to->get_pos();
 		data.destination.pt_local3 = mesh_to.local_point_to_point3(data.destination.pt_local, data.destination.poly_id);
 	}
 

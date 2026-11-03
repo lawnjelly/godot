@@ -133,4 +133,18 @@ struct [[nodiscard]] IPoint3 {
 	}
 };
 
+
+// Local positions and velocities on the mesh are stored as integer xz and float height.
+struct [[nodiscard]] LocalPoint3
+{
+	IPoint2 xy;
+	freal height = 0;
+	
+	void zero()
+	{
+		xy.zero();
+		height = 0;
+	}
+};
+
 } // namespace NavPhysics

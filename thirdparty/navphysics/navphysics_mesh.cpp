@@ -113,7 +113,7 @@ bool Mesh::_agent_enter_poly(u32 p_old_poly_id, u32 p_new_poly_id, bool p_force_
 u32 Mesh::find_best_jump_poly_within(const Agent &p_agent, const JumpFinderData &p_jd, freal p_max_drop, freal p_max_step_up, freal &r_goodness_of_fit) const {
 	// Go through the list of external connecting edges and see if
 	// the jump crosses any.
-	freal p_height = p_jd.pt_to.y;
+	freal p_height = p_jd.pt_to_world.y;
 
 	IPoint2 a, b;
 	IPoint2 pt_hit;
@@ -179,7 +179,7 @@ u32 Mesh::find_best_jump_poly_within(const Agent &p_agent, const JumpFinderData 
 			// Calculate the height of the agent AFTER the jump to the ledge,
 			// at the current velocity.
 			// This is potentially slow calculation, or can use look up table.
-			freal agent_height_after_jump = _estimate_height_after_ledge_jump(p_agent, p_height, p_jd.vel_local2.lengthf(), (pt_hit - p_jd.pt_to_local).lengthf());
+			freal agent_height_after_jump = _estimate_height_after_ledge_jump(p_agent, p_height, p_jd.vel_local.xy.lengthf(), (pt_hit - p_jd.pt_to_local).lengthf());
 
 			//log(String("\t\tpredicted jump to ledge is ") + (agent_height_after_jump - p_height) + " different than current agent height for poly ID " + poly_id + ".");
 
@@ -211,10 +211,10 @@ u32 Mesh::find_best_jump_poly_within(const Agent &p_agent, const JumpFinderData 
 				freal fit = ABS(best_height);
 
 				if (fit < r_goodness_of_fit) {
-					AgentStatus::jump_target_vel = p_jd.vel_local2;
-					AgentStatus::jump_target_jump_vel = p_jd.vel_local_jump;
+					AgentStatus::jump_target_vel = p_jd.vel_local.xy;
+					AgentStatus::jump_target_jump_vel = p_jd.vel_local.height;
 					AgentStatus::jump_target_cross_pos = p_jd.pt_to_local;
-					AgentStatus::jump_target_local_height = p_jd.pt_to.y;
+					AgentStatus::jump_target_local_height = p_jd.pt_to_world.y;
 
 					if (ahead) {
 						//log(String("Mesh::find_best_jump_poly_within JUMP to connecting wall ") + wid);
@@ -287,7 +287,7 @@ void Mesh::_find_last_ditch_poly(Agent &r_agent, u32 p_poly_id, const FPoint3 &p
 		log(String("\tbest_poly ") + p_poly_id + ", best_wall " + best_wall + ", fraction " + best_fraction);
 		r_agent.set_poly_id(p_poly_id);
 		r_agent.set_wall_id(best_wall);
-		r_agent.pos = _calculate_position_along_wall(best_wall, best_fraction);
+		r_agent.set_pos(_calculate_position_along_wall(best_wall, best_fraction));
 	}
 }
 
@@ -815,7 +815,7 @@ bool Mesh::jump_within_mesh(u32 p_source_wall_id, const IPoint2 &p_from, const I
 	}
 
 	// Agent height determines whether step up and step down to destinations is possible.
-	freal agent_height = r_info.agent->agent_height;
+	freal agent_height = r_info.agent->get_height();
 	freal agent_jump_height = agent_height - r_info.agent->floor_height;
 
 	// Momentum should decide the max allowable jump vector.
@@ -993,15 +993,15 @@ bool Mesh::move_to_new_mesh(const IPoint2 &p_from, const IPoint2 &p_vel, MoveInf
 	// Use the jump height, rather than the floor height,
 	// for assessing whether we can make the link.
 #define NP_MOVE_FP_TO_WORLD_SPACE(FP, WORLD_SPACE) \
-	jfd.WORLD_SPACE = old_mesh_instance.local_pos_to_world_space(*this, FP, agent.agent_height)
+	jfd.WORLD_SPACE = old_mesh_instance.local_pos_to_world_space(*this, FP, agent.get_height())
 
 #ifdef NP_VERIFY_JUMP_FINDER_VELOCITY
 	NP_MOVE_FP_TO_WORLD_SPACE((to + p_vel), pt_verify_curr_plus_vel)
 #endif
 
-	NP_MOVE_FP_TO_WORLD_SPACE(near, pt_from);
-	NP_MOVE_FP_TO_WORLD_SPACE(far, pt_far);
-	NP_MOVE_FP_TO_WORLD_SPACE(to, pt_to);
+	NP_MOVE_FP_TO_WORLD_SPACE(near, pt_from_world);
+	NP_MOVE_FP_TO_WORLD_SPACE(far, pt_far_world);
+	NP_MOVE_FP_TO_WORLD_SPACE(to, pt_to_world);
 
 #undef NP_MOVE_FP_TO_WORLD_SPACE
 

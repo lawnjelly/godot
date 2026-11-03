@@ -4,6 +4,9 @@
 #include "navphysics_agent.h"
 #include "navphysics_mesh_instance.h"
 
+//#define NP_AGENT_LOG(a) log(String((i64)this) + ":\t" + a)
+#define NP_AGENT_LOG(a) log(String("\t: ") + a)
+
 namespace NavPhysics {
 
 u32 AgentStatus::jump_wall_id = UINT32_MAX;
@@ -22,8 +25,36 @@ void AgentStatus::debug_print(String p_sz) {
 	log(p_sz + String(" ... AgentStatus : wall_id ") + jump_wall_id + ", wall_pos " + jump_target_wall_pos + ", cross_pos " + jump_target_cross_pos + ", poly " + suggested_poly_id + ", meshi_id " + jump_mesh_instance_id + ", target_set " + jump_cross_only + ", height " + jump_target_local_height);
 }
 
+void Agent::set_height(freal p_height) {
+	if (p_height != pos.height) {
+		NP_AGENT_LOG(" set_height " + p_height);
+		pos.height = p_height;
+	}
+}
+
+void Agent::set_pos(const IPoint2 &p_pos) {
+	if (p_pos != pos.xy) {
+		NP_AGENT_LOG(" set_pos " + p_pos);
+		pos.xy = p_pos;
+	}
+}
+
+void Agent::set_poly_id(u32 p_poly_id) {
+	if (p_poly_id != poly_id) {
+		NP_AGENT_LOG("set_poly_id " + p_poly_id);
+		poly_id = p_poly_id;
+	}
+}
+
+void Agent::set_wall_id(u32 p_wall_id) {
+	if (p_wall_id != wall_id) {
+		NP_AGENT_LOG("set_wall_id " + p_wall_id);
+		wall_id = p_wall_id;
+	}
+}
+
 void Agent::set_mesh_instance_id(uint32_t p_mesh_id) {
-	NP_LOG(String("setting mesh ID of agent at ") + (i64)this + " to " + p_mesh_id);
+	NP_AGENT_LOG("set_mesh_instance_id " + p_mesh_id);
 	mesh_instance_id = p_mesh_id;
 }
 
@@ -36,9 +67,8 @@ void Agent::set_friction(f32 p_friction, bool p_air) {
 	}
 }
 
-void Agent::set_yaw_movement_restriction(freal p_value, bool p_air)
-{
-	yaw_movement_restriction[p_air? 1 : 0] = CLAMP(p_value, 0.0f, 1.0f);
+void Agent::set_yaw_movement_restriction(freal p_value, bool p_air) {
+	yaw_movement_restriction[p_air ? 1 : 0] = CLAMP(p_value, 0.0f, 1.0f);
 }
 
 void Agent::apply_friction() {
@@ -52,14 +82,13 @@ void Agent::apply_friction() {
 }
 
 void Agent::apply_restricted_velocity(const IPoint2 &p_new_velocity_before_restriction) {
-	if (p_new_velocity_before_restriction.is_zero())
-	{
+	if (p_new_velocity_before_restriction.is_zero()) {
 		vel = p_new_velocity_before_restriction;
 		return;
 	}
-	
+
 	f32 restriction = yaw_movement_restriction[is_on_floor() ? 0 : 1];
-	
+
 	// Simplest case, there is no restriction in progress, pass through.
 	if (restriction <= 0) {
 		vel = p_new_velocity_before_restriction;
@@ -94,7 +123,7 @@ void Agent::iterate_jump(const MeshInstance &p_mesh_instance, const freal *p_cei
 
 	// Initial jump off the floor.
 	if (on_floor && (jump_velocity > 0)) {
-		agent_height = floor_height + jump_velocity;
+		set_height(floor_height + jump_velocity);
 		on_floor = false;
 		return;
 	}
@@ -102,14 +131,14 @@ void Agent::iterate_jump(const MeshInstance &p_mesh_instance, const freal *p_cei
 	if (on_floor) {
 		// If we are on the floor, and no upward velocity,
 		// tightly match the floor surface.
-		agent_height = floor_height;
+		set_height(floor_height);
 	} else {
 		// Move height up or down...
-		agent_height += jump_velocity; // - gravity_half_step;
+		set_height(get_height() + jump_velocity); // - gravity_half_step;
 
 		// If we hit the floor?
-		if (agent_height <= floor_height) {
-			agent_height = floor_height;
+		if (get_height() <= floor_height) {
+			set_height(floor_height);
 			jump_velocity = 0;
 			on_floor = true;
 			grounded = true;
@@ -135,10 +164,10 @@ void Agent::iterate_jump(const MeshInstance &p_mesh_instance, const freal *p_cei
 			}
 
 			// Have we hit the ceiling?
-			if (p_ceiling_height && (agent_height > *p_ceiling_height)) {
+			if (p_ceiling_height && (get_height() > *p_ceiling_height)) {
 				// Ceiling should always be above the floor, but just in case...
 				// Could be an assert?
-				agent_height = MAX(*p_ceiling_height, floor_height);
+				set_height(MAX(*p_ceiling_height, floor_height));
 
 				// Eliminate any upward jump velocity so bounce off ceiling.
 				jump_velocity = MIN(jump_velocity, 0);

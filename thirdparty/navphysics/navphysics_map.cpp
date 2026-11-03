@@ -58,7 +58,7 @@ bool Map::calculate_vertical_overlap_push(Agent &p_agent_a, Agent &p_agent_b) co
 	}
 
 	freal bottom = upper->fpos3.y;
-	freal top = lower->fpos3.y + lower->height;
+	freal top = lower->fpos3.y + lower->collision_height;
 	freal overlap = top - bottom;
 
 	if (overlap <= 0) {
@@ -72,7 +72,7 @@ bool Map::calculate_vertical_overlap_push(Agent &p_agent_a, Agent &p_agent_b) co
 		return false;
 	}
 
-	freal radius = lower->radius;
+	freal radius = lower->collision_radius;
 	NP_DEV_ASSERT(radius > 0);
 
 	if (overlap < radius) {
@@ -104,8 +104,8 @@ bool Map::resolve_squishy_collision(Agent &p_agent_a, Agent &p_agent_b) const {
 	// rather than where we are currently.
 	IPoint2 &a_vel = p_agent_a.vel;
 	IPoint2 &b_vel = p_agent_b.vel;
-	IPoint2 a_pos = p_agent_a.pos + a_vel;
-	IPoint2 b_pos = p_agent_b.pos + b_vel;
+	IPoint2 a_pos = p_agent_a.get_pos() + a_vel;
+	IPoint2 b_pos = p_agent_b.get_pos() + b_vel;
 
 	// Relative position, normal and distance.
 	IPoint2 offset = b_pos - a_pos;
@@ -151,9 +151,9 @@ bool Map::resolve_squishy_collision(Agent &p_agent_a, Agent &p_agent_b) const {
 }
 
 void Map::resolve_zero_bounce_collision(Agent &p_agent_a, Agent &p_agent_b) const {
-	IPoint2 &a_pos = p_agent_a.pos;
+	const IPoint2 &a_pos = p_agent_a.get_pos();
 	IPoint2 &a_vel = p_agent_a.vel;
-	IPoint2 &b_pos = p_agent_b.pos;
+	const IPoint2 &b_pos = p_agent_b.get_pos();
 	IPoint2 &b_vel = p_agent_b.vel;
 
 	// Relative position, normal and distance.
@@ -247,10 +247,12 @@ void Map::resolve_zero_bounce_collision(Agent &p_agent_a, Agent &p_agent_b) cons
 		IPoint2 a_impulse = rel_pos;
 		a_impulse.normalize_to_scale(a_mult);
 		a_vel += a_impulse;
+		//p_agent_a.set_vel(a_vel + a_impulse);
 
 		IPoint2 b_impulse = rel_pos;
 		b_impulse.normalize_to_scale(b_mult);
 		b_vel += b_impulse;
+		//p_agent_b.set_vel(b_vel + b_impulse);
 
 #if 0
 		IPoint2 predicted_a = a_pos + a_vel + p_agent_a.instant_impulse;
@@ -285,7 +287,7 @@ void Map::tick_update(freal p_delta) {
 			continue;
 		}
 
-		freal radii = agent_a.radius + agent_b.radius;
+		freal radii = agent_a.collision_radius + agent_b.collision_radius;
 
 		// Should be already checked in the SAP code.
 		NP_DEV_ASSERT(radii > 0);
@@ -446,7 +448,7 @@ bool Map::jump_to_new_mesh(Agent &r_agent, const FPoint3 &p_world_pos, u32 p_ign
 	if (r_agent.get_mesh_instance_id() != UINT32_MAX) {
 		// Make sure we keep the mesh unit radius up to date when changing mesh.
 		MeshInstance &meshi = g_world.get_mesh_instance(r_agent.get_mesh_instance_id());
-		r_agent.radius_mesh_units = meshi.calculate_agent_radius_in_mesh_units(r_agent.radius);
+		r_agent.radius_mesh_units = meshi.calculate_agent_radius_in_mesh_units(r_agent.collision_radius);
 		return true;
 	}
 
@@ -782,11 +784,11 @@ void Map::body_teleport_to_agent_status_jump_target(Agent &r_agent, u32 p_agent_
 	//AgentStatus::debug_print("body_teleport_to_agent_status_jump_target");
 
 	r_agent.set_mesh_instance_id(AgentStatus::jump_mesh_instance_id);
-
-	r_agent.pos = AgentStatus::jump_target_cross_pos;
-	NP_DEV_ASSERT(r_agent.pos != IPoint2(INT32_MAX, INT32_MAX));
-
-	r_agent.agent_height = AgentStatus::jump_target_local_height;
+	
+	r_agent.set_pos(AgentStatus::jump_target_cross_pos);
+	NP_DEV_ASSERT(r_agent.get_pos() != IPoint2(INT32_MAX, INT32_MAX));
+	
+	r_agent.set_height(AgentStatus::jump_target_local_height);
 	r_agent.vel = AgentStatus::jump_target_vel;
 	NP_DEV_ASSERT(r_agent.vel != IPoint2(INT32_MAX, INT32_MAX));
 
@@ -798,7 +800,7 @@ void Map::body_teleport_to_agent_status_jump_target(Agent &r_agent, u32 p_agent_
 
 	MeshInstance &meshi = g_world.get_mesh_instance(r_agent.get_mesh_instance_id());
 	const Mesh &mesh = meshi.get_mesh();
-	r_agent.radius_mesh_units = meshi.calculate_agent_radius_in_mesh_units(r_agent.radius);
+	r_agent.radius_mesh_units = meshi.calculate_agent_radius_in_mesh_units(r_agent.collision_radius);
 
 	// Compare the result of the world space velocity.
 	// If the mesh instance has rotated since the jump, we will use
@@ -852,7 +854,7 @@ void Map::body_teleport(Agent &r_agent, u32 p_agent_id, const FPoint3 &p_pos) {
 		r_agent.fpos3 = pos_local;
 
 		// Calculate the new agent height from world space to local space
-		r_agent.agent_height = pos_local.y;
+		r_agent.set_height(pos_local.y);
 
 		// Make sure it starts in off ground state, so it can settle to a lower mesh,
 		// rather than instantaneously dropping down when changing meshes.

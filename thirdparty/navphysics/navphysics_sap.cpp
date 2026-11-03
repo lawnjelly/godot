@@ -15,8 +15,8 @@ void SAP::add_item(u32 p_agent_id) {
 
 	freal pos = agent.fpos3[_separating_axis];
 
-	item.axis_min = pos - agent.radius;
-	item.axis_max = pos + agent.radius;
+	item.axis_min = pos - agent.collision_radius;
+	item.axis_max = pos + agent.collision_radius;
 
 	_items.push_back(item);
 }
@@ -59,8 +59,8 @@ void SAP::update() {
 
 		freal pos = pos3[_separating_axis];
 
-		item.axis_min = pos - agent.radius;
-		item.axis_max = pos + agent.radius;
+		item.axis_min = pos - agent.collision_radius;
+		item.axis_max = pos + agent.collision_radius;
 	}
 
 	// sort the items
@@ -84,14 +84,14 @@ void SAP::update() {
 			// User could have chosen zero radius for both,
 			// in which case no collision can happen.
 			// (N.B. maybe this check can be omitted if we force non-zero size).
-			if (agent_a.radius <= 0) {
+			if (agent_a.collision_radius <= 0) {
 				continue;
 			}
-			if (agent_b.radius <= 0) {
+			if (agent_b.collision_radius <= 0) {
 				continue;
 			}
 
-			freal combined_radii = agent_a.radius + agent_b.radius;
+			freal combined_radii = agent_a.collision_radius + agent_b.collision_radius;
 			combined_radii *= combined_radii;
 
 			// 2D collision check only, handle heights in the avoidance code.

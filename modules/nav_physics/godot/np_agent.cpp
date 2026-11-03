@@ -631,8 +631,8 @@ void NPAgent::_update_params() {
 
 	//#define NPAGENT_FRICTION_ADJUSTMENT(friction_per_second) (Math::pow(friction_per_second, delta))
 
-	agent->radius = data.radius;
-	agent->height = data.height;
+	agent->collision_radius = data.radius;
+	agent->collision_height = data.height;
 
 	double gravity = Math::pow((double)data.gravity, 2.0);
 	gravity *= (1.0 / 60.0);
@@ -721,7 +721,7 @@ NPAgent::TestResult NPAgent::ray_test_agent(const Node *p_np_agent) const {
 
 	NavPhysics::MeshInstance &mi = NPWORLD.get_mesh_instance(agent_B->get_mesh_instance_id());
 
-	return mi.get_mesh().ray_test(agent_A->pos, agent_A->get_poly_id(), agent_B->pos, agent_B->get_poly_id()) ? TEST_RESULT_CLEAR : TEST_RESULT_BLOCKED_WALL;
+	return mi.get_mesh().ray_test(agent_A->get_pos(), agent_A->get_poly_id(), agent_B->get_pos(), agent_B->get_poly_id()) ? TEST_RESULT_CLEAR : TEST_RESULT_BLOCKED_WALL;
 }
 
 NPAgent::TestResult NPAgent::ray_test_point(const Node *p_np_point) const {
@@ -743,7 +743,7 @@ NPAgent::TestResult NPAgent::ray_test_point(const Node *p_np_point) const {
 		return TEST_RESULT_DIFFERENT_MESH;
 	}
 
-	return mi.get_mesh().ray_test(agent->pos, agent->get_poly_id(), poi->local_pos, poi->poly_id) ? TEST_RESULT_CLEAR : TEST_RESULT_BLOCKED_WALL;
+	return mi.get_mesh().ray_test(agent->get_pos(), agent->get_poly_id(), poi->local_pos, poi->poly_id) ? TEST_RESULT_CLEAR : TEST_RESULT_BLOCKED_WALL;
 }
 
 void NPAgent::nav_teleport(const Vector3 &p_pos) {
