@@ -278,8 +278,8 @@ public:
 
 	// Call to blank relevant data when jumping between meshes.
 	void changing_mesh() {
-		clear_poly_id();
-		clear_wall_id();
+		//clear_poly_id();
+		//clear_wall_id();
 		ceiling_poly_id = UINT32_MAX;
 		grounded = false;
 	}

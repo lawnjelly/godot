@@ -48,7 +48,8 @@ public:
 	bool _iterate_agent_on_jump_link(Agent &r_agent, Mesh::MoveInfo &r_move_info, freal &r_distance);
 	u32 calculate_agent_radius_in_mesh_units(freal p_radius) const;
 
-	void refresh_world_space_agent_position(Agent &r_agent, bool p_remake_pos) const;
+	void refresh_agent_world_space_position(Agent &r_agent, bool p_remake_pos) const;
+	void refresh_agent_local_velocity_from_world_space(Agent &r_agent, const FPoint3 &p_vel_world) const;
 
 	// less is better fit
 	freal find_agent_fit(Agent &r_agent, const FPoint3 &p_world_pos, u32 &r_best_poly_id, freal p_max_step_up, freal p_max_drop) const;
@@ -89,7 +90,7 @@ public:
 	FPoint3 local_velocity_to_world_space(const Mesh &p_mesh, const IPoint2 &p_vel_local) const;
 	FPoint3 local_velocity3_to_world_space(const FPoint3 &p_vel_local) const;
 	
-	FPoint3 world_space_velocity_to_local3(const Mesh &p_mesh, const FPoint3 &p_vel_world) const;
+	FPoint3 world_space_velocity_to_local3(const FPoint3 &p_vel_world) const;
 	IPoint2 world_space_velocity_to_local(const Mesh &p_mesh, const FPoint3 &p_vel_world) const;
 	////////////////////////////////////////////
 

@@ -419,7 +419,9 @@ bool Map::jump_to_new_mesh(Agent &r_agent, const FPoint3 &p_world_pos, u32 p_ign
 
 		u32 poly_id = UINT32_MAX;
 		freal fit = 0;
-
+		
+		log(String("ATTEMPTING JUMP from mesh id ") + p_ignore_mesh_id);
+		
 		if (p_jump_data) {
 			fit = mesh_instance.find_agent_jump_fit(r_agent, *p_jump_data, poly_id, max_step_up, max_drop, best_fit);
 		} else {
@@ -451,7 +453,6 @@ bool Map::jump_to_new_mesh(Agent &r_agent, const FPoint3 &p_world_pos, u32 p_ign
 		r_agent.radius_mesh_units = meshi.calculate_agent_radius_in_mesh_units(r_agent.collision_radius);
 		
 		// If we are in a jump between meshes, re-establish the local position / velocity from the JFD data.
-		
 		
 		
 		return true;
@@ -676,6 +677,7 @@ bool Map::iterate_agent(u32 p_agent_id, IterateResult &r_result) {
 		move_info.map_id = _map_id;
 		move_info.agent_id = agent.agent_id;
 		move_info.agent = &agent;
+		move_info.prev_mesh_instance_id = agent.get_mesh_instance_id();
 
 		{
 #if 1
@@ -706,7 +708,7 @@ bool Map::iterate_agent(u32 p_agent_id, IterateResult &r_result) {
 			//			NP_DEV_ASSERT(agent.fpos3.isfinite());
 			//			agent.fpos3 = mesh_instance.get_transform().xform(agent.fpos3);
 			//			NP_DEV_ASSERT(agent.fpos3.isfinite());
-			mesh_instance.refresh_world_space_agent_position(agent, false);
+			mesh_instance.refresh_agent_world_space_position(agent, false);
 			r_result.impulse_world_space = mesh_instance.local_velocity3_to_world_space(agent.fimpulse3);
 			r_result.impulse_mesh_space = agent.fimpulse3;
 		}
@@ -735,11 +737,11 @@ bool Map::iterate_agent(u32 p_agent_id, IterateResult &r_result) {
 			}
 
 			mesh_instance_new.iterate_agent_housekeeping(agent);
-			mesh_instance_new.refresh_world_space_agent_position(agent, true);
+			mesh_instance_new.refresh_agent_world_space_position(agent, true);
 			//r_result.impulse_world_space = mesh_instance_new.local_velocity3_to_world_space(agent.fimpulse3);
 
 			// Back transform the world space impulse back to the new mesh space, for consistency in the client code.
-			r_result.impulse_mesh_space = mesh_instance_new.world_space_velocity_to_local3(mesh_instance_new.get_mesh(), r_result.impulse_world_space);
+			r_result.impulse_mesh_space = mesh_instance_new.world_space_velocity_to_local3(r_result.impulse_world_space);
 		}
 
 		// Only zero the impulse AFTER returning it to the client code,

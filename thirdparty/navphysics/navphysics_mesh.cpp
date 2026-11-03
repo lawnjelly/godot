@@ -523,10 +523,17 @@ void Mesh::modify_velocity_for_poly_wall(const MoveInfo &p_info, float &r_vel, u
 bool Mesh::cross_internal_or_external_link(u32 p_wall_id, const IPoint2 &p_from, const IPoint2 &p_vel, MoveInfo &r_info) const {
 	if (is_link_external(p_wall_id)) {
 		if (move_to_new_mesh(p_from, p_vel, r_info)) {
+			/*
 			r_info.poly_id = UINT32_MAX;
 			r_info.pos_reached = p_from + p_vel;
 			r_info.wall_id = UINT32_MAX;
 			r_info.remaining_velocity = p_vel.lengthf();
+			*/
+			r_info.poly_id = r_info.agent->get_poly_id();
+			r_info.pos_reached = r_info.agent->get_pos();
+			r_info.wall_id = UINT32_MAX;
+			r_info.remaining_velocity = 0;
+			r_info.new_mesh_instance_id = r_info.agent->get_mesh_instance_id();
 			return true;
 		}
 	}
@@ -537,6 +544,7 @@ bool Mesh::cross_internal_or_external_link(u32 p_wall_id, const IPoint2 &p_from,
 			r_info.pos_reached = p_from + p_vel;
 			r_info.wall_id = UINT32_MAX;
 			r_info.remaining_velocity = p_vel.lengthf();
+			r_info.new_mesh_instance_id = r_info.agent->get_mesh_instance_id();
 			NP_LOG(String("remaining velocity ") + r_info.remaining_velocity);
 			return true;
 		}

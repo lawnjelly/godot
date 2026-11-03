@@ -109,7 +109,7 @@ struct JumpFinderDataLocal
 	IPoint2 to_local;
 	IPoint2 far_local;
 	
-	freal to_local_height = 0;
+	//freal to_local_height = 0;
 	
 	LocalPoint3 vel_local;
 };

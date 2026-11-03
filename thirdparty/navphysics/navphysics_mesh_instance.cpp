@@ -44,13 +44,13 @@ FPoint3 MeshInstance::local_velocity_to_world_space(const Mesh &p_mesh, const IP
 	//return get_transform().basis.xform(FPoint3(vel2));
 }
 
-FPoint3 MeshInstance::world_space_velocity_to_local3(const Mesh &p_mesh, const FPoint3 &p_vel_world) const {
+FPoint3 MeshInstance::world_space_velocity_to_local3(const FPoint3 &p_vel_world) const {
 	return get_transform_inverse().basis.xform(p_vel_world);
 }
 
 IPoint2 MeshInstance::world_space_velocity_to_local(const Mesh &p_mesh, const FPoint3 &p_vel_world) const {
 	//FPoint3 vel_local = get_transform_inverse().basis.xform(p_vel_world);
-	FPoint3 vel_local = world_space_velocity_to_local3(p_mesh, p_vel_world);
+	FPoint3 vel_local = world_space_velocity_to_local3(p_vel_world);
 	return p_mesh.float_to_fixed_point_vel(vel_local.xz());
 }
 
@@ -199,13 +199,30 @@ freal MeshInstance::find_agent_jump_fit(Agent &r_agent, const JumpFinderData &p_
 	if (r_best_poly_id == UINT32_MAX) {
 		// If the external links fail, try teleporting directly into the new mesh.
 		r_best_poly_id = mesh.find_best_poly_within(jl.to_local, jl.pt_to_local.y, p_max_drop, p_max_step_up, fit);
-
+		
+		// If we teleport directly into the new mesh, we must be on a poly.
+		// We use the from position, and we directly set the agent,
+		// rather than using a jump target.
 		if ((r_best_poly_id != UINT32_MAX) && (fit < p_best_fit_so_far)) {
+			r_agent.set_poly_id(r_best_poly_id);
+			r_agent.clear_wall_id();
+			r_agent.set_pos(jl.to_local);
+			r_agent.set_height(jl.pt_to_local.y);
+			r_agent.clear_wall_id();
+			
+			r_agent.set_velocity(jl.vel_local.xy);
+			r_agent.set_jump_velocity(jl.vel_local.height);
+			
+			
+			// Set local velocity and jump vel NYI
+			
+			/*
 			AgentStatus::jump_target_cross_pos = jl.to_local;
 			AgentStatus::jump_target_vel = jl.vel_local.xy;
 			AgentStatus::jump_target_jump_vel = jl.vel_local.height;
 			AgentStatus::jump_cross_only = true;
 			AgentStatus::jump_target_local_height = jl.pt_to_local.y;
+			*/
 
 			//AgentStatus::jump_target_world_space_vel = local_velocity_to_world_space(get_mesh(), AgentStatus::jump_target_vel);
 		}
@@ -460,7 +477,15 @@ u32 MeshInstance::calculate_agent_radius_in_mesh_units(freal p_radius) const {
 	return Math::abs(fp_radius);
 }
 
-void MeshInstance::refresh_world_space_agent_position(Agent &r_agent, bool p_remake_pos) const {
+void MeshInstance::refresh_agent_local_velocity_from_world_space(Agent &r_agent, const FPoint3 &p_vel_world) const
+{
+	FPoint3 vel_local = world_space_velocity_to_local3(p_vel_world);
+	const Mesh &mesh = get_mesh();
+	r_agent.set_velocity(mesh.float_to_fixed_point_vel(vel_local.xz()));
+	r_agent.set_jump_velocity(vel_local.y);	
+}
+
+void MeshInstance::refresh_agent_world_space_position(Agent &r_agent, bool p_remake_pos) const {
 	// Translate the agent height back into final output pos3.
 	if (p_remake_pos) {
 		r_agent.fpos3 = FPoint3::make(r_agent.fpos.x, r_agent.get_height(), r_agent.fpos.y);

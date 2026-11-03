@@ -162,7 +162,7 @@ void Agent::iterate_jump(const MeshInstance &p_mesh_instance, const freal *p_cei
 				FPoint3 g(0, -gravity, 0);
 
 				const Mesh &mesh = p_mesh_instance.get_mesh();
-				FPoint3 g_local = p_mesh_instance.world_space_velocity_to_local3(mesh, g);
+				FPoint3 g_local = p_mesh_instance.world_space_velocity_to_local3(g);
 				IPoint2 v = mesh.float_to_fixed_point_vel(g_local.xz());
 				//IPoint2 v = p_mesh_instance.world_space_velocity_to_local(mesh, g);
 				//g = p_mesh_instance.get_transform().basis.xform(g);
