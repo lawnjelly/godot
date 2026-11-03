@@ -82,17 +82,17 @@ private:
 
 	u32 poly_id = UINT32_MAX;
 	u32 wall_id = UINT32_MAX;
-	
+
 	LocalPoint3 pos;
-	
+	LocalPoint3 vel;
+
 	//IPoint2 pos;
-	
+
 	// Agent height is in local MeshInstance space,
 	// NOT in fixed point space.
 	//freal agent_height = 0;
-	
+
 public:
-	
 	/*
 	enum class AgentProperty
 	{
@@ -106,10 +106,10 @@ public:
 		JUMP_VELOCITY,
 		JUMP_LINK_WALL_ID,
 		JUMP_LINK_TARGET_POS,
-		
+
 	};
 	*/
-	
+
 	struct CallbackData {
 		// Used by client code to identify the agent,
 		// could be an ID or pointer or handle.
@@ -121,7 +121,7 @@ public:
 
 	void set_is_changing_mesh(bool p_changing) { _is_changing_mesh = p_changing; }
 	bool is_changing_mesh() const { return _is_changing_mesh; }
-	
+
 	void set_poly_id(u32 p_poly_id);
 	void clear_poly_id() {
 		set_poly_id(UINT32_MAX);
@@ -140,13 +140,21 @@ public:
 		set_wall_id(UINT32_MAX);
 	}
 	u32 get_wall_id() const { return wall_id; }
-	
+
 	void set_pos(const IPoint2 &p_pos);
-	const IPoint2 &get_pos() const {return pos.xy;}
-	
+	const IPoint2 &get_pos() const { return pos.xy; }
+
 	void set_height(freal p_height);
-	freal get_height() const {return pos.height;}
+	freal get_height() const { return pos.height; }
 	
+	const IPoint2 &get_velocity() const { return vel.xy; }
+	void set_velocity(const IPoint2 &p_vel);
+	void add_velocity(const IPoint2 &p_vel) {set_velocity(get_velocity() + p_vel);}
+	
+	freal get_jump_velocity() const { return vel.height; }
+	void set_jump_velocity(freal p_vel);
+	void add_jump_velocity(freal p_vel) {set_jump_velocity(get_jump_velocity() + p_vel);}
+
 	np_handle map = 0;
 	u32 revision = 0;
 	u32 agent_id = 0;
@@ -156,14 +164,14 @@ public:
 	FPoint3 debug_pos[3];
 #endif
 
-	IPoint2 vel;
+	//IPoint2 vel;
+	// Jump velocity is also in local MeshInstance space.
+	//freal jump_velocity = 0;
+
 	FPoint2 fpos;
 
 	// The agent may be jumping *above* the floor
 	freal floor_height = 0;
-
-	// Jump velocity is also in local MeshInstance space.
-	freal jump_velocity = 0;
 
 	//FPoint3 world_space_air_velocity;
 
@@ -263,7 +271,7 @@ public:
 	}
 	void fall() {
 		on_floor = false;
-		jump_velocity = 0;
+		set_jump_velocity(0);
 	}
 	void iterate_jump(const MeshInstance &p_mesh_instance, const freal *p_ceiling_height = nullptr);
 	// void seek_yaw(float p_yaw);
@@ -292,7 +300,7 @@ public:
 		instant_impulse.zero();
 		floor_height = 0;
 		//agent_height = 0;
-		jump_velocity = 0;
+		//jump_velocity = 0;
 		clear_poly_id();
 		clear_wall_id();
 		state = AGENT_STATE_CLEAR;

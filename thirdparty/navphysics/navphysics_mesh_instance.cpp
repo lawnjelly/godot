@@ -121,9 +121,9 @@ void MeshInstance::_set_transform(const Transform &p_xform, const Transform &p_x
 	_transform_identity = p_is_identity;
 }
 
-freal MeshInstance::find_agent_jump_fit(Agent &r_agent, JumpFinderData p_jump_data, u32 &r_best_poly_id, freal p_max_step_up, freal p_max_drop, freal p_best_fit_so_far) const {
+freal MeshInstance::find_agent_jump_fit(Agent &r_agent, const JumpFinderData &p_jump_data, u32 &r_best_poly_id, freal p_max_step_up, freal p_max_drop, freal p_best_fit_so_far) const {
 	// Short alias.
-	JumpFinderData &jd = p_jump_data;
+	JumpFinderData jd = p_jump_data;
 
 	r_best_poly_id = UINT32_MAX;
 
@@ -188,6 +188,11 @@ freal MeshInstance::find_agent_jump_fit(Agent &r_agent, JumpFinderData p_jump_da
 	p_max_drop += jump_height;
 
 	freal fit = p_best_fit_so_far;
+	
+	// Note that this routine is an optimized one that relies on the velocity crossing a poly wall,
+	// and therefore that the up vectors of both meshes are somewhat aligned.
+	// If the two meshes are at 90 degrees, and the velocity is _straight down_ into the new mesh,
+	// no wall may be crossed, and this will return UINT32_MAX, so we need to try the slower backup path.
 	r_best_poly_id = mesh.find_best_jump_poly_within(r_agent, jd, p_max_drop, p_max_step_up, fit);
 
 	if (r_best_poly_id == UINT32_MAX) {
@@ -297,7 +302,7 @@ void MeshInstance::teleport_agent(Agent &r_agent) {
 	// Get the fixed point velocity into the new local space.
 	//r_agent.vel.zero();
 	FPoint3 vel_local = get_transform_inverse().basis.xform(r_agent.fimpulse3);
-	r_agent.vel = mesh.float_to_fixed_point_vel(FPoint2::make(vel_local.x, vel_local.z));
+	r_agent.set_velocity(mesh.float_to_fixed_point_vel(FPoint2::make(vel_local.x, vel_local.z)));
 
 	NP_LOG(String("teleport world vel: ") + r_agent.fimpulse3 + ", local vel: " + vel_local + ", vec FP: " + r_agent.vel);
 	
@@ -406,18 +411,20 @@ void MeshInstance::iterate_agent(Agent &r_agent, Mesh::MoveInfo &r_move_info) {
 	// Add the instant impulse before the move, then remove it afterwards
 	if (r_agent.instant_impulse != IPoint2()) {
 		freal instant_length = r_agent.instant_impulse.lengthf();
-		r_agent.vel += r_agent.instant_impulse;
+		r_agent.add_velocity(r_agent.instant_impulse);
 
 		_iterate_agent(r_agent, r_move_info);
 
 		// Remove the instant impulse from the remaining velocity.
-		freal after_length = r_agent.vel.lengthf();
+		freal after_length = r_agent.get_velocity().lengthf();
 		freal new_length = after_length - instant_length;
 
 		if (new_length >= 1) {
-			r_agent.vel.normalize_to_scale(new_length);
+			IPoint2 tmp = r_agent.get_velocity();
+			tmp.normalize_to_scale(new_length);
+			r_agent.set_velocity(tmp);
 		} else {
-			r_agent.vel.zero();
+			r_agent.set_velocity(IPoint2());
 		}
 		r_agent.instant_impulse.zero();
 	} else {
@@ -493,7 +500,7 @@ void MeshInstance::iterate_agent_housekeeping(Agent &r_agent) {
 	}
 
 	// Keep the agent height updated if we are jumping.
-	if ((!r_agent.is_on_floor() || r_agent.jump_velocity > 0) && !r_agent.is_poly_id_null() && r_agent.grounded) {
+	if ((!r_agent.is_on_floor() || r_agent.get_jump_velocity() > 0) && !r_agent.is_poly_id_null() && r_agent.grounded) {
 		freal height;
 		if (mesh.find_ceiling_height(r_agent.get_poly_id(), r_agent.get_pos(), height, r_agent.ceiling_poly_id)) {
 #ifdef NP_DEV_ENABLED
@@ -836,7 +843,7 @@ bool MeshInstance::_iterate_agent_on_jump_link(Agent &r_agent, Mesh::MoveInfo &r
 }
 
 void MeshInstance::_agent_slide_on_ceiling(Agent &r_agent, Mesh::MoveInfo &r_move_info, IPoint2 &r_agent_velocity) {
-	if ((r_agent.is_on_floor() && r_agent.jump_velocity <= 0) || (r_agent.is_poly_id_null()) || !r_agent.grounded) {
+	if ((r_agent.is_on_floor() && r_agent.get_jump_velocity() <= 0) || (r_agent.is_poly_id_null()) || !r_agent.grounded) {
 		return;
 	}
 
@@ -915,8 +922,8 @@ void MeshInstance::_iterate_agent(Agent &r_agent, Mesh::MoveInfo &r_move_info) {
 	// which is not proper physics, but allows separation bodges on a single tick.
 	NP_LLLOG(String("\tpos : ") + ag.pos.x + String(", vel : ") + ag.vel.x + ", instant_vel : " + ag.instant_impulse.x);
 	//IPoint2 acting_velocity = ag.vel + ag.instant_impulse;
-
-	IPoint2 agent_remaining_velocity = ag.vel;
+	
+	IPoint2 agent_remaining_velocity = ag.get_velocity();
 	freal agent_remaining_magnitude = agent_remaining_velocity.lengthf();
 
 	// The old pos is used to calculate the velocity in the next iteration,
@@ -938,7 +945,7 @@ void MeshInstance::_iterate_agent(Agent &r_agent, Mesh::MoveInfo &r_move_info) {
 		u32 new_poly_id = mesh.find_poly_within(ag.get_pos());
 
 		if (new_poly_id == UINT32_MAX) {
-			NP_WARN_PRINT("not within poly");
+			NP_WARN_PRINT_ONCE("not within poly");
 			return;
 		} else {
 			log(String("c++ agent within poly ") + itos(ag.get_poly_id()));
@@ -1013,7 +1020,7 @@ void MeshInstance::_iterate_agent(Agent &r_agent, Mesh::MoveInfo &r_move_info) {
 		ag.set_pos(minfo.pos_reached);
 		ag.set_wall_id(minfo.wall_id);
 		
-		ag.vel = ag.get_pos() - old_pos;
+		ag.set_velocity(ag.get_pos() - old_pos);
 		//ag.vel -= ag.instant_impulse;
 		//		ag.blocking_zone_id = UINT32_MAX;
 	} else {
@@ -1021,7 +1028,7 @@ void MeshInstance::_iterate_agent(Agent &r_agent, Mesh::MoveInfo &r_move_info) {
 		//		if (minfo.poly_id != UINT32_MAX) {
 		//			ag.blocking_zone_id = mesh.get_poly_extra(minfo.poly_id).zone_id;
 		//		}
-		ag.vel.zero();
+		ag.set_velocity(IPoint2());
 		ag.state = AGENT_STATE_BLOCKED_BY_FULL_ZONE;
 
 		// print_line("narrowing blocked agent at poly " + itos(minfo.poly_id));

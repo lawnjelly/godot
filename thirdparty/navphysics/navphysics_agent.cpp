@@ -27,14 +27,28 @@ void AgentStatus::debug_print(String p_sz) {
 
 void Agent::set_height(freal p_height) {
 	if (p_height != pos.height) {
-		NP_AGENT_LOG(" set_height " + p_height);
+		NP_AGENT_LOG("set_height " + p_height);
 		pos.height = p_height;
+	}
+}
+
+void Agent::set_jump_velocity(freal p_vel) {
+	if (p_vel != vel.height) {
+		NP_AGENT_LOG("set_jump_velocity " + p_vel);
+		vel.height = p_vel;
+	}
+}
+
+void Agent::set_velocity(const IPoint2 &p_vel) {
+	if (p_vel != vel.xy) {
+		NP_AGENT_LOG("set_vel " + p_vel);
+		vel.xy = p_vel;
 	}
 }
 
 void Agent::set_pos(const IPoint2 &p_pos) {
 	if (p_pos != pos.xy) {
-		NP_AGENT_LOG(" set_pos " + p_pos);
+		NP_AGENT_LOG("set_pos " + p_pos);
 		pos.xy = p_pos;
 	}
 }
@@ -78,12 +92,12 @@ void Agent::apply_friction() {
 	// e.g. friction = pow(friction, 60 * physics_delta).
 	freal f = is_on_floor() ? friction : air_friction;
 	//log(String("vel ") + vel);
-	vel *= f;
+	set_velocity(get_velocity() * f);
 }
 
 void Agent::apply_restricted_velocity(const IPoint2 &p_new_velocity_before_restriction) {
 	if (p_new_velocity_before_restriction.is_zero()) {
-		vel = p_new_velocity_before_restriction;
+		set_velocity(p_new_velocity_before_restriction);
 		return;
 	}
 
@@ -91,14 +105,14 @@ void Agent::apply_restricted_velocity(const IPoint2 &p_new_velocity_before_restr
 
 	// Simplest case, there is no restriction in progress, pass through.
 	if (restriction <= 0) {
-		vel = p_new_velocity_before_restriction;
+		set_velocity(p_new_velocity_before_restriction);
 	}
 
 	// Apply the restriction to the CHANGE, not to the existing velocity.
-	IPoint2 diff = p_new_velocity_before_restriction - vel;
+	IPoint2 diff = p_new_velocity_before_restriction - get_velocity();
 
 	Math::restrict_velocity_to_angle(diff, yaw, restriction);
-	vel += diff;
+	add_velocity(diff);
 }
 
 void Agent::apply_impulse(FPoint3 p_impulse) {
@@ -106,7 +120,7 @@ void Agent::apply_impulse(FPoint3 p_impulse) {
 }
 
 void Agent::apply_jump(float p_vel) {
-	jump_velocity += p_vel;
+	add_jump_velocity(p_vel);
 }
 
 void Agent::iterate_jump(const MeshInstance &p_mesh_instance, const freal *p_ceiling_height) {
@@ -122,8 +136,8 @@ void Agent::iterate_jump(const MeshInstance &p_mesh_instance, const freal *p_cei
 	}
 
 	// Initial jump off the floor.
-	if (on_floor && (jump_velocity > 0)) {
-		set_height(floor_height + jump_velocity);
+	if (on_floor && (get_jump_velocity() > 0)) {
+		set_height(floor_height + get_jump_velocity());
 		on_floor = false;
 		return;
 	}
@@ -134,12 +148,12 @@ void Agent::iterate_jump(const MeshInstance &p_mesh_instance, const freal *p_cei
 		set_height(floor_height);
 	} else {
 		// Move height up or down...
-		set_height(get_height() + jump_velocity); // - gravity_half_step;
+		set_height(get_height() + get_jump_velocity()); // - gravity_half_step;
 
 		// If we hit the floor?
 		if (get_height() <= floor_height) {
 			set_height(floor_height);
-			jump_velocity = 0;
+			set_jump_velocity(0);
 			on_floor = true;
 			grounded = true;
 		} else {
@@ -157,10 +171,10 @@ void Agent::iterate_jump(const MeshInstance &p_mesh_instance, const freal *p_cei
 				// We want to force agents to always falls back to the mesh at the bottom, otherwise
 				// the behaviour is nonsense if it can't leave the mesh.
 				g_local.y = MIN(g_local.y, -0.1f);
-				jump_velocity += g_local.y;
-				vel += v;
+				add_jump_velocity(g_local.y);
+				add_velocity(v);
 			} else {
-				jump_velocity -= gravity;
+				add_jump_velocity(-gravity);
 			}
 
 			// Have we hit the ceiling?
@@ -170,7 +184,7 @@ void Agent::iterate_jump(const MeshInstance &p_mesh_instance, const freal *p_cei
 				set_height(MAX(*p_ceiling_height, floor_height));
 
 				// Eliminate any upward jump velocity so bounce off ceiling.
-				jump_velocity = MIN(jump_velocity, 0);
+				set_jump_velocity(MIN(get_jump_velocity(), 0));
 			}
 		}
 	}

@@ -85,14 +85,14 @@ bool Map::calculate_vertical_overlap_push(Agent &p_agent_a, Agent &p_agent_b) co
 #endif
 
 		if (lower->is_on_floor()) {
-			upper->jump_velocity = MAX(lower->jump_velocity, upper->jump_velocity);
+			upper->set_jump_velocity(MAX(lower->get_jump_velocity(), upper->get_jump_velocity()));
 		} else {
 			// Average the jump velocities.
 			// This isn't really any hard rules, just something that looks good.
-			freal average_jump_vel = (lower->jump_velocity + upper->jump_velocity) * 0.5f;
-
-			upper->jump_velocity = MAX(average_jump_vel, upper->jump_velocity);
-			lower->jump_velocity = average_jump_vel;
+			freal average_jump_vel = (lower->get_jump_velocity() + upper->get_jump_velocity()) * 0.5f;
+			
+			upper->set_jump_velocity(MAX(average_jump_vel, upper->get_jump_velocity()));
+			lower->set_jump_velocity(average_jump_vel);
 		}
 	}
 
@@ -102,8 +102,8 @@ bool Map::calculate_vertical_overlap_push(Agent &p_agent_a, Agent &p_agent_b) co
 bool Map::resolve_squishy_collision(Agent &p_agent_a, Agent &p_agent_b) const {
 	// We can resolve the collision based on the predicted position,
 	// rather than where we are currently.
-	IPoint2 &a_vel = p_agent_a.vel;
-	IPoint2 &b_vel = p_agent_b.vel;
+	const IPoint2 &a_vel = p_agent_a.get_velocity();
+	const IPoint2 &b_vel = p_agent_b.get_velocity();
 	IPoint2 a_pos = p_agent_a.get_pos() + a_vel;
 	IPoint2 b_pos = p_agent_b.get_pos() + b_vel;
 
@@ -141,8 +141,8 @@ bool Map::resolve_squishy_collision(Agent &p_agent_a, Agent &p_agent_b) const {
 		}
 #else
 	// Apply immediately, so this can be taken into account in the zero bounce collision.
-	a_vel -= offset;
-	b_vel += offset;
+	p_agent_a.add_velocity(-offset);
+	p_agent_b.add_velocity(offset);
 #endif
 
 	p_agent_a.state = AGENT_STATE_PENDING_COLLIDING;
@@ -152,9 +152,9 @@ bool Map::resolve_squishy_collision(Agent &p_agent_a, Agent &p_agent_b) const {
 
 void Map::resolve_zero_bounce_collision(Agent &p_agent_a, Agent &p_agent_b) const {
 	const IPoint2 &a_pos = p_agent_a.get_pos();
-	IPoint2 &a_vel = p_agent_a.vel;
+	const IPoint2 &a_vel = p_agent_a.get_velocity();
 	const IPoint2 &b_pos = p_agent_b.get_pos();
-	IPoint2 &b_vel = p_agent_b.vel;
+	const IPoint2 &b_vel = p_agent_b.get_velocity();
 
 	// Relative position, normal and distance.
 	IPoint2 rel_pos = b_pos - a_pos;
@@ -246,12 +246,12 @@ void Map::resolve_zero_bounce_collision(Agent &p_agent_a, Agent &p_agent_b) cons
 
 		IPoint2 a_impulse = rel_pos;
 		a_impulse.normalize_to_scale(a_mult);
-		a_vel += a_impulse;
+		p_agent_a.add_velocity(a_impulse);
 		//p_agent_a.set_vel(a_vel + a_impulse);
 
 		IPoint2 b_impulse = rel_pos;
 		b_impulse.normalize_to_scale(b_mult);
-		b_vel += b_impulse;
+		p_agent_b.add_velocity(b_impulse);
 		//p_agent_b.set_vel(b_vel + b_impulse);
 
 #if 0
@@ -449,6 +449,11 @@ bool Map::jump_to_new_mesh(Agent &r_agent, const FPoint3 &p_world_pos, u32 p_ign
 		// Make sure we keep the mesh unit radius up to date when changing mesh.
 		MeshInstance &meshi = g_world.get_mesh_instance(r_agent.get_mesh_instance_id());
 		r_agent.radius_mesh_units = meshi.calculate_agent_radius_in_mesh_units(r_agent.collision_radius);
+		
+		// If we are in a jump between meshes, re-establish the local position / velocity from the JFD data.
+		
+		
+		
 		return true;
 	}
 
@@ -548,13 +553,14 @@ bool Map::update_agent_mesh(Agent &r_agent, bool p_teleport_if_changed) {
 			r_agent.set_mesh_instance_id(UINT32_MAX);
 			r_agent.fpos3_teleport = r_agent.fpos3;
 			r_agent.set_is_changing_mesh(true);
+			p_teleport_if_changed = true;
 		}
 	}
 
 	// no mesh yet?
 	if (r_agent.get_mesh_instance_id() == UINT32_MAX) {
 		// find one (SLOW)
-
+		
 		jump_to_new_mesh(r_agent, r_agent.fpos3, UINT32_MAX);
 		/*
 
@@ -619,7 +625,7 @@ void Map::prepare_agent(u32 p_agent_id) {
 		const Mesh &mesh = mesh_instance.get_mesh();
 
 		IPoint2 impulse = mesh.float_to_fixed_point_vel(local_impulse.xz());
-		agent.apply_restricted_velocity(agent.vel + impulse);
+		agent.apply_restricted_velocity(agent.get_velocity() + impulse);
 		//log(String("prepare_agent : adding to vel ") + agent.vel);
 	}
 }
@@ -747,16 +753,6 @@ bool Map::iterate_agent(u32 p_agent_id, IterateResult &r_result) {
 	return true;
 }
 
-//u32 NavPhysics::Map::add_agent() {
-//	u32 id = UINT32_MAX;
-//	Agent *agent = _agents.request(id);
-//	agent->blank();
-//	return id;
-//}
-//bool NavPhysics::Map::remove_agent(u32 p_agent_id) {
-//	_agents.free(p_agent_id);
-//	return true;
-//}
 
 void NavPhysics::Map::clear() {
 	//	for (u32 n = 0; n < _meshes.active_size(); n++) {
@@ -770,16 +766,6 @@ void NavPhysics::Map::clear() {
 	_mesh_instances.clear();
 }
 
-//void NavPhysics::Map::navphysics_set_params(u32 p_agent_id, freal p_friction) {
-//	Agent &agent = _agents[p_agent_id];
-//	agent.friction = CLAMP(p_friction, 0.0f, 1.0f);
-//}
-
-//void NavPhysics::Map::navphysics_add_impulse(u32 p_agent_id, const FPoint3 &p_impulse) {
-//	Agent &agent = _agents[p_agent_id];
-//	agent.fvel3 += p_impulse;
-//}
-
 void Map::body_teleport_to_agent_status_jump_target(Agent &r_agent, u32 p_agent_id) {
 	//AgentStatus::debug_print("body_teleport_to_agent_status_jump_target");
 
@@ -789,14 +775,14 @@ void Map::body_teleport_to_agent_status_jump_target(Agent &r_agent, u32 p_agent_
 	NP_DEV_ASSERT(r_agent.get_pos() != IPoint2(INT32_MAX, INT32_MAX));
 	
 	r_agent.set_height(AgentStatus::jump_target_local_height);
-	r_agent.vel = AgentStatus::jump_target_vel;
-	NP_DEV_ASSERT(r_agent.vel != IPoint2(INT32_MAX, INT32_MAX));
-
-	log(String("Old jump velocity : ") + r_agent.jump_velocity + ", New jump vel : " + AgentStatus::jump_target_jump_vel);
+	r_agent.set_velocity(AgentStatus::jump_target_vel);
+	NP_DEV_ASSERT(r_agent.get_velocity() != IPoint2(INT32_MAX, INT32_MAX));
+	
+	log(String("Old jump velocity : ") + r_agent.get_jump_velocity() + ", New jump vel : " + AgentStatus::jump_target_jump_vel);
 
 	// Note this is tested with jumping between meshes.
 	// TODO: make sure this is correct for internal jumps.
-	r_agent.jump_velocity = AgentStatus::jump_target_jump_vel;
+	r_agent.set_jump_velocity(AgentStatus::jump_target_jump_vel);
 
 	MeshInstance &meshi = g_world.get_mesh_instance(r_agent.get_mesh_instance_id());
 	const Mesh &mesh = meshi.get_mesh();
