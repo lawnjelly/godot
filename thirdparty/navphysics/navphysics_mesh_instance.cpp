@@ -123,7 +123,8 @@ void MeshInstance::_set_transform(const Transform &p_xform, const Transform &p_x
 
 freal MeshInstance::find_agent_jump_fit(Agent &r_agent, const JumpFinderData &p_jump_data, u32 &r_best_poly_id, freal p_max_step_up, freal p_max_drop, freal p_best_fit_so_far) const {
 	// Short alias.
-	JumpFinderData jd = p_jump_data;
+	//JumpFinderData jd = p_jump_data;
+	JumpFinderDataLocal jl;
 
 	r_best_poly_id = UINT32_MAX;
 
@@ -133,24 +134,24 @@ freal MeshInstance::find_agent_jump_fit(Agent &r_agent, const JumpFinderData &p_
 	// COPY of jump data, not reference, as we will be changing to local space.
 	// xform agent world space to local space
 
-#define NP_FIND_AGENT_JUMP_WORLD_TO_FP(WORLD_POS, FP)               \
-	{                                                               \
-		jd.WORLD_POS = get_transform_inverse().xform(jd.WORLD_POS); \
-		jd.FP = mesh.float_to_fixed_point_2(jd.WORLD_POS.xz());     \
+#define NP_FIND_AGENT_JUMP_WORLD_TO_FP(PARAM)                                                  \
+	{                                                                                          \
+		jl.pt_##PARAM##_local = get_transform_inverse().xform(p_jump_data.pt_##PARAM##_world); \
+		jl.PARAM##_local = mesh.float_to_fixed_point_2(jl.pt_##PARAM##_local.xz());            \
 	}
 
-	NP_FIND_AGENT_JUMP_WORLD_TO_FP(pt_from_world, pt_from_local);
-	NP_FIND_AGENT_JUMP_WORLD_TO_FP(pt_to_world, pt_to_local);
-	NP_FIND_AGENT_JUMP_WORLD_TO_FP(pt_far_world, pt_far_local);
+	NP_FIND_AGENT_JUMP_WORLD_TO_FP(from);
+	NP_FIND_AGENT_JUMP_WORLD_TO_FP(to);
+	NP_FIND_AGENT_JUMP_WORLD_TO_FP(far);
 
 	// TODO: Can these local velocities be calculated after the AABB check?
 
 	// FROM IS TOO FAR FORWARD, WE NEED TO BACK TRACK
-	FPoint3 vel_local = get_transform_inverse().basis.xform(jd.vel_world);
-	jd.vel_local.xy = mesh.float_to_fixed_point_vel(vel_local.xz());
+	FPoint3 vel_local = get_transform_inverse().basis.xform(p_jump_data.vel_world);
+	jl.vel_local.xy = mesh.float_to_fixed_point_vel(vel_local.xz());
 
 	// Calculate the local jump velocity.
-	jd.vel_local.height = vel_local.y;
+	jl.vel_local.height = vel_local.y;
 
 #ifdef NP_DEV_ENABLED
 	// FPoint3 unit_test_world_vel = local_velocity_with_jump_velocity_to_world_space(mesh, jd.vel_local2, jd.vel_local_jump);
@@ -173,8 +174,8 @@ freal MeshInstance::find_agent_jump_fit(Agent &r_agent, const JumpFinderData &p_
 	aabb.size.y += p_max_step_up;
 
 	AABB aabb_jump;
-	aabb_jump.position = jd.pt_from_world;
-	aabb_jump.expand_to(jd.pt_far_world);
+	aabb_jump.position = jl.pt_from_local;
+	aabb_jump.expand_to(jl.pt_far_local);
 
 	if (!aabb.overlaps_aabb_or_above(aabb_jump)) {
 		NP_LLOG("\tnot in aabb");
@@ -188,23 +189,23 @@ freal MeshInstance::find_agent_jump_fit(Agent &r_agent, const JumpFinderData &p_
 	p_max_drop += jump_height;
 
 	freal fit = p_best_fit_so_far;
-	
+
 	// Note that this routine is an optimized one that relies on the velocity crossing a poly wall,
 	// and therefore that the up vectors of both meshes are somewhat aligned.
 	// If the two meshes are at 90 degrees, and the velocity is _straight down_ into the new mesh,
 	// no wall may be crossed, and this will return UINT32_MAX, so we need to try the slower backup path.
-	r_best_poly_id = mesh.find_best_jump_poly_within(r_agent, jd, p_max_drop, p_max_step_up, fit);
+	r_best_poly_id = mesh.find_best_jump_poly_within(r_agent, jl, p_max_drop, p_max_step_up, fit);
 
 	if (r_best_poly_id == UINT32_MAX) {
 		// If the external links fail, try teleporting directly into the new mesh.
-		r_best_poly_id = mesh.find_best_poly_within(jd.pt_to_local, jd.pt_to_world.y, p_max_drop, p_max_step_up, fit);
+		r_best_poly_id = mesh.find_best_poly_within(jl.to_local, jl.pt_to_local.y, p_max_drop, p_max_step_up, fit);
 
 		if ((r_best_poly_id != UINT32_MAX) && (fit < p_best_fit_so_far)) {
-			AgentStatus::jump_target_cross_pos = jd.pt_to_local;
-			AgentStatus::jump_target_vel = jd.vel_local.xy;
-			AgentStatus::jump_target_jump_vel = jd.vel_local.height;
+			AgentStatus::jump_target_cross_pos = jl.to_local;
+			AgentStatus::jump_target_vel = jl.vel_local.xy;
+			AgentStatus::jump_target_jump_vel = jl.vel_local.height;
 			AgentStatus::jump_cross_only = true;
-			AgentStatus::jump_target_local_height = jd.pt_to_world.y;
+			AgentStatus::jump_target_local_height = jl.pt_to_local.y;
 
 			//AgentStatus::jump_target_world_space_vel = local_velocity_to_world_space(get_mesh(), AgentStatus::jump_target_vel);
 		}
@@ -305,9 +306,9 @@ void MeshInstance::teleport_agent(Agent &r_agent) {
 	r_agent.set_velocity(mesh.float_to_fixed_point_vel(FPoint2::make(vel_local.x, vel_local.z)));
 
 	NP_LOG(String("teleport world vel: ") + r_agent.fimpulse3 + ", local vel: " + vel_local + ", vec FP: " + r_agent.vel);
-	
+
 	r_agent.set_pos(mesh.float_to_fixed_point_2(r_agent.fpos));
-	
+
 	NP_LOG(String("\tr_agent.pos is ") + r_agent.get_pos());
 	//r_agent.pos.set(7906, 41409);
 
@@ -697,7 +698,7 @@ void MeshInstance::body_dual_trace(const Agent &p_agent, FPoint3 p_intermediate_
 	// transform destination to mesh space
 	p_intermediate_destination = get_transform_inverse().xform(p_intermediate_destination);
 	IPoint2 intermediate_to = mesh.float_to_fixed_point_2(FPoint2::make(p_intermediate_destination.x, p_intermediate_destination.z));
-	
+
 	Mesh::TraceResult res = mesh.recursive_trace(0, p_agent.get_pos(), intermediate_to, p_agent.get_poly_id(), trace_info);
 	r_result.mesh.first_trace_hit = (res != Mesh::TR_CLEAR);
 
@@ -739,7 +740,7 @@ void MeshInstance::body_trace(const Agent &p_agent, NavPhysics::TraceResult &r_r
 	dest = get_transform_inverse().xform(dest);
 
 	IPoint2 to = mesh.float_to_fixed_point_2(FPoint2::make(dest.x, dest.z));
-	
+
 	Mesh::TraceResult res = mesh.recursive_trace(0, p_agent.get_pos(), to, p_agent.get_poly_id(), trace_info);
 	r_result.mesh.hit = (res != Mesh::TR_CLEAR);
 
@@ -785,7 +786,7 @@ bool MeshInstance::_iterate_agent_on_jump_link(Agent &r_agent, Mesh::MoveInfo &r
 
 	const IPoint2 &dest = ag.jump_link_target_pos;
 	u32 &wall_id = ag.jump_link_wall_id;
-	
+
 	IPoint2 offset = dest - ag.get_pos();
 	//freal mag = ag.vel.lengthf();
 
@@ -797,7 +798,7 @@ bool MeshInstance::_iterate_agent_on_jump_link(Agent &r_agent, Mesh::MoveInfo &r
 	}
 
 	offset.normalize_to_scale(r_distance);
-	
+
 	IPoint2 orig_agent_pos = ag.get_pos();
 	ag.set_pos(orig_agent_pos + offset);
 
@@ -828,7 +829,7 @@ bool MeshInstance::_iterate_agent_on_jump_link(Agent &r_agent, Mesh::MoveInfo &r
 		freal dist_to_targ = (dest - orig_agent_pos).lengthf();
 		r_distance -= dist_to_targ;
 		r_distance = MAX(r_distance, (freal)0);
-		
+
 		ag.set_pos(dest);
 		ag.force_off_floor();
 
@@ -848,7 +849,7 @@ void MeshInstance::_agent_slide_on_ceiling(Agent &r_agent, Mesh::MoveInfo &r_mov
 	}
 
 	const Mesh &mesh = get_mesh();
-	
+
 	IPoint2 dest_pos = r_agent.get_pos() + r_agent_velocity;
 	freal height;
 	if (!mesh.find_ceiling_height(r_agent.get_poly_id(), dest_pos, height, r_agent.ceiling_poly_id)) {
@@ -922,7 +923,7 @@ void MeshInstance::_iterate_agent(Agent &r_agent, Mesh::MoveInfo &r_move_info) {
 	// which is not proper physics, but allows separation bodges on a single tick.
 	NP_LLLOG(String("\tpos : ") + ag.pos.x + String(", vel : ") + ag.vel.x + ", instant_vel : " + ag.instant_impulse.x);
 	//IPoint2 acting_velocity = ag.vel + ag.instant_impulse;
-	
+
 	IPoint2 agent_remaining_velocity = ag.get_velocity();
 	freal agent_remaining_magnitude = agent_remaining_velocity.lengthf();
 
@@ -1019,7 +1020,7 @@ void MeshInstance::_iterate_agent(Agent &r_agent, Mesh::MoveInfo &r_move_info) {
 	if (_agent_enter_poly(r_agent, minfo.poly_id)) {
 		ag.set_pos(minfo.pos_reached);
 		ag.set_wall_id(minfo.wall_id);
-		
+
 		ag.set_velocity(ag.get_pos() - old_pos);
 		//ag.vel -= ag.instant_impulse;
 		//		ag.blocking_zone_id = UINT32_MAX;

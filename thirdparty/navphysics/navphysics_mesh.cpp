@@ -110,10 +110,10 @@ bool Mesh::_agent_enter_poly(u32 p_old_poly_id, u32 p_new_poly_id, bool p_force_
 }
 */
 
-u32 Mesh::find_best_jump_poly_within(const Agent &p_agent, const JumpFinderData &p_jd, freal p_max_drop, freal p_max_step_up, freal &r_goodness_of_fit) const {
+u32 Mesh::find_best_jump_poly_within(const Agent &p_agent, const JumpFinderDataLocal &p_jl, freal p_max_drop, freal p_max_step_up, freal &r_goodness_of_fit) const {
 	// Go through the list of external connecting edges and see if
 	// the jump crosses any.
-	freal p_height = p_jd.pt_to_world.y;
+	freal p_height = p_jl.pt_to_local.y;
 
 	IPoint2 a, b;
 	IPoint2 pt_hit;
@@ -128,7 +128,7 @@ u32 Mesh::find_best_jump_poly_within(const Agent &p_agent, const JumpFinderData 
 		u32 wid = data.external_wall_ids_final[w];
 
 		// If we are starting from the wrong side of the wall, ignore.
-		i64 cross = wall_cross(wid, p_jd.pt_from_local);
+		i64 cross = wall_cross(wid, p_jl.from_local);
 		if (cross >= 0) {
 			continue;
 		}
@@ -136,7 +136,7 @@ u32 Mesh::find_best_jump_poly_within(const Agent &p_agent, const JumpFinderData 
 		get_wall_verts(wid, a, b);
 
 		// Collision detect the segments.
-		if (!find_line_segments_intersect_integer(p_jd.pt_from_local, p_jd.pt_far_local, a, b, pt_hit)) {
+		if (!find_line_segments_intersect_integer(p_jl.from_local, p_jl.far_local, a, b, pt_hit)) {
 			continue;
 		}
 
@@ -147,12 +147,12 @@ u32 Mesh::find_best_jump_poly_within(const Agent &p_agent, const JumpFinderData 
 		// Return information in the form of a jump,
 		// but ONLY if the wall edge is IN FRONT of us
 		// and not behind.
-		IPoint2 pt_curr_perpendicular = p_jd.pt_to_local;
-		IPoint2 vel = p_jd.pt_to_local - p_jd.pt_from_local;
+		IPoint2 pt_curr_perpendicular = p_jl.to_local;
+		IPoint2 vel = p_jl.to_local - p_jl.from_local;
 		pt_curr_perpendicular += IPoint2(vel.y, -vel.x);
 
-		IPoint2 wall_vec = pt_curr_perpendicular - p_jd.pt_to_local;
-		IPoint2 point_vec = pt_hit - p_jd.pt_to_local;
+		IPoint2 wall_vec = pt_curr_perpendicular - p_jl.to_local;
+		IPoint2 point_vec = pt_hit - p_jl.to_local;
 		cross = wall_vec.cross(point_vec);
 
 		// We will allow the move EITHER
@@ -166,8 +166,8 @@ u32 Mesh::find_best_jump_poly_within(const Agent &p_agent, const JumpFinderData 
 		if (ahead) {
 			allow = true;
 		} else {
-			if (poly_contains_point(poly_id, p_jd.pt_to_local)) {
-				pt_hit = p_jd.pt_to_local;
+			if (poly_contains_point(poly_id, p_jl.to_local)) {
+				pt_hit = p_jl.to_local;
 				allow = true;
 			}
 		}
@@ -179,7 +179,7 @@ u32 Mesh::find_best_jump_poly_within(const Agent &p_agent, const JumpFinderData 
 			// Calculate the height of the agent AFTER the jump to the ledge,
 			// at the current velocity.
 			// This is potentially slow calculation, or can use look up table.
-			freal agent_height_after_jump = _estimate_height_after_ledge_jump(p_agent, p_height, p_jd.vel_local.xy.lengthf(), (pt_hit - p_jd.pt_to_local).lengthf());
+			freal agent_height_after_jump = _estimate_height_after_ledge_jump(p_agent, p_height, p_jl.vel_local.xy.lengthf(), (pt_hit - p_jl.to_local).lengthf());
 
 			//log(String("\t\tpredicted jump to ledge is ") + (agent_height_after_jump - p_height) + " different than current agent height for poly ID " + poly_id + ".");
 
@@ -211,10 +211,10 @@ u32 Mesh::find_best_jump_poly_within(const Agent &p_agent, const JumpFinderData 
 				freal fit = ABS(best_height);
 
 				if (fit < r_goodness_of_fit) {
-					AgentStatus::jump_target_vel = p_jd.vel_local.xy;
-					AgentStatus::jump_target_jump_vel = p_jd.vel_local.height;
-					AgentStatus::jump_target_cross_pos = p_jd.pt_to_local;
-					AgentStatus::jump_target_local_height = p_jd.pt_to_world.y;
+					AgentStatus::jump_target_vel = p_jl.vel_local.xy;
+					AgentStatus::jump_target_jump_vel = p_jl.vel_local.height;
+					AgentStatus::jump_target_cross_pos = p_jl.to_local;
+					AgentStatus::jump_target_local_height = p_jl.pt_to_local.y;
 
 					if (ahead) {
 						//log(String("Mesh::find_best_jump_poly_within JUMP to connecting wall ") + wid);

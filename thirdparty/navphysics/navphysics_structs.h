@@ -87,10 +87,6 @@ struct JumpFinderData {
 	FPoint3 pt_to_world;
 	FPoint3 pt_far_world;
 	
-	IPoint2 pt_from_local;
-	IPoint2 pt_to_local;
-	IPoint2 pt_far_local;
-
 //#define NP_VERIFY_JUMP_FINDER_VELOCITY
 #ifdef NP_VERIFY_JUMP_FINDER_VELOCITY
 	FPoint3 pt_verify_curr_plus_vel;
@@ -99,9 +95,23 @@ struct JumpFinderData {
 
 	FPoint3 vel_world;
 	
-	LocalPoint3 vel_local;
 	//IPoint2 vel_local2;
 	//freal vel_local_jump = 0;
+};
+
+struct JumpFinderDataLocal
+{
+	FPoint3 pt_from_local;
+	FPoint3 pt_to_local;
+	FPoint3 pt_far_local;
+	
+	IPoint2 from_local;
+	IPoint2 to_local;
+	IPoint2 far_local;
+	
+	freal to_local_height = 0;
+	
+	LocalPoint3 vel_local;
 };
 
 enum ZoneType : u32 {
