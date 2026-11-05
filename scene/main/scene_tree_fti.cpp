@@ -59,6 +59,7 @@ void SceneTreeFTI::_reset_spatial_flags(Spatial &r_spatial) {
 	r_spatial.data.fti_on_frame_xform_list = false;
 	r_spatial.data.fti_on_frame_property_list = false;
 	r_spatial.data.fti_global_xform_interp_set = false;
+	r_spatial.data.fti_global_xform_interp_valid = false;
 	r_spatial.data.fti_frame_xform_force_update = false;
 	r_spatial.data.fti_processed = false;
 }
@@ -365,6 +366,11 @@ void SceneTreeFTI::_spatial_notify_set_xform(Spatial &r_spatial) {
 			_spatial_add_to_frame_list(r_spatial, true);
 		}
 
+		// Any previously calculated values will now be invalid.
+		// We could set this flag for interpolated nodes, but they should not
+		// be moved outside `_physics_process()` anyway, by convention.
+		r_spatial.data.fti_global_xform_interp_valid = false;
+
 		// ToDo: Double check this is a win,
 		// non-interpolated nodes we always check for identity,
 		// *just in case*.
@@ -520,6 +526,7 @@ void SceneTreeFTI::_update_dirty_spatials(Node *p_node, uint32_t p_current_half_
 		// This can later be used when calling `get_global_transform_interpolated()`
 		// to know which xform to return.
 		s->data.fti_global_xform_interp_set = p_active;
+		s->data.fti_global_xform_interp_valid = p_active;
 	}
 
 	if (p_active) {

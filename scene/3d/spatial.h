@@ -127,6 +127,7 @@ private:
 		bool fti_on_tick_xform_list : 1;
 		bool fti_on_tick_property_list : 1;
 		bool fti_global_xform_interp_set : 1;
+		bool fti_global_xform_interp_valid : 1;
 		bool fti_frame_xform_force_update : 1;
 		bool fti_is_identity_xform : 1;
 		bool fti_processed : 1;
@@ -232,7 +233,7 @@ public:
 
 	Transform get_transform() const;
 	Transform get_global_transform() const;
-	Transform get_global_transform_interpolated();
+	Transform get_global_transform_interpolated() const;
 	bool update_client_physics_interpolation_data();
 
 #ifdef TOOLS_ENABLED

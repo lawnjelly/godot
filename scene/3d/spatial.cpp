@@ -484,7 +484,7 @@ Transform Spatial::_get_global_transform_interpolated(real_t p_interpolation_fra
 
 // Visible nodes - get_global_transform_interpolated is cheap.
 // Invisible nodes - get_global_transform_interpolated is expensive, try to avoid.
-Transform Spatial::get_global_transform_interpolated() {
+Transform Spatial::get_global_transform_interpolated() const {
 #if 1
 	// Pass through if physics interpolation is switched off.
 	// This is a convenience, as it allows you to easy turn off interpolation
@@ -495,7 +495,23 @@ Transform Spatial::get_global_transform_interpolated() {
 
 		// Cheap case.
 		if (is_visible_in_tree()) {
-			return data.fti_global_xform_interp_set ? data.global_transform_interpolated : get_global_transform();
+			if (data.fti_global_xform_interp_set) {
+				if (data.fti_global_xform_interp_valid) {
+					// Cached value is up to date.
+					return data.global_transform_interpolated;
+				} else {
+					// This node has been moved SINCE the cached value in the scene tree was calculated,
+					// i.e. during `_process()`, so we can't rely on the cached value.
+					// Instead recalculate it up the chain from the first ancestor that has a valid cached value.
+					if (get_parent_spatial()) {
+						return get_parent_spatial()->get_global_transform_interpolated() * get_transform();
+					}
+					// Root node.
+					return get_global_transform();
+				}
+			}
+			// Not part of an interpolated branch, just revert to standard Godot routines.
+			return get_global_transform();
 		}
 
 		// If we got here we are invisible.
@@ -1264,7 +1280,14 @@ Spatial::Spatial() :
 	data.fti_on_frame_property_list = false;
 	data.fti_on_tick_xform_list = false;
 	data.fti_on_tick_property_list = false;
+
+	// These two flags are used together.
+	// They are both set to true when the SceneTreeFTI sets a cached value.
+	// However the cached value can be invalidated.
+	// We need two flags in order to identify branches that have not been hit by FTI at all.
 	data.fti_global_xform_interp_set = false;
+	data.fti_global_xform_interp_valid = false;
+
 	data.fti_frame_xform_force_update = false;
 	data.fti_is_identity_xform = false;
 	data.fti_processed = false;
