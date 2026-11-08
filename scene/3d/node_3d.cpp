@@ -525,7 +525,7 @@ Transform3D Node3D::_get_global_transform_interpolated(real_t p_interpolation_fr
 
 // Visible nodes - get_global_transform_interpolated is cheap.
 // Invisible nodes - get_global_transform_interpolated is expensive, try to avoid.
-Transform3D Node3D::get_global_transform_interpolated() {
+Transform3D Node3D::get_global_transform_interpolated() const {
 #if 1
 	// Pass through if physics interpolation is switched off.
 	// This is a convenience, as it allows you to easy turn off interpolation
@@ -534,12 +534,71 @@ Transform3D Node3D::get_global_transform_interpolated() {
 		// Note that with SceneTreeFTI, we may want to calculate interpolated transform for a node
 		// with physics interpolation set to OFF, if it has a parent that is ON.
 
-		// Cheap case.
-		// We already pre-cache the visible_in_tree for VisualInstances, but NOT for Node3Ds, so we have to
-		// deal with non-VIs the slow way.
-		if (Object::cast_to<VisualInstance3D>(this) && _is_vi_visible() && data.fti_global_xform_interp_set) {
-			return data.global_transform_interpolated;
+		// Simplest case - the node is visible, and has not been marked dirty by a set_transform
+		// during the frame.
+		if (Object::cast_to<VisualInstance3D>(this) && _is_vi_visible() && !(data.dirty & Node3D::DIRTY_GLOBAL_INTERPOLATED_TRANSFORM)) {
+			return data.fti_global_xform_interp_set ? data.global_transform_interpolated : get_global_transform();
 		}
+
+		if (unlikely(_get_scene_tree_depth() < 1)) {
+			// This should not happen unless there a problem has been introduced in the scene tree depth code.
+			// Print a non-spammy error and return something reasonable.
+			ERR_PRINT_ONCE("depth is < 1.");
+			return get_global_transform();
+		}
+
+		// If we got here we are either invisible (invisible node interpolated xforms are not calculated normally
+		// by SceneTreeFTI), or the cached xform is invalid.
+		// We must therefore calculate the chain on the fly, in order to find the interpolated transform.
+		const Node3D *s = this;
+		const Node3D *first_valid = nullptr;
+
+		// Reserve enough room on the stack to store the entire chain to the root node
+		// (it probably won't all be needed, but we don't know this in advance).
+		const Node3D **parents = (const Node3D **)alloca((sizeof(const Node3D *) * _get_scene_tree_depth()));
+		int32_t num_parents = 0;
+
+		// We start calculating the chain from the first visible node that is not dirty (from a set_transform()
+		// during the frame).
+		while (s) {
+			if (s->data.visible_in_tree && !(data.dirty & Node3D::DIRTY_GLOBAL_INTERPOLATED_TRANSFORM)) {
+				first_valid = s;
+				break;
+			}
+
+			parents[num_parents++] = s;
+			s = s->data.parent;
+		}
+
+		// Now calculate the interpolated chain forwards.
+		float interpolation_fraction = Engine::get_singleton()->get_physics_interpolation_fraction();
+
+		// Seed the xform with the visible parent.
+		Transform3D xform;
+		Transform3D local_interp;
+
+		// If first_valid is NULL, we are calculating from the root, in which case we can leave the parent xform as identity.
+		if (first_valid) {
+			xform = first_valid->data.fti_global_xform_interp_set ? first_valid->data.global_transform_interpolated : first_valid->get_global_transform();
+		}
+
+		// Backwards through the list is forwards through the chain through the tree, from the root to the leaves.
+		for (int32_t n = num_parents - 1; n >= 0; n--) {
+			s = parents[n];
+
+			if (s->is_physics_interpolated()) {
+				// Make sure to call `get_transform()` rather than using local_transform directly, because
+				// local_transform may be dirty and need updating from rotation / scale.
+				TransformInterpolator::interpolate_transform(s->data.local_transform_prev, s->get_transform(), local_interp, interpolation_fraction);
+			} else {
+				local_interp = s->get_transform();
+			}
+			xform *= local_interp;
+		}
+
+		// We could save this in case of multiple calls,
+		// but probably not necessary.
+		return xform;
 
 		// Find out if visible in tree.
 		// If not visible in tree, find the FIRST ancestor that is visible in tree.

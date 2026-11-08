@@ -280,7 +280,7 @@ public:
 	Quaternion get_quaternion() const;
 	Transform3D get_global_transform() const;
 
-	Transform3D get_global_transform_interpolated();
+	Transform3D get_global_transform_interpolated() const;
 	bool update_client_physics_interpolation_data();
 
 #ifdef TOOLS_ENABLED
