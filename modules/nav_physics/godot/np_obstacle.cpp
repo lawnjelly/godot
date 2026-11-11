@@ -7,6 +7,9 @@ void NPObstacle_Box::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_width", "width"), &NPObstacle_Box::set_width);
 	ClassDB::bind_method(D_METHOD("get_width"), &NPObstacle_Box::get_width);
 
+	ClassDB::bind_method(D_METHOD("set_height", "height"), &NPObstacle_Box::set_height);
+	ClassDB::bind_method(D_METHOD("get_height"), &NPObstacle_Box::get_height);
+
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "width", PROPERTY_HINT_RANGE, "0,1024,0.01,or_greater"), "set_width", "get_width");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "height", PROPERTY_HINT_RANGE, "0,1024,0.01,or_greater"), "set_height", "get_height");
 }

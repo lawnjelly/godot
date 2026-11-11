@@ -17,6 +17,7 @@ class Mesh;
 class MeshInstance;
 class Region;
 class POI;
+class Obstacle;
 struct Agent;
 
 class Map {
@@ -50,9 +51,9 @@ public:
 	void unregister_mesh_instance(u32 p_mesh_instance_id, u32 p_mesh_slot_id);
 
 	u32 find_best_fit_agent_mesh(Agent &r_agent, const FPoint3 &p_world_pos, u32 p_ignore_mesh_id, const JumpFinderData *p_jump_data = nullptr) const;
-	
+
 	bool jump_to_new_mesh(Agent &r_agent, const FPoint3 &p_world_pos, u32 p_ignore_mesh_id, const JumpFinderData *p_jump_data = nullptr) const;
-	
+
 	void set_map_id(u32 p_id) { _map_id = p_id; }
 
 	void init(np_handle p_handle) {
@@ -164,6 +165,7 @@ class World {
 	WorldPool<Mesh> _meshes;
 	WorldPool<MeshInstance> _mesh_instances;
 	WorldPool<POI> _pois;
+	WorldPool<Obstacle> _obstacles;
 
 	// Agent is stored directly rather than as a WorldPool
 	// so as to prevent an indirection and give fast access.
@@ -184,12 +186,19 @@ public:
 	static void set_ticks_per_second(u32 p_tps);
 	static void set_agent_callback(np_agent_callback p_callback);
 
+#define NP_DECL_SAFE_GET(a, b, c) \
+	NavPhysics::a *safe_get_##b(np_handle p_handle, u32 *r_id = nullptr) { return _##b##c##s.safe_get_object(p_handle, r_id); }
+
 	NavPhysics::Agent *safe_get_body(np_handle p_body, u32 *r_id = nullptr);
-	NavPhysics::Mesh *safe_get_mesh(np_handle p_mesh, u32 *r_id = nullptr) { return _meshes.safe_get_object(p_mesh, r_id); }
-	NavPhysics::MeshInstance *safe_get_mesh_instance(np_handle p_mesh_instance, u32 *r_id = nullptr) { return _mesh_instances.safe_get_object(p_mesh_instance, r_id); }
-	NavPhysics::Region *safe_get_region(np_handle p_region, u32 *r_id = nullptr) { return _regions.safe_get_object(p_region, r_id); }
-	NavPhysics::Map *safe_get_map(np_handle p_map, u32 *r_id = nullptr) { return _maps.safe_get_object(p_map, r_id); }
-	NavPhysics::POI *safe_get_poi(np_handle p_poi, u32 *r_id = nullptr) { return _pois.safe_get_object(p_poi, r_id); }
+
+	NP_DECL_SAFE_GET(Mesh, mesh, e)
+	NP_DECL_SAFE_GET(MeshInstance, mesh_instance, )
+	NP_DECL_SAFE_GET(Region, region, )
+	NP_DECL_SAFE_GET(Map, map, )
+	NP_DECL_SAFE_GET(POI, poi, )
+	NP_DECL_SAFE_GET(Obstacle, obstacle, )
+
+#undef NP_DECL_SAFE_GET
 
 	NavPhysics::Agent &get_body(u32 p_id) { return _agents[p_id]; }
 	NavPhysics::Mesh &get_mesh(u32 p_id) { return *_meshes.pool[p_id].object; }
