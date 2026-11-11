@@ -108,7 +108,7 @@ class NPMesh : public Resource {
 	//class NPMesh : public Reference {
 	//	GDCLASS(NPMesh, Reference);
 	GDCLASS(NPMesh, Resource);
-	OBJ_SAVE_TYPE(NPMesh);
+	//OBJ_SAVE_TYPE(NPMesh);
 	RES_BASE_EXTENSION("npmesh");
 
 	void log(String p_string) const;

@@ -5,7 +5,7 @@
 
 class NPBakeParams_Agent : public Resource {
 	GDCLASS(NPBakeParams_Agent, Resource);
-	OBJ_SAVE_TYPE(NPBakeParams_Agent);
+	//OBJ_SAVE_TYPE(NPBakeParams_Agent);
 	RES_BASE_EXTENSION("npbake_agent");
 
 public:
@@ -37,7 +37,7 @@ VARIANT_ENUM_CAST(NPBakeParams_Agent::Param);
 
 class NPBakeParams_Mesh : public Resource {
 	GDCLASS(NPBakeParams_Mesh, Resource);
-	OBJ_SAVE_TYPE(NPBakeParams_Mesh);
+	//OBJ_SAVE_TYPE(NPBakeParams_Mesh);
 	RES_BASE_EXTENSION("npbake_mesh");
 
 public:
