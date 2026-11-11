@@ -22,4 +22,14 @@ public:
 	}
 };
 
+class Obstacle
+{
+public:
+	LocalPoint3 local_point;
+	np_handle handle_mesh_instance = UINT32_MAX;
+	
+	void init(np_handle p_handle) {
+	}
+};
+
 } //namespace NavPhysics
