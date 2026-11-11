@@ -721,7 +721,7 @@ NPAgent::TestResult NPAgent::ray_test_agent(const Node *p_np_agent) const {
 
 	NavPhysics::MeshInstance &mi = NPWORLD.get_mesh_instance(agent_B->get_mesh_instance_id());
 
-	return mi.get_mesh().ray_test(agent_A->get_pos().xz(), agent_A->get_poly_id(), agent_B->get_pos().xz(), agent_B->get_poly_id()) ? TEST_RESULT_CLEAR : TEST_RESULT_BLOCKED_WALL;
+	return mi.get_mesh().ray_test_xz(agent_A->get_local_point(), agent_B->get_local_point()) ? TEST_RESULT_CLEAR : TEST_RESULT_BLOCKED_WALL;
 }
 
 NPAgent::TestResult NPAgent::ray_test_point(const Node *p_np_point) const {
@@ -743,7 +743,7 @@ NPAgent::TestResult NPAgent::ray_test_point(const Node *p_np_point) const {
 		return TEST_RESULT_DIFFERENT_MESH;
 	}
 
-	return mi.get_mesh().ray_test(agent->get_pos().xz(), agent->get_poly_id(), poi->local_pos.xz(), poi->poly_id) ? TEST_RESULT_CLEAR : TEST_RESULT_BLOCKED_WALL;
+	return mi.get_mesh().ray_test_xz(agent->get_local_point(), poi->local_point) ? TEST_RESULT_CLEAR : TEST_RESULT_BLOCKED_WALL;
 }
 
 void NPAgent::nav_teleport(const Vector3 &p_pos) {

@@ -812,7 +812,7 @@ void Map::body_teleport_to_agent_status_jump_target(Agent &r_agent, u32 p_agent_
 	//r_agent.set_jump_velocity(AgentStatus::jump_target_jump_vel);
 
 	MeshInstance &meshi = g_world.get_mesh_instance(r_agent.get_mesh_instance_id());
-	const Mesh &mesh = meshi.get_mesh();
+	//const Mesh &mesh = meshi.get_mesh();
 	r_agent.radius_mesh_units = meshi.calculate_agent_radius_in_mesh_units(r_agent.collision_radius);
 
 	// Compare the result of the world space velocity.
