@@ -401,7 +401,7 @@ bool Map::jump_to_new_mesh(Agent &r_agent, const FPoint3 &p_world_pos, u32 p_ign
 
 		max_step_up = mesh.get_mesh_params().exit_max_step_up;
 		max_drop = mesh.get_mesh_params().exit_max_drop;
-		
+
 		// Get the old world velocity if we can, so we can resync it if we change mesh.
 		world_vel = mesh_instance.velocity_local_fixed_point_to_world_space(mesh, r_agent.get_velocity());
 	}
@@ -429,7 +429,7 @@ bool Map::jump_to_new_mesh(Agent &r_agent, const FPoint3 &p_world_pos, u32 p_ign
 
 		u32 poly_id = UINT32_MAX;
 		freal fit = 0;
-		
+
 		NP_LOG(String("ATTEMPTING JUMP from mesh id ") + p_ignore_mesh_id);
 
 		if (p_jump_data) {
@@ -463,10 +463,9 @@ bool Map::jump_to_new_mesh(Agent &r_agent, const FPoint3 &p_world_pos, u32 p_ign
 		r_agent.radius_mesh_units = meshi.calculate_agent_radius_in_mesh_units(r_agent.collision_radius);
 
 		// If we are in a jump between meshes, re-establish the local position / velocity from the JFD data.
-		if (!p_jump_data)
-		{
+		if (!p_jump_data) {
 			const Mesh &mesh = meshi.get_mesh();
-			
+
 			r_agent.set_pos(meshi.world_space_to_local_fixed_point(mesh, p_world_pos));
 			r_agent.set_velocity(meshi.velocity_world_space_to_local_fixed_point(mesh, world_vel));
 		}
@@ -620,8 +619,8 @@ void Map::prepare_agent(u32 p_agent_id) {
 	AgentStatus::reset();
 	Agent &agent = g_world.get_body(p_agent_id);
 	NP_DEV_ASSERT(agent.agent_id == p_agent_id);
-
-	if (!agent.map) {
+	
+	if (!agent.map.is_valid()) {
 		return;
 	}
 
@@ -640,7 +639,6 @@ void Map::prepare_agent(u32 p_agent_id) {
 		// Get the velocity into local navmesh space
 		const Mesh &mesh = mesh_instance.get_mesh();
 		IPoint3 impulse = mesh_instance.velocity_world_space_to_local_fixed_point(mesh, agent.fimpulse3);
-
 
 		//IPoint3 impulse = mesh_instance.velocity_world_space_to_local_fixed_point(mesh, local_impulse);
 		//IPoint2 impulse = mesh.dist_float_to_fixed_point(local_impulse.xz());
@@ -669,11 +667,11 @@ bool Map::iterate_agent(u32 p_agent_id, IterateResult &r_result) {
 
 	NP_DEV_ASSERT(agent.get_mesh_instance_id() != UINT32_MAX);
 	MeshInstance &mesh_instance = g_world.get_mesh_instance(agent.get_mesh_instance_id());
-	
+
 	// Give a change to add jump velocities BEFORE the iteration, as the jump may be in the xz axes,
 	// so needs collision detection.
 	agent.iterate_jump_before(mesh_instance);
-	
+
 	// We will do all the transforming necessary to enter and exit mesh space here
 	// in the map, to keep the mesh code as clean and simple as possible.
 	if (false) {
@@ -724,13 +722,13 @@ bool Map::iterate_agent(u32 p_agent_id, IterateResult &r_result) {
 		agent.fimpulse3 = mesh_instance.get_transform_inverse().basis.xform(agent.fimpulse3);
 
 		NP_LLLOG(String("agent : ") + p_agent_id);
-		
+
 		u32 old_mesh_instance_id = agent.get_mesh_instance_id();
-		
+
 		mesh_instance.iterate_agent(agent, move_info);
-		
+
 		if (old_mesh_instance_id == agent.get_mesh_instance_id()) {
-//		if (!AgentStatus::changing_mesh()) {
+			//		if (!AgentStatus::changing_mesh()) {
 			//			NP_DEV_ASSERT(agent.fpos3.isfinite());
 			//			agent.fpos3 = mesh_instance.get_transform().xform(agent.fpos3);
 			//			NP_DEV_ASSERT(agent.fpos3.isfinite());
@@ -848,9 +846,9 @@ void Map::body_teleport(Agent &r_agent, u32 p_agent_id, const FPoint3 &p_pos) {
 
 	NP_LOG(String("teleporting to ") + p_pos + ", mesh id was: " + r_agent.get_mesh_instance_id());
 	NP_DEV_ASSERT(r_agent.agent_id == p_agent_id);
-	
+
 	r_agent.set_mesh_instance_id(UINT32_MAX);
-	
+
 	if (update_agent_mesh(r_agent, false)) {
 		/*
 		MeshInstance &meshi = g_world.get_mesh_instance(r_agent.get_mesh_instance_id());
@@ -904,10 +902,10 @@ NavPhysics::MeshInstance *World::safe_get_body_mesh_instance(np_handle p_body) {
 	return &get_mesh_instance(agent->get_mesh_instance_id());
 }
 
-NavPhysics::Agent *World::safe_get_body(np_handle p_body, u32 *r_id) {
-	NP_ERR_FAIL_COND_V(!p_body, nullptr);
+NavPhysics::Agent *World::safe_get_body(np_handle p_handle, u32 *r_id) {
+	NP_ERR_FAIL_COND_V(!p_handle.is_valid(), nullptr);
 	u32 revision;
-	u32 id = _meshes.handle_to_id(p_body, revision);
+	u32 id = p_handle.handle_to_id(revision);
 	if (r_id) {
 		*r_id = id;
 	}
@@ -935,8 +933,8 @@ bool World::safe_unlink_body(np_handle p_body, np_handle p_map) {
 
 	Map *map = safe_get_map(p_map);
 	map->unregister_body(agent_id);
-
-	agent->map = 0;
+	
+	agent->map = np_handle();
 	return true;
 }
 
@@ -973,8 +971,8 @@ bool World::safe_unlink_mesh_instance(np_handle p_mesh_instance, np_handle p_map
 bool World::safe_link_mesh(np_handle p_mesh_instance, np_handle p_mesh) {
 	MeshInstance *mi = safe_get_mesh_instance(p_mesh_instance);
 	NP_ERR_FAIL_NULL_V(mi, false);
-
-	if (!p_mesh) {
+	
+	if (!p_mesh.is_valid()) {
 		mi->link_mesh(UINT32_MAX);
 		return true;
 	}
@@ -990,15 +988,13 @@ np_handle World::get_mesh_instance_handle(u32 p_id) const {
 	return _mesh_instances.pool[p_id].object->get_handle();
 }
 
-np_handle World::safe_mesh_instance_create()
-{
-	np_handle h = _mesh_instances.safe_object_create();
-	u32 revision;
-	u32 id = _mesh_instances.handle_to_id(h, revision);
-	safe_get_mesh_instance(h)->set_id(id);
-	return h;
-}
-
+//np_handle World::safe_mesh_instance_create() {
+//	np_handle h = _mesh_instances.safe_object_create();
+//	u32 revision;
+//	u32 id = h.handle_to_id(revision);
+//	safe_get_mesh_instance(h)->set_id(id);
+//	return h;
+//}
 
 np_handle World::safe_body_create() {
 	u32 id = UINT32_MAX;
@@ -1016,34 +1012,56 @@ np_handle World::safe_body_create() {
 			// special case, zero is reserved
 			agent->revision = 1;
 		}
-		return _meshes.id_to_handle(id, agent->revision);
+		return np_handle(id, agent->revision);
 	}
-	return 0;
+	return np_handle();
 }
 
-np_handle World::safe_poi_create() {
-	return _pois.safe_object_create();
+#define NP_IMPL_SAFE_CREATE_FREE(a, b)\
+np_handle World::safe_##a##_create() {\
+return _##a##b##s.safe_object_create();\
+}\
+void World::safe_##a##_free(np_handle p_handle) {\
+_##a##b##s.safe_object_free(p_handle);\
 }
 
-np_handle World::safe_region_create() {
-	return _regions.safe_object_create();
-}
+NP_IMPL_SAFE_CREATE_FREE(map,)
+NP_IMPL_SAFE_CREATE_FREE(mesh, e)
+NP_IMPL_SAFE_CREATE_FREE(mesh_instance,)
+NP_IMPL_SAFE_CREATE_FREE(poi,)
+NP_IMPL_SAFE_CREATE_FREE(region,)
 
-void World::safe_region_free(np_handle p_region) {
-	_regions.safe_object_free(p_region);
-}
+//np_handle World::safe_map_create() {
+//	return _maps.safe_object_create();
+//}
 
-void World::safe_poi_free(np_handle p_poi) {
-	_pois.safe_object_free(p_poi);
-}
+//np_handle World::safe_mesh_create() {
+//	return _meshes.safe_object_create();
+//}
+
+//np_handle World::safe_poi_create() {
+//	return _pois.safe_object_create();
+//}
+
+//np_handle World::safe_region_create() {
+//	return _regions.safe_object_create();
+//}
+
+//void World::safe_region_free(np_handle p_region) {
+//	_regions.safe_object_free(p_region);
+//}
+
+//void World::safe_poi_free(np_handle p_poi) {
+//	_pois.safe_object_free(p_poi);
+//}
 
 void World::safe_body_free(np_handle p_body) {
-	NP_ERR_FAIL_COND(!p_body);
+	NP_ERR_FAIL_COND(!p_body.is_valid());
 	u32 revision;
-	u32 id = _meshes.handle_to_id(p_body, revision);
+	u32 id = p_body.handle_to_id(revision);
 	NavPhysics::Agent &agent = _agents[id];
 	NP_ERR_FAIL_COND(agent.revision != revision);
-	_meshes.wrapped_increment_revision(agent.revision);
+	np_handle::wrapped_increment_revision(agent.revision);
 	_agents.free(id);
 }
 
@@ -1128,8 +1146,8 @@ void World::tick_update(u64 p_tick, freal p_delta) {
 
 		Agent &agent = g_world.get_body(agent_id);
 		NP_DEV_ASSERT(agent.agent_id == agent_id);
-
-		if (!agent.map) {
+		
+		if (!agent.map.is_valid()) {
 			continue;
 		}
 
@@ -1158,18 +1176,16 @@ void World::tick_update(u64 p_tick, freal p_delta) {
 	for (u32 n = 0; n < _agents.active_size(); n++) {
 		u32 agent_id = _agents.get_active_id(n);
 		Agent &agent = _agents[agent_id];
+		
+		if (!agent.map.is_valid()) {
+			continue;
+		}
 
-		if (!agent.map) {
-			continue;
-		}
-		
 		// Just a bodge to reduce log output for now.
-		if (!agent.does_agent_need_move())
-		{
+		if (!agent.does_agent_need_move()) {
 			continue;
 		}
-		
-		
+
 		NavPhysics::Map *map = NavPhysics::g_world.safe_get_map(agent.map);
 		NP_ERR_CONTINUE(!map);
 
@@ -1183,9 +1199,9 @@ void World::tick_update(u64 p_tick, freal p_delta) {
 				d.impulse_mesh_space = res.impulse_mesh_space;
 				d.impulse_world_space = res.impulse_world_space;
 				d.changing_mesh = (old_mesh_instance_id != agent.get_mesh_instance_id()) || agent.is_changing_mesh();
-				
+
 				NP_LOG(String("ITERATE callback world pos: ") + d.position_world_space + ", vel world: " + d.impulse_world_space);
-				
+
 				agent_callback(d);
 			}
 		}
@@ -1223,11 +1239,11 @@ void World::clear() {
 
 np_handle World::safe_get_agent_mesh_instance_handle(np_handle p_body) {
 	Agent *agent = safe_get_body(p_body);
-	NP_ERR_FAIL_NULL_V(agent, UINT32_MAX);
+	NP_ERR_FAIL_NULL_V(agent, np_handle());
 
 	uint32_t mesh_instance_id = agent->get_mesh_instance_id();
 	if (mesh_instance_id == UINT32_MAX) {
-		return UINT32_MAX;
+		return np_handle();
 	}
 
 	return get_mesh_instance(mesh_instance_id).get_handle();
@@ -1267,9 +1283,9 @@ World::World() {
 }
 
 World::~World() {
-	if (_default_map) {
+	if (_default_map.is_valid()) {
 		safe_map_free(_default_map);
-		_default_map = 0;
+		_default_map = np_handle();
 	}
 
 	clear();

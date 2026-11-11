@@ -40,7 +40,7 @@ class MeshInstance {
 	//freal _scale_world_space_to_local = 1;
 	
 	u32 _id = UINT32_MAX;
-	np_handle _handle = UINT32_MAX;
+	np_handle _handle;
 	u32 _mesh_id = UINT32_MAX;
 	u32 _map_slot = UINT32_MAX;
 	
@@ -63,8 +63,7 @@ class MeshInstance {
 public:
 	const Mesh &get_mesh() const;
 	
-	void set_id(u32 p_id) {_id = p_id;}
-	u32 get_id() const {return _id;}
+	u32 get_id() const {return _handle.to_id();}
 	
 	const FPoint3 &get_gravity_local_space() const {return _gravity_local_space;}
 	freal get_scale_world_space_to_local_fixed_point() const {return _scale_world_space_to_local_fixed_point;}
@@ -146,6 +145,7 @@ public:
 		_transform.init();
 		_transform_inverse.init();
 		_handle = p_handle;
+		_id = p_handle.to_id();
 	}
 };
 

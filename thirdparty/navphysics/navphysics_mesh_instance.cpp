@@ -96,8 +96,8 @@ IPoint2 MeshInstance::world_space_velocity_to_local(const Mesh &p_mesh, const FP
 void MeshInstance::poi_add(POI *p_poi) {
 	NP_DEV_ASSERT(p_poi);
 	_POIs.push_back(p_poi);
-
-	if (p_poi->handle_mesh_instance != 0) {
+	
+	if (p_poi->handle_mesh_instance.is_valid()) {
 		NP_WARN_PRINT_ONCE("poi_add() :  poi already is assigned to a mesh instance.");
 	}
 	p_poi->handle_mesh_instance = get_handle();
@@ -140,7 +140,7 @@ bool MeshInstance::poi_remove(POI *p_poi) {
 	uint32_t id = poi_find(p_poi);
 	if (id != UINT32_MAX) {
 		_POIs.remove_unordered(id);
-		p_poi->handle_mesh_instance = 0;
+		p_poi->handle_mesh_instance = np_handle();
 		return true;
 	}
 

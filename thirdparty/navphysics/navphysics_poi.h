@@ -15,7 +15,7 @@ public:
 	u32 user_type = 0; // Allow the user to search by type.s
 	u64 user_data = 0; // Allow storing e.g. a pointer on the POI.
 	
-	np_handle handle_mesh_instance = UINT32_MAX;
+	np_handle handle_mesh_instance;
 	bool active = true;
 	
 	void init(np_handle p_handle) {
@@ -26,7 +26,7 @@ class Obstacle
 {
 public:
 	LocalPoint3 local_point;
-	np_handle handle_mesh_instance = UINT32_MAX;
+	np_handle handle_mesh_instance;
 	
 	void init(np_handle p_handle) {
 	}

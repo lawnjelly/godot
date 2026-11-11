@@ -11,7 +11,7 @@ class NPPoint : public Spatial {
 	GDCLASS(NPPoint, Spatial);
 
 	struct Data {
-		np_handle h_poi = 0;
+		np_handle h_poi;
 
 		String label;
 		int32_t type = 0;

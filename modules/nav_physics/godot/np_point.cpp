@@ -57,7 +57,7 @@ int32_t NPPoint::get_type() const {
 }
 
 NavPhysics::POI *NPPoint::get_poi() const {
-	ERR_FAIL_COND_V(data.h_poi == 0, nullptr);
+	ERR_FAIL_COND_V(!data.h_poi.is_valid(), nullptr);
 	return NavPhysics::g_world.safe_get_poi(data.h_poi);
 }
 
@@ -67,8 +67,8 @@ NPPoint::NPPoint() {
 }
 
 NPPoint::~NPPoint() {
-	if (data.h_poi) {
+	if (data.h_poi.is_valid()) {
 		NavPhysics::g_world.safe_poi_free(data.h_poi);
-		data.h_poi = 0;
+		data.h_poi = np_handle();
 	}
 }

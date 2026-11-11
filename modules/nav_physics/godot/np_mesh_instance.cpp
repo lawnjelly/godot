@@ -16,7 +16,7 @@
 
 NPMeshInstance::NPMeshInstance() {
 	data.h_mesh_instance = NavPhysics::g_world.safe_mesh_instance_create();
-	DEV_ASSERT(data.h_mesh_instance);
+	DEV_ASSERT(data.h_mesh_instance.is_valid());
 
 	NavPhysics::g_world.safe_link_mesh_instance(data.h_mesh_instance, NavPhysics::g_world.get_handle_default_map());
 	NavPhysics::MeshInstance *mi = NavPhysics::g_world.safe_get_mesh_instance(data.h_mesh_instance);
@@ -32,10 +32,10 @@ NPMeshInstance::~NPMeshInstance() {
 
 	set_debug_visuals(false);
 
-	if (data.h_mesh_instance) {
+	if (data.h_mesh_instance.is_valid()) {
 		NavPhysics::g_world.safe_unlink_mesh_instance(data.h_mesh_instance, NavPhysics::g_world.get_handle_default_map());
 		NavPhysics::g_world.safe_mesh_instance_free(data.h_mesh_instance);
-		data.h_mesh_instance = 0;
+		data.h_mesh_instance = np_handle();
 	}
 	if (!data.mesh.is_null()) {
 		data.mesh->unregister_owner(this);
@@ -48,7 +48,7 @@ void NPMeshInstance::set_debug_visuals(bool p_enable) {
 }
 
 void NPMeshInstance::_update_server() {
-	if (data.h_mesh_instance) {
+	if (data.h_mesh_instance.is_valid()) {
 		NavPhysics::MeshInstance *mi = NavPhysics::g_world.safe_get_mesh_instance(data.h_mesh_instance);
 		if (mi) {
 			Transform tr = get_global_transform();
@@ -58,7 +58,7 @@ void NPMeshInstance::_update_server() {
 }
 
 void NPMeshInstance::_update_active(bool p_exiting_tree) {
-	ERR_FAIL_COND(!data.h_mesh_instance);
+	ERR_FAIL_COND(!data.h_mesh_instance.is_valid());
 
 	if (is_inside_tree() && !p_exiting_tree) {
 		if (data.is_active_desired && is_visible_in_tree()) {
@@ -133,7 +133,7 @@ void NPMeshInstance::point_notify_transform(NPPoint &p_point) {
 void NPMeshInstance::resync_points() {
 	data.points.clear();
 
-	if (data.h_mesh_instance) {
+	if (data.h_mesh_instance.is_valid()) {
 		NavPhysics::MeshInstance *mi = NavPhysics::g_world.safe_get_mesh_instance(data.h_mesh_instance);
 		if (mi) {
 			mi->pois_clear();
@@ -203,7 +203,7 @@ void NPMeshInstance::set_mesh(const Ref<NPMesh> &p_mesh) {
 		return;
 	}
 	if (!data.mesh.is_null()) {
-		NavPhysics::g_world.safe_link_mesh(data.h_mesh_instance, 0);
+		NavPhysics::g_world.safe_link_mesh(data.h_mesh_instance, np_handle());
 
 		data.mesh->unregister_owner(this);
 	}
@@ -243,7 +243,7 @@ String NPMeshInstance::get_configuration_warning() const {
 }
 
 Vector3 NPMeshInstance::choose_random_location() const {
-	if (data.h_mesh_instance) {
+	if (data.h_mesh_instance.is_valid()) {
 		NavPhysics::MeshInstance *mi = NavPhysics::g_world.safe_get_mesh_instance(data.h_mesh_instance);
 		if (mi) {
 			NavPhysics::FPoint3 pos = mi->choose_random_location();

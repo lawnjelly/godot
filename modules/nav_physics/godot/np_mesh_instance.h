@@ -20,7 +20,7 @@ class NPMeshInstance : public Spatial {
 	};
 
 	struct Data {
-		np_handle h_mesh_instance = 0;
+		np_handle h_mesh_instance;
 		Ref<NPMesh> mesh;
 
 		LocalVector<PointRef> points;
