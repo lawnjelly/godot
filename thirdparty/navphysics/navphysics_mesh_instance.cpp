@@ -112,18 +112,18 @@ void MeshInstance::poi_set_position(POI *p_poi, const FPoint3 &p_pt_world) {
 #endif
 
 	// Calculate the poi local space position relative to the mesh instance.
-	p_poi->local_pos3 = world_space_to_local(p_pt_world);
+	//p_poi->local_pos3 = world_space_to_local(p_pt_world);
 
 	NP_ERR_FAIL_COND(_mesh_id == UINT32_MAX);
 	const Mesh &mesh = get_mesh();
 	
-	p_poi->local_pos = world_space_to_local_fixed_point(mesh, p_pt_world);
+	p_poi->local_point.pos = world_space_to_local_fixed_point(mesh, p_pt_world);
 
 	// Find the polygon.
 	freal fit = 0;
 	
-	p_poi->poly_id = mesh.find_best_poly_within(p_poi->local_pos, 10.0f * _scale_world_space_to_local_fixed_point, 0.5f * _scale_world_space_to_local_fixed_point, fit);
-	print_line(String("Best polygon is ") + itos(p_poi->poly_id));
+	p_poi->local_point.poly_id = mesh.find_best_poly_within(p_poi->local_point.pos, 10.0f * _scale_world_space_to_local_fixed_point, 0.5f * _scale_world_space_to_local_fixed_point, fit);
+	print_line(String("Best polygon is ") + itos(p_poi->local_point.poly_id));
 }
 
 uint32_t MeshInstance::poi_find(POI *p_poi) const {
@@ -193,8 +193,6 @@ freal MeshInstance::find_agent_jump_fit(Agent &r_agent, const JumpFinderData &p_
 	p_max_drop *=_scale_world_space_to_local_fixed_point;
 	p_max_step_up *=_scale_world_space_to_local_fixed_point;
 	
-	// Short alias.
-	//JumpFinderData jd = p_jump_data;
 	JumpFinderDataLocal jl;
 
 	r_best_poly_id = UINT32_MAX;
@@ -202,7 +200,6 @@ freal MeshInstance::find_agent_jump_fit(Agent &r_agent, const JumpFinderData &p_
 	// This is the mesh being JUMPED TO, not the mesh being jumped from.
 	const Mesh &mesh = get_mesh();
 
-	// COPY of jump data, not reference, as we will be changing to local space.
 	// xform agent world space to local space
 
 #define NP_FIND_AGENT_JUMP_WORLD_TO_FP(PARAM)                                                  \
@@ -218,13 +215,7 @@ freal MeshInstance::find_agent_jump_fit(Agent &r_agent, const JumpFinderData &p_
 	// TODO: Can these local velocities be calculated after the AABB check?
 
 	// FROM IS TOO FAR FORWARD, WE NEED TO BACK TRACK
-	//FPoint3 vel_local = get_transform_inverse().basis.xform(p_jump_data.vel_world);
-	//jl.vel_local = mesh.dist_float_to_fixed_point(vel_local);
-	
 	jl.vel_local = velocity_world_space_to_local_fixed_point(mesh, p_jump_data.vel_world);
-
-	// Calculate the local jump velocity.
-	//jl.vel_local.height = vel_local.y;
 
 #ifdef NP_DEV_ENABLED
 	// FPoint3 unit_test_world_vel = local_velocity_with_jump_velocity_to_world_space(mesh, jd.vel_local2, jd.vel_local_jump);
@@ -516,7 +507,7 @@ void MeshInstance::iterate_agent(Agent &r_agent, Mesh::MoveInfo &r_move_info) {
 	//r_agent.pos = new_pos_fp;
 	//}
 
-	const Mesh &mesh = get_mesh();
+	//const Mesh &mesh = get_mesh();
 
 	/*
 	if (!AgentStatus::is_in_jump_link()) {

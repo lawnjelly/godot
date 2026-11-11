@@ -1087,12 +1087,15 @@ bool Mesh::debug_check_agent_integrity(const IPoint2 &p_pos, u32 p_poly_id, u32 
 	return true;
 }
 
-bool Mesh::ray_test(IPoint2 p_from, u32 p_source_poly_id, const IPoint2 &p_to, u32 p_dest_poly_id) const {
-	u32 poly_id = p_source_poly_id;
+bool Mesh::ray_test_xz(const LocalPoint3 &p_from, const LocalPoint3 &p_to) const {
+	u32 poly_id = p_from.poly_id;
 	IPoint2 best_intersect;
-
+	
+	IPoint2 pt_from = p_from.pos.xz();
+	IPoint2 pt_to = p_to.pos.xz();
+	
 	while (true) {
-		if (poly_id == p_dest_poly_id) {
+		if (poly_id == p_to.poly_id) {
 			// If we hit the destination poly via a straight path, the trace is true.
 			return true;
 		}
@@ -1108,13 +1111,13 @@ bool Mesh::ray_test(IPoint2 p_from, u32 p_source_poly_id, const IPoint2 &p_to, u
 
 		for (u32 w = 0; w < poly.num_inds; w++) {
 			u32 wall_id = poly.first_ind + w;
-			i64 cross_to = -wall_cross(wall_id, p_to);
+			i64 cross_to = -wall_cross(wall_id, pt_to);
 
 			// Crossed wall.
 			if (cross_to > 0) {
 				IPoint2 intersect;
-				if (wall_find_intersect(wall_id, p_from, p_to, intersect)) {
-					freal dist = p_from.distancef_to(intersect);
+				if (wall_find_intersect(wall_id, pt_from, pt_to, intersect)) {
+					freal dist = pt_from.distancef_to(intersect);
 					if (dist < smallest_dist) {
 						smallest_dist = dist;
 						best_wall_id = wall_id;
@@ -1127,7 +1130,7 @@ bool Mesh::ray_test(IPoint2 p_from, u32 p_source_poly_id, const IPoint2 &p_to, u
 					best_wall_id = wall_id;
 
 					// Assuming we are moving right onto the wall.
-					best_intersect = p_to;
+					best_intersect = pt_to;
 
 #ifdef NP_DEV_ENABLED
 					// Why did the wall_find_intersect fail?

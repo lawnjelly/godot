@@ -80,10 +80,12 @@ private:
 
 	bool _is_changing_mesh : 1;
 
-	u32 poly_id = UINT32_MAX;
 	u32 wall_id = UINT32_MAX;
 
-	IPoint3 pos;
+	//IPoint3 pos;
+	//u32 poly_id = UINT32_MAX;
+	
+	LocalPoint3 local_pos;
 	IPoint3 vel;
 	
 	struct Data
@@ -110,10 +112,10 @@ public:
 		set_poly_id(UINT32_MAX);
 	}
 	bool is_poly_id_null() const {
-		return poly_id == UINT32_MAX;
+		return local_pos.poly_id == UINT32_MAX;
 	}
 	u32 get_poly_id() const {
-		return poly_id;
+		return local_pos.poly_id;
 	}
 	void set_wall_id(u32 p_wall_id);
 	bool is_wall_id_null() const {
@@ -124,13 +126,14 @@ public:
 	}
 	u32 get_wall_id() const { return wall_id; }
 	
-	const IPoint3 &get_pos() const { return pos; }
+	const LocalPoint3 &get_local_point() const {return local_pos;}
+	const IPoint3 &get_pos() const { return local_pos.pos; }
 	void set_pos(const IPoint3 &p_pos);
-	IPoint2 get_2d_pos() const {return pos.xz();}
+	IPoint2 get_2d_pos() const {return local_pos.pos.xz();}
 	void set_2d_pos(const IPoint2 &p_pos) { set_pos(IPoint3(p_pos.x, get_pos().y, p_pos.y));}
 
 	void set_height(freal p_height);
-	freal get_height() const { return pos.y; }
+	freal get_height() const { return local_pos.pos.y; }
 	
 	bool does_agent_need_move() const {return !get_velocity().is_zero() || !data.pending_jump_world.is_zero() || !fimpulse3.is_zero();}
 	
@@ -154,12 +157,6 @@ public:
 	FPoint3 debug_pos[3];
 #endif
 
-	//IPoint2 vel;
-	// Jump velocity is also in local MeshInstance space.
-	//freal jump_velocity = 0;
-
-	//FPoint2 fpos;
-
 	// The agent may be jumping *above* the floor
 	int32_t floor_height = 0;
 
@@ -178,7 +175,6 @@ public:
 	AgentState state : 4;
 	bool is_npc : 1;
 	bool on_floor : 1;
-	//bool world_space_gravity : 1;
 
 	// We need two flags to maintain the on_agent flag, as we want a single tick delay
 	// to clear it, because of order of operations.
@@ -286,13 +282,12 @@ public:
 #endif
 		map = 0;
 		mesh_instance_id = UINT32_MAX;
-		pos.zero();
+		local_pos.blank();
 		vel.zero();
 		instant_impulse.zero();
 		floor_height = 0;
 		//agent_height = 0;
 		//jump_velocity = 0;
-		clear_poly_id();
 		clear_wall_id();
 		state = AGENT_STATE_CLEAR;
 		is_npc = true;

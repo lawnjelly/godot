@@ -28,9 +28,9 @@ void AgentStatus::debug_print(String p_sz) {
 }
 
 void Agent::set_height(freal p_height) {
-	if (p_height != pos.y) {
+	if (p_height != local_pos.pos.y) {
 		NP_AGENT_LOG("set_height " + p_height);
-		pos.y = p_height;
+		local_pos.pos.y = p_height;
 	}
 }
 
@@ -49,17 +49,17 @@ void Agent::set_velocity(const IPoint3 &p_vel) {
 }
 
 void Agent::set_pos(const IPoint3 &p_pos) {
-	if (p_pos != pos) {
+	if (p_pos != local_pos.pos) {
 		NP_AGENT_LOG("set_pos " + (p_pos / 1000));
-		pos = p_pos;
-		pos.clamp_to_fp_range();
+		local_pos.pos = p_pos;
+		local_pos.pos.clamp_to_fp_range();
 	}
 }
 
 void Agent::set_poly_id(u32 p_poly_id) {
-	if (p_poly_id != poly_id) {
+	if (p_poly_id != local_pos.poly_id) {
 		NP_AGENT_LOG("set_poly_id " + p_poly_id);
-		poly_id = p_poly_id;
+		local_pos.poly_id = p_poly_id;
 	}
 }
 
@@ -198,28 +198,6 @@ void Agent::iterate_jump_after(const MeshInstance &p_mesh_instance, const freal 
 			g *= gravity;
 
 			add_velocity(IPoint3(g));
-
-#if 0
-			if (world_space_gravity) {
-				FPoint3 g(0, -gravity, 0);
-				add_velocity(IPoint3(g));
-
-				const Mesh &mesh = p_mesh_instance.get_mesh();
-				FPoint3 g_local = p_mesh_instance.world_space_velocity_to_local3(g);
-				IPoint2 v = mesh.float_to_fixed_point_vel(g_local.xz());
-				//IPoint2 v = p_mesh_instance.world_space_velocity_to_local(mesh, g);
-				//g = p_mesh_instance.get_transform().basis.xform(g);
-
-				// Hack for upside down / 90 degree meshes.
-				// We want to force agents to always falls back to the mesh at the bottom, otherwise
-				// the behaviour is nonsense if it can't leave the mesh.
-				g_local.y = MIN(g_local.y, -0.1f);
-				add_jump_velocity(g_local.y);
-				add_velocity(v);
-			} else {
-				add_jump_velocity(-gravity);
-			}
-#endif
 
 			// Have we hit the ceiling?
 			if (p_ceiling_height && (get_height() > *p_ceiling_height)) {

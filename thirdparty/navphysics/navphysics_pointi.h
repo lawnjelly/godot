@@ -158,14 +158,14 @@ struct [[nodiscard]] IPoint3 {
 	}
 };
 
-// Local positions and velocities on the mesh are stored as integer xz and float height.
+// A way of storing a navigation mesh position WITH the pre-found poly ID.
 struct [[nodiscard]] LocalPoint3 {
-	IPoint2 xy;
-	freal height = 0;
+	IPoint3 pos;
+	u32 poly_id = UINT32_MAX;
 
-	void zero() {
-		xy.zero();
-		height = 0;
+	void blank() {
+		pos.zero();
+		poly_id = UINT32_MAX;
 	}
 };
 
