@@ -5,7 +5,46 @@
 
 #include "navphysics_pointf.h"
 
-typedef u32 np_handle;
+//typedef u32 np_handle;
+
+// 24 bit ID, 8 bit revision.
+class np_handle {
+	u32 _val = UINT32_MAX;
+
+public:
+	bool operator==(const np_handle &p_o) const { return _val == p_o._val; }
+	bool operator!=(const np_handle &p_o) const { return !(*this == p_o); }
+
+	bool is_valid() const { return _val != UINT32_MAX; }
+	u32 handle_to_id(u32 &r_revision) const {
+		r_revision = _val;
+		r_revision >>= 24;
+		return _val & 0xffffff;
+	}
+	u32 to_id() const {
+		return _val & 0xffffff;
+	}
+
+	void id_to_handle(u32 p_id, u32 p_revision) {
+		_val = p_id;
+		p_revision <<= 24;
+		_val |= p_revision;
+	}
+
+	static void wrapped_increment_revision(u32 &r_revision) {
+		r_revision++;
+		if (r_revision >= 256) {
+			// skip 0, as that is reserved for unused
+			// r_revision = 1;
+			r_revision = 0;
+		}
+	}
+
+	np_handle(u32 p_id, u32 p_revision) {
+		id_to_handle(p_id, p_revision);
+	}
+	np_handle() = default;
+};
 
 namespace NavPhysics {
 

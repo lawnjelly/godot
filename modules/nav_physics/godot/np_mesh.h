@@ -122,7 +122,7 @@ public:
 
 private:
 	struct Data {
-		np_handle h_mesh = 0;
+		np_handle h_mesh;
 		NPBakeParams bake_params;
 		Ref<NPBakeParams_Agent> bake_params_agent;
 		Ref<NPBakeParams_Mesh> bake_params_mesh;

@@ -68,7 +68,7 @@ private:
 	};
 
 	struct Data {
-		np_handle h_agent = 0;
+		np_handle h_agent;
 
 		// Returned data from the NavPhysics.
 		Vector3 impulse_mesh_space;

@@ -48,6 +48,11 @@ Ref<NPObstacle> NPObstacleInstance::get_obstacle() const {
 	return data.obstacle;
 }
 
+NPObstacleInstance::NPObstacleInstance() {
+	data.h_obstacle = NPWORLD.safe_obstacle_create();
+	set_notify_local_transform(true);
+}
+
 NPObstacleInstance::~NPObstacleInstance() {
 	if (!data.obstacle.is_null()) {
 		data.obstacle->unregister_owner(this);

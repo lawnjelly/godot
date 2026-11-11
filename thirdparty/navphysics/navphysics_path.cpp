@@ -375,7 +375,7 @@ void Plan::Data::reset(bool p_repath) {
 
 		start.reset();
 		destination.reset();
-		current_mesh_instance = UINT32_MAX;
+		current_mesh_instance = np_handle();
 	}
 
 	fullpath_next.reset();
@@ -450,8 +450,8 @@ bool Plan::_plan_waypoint_path(FullPath &p_zonepoints_source) {
 		wp_path.status = PATH_FINISHED;
 		return false;
 	}
-
-	NP_DEV_ASSERT(data.current_mesh_instance != UINT32_MAX);
+	
+	NP_DEV_ASSERT(data.current_mesh_instance.is_valid());
 
 	wp_path.status = planner.pathfind_pos(data.current_mesh_instance, curr->local_pos, next->local_pos, wp_path.waypoints.data.curr_point_id, curr->poly_id, next->poly_id);
 

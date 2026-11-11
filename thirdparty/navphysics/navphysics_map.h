@@ -81,27 +81,27 @@ class World {
 		TrackedPooledList<Container<T>, u32, true, true> pool;
 
 		// 24 bit ID, 8 bit revision
-		u32 handle_to_id(np_handle p_handle, u32 &r_revision) const {
-			r_revision = p_handle;
-			r_revision >>= 24;
-			return p_handle & 0xffffff;
-		}
+//		u32 handle_to_id(np_handle p_handle, u32 &r_revision) const {
+//			r_revision = p_handle;
+//			r_revision >>= 24;
+//			return p_handle & 0xffffff;
+//		}
 
-		np_handle id_to_handle(u32 p_id, u32 p_revision) const {
-			np_handle h;
-			h = p_id;
-			p_revision <<= 24;
-			h |= p_revision;
-			return h;
-		}
+//		np_handle id_to_handle(u32 p_id, u32 p_revision) const {
+//			np_handle h;
+//			h = p_id;
+//			p_revision <<= 24;
+//			h |= p_revision;
+//			return h;
+//		}
 
-		void wrapped_increment_revision(u32 &r_revision) const {
-			r_revision++;
-			if (r_revision >= 256) {
-				// skip 0, as that is reserved for unused
-				r_revision = 1;
-			}
-		}
+//		void wrapped_increment_revision(u32 &r_revision) const {
+//			r_revision++;
+//			if (r_revision >= 256) {
+//				// skip 0, as that is reserved for unused
+//				r_revision = 1;
+//			}
+//		}
 
 		void clear() {
 			for (u32 n = 0; n < pool.active_size(); n++) {
@@ -115,9 +115,9 @@ class World {
 		}
 
 		T *safe_get_object(np_handle p_handle, u32 *r_id) {
-			NP_ERR_FAIL_COND_V(!p_handle, nullptr);
+			NP_ERR_FAIL_COND_V(!p_handle.is_valid(), nullptr);
 			u32 revision;
-			u32 id = handle_to_id(p_handle, revision);
+			u32 id = p_handle.handle_to_id(revision);
 			if (r_id) {
 				*r_id = id;
 			}
@@ -137,21 +137,21 @@ class World {
 					container->revision = 1;
 				}
 
-				np_handle handle = id_to_handle(id, container->revision);
+				np_handle handle(id, container->revision);
 				container->object->init(handle);
 
 				return handle;
 			}
-			return 0;
+			return np_handle();
 		}
 
 		void safe_object_free(np_handle p_handle) {
-			NP_ERR_FAIL_COND(!p_handle);
+			NP_ERR_FAIL_COND(!p_handle.is_valid());
 			u32 revision;
-			u32 id = handle_to_id(p_handle, revision);
+			u32 id = p_handle.handle_to_id(revision);
 			Container<T> &container = pool[id];
 			NP_ERR_FAIL_COND(container.revision != revision);
-			wrapped_increment_revision(container.revision);
+			np_handle::wrapped_increment_revision(container.revision);
 			if (container.object) {
 				ALLOCATOR::deleteT(container.object);
 				container.object = nullptr;
@@ -175,7 +175,7 @@ class World {
 
 	// Create a default map for the world, to make use simpler
 	// for some uses of the library.
-	np_handle _default_map = 0;
+	np_handle _default_map;
 
 	static np_agent_callback agent_callback;
 
@@ -186,10 +186,16 @@ public:
 	static void set_ticks_per_second(u32 p_tps);
 	static void set_agent_callback(np_agent_callback p_callback);
 
-#define NP_DECL_SAFE_GET(a, b, c) \
-	NavPhysics::a *safe_get_##b(np_handle p_handle, u32 *r_id = nullptr) { return _##b##c##s.safe_get_object(p_handle, r_id); }
+	NavPhysics::Agent *safe_get_body(np_handle p_handle, u32 *r_id = nullptr);
+	NavPhysics::Agent &get_body(u32 p_id) { return _agents[p_id]; }
+	np_handle safe_body_create();
 
-	NavPhysics::Agent *safe_get_body(np_handle p_body, u32 *r_id = nullptr);
+#define NP_DECL_SAFE_GET(a, b, c)                                                                                               \
+	NavPhysics::a *safe_get_##b(np_handle p_handle, u32 *r_id = nullptr) { return _##b##c##s.safe_get_object(p_handle, r_id); } \
+	NavPhysics::a &get_##b(u32 p_id) { return *_##b##c##s.pool[p_id].object; }                                                  \
+	const NavPhysics::a &get_##b(u32 p_id) const { return *_##b##c##s.pool[p_id].object; }                                      \
+	void safe_##b##_free(np_handle p_handle);                                                                                   \
+	np_handle safe_##b##_create();
 
 	NP_DECL_SAFE_GET(Mesh, mesh, e)
 	NP_DECL_SAFE_GET(MeshInstance, mesh_instance, )
@@ -200,31 +206,17 @@ public:
 
 #undef NP_DECL_SAFE_GET
 
-	NavPhysics::Agent &get_body(u32 p_id) { return _agents[p_id]; }
-	NavPhysics::Mesh &get_mesh(u32 p_id) { return *_meshes.pool[p_id].object; }
-	NavPhysics::MeshInstance &get_mesh_instance(u32 p_id) { return *_mesh_instances.pool[p_id].object; }
-	NavPhysics::Region &get_region(u32 p_id) { return *_regions.pool[p_id].object; }
-	NavPhysics::Map &get_map(u32 p_id) { return *_maps.pool[p_id].object; }
-
-	const NavPhysics::Mesh &get_mesh(u32 p_id) const { return *_meshes.pool[p_id].object; }
 	np_handle get_mesh_instance_handle(u32 p_id) const;
 
 	// Helpers.
 	NavPhysics::MeshInstance *safe_get_body_mesh_instance(np_handle p_body);
 
-	np_handle safe_body_create();
-	np_handle safe_mesh_create() { return _meshes.safe_object_create(); }
-	np_handle safe_mesh_instance_create();
-	np_handle safe_region_create();
-	np_handle safe_poi_create();
-	np_handle safe_map_create() { return _maps.safe_object_create(); }
-
 	void safe_body_free(np_handle p_body);
-	void safe_mesh_free(np_handle p_mesh) { _meshes.safe_object_free(p_mesh); }
-	void safe_mesh_instance_free(np_handle p_mesh_instance) { _mesh_instances.safe_object_free(p_mesh_instance); }
-	void safe_region_free(np_handle p_region);
-	void safe_poi_free(np_handle p_poi);
-	void safe_map_free(np_handle p_map) { _maps.safe_object_free(p_map); }
+	//	void safe_mesh_free(np_handle p_mesh) { _meshes.safe_object_free(p_mesh); }
+	//	void safe_mesh_instance_free(np_handle p_mesh_instance) { _mesh_instances.safe_object_free(p_mesh_instance); }
+	//	void safe_region_free(np_handle p_region);
+	//	void safe_poi_free(np_handle p_poi);
+	//	void safe_map_free(np_handle p_map) { _maps.safe_object_free(p_map); }
 
 	bool safe_link_mesh(np_handle p_mesh_instance, np_handle p_mesh);
 

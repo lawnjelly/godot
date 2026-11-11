@@ -13,7 +13,7 @@ PooledList<ZonePlanner::PlanPoint> ZonePlanner::_pool_plan_points;
 QueuedPooledList<ZonePlanner, ZonePlanner::NUM_PLANNERS> ZonePlanner::_pool_planners;
 
 void ZonePlanner::create() {
-	NP_DEV_ASSERT(data.mesh_instance == UINT32_MAX);
+	NP_DEV_ASSERT(!data.mesh_instance.is_valid());
 	NP_DEV_ASSERT(data.open_list.is_empty());
 	data.closed_list.create();
 }
@@ -21,7 +21,7 @@ void ZonePlanner::create() {
 void ZonePlanner::destroy() {
 	data.open_list.destroy();
 	data.closed_list.destroy();
-	data.mesh_instance = UINT32_MAX;
+	data.mesh_instance = np_handle();
 
 	data.poly_start = UINT32_MAX;
 	data.poly_end = UINT32_MAX;
@@ -139,7 +139,7 @@ void ZonePlanner::finalize_path(const Mesh &p_mesh, StackVector<ZonePoint> &r_wa
 }
 
 PathStatus ZonePlanner::iterate(u32 &r_first_waypoint, u32 p_iterations_limit) {
-	NP_ERR_FAIL_COND_V(data.mesh_instance == UINT32_MAX, PATH_FAILED);
+	NP_ERR_FAIL_COND_V(!data.mesh_instance.is_valid(), PATH_FAILED);
 
 	MeshInstance *mi = NPWORLD.safe_get_mesh_instance(data.mesh_instance);
 	if (!mi) {

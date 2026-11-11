@@ -148,7 +148,7 @@ public:
 	void set_jump_velocity(i32 p_vel);
 	void add_jump_velocity(i32 p_vel) { set_jump_velocity(get_jump_velocity() + p_vel); }
 
-	np_handle map = 0;
+	np_handle map;
 	u32 revision = 0;
 	u32 agent_id = 0;
 
@@ -280,7 +280,6 @@ public:
 		debug_pos[1] = FPoint3();
 		debug_pos[2] = FPoint3();
 #endif
-		map = 0;
 		mesh_instance_id = UINT32_MAX;
 		local_pos.blank();
 		vel.zero();

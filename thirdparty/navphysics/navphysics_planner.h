@@ -128,7 +128,7 @@ class Planner {
 	};
 
 	struct Data {
-		np_handle mesh_instance = UINT32_MAX;
+		np_handle mesh_instance;
 		OpenList open_list;
 		ClosedList closed_list;
 

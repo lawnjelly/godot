@@ -92,7 +92,7 @@ template <class T, PooledList<T> &_pool>
 class Path {
 public:
 	struct Data {
-		np_handle mesh_instance = 0;
+		np_handle mesh_instance;
 
 		u32 curr_point_id = UINT32_MAX;
 		u32 prev_point_id = UINT32_MAX;
@@ -237,11 +237,10 @@ private:
 		IPoint3 pt_local;
 		FPoint3 pt_local3;
 		u32 poly_id = UINT32_MAX;
-		np_handle mesh_instance = UINT32_MAX;
+		np_handle mesh_instance;
 
 		void reset() {
 			poly_id = UINT32_MAX;
-			mesh_instance = UINT32_MAX;
 		}
 	};
 
@@ -294,7 +293,7 @@ private:
 
 		// This potentially changes as we progress through the path
 		// towards the destination.
-		np_handle current_mesh_instance = UINT32_MAX;
+		np_handle current_mesh_instance;
 
 		// Keep the master data for the start and end point,
 		// and the polys etc here.
@@ -313,8 +312,8 @@ private:
 
 	struct Instruction {
 		InstructionType type = IT_NONE;
-		np_handle agent_from = UINT32_MAX;
-		np_handle agent_to = UINT32_MAX;
+		np_handle agent_from;
+		np_handle agent_to;
 	} instruction;
 
 	bool request_waypoint_planner();

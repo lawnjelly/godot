@@ -525,9 +525,9 @@ NPMesh::NPMesh() {
 NPMesh::~NPMesh() {
 	_refresh_debug_geometry(false);
 
-	if (data.h_mesh) {
+	if (data.h_mesh.is_valid()) {
 		NavPhysics::g_world.safe_mesh_free(data.h_mesh);
-		data.h_mesh = 0;
+		data.h_mesh = np_handle();
 	}
 
 	if (!data.bake_params_agent.is_null()) {

@@ -34,6 +34,7 @@ class NPObstacleInstance : public Spatial {
 
 	struct Data {
 		Ref<NPObstacle> obstacle;
+		np_handle h_obstacle;
 	} data;
 
 protected:
@@ -43,5 +44,6 @@ public:
 	void set_obstacle(const Ref<NPObstacle> &p_obstacle);
 	Ref<NPObstacle> get_obstacle() const;
 
+	NPObstacleInstance();
 	~NPObstacleInstance();
 };

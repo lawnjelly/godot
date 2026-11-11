@@ -944,7 +944,7 @@ void NPAgent::set_yaw(float p_yaw) {
 	}
 
 	data.yaw = p_yaw;
-	if (data.h_agent) {
+	if (data.h_agent.is_valid()) {
 		// This could probably be combined with setting impulse for efficiency,
 		// but calling separately is easiest conceptually for users.
 		NavPhysics::Agent *agent = NPWORLD.safe_get_body(data.h_agent);
@@ -968,7 +968,7 @@ NPAgent::NPAgent() {
 }
 
 void NPAgent::_update_active(bool p_exiting_tree) {
-	ERR_FAIL_COND(!data.h_agent);
+	ERR_FAIL_COND(!data.h_agent.is_valid());
 
 	if (is_inside_tree() && !p_exiting_tree) {
 		if (data.is_active_desired && is_visible_in_tree()) {
@@ -993,10 +993,10 @@ void NPAgent::_update_active(bool p_exiting_tree) {
 NPAgent::~NPAgent() {
 	free_current_path();
 
-	if (data.h_agent) {
+	if (data.h_agent.is_valid()) {
 		_update_active(true);
 
 		NPWORLD.safe_body_free(data.h_agent);
-		data.h_agent = 0;
+		data.h_agent = np_handle();
 	}
 }
