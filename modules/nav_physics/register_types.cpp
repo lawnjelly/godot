@@ -24,6 +24,7 @@ void register_nav_physics_types() {
 	ClassDB::register_class<NPBakeParams>();
 	ClassDB::register_class<NPPoint>();
 	ClassDB::register_class<NPObstacleInstance>();
+	ClassDB::register_class<NPObstacle>();
 	ClassDB::register_class<NPObstacle_Box>();
 
 #ifdef TOOLS_ENABLED

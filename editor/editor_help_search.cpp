@@ -466,6 +466,8 @@ void EditorHelpSearch::Runner::_match_item(TreeItem *p_item, const String &p_tex
 	}
 }
 
+// Note: If this code crashes, it can be because a class in the class hierarchy
+// is not registered with ClassDB.
 TreeItem *EditorHelpSearch::Runner::_create_class_hierarchy(const ClassMatch &p_match) {
 	if (class_items.has(p_match.doc->name)) {
 		return class_items[p_match.doc->name];
