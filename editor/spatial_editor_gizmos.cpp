@@ -461,6 +461,8 @@ void EditorSpatialGizmo::add_solid_box(Ref<Material> &p_material, Vector3 p_size
 		w[i] += p_position;
 	}
 
+	w.release();
+
 	arrays[VS::ARRAY_VERTEX] = vertex;
 
 	Ref<ArrayMesh> m = memnew(ArrayMesh);
