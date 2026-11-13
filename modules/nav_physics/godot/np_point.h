@@ -7,6 +7,8 @@ namespace NavPhysics {
 class POI;
 }
 
+class NPMeshInstance;
+
 class NPPoint : public Spatial {
 	GDCLASS(NPPoint, Spatial);
 
@@ -15,6 +17,8 @@ class NPPoint : public Spatial {
 
 		String label;
 		int32_t type = 0;
+
+		NPMeshInstance *parent = nullptr;
 	} data;
 
 protected:

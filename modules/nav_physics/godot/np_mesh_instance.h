@@ -5,11 +5,13 @@
 #include "thirdparty/navphysics/navphysics_defines.h"
 
 class NPPoint;
+class NPObstacleInstance;
 
 class NPMeshInstance : public Spatial {
 	GDCLASS(NPMeshInstance, Spatial);
 
 	friend class NPPoint;
+	friend class NPObstacleInstance;
 
 	struct PointRef {
 		NPPoint *point = nullptr;
@@ -42,6 +44,10 @@ class NPMeshInstance : public Spatial {
 	void point_add(NPPoint &p_point);
 	void point_remove(NPPoint &p_point);
 	void point_notify_transform(NPPoint &p_point);
+
+	void obstacle_add(NPObstacleInstance &p_obstacle);
+	void obstacle_remove(NPObstacleInstance &p_obstacle);
+	void obstacle_notify_transform(NPObstacleInstance &p_obstacle);
 
 protected:
 	void _notification(int p_what);

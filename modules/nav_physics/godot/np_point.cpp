@@ -4,28 +4,25 @@
 void NPPoint::_notification(int p_what) {
 	switch (p_what) {
 		case NOTIFICATION_PARENTED: {
-			NPMeshInstance *mi = Object::cast_to<NPMeshInstance>(get_parent());
-			if (mi) {
-				mi->point_add(*this);
+			data.parent = Object::cast_to<NPMeshInstance>(get_parent());
+			if (data.parent) {
+				data.parent->point_add(*this);
 			}
 		} break;
 		case NOTIFICATION_UNPARENTED: {
-			NPMeshInstance *mi = Object::cast_to<NPMeshInstance>(get_parent());
-			if (mi) {
-				mi->point_remove(*this);
+			if (data.parent) {
+				data.parent->point_remove(*this);
 			}
 		} break;
 		case NOTIFICATION_ENTER_TREE: {
-			NPMeshInstance *mi = Object::cast_to<NPMeshInstance>(get_parent());
-			if (mi) {
-				mi->point_notify_transform(*this);
+			if (data.parent) {
+				data.parent->point_notify_transform(*this);
 			}
 		} break;
 		case NOTIFICATION_LOCAL_TRANSFORM_CHANGED: {
 			if (is_inside_tree()) {
-				NPMeshInstance *mi = Object::cast_to<NPMeshInstance>(get_parent());
-				if (mi) {
-					mi->point_notify_transform(*this);
+				if (data.parent) {
+					data.parent->point_notify_transform(*this);
 				}
 			}
 		} break;

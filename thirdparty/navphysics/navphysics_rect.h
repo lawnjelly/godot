@@ -67,6 +67,13 @@ struct [[nodiscard]] IRect2 {
 	}
 };
 
+/*
+struct [[nodiscard]] IRect3 {
+	IPoint3 position;
+	IPoint3 size;
+};
+*/
+
 struct [[nodiscard]] Rect2 {
 	FPoint2 position;
 	FPoint2 size;

@@ -55,7 +55,6 @@ IPoint2 MeshInstance::world_space_pos_to_local(const Mesh &p_mesh, const FPoint3
 }
 */
 
-
 /*
 FPoint3 MeshInstance::local_velocity_with_jump_velocity_to_world_space(const Mesh &p_mesh, const IPoint2 &p_vel_local, freal p_jump_velocity) const {
 	FPoint2 vel2 = p_mesh.fixed_point_vel_to_float(p_vel_local);
@@ -63,12 +62,10 @@ FPoint3 MeshInstance::local_velocity_with_jump_velocity_to_world_space(const Mes
 }
 */
 
-FPoint3 MeshInstance::velocity_local_fixed_point_to_world_space(const Mesh &p_mesh, const IPoint3 &p_vel_local) const
-{
+FPoint3 MeshInstance::velocity_local_fixed_point_to_world_space(const Mesh &p_mesh, const IPoint3 &p_vel_local) const {
 	FPoint3 vel = p_mesh.dist_fixed_point_to_float(p_vel_local);
 	return velocity_local_to_world_space(vel);
 }
-
 
 /*
 FPoint3 MeshInstance::local_velocity_to_world_space(const Mesh &p_mesh, const IPoint2 &p_vel_local) const {
@@ -78,12 +75,10 @@ FPoint3 MeshInstance::local_velocity_to_world_space(const Mesh &p_mesh, const IP
 }
 */
 
-IPoint3 MeshInstance::velocity_world_space_to_local_fixed_point(const Mesh &p_mesh, const FPoint3 &p_vel_world) const
-{
+IPoint3 MeshInstance::velocity_world_space_to_local_fixed_point(const Mesh &p_mesh, const FPoint3 &p_vel_world) const {
 	FPoint3 vel_local = velocity_world_space_to_local(p_vel_world);
 	return p_mesh.dist_float_to_fixed_point(vel_local);
 }
-
 
 /*
 IPoint2 MeshInstance::world_space_velocity_to_local(const Mesh &p_mesh, const FPoint3 &p_vel_world) const {
@@ -93,10 +88,34 @@ IPoint2 MeshInstance::world_space_velocity_to_local(const Mesh &p_mesh, const FP
 }
 */
 
+void MeshInstance::obstacle_add(Obstacle *p_obstacle) {
+	NP_DEV_ASSERT(p_obstacle);
+	_obstacles.push_back(p_obstacle);
+
+	if (p_obstacle->handle_mesh_instance.is_valid()) {
+		NP_WARN_PRINT_ONCE("obstacle_add() :  obstacle already is assigned to a mesh instance.");
+	}
+	p_obstacle->handle_mesh_instance = get_handle();
+}
+
+void MeshInstance::obstacle_set_transform(Obstacle *p_obstacle, const Transform &p_xform_world) {
+}
+
+bool MeshInstance::obstacle_remove(Obstacle *p_obstacle) {
+	uint32_t id = obstacle_find(p_obstacle);
+	if (id != UINT32_MAX) {
+		_obstacles.remove_unordered(id);
+		p_obstacle->handle_mesh_instance = np_handle();
+		return true;
+	}
+
+	return false;
+}
+
 void MeshInstance::poi_add(POI *p_poi) {
 	NP_DEV_ASSERT(p_poi);
 	_POIs.push_back(p_poi);
-	
+
 	if (p_poi->handle_mesh_instance.is_valid()) {
 		NP_WARN_PRINT_ONCE("poi_add() :  poi already is assigned to a mesh instance.");
 	}
@@ -116,14 +135,24 @@ void MeshInstance::poi_set_position(POI *p_poi, const FPoint3 &p_pt_world) {
 
 	NP_ERR_FAIL_COND(_mesh_id == UINT32_MAX);
 	const Mesh &mesh = get_mesh();
-	
+
 	p_poi->local_point.pos = world_space_to_local_fixed_point(mesh, p_pt_world);
 
 	// Find the polygon.
 	freal fit = 0;
-	
+
 	p_poi->local_point.poly_id = mesh.find_best_poly_within(p_poi->local_point.pos, 10.0f * _scale_world_space_to_local_fixed_point, 0.5f * _scale_world_space_to_local_fixed_point, fit);
 	print_line(String("Best polygon is ") + itos(p_poi->local_point.poly_id));
+}
+
+uint32_t MeshInstance::obstacle_find(Obstacle *p_obstacle) const {
+	for (uint32_t n = 0; n < _obstacles.size(); n++) {
+		if (_obstacles[n] == p_obstacle) {
+			return n;
+		}
+	}
+
+	return UINT32_MAX;
 }
 
 uint32_t MeshInstance::poi_find(POI *p_poi) const {
@@ -165,14 +194,13 @@ void MeshInstance::_refresh_gravity() {
 	// Scale and direct a unit length world space down vector to the local mesh instance.
 	_gravity_local_space = _transform_inverse.basis.xform(FPoint3(0, -1, 0));
 	freal l = _gravity_local_space.length();
-	
+
 	const Mesh &mesh = get_mesh();
-	
+
 	// Also refresh general scaling while we are at it.
 	//_scale_world_space_to_local = l;
 	_scale_world_space_to_local_fixed_point = mesh.dist_float_to_fixed_point(l);
-	
-	
+
 	if (_is_gravity_local_space) {
 		_gravity_local_space = FPoint3(0, l, 0);
 	}
@@ -188,11 +216,10 @@ void MeshInstance::_set_transform(const Transform &p_xform, const Transform &p_x
 }
 
 freal MeshInstance::find_agent_jump_fit(Agent &r_agent, const JumpFinderData &p_jump_data, u32 &r_best_poly_id, freal p_max_step_up, freal p_max_drop, freal p_best_fit_so_far) const {
-	
-	// Drop and step up should be in local units, rather than world space.	
-	p_max_drop *=_scale_world_space_to_local_fixed_point;
-	p_max_step_up *=_scale_world_space_to_local_fixed_point;
-	
+	// Drop and step up should be in local units, rather than world space.
+	p_max_drop *= _scale_world_space_to_local_fixed_point;
+	p_max_step_up *= _scale_world_space_to_local_fixed_point;
+
 	JumpFinderDataLocal jl;
 
 	r_best_poly_id = UINT32_MAX;
@@ -202,10 +229,10 @@ freal MeshInstance::find_agent_jump_fit(Agent &r_agent, const JumpFinderData &p_
 
 	// xform agent world space to local space
 
-#define NP_FIND_AGENT_JUMP_WORLD_TO_FP(PARAM)                                                  \
-	{                                                                                          \
+#define NP_FIND_AGENT_JUMP_WORLD_TO_FP(PARAM)                                         \
+	{                                                                                 \
 		jl.pt_##PARAM##_local = world_space_to_local(p_jump_data.pt_##PARAM##_world); \
-		jl.PARAM##_local = mesh.float_to_fixed_point(jl.pt_##PARAM##_local);                   \
+		jl.PARAM##_local = mesh.float_to_fixed_point(jl.pt_##PARAM##_local);          \
 	}
 
 	NP_FIND_AGENT_JUMP_WORLD_TO_FP(from);
@@ -245,7 +272,7 @@ freal MeshInstance::find_agent_jump_fit(Agent &r_agent, const JumpFinderData &p_
 		NP_LLOG("\tnot in aabb");
 		return 1000000;
 	}
-	
+
 	NP_LLOG(String("\tfind_agent_jump_fit ipos ") + jl.pt_from_local + " to " + jl.pt_far_local);
 
 	// Calculate a bonus ALLOWED drop of whatever jump height the agent currently has.
@@ -261,41 +288,36 @@ freal MeshInstance::find_agent_jump_fit(Agent &r_agent, const JumpFinderData &p_
 	r_best_poly_id = mesh.find_best_jump_poly_within(r_agent, jl, p_max_drop, p_max_step_up, fit);
 
 	if (r_best_poly_id == UINT32_MAX) {
-		
 		IPoint3 to_local = ((jl.to_local - jl.from_local) / 2) + jl.from_local;
 		FPoint3 to_world = ((p_jump_data.pt_to_world - p_jump_data.pt_from_world) * 0.5f) + p_jump_data.pt_from_world;
-		
+
 		// If the external links fail, try teleporting directly into the new mesh.
 		r_best_poly_id = mesh.find_best_poly_within(to_local, p_max_drop, p_max_step_up, fit);
-		
+
 		// If the to position failed, try the from.
-		if (r_best_poly_id == UINT32_MAX)
-		{
+		if (r_best_poly_id == UINT32_MAX) {
 			to_local = jl.from_local;
 			to_world = p_jump_data.pt_from_world;
 			r_best_poly_id = mesh.find_best_poly_within(to_local, p_max_drop, p_max_step_up, fit);
 		}
-		
+
 		// If we teleport directly into the new mesh, we must be on a poly.
 		// We use the from position, and we directly set the agent,
 		// rather than using a jump target.
 		if ((r_best_poly_id != UINT32_MAX) && (fit < p_best_fit_so_far)) {
 			r_agent.set_poly_id(r_best_poly_id);
 			r_agent.clear_wall_id();
-			
-			
+
 			r_agent.set_pos(to_local);
 			NP_DEV_ASSERT(local_fixed_point_to_world_space(mesh, to_local).is_equal_approx(to_world));
 			NP_LLOG(String("\tJUMP best fit so far world pos is ") + to_world + " on mesh_instance ID : " + get_id());
-			
+
 			//r_agent.set_height(jl.pt_to_local.y);
 			r_agent.clear_wall_id();
 
 			r_agent.set_velocity(jl.vel_local);
 			NP_DEV_ASSERT(velocity_local_fixed_point_to_world_space(mesh, jl.vel_local).is_equal_approx(p_jump_data.vel_world));
-			
-			
-			
+
 			//r_agent.set_jump_velocity(jl.vel_local.height);
 
 			// Set local velocity and jump vel NYI
@@ -384,11 +406,11 @@ freal MeshInstance::find_agent_fit(Agent &r_agent, const FPoint3 &p_world_pos, u
 	// Check for inclusion inside tri.
 	//r_best_poly_id = mesh.find_poly_within(ipos);
 	freal fit = 10000;
-	
-	// Drop and step up should be in local units, rather than world space.	
-	p_max_drop *=_scale_world_space_to_local_fixed_point;
-	p_max_step_up *=_scale_world_space_to_local_fixed_point;
-	
+
+	// Drop and step up should be in local units, rather than world space.
+	p_max_drop *= _scale_world_space_to_local_fixed_point;
+	p_max_step_up *= _scale_world_space_to_local_fixed_point;
+
 	r_best_poly_id = mesh.find_best_poly_within(ipos, p_max_drop, p_max_step_up, fit);
 
 	if (r_best_poly_id == UINT32_MAX) {
@@ -410,8 +432,8 @@ void MeshInstance::teleport_agent(Agent &r_agent) {
 	// Get the fixed point velocity into the new local space.
 	//r_agent.vel.zero();
 	IPoint3 vel_local = velocity_world_space_to_local_fixed_point(mesh, r_agent.fimpulse3);
-//	FPoint3 vel_local = get_transform_inverse().basis.xform(r_agent.fimpulse3);
-//	r_agent.set_velocity(mesh.dist_float_to_fixed_point(vel_local));
+	//	FPoint3 vel_local = get_transform_inverse().basis.xform(r_agent.fimpulse3);
+	//	r_agent.set_velocity(mesh.dist_float_to_fixed_point(vel_local));
 	r_agent.set_velocity(vel_local);
 
 	NP_LOG(String("teleport world vel: ") + r_agent.fimpulse3 + ", local vel: " + vel_local);
@@ -577,16 +599,16 @@ void MeshInstance::refresh_agent_local_velocity_from_world_space(Agent &r_agent,
 
 void MeshInstance::refresh_agent_world_space_position(Agent &r_agent, bool p_remake_pos) const {
 	// Translate the agent height back into final output pos3.
-//	if (p_remake_pos) {
-//		r_agent.fpos3 = FPoint3::make(r_agent.fpos.x, r_agent.get_height(), r_agent.fpos.y);
-//	}
+	//	if (p_remake_pos) {
+	//		r_agent.fpos3 = FPoint3::make(r_agent.fpos.x, r_agent.get_height(), r_agent.fpos.y);
+	//	}
 
 	// Transform the location back into world space.
 	//r_agent.fpos3 = get_transform().xform(r_agent.fpos3);
-	
+
 	r_agent.fpos3 = local_fixed_point_to_world_space(get_mesh(), r_agent.get_pos());
 	NP_LOG(String("\tcalculating fpos3 from fixed point : ") + r_agent.get_pos() + " on mesh_instance_id : " + get_id() + ", world space is : " + r_agent.fpos3);
-	
+
 	NP_DEV_ASSERT(r_agent.fpos3.isfinite());
 
 #if 0
@@ -818,7 +840,7 @@ void MeshInstance::body_dual_trace(const Agent &p_agent, FPoint3 p_intermediate_
 	// transform destination to mesh space
 	p_intermediate_destination = get_transform_inverse().xform(p_intermediate_destination);
 	IPoint2 intermediate_to = mesh.float2_to_fixed_point2(FPoint2::make(p_intermediate_destination.x, p_intermediate_destination.z));
-	
+
 	Mesh::TraceResult res = mesh.recursive_trace(0, p_agent.get_pos().xz(), intermediate_to, p_agent.get_poly_id(), trace_info);
 	r_result.mesh.first_trace_hit = (res != Mesh::TR_CLEAR);
 
@@ -860,7 +882,7 @@ void MeshInstance::body_trace(const Agent &p_agent, NavPhysics::TraceResult &r_r
 	dest = get_transform_inverse().xform(dest);
 
 	IPoint2 to = mesh.float2_to_fixed_point2(FPoint2::make(dest.x, dest.z));
-	
+
 	Mesh::TraceResult res = mesh.recursive_trace(0, p_agent.get_pos().xz(), to, p_agent.get_poly_id(), trace_info);
 	r_result.mesh.hit = (res != Mesh::TR_CLEAR);
 
@@ -906,7 +928,7 @@ bool MeshInstance::_iterate_agent_on_jump_link(Agent &r_agent, Mesh::MoveInfo &r
 
 	const IPoint2 &dest = ag.jump_link_target_pos;
 	u32 &wall_id = ag.jump_link_wall_id;
-	
+
 	IPoint2 offset = dest - ag.get_pos().xz();
 	//freal mag = ag.vel.lengthf();
 
@@ -918,7 +940,7 @@ bool MeshInstance::_iterate_agent_on_jump_link(Agent &r_agent, Mesh::MoveInfo &r
 	}
 
 	offset.normalize_to_scale(r_distance);
-	
+
 	IPoint2 orig_agent_pos = ag.get_pos().xz();
 	ag.set_2d_pos(orig_agent_pos + offset);
 
@@ -969,7 +991,7 @@ void MeshInstance::_agent_slide_on_ceiling(Agent &r_agent, Mesh::MoveInfo &r_mov
 	}
 
 	const Mesh &mesh = get_mesh();
-	
+
 	IPoint2 dest_pos = r_agent.get_2d_pos() + r_agent_velocity;
 	freal height;
 	if (!mesh.find_ceiling_height(r_agent.get_poly_id(), dest_pos, height, r_agent.ceiling_poly_id)) {
@@ -999,7 +1021,7 @@ void MeshInstance::_agent_slide_on_ceiling(Agent &r_agent, Mesh::MoveInfo &r_mov
 
 		for (u32 w = 0; w < poly.num_inds; w++) {
 			const IPoint3 *vert_b = &mesh.get_vert(mesh.get_ind(poly.first_ind + w, true), true);
-			
+
 			if (mesh.find_line_segments_intersect_integer(source_pos, dest_pos, vert_a->xz(), vert_b->xz(), pt_hit)) {
 				u64 dist = (pt_hit - source_pos).length_squared();
 
@@ -1140,7 +1162,7 @@ void MeshInstance::_iterate_agent(Agent &r_agent, Mesh::MoveInfo &r_move_info) {
 	if (_agent_enter_poly(r_agent, minfo.poly_id)) {
 		ag.set_2d_pos(minfo.pos_reached);
 		ag.set_wall_id(minfo.wall_id);
-		
+
 		ag.set_2d_velocity(ag.get_pos().xz() - old_pos);
 		//ag.vel -= ag.instant_impulse;
 		//		ag.blocking_zone_id = UINT32_MAX;

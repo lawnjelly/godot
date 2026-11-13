@@ -4,6 +4,7 @@
 
 #include "np_agent.h"
 #include "np_defines.h"
+#include "np_obstacle.h"
 #include "np_point.h"
 #include "thirdparty/navphysics/navphysics_loader.h"
 #include "thirdparty/navphysics/navphysics_log.h"
@@ -78,6 +79,40 @@ void NPMeshInstance::_update_active(bool p_exiting_tree) {
 			data.is_active_state = false;
 		}
 	}
+}
+
+void NPMeshInstance::obstacle_add(NPObstacleInstance &p_obstacle) {
+	NavPhysics::MeshInstance *mi = NavPhysics::g_world.safe_get_mesh_instance(data.h_mesh_instance);
+	ERR_FAIL_NULL(mi);
+
+	NavPhysics::Obstacle *o = NavPhysics::g_world.safe_get_obstacle(p_obstacle.get_handle_obstacle());
+	DEV_ASSERT(o);
+	mi->obstacle_add(o);
+}
+
+void NPMeshInstance::obstacle_remove(NPObstacleInstance &p_obstacle) {
+	NavPhysics::MeshInstance *mi = NavPhysics::g_world.safe_get_mesh_instance(data.h_mesh_instance);
+	ERR_FAIL_NULL(mi);
+
+	NavPhysics::Obstacle *o = NavPhysics::g_world.safe_get_obstacle(p_obstacle.get_handle_obstacle());
+	DEV_ASSERT(o);
+	mi->obstacle_remove(o);
+}
+
+void NPMeshInstance::obstacle_notify_transform(NPObstacleInstance &p_obstacle) {
+#ifdef TOOLS_ENABLED
+	if (Engine::get_singleton()->is_editor_hint()) {
+		return;
+	}
+#endif
+
+	NavPhysics::MeshInstance *mi = NavPhysics::g_world.safe_get_mesh_instance(data.h_mesh_instance);
+	ERR_FAIL_NULL(mi);
+
+	NavPhysics::Obstacle *o = NavPhysics::g_world.safe_get_obstacle(p_obstacle.get_handle_obstacle());
+	DEV_ASSERT(o);
+
+	mi->obstacle_set_transform(o, NPHelper::transform_to_np_transform(p_obstacle.get_global_transform()));
 }
 
 void NPMeshInstance::point_add(NPPoint &p_point) {
