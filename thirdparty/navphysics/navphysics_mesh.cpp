@@ -622,30 +622,45 @@ void Mesh::slide_move_on_blocks(u32 p_poly_from_id, u32 p_poly_id, const IPoint2
 		Block *block = NPWORLD.safe_get_block(blocks[n]);
 		if (block) {
 			if (block->data.bound.contains_point(new_pos)) {
+				bool from_outside = false;
+				bool to_outside = false;
+
+				for (u32 w = 0; w < 4; w++) {
+					const IPoint2 &a = block->data.corners[w];
+					const IPoint2 &b = block->data.corners[(w + 1) % 4];
+					
+					if (IPoint2::which_side(a, b, p_from) > 0) {
+						from_outside = true;
+					}
+					if (IPoint2::which_side(a, b, new_pos) > 0) {
+						to_outside = true;
+					}
+				}
+
+				if (to_outside == true) {
+					continue;
+				}
+
 				u64 best_dist = UINT64_MAX;
 				u32 best_wall = UINT32_MAX;
 				IPoint2 best_hit;
 				freal best_dot = 0;
 				IPoint2 best_slide_vector;
 
-#ifdef NP_DEV_ENABLED
 				u64 old_dist = r_vel.length_squared();
-#endif
 
 				IPoint2 pt_hit;
 				for (u32 w = 0; w < 4; w++) {
 					const IPoint2 &a = block->data.corners[w];
 					const IPoint2 &b = block->data.corners[(w + 1) % 4];
 
-					if (find_line_segments_intersect_integer(a, b, p_from, new_pos, pt_hit)) {
+					if (find_lines_intersect_integer(a, b, p_from, new_pos, pt_hit)) {
 						u64 dist = (pt_hit - p_from).length_squared();
 						if (dist < best_dist) {
 							best_dist = dist;
 							best_wall = w;
 							best_hit = pt_hit;
-							
-							NP_DEV_ASSERT(best_dist <= old_dist);
-							
+
 							IPoint2 a_to_b = b - a;
 							best_dot = a_to_b.dot_normalized(r_vel);
 							best_slide_vector = a_to_b;
@@ -657,10 +672,20 @@ void Mesh::slide_move_on_blocks(u32 p_poly_from_id, u32 p_poly_id, const IPoint2
 				if (best_wall != UINT32_MAX) {
 					//r_vel = best_hit - p_from;
 					r_vel = best_slide_vector;
-				} else {
+
+					// Also check if we are inside completely. If so, push out to the wall.
+					if (!from_outside && !to_outside) {
+						r_vel += (best_hit - p_from);
+					}
+
+					return;
+				}
+				/*
+				else {
 					r_vel.zero();
 				}
 				return;
+*/
 			}
 		} else {
 			NP_WARN_PRINT_ONCE("Invalid block detected in poly list.");

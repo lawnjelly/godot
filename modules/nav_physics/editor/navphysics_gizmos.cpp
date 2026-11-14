@@ -1,7 +1,38 @@
 #include "navphysics_gizmos.h"
+#include "modules/nav_physics/godot/np_block.h"
 #include "modules/nav_physics/godot/np_mesh.h"
 #include "modules/nav_physics/godot/np_mesh_instance.h"
 #include "modules/nav_physics/godot/np_point.h"
+
+NavPhysicsBlockSpatialGizmoPlugin::NavPhysicsBlockSpatialGizmoPlugin() {
+	create_material("nav_physics_block_solid_material", EDITOR_DEF("editors/3d_gizmos/gizmo_colors/nav_physics_block", Color(0.5, 1.0, 0.5, 1.0)));
+}
+
+bool NavPhysicsBlockSpatialGizmoPlugin::has_gizmo(Spatial *p_spatial) {
+	return Object::cast_to<NPBlock>(p_spatial) != nullptr;
+}
+
+String NavPhysicsBlockSpatialGizmoPlugin::get_name() const {
+	return "NPBlock";
+}
+
+int NavPhysicsBlockSpatialGizmoPlugin::get_priority() const {
+	return -1;
+}
+
+void NavPhysicsBlockSpatialGizmoPlugin::redraw(EditorSpatialGizmo *p_gizmo) {
+	p_gizmo->clear();
+
+	NPBlock *block = Object::cast_to<NPBlock>(p_gizmo->get_spatial_node());
+	ERR_FAIL_NULL(block);
+
+	Vector2 dims = block->get_dimensions();
+
+	Ref<Material> solid_material = get_material("nav_physics_block_solid_material", p_gizmo);
+	p_gizmo->add_solid_box(solid_material, Vector3(dims.x, 1, dims.y));
+}
+
+///////////////////////////////////
 
 NavPhysicsPointSpatialGizmoPlugin::NavPhysicsPointSpatialGizmoPlugin() {
 	create_material("nav_physics_poi_solid_material", EDITOR_DEF("editors/3d_gizmos/gizmo_colors/nav_physics_point", Color(1.0, 0.5, 0.5, 1.0)));

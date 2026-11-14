@@ -208,6 +208,9 @@ NPMeshEditorPlugin::NPMeshEditorPlugin(EditorNode *p_node) {
 
 	Ref<NavPhysicsPointSpatialGizmoPlugin> point_gizmo_plugin = Ref<NavPhysicsPointSpatialGizmoPlugin>(memnew(NavPhysicsPointSpatialGizmoPlugin));
 	SpatialEditor::get_singleton()->add_gizmo_plugin(point_gizmo_plugin);
+
+	Ref<NavPhysicsBlockSpatialGizmoPlugin> block_gizmo_plugin = Ref<NavPhysicsBlockSpatialGizmoPlugin>(memnew(NavPhysicsBlockSpatialGizmoPlugin));
+	SpatialEditor::get_singleton()->add_gizmo_plugin(block_gizmo_plugin);
 }
 
 NPMeshEditorPlugin::~NPMeshEditorPlugin() {

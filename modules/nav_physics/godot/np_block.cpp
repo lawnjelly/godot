@@ -90,6 +90,21 @@ void NPBlock::_resource_changed() {
 	print_line("was changed");
 }
 
+Vector2 NPBlock::get_dimensions() const {
+	if (data.shape.is_null()) {
+		return Vector2(1, 1);
+	}
+
+	if (data.shape->get_shape_type() == NPShape::Type::BOX) {
+		Ref<NPShape_Box> box = data.shape;
+		if (box.is_valid()) {
+			return Vector2(box->get_width(), box->get_height());
+		}
+	}
+
+	return Vector2(1, 1);
+}
+
 void NPBlock::set_shape(const Ref<NPShape> &p_obstacle) {
 	if (p_obstacle == data.shape) {
 		return;

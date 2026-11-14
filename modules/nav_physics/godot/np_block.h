@@ -62,6 +62,8 @@ public:
 	void set_shape(const Ref<NPShape> &p_obstacle);
 	Ref<NPShape> get_shape() const;
 
+	Vector2 get_dimensions() const;
+
 	np_handle get_handle_block() const { return data.h_block; }
 
 	NPBlock();
