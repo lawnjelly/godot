@@ -86,8 +86,8 @@ void NPMeshInstance::block_add(NPBlock &p_block) {
 	ERR_FAIL_NULL(mi);
 
 	NavPhysics::Block *o = NavPhysics::g_world.safe_get_block(p_block.get_handle_block());
-	DEV_ASSERT(o);
-	mi->block_add(o);
+	ERR_FAIL_NULL(o);
+	mi->block_add(*o);
 }
 
 void NPMeshInstance::block_remove(NPBlock &p_block) {
@@ -95,8 +95,8 @@ void NPMeshInstance::block_remove(NPBlock &p_block) {
 	ERR_FAIL_NULL(mi);
 
 	NavPhysics::Block *o = NavPhysics::g_world.safe_get_block(p_block.get_handle_block());
-	DEV_ASSERT(o);
-	mi->block_remove(o);
+	ERR_FAIL_NULL(o);
+	mi->block_remove(*o);
 }
 
 void NPMeshInstance::block_notify_transform(NPBlock &p_block) {
@@ -110,11 +110,11 @@ void NPMeshInstance::block_notify_transform(NPBlock &p_block) {
 	ERR_FAIL_NULL(mi);
 
 	NavPhysics::Block *o = NavPhysics::g_world.safe_get_block(p_block.get_handle_block());
-	DEV_ASSERT(o);
+	ERR_FAIL_NULL(o);
 
 	Transform local_xform = get_global_transform().affine_inverse() * p_block.get_global_transform();
 
-	mi->block_set_transform(o, NPHelper::transform_to_np_transform(local_xform));
+	mi->block_set_transform(*o, NPHelper::transform_to_np_transform(local_xform));
 }
 
 void NPMeshInstance::point_add(NPPoint &p_point) {
@@ -124,9 +124,8 @@ void NPMeshInstance::point_add(NPPoint &p_point) {
 	//Vector3 origin = p_point.get_global_transform().origin;
 
 	NavPhysics::POI *poi = NavPhysics::g_world.safe_get_poi(p_point.get_handle_poi());
-	DEV_ASSERT(poi);
-	//mi->add_poi(poi, *(NavPhysics::FPoint3 *)&origin);
-	mi->poi_add(poi);
+	ERR_FAIL_NULL(poi);
+	mi->poi_add(*poi);
 
 	// Back pointer to the scene side.
 	poi->user_data = (u64)&p_point;
@@ -141,8 +140,8 @@ void NPMeshInstance::point_remove(NPPoint &p_point) {
 	ERR_FAIL_NULL(mi);
 
 	NavPhysics::POI *poi = NavPhysics::g_world.safe_get_poi(p_point.get_handle_poi());
-	DEV_ASSERT(poi);
-	mi->poi_remove(poi);
+	ERR_FAIL_NULL(poi);
+	mi->poi_remove(*poi);
 
 	PointRef ref;
 	ref.point = &p_point;
@@ -162,9 +161,9 @@ void NPMeshInstance::point_notify_transform(NPPoint &p_point) {
 	Vector3 origin = p_point.get_global_transform().origin;
 
 	NavPhysics::POI *poi = NavPhysics::g_world.safe_get_poi(p_point.get_handle_poi());
-	DEV_ASSERT(poi);
+	ERR_FAIL_NULL(poi);
 
-	mi->poi_set_position(poi, NPHelper::vector3_to_np_fpoint3(origin));
+	mi->poi_set_position(*poi, NPHelper::vector3_to_np_fpoint3(origin));
 }
 
 void NPMeshInstance::resync_points() {
@@ -186,9 +185,10 @@ void NPMeshInstance::resync_points() {
 					//Vector3 origin = point->get_global_transform().origin;
 
 					NavPhysics::POI *poi = NavPhysics::g_world.safe_get_poi(point->get_handle_poi());
-					DEV_ASSERT(poi);
+					ERR_FAIL_NULL(poi);
+
 					//mi->poi_add(poi, *(NavPhysics::FPoint3 *)&origin);
-					mi->poi_add(poi);
+					mi->poi_add(*poi);
 
 					// Back pointer to the scene side.
 					poi->user_data = (u64)point;

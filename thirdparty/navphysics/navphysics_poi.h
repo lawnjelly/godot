@@ -25,6 +25,8 @@ public:
 
 class Block
 {
+	friend class NavPhysics::MeshInstance;
+	
 	struct Data
 	{
 		freal width = 1;
@@ -32,26 +34,25 @@ class Block
 		freal yaw = 0;
 		IRect2 bound;
 		IPoint2 corners[4];
+		LocalPoint3 local_point;
+		np_handle handle_mesh_instance;
 	} data;
 	
 	void changed()
 	{
 	}
 	
+	void set_corners(Span<IPoint2> p_corners);
+	
 public:
-	LocalPoint3 local_point;
-	np_handle handle_mesh_instance;
 
 #define NP_SET_GET(a, TYPE) TYPE get_##a() const {return data.a;}\
 	void set_##a(TYPE p_value) {data.a = p_value; changed();}
 	
 	NP_SET_GET(width, freal)
 	NP_SET_GET(height, freal)
-	NP_SET_GET(yaw, freal)
 	
 #undef NP_SET_GET
-	
-	void set_corners(Span<IPoint2> p_corners);
 	
 	void init(np_handle p_handle) {
 	}

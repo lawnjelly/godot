@@ -88,18 +88,29 @@ IPoint2 MeshInstance::world_space_velocity_to_local(const Mesh &p_mesh, const FP
 }
 */
 
-void MeshInstance::block_add(Block *p_block) {
-	NP_DEV_ASSERT(p_block);
-	_blocks.push_back(p_block);
-
-	if (p_block->handle_mesh_instance.is_valid()) {
-		NP_WARN_PRINT_ONCE("block_add() :  block already is assigned to a mesh instance.");
-	}
-	p_block->handle_mesh_instance = get_handle();
+void MeshInstance::block_update(Block &p_block)
+{
+	const Mesh &mesh = get_mesh();
+	LocalPoint3 &pt = p_block.data.local_point;
+	
+	// Find the polygon.
+	freal fit = 0;
+	pt.poly_id = mesh.find_best_poly_within(pt.pos, 10.0f * _scale_world_space_to_local_fixed_point, 0.5f * _scale_world_space_to_local_fixed_point, fit);
+	
+	print_line(String("Best polygon is ") + itos(pt.poly_id));
+	
 }
 
-void MeshInstance::block_set_transform(Block *p_block, const Transform &p_xform_local) {
-	NP_DEV_ASSERT(p_block);
+void MeshInstance::block_add(Block &p_block) {
+	_blocks.push_back(&p_block);
+
+	if (p_block.data.handle_mesh_instance.is_valid()) {
+		NP_WARN_PRINT_ONCE("block_add() :  block already is assigned to a mesh instance.");
+	}
+	p_block.data.handle_mesh_instance = get_handle();
+}
+
+void MeshInstance::block_set_transform(Block &p_block, const Transform &p_xform_local) {
 	NP_ERR_FAIL_COND(_mesh_id == UINT32_MAX);
 
 #ifdef NP_DEV_ENABLED
@@ -110,38 +121,35 @@ void MeshInstance::block_set_transform(Block *p_block, const Transform &p_xform_
 	const Mesh &mesh = get_mesh();
 
 	// The local origin.
-	p_block->local_point.pos = mesh.float_to_fixed_point(p_xform_local.origin);
-
-	// Find the polygon.
-	freal fit = 0;
-
-	p_block->local_point.poly_id = mesh.find_best_poly_within(p_block->local_point.pos, 10.0f * _scale_world_space_to_local_fixed_point, 0.5f * _scale_world_space_to_local_fixed_point, fit);
-	print_line(String("Best polygon is ") + itos(p_block->local_point.poly_id));
+	p_block.data.local_point.pos = mesh.float_to_fixed_point(p_xform_local.origin);
+	
+	// The local yaw.
+	p_block.data.yaw = p_xform_local.basis.calculate_yaw();
+	
+	block_update(p_block);
 }
 
-bool MeshInstance::block_remove(Block *p_block) {
+bool MeshInstance::block_remove(Block &p_block) {
 	uint32_t id = block_find(p_block);
 	if (id != UINT32_MAX) {
 		_blocks.remove_unordered(id);
-		p_block->handle_mesh_instance = np_handle();
+		p_block.data.handle_mesh_instance = np_handle();
 		return true;
 	}
 
 	return false;
 }
 
-void MeshInstance::poi_add(POI *p_poi) {
-	NP_DEV_ASSERT(p_poi);
-	_POIs.push_back(p_poi);
+void MeshInstance::poi_add(POI &p_poi) {
+	_POIs.push_back(&p_poi);
 
-	if (p_poi->handle_mesh_instance.is_valid()) {
+	if (p_poi.handle_mesh_instance.is_valid()) {
 		NP_WARN_PRINT_ONCE("poi_add() :  poi already is assigned to a mesh instance.");
 	}
-	p_poi->handle_mesh_instance = get_handle();
+	p_poi.handle_mesh_instance = get_handle();
 }
 
-void MeshInstance::poi_set_position(POI *p_poi, const FPoint3 &p_pt_world) {
-	NP_DEV_ASSERT(p_poi);
+void MeshInstance::poi_set_position(POI &p_poi, const FPoint3 &p_pt_world) {
 	NP_ERR_FAIL_COND(_mesh_id == UINT32_MAX);
 
 #ifdef NP_DEV_ENABLED
@@ -154,18 +162,18 @@ void MeshInstance::poi_set_position(POI *p_poi, const FPoint3 &p_pt_world) {
 
 	const Mesh &mesh = get_mesh();
 
-	p_poi->local_point.pos = world_space_to_local_fixed_point(mesh, p_pt_world);
+	p_poi.local_point.pos = world_space_to_local_fixed_point(mesh, p_pt_world);
 
 	// Find the polygon.
 	freal fit = 0;
 
-	p_poi->local_point.poly_id = mesh.find_best_poly_within(p_poi->local_point.pos, 10.0f * _scale_world_space_to_local_fixed_point, 0.5f * _scale_world_space_to_local_fixed_point, fit);
-	print_line(String("Best polygon is ") + itos(p_poi->local_point.poly_id));
+	p_poi.local_point.poly_id = mesh.find_best_poly_within(p_poi.local_point.pos, 10.0f * _scale_world_space_to_local_fixed_point, 0.5f * _scale_world_space_to_local_fixed_point, fit);
+	print_line(String("Best polygon is ") + itos(p_poi.local_point.poly_id));
 }
 
-uint32_t MeshInstance::block_find(Block *p_block) const {
+uint32_t MeshInstance::block_find(const Block &p_block) const {
 	for (uint32_t n = 0; n < _blocks.size(); n++) {
-		if (_blocks[n] == p_block) {
+		if (_blocks[n] == &p_block) {
 			return n;
 		}
 	}
@@ -173,9 +181,9 @@ uint32_t MeshInstance::block_find(Block *p_block) const {
 	return UINT32_MAX;
 }
 
-uint32_t MeshInstance::poi_find(POI *p_poi) const {
+uint32_t MeshInstance::poi_find(const POI &p_poi) const {
 	for (uint32_t n = 0; n < _POIs.size(); n++) {
-		if (_POIs[n] == p_poi) {
+		if (_POIs[n] == &p_poi) {
 			return n;
 		}
 	}
@@ -183,11 +191,11 @@ uint32_t MeshInstance::poi_find(POI *p_poi) const {
 	return UINT32_MAX;
 }
 
-bool MeshInstance::poi_remove(POI *p_poi) {
+bool MeshInstance::poi_remove(POI &p_poi) {
 	uint32_t id = poi_find(p_poi);
 	if (id != UINT32_MAX) {
 		_POIs.remove_unordered(id);
-		p_poi->handle_mesh_instance = np_handle();
+		p_poi.handle_mesh_instance = np_handle();
 		return true;
 	}
 

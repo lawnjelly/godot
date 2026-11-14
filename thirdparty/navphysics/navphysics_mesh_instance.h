@@ -134,18 +134,19 @@ public:
 
 	np_handle get_handle() const { return _handle; }
 
-	void poi_add(POI * p_poi);
-	void poi_set_position(POI * p_poi, const FPoint3 &p_pt_world);
-	bool poi_remove(POI * p_poi);
-	uint32_t poi_find(POI * p_poi) const;
+	void poi_add(POI &p_poi);
+	void poi_set_position(POI &p_poi, const FPoint3 &p_pt_world);
+	bool poi_remove(POI &p_poi);
+	uint32_t poi_find(const POI &p_poi) const;
 	void pois_clear() {
 		_POIs.clear();
 	}
 	
-	void block_add(Block * p_block);
-	void block_set_transform(Block * p_block, const Transform &p_xform_local);
-	bool block_remove(Block * p_block);
-	uint32_t block_find(Block * p_block) const;
+	void block_update(Block &p_block);
+	void block_add(Block &p_block);
+	void block_set_transform(Block &p_block, const Transform &p_xform_local);
+	bool block_remove(Block &p_block);
+	uint32_t block_find(const Block &p_block) const;
 	void blocks_clear() {
 		_blocks.clear();
 	}

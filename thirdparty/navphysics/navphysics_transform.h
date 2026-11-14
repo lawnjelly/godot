@@ -95,6 +95,7 @@ struct [[nodiscard]] Basis {
 	// only be used in cases of single normals, or when the basis changes each time.
 	FPoint3 xform_normal(const FPoint3 &p_vector) const { return get_normal_xform_basis().xform_normal_fast(p_vector); }
 
+	freal calculate_yaw() const;
 	bool is_equal_approx(const Basis &p_o, f32 p_tolerance = Math::NP_CMP_EPSILON) const;
 };
 
