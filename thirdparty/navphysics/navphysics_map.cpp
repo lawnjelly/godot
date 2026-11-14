@@ -1022,7 +1022,7 @@ NP_IMPL_SAFE_CREATE_FREE(mesh, e)
 NP_IMPL_SAFE_CREATE_FREE(mesh_instance,)
 NP_IMPL_SAFE_CREATE_FREE(poi,)
 NP_IMPL_SAFE_CREATE_FREE(region,)
-NP_IMPL_SAFE_CREATE_FREE(obstacle,)
+NP_IMPL_SAFE_CREATE_FREE(block,)
 
 void World::safe_body_free(np_handle p_body) {
 	NP_ERR_FAIL_COND(!p_body.is_valid());

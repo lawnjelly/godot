@@ -5,9 +5,9 @@
 #include "editor/navphysics_mesh_editor_plugin.cpp"
 #include "godot/np_agent.cpp"
 #include "godot/np_bake_params.cpp"
+#include "godot/np_block.cpp"
 #include "godot/np_mesh.cpp"
 #include "godot/np_mesh_instance.cpp"
-#include "godot/np_obstacle.cpp"
 #include "godot/np_point.cpp"
 #include "godot/np_ticker.cpp"
 #endif

@@ -23,7 +23,7 @@ public:
 	}
 };
 
-class Obstacle
+class Block
 {
 	struct Data
 	{

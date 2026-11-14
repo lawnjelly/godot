@@ -17,7 +17,7 @@ class Mesh;
 class MeshInstance;
 class Region;
 class POI;
-class Obstacle;
+class Block;
 struct Agent;
 
 class Map {
@@ -165,7 +165,7 @@ class World {
 	WorldPool<Mesh> _meshes;
 	WorldPool<MeshInstance> _mesh_instances;
 	WorldPool<POI> _pois;
-	WorldPool<Obstacle> _obstacles;
+	WorldPool<Block> _blocks;
 
 	// Agent is stored directly rather than as a WorldPool
 	// so as to prevent an indirection and give fast access.
@@ -202,7 +202,7 @@ public:
 	NP_DECL_SAFE_GET(Region, region, )
 	NP_DECL_SAFE_GET(Map, map, )
 	NP_DECL_SAFE_GET(POI, poi, )
-	NP_DECL_SAFE_GET(Obstacle, obstacle, )
+	NP_DECL_SAFE_GET(Block, block, )
 
 #undef NP_DECL_SAFE_GET
 

@@ -88,24 +88,24 @@ IPoint2 MeshInstance::world_space_velocity_to_local(const Mesh &p_mesh, const FP
 }
 */
 
-void MeshInstance::obstacle_add(Obstacle *p_obstacle) {
-	NP_DEV_ASSERT(p_obstacle);
-	_obstacles.push_back(p_obstacle);
+void MeshInstance::block_add(Block *p_block) {
+	NP_DEV_ASSERT(p_block);
+	_blocks.push_back(p_block);
 
-	if (p_obstacle->handle_mesh_instance.is_valid()) {
-		NP_WARN_PRINT_ONCE("obstacle_add() :  obstacle already is assigned to a mesh instance.");
+	if (p_block->handle_mesh_instance.is_valid()) {
+		NP_WARN_PRINT_ONCE("block_add() :  block already is assigned to a mesh instance.");
 	}
-	p_obstacle->handle_mesh_instance = get_handle();
+	p_block->handle_mesh_instance = get_handle();
 }
 
-void MeshInstance::obstacle_set_transform(Obstacle *p_obstacle, const Transform &p_xform_world) {
+void MeshInstance::block_set_transform(Block *p_block, const Transform &p_xform_world) {
 }
 
-bool MeshInstance::obstacle_remove(Obstacle *p_obstacle) {
-	uint32_t id = obstacle_find(p_obstacle);
+bool MeshInstance::block_remove(Block *p_block) {
+	uint32_t id = block_find(p_block);
 	if (id != UINT32_MAX) {
-		_obstacles.remove_unordered(id);
-		p_obstacle->handle_mesh_instance = np_handle();
+		_blocks.remove_unordered(id);
+		p_block->handle_mesh_instance = np_handle();
 		return true;
 	}
 
@@ -145,9 +145,9 @@ void MeshInstance::poi_set_position(POI *p_poi, const FPoint3 &p_pt_world) {
 	print_line(String("Best polygon is ") + itos(p_poi->local_point.poly_id));
 }
 
-uint32_t MeshInstance::obstacle_find(Obstacle *p_obstacle) const {
-	for (uint32_t n = 0; n < _obstacles.size(); n++) {
-		if (_obstacles[n] == p_obstacle) {
+uint32_t MeshInstance::block_find(Block *p_block) const {
+	for (uint32_t n = 0; n < _blocks.size(); n++) {
+		if (_blocks[n] == p_block) {
 			return n;
 		}
 	}

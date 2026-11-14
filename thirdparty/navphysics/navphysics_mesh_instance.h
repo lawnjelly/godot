@@ -47,7 +47,7 @@ class MeshInstance {
 	// Can be passed from client code to identify this MeshInstance.
 	u64 _user_data = 0;
 	
-	Vector<Obstacle *> _obstacles;
+	Vector<Block *> _blocks;
 	Vector<POI *> _POIs;
 	Vector<ZoneInstance> _zone_instances;
 
@@ -142,12 +142,12 @@ public:
 		_POIs.clear();
 	}
 	
-	void obstacle_add(Obstacle * p_obstacle);
-	void obstacle_set_transform(Obstacle * p_obstacle, const Transform &p_xform_world);
-	bool obstacle_remove(Obstacle * p_obstacle);
-	uint32_t obstacle_find(Obstacle * p_obstacle) const;
-	void obstacles_clear() {
-		_obstacles.clear();
+	void block_add(Block * p_block);
+	void block_set_transform(Block * p_block, const Transform &p_xform_world);
+	bool block_remove(Block * p_block);
+	uint32_t block_find(Block * p_block) const;
+	void blocks_clear() {
+		_blocks.clear();
 	}
 	
 	void init(np_handle p_handle) {

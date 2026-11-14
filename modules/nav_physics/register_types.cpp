@@ -4,9 +4,9 @@
 #ifndef _3D_DISABLED
 #include "godot/np_agent.h"
 #include "godot/np_bake_params.h"
+#include "godot/np_block.h"
 #include "godot/np_mesh.h"
 #include "godot/np_mesh_instance.h"
-#include "godot/np_obstacle.h"
 #include "godot/np_point.h"
 
 #ifdef TOOLS_ENABLED
@@ -23,9 +23,9 @@ void register_nav_physics_types() {
 	ClassDB::register_class<NPBakeParams_Mesh>();
 	ClassDB::register_class<NPBakeParams>();
 	ClassDB::register_class<NPPoint>();
-	ClassDB::register_class<NPObstacleInstance>();
-	ClassDB::register_class<NPObstacle>();
-	ClassDB::register_class<NPObstacle_Box>();
+	ClassDB::register_class<NPBlock>();
+	ClassDB::register_class<NPShape>();
+	ClassDB::register_class<NPShape_Box>();
 
 #ifdef TOOLS_ENABLED
 	EditorPlugins::add_by_type<NPMeshEditorPlugin>();
