@@ -187,8 +187,8 @@ public:
 	void set_pathfind_internal_jump_links(bool p_enable);
 	void set_pathfind_external_jump_links(bool p_enable);
 	void set_npc(bool p_enable);
-	void set_active(bool p_enable);
-	bool is_active() const { return data.is_active_desired; }
+	void set_enabled(bool p_enable);
+	bool is_enabled() const { return data.is_active_desired; }
 
 	// In mesh space.
 	// YAW can either be handled automatically by the agent (to follow movement),

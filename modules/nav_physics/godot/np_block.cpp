@@ -35,8 +35,12 @@ void NPBlock::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_shape", "shape"), &NPBlock::set_shape);
 	ClassDB::bind_method(D_METHOD("get_shape"), &NPBlock::get_shape);
 
+	ClassDB::bind_method(D_METHOD("set_enabled", "enable"), &NPBlock::set_enabled);
+	ClassDB::bind_method(D_METHOD("is_enabled"), &NPBlock::is_enabled);
+
 	ClassDB::bind_method(D_METHOD("_resource_changed"), &NPBlock::_resource_changed);
 
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "enabled"), "set_enabled", "is_enabled");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "shape", PROPERTY_HINT_RESOURCE_TYPE, "NPShape"), "set_shape", "get_shape");
 }
 
@@ -103,6 +107,20 @@ Vector2 NPBlock::get_dimensions() const {
 	}
 
 	return Vector2(1, 1);
+}
+
+void NPBlock::set_enabled(bool p_enable) {
+	if (p_enable == data.enabled) {
+		return;
+	}
+
+	data.enabled = p_enable;
+
+	if (!Engine::get_singleton()->is_editor_hint()) {
+		NavPhysics::Block *b = NavPhysics::g_world.safe_get_block(get_handle_block());
+		ERR_FAIL_NULL(b);
+		b->set_active(p_enable);
+	}
 }
 
 void NPBlock::set_shape(const Ref<NPShape> &p_obstacle) {

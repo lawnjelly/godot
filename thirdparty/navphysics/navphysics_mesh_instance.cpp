@@ -128,6 +128,11 @@ void MeshInstance::block_update(Block &p_block) {
 	// Now calculate the corners.
 	i32 width = mesh.dist_float_to_fixed_point(p_block.get_width());
 	i32 height = mesh.dist_float_to_fixed_point(p_block.get_height());
+	
+	// Add the radius of the mesh baked agent to the width and height so that the
+	// agent slides against expanded bound.
+	width += mesh.get_baked_agent_radius();
+	height += mesh.get_baked_agent_radius();
 
 	freal yaw = p_block.data.yaw;
 

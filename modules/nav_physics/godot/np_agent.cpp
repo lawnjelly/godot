@@ -52,8 +52,8 @@ void NPAgent::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("get_debug_pos", "which"), &NPAgent::get_debug_pos);
 
-	ClassDB::bind_method(D_METHOD("set_active", "enable"), &NPAgent::set_active);
-	ClassDB::bind_method(D_METHOD("is_active"), &NPAgent::is_active);
+	ClassDB::bind_method(D_METHOD("set_enabled", "enable"), &NPAgent::set_enabled);
+	ClassDB::bind_method(D_METHOD("is_enabled"), &NPAgent::is_enabled);
 
 	ClassDB::bind_method(D_METHOD("set_radius", "radius"), &NPAgent::set_radius);
 	ClassDB::bind_method(D_METHOD("get_radius"), &NPAgent::get_radius);
@@ -132,7 +132,7 @@ void NPAgent::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("get_current_path", "level"), &NPAgent::get_current_path);
 
-	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "active"), "set_active", "is_active");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "enabled"), "set_enabled", "is_enabled");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "NPC"), "set_npc", "is_npc");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "radius", PROPERTY_HINT_RANGE, "0,1024"), "set_radius", "get_radius");
 	ADD_PROPERTY(PropertyInfo(Variant::REAL, "height", PROPERTY_HINT_RANGE, "0,1024"), "set_height", "get_height");
@@ -840,7 +840,7 @@ void NPAgent::set_pathfind_internal_jump_links(bool p_enable) {
 	_update_params();
 }
 
-void NPAgent::set_active(bool p_enable) {
+void NPAgent::set_enabled(bool p_enable) {
 	if (p_enable == data.is_active_desired) {
 		return;
 	}

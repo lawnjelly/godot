@@ -50,6 +50,7 @@ class NPBlock : public Spatial {
 		np_handle h_block;
 
 		NPMeshInstance *parent = nullptr;
+		bool enabled = true;
 	} data;
 
 	void _resource_changed();
@@ -61,6 +62,9 @@ protected:
 public:
 	void set_shape(const Ref<NPShape> &p_obstacle);
 	Ref<NPShape> get_shape() const;
+
+	void set_enabled(bool p_enable);
+	bool is_enabled() const { return data.enabled; }
 
 	Vector2 get_dimensions() const;
 

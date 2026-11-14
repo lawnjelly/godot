@@ -617,10 +617,11 @@ void Mesh::slide_move_on_blocks(u32 p_poly_from_id, u32 p_poly_id, const IPoint2
 
 	// Now collide detect.
 	IPoint2 new_pos = p_from + r_vel;
+	u64 old_vel_length_sq = r_vel.length_squared();
 
 	for (u32 n = 0; n < blocks.size(); n++) {
 		Block *block = NPWORLD.safe_get_block(blocks[n]);
-		if (block) {
+		if (block && block->data.active) {
 			if (block->data.bound.contains_point(new_pos)) {
 				bool from_outside = false;
 				bool to_outside = false;
@@ -628,7 +629,7 @@ void Mesh::slide_move_on_blocks(u32 p_poly_from_id, u32 p_poly_id, const IPoint2
 				for (u32 w = 0; w < 4; w++) {
 					const IPoint2 &a = block->data.corners[w];
 					const IPoint2 &b = block->data.corners[(w + 1) % 4];
-					
+
 					if (IPoint2::which_side(a, b, p_from) > 0) {
 						from_outside = true;
 					}
@@ -646,8 +647,6 @@ void Mesh::slide_move_on_blocks(u32 p_poly_from_id, u32 p_poly_id, const IPoint2
 				IPoint2 best_hit;
 				freal best_dot = 0;
 				IPoint2 best_slide_vector;
-
-				u64 old_dist = r_vel.length_squared();
 
 				IPoint2 pt_hit;
 				for (u32 w = 0; w < 4; w++) {
@@ -677,8 +676,6 @@ void Mesh::slide_move_on_blocks(u32 p_poly_from_id, u32 p_poly_id, const IPoint2
 					if (!from_outside && !to_outside) {
 						r_vel += (best_hit - p_from);
 					}
-
-					return;
 				}
 				/*
 				else {
@@ -687,9 +684,23 @@ void Mesh::slide_move_on_blocks(u32 p_poly_from_id, u32 p_poly_id, const IPoint2
 				return;
 */
 			}
-		} else {
+		}
+
+#ifdef NP_DEV_ENABLED
+		if (!block) {
 			NP_WARN_PRINT_ONCE("Invalid block detected in poly list.");
 		}
+#endif
+	}
+
+	// Limit r_vel to the original velocity, to prevent adding momentum to the agent.
+	// (It can get increased by the addition to move to the side of a block when penetrating.
+	u64 new_vel_length_sq = r_vel.length_squared();
+
+	if (new_vel_length_sq > old_vel_length_sq) {
+		freal capped_vel = Math::sqrt_real(old_vel_length_sq);
+		capped_vel = MAX(capped_vel, 1024);
+		r_vel.normalize_to_scale(capped_vel);
 	}
 }
 
