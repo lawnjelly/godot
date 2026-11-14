@@ -143,7 +143,7 @@ public:
 	}
 	
 	void block_add(Block * p_block);
-	void block_set_transform(Block * p_block, const Transform &p_xform_world);
+	void block_set_transform(Block * p_block, const Transform &p_xform_local);
 	bool block_remove(Block * p_block);
 	uint32_t block_find(Block * p_block) const;
 	void blocks_clear() {

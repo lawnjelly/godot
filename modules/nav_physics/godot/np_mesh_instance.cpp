@@ -112,7 +112,9 @@ void NPMeshInstance::block_notify_transform(NPBlock &p_block) {
 	NavPhysics::Block *o = NavPhysics::g_world.safe_get_block(p_block.get_handle_block());
 	DEV_ASSERT(o);
 
-	mi->block_set_transform(o, NPHelper::transform_to_np_transform(p_block.get_global_transform()));
+	Transform local_xform = get_global_transform().affine_inverse() * p_block.get_global_transform();
+
+	mi->block_set_transform(o, NPHelper::transform_to_np_transform(local_xform));
 }
 
 void NPMeshInstance::point_add(NPPoint &p_point) {

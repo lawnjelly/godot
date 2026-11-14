@@ -98,7 +98,25 @@ void MeshInstance::block_add(Block *p_block) {
 	p_block->handle_mesh_instance = get_handle();
 }
 
-void MeshInstance::block_set_transform(Block *p_block, const Transform &p_xform_world) {
+void MeshInstance::block_set_transform(Block *p_block, const Transform &p_xform_local) {
+	NP_DEV_ASSERT(p_block);
+	NP_ERR_FAIL_COND(_mesh_id == UINT32_MAX);
+
+#ifdef NP_DEV_ENABLED
+	uint32_t id = block_find(p_block);
+	NP_ERR_FAIL_COND(id == UINT32_MAX);
+#endif
+
+	const Mesh &mesh = get_mesh();
+
+	// The local origin.
+	p_block->local_point.pos = mesh.float_to_fixed_point(p_xform_local.origin);
+
+	// Find the polygon.
+	freal fit = 0;
+
+	p_block->local_point.poly_id = mesh.find_best_poly_within(p_block->local_point.pos, 10.0f * _scale_world_space_to_local_fixed_point, 0.5f * _scale_world_space_to_local_fixed_point, fit);
+	print_line(String("Best polygon is ") + itos(p_block->local_point.poly_id));
 }
 
 bool MeshInstance::block_remove(Block *p_block) {
@@ -124,6 +142,7 @@ void MeshInstance::poi_add(POI *p_poi) {
 
 void MeshInstance::poi_set_position(POI *p_poi, const FPoint3 &p_pt_world) {
 	NP_DEV_ASSERT(p_poi);
+	NP_ERR_FAIL_COND(_mesh_id == UINT32_MAX);
 
 #ifdef NP_DEV_ENABLED
 	uint32_t id = poi_find(p_poi);
@@ -133,7 +152,6 @@ void MeshInstance::poi_set_position(POI *p_poi, const FPoint3 &p_pt_world) {
 	// Calculate the poi local space position relative to the mesh instance.
 	//p_poi->local_pos3 = world_space_to_local(p_pt_world);
 
-	NP_ERR_FAIL_COND(_mesh_id == UINT32_MAX);
 	const Mesh &mesh = get_mesh();
 
 	p_poi->local_point.pos = world_space_to_local_fixed_point(mesh, p_pt_world);
