@@ -622,7 +622,44 @@ void Mesh::slide_move_on_blocks(u32 p_poly_from_id, u32 p_poly_id, const IPoint2
 		Block *block = NPWORLD.safe_get_block(blocks[n]);
 		if (block) {
 			if (block->data.bound.contains_point(new_pos)) {
-				r_vel.zero();
+				u64 best_dist = UINT64_MAX;
+				u32 best_wall = UINT32_MAX;
+				IPoint2 best_hit;
+				freal best_dot = 0;
+				IPoint2 best_slide_vector;
+
+#ifdef NP_DEV_ENABLED
+				u64 old_dist = r_vel.length_squared();
+#endif
+
+				IPoint2 pt_hit;
+				for (u32 w = 0; w < 4; w++) {
+					const IPoint2 &a = block->data.corners[w];
+					const IPoint2 &b = block->data.corners[(w + 1) % 4];
+
+					if (find_line_segments_intersect_integer(a, b, p_from, new_pos, pt_hit)) {
+						u64 dist = (pt_hit - p_from).length_squared();
+						if (dist < best_dist) {
+							best_dist = dist;
+							best_wall = w;
+							best_hit = pt_hit;
+							
+							NP_DEV_ASSERT(best_dist <= old_dist);
+							
+							IPoint2 a_to_b = b - a;
+							best_dot = a_to_b.dot_normalized(r_vel);
+							best_slide_vector = a_to_b;
+							best_slide_vector.normalize_to_scale(best_dot * r_vel.lengthf());
+						}
+					}
+				}
+
+				if (best_wall != UINT32_MAX) {
+					//r_vel = best_hit - p_from;
+					r_vel = best_slide_vector;
+				} else {
+					r_vel.zero();
+				}
 				return;
 			}
 		} else {
