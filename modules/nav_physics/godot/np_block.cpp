@@ -1,6 +1,7 @@
 #include "np_block.h"
 
 #include "np_mesh_instance.h"
+#include <core/engine.h>
 
 #include "thirdparty/navphysics/navphysics_poi.h"
 
@@ -40,32 +41,34 @@ void NPBlock::_bind_methods() {
 }
 
 void NPBlock::_notification(int p_what) {
-	switch (p_what) {
-		case NOTIFICATION_PARENTED: {
-			data.parent = Object::cast_to<NPMeshInstance>(get_parent());
-			if (data.parent) {
-				data.parent->block_add(*this);
-			}
-		} break;
-		case NOTIFICATION_UNPARENTED: {
-			if (data.parent) {
-				data.parent->block_remove(*this);
-			}
-		} break;
-		case NOTIFICATION_ENTER_TREE: {
-			if (data.parent) {
-				data.parent->block_notify_transform(*this);
-			}
-		} break;
-		case NOTIFICATION_LOCAL_TRANSFORM_CHANGED: {
-			if (is_inside_tree()) {
+	if (!Engine::get_singleton()->is_editor_hint()) {
+		switch (p_what) {
+			case NOTIFICATION_PARENTED: {
+				data.parent = Object::cast_to<NPMeshInstance>(get_parent());
+				if (data.parent) {
+					data.parent->block_add(*this);
+				}
+			} break;
+			case NOTIFICATION_UNPARENTED: {
+				if (data.parent) {
+					data.parent->block_remove(*this);
+				}
+			} break;
+			case NOTIFICATION_ENTER_TREE: {
 				if (data.parent) {
 					data.parent->block_notify_transform(*this);
 				}
-			}
-		} break;
-		default:
-			break;
+			} break;
+			case NOTIFICATION_LOCAL_TRANSFORM_CHANGED: {
+				if (is_inside_tree()) {
+					if (data.parent) {
+						data.parent->block_notify_transform(*this);
+					}
+				}
+			} break;
+			default:
+				break;
+		}
 	}
 }
 
@@ -91,14 +94,23 @@ void NPBlock::set_shape(const Ref<NPShape> &p_obstacle) {
 	if (p_obstacle == data.shape) {
 		return;
 	}
+
+	bool is_editor = Engine::get_singleton()->is_editor_hint();
+
 	if (!data.shape.is_null()) {
-		data.shape->disconnect("changed", this, "_resource_changed");
+		if (!is_editor) {
+			data.shape->disconnect("changed", this, "_resource_changed");
+		}
 		data.shape->unregister_owner(this);
 	}
 	data.shape = p_obstacle;
 	if (data.shape.is_valid()) {
 		data.shape->register_owner(this);
-		data.shape->connect("changed", this, "_resource_changed");
+		if (!is_editor) {
+			// Ensure that the server is kept up to date with the changed data.
+			_resource_changed();
+			data.shape->connect("changed", this, "_resource_changed");
+		}
 	}
 }
 
@@ -107,15 +119,23 @@ Ref<NPShape> NPBlock::get_shape() const {
 }
 
 NPBlock::NPBlock() {
-	data.h_block = NPWORLD.safe_block_create();
-	set_notify_local_transform(true);
+	if (!Engine::get_singleton()->is_editor_hint()) {
+		data.h_block = NPWORLD.safe_block_create();
+		set_notify_local_transform(true);
+	}
 }
 
 NPBlock::~NPBlock() {
+	bool is_editor = Engine::get_singleton()->is_editor_hint();
+
 	if (!data.shape.is_null()) {
-		data.shape->disconnect("changed", this, "_resource_changed");
+		if (!is_editor) {
+			data.shape->disconnect("changed", this, "_resource_changed");
+		}
 		data.shape->unregister_owner(this);
 	}
 
-	NPWORLD.safe_block_free(data.h_block);
+	if (!is_editor) {
+		NPWORLD.safe_block_free(data.h_block);
+	}
 }

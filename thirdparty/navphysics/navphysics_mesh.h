@@ -400,6 +400,7 @@ public:
 		float momentum = 0;
 
 		Agent *agent = nullptr;
+		MeshInstance *mesh_instance = nullptr;
 
 		// Exit info
 		u32 prev_mesh_instance_id = UINT32_MAX;
@@ -446,7 +447,8 @@ private:
 	String _svg_header(float p_scale = 1) const;
 	void modify_velocity_for_poly_slope(const MoveInfo &p_info, IPoint2 &r_vel, u32 p_poly_id) const;
 	void modify_velocity_for_poly_wall(const MoveInfo &p_info, float &r_vel, u32 p_poly_id, u32 p_wall_id) const;
-
+	void slide_move_on_blocks(u32 p_poly_from_id, u32 p_poly_id, const IPoint2 &p_from, IPoint2 &r_vel, const MoveInfo &p_info) const;
+	
 	MoveResult recursive_move(i32 p_depth, IPoint2 p_from, IPoint2 p_vel, u32 p_poly_id, u32 p_poly_from_id, u32 p_hug_wall_id, MoveInfo &r_info) const;
 	TraceResult recursive_trace(i32 p_depth, IPoint2 p_from, const IPoint2 &p_to, u32 p_poly_id, TraceInfo &r_info) const;
 

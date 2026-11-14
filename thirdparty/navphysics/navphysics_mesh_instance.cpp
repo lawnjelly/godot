@@ -88,17 +88,70 @@ IPoint2 MeshInstance::world_space_velocity_to_local(const Mesh &p_mesh, const FP
 }
 */
 
-void MeshInstance::block_update(Block &p_block)
-{
+void MeshInstance::block_add_to_poly_lists(Block &p_block) {
+	const Mesh &mesh = get_mesh();
+	u32 num_polys = mesh.get_num_polys();
+
+	for (u32 n = 0; n < num_polys; n++) {
+		const IRect2 &bound = mesh.get_poly_bound(n);
+		if (p_block.data.bound.intersects(bound)) {
+			NP_DEV_ASSERT(_poly_block_lists[n].find(p_block.data.handle_block) == -1);
+			_poly_block_lists[n].push_back(p_block.data.handle_block);
+			log(String("adding block to poly ") + n);
+		}
+	}
+}
+
+void MeshInstance::block_remove_from_poly_lists(Block &p_block) {
+	const Mesh &mesh = get_mesh();
+	u32 num_polys = mesh.get_num_polys();
+	for (u32 n = 0; n < num_polys; n++) {
+		if (_poly_block_lists[n].erase(p_block.data.handle_block))
+		{
+			log(String("removing block from poly ") + n);
+		}
+	}
+}
+
+void MeshInstance::block_update(Block &p_block) {
+	block_remove_from_poly_lists(p_block);
+	
 	const Mesh &mesh = get_mesh();
 	LocalPoint3 &pt = p_block.data.local_point;
-	
+
 	// Find the polygon.
 	freal fit = 0;
 	pt.poly_id = mesh.find_best_poly_within(pt.pos, 10.0f * _scale_world_space_to_local_fixed_point, 0.5f * _scale_world_space_to_local_fixed_point, fit);
-	
+
 	print_line(String("Best polygon is ") + itos(pt.poly_id));
+
+	// Now calculate the corners.
+	i32 width = mesh.dist_float_to_fixed_point(p_block.get_width());
+	i32 height = mesh.dist_float_to_fixed_point(p_block.get_height());
+
+	freal yaw = p_block.data.yaw;
+
+	FPoint2 across, down;
+	across.from_angle(yaw);
+	across *= (width * 0.5f);
+	down.from_angle(yaw + (freal)Math::NP_HALF_PI);
+	down *= (height * 0.5f);
+
+	FPoint2 centre = pt.pos.xz().to_f32();
+	FPoint2 c;
+	IPoint2 corn[4];
+	c = centre - across + down;
+	corn[0] = IPoint2(c);
+	c = centre + across + down;
+	corn[1] = IPoint2(c);
+	c = centre + across - down;
+	corn[2] = IPoint2(c);
+	c = centre - across - down;
+	corn[3] = IPoint2(c);
+
+	p_block.set_corners(Span<IPoint2>(corn));
 	
+	block_add_to_poly_lists(p_block);
 }
 
 void MeshInstance::block_add(Block &p_block) {
@@ -108,6 +161,7 @@ void MeshInstance::block_add(Block &p_block) {
 		NP_WARN_PRINT_ONCE("block_add() :  block already is assigned to a mesh instance.");
 	}
 	p_block.data.handle_mesh_instance = get_handle();
+	block_update(p_block);
 }
 
 void MeshInstance::block_set_transform(Block &p_block, const Transform &p_xform_local) {
@@ -122,10 +176,10 @@ void MeshInstance::block_set_transform(Block &p_block, const Transform &p_xform_
 
 	// The local origin.
 	p_block.data.local_point.pos = mesh.float_to_fixed_point(p_xform_local.origin);
-	
+
 	// The local yaw.
 	p_block.data.yaw = p_xform_local.basis.calculate_yaw();
-	
+
 	block_update(p_block);
 }
 
@@ -937,6 +991,7 @@ void MeshInstance::link_mesh(u32 p_mesh_id) {
 	if (_mesh_id != UINT32_MAX) {
 		const Mesh &mesh = get_mesh();
 		_zone_instances.resize(mesh.get_num_zones());
+		_poly_block_lists.resize(mesh.get_num_polys());
 
 		//		for (u32 n = 0; n < _zone_instances.size(); n++) {
 		//			_zone_instances[n].available = mesh.get_zone(n).max_agents;
@@ -1144,7 +1199,8 @@ void MeshInstance::_iterate_agent(Agent &r_agent, Mesh::MoveInfo &r_move_info) {
 	Mesh::MoveInfo &minfo = r_move_info;
 	minfo.on_floor = ag.is_on_floor();
 	minfo.momentum = agent_remaining_magnitude;
-	mesh.recursive_move(0, ag.get_2d_pos(), agent_remaining_velocity, ag.get_poly_id(), -2, ag.get_wall_id(), minfo);
+	minfo.mesh_instance = this;
+	mesh.recursive_move(0, ag.get_2d_pos(), agent_remaining_velocity, ag.get_poly_id(), UINT32_MAX-1, ag.get_wall_id(), minfo);
 
 	bool early_return = false;
 

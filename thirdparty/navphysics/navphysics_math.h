@@ -23,6 +23,7 @@ public:
 
 	static constexpr f64 NP_TAU = 6.2831853071795864769252867666;
 	static constexpr f64 NP_PI = 3.1415926535897932384626433833;
+	static constexpr f64 NP_HALF_PI = NP_PI / 2;
 
 	static f32 sqrt32(f32 p_v);
 	static f64 sqrt64(f64 p_v);

@@ -148,11 +148,13 @@ public:
 		}
 	}
 
-	void erase(const T &p_val) {
+	bool erase(const T &p_val) {
 		i64 idx = find(p_val);
 		if (idx >= 0) {
 			remove(idx);
+			return true;
 		}
+		return false;
 	}
 
 	U erase_multiple_unordered(const T &p_val) {

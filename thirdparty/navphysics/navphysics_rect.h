@@ -21,6 +21,21 @@ struct [[nodiscard]] IRect2 {
 		size.zero();
 	}
 
+	bool intersects(const IRect2 &p_o) const {
+		IPoint2 e = end();
+		IPoint2 o_e = p_o.end();
+
+		for (u32 n = 0; n < 2; n++) {
+			if (p_o.position.coord[n] >= e.coord[n]) {
+				return false;
+			}
+			if (position.coord[n] >= o_e.coord[n]) {
+				return false;
+			}
+		}
+		return true;
+	}
+
 	void expand_to(const IRect2 &o) {
 		IPoint2 begin = position;
 		IPoint2 end = position + size;

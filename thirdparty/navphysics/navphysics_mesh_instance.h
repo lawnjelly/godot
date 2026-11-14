@@ -50,6 +50,7 @@ class MeshInstance {
 	Vector<Block *> _blocks;
 	Vector<POI *> _POIs;
 	Vector<ZoneInstance> _zone_instances;
+	Vector<Vector<np_handle>> _poly_block_lists;
 
 	const ZoneInstance &get_zone_instance(u32 p_idx) const { return _zone_instances[p_idx]; }
 	ZoneInstance &get_zone_instance(u32 p_idx) { return _zone_instances[p_idx]; }
@@ -63,6 +64,7 @@ class MeshInstance {
 	void refresh_agent_local_velocity_from_world_space(Agent &r_agent, const FPoint3 &p_vel_world) const;
 public:
 	const Mesh &get_mesh() const;
+	Vector<Vector<np_handle>> &get_poly_block_lists() {return _poly_block_lists;}
 	
 	u32 get_id() const {return _handle.to_id();}
 	
@@ -150,6 +152,10 @@ public:
 	void blocks_clear() {
 		_blocks.clear();
 	}
+	
+	void block_add_to_poly_lists(Block &p_block);
+	void block_remove_from_poly_lists(Block &p_block);
+	
 	
 	void init(np_handle p_handle) {
 		_transform.init();

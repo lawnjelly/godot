@@ -3,6 +3,7 @@
 
 #include "navphysics_mesh.h"
 #include "navphysics_map.h"
+#include "navphysics_mesh_instance.h"
 
 namespace NavPhysics {
 
@@ -150,7 +151,7 @@ u32 Mesh::find_best_jump_poly_within(const Agent &p_agent, const JumpFinderDataL
 		IPoint2 pt_curr_perpendicular = p_jl.to_local.xz();
 		IPoint2 vel = p_jl.to_local.xz() - p_jl.from_local.xz();
 		pt_curr_perpendicular += IPoint2(vel.y, -vel.x);
-		
+
 		IPoint2 wall_vec = pt_curr_perpendicular - p_jl.to_local.xz();
 		IPoint2 point_vec = pt_hit - p_jl.to_local.xz();
 		cross = wall_vec.cross(point_vec);
@@ -324,9 +325,8 @@ bool Mesh::find_best_poly_within_last_ditch_FINAL(Agent &r_agent, const FPoint3 
 }
 
 u32 Mesh::find_best_poly_within(const IPoint3 &p_pt, i32 p_max_drop, i32 p_max_step_up, freal &r_goodness_of_fit) const {
-	
 	IPoint2 pt2 = p_pt.xz();
-	
+
 	u32 num_test_polys = 0;
 	const u32 *test_poly_ids = floor.poly_finder.find_leaf(pt2, num_test_polys);
 
@@ -563,6 +563,74 @@ IPoint2 Mesh::_calculate_position_along_wall(u32 p_wall_id, freal p_fraction) co
 	return wall_start + (wall.wall_vec * p_fraction);
 }
 
+void Mesh::slide_move_on_blocks(u32 p_poly_from_id, u32 p_poly_id, const IPoint2 &p_from, IPoint2 &r_vel, const MoveInfo &p_info) const {
+	const Vector<np_handle> *prev_list = nullptr;
+	const Vector<np_handle> *curr_list = nullptr;
+
+	u32 total_blocks = 0;
+
+	if (p_poly_from_id < UINT32_MAX - 1) {
+		prev_list = &p_info.mesh_instance->get_poly_block_lists()[p_poly_from_id];
+		total_blocks += prev_list->size();
+	}
+	if (p_poly_id < UINT32_MAX - 1) {
+		curr_list = &p_info.mesh_instance->get_poly_block_lists()[p_poly_id];
+		total_blocks += curr_list->size();
+	}
+
+	// Cheapest option, no blocks.
+	if (!total_blocks) {
+		return;
+	}
+
+	// Create a unique list of all blocks affecting both polys.
+	// This is kind of overly complex, but usually there should be few blocks to deal with on each move.
+
+	// Allocate for worst case, there will likely be duplicates.
+	// But still place a maximum, so as not to blow the stack.
+	// If we hit more than max blocks, some of them just won't collide detect.
+	if (total_blocks > 256) {
+		total_blocks = 256;
+		NP_WARN_PRINT_ONCE("Too many blocks during a move, some collisions may be ignored.");
+	}
+	StackVector<np_handle> blocks;
+	blocks.setup_external((np_handle *)alloca(sizeof(np_handle) * total_blocks), total_blocks);
+
+	if (prev_list) {
+		for (u32 n = 0; n < prev_list->size(); n++) {
+			if (blocks.is_full()) {
+				break;
+			}
+			blocks.push_back((*prev_list)[n]);
+		}
+	}
+
+	if (curr_list) {
+		for (u32 n = 0; n < curr_list->size(); n++) {
+			if (blocks.is_full()) {
+				break;
+			}
+			// Only push if not already there from the previous poly.
+			blocks.check_and_push_back((*curr_list)[n]);
+		}
+	}
+
+	// Now collide detect.
+	IPoint2 new_pos = p_from + r_vel;
+
+	for (u32 n = 0; n < blocks.size(); n++) {
+		Block *block = NPWORLD.safe_get_block(blocks[n]);
+		if (block) {
+			if (block->data.bound.contains_point(new_pos)) {
+				r_vel.zero();
+				return;
+			}
+		} else {
+			NP_WARN_PRINT_ONCE("Invalid block detected in poly list.");
+		}
+	}
+}
+
 Mesh::MoveResult Mesh::recursive_move(i32 p_depth, IPoint2 p_from, IPoint2 p_vel, u32 p_poly_id, u32 p_poly_from_id, u32 p_hug_wall_id, MoveInfo &r_info) const {
 	if (p_depth >= 8) {
 		NP_LLOG("\t\trecursive_move depth limit reached");
@@ -592,6 +660,9 @@ Mesh::MoveResult Mesh::recursive_move(i32 p_depth, IPoint2 p_from, IPoint2 p_vel
 	}
 
 	NP_LLOG(String("\trecursive_move depth ") + p_depth + " pos " + p_from.readable() + " vel " + p_vel.readable());
+
+	// Slide off doors etc.
+	slide_move_on_blocks(p_poly_from_id, p_poly_id, p_from, p_vel, r_info);
 
 	// are we moving along a wall?
 	if (p_hug_wall_id != UINT32_MAX) {
@@ -998,32 +1069,32 @@ bool Mesh::move_to_new_mesh(const IPoint2 &p_from, const IPoint2 &p_vel, MoveInf
 	//agent.fpos = fixed_point2_to_float2(to);
 
 	JumpFinderData jfd;
-/*	
-	// Use the jump height, rather than the floor height,
-	// for assessing whether we can make the link.
-#define NP_MOVE_FP_TO_WORLD_SPACE(FP, WORLD_SPACE) \
-	jfd.WORLD_SPACE = old_mesh_instance.local_fixed_point_to_world_space(*this, FP)
+	/*
+		// Use the jump height, rather than the floor height,
+		// for assessing whether we can make the link.
+	#define NP_MOVE_FP_TO_WORLD_SPACE(FP, WORLD_SPACE) \
+		jfd.WORLD_SPACE = old_mesh_instance.local_fixed_point_to_world_space(*this, FP)
 
-#ifdef NP_VERIFY_JUMP_FINDER_VELOCITY
-	NP_MOVE_FP_TO_WORLD_SPACE((to + p_vel), pt_verify_curr_plus_vel)
-#endif
-							
-							
-	NP_MOVE_FP_TO_WORLD_SPACE(near, pt_from_world);
-	NP_MOVE_FP_TO_WORLD_SPACE(far, pt_far_world);
-	NP_MOVE_FP_TO_WORLD_SPACE(to, pt_to_world);
+	#ifdef NP_VERIFY_JUMP_FINDER_VELOCITY
+		NP_MOVE_FP_TO_WORLD_SPACE((to + p_vel), pt_verify_curr_plus_vel)
+	#endif
 
-#undef NP_MOVE_FP_TO_WORLD_SPACE
-*/
+
+		NP_MOVE_FP_TO_WORLD_SPACE(near, pt_from_world);
+		NP_MOVE_FP_TO_WORLD_SPACE(far, pt_far_world);
+		NP_MOVE_FP_TO_WORLD_SPACE(to, pt_to_world);
+
+	#undef NP_MOVE_FP_TO_WORLD_SPACE
+	*/
 	// Get the velocity into world space from the old mesh coordinate space.
 	//jfd.vel = old_mesh_instance.local_velocity_to_world_space(*this, p_vel);
-	
+
 	jfd.vel_world = old_mesh_instance.velocity_local_fixed_point_to_world_space(*this, agent.get_velocity());
-	
+
 	jfd.pt_from_world = old_mesh_instance.local_fixed_point_to_world_space(*this, agent.get_pos());
 	jfd.pt_to_world = jfd.pt_from_world + jfd.vel_world;
 	jfd.pt_far_world = jfd.pt_from_world + (jfd.vel_world * 2);
-	
+
 	//jfd.vel_world = old_mesh_instance.local_velocity_with_jump_velocity_to_world_space(*this, p_vel, agent.get_jump_velocity());
 	// log(String("world vel before jump calculated as : ") + jfd.vel_world);
 
@@ -1090,10 +1161,10 @@ bool Mesh::debug_check_agent_integrity(const IPoint2 &p_pos, u32 p_poly_id, u32 
 bool Mesh::ray_test_xz(const LocalPoint3 &p_from, const LocalPoint3 &p_to) const {
 	u32 poly_id = p_from.poly_id;
 	IPoint2 best_intersect;
-	
+
 	IPoint2 pt_from = p_from.pos.xz();
 	IPoint2 pt_to = p_to.pos.xz();
-	
+
 	while (true) {
 		if (poly_id == p_to.poly_id) {
 			// If we hit the destination poly via a straight path, the trace is true.
@@ -1666,7 +1737,7 @@ bool Mesh::poly_contains_point(u32 p_poly_id, const IPoint2 &p_pt, bool p_ceilin
 		for (u32 w = 0; w < poly.num_inds; w++) {
 			u32 ind_b = get_ind(poly.first_ind + ((w + 1) % poly.num_inds), true);
 			const IPoint3 *b = &get_vert(ind_b, true);
-			
+
 			IPoint2 wall_vec = b->xz() - a->xz();
 			IPoint2 point_vec = p_pt - a->xz();
 			i64 cross = wall_vec.cross(point_vec);

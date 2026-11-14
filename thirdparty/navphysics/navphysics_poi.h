@@ -23,9 +23,12 @@ public:
 	}
 };
 
+class MeshInstance;
+
 class Block
 {
-	friend class NavPhysics::MeshInstance;
+	friend class MeshInstance;
+	friend class Mesh;
 	
 	struct Data
 	{
@@ -36,12 +39,10 @@ class Block
 		IPoint2 corners[4];
 		LocalPoint3 local_point;
 		np_handle handle_mesh_instance;
+		np_handle handle_block;
 	} data;
 	
-	void changed()
-	{
-	}
-	
+	void changed();
 	void set_corners(Span<IPoint2> p_corners);
 	
 public:
@@ -55,6 +56,7 @@ public:
 #undef NP_SET_GET
 	
 	void init(np_handle p_handle) {
+		data.handle_block = p_handle;
 	}
 };
 
