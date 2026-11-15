@@ -2013,6 +2013,82 @@ void Mesh::_unit_test_find_lines_intersect_integer() {
 bool Mesh::find_lines_intersect_integer(const IPoint2 &p_from_a, const IPoint2 &p_to_a, const IPoint2 &p_from_b, const IPoint2 &p_to_b, IPoint2 &r_hit) const {
 	i32 x1 = p_from_a.x;
 	i32 y1 = p_from_a.y;
+
+	// Shift origin to p_from_a = (x1, y1).
+	// Storing deltas as i64 avoids i32 subtraction overflow and extra sign-extensions.
+	i64 dx1 = (i64)p_to_a.x - x1;
+	i64 dy1 = (i64)p_to_a.y - y1;
+	i64 dx2 = (i64)p_to_b.x - p_from_b.x;
+	i64 dy2 = (i64)p_to_b.y - p_from_b.y;
+
+	i64 tmp1, tmp2;
+	NP_CHECKED_OP_64(tmp1, dx1, *, dy2);
+	NP_CHECKED_OP_64(tmp2, dy1, *, dx2);
+	i64 denom;
+	NP_CHECKED_OP_64(denom, tmp1, -, tmp2);
+
+	// Lines are parallel, collinear, or degenerate (zero-length)
+	if (denom == 0) {
+		return false;
+	}
+
+	i64 dx31 = (i64)p_from_b.x - x1;
+	i64 dy31 = (i64)p_from_b.y - y1;
+
+	NP_CHECKED_OP_64(tmp1, dx31, *, dy2);
+	NP_CHECKED_OP_64(tmp2, dy31, *, dx2);
+	i64 t_num;
+	NP_CHECKED_OP_64(t_num, tmp1, -, tmp2);
+
+	// Normalize denom to be positive to simplify rounding.
+	// Note: if deltas can exceed i32 range (e.g. from -2^31 to +2^31-1),
+	// denom could theoretically hit INT64_MIN only if it already overflowed i64 above.
+	if (denom < 0) {
+		denom = -denom;
+		t_num = -t_num;
+	}
+
+	i64 offset = denom / 2;
+
+	i64 x;
+	{
+		i64 num;
+		NP_CHECKED_OP_64(num, t_num, *, dx1);
+		if (num < 0) {
+			NP_CHECKED_OP_64(x, num, -, offset);
+			NP_CHECKED_OP_64(x, x, /, denom);
+		} else {
+			NP_CHECKED_OP_64(x, num, +, offset);
+			NP_CHECKED_OP_64(x, x, /, denom);
+		}
+		NP_CHECKED_OP_64(x, x, +, x1);
+	}
+
+	i64 y;
+	{
+		i64 num;
+		NP_CHECKED_OP_64(num, t_num, *, dy1);
+		if (num < 0) {
+			NP_CHECKED_OP_64(y, num, -, offset);
+			NP_CHECKED_OP_64(y, y, /, denom);
+		} else {
+			NP_CHECKED_OP_64(y, num, +, offset);
+			NP_CHECKED_OP_64(y, y, /, denom);
+		}
+		NP_CHECKED_OP_64(y, y, +, y1);
+	}
+
+	NP_CHECK_32(x, +, 0);
+	NP_CHECK_32(y, +, 0);
+
+	r_hit.set(x, y);
+	return true;
+}
+
+/*
+bool Mesh::find_lines_intersect_integer(const IPoint2 &p_from_a, const IPoint2 &p_to_a, const IPoint2 &p_from_b, const IPoint2 &p_to_b, IPoint2 &r_hit) const {
+	i32 x1 = p_from_a.x;
+	i32 y1 = p_from_a.y;
 	i32 x2 = p_to_a.x;
 	i32 y2 = p_to_a.y;
 	i32 x3 = p_from_b.x;
@@ -2077,29 +2153,7 @@ bool Mesh::find_lines_intersect_integer(const IPoint2 &p_from_a, const IPoint2 &
 		return false;
 	}
 
-	// Compute sign values
-	/*
-	if false:
-		var r3 = a1 * x3 + b1 * y3 + c1
-		var r4 = a1 * x4 + b1 * y4 + c1
-
-		 # Sign values for second line
-		 var r1 = a2 * x1 + b2 * y1 + c2
-		 var r2 = a2 * x2 + b2 * y2 + c2
-
-		  # Flag denoting whether intersection point is on passed line segments. If this is false,
-		  # the intersection occurs somewhere along the two mathematical, infinite lines instead.
-		  # Check signs of r3 and r4.  If both point 3 and point 4 lie on same side of line 1, the
-		  # line segments do not intersect.
-		  # Check signs of r1 and r2.  If both point 1 and point 2 lie on same side of second line
-		  # segment, the line segments do not intersect.
-		  var is_on_segments = (r3 != 0 && r4 != 0 && same_signs(r3, r4)) || (r1 != 0 && r2 != 0 && same_signs(r1, r2))
-
-		 if is_on_segments == false:
-			 return null
-			 */
-
-	// If we got here, line segments intersect. Compute intersection point using method similar
+	// If we got here, lines intersect. Compute intersection point using method similar
 	// to that described here: http://paulbourke.net/geometry/pointlineplane/#i2l
 
 	// The denom/2 is to get rounding instead of truncating. It is added or subtracted to the
@@ -2151,7 +2205,7 @@ bool Mesh::find_lines_intersect_integer(const IPoint2 &p_from_a, const IPoint2 &
 		}
 		y /= denom;
 	}
-	
+
 	FIX THIS TOMMORROW
 	THIS BY DEFINITION CAN OVERFLOW WITH NEAR PARALLEL LINES
 	NP_CHECK_32(x, +, 0);
@@ -2160,8 +2214,11 @@ bool Mesh::find_lines_intersect_integer(const IPoint2 &p_from_a, const IPoint2 &
 	r_hit.set(x, y);
 	return true;
 }
+*/
 
 bool Mesh::find_line_segments_intersect_integer(const IPoint2 &p_from_a, const IPoint2 &p_to_a, const IPoint2 &p_from_b, const IPoint2 &p_to_b, IPoint2 &r_hit) const {
+	// For numerical accuracy, do everything relative
+
 	i32 x1 = p_from_a.x;
 	i32 y1 = p_from_a.y;
 	i32 x2 = p_to_a.x;

@@ -481,9 +481,35 @@ void _NP_ERR_flush_stdout();
 
 #ifdef NP_OVERFLOW_CHECKS
 
+#define NP_CHECKED_OP_32(RESULT, A, OPERATOR, B)                                                             \
+	{                                                                                                        \
+		i64 _check_res = (i64)(A)OPERATOR(i64)(B);                                                           \
+		if ((_check_res > INT32_MAX) || (_check_res < -INT32_MAX)) {                                         \
+			NavPhysics::_NP_ERR_print_error(FUNCTION_STR, __FILE__, __LINE__, "FATAL: NP_CHECK_32 failed."); \
+			NavPhysics::_NP_ERR_flush_stdout();                                                              \
+			GENERATE_TRAP                                                                                    \
+		} else {                                                                                             \
+			((void)0);                                                                                       \
+		}                                                                                                    \
+		RESULT = _check_res;                                                                                 \
+	}
+
+#define NP_CHECKED_OP_64(RESULT, A, OPERATOR, B)                                                             \
+	{                                                                                                        \
+		i128 _check_res = (i128)(A)OPERATOR(i128)(B);                                                        \
+		if ((_check_res > INT64_MAX) || (_check_res < -INT64_MAX)) {                                         \
+			NavPhysics::_NP_ERR_print_error(FUNCTION_STR, __FILE__, __LINE__, "FATAL: NP_CHECK_64 failed."); \
+			NavPhysics::_NP_ERR_flush_stdout();                                                              \
+			GENERATE_TRAP                                                                                    \
+		} else {                                                                                             \
+			((void)0);                                                                                       \
+		}                                                                                                    \
+		RESULT = _check_res;                                                                                 \
+	}
+
 #define NP_CHECK_32(A, OPERATOR, B)                                                                          \
 	{                                                                                                        \
-		i64 _check_res = (i64)A OPERATOR(i64) B;                                                             \
+		i64 _check_res = (i64)(A)OPERATOR(i64)(B);                                                           \
 		if ((_check_res > INT32_MAX) || (_check_res < -INT32_MAX)) {                                         \
 			NavPhysics::_NP_ERR_print_error(FUNCTION_STR, __FILE__, __LINE__, "FATAL: NP_CHECK_32 failed."); \
 			NavPhysics::_NP_ERR_flush_stdout();                                                              \
@@ -495,7 +521,7 @@ void _NP_ERR_flush_stdout();
 
 #define NP_CHECK_64(A, OPERATOR, B)                                                                          \
 	{                                                                                                        \
-		i128 _check_res = (i128)A OPERATOR(i128) B;                                                          \
+		i128 _check_res = (i128)(A)OPERATOR(i128)(B);                                                        \
 		if ((_check_res > INT64_MAX) || (_check_res < -INT64_MAX)) {                                         \
 			NavPhysics::_NP_ERR_print_error(FUNCTION_STR, __FILE__, __LINE__, "FATAL: NP_CHECK_64 failed."); \
 			NavPhysics::_NP_ERR_flush_stdout();                                                              \
@@ -506,6 +532,9 @@ void _NP_ERR_flush_stdout();
 	}
 
 #else
+#define NP_CHECKED_OP_32(RESULT, A, OPERATOR, B) RESULT = A OPERATOR B
+#define NP_CHECKED_OP_64(RESULT, A, OPERATOR, B) RESULT = A OPERATOR B
+
 #define NP_CHECK_32(A, OPERATOR, B)
 #define NP_CHECK_64(A, OPERATOR, B)
 #endif
