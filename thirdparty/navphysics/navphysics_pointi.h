@@ -148,6 +148,13 @@ struct [[nodiscard]] IPoint3 {
 	IPoint2 xz() const { return IPoint2(x, z); }
 	static IPoint3 from(const IPoint2 &p_pt) { return IPoint3(p_pt.x, 0, p_pt.y); }
 
+	bool is_within_fp_range() const {
+		// Don't use ABS here, as you can get signed-unsigned conversion UB.
+		return (x >= -NAVPHYSICS_MESH_FP_RANGE_WITH_LIP) && (x <= NAVPHYSICS_MESH_FP_RANGE_WITH_LIP) &&
+				(y >= -NAVPHYSICS_MESH_FP_RANGE_WITH_LIP) && (y <= NAVPHYSICS_MESH_FP_RANGE_WITH_LIP) &&
+				(z >= -NAVPHYSICS_MESH_FP_RANGE_WITH_LIP) && (z <= NAVPHYSICS_MESH_FP_RANGE_WITH_LIP);
+	}
+
 	IPoint3() {
 		zero();
 	}

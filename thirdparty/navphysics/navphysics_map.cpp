@@ -418,9 +418,13 @@ bool Map::jump_to_new_mesh(Agent &r_agent, const FPoint3 &p_world_pos, u32 p_ign
 			continue;
 		}
 
+		const Mesh &mesh = mesh_instance.get_mesh();
+		if (!mesh.is_valid()) {
+			continue;
+		}
+
 		// Step up and drop come from the mesh we are joining, if no ignore is et.
 		if (p_ignore_mesh_id == UINT32_MAX) {
-			const Mesh &mesh = mesh_instance.get_mesh();
 			//freal scale = mesh_instance.get_scale_world_space_to_local_fixed_point();
 
 			max_step_up = mesh.get_mesh_params().exit_max_step_up;
@@ -612,14 +616,14 @@ bool Map::update_agent_mesh(Agent &r_agent, bool p_teleport_if_changed) {
 	}
 
 	r_agent.set_is_changing_mesh(r_agent.get_mesh_instance_id() != old_mesh_instance_id);
-	return true;
+	return r_agent.get_mesh_instance_id() != UINT32_MAX;
 }
 
 void Map::prepare_agent(u32 p_agent_id) {
 	AgentStatus::reset();
 	Agent &agent = g_world.get_body(p_agent_id);
 	NP_DEV_ASSERT(agent.agent_id == p_agent_id);
-	
+
 	if (!agent.map.is_valid()) {
 		return;
 	}
@@ -933,7 +937,7 @@ bool World::safe_unlink_body(np_handle p_body, np_handle p_map) {
 
 	Map *map = safe_get_map(p_map);
 	map->unregister_body(agent_id);
-	
+
 	agent->map = np_handle();
 	return true;
 }
@@ -971,7 +975,7 @@ bool World::safe_unlink_mesh_instance(np_handle p_mesh_instance, np_handle p_map
 bool World::safe_link_mesh(np_handle p_mesh_instance, np_handle p_mesh) {
 	MeshInstance *mi = safe_get_mesh_instance(p_mesh_instance);
 	NP_ERR_FAIL_NULL_V(mi, false);
-	
+
 	if (!p_mesh.is_valid()) {
 		mi->link_mesh(UINT32_MAX);
 		return true;
@@ -1009,20 +1013,20 @@ np_handle World::safe_body_create() {
 	return np_handle();
 }
 
-#define NP_IMPL_SAFE_CREATE_FREE(a, b)\
-np_handle World::safe_##a##_create() {\
-return _##a##b##s.safe_object_create();\
-}\
-void World::safe_##a##_free(np_handle p_handle) {\
-_##a##b##s.safe_object_free(p_handle);\
-}
+#define NP_IMPL_SAFE_CREATE_FREE(a, b)                \
+	np_handle World::safe_##a##_create() {            \
+		return _##a##b##s.safe_object_create();       \
+	}                                                 \
+	void World::safe_##a##_free(np_handle p_handle) { \
+		_##a##b##s.safe_object_free(p_handle);        \
+	}
 
-NP_IMPL_SAFE_CREATE_FREE(map,)
+NP_IMPL_SAFE_CREATE_FREE(map, )
 NP_IMPL_SAFE_CREATE_FREE(mesh, e)
-NP_IMPL_SAFE_CREATE_FREE(mesh_instance,)
-NP_IMPL_SAFE_CREATE_FREE(poi,)
-NP_IMPL_SAFE_CREATE_FREE(region,)
-NP_IMPL_SAFE_CREATE_FREE(block,)
+NP_IMPL_SAFE_CREATE_FREE(mesh_instance, )
+NP_IMPL_SAFE_CREATE_FREE(poi, )
+NP_IMPL_SAFE_CREATE_FREE(region, )
+NP_IMPL_SAFE_CREATE_FREE(block, )
 
 void World::safe_body_free(np_handle p_body) {
 	NP_ERR_FAIL_COND(!p_body.is_valid());
@@ -1115,7 +1119,7 @@ void World::tick_update(u64 p_tick, freal p_delta) {
 
 		Agent &agent = g_world.get_body(agent_id);
 		NP_DEV_ASSERT(agent.agent_id == agent_id);
-		
+
 		if (!agent.map.is_valid()) {
 			continue;
 		}
@@ -1145,7 +1149,7 @@ void World::tick_update(u64 p_tick, freal p_delta) {
 	for (u32 n = 0; n < _agents.active_size(); n++) {
 		u32 agent_id = _agents.get_active_id(n);
 		Agent &agent = _agents[agent_id];
-		
+
 		if (!agent.map.is_valid()) {
 			continue;
 		}

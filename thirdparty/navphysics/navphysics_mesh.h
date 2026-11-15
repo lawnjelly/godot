@@ -97,6 +97,10 @@ class Mesh {
 		TVector<WallPair> internal_wall_pairs;
 
 		TVector<u32> lipped_wall_ids;
+		
+		// We can't do anything with a mesh that hasn't been loaded
+		// correctly and has no polys.
+		bool is_valid = false;
 	} data;
 
 public:
@@ -113,6 +117,8 @@ public:
 		LINK_FLAG_EXTERNAL = 1 << 30, // External link (to other meshes)
 		LINK_FLAG_INTERNAL = 1 << 29, // Jump links within the mesh.
 	};
+	
+	bool is_valid() const {return data.is_valid;}
 
 private:
 	MeshParams mesh_params;
@@ -166,7 +172,7 @@ public:
 	static u64 _tick;
 	static u32 _ticks_per_sec;
 	//static freal _tps_force_fudge;
-
+	
 	void clear(bool p_preserve_extended_data = false) {
 		if (!p_preserve_extended_data) {
 			floor.clear();
@@ -188,6 +194,7 @@ public:
 		_walls.clear();
 		_narrowings.clear();
 		_POIs.clear();
+		data.is_valid = false;
 	}
 
 	POI &get_poi(u32 p_id) { return _POIs[p_id]; }

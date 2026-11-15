@@ -11,7 +11,7 @@
 
 #include <cstring>
 
-#define NAVPHYSICS_FILE_VERSION 106
+#define NAVPHYSICS_FILE_VERSION 107
 
 namespace NavPhysics {
 
@@ -58,9 +58,14 @@ bool RawLoader::read_ipoint2(const u8 **pp_data, u32 &r_bytes_left, IPoint2 &r_p
 		return false;
 	if (!read_i32(pp_data, r_bytes_left, r_point.y))
 		return false;
+
+	// Data is corrupt, or wrong version.
+	if (!r_point.is_within_fp_range()) {
+		return false;
+	}
+
 	return true;
 }
-
 
 bool RawLoader::read_ipoint3(const u8 **pp_data, u32 &r_bytes_left, IPoint3 &r_point) {
 	if (!read_i32(pp_data, r_bytes_left, r_point.x))
@@ -69,6 +74,12 @@ bool RawLoader::read_ipoint3(const u8 **pp_data, u32 &r_bytes_left, IPoint3 &r_p
 		return false;
 	if (!read_i32(pp_data, r_bytes_left, r_point.z))
 		return false;
+
+	// Data is corrupt, or wrong version.
+	if (!r_point.is_within_fp_range()) {
+		return false;
+	}
+
 	return true;
 }
 
@@ -277,7 +288,7 @@ void Loader::_calculate_poly_areas(Mesh &r_mesh) {
 	for (u32 n = 0; n < num_polys; n++) {
 		// Calculate area.
 		u32 num_verts = r_mesh.get_poly_verts(n, v.ptr(), NAV_PHYSICS_POLY_MAX_VERTS);
-		
+
 		IPoint2 a = v[0].xz();
 
 		u64 area = 0;
@@ -539,7 +550,7 @@ bool Loader::does_floor_and_ceiling_poly_collide(const Mesh &p_mesh, u32 p_floor
 	// Get the points of each....
 	Vector<IPoint3> fpoints;
 	Vector<FPoint3> fpoints3;
-	
+
 	Vector<IPoint3> cpoints;
 	Vector<FPoint3> cpoints3;
 
@@ -756,7 +767,7 @@ void Loader::bake_fixed_point_verts(Mesh &r_dest) {
 
 	//	NP_LLOG(String("Internal Map Rect is ") + String(rect.position) + ", " + String(rect.size));
 	NP_LLOG(String("Internal Map AABB is ") + String(aabb.position) + ", " + String(aabb.size));
-	
+
 	// Find the largest dimension.
 	freal aabb_max_size = MAX(aabb.size.x, aabb.size.z);
 	aabb_max_size = MAX(aabb.size.y, aabb_max_size);
@@ -1211,6 +1222,9 @@ bool Loader::extract_working_data(WorkingMeshData &r_data, const Mesh &p_mesh) {
 }
 
 bool Loader::load_raw_data(const uint8_t *p_data, uint32_t p_num_bytes, Mesh &r_mesh, const Mesh::MeshParams &p_params) {
+	
+	r_mesh.data.is_valid = false;
+	
 	// FOURCC?
 
 	// Version
@@ -1412,8 +1426,10 @@ bool Loader::load_raw_data(const uint8_t *p_data, uint32_t p_num_bytes, Mesh &r_
 
 	md.external_connecting_wall_ids = external_connecting_wall_ids.ptr();
 	md.internal_connecting_wall_ids = internal_connecting_wall_ids.ptr();
-
-	return load_working_data(md, r_mesh);
+	
+	r_mesh.data.is_valid = load_working_data(md, r_mesh);;
+	
+	return r_mesh.data.is_valid;
 }
 
 void Loader::prepare_raw_data_submesh(const WorkingMeshData::SubMesh &p_submesh) {
@@ -1595,7 +1611,7 @@ void Loader::extend_mesh(Mesh &r_mesh) {
 	_load(r_mesh);
 
 	r_mesh._check_for_duplicate_verts();
-	
+
 	if (!_is_editor) {
 		r_mesh.floor.poly_finder.build(r_mesh, false);
 		JumpFinder finder;
@@ -1641,7 +1657,8 @@ bool Loader::bake_mesh(const SourceMeshData &p_source_mesh, const SourceMeshData
 	// but it stores the unextended size of
 	// the arrays, which is necessary for saving correctly.
 	extend_mesh(r_mesh);
-
+	
+	r_mesh.data.is_valid = true;
 	return true;
 
 failed:
@@ -2235,7 +2252,7 @@ void Loader::find_zone_links(Mesh &r_dest) {
 	// Sort the link edges to a continuous edge.
 	for (u32 a = 0; a < zlinks.size(); a++) {
 		ZLinks &links = zlinks[a];
-		
+
 		// Each zone can have multiple links.
 		// Each link can consist of multiple edges.
 		for (u32 l = 0; l < links.links.size(); l++) {
@@ -2244,14 +2261,14 @@ void Loader::find_zone_links(Mesh &r_dest) {
 			// First find edge with no neighbour.
 			u32 first_id = UINT32_MAX;
 			bool found_neighbour = false;
-			
+
 			for (u32 n = 0; n < link->edges.size(); n++) {
 				const ZEdge &edge_a = link->edges[n];
-				
+
 				for (u32 m = 0; m < link->edges.size(); m++) {
 					if (n == m)
 						continue;
-					
+
 					const ZEdge &edge_b = link->edges[m];
 
 					if (edge_a.wall_vert_a == edge_b.wall_vert_b) {
@@ -2280,7 +2297,7 @@ void Loader::find_zone_links(Mesh &r_dest) {
 				const ZEdge &edge_prev = sorted_edges.last();
 
 				bool match = false;
-				
+
 				for (u32 n = 0; n < link->edges.size(); n++) {
 					const ZEdge &edge = link->edges[n];
 					if (edge_prev.wall_vert_b == edge.wall_vert_a) {
@@ -2296,11 +2313,11 @@ void Loader::find_zone_links(Mesh &r_dest) {
 				if (!match) {
 					log(String("Adding split link to zone ") + link->to_zone_id + " containing " + link->edges.size() + " edges.");
 					ZLink &split_link = links.links.request();
-					
+
 					// Important - as we have requested from links.links, we need to resync as the allocation may
 					// have moved in memory.
 					link = &links.links[l];
-					
+
 					split_link.edges = link->edges;
 					split_link.to_zone_id = link->to_zone_id;
 					link->edges.clear();

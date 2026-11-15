@@ -106,8 +106,7 @@ void MeshInstance::block_remove_from_poly_lists(Block &p_block) {
 	const Mesh &mesh = get_mesh();
 	u32 num_polys = mesh.get_num_polys();
 	for (u32 n = 0; n < num_polys; n++) {
-		if (_poly_block_lists[n].erase(p_block.data.handle_block))
-		{
+		if (_poly_block_lists[n].erase(p_block.data.handle_block)) {
 			log(String("removing block from poly ") + n);
 		}
 	}
@@ -115,8 +114,14 @@ void MeshInstance::block_remove_from_poly_lists(Block &p_block) {
 
 void MeshInstance::block_update(Block &p_block) {
 	block_remove_from_poly_lists(p_block);
-	
+
 	const Mesh &mesh = get_mesh();
+
+	// Not loaded, don't proceed.
+	if (!mesh.is_valid()) {
+		return;
+	}
+
 	LocalPoint3 &pt = p_block.data.local_point;
 
 	// Find the polygon.
@@ -128,7 +133,7 @@ void MeshInstance::block_update(Block &p_block) {
 	// Now calculate the corners.
 	i32 width = mesh.dist_float_to_fixed_point(p_block.get_width());
 	i32 height = mesh.dist_float_to_fixed_point(p_block.get_height());
-	
+
 	// Add the radius of the mesh baked agent to the width and height so that the
 	// agent slides against expanded bound.
 	width += mesh.get_baked_agent_radius();
@@ -155,7 +160,7 @@ void MeshInstance::block_update(Block &p_block) {
 	corn[3] = IPoint2(c);
 
 	p_block.set_corners(Span<IPoint2>(corn));
-	
+
 	block_add_to_poly_lists(p_block);
 }
 
@@ -220,6 +225,11 @@ void MeshInstance::poi_set_position(POI &p_poi, const FPoint3 &p_pt_world) {
 	//p_poi->local_pos3 = world_space_to_local(p_pt_world);
 
 	const Mesh &mesh = get_mesh();
+
+	if (!mesh.is_valid()) {
+		// Not loaded, do not proceed.
+		return;
+	}
 
 	p_poi.local_point.pos = world_space_to_local_fixed_point(mesh, p_pt_world);
 
@@ -1205,7 +1215,7 @@ void MeshInstance::_iterate_agent(Agent &r_agent, Mesh::MoveInfo &r_move_info) {
 	minfo.on_floor = ag.is_on_floor();
 	minfo.momentum = agent_remaining_magnitude;
 	minfo.mesh_instance = this;
-	mesh.recursive_move(0, ag.get_2d_pos(), agent_remaining_velocity, ag.get_poly_id(), UINT32_MAX-1, ag.get_wall_id(), minfo);
+	mesh.recursive_move(0, ag.get_2d_pos(), agent_remaining_velocity, ag.get_poly_id(), UINT32_MAX - 1, ag.get_wall_id(), minfo);
 
 	bool early_return = false;
 
