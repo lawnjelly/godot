@@ -293,7 +293,7 @@ void Loader::_calculate_poly_areas(Mesh &r_mesh) {
 
 #ifdef NP_OVERFLOW_CHECKS
 			{
-				NP_CHECK_64(tri_area + area);
+				NP_CHECK_64(tri_area, +, area);
 			}
 #endif
 

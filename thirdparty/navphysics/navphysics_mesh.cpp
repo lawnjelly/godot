@@ -870,8 +870,8 @@ Mesh::MoveResult Mesh::recursive_move(i32 p_depth, IPoint2 p_from, IPoint2 p_vel
 	}
 
 	// reduce the velocity by how far travelled to the wall
-	NP_CHECK_32(pt_intersect.x - p_from.x);
-	NP_CHECK_32(pt_intersect.y - p_from.y);
+	NP_CHECK_32(pt_intersect.x, -, p_from.x);
+	NP_CHECK_32(pt_intersect.y, -, p_from.y);
 	p_vel -= (pt_intersect - p_from);
 
 	p_hug_wall_id = wall_id;
@@ -2022,20 +2022,20 @@ bool Mesh::find_lines_intersect_integer(const IPoint2 &p_from_a, const IPoint2 &
 
 	// First line coefficients where "a1 x  +  b1 y  +  c1  =  0"
 	// 1 BIT GROWTH
-	NP_CHECK_32(y2 - y1);
+	NP_CHECK_32(y2, -, y1);
 	i32 a1 = y2 - y1;
-	NP_CHECK_32(x1 - x2);
+	NP_CHECK_32(x1, -, x2);
 	i32 b1 = x1 - x2;
 
 	// These calcs need to be 64 bit to prevent overflow crossing 65535.
 	// 1 EXP GROWTH
-	NP_CHECK_64(x2 * y1);
-	NP_CHECK_64(x1 * y2);
+	NP_CHECK_64(x2, *, y1);
+	NP_CHECK_64(x1, *, y2);
 #ifdef NP_OVERFLOW_CHECKS
 	{
 		i64 temp_a = (i64)x2 * y1;
 		i64 temp_b = (i64)x1 * y2;
-		NP_CHECK_64(temp_a - temp_b);
+		NP_CHECK_64(temp_a, -, temp_b);
 	}
 #endif
 
@@ -2043,29 +2043,31 @@ bool Mesh::find_lines_intersect_integer(const IPoint2 &p_from_a, const IPoint2 &
 
 	// Second line coefficients
 	// 1 BIT GROWTH
+	NP_CHECK_32(y4, -, y3);
 	i32 a2 = y4 - y3;
+	NP_CHECK_32(x3, -, x4);
 	i32 b2 = x3 - x4;
 
 	// 1 EXP GROWTH
-	NP_CHECK_64(x4 * y3);
-	NP_CHECK_64(x3 * y4);
+	NP_CHECK_64(x4, *, y3);
+	NP_CHECK_64(x3, *, y4);
 #ifdef NP_OVERFLOW_CHECKS
 	{
 		i64 temp_a = (i64)x4 * y3;
 		i64 temp_b = (i64)x3 * y4;
-		NP_CHECK_64(temp_a - temp_b);
+		NP_CHECK_64(temp_a, -, temp_b);
 	}
 #endif
 	i64 c2 = (i64)x4 * y3 - (i64)x3 * y4;
 
 	// (1 BIT)	 EXP
-	NP_CHECK_64(a1 * b2);
-	NP_CHECK_64(a2 * b1);
+	NP_CHECK_64(a1, *, b2);
+	NP_CHECK_64(a2, *, b1);
 #ifdef NP_OVERFLOW_CHECKS
 	{
 		i64 temp_a = (i64)a1 * b2;
 		i64 temp_b = (i64)a2 * b1;
-		NP_CHECK_64(temp_a - temp_b);
+		NP_CHECK_64(temp_a, -, temp_b);
 	}
 #endif
 	i64 denom = (i64)a1 * b2 - (i64)a2 * b1;
@@ -2112,13 +2114,13 @@ bool Mesh::find_lines_intersect_integer(const IPoint2 &p_from_a, const IPoint2 &
 
 	{
 		// 1 BIT * 1 EXP GROWTH
-		NP_CHECK_64(b1 * c2);
-		NP_CHECK_64(b2 * c1);
+		NP_CHECK_64(b1, *, c2);
+		NP_CHECK_64(b2, *, c1);
 #ifdef NP_OVERFLOW_CHECKS
 		{
 			i64 temp_a = (i64)b1 * c2;
 			i64 temp_b = (i64)b2 * c1;
-			NP_CHECK_64(temp_a - temp_b);
+			NP_CHECK_64(temp_a, -, temp_b);
 		}
 #endif
 		i64 num = (i64)b1 * c2 - (i64)b2 * c1;
@@ -2132,13 +2134,13 @@ bool Mesh::find_lines_intersect_integer(const IPoint2 &p_from_a, const IPoint2 &
 
 	{
 		// 1 BIT * 1 EXP GROWTH
-		NP_CHECK_64(a2 * c1);
-		NP_CHECK_64(a1 * c2);
+		NP_CHECK_64(a2, *, c1);
+		NP_CHECK_64(a1, *, c2);
 #ifdef NP_OVERFLOW_CHECKS
 		{
 			i64 temp_a = (i64)a2 * c1;
 			i64 temp_b = (i64)a1 * c2;
-			NP_CHECK_64(temp_a - temp_b);
+			NP_CHECK_64(temp_a, -, temp_b);
 		}
 #endif
 		i64 num = (i64)a2 * c1 - (i64)a1 * c2;
@@ -2149,9 +2151,11 @@ bool Mesh::find_lines_intersect_integer(const IPoint2 &p_from_a, const IPoint2 &
 		}
 		y /= denom;
 	}
-
-	NP_CHECK_32(x);
-	NP_CHECK_32(y);
+	
+	FIX THIS TOMMORROW
+	THIS BY DEFINITION CAN OVERFLOW WITH NEAR PARALLEL LINES
+	NP_CHECK_32(x, +, 0);
+	NP_CHECK_32(y, +, 0);
 
 	r_hit.set(x, y);
 	return true;
