@@ -37,20 +37,14 @@ using freal = f32;
 // The key factor for the largest resolution is OVERFLOW, particularly
 // in the `find_lines_intersect_integer()` functions.
 
-// #define NAVPHYSICS_MESH_FP_RANGE 65535
-// I32_MAX is 0x7FFFFFFF (31 bits)
-// Half of I32_MAX is 0x3FFFFFFF (30 bits)
-// To store differences between 30 bit range in 32 bit we need to drop again to 29 bit.
-
-//#define NAVPHYSICS_MESH_FP_RANGE (0x1FFFFFFF)
-//#define NAVPHYSICS_MESH_FP_RANGE (0xFFFFF)
-
-// In most cases the position within the NavMesh should be within this integer range.
-#define NAVPHYSICS_MESH_FP_RANGE ((1 << 20) - 1)
+// We have now worked out that the absolute maximum range to prevent overflow
+// is (1 << 20) -1.
+// But this must work including the lip. So we need to use a lower range before expansion.
+#define NAVPHYSICS_MESH_FP_RANGE ((1 << 19))
 
 // Adding a manual lip to the navmesh may push the range slightly more than NAVPHYSICS_MESH_FP_RANGE,
 // so we account for this in debug checks.
-#define NAVPHYSICS_MESH_FP_RANGE_WITH_LIP ((1 << 21) - 1)
+#define NAVPHYSICS_MESH_FP_RANGE_WITH_LIP ((1 << 20) - 1)
 /////////////////////////////////////////////////////////////
 
 #if defined(__GNUC__) || defined(__clang__)

@@ -84,6 +84,12 @@ struct [[nodiscard]] IPoint2 {
 		round_from(a);
 	}
 
+	bool is_within_fp_range() const {
+		// Don't use ABS here, as you can get signed-unsigned conversion UB.
+		return (x >= -NAVPHYSICS_MESH_FP_RANGE_WITH_LIP) && (x <= NAVPHYSICS_MESH_FP_RANGE_WITH_LIP) &&
+				(y >= -NAVPHYSICS_MESH_FP_RANGE_WITH_LIP) && (y <= NAVPHYSICS_MESH_FP_RANGE_WITH_LIP);
+	}
+
 	bool is_zero() const { return (x == 0) && (y == 0); }
 
 	// Just for easy reading of large fixed point numbers.
@@ -126,13 +132,12 @@ struct [[nodiscard]] IPoint3 {
 	}
 	void normalize() { normalize_to_scale(IPoint2::NORMALIZE_RANGE); }
 	bool is_zero() const { return (x == 0) && (y == 0) && (z == 0); }
-	
-	void clamp_to_fp_range()
-	{
+
+	void clamp_to_fp_range() {
 		const i32 r = NAVPHYSICS_MESH_FP_RANGE_WITH_LIP;
-		x = CLAMP(x,	-r, r);
-		y = CLAMP(y,	-r, r);
-		z = CLAMP(z,	-r, r);
+		x = CLAMP(x, -r, r);
+		y = CLAMP(y, -r, r);
+		z = CLAMP(z, -r, r);
 	}
 
 	void round_from(const FPoint3 &p_v) {

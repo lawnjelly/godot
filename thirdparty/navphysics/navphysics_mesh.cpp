@@ -1996,11 +1996,17 @@ bool Mesh::wall_segments_find_intersect(u32 p_wall_id, const IPoint2 &p_from, co
 }
 
 void Mesh::_unit_test_find_lines_intersect_integer() {
-	// The cutoff for overflow is somewhere between 20 and 21 bit.
 	// A priori calculations suggest 20 bit, but it's quite tricky as we have both
 	// * expansion due to planks.
 	// * velocity towards positions out of bounds.
-	const i32 BM = ((1 << 20) + (1 << 18));
+
+	// Note: I previously thought this was over 20 bit, but analysing the function reveals
+	// the exact threshold below.
+	// const i32 BM = ((1 << 20) + (1 << 18));
+
+	// By calculation, it turns out the exact cut off for overflow is (1 << 20) - 1.
+	// We must adjust the mesh range (including lip) to be within this.
+	const i32 BM = (1 << 20) - 1;
 
 	IPoint2 p1(-BM, BM);
 	IPoint2 p2(BM, BM);
@@ -2011,6 +2017,14 @@ void Mesh::_unit_test_find_lines_intersect_integer() {
 }
 
 bool Mesh::find_lines_intersect_integer(const IPoint2 &p_from_a, const IPoint2 &p_to_a, const IPoint2 &p_from_b, const IPoint2 &p_to_b, IPoint2 &r_hit) const {
+	// Check incoming positions.
+#ifdef NP_DEV_ENABLED
+	if (!p_from_a.is_within_fp_range() || !p_to_a.is_within_fp_range() || !p_from_b.is_within_fp_range() || !p_to_b.is_within_fp_range()) {
+		NP_DEV_ASSERT(0 && "find_lines_intersect_integer() : Input is out of range.");
+		return false;
+	}
+#endif
+
 	i32 x1 = p_from_a.x;
 	i32 y1 = p_from_a.y;
 
@@ -2078,11 +2092,31 @@ bool Mesh::find_lines_intersect_integer(const IPoint2 &p_from_a, const IPoint2 &
 		NP_CHECKED_OP_64(y, y, +, y1);
 	}
 
+	// At this point, near parallel lines can still meet outside the int32_t range.
+	// We detect this, clamp to the NavMesh max size, and return false,
+	// as the result is not reliable (and usually makes no sense to process in the calling code).
+	bool inside = true;
+
+	if (x > NAVPHYSICS_MESH_FP_RANGE_WITH_LIP) {
+		x = NAVPHYSICS_MESH_FP_RANGE_WITH_LIP;
+		inside = false;
+	} else if (x < -NAVPHYSICS_MESH_FP_RANGE_WITH_LIP) {
+		x = -NAVPHYSICS_MESH_FP_RANGE_WITH_LIP;
+		inside = false;
+	}
+	if (y > NAVPHYSICS_MESH_FP_RANGE_WITH_LIP) {
+		y = NAVPHYSICS_MESH_FP_RANGE_WITH_LIP;
+		inside = false;
+	} else if (y < -NAVPHYSICS_MESH_FP_RANGE_WITH_LIP) {
+		y = -NAVPHYSICS_MESH_FP_RANGE_WITH_LIP;
+		inside = false;
+	}
+
 	NP_CHECK_32(x, +, 0);
 	NP_CHECK_32(y, +, 0);
 
 	r_hit.set(x, y);
-	return true;
+	return inside;
 }
 
 /*
@@ -2217,6 +2251,108 @@ bool Mesh::find_lines_intersect_integer(const IPoint2 &p_from_a, const IPoint2 &
 */
 
 bool Mesh::find_line_segments_intersect_integer(const IPoint2 &p_from_a, const IPoint2 &p_to_a, const IPoint2 &p_from_b, const IPoint2 &p_to_b, IPoint2 &r_hit) const {
+	// Check incoming positions.
+#ifdef NP_DEV_ENABLED
+	if (!p_from_a.is_within_fp_range() || !p_to_a.is_within_fp_range() || !p_from_b.is_within_fp_range() || !p_to_b.is_within_fp_range()) {
+		NP_DEV_ASSERT(0 && "find_line_segments_intersect_integer() : Input is out of range.");
+		return false;
+	}
+#endif
+
+	i32 x1 = p_from_a.x;
+	i32 y1 = p_from_a.y;
+
+	// Shift origin to p_from_a = (x1, y1).
+	// Storing deltas as i64 avoids i32 subtraction overflow and extra sign-extensions.
+	i64 dx1 = (i64)p_to_a.x - x1;
+	i64 dy1 = (i64)p_to_a.y - y1;
+	i64 dx2 = (i64)p_to_b.x - p_from_b.x;
+	i64 dy2 = (i64)p_to_b.y - p_from_b.y;
+
+	i64 tmp1, tmp2;
+	NP_CHECKED_OP_64(tmp1, dx1, *, dy2);
+	NP_CHECKED_OP_64(tmp2, dy1, *, dx2);
+	i64 denom;
+	NP_CHECKED_OP_64(denom, tmp1, -, tmp2);
+
+	// Lines are parallel, collinear, or degenerate (zero-length)
+	if (denom == 0) {
+		return false;
+	}
+
+	i64 dx31 = (i64)p_from_b.x - x1;
+	i64 dy31 = (i64)p_from_b.y - y1;
+
+	NP_CHECKED_OP_64(tmp1, dx31, *, dy2);
+	NP_CHECKED_OP_64(tmp2, dy31, *, dx2);
+	i64 t_num;
+	NP_CHECKED_OP_64(t_num, tmp1, -, tmp2);
+
+	bool neg_denom = (denom < 0);
+	if (neg_denom) {
+		denom = -denom;
+		t_num = -t_num;
+	}
+
+	// Check if intersection lies on segment A (0 <= t <= 1)
+	if (t_num < 0 || t_num > denom) {
+		return false;
+	}
+
+	NP_CHECKED_OP_64(tmp1, dx31, *, dy1);
+	NP_CHECKED_OP_64(tmp2, dy31, *, dx1);
+	i64 u_num;
+	NP_CHECKED_OP_64(u_num, tmp1, -, tmp2);
+	if (neg_denom) {
+		u_num = -u_num;
+	}
+
+	// Check if intersection lies on segment B (0 <= u <= 1)
+	if (u_num < 0 || u_num > denom) {
+		return false;
+	}
+
+	// If we got here, line segments intersect.
+	// The denom/2 is to get rounding instead of truncating.
+	i64 offset = denom / 2;
+
+	i64 x;
+	{
+		i64 num;
+		NP_CHECKED_OP_64(num, t_num, *, dx1);
+		if (num < 0) {
+			NP_CHECKED_OP_64(x, num, -, offset);
+			NP_CHECKED_OP_64(x, x, /, denom);
+		} else {
+			NP_CHECKED_OP_64(x, num, +, offset);
+			NP_CHECKED_OP_64(x, x, /, denom);
+		}
+		NP_CHECKED_OP_64(x, x, +, x1);
+	}
+
+	i64 y;
+	{
+		i64 num;
+		NP_CHECKED_OP_64(num, t_num, *, dy1);
+		if (num < 0) {
+			NP_CHECKED_OP_64(y, num, -, offset);
+			NP_CHECKED_OP_64(y, y, /, denom);
+		} else {
+			NP_CHECKED_OP_64(y, num, +, offset);
+			NP_CHECKED_OP_64(y, y, /, denom);
+		}
+		NP_CHECKED_OP_64(y, y, +, y1);
+	}
+
+	NP_CHECK_32(x, +, 0);
+	NP_CHECK_32(y, +, 0);
+
+	r_hit.set((i32)x, (i32)y);
+	return true;
+}
+
+/*
+bool Mesh::find_line_segments_intersect_integer(const IPoint2 &p_from_a, const IPoint2 &p_to_a, const IPoint2 &p_from_b, const IPoint2 &p_to_b, IPoint2 &r_hit) const {
 	// For numerical accuracy, do everything relative
 
 	i32 x1 = p_from_a.x;
@@ -2302,5 +2438,6 @@ bool Mesh::find_line_segments_intersect_integer(const IPoint2 &p_from_a, const I
 	r_hit.set(x, y);
 	return true;
 }
+*/
 
 } // namespace NavPhysics
