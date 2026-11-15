@@ -1902,7 +1902,7 @@ i64 Mesh::wall_cross(u32 p_wall_id, const IPoint2 &p_pt) const {
 	return wall_vec.cross(point_vec);
 }
 
-bool Mesh::find_ceiling_height(u32 p_floor_poly_id, const IPoint2 &p_pt, freal &r_height, u32 &r_ceiling_poly_id_hint) const {
+bool Mesh::find_ceiling_height(u32 p_floor_poly_id, const IPoint2 &p_pt, i32 &r_height, u32 &r_ceiling_poly_id_hint) const {
 	u32 found_ceiling_poly_id = UINT32_MAX;
 
 	// Optimization, 99% of time we will be using the same ceiling poly for height,
@@ -1939,7 +1939,7 @@ bool Mesh::find_ceiling_height(u32 p_floor_poly_id, const IPoint2 &p_pt, freal &
 	}
 
 	if (found_ceiling_poly_id != UINT32_MAX) {
-		r_height = find_float_height_on_poly_plane(found_ceiling_poly_id, p_pt, true);
+		r_height = find_height_on_poly_plane(found_ceiling_poly_id, p_pt, true);
 
 		// Store this on the agent, for the hint next time.
 		r_ceiling_poly_id_hint = found_ceiling_poly_id;

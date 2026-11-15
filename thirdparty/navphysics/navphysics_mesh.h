@@ -527,7 +527,7 @@ public:
 
 	bool find_best_poly_within_last_ditch_FINAL(Agent &r_agent, const FPoint3 &p_pt_local, const IPoint2 &p_pt2) const;
 
-	bool find_ceiling_height(u32 p_floor_poly_id, const IPoint2 &p_pt, freal &r_height, u32 &r_ceiling_poly_id_hint) const;
+	bool find_ceiling_height(u32 p_floor_poly_id, const IPoint2 &p_pt, i32 &r_height, u32 &r_ceiling_poly_id_hint) const;
 
 	void init(np_handle p_handle) {
 		_unit_test_find_lines_intersect_integer();

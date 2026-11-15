@@ -132,10 +132,11 @@ public:
 	IPoint2 get_2d_pos() const {return local_pos.pos.xz();}
 	void set_2d_pos(const IPoint2 &p_pos) { set_pos(IPoint3(p_pos.x, get_pos().y, p_pos.y));}
 
-	void set_height(freal p_height);
-	freal get_height() const { return local_pos.pos.y; }
+	void set_height(i32 p_height);
+	i32 get_height() const { return local_pos.pos.y; }
 	
-	bool does_agent_need_move() const {return !get_velocity().is_zero() || !data.pending_jump_world.is_zero() || !fimpulse3.is_zero();}
+	bool does_agent_need_move() const {return !is_on_floor() || !get_velocity().is_zero() || !data.pending_jump_world.is_zero() || !fimpulse3.is_zero();}
+	//bool does_agent_need_move() const {return true;}
 	
 	const IPoint3 &get_velocity() const { return vel; }
 	void set_velocity(const IPoint3 &p_vel);
@@ -260,7 +261,7 @@ public:
 		set_jump_velocity(0);
 	}
 	void iterate_jump_before(const MeshInstance &p_mesh_instance);
-	void iterate_jump_after(const MeshInstance &p_mesh_instance, const freal *p_ceiling_height = nullptr);
+	void iterate_jump_after(const MeshInstance &p_mesh_instance, const i32 *p_ceiling_height = nullptr);
 	// void seek_yaw(float p_yaw);
 
 	// Call to blank relevant data when jumping between meshes.

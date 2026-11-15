@@ -27,7 +27,7 @@ void AgentStatus::debug_print(String p_sz) {
 	log(p_sz + String(" ... AgentStatus : wall_id ") + jump_wall_id + ", wall_pos " + jump_target_wall_pos + ", cross_pos " + jump_target_cross_pos + ", poly " + suggested_poly_id + ", meshi_id " + jump_mesh_instance_id + ", target_set " + jump_cross_only);
 }
 
-void Agent::set_height(freal p_height) {
+void Agent::set_height(i32 p_height) {
 	if (p_height != local_pos.pos.y) {
 		NP_AGENT_LOG("set_height " + p_height);
 		local_pos.pos.y = p_height;
@@ -159,7 +159,7 @@ void Agent::iterate_jump_before(const MeshInstance &p_mesh_instance) {
 	}
 }
 
-void Agent::iterate_jump_after(const MeshInstance &p_mesh_instance, const freal *p_ceiling_height) {
+void Agent::iterate_jump_after(const MeshInstance &p_mesh_instance, const i32 *p_ceiling_height) {
 	// Remove on_agent flag, it must be continuously set if we are
 	// walking on another agent.
 	if (on_agent) {

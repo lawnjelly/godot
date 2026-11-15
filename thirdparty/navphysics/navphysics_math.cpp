@@ -98,7 +98,7 @@ f32 Math::rand_range(f32 from, f32 to) {
 	return from + x;
 }
 
-bool Math::is_equal_approx(f32 a, f32 b, f32 tolerance) {
+bool Math::is_equal_approx(freal a, freal b, freal tolerance) {
 	if (a == b) {
 		return true;
 	}

@@ -404,7 +404,7 @@ freal MeshInstance::find_agent_jump_fit(Agent &r_agent, const JumpFinderData &p_
 			r_agent.clear_wall_id();
 
 			r_agent.set_pos(to_local);
-			NP_DEV_ASSERT(local_fixed_point_to_world_space(mesh, to_local).is_equal_approx(to_world));
+			NP_DEV_ASSERT(local_fixed_point_to_world_space(mesh, to_local).is_equal_approx(to_world, (freal)0.01f));
 			NP_LLOG(String("\tJUMP best fit so far world pos is ") + to_world + " on mesh_instance ID : " + get_id());
 
 			//r_agent.set_height(jl.pt_to_local.y);
@@ -738,7 +738,7 @@ void MeshInstance::iterate_agent_housekeeping_after(Agent &r_agent) {
 
 	// Keep the agent height updated if we are jumping.
 	if ((!r_agent.is_on_floor() || r_agent.get_jump_velocity() > 0) && !r_agent.is_poly_id_null() && r_agent.grounded) {
-		freal height;
+		i32 height;
 		if (mesh.find_ceiling_height(r_agent.get_poly_id(), r_agent.get_pos().xz(), height, r_agent.ceiling_poly_id)) {
 #ifdef NP_DEV_ENABLED
 			// Set debug position for client.
@@ -749,7 +749,7 @@ void MeshInstance::iterate_agent_housekeeping_after(Agent &r_agent) {
 
 			// The ceiling height must be adjusted for both the agent height,
 			// and the offset downward of the ceiling mesh from the ceiling (agent radius?).
-			height -= mesh.mesh_params.agent_height;
+			height -= mesh.dist_float_to_fixed_point(r_agent.collision_height - mesh.mesh_params.agent_radius);
 
 			r_agent.iterate_jump_after(*this, &height);
 			return;
@@ -1089,7 +1089,7 @@ void MeshInstance::_agent_slide_on_ceiling(Agent &r_agent, Mesh::MoveInfo &r_mov
 	const Mesh &mesh = get_mesh();
 
 	IPoint2 dest_pos = r_agent.get_2d_pos() + r_agent_velocity;
-	freal height;
+	i32 height;
 	if (!mesh.find_ceiling_height(r_agent.get_poly_id(), dest_pos, height, r_agent.ceiling_poly_id)) {
 		return;
 	}
@@ -1101,7 +1101,7 @@ void MeshInstance::_agent_slide_on_ceiling(Agent &r_agent, Mesh::MoveInfo &r_mov
 
 	// The ceiling height must be adjusted for both the agent height,
 	// and the offset downward of the ceiling mesh from the ceiling (agent radius?).
-	height -= mesh.mesh_params.agent_height;
+	height -= mesh.dist_float_to_fixed_point(r_agent.collision_height - mesh.mesh_params.agent_radius);
 
 	// If we are too high, then avoid the ceiling poly
 	if ((r_agent.get_height() > height) && (r_agent.ceiling_poly_id != UINT32_MAX)) {

@@ -47,7 +47,7 @@ public:
 	static f32 randf();
 	static f32 rand_range(f32 from, f32 to);
 
-	static bool is_equal_approx(f32 a, f32 b, f32 tolerance = NP_CMP_EPSILON);
+	static bool is_equal_approx(freal a, freal b, freal tolerance = NP_CMP_EPSILON);
 	static bool is_zero_approx(f32 s, f32 tolerance = NP_CMP_EPSILON);
 
 	static f32 fmod(f32 p_x, f32 p_y);

@@ -95,7 +95,7 @@ struct [[nodiscard]] FPoint3 {
 		return res;
 	}
 	freal dot(const FPoint3 &p_v) const { return (x * p_v.x) + (y * p_v.y) + (z * p_v.z); }
-	bool is_equal_approx(const FPoint3 &p_v, f32 p_tolerance = Math::NP_CMP_EPSILON) const { return Math::is_equal_approx(x, p_v.x, p_tolerance) && Math::is_equal_approx(y, p_v.y, p_tolerance) && Math::is_equal_approx(z, p_v.z, p_tolerance); }
+	bool is_equal_approx(const FPoint3 &p_v, freal p_tolerance = Math::NP_CMP_EPSILON) const { return Math::is_equal_approx(x, p_v.x, p_tolerance) && Math::is_equal_approx(y, p_v.y, p_tolerance) && Math::is_equal_approx(z, p_v.z, p_tolerance); }
 	
 	bool is_zero() const { return (x == 0) && (y == 0) && (z == 0); }
 	FPoint3() {
