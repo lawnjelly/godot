@@ -645,8 +645,6 @@ void Mesh::slide_move_on_blocks(u32 p_poly_from_id, u32 p_poly_id, const IPoint2
 				u64 best_dist = UINT64_MAX;
 				u32 best_wall = UINT32_MAX;
 				IPoint2 best_hit;
-				freal best_dot = 0;
-				IPoint2 best_slide_vector;
 
 				IPoint2 pt_hit;
 				for (u32 w = 0; w < 4; w++) {
@@ -659,30 +657,21 @@ void Mesh::slide_move_on_blocks(u32 p_poly_from_id, u32 p_poly_id, const IPoint2
 							best_dist = dist;
 							best_wall = w;
 							best_hit = pt_hit;
-
-							IPoint2 a_to_b = b - a;
-							best_dot = a_to_b.dot_normalized(r_vel);
-							best_slide_vector = a_to_b;
-							best_slide_vector.normalize_to_scale(best_dot * r_vel.lengthf());
 						}
 					}
 				}
 
 				if (best_wall != UINT32_MAX) {
-					//r_vel = best_hit - p_from;
-					r_vel = best_slide_vector;
+					const IPoint2 &a = block->data.corners[best_wall];
+					const IPoint2 &b = block->data.corners[(best_wall + 1) % 4];
+
+					r_vel.slide_velocity_on_wall(a, b);
 
 					// Also check if we are inside completely. If so, push out to the wall.
 					if (!from_outside && !to_outside) {
 						r_vel += (best_hit - p_from);
 					}
 				}
-				/*
-				else {
-					r_vel.zero();
-				}
-				return;
-*/
 			}
 		}
 
@@ -1309,7 +1298,7 @@ Mesh::TraceResult Mesh::recursive_trace(i32 p_depth, IPoint2 p_from, const IPoin
 	//	}
 
 	const Poly &poly = get_poly(p_poly_id);
-	freal smallest_dist = FLT_MAX;
+	u64 best_dist = UINT64_MAX;
 	u32 best_wall_id = UINT32_MAX;
 	IPoint2 best_intersect;
 
@@ -1321,9 +1310,9 @@ Mesh::TraceResult Mesh::recursive_trace(i32 p_depth, IPoint2 p_from, const IPoin
 		if (cross_to > 0) {
 			IPoint2 intersect;
 			if (wall_find_intersect(wall_id, p_from, p_to, intersect)) {
-				freal dist = p_from.distancef_to(intersect);
-				if (dist < smallest_dist) {
-					smallest_dist = dist;
+				u64 dist = (intersect - p_from).length_squared();
+				if (dist < best_dist) {
+					best_dist = dist;
 					best_wall_id = wall_id;
 					best_intersect = intersect;
 				}

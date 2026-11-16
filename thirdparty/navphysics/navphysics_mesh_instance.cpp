@@ -1134,22 +1134,8 @@ void MeshInstance::_agent_slide_on_ceiling(Agent &r_agent, Mesh::MoveInfo &r_mov
 		if (best_wall != UINT32_MAX) {
 			const IPoint2 a = mesh.get_vert2(mesh.get_ind(poly.first_ind + ((best_wall - 1) % poly.num_inds), true), true);
 			const IPoint2 b = mesh.get_vert2(mesh.get_ind(poly.first_ind + best_wall, true), true);
-
-			IPoint2 wall_vec = b - a;
-
-			// Correct the polarity of the slide.
-			freal dot = wall_vec.dot_normalized(r_agent_velocity);
-
-			if (dot < 0) {
-				wall_vec = -wall_vec;
-				dot = -dot;
-			}
-
-			// Change the agent velocity to the direction of the slide.
-			freal vel_mag = r_agent_velocity.lengthf();
-			wall_vec.normalize_to_scale(vel_mag * dot);
-
-			r_agent_velocity = wall_vec;
+			
+			r_agent_velocity.slide_velocity_on_wall(a, b);
 		}
 	}
 }

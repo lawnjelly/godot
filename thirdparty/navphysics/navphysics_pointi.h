@@ -44,9 +44,7 @@ struct [[nodiscard]] IPoint2 {
 		return wall_vec.cross(pt_vec);
 	}
 	freal angle() const { return Math::atan2_real(y, x); }
-	//	static IPoint2 make(const FPoint2 &p_v) {
-	//		return IPoint2::make(p_v.x, p_v.y);
-	//	}
+	
 	void round_from(const FPoint2 &p_v) {
 		x = Math::round32(p_v.x);
 		y = Math::round32(p_v.y);
@@ -94,6 +92,10 @@ struct [[nodiscard]] IPoint2 {
 
 	// Just for easy reading of large fixed point numbers.
 	IPoint2 readable() const { return *this / 1000000; }
+
+	// Helpers.
+	void slide_velocity_on_wall(const IPoint2 &p_wall_a, const IPoint2 &p_wall_b);
+	void slide_velocity_on_wall_vec(const IPoint2 &p_wall_vec);
 
 	IPoint2() {
 		zero();
