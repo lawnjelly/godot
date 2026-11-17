@@ -80,6 +80,30 @@ struct [[nodiscard]] IRect2 {
 
 		return true;
 	}
+	
+	// Distance to a point.
+	i64 distance_squared(const IPoint2 &p_pt) const {
+		// Empty rects contain no points.
+		if (size.x <= 0 || size.y <= 0) {
+			return INT64_MAX;
+		}
+		
+		i64 dist_sq = 0;
+		for (u32 n = 0; n < 2; n++) {
+			i64 min_c = (i64)position.coord[n];
+			i64 max_c = min_c + (i64)size.coord[n] - 1;
+			i64 c = (i64)p_pt.coord[n];
+			
+			i64 d = 0;
+			if (c < min_c) {
+				d = min_c - c;
+			} else if (c > max_c) {
+				d = c - max_c;
+			}
+			dist_sq += d * d;
+		}
+		return dist_sq;
+	}
 };
 
 /*

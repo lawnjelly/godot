@@ -125,8 +125,7 @@ void MeshInstance::block_update(Block &p_block) {
 	LocalPoint3 &pt = p_block.data.local_point;
 
 	// Find the polygon.
-	freal fit = 0;
-	pt.poly_id = mesh.find_best_poly_within(pt.pos, 10.0f * _scale_world_space_to_local_fixed_point, 0.5f * _scale_world_space_to_local_fixed_point, fit);
+	pt.poly_id = mesh.find_best_poly_within(pt.pos, 10.0f * _scale_world_space_to_local_fixed_point, 0.5f * _scale_world_space_to_local_fixed_point);
 
 	print_line(String("Best polygon is ") + itos(pt.poly_id));
 
@@ -234,9 +233,8 @@ void MeshInstance::poi_set_position(POI &p_poi, const FPoint3 &p_pt_world) {
 	p_poi.local_point.pos = world_space_to_local_fixed_point(mesh, p_pt_world);
 
 	// Find the polygon.
-	freal fit = 0;
-
-	p_poi.local_point.poly_id = mesh.find_best_poly_within(p_poi.local_point.pos, 10.0f * _scale_world_space_to_local_fixed_point, 0.5f * _scale_world_space_to_local_fixed_point, fit);
+	p_poi.local_point.poly_id = mesh.find_best_poly_within(p_poi.local_point.pos, 10.0f * _scale_world_space_to_local_fixed_point, 0.5f * _scale_world_space_to_local_fixed_point);
+	
 	print_line(String("Best polygon is ") + itos(p_poi.local_point.poly_id));
 }
 
@@ -310,7 +308,7 @@ void MeshInstance::_set_transform(const Transform &p_xform, const Transform &p_x
 	_transform_identity = p_is_identity;
 }
 
-freal MeshInstance::find_agent_jump_fit(Agent &r_agent, const JumpFinderData &p_jump_data, u32 &r_best_poly_id, freal p_max_step_up, freal p_max_drop, freal p_best_fit_so_far) const {
+void MeshInstance::find_agent_jump_fit(Agent &r_agent, const JumpFinderData &p_jump_data, u32 &r_best_poly_id, freal p_max_step_up, freal p_max_drop, u32 &r_best_fit_so_far) const {
 	// Drop and step up should be in local units, rather than world space.
 	p_max_drop *= _scale_world_space_to_local_fixed_point;
 	p_max_step_up *= _scale_world_space_to_local_fixed_point;
@@ -365,7 +363,8 @@ freal MeshInstance::find_agent_jump_fit(Agent &r_agent, const JumpFinderData &p_
 
 	if (!aabb.overlaps_aabb_or_above(aabb_jump)) {
 		NP_LLOG("\tnot in aabb");
-		return 1000000;
+		return;
+		//return 1000000;
 	}
 
 	NP_LLOG(String("\tfind_agent_jump_fit ipos ") + jl.pt_from_local + " to " + jl.pt_far_local);
@@ -373,33 +372,40 @@ freal MeshInstance::find_agent_jump_fit(Agent &r_agent, const JumpFinderData &p_
 	// Calculate a bonus ALLOWED drop of whatever jump height the agent currently has.
 	freal jump_height = r_agent.get_height() - r_agent.floor_height;
 	p_max_drop += jump_height;
-
-	freal fit = p_best_fit_so_far;
-
+	
+	
+	// Convert max drop and max step up to FP.
+	i32 max_step_up = mesh.dist_float_to_fixed_point(p_max_step_up);
+	i32 max_drop = mesh.dist_float_to_fixed_point(p_max_drop);
+	
 	// Note that this routine is an optimized one that relies on the velocity crossing a poly wall,
 	// and therefore that the up vectors of both meshes are somewhat aligned.
 	// If the two meshes are at 90 degrees, and the velocity is _straight down_ into the new mesh,
 	// no wall may be crossed, and this will return UINT32_MAX, so we need to try the slower backup path.
-	r_best_poly_id = mesh.find_best_jump_poly_within(r_agent, jl, p_max_drop, p_max_step_up, fit);
+	r_best_poly_id = mesh.find_best_jump_poly_within(r_agent, jl, max_drop, max_step_up, r_best_fit_so_far);
+	
 
 	if (r_best_poly_id == UINT32_MAX) {
 		IPoint3 to_local = ((jl.to_local - jl.from_local) / 2) + jl.from_local;
 		FPoint3 to_world = ((p_jump_data.pt_to_world - p_jump_data.pt_from_world) * 0.5f) + p_jump_data.pt_from_world;
 
 		// If the external links fail, try teleporting directly into the new mesh.
-		r_best_poly_id = mesh.find_best_poly_within(to_local, p_max_drop, p_max_step_up, fit);
+		u32 fit = 0;
+		r_best_poly_id = mesh.find_best_poly_within(to_local, p_max_drop, p_max_step_up, &fit);
 
 		// If the to position failed, try the from.
 		if (r_best_poly_id == UINT32_MAX) {
 			to_local = jl.from_local;
 			to_world = p_jump_data.pt_from_world;
-			r_best_poly_id = mesh.find_best_poly_within(to_local, p_max_drop, p_max_step_up, fit);
+			r_best_poly_id = mesh.find_best_poly_within(to_local, p_max_drop, p_max_step_up, &fit);
 		}
 
 		// If we teleport directly into the new mesh, we must be on a poly.
 		// We use the from position, and we directly set the agent,
 		// rather than using a jump target.
-		if ((r_best_poly_id != UINT32_MAX) && (fit < p_best_fit_so_far)) {
+		if ((r_best_poly_id != UINT32_MAX) && (fit < r_best_fit_so_far)) {
+			r_best_fit_so_far = fit;
+			
 			r_agent.set_poly_id(r_best_poly_id);
 			r_agent.clear_wall_id();
 
@@ -434,18 +440,18 @@ freal MeshInstance::find_agent_jump_fit(Agent &r_agent, const JumpFinderData &p_
 
 	if (r_best_poly_id == UINT32_MAX) {
 		NP_LLOG("\tnot in tri");
-		return 10000;
+		return;
 	}
 
 	// multiple meshs NYI
 	NP_LLOG("\tinside navmesh");
 
 	// If we are replacing the best fit, we can overwrite the jump data on the agent.
-	if (fit < p_best_fit_so_far) {
+//	if (fit < r_best_fit_so_far) {
 		//AgentStatus::debug_print("find_agent_jump_fit best_poly is ");
-	}
+//	}
 
-	return fit;
+//	return fit;
 }
 
 bool MeshInstance::find_last_ditch_poly(Agent &r_agent, const FPoint3 &p_world_pos) const {
@@ -500,13 +506,13 @@ freal MeshInstance::find_agent_fit(Agent &r_agent, const FPoint3 &p_world_pos, u
 
 	// Check for inclusion inside tri.
 	//r_best_poly_id = mesh.find_poly_within(ipos);
-	freal fit = 10000;
+	u32 fit = UINT32_MAX;
 
 	// Drop and step up should be in local units, rather than world space.
 	p_max_drop *= _scale_world_space_to_local_fixed_point;
 	p_max_step_up *= _scale_world_space_to_local_fixed_point;
 
-	r_best_poly_id = mesh.find_best_poly_within(ipos, p_max_drop, p_max_step_up, fit);
+	r_best_poly_id = mesh.find_best_poly_within(ipos, p_max_drop, p_max_step_up, &fit);
 
 	if (r_best_poly_id == UINT32_MAX) {
 		NP_LLOG("\tnot in tri");
@@ -548,8 +554,7 @@ void MeshInstance::teleport_agent(Agent &r_agent) {
 		return;
 	}
 
-	freal fit;
-	u32 new_poly_id = mesh.find_best_poly_within(r_agent.get_pos(), mesh.mesh_params.exit_max_drop, mesh.mesh_params.exit_max_step_up, fit);
+	u32 new_poly_id = mesh.find_best_poly_within(r_agent.get_pos(), mesh.mesh_params.exit_max_drop, mesh.mesh_params.exit_max_step_up);
 
 	// Reset the suggested poly id, as it can be used only once.
 	AgentStatus::suggested_poly_id = UINT32_MAX;

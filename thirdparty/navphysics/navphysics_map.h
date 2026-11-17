@@ -50,9 +50,14 @@ public:
 	u32 register_mesh_instance(u32 p_mesh_instance_id);
 	void unregister_mesh_instance(u32 p_mesh_instance_id, u32 p_mesh_slot_id);
 
-	u32 find_best_fit_agent_mesh(Agent &r_agent, const FPoint3 &p_world_pos, u32 p_ignore_mesh_id, const JumpFinderData *p_jump_data = nullptr) const;
+	//u32 find_best_fit_agent_mesh(Agent &r_agent, const FPoint3 &p_world_pos, u32 p_ignore_mesh_id, const JumpFinderData *p_jump_data = nullptr) const;
 
-	bool jump_to_new_mesh(Agent &r_agent, const FPoint3 &p_world_pos, u32 p_ignore_mesh_id, const JumpFinderData *p_jump_data = nullptr) const;
+	bool jump_to_new_mesh(Agent &r_agent, const FPoint3 &p_world_pos, u32 p_ignore_mesh_id, const JumpFinderData &p_jump_data) const;
+	
+	// When an agent has no mesh instance assigned,
+	// it can choose ANY that is closeby and a reasonable choice of poly.
+	bool find_any_mesh(Agent &r_agent) const;
+	const MeshInstance * find_closest_mesh(FPoint3 &p_world_pos, freal p_step_up) const;
 
 	void set_map_id(u32 p_id) { _map_id = p_id; }
 

@@ -111,7 +111,8 @@ bool Mesh::_agent_enter_poly(u32 p_old_poly_id, u32 p_new_poly_id, bool p_force_
 }
 */
 
-u32 Mesh::find_best_jump_poly_within(const Agent &p_agent, const JumpFinderDataLocal &p_jl, freal p_max_drop, freal p_max_step_up, freal &r_goodness_of_fit) const {
+u32 Mesh::find_best_jump_poly_within(const Agent &p_agent, const JumpFinderDataLocal &p_jl, i32 p_max_drop, i32 p_max_step_up, u32 &r_goodness_of_fit) const {
+	
 	// Go through the list of external connecting edges and see if
 	// the jump crosses any.
 	freal p_height = p_jl.pt_to_local.y;
@@ -120,7 +121,7 @@ u32 Mesh::find_best_jump_poly_within(const Agent &p_agent, const JumpFinderDataL
 	IPoint2 pt_hit;
 	u32 best_poly_id = UINT32_MAX;
 
-	freal best_height = -FLT_MAX;
+	i32 best_height = INT32_MIN;
 
 	// Invariant.
 	p_max_drop = -p_max_drop;
@@ -175,12 +176,12 @@ u32 Mesh::find_best_jump_poly_within(const Agent &p_agent, const JumpFinderDataL
 
 		if (allow) {
 			// Height of poly.
-			freal height = find_float_height_on_poly_plane(poly_id, pt_hit);
+			i32 height = find_height_on_poly_plane(poly_id, pt_hit);
 
 			// Calculate the height of the agent AFTER the jump to the ledge,
 			// at the current velocity.
 			// This is potentially slow calculation, or can use look up table.
-			freal agent_height_after_jump = _estimate_height_after_ledge_jump(p_agent, p_height, p_jl.vel_local.xz().lengthf(), (pt_hit - p_jl.to_local.xz()).lengthf());
+			i32 agent_height_after_jump = _estimate_height_after_ledge_jump(p_agent, p_height, p_jl.vel_local.xz().lengthf(), (pt_hit - p_jl.to_local.xz()).lengthf());
 
 			//log(String("\t\tpredicted jump to ledge is ") + (agent_height_after_jump - p_height) + " different than current agent height for poly ID " + poly_id + ".");
 
@@ -209,7 +210,7 @@ u32 Mesh::find_best_jump_poly_within(const Agent &p_agent, const JumpFinderDataL
 				best_height = height;
 				best_poly_id = poly_id;
 
-				freal fit = ABS(best_height);
+				u32 fit = ABS(best_height);
 
 				if (fit < r_goodness_of_fit) {
 					AgentStatus::jump_target_vel = p_jl.vel_local;
@@ -242,7 +243,35 @@ u32 Mesh::find_best_jump_poly_within(const Agent &p_agent, const JumpFinderDataL
 	return best_poly_id;
 }
 
-void Mesh::_find_last_ditch_poly(Agent &r_agent, u32 p_poly_id, const FPoint3 &p_pt_local, freal &r_best_fit) const {
+void Mesh::_find_last_ditch_poly(Agent &r_agent, u32 p_poly_id, const FPoint3 &p_pt_local, const IPoint2 &p_pt_FP, freal &r_best_fit) const {
+	const IRect2 &bound = get_poly_bound(p_poly_id);
+	u64 dist_from_bb_sq = bound.distance_squared(p_pt_FP);
+
+	// Calculate in 64 bit.
+	freal dist_from_bb = (double)_fp_to_f32_scale * dist_from_bb_sq;
+
+	// Quick reject.
+	if (dist_from_bb > r_best_fit) {
+		return;
+	}
+
+	// Special case for inside.
+	if (bound.contains_point(p_pt_FP) && poly_contains_point(p_poly_id, p_pt_FP)) {
+		freal poly_height = find_float_height_on_poly_plane(p_poly_id, p_pt_FP);
+		freal y_offset = (p_pt_local.y - poly_height);
+		freal y_offset_squared = y_offset * y_offset;
+		if (y_offset_squared < r_best_fit) {
+			r_best_fit = y_offset_squared;
+			r_agent.set_poly_id(p_poly_id);
+			r_agent.set_wall_id(UINT32_MAX);
+			r_agent.set_2d_pos(p_pt_FP);
+
+			i32 fp_height = (poly_height + _f32_to_fp_offset.y) * _f32_to_fp_scale;
+			r_agent.set_height(fp_height);
+		}
+		return;
+	}
+
 	const Poly &poly = get_poly(p_poly_id);
 
 	u32 best_wall = UINT32_MAX;
@@ -261,7 +290,8 @@ void Mesh::_find_last_ditch_poly(Agent &r_agent, u32 p_poly_id, const FPoint3 &p
 		
 	}
 #endif
-
+	
+	// This is assuming we aren't inside the poly, it finds the min distance to the edges.
 	log(String("\t_find_last_ditch_poly pt_local  ") + p_pt_local);
 	for (u32 n = 0; n < poly.num_inds; n++) {
 		u32 ind_a = get_ind(poly.first_ind + n);
@@ -305,7 +335,7 @@ bool Mesh::find_best_poly_within_last_ditch_FINAL(Agent &r_agent, const FPoint3 
 	if (test_poly_ids) {
 		for (u32 p = 0; p < num_test_polys; p++) {
 			u32 poly_id = test_poly_ids[p];
-			_find_last_ditch_poly(r_agent, poly_id, p_pt_local, best_fit);
+			_find_last_ditch_poly(r_agent, poly_id, p_pt_local, p_pt2, best_fit);
 		}
 	}
 
@@ -317,14 +347,14 @@ bool Mesh::find_best_poly_within_last_ditch_FINAL(Agent &r_agent, const FPoint3 
 	if (r_agent.is_poly_id_null()) {
 		num_test_polys = get_num_polys();
 		for (u32 p = 0; p < num_test_polys; p++) {
-			_find_last_ditch_poly(r_agent, p, p_pt_local, best_fit);
+			_find_last_ditch_poly(r_agent, p, p_pt_local, p_pt2, best_fit);
 		}
 	}
 
 	return !r_agent.is_poly_id_null();
 }
 
-u32 Mesh::find_best_poly_within(const IPoint3 &p_pt, i32 p_max_drop, i32 p_max_step_up, freal &r_goodness_of_fit) const {
+u32 Mesh::find_best_poly_within(const IPoint3 &p_pt, i32 p_max_drop, i32 p_max_step_up, u32 *r_goodness_of_fit) const {
 	IPoint2 pt2 = p_pt.xz();
 
 	u32 num_test_polys = 0;
@@ -373,8 +403,9 @@ u32 Mesh::find_best_poly_within(const IPoint3 &p_pt, i32 p_max_drop, i32 p_max_s
 		}
 	}
 
-	if (best_poly_id != UINT32_MAX) {
-		r_goodness_of_fit = dist_fixed_point_to_float(ABS(best_height));
+	if (best_poly_id != UINT32_MAX && r_goodness_of_fit) {
+		*r_goodness_of_fit = ABS(best_height);
+		//r_goodness_of_fit = dist_fixed_point_to_float(ABS(best_height));
 	}
 
 #if 0
@@ -997,14 +1028,16 @@ bool Mesh::jump_within_mesh(u32 p_source_wall_id, const IPoint2 &p_from, const I
 	return false;
 }
 
-freal Mesh::_estimate_height_after_ledge_jump(const Agent &p_agent, freal p_agent_height, freal p_forward_velocity, freal p_dist_to_ledge) const {
+i32 Mesh::_estimate_height_after_ledge_jump(const Agent &p_agent, i32 p_agent_height, freal p_forward_velocity, freal p_dist_to_ledge) const {
 	// Approx ticks to ledge.
 	u32 ticks_to_ledge = u32(p_dist_to_ledge / p_forward_velocity);
 
 	// Predict height of agent after these ticks.
-	freal height = p_agent_height;
-	freal jump_vel = p_agent.get_jump_velocity();
-	freal gravity = p_agent.gravity;
+	i32 height = p_agent_height;
+	i32 jump_vel = p_agent.get_jump_velocity();
+	
+	// TODO: This is not accounting for not straight down gravity!!
+	i32 gravity = dist_float_to_fixed_point(p_agent.gravity);
 
 	for (u32 n = 0; n < ticks_to_ledge; n++) {
 		height += jump_vel;
@@ -1168,7 +1201,7 @@ bool Mesh::move_to_new_mesh(const IPoint2 &p_from, const IPoint2 &p_vel, MoveInf
 	u32 old_poly_id = agent.get_poly_id();
 	u32 old_wall_id = agent.get_wall_id();
 	agent.set_mesh_instance_id(UINT32_MAX);
-	if (!map.jump_to_new_mesh(agent, agent.fpos3, old_mesh_instance_id, &jfd)) {
+	if (!map.jump_to_new_mesh(agent, agent.fpos3, old_mesh_instance_id, jfd)) {
 		agent.set_poly_id(old_poly_id);
 		agent.set_wall_id(old_wall_id);
 		agent.set_mesh_instance_id(old_mesh_instance_id);

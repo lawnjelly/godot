@@ -363,25 +363,85 @@ void NavPhysics::Map::unload_mesh_callback(u32 p_mesh_id) {
 }
 */
 
-bool Map::jump_to_new_mesh(Agent &r_agent, const FPoint3 &p_world_pos, u32 p_ignore_mesh_id, const JumpFinderData *p_jump_data) const {
+const MeshInstance *Map::find_closest_mesh(FPoint3 &p_world_pos, freal p_step_up) const {
+	const MeshInstance *found = nullptr;
+	freal smallest = FLT_MAX;
+
+	for (u32 n = 0; n < _mesh_instances.active_size(); n++) {
+		u32 mi_id = _mesh_instances.get_active(n);
+
+		const MeshInstance &mi = g_world.get_mesh_instance(mi_id);
+		if (!mi.is_active()) {
+			continue;
+		}
+
+		const Mesh &mesh = mi.get_mesh();
+		if (!mesh.is_valid()) {
+			continue;
+		}
+
+		// xform agent world space to local space
+		FPoint3 pos_local = mi.world_space_to_local(p_world_pos);
+		AABB aabb = mesh.get_extended_aabb();
+		aabb.size.y += p_step_up;
+		aabb.position.y -= p_step_up;
+
+		// Easiest case.
+		if (aabb.contains_point(pos_local)) {
+			freal volume = aabb.get_volume();
+
+			if (!found) {
+				found = &mi;
+				smallest = volume;
+			} else if (volume < smallest) {
+				smallest = volume;
+				found = &mi;
+			}
+		}
+	}
+
+	return found;
+}
+
+bool Map::find_any_mesh(Agent &r_agent) const {
+	NP_DEV_ASSERT(r_agent.get_mesh_instance_id() == UINT32_MAX);
+
+	// Ensure the agent has no valid data set.
+	r_agent.clear_poly_id();
+	r_agent.clear_wall_id();
+
+	if (!_mesh_instances.active_size()) {
+		log("teleport before mesh instances loaded");
+	}
+
+	FPoint3 world_pos = r_agent.fpos3;
+
+	const MeshInstance *mi = find_closest_mesh(world_pos, r_agent.collision_height);
+
+	// With no meshes, we can't move the agent into any.
+	if (!mi) {
+		return false;
+	}
+	
+	const Mesh &mesh = mi->get_mesh();
+	NP_DEV_ASSERT(mesh.is_valid());
+	
+	// Set the agent to the new mesh.
+	r_agent.set_mesh_instance_id(mi->get_id());
+	r_agent.radius_mesh_units = mi->calculate_agent_radius_in_mesh_units(r_agent.collision_radius);
+	
+	// Choose a poly.
+	mi->find_last_ditch_poly(r_agent, world_pos);
+	
+	return !r_agent.is_poly_id_null();
+}
+
+bool Map::jump_to_new_mesh(Agent &r_agent, const FPoint3 &p_world_pos, u32 p_ignore_mesh_id, const JumpFinderData &p_jump_data) const {
 	NP_DEV_ASSERT(r_agent.get_mesh_instance_id() == UINT32_MAX);
 	r_agent.clear_poly_id();
 	r_agent.clear_wall_id();
 
-	freal best_fit = FLT_MAX;
-
-	// If we are following a jump link from a previous mesh, we don't want to make the jump
-	// unless we are exactly entering a poly, no last ditch attempts.
-	bool want_exact_match = p_ignore_mesh_id != UINT32_MAX;
-
-	// If we are exploring connections outside of meshes,
-	// we only want to find a new mesh if it is "perfect",
-	// i.e. we will land on it on a poly.
-	// We don't want to find meshes that are a way away,
-	// which we may want to find when teleporting.
-	if (want_exact_match) {
-		best_fit = 1000;
-	}
+	u32 best_fit = UINT32_MAX;
 
 	if (!_mesh_instances.active_size()) {
 		log("teleport before mesh instances loaded");
@@ -393,7 +453,8 @@ bool Map::jump_to_new_mesh(Agent &r_agent, const FPoint3 &p_world_pos, u32 p_ign
 	// The step up and max drop come from the mesh we are LEAVING, not the mesh we are joining,
 	// except when ignore mesh is not set, then they come from the mesh we are joining.
 	FPoint3 world_vel;
-
+	
+	NP_DEV_ASSERT(p_ignore_mesh_id != UINT32_MAX);
 	if (p_ignore_mesh_id != UINT32_MAX) {
 		MeshInstance &mesh_instance = g_world.get_mesh_instance(p_ignore_mesh_id);
 		const Mesh &mesh = mesh_instance.get_mesh();
@@ -424,35 +485,32 @@ bool Map::jump_to_new_mesh(Agent &r_agent, const FPoint3 &p_world_pos, u32 p_ign
 		}
 
 		// Step up and drop come from the mesh we are joining, if no ignore is et.
-		if (p_ignore_mesh_id == UINT32_MAX) {
-			//freal scale = mesh_instance.get_scale_world_space_to_local_fixed_point();
+//		if (p_ignore_mesh_id == UINT32_MAX) {
+//			//freal scale = mesh_instance.get_scale_world_space_to_local_fixed_point();
 
-			max_step_up = mesh.get_mesh_params().exit_max_step_up;
-			max_drop = mesh.get_mesh_params().exit_max_drop;
-		}
+//			max_step_up = mesh.get_mesh_params().exit_max_step_up;
+//			max_drop = mesh.get_mesh_params().exit_max_drop;
+//		}
 
 		u32 poly_id = UINT32_MAX;
-		freal fit = 0;
 
 		NP_LOG(String("ATTEMPTING JUMP from mesh id ") + p_ignore_mesh_id);
 
-		if (p_jump_data) {
-			fit = mesh_instance.find_agent_jump_fit(r_agent, *p_jump_data, poly_id, max_step_up, max_drop, best_fit);
-		} else {
-			fit = mesh_instance.find_agent_fit(r_agent, p_world_pos, poly_id, max_step_up, max_drop);
-		}
+		u32 fit = best_fit;
+
+		mesh_instance.find_agent_jump_fit(r_agent, p_jump_data, poly_id, max_step_up, max_drop, fit);
+
 
 		if (fit < best_fit) {
 			best_fit = fit;
 			r_agent.set_mesh_instance_id(mi_id);
 			r_agent.set_poly_id(poly_id);
-			//best_mesh_instance_id = mi_id;
-			//log(String("NavPhysics::Map::find_best_fit_agent_mesh best MeshInstance ID ") + n);
 		}
 	}
 
 	// If we didn't find a decent fit, we will have a last ditch attempt at finding a good poly on the best matching
 	// mesh instance.
+	/*
 	if ((r_agent.get_mesh_instance_id() != UINT32_MAX) && (r_agent.is_poly_id_null())) {
 		MeshInstance &mesh_instance = g_world.get_mesh_instance(r_agent.get_mesh_instance_id());
 		if (mesh_instance.find_last_ditch_poly(r_agent, p_world_pos)) {
@@ -460,20 +518,12 @@ bool Map::jump_to_new_mesh(Agent &r_agent, const FPoint3 &p_world_pos, u32 p_ign
 			//r_agent.
 		}
 	}
+*/
 
 	if (r_agent.get_mesh_instance_id() != UINT32_MAX) {
 		// Make sure we keep the mesh unit radius up to date when changing mesh.
 		MeshInstance &meshi = g_world.get_mesh_instance(r_agent.get_mesh_instance_id());
 		r_agent.radius_mesh_units = meshi.calculate_agent_radius_in_mesh_units(r_agent.collision_radius);
-
-		// If we are in a jump between meshes, re-establish the local position / velocity from the JFD data.
-		if (!p_jump_data) {
-			const Mesh &mesh = meshi.get_mesh();
-
-			r_agent.set_pos(meshi.world_space_to_local_fixed_point(mesh, p_world_pos));
-			r_agent.set_velocity(meshi.velocity_world_space_to_local_fixed_point(mesh, world_vel));
-		}
-
 		return true;
 	}
 
@@ -483,6 +533,7 @@ bool Map::jump_to_new_mesh(Agent &r_agent, const FPoint3 &p_world_pos, u32 p_ign
 	return false;
 }
 
+/*
 u32 Map::find_best_fit_agent_mesh(Agent &r_agent, const FPoint3 &p_world_pos, u32 p_ignore_mesh_id, const JumpFinderData *p_jump_data) const {
 	freal best_fit = FLT_MAX;
 	u32 best_mesh_instance_id = UINT32_MAX;
@@ -529,7 +580,7 @@ u32 Map::find_best_fit_agent_mesh(Agent &r_agent, const FPoint3 &p_world_pos, u3
 		}
 
 		u32 poly_id = UINT32_MAX;
-		freal fit = 0;
+		u32 fit = 0;
 
 		if (p_jump_data) {
 			fit = mesh_instance.find_agent_jump_fit(r_agent, *p_jump_data, poly_id, max_step_up, max_drop, best_fit);
@@ -560,6 +611,7 @@ u32 Map::find_best_fit_agent_mesh(Agent &r_agent, const FPoint3 &p_world_pos, u3
 	NP_LOG(String("find_best_fit_agent_mesh : ") + best_mesh_instance_id);
 	return best_mesh_instance_id;
 }
+*/
 
 bool Map::update_agent_mesh(Agent &r_agent, bool p_teleport_if_changed) {
 	//Agent &agent = _agents[p_agent_id];
@@ -580,39 +632,9 @@ bool Map::update_agent_mesh(Agent &r_agent, bool p_teleport_if_changed) {
 	// no mesh yet?
 	if (r_agent.get_mesh_instance_id() == UINT32_MAX) {
 		// find one (SLOW)
-
-		jump_to_new_mesh(r_agent, r_agent.fpos3, UINT32_MAX);
-		/*
-
-		u32 best_mesh_instance_id = find_best_fit_agent_mesh(r_agent, r_agent.fpos3, UINT32_MAX);
-
-		if (best_mesh_instance_id == UINT32_MAX) {
-			// Can't iterate, no decent meshs for this agent.
-			// Could ERR here, but it may happen in normal circumstances sometimes
-			// and not be an error.
-
-			// FixMe: Should this be true or false?
-			r_agent.set_is_changing_mesh(true);
-			return false;
-		}
-		NP_LOG(String("Agent ") + String(r_agent.agent_id) + " is on mesh " + String(best_mesh_instance_id) + ".");
-		r_agent.set_mesh_instance_id(best_mesh_instance_id);
-
-		// Make sure we keep the mesh unit radius up to date when changing mesh.
-		MeshInstance &meshi = g_world.get_mesh_instance(r_agent.get_mesh_instance_id());
-		r_agent.radius_mesh_units = meshi.calculate_agent_radius_in_mesh_units(r_agent.radius);
-
-		// teleport
-		if (p_teleport_if_changed) {
-			body_teleport(r_agent, r_agent.agent_id, r_agent.fpos3_teleport);
-			//g_world.body_teleport(p_agent_id, r_agent.fpos3_teleport);
-			//navphysics_teleport(p_agent_id, agent.fpos3_teleport);
-			//		Mesh *mesh = _meshes[agent.mesh_id];
-			//		FPoint3 pos_local = mesh->get_transform().xform(agent.fpos3);
-			//		agent.fpos = FPoint2(pos_local.x, pos_local.z);
-			//		mesh->teleport_agent(agent);
-		}
-		*/
+		
+		find_any_mesh(r_agent);
+		//jump_to_new_mesh(r_agent, r_agent.fpos3, UINT32_MAX);
 	}
 
 	r_agent.set_is_changing_mesh(r_agent.get_mesh_instance_id() != old_mesh_instance_id);

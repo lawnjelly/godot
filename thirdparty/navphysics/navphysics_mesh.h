@@ -196,7 +196,9 @@ public:
 		_POIs.clear();
 		data.is_valid = false;
 	}
-
+	
+	const AABB &get_extended_aabb() const {return _extended_aabb;}
+	
 	POI &get_poi(u32 p_id) { return _POIs[p_id]; }
 	POI &request_poi(u32 &r_id) {
 		r_id = _POIs.size();
@@ -463,7 +465,7 @@ private:
 
 	bool cross_internal_or_external_link(u32 p_wall_id, const IPoint2 &p_from, const IPoint2 &p_vel, MoveInfo &r_info) const;
 	freal _calculate_jump_range_from_momentum(freal p_momentum, bool p_apply_minimum) const;
-	freal _estimate_height_after_ledge_jump(const Agent &p_agent, freal p_agent_height, freal p_forward_velocity, freal p_dist_to_ledge) const;
+	i32 _estimate_height_after_ledge_jump(const Agent &p_agent, i32 p_agent_height, freal p_forward_velocity, freal p_dist_to_ledge) const;
 
 	bool jump_within_mesh(u32 p_source_wall_id, const IPoint2 &p_from, const IPoint2 &p_vel, MoveInfo &r_info) const;
 	bool _can_jump_to_wall(u32 p_dest_wall_id, const IPoint2 &p_from, IPoint2 &p_to, freal p_agent_height, freal p_agent_jump_height, bool p_on_floor) const;
@@ -475,7 +477,7 @@ private:
 	bool find_lines_intersect_integer(const IPoint2 &p_from_a, const IPoint2 &p_to_a, const IPoint2 &p_from_b, const IPoint2 &p_to_b, IPoint2 &r_hit) const;
 	bool wall_segments_find_intersect(u32 p_wall_id, const IPoint2 &p_from, const IPoint2 &p_to, IPoint2 &r_hit) const;
 	bool find_line_segments_intersect_integer(const IPoint2 &p_from_a, const IPoint2 &p_to_a, const IPoint2 &p_from_b, const IPoint2 &p_to_b, IPoint2 &r_hit) const;
-	void _find_last_ditch_poly(Agent &r_agent, u32 p_poly_id, const FPoint3 &p_pt_local, freal &r_best_fit) const;
+	void _find_last_ditch_poly(Agent &r_agent, u32 p_poly_id, const FPoint3 &p_pt_local, const IPoint2 &p_pt_local_FP, freal &r_best_fit) const;
 
 	void _unit_test_find_lines_intersect_integer();
 
@@ -522,8 +524,8 @@ public:
 
 	u32 find_poly_within(const IPoint2 &p_pt, u32 p_poly_id_hint = UINT32_MAX) const;
 
-	u32 find_best_poly_within(const IPoint3 &p_pt, i32 p_max_drop, i32 p_max_step_up, freal &r_goodness_of_fit) const;
-	u32 find_best_jump_poly_within(const Agent &p_agent, const JumpFinderDataLocal &p_jl, freal p_max_drop, freal p_max_step_up, freal &r_goodness_of_fit) const;
+	u32 find_best_poly_within(const IPoint3 &p_pt, i32 p_max_drop, i32 p_max_step_up, u32  * r_goodness_of_fit = nullptr) const;
+	u32 find_best_jump_poly_within(const Agent &p_agent, const JumpFinderDataLocal &p_jl, i32 p_max_drop, i32 p_max_step_up, u32 &r_goodness_of_fit) const;
 
 	bool find_best_poly_within_last_ditch_FINAL(Agent &r_agent, const FPoint3 &p_pt_local, const IPoint2 &p_pt2) const;
 
