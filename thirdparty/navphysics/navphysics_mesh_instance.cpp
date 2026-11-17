@@ -1094,49 +1094,67 @@ void MeshInstance::_agent_slide_on_ceiling(Agent &r_agent, Mesh::MoveInfo &r_mov
 		return;
 	}
 
-	// Start from a source point well back from the actual source, so we can detect the first crossing with the ceiling poly.
-	IPoint2 backtrack = -r_agent_velocity;
-	backtrack.normalize_to_scale(FPoint2::FP_RANGE / 8);
-	IPoint2 source_pos = r_agent.get_2d_pos() + backtrack;
+	// This may be implied by ceiling height returning true.
+	// Check this.
+	if (r_agent.ceiling_poly_id == UINT32_MAX) {
+		return;
+	}
 
 	// The ceiling height must be adjusted for both the agent height,
 	// and the offset downward of the ceiling mesh from the ceiling (agent radius?).
 	height -= mesh.dist_float_to_fixed_point(r_agent.collision_height - mesh.mesh_params.agent_radius);
 
-	// If we are too high, then avoid the ceiling poly
-	if ((r_agent.get_height() > height) && (r_agent.ceiling_poly_id != UINT32_MAX)) {
-		// Find which wall we have crossed.
-		const Poly &poly = mesh.get_poly(r_agent.ceiling_poly_id, true);
+	// If below the ceiling, do nothing.
+	if (r_agent.get_height() <= height) {
+		return;
+	}
 
-		const IPoint3 *vert_a = &mesh.get_vert(mesh.get_ind(poly.first_ind + poly.num_inds - 1, true), true);
+	// If we get to here, we are ABOVE the ceiling.
+	
+	// See if we have jumped to a part of the mesh ABOVE the ceiling via an internal jump link.
+	// Note, this is quite expensive, might need to be optimized.
+	
+	
+	
+	
+	
+	
+	// Start from a source point well back from the actual source, so we can detect the first crossing with the ceiling poly.
+	IPoint2 backtrack = -r_agent_velocity;
+	backtrack.normalize_to_scale(FPoint2::FP_RANGE / 8);
+	IPoint2 source_pos = r_agent.get_2d_pos() + backtrack;
 
-		IPoint2 pt_hit;
+	// Find which wall we have crossed.
+	const Poly &poly = mesh.get_poly(r_agent.ceiling_poly_id, true);
 
-		u64 best_dist = UINT64_MAX;
-		u32 best_wall = UINT32_MAX;
+	const IPoint3 *vert_a = &mesh.get_vert(mesh.get_ind(poly.first_ind + poly.num_inds - 1, true), true);
 
-		for (u32 w = 0; w < poly.num_inds; w++) {
-			const IPoint3 *vert_b = &mesh.get_vert(mesh.get_ind(poly.first_ind + w, true), true);
+	IPoint2 pt_hit;
 
-			if (mesh.find_line_segments_intersect_integer(source_pos, dest_pos, vert_a->xz(), vert_b->xz(), pt_hit)) {
-				u64 dist = (pt_hit - source_pos).length_squared();
+	u64 best_dist = UINT64_MAX;
+	u32 best_wall = UINT32_MAX;
 
-				if (dist < best_dist) {
-					best_dist = dist;
-					best_wall = w;
-				}
+	for (u32 w = 0; w < poly.num_inds; w++) {
+		const IPoint3 *vert_b = &mesh.get_vert(mesh.get_ind(poly.first_ind + w, true), true);
+
+		if (mesh.find_line_segments_intersect_integer(source_pos, dest_pos, vert_a->xz(), vert_b->xz(), pt_hit)) {
+			u64 dist = (pt_hit - source_pos).length_squared();
+
+			if (dist < best_dist) {
+				best_dist = dist;
+				best_wall = w;
 			}
-
-			vert_a = vert_b;
 		}
 
-		// If we found a slide wall...
-		if (best_wall != UINT32_MAX) {
-			const IPoint2 a = mesh.get_vert2(mesh.get_ind(poly.first_ind + ((best_wall - 1) % poly.num_inds), true), true);
-			const IPoint2 b = mesh.get_vert2(mesh.get_ind(poly.first_ind + best_wall, true), true);
-			
-			r_agent_velocity.slide_velocity_on_wall(a, b);
-		}
+		vert_a = vert_b;
+	}
+
+	// If we found a slide wall...
+	if (best_wall != UINT32_MAX) {
+		const IPoint2 a = mesh.get_vert2(mesh.get_ind(poly.first_ind + ((best_wall - 1) % poly.num_inds), true), true);
+		const IPoint2 b = mesh.get_vert2(mesh.get_ind(poly.first_ind + best_wall, true), true);
+
+		r_agent_velocity.slide_velocity_on_wall(a, b);
 	}
 }
 
