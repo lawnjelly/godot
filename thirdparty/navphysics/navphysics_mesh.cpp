@@ -112,7 +112,6 @@ bool Mesh::_agent_enter_poly(u32 p_old_poly_id, u32 p_new_poly_id, bool p_force_
 */
 
 u32 Mesh::find_best_jump_poly_within(const Agent &p_agent, const JumpFinderDataLocal &p_jl, i32 p_max_drop, i32 p_max_step_up, u32 &r_goodness_of_fit) const {
-	
 	// Go through the list of external connecting edges and see if
 	// the jump crosses any.
 	freal p_height = p_jl.pt_to_local.y;
@@ -290,7 +289,7 @@ void Mesh::_find_last_ditch_poly(Agent &r_agent, u32 p_poly_id, const FPoint3 &p
 		
 	}
 #endif
-	
+
 	// This is assuming we aren't inside the poly, it finds the min distance to the edges.
 	log(String("\t_find_last_ditch_poly pt_local  ") + p_pt_local);
 	for (u32 n = 0; n < poly.num_inds; n++) {
@@ -354,11 +353,88 @@ bool Mesh::find_best_poly_within_last_ditch_FINAL(Agent &r_agent, const FPoint3 
 	return !r_agent.is_poly_id_null();
 }
 
-u32 Mesh::find_best_internal_jump_poly_within(const IPoint3 &p_pt, i32 p_max_drop, i32 p_max_step_up) const
-{
-	return UINT32_MAX;
-}
+bool Mesh::try_internal_jump_poly(Agent &r_agent, const IPoint2 &p_from, const IPoint2 &p_to, i32 p_ceiling_height) const {
+	u32 current_poly_id = r_agent.get_poly_id();
+	// i32 agent_height = r_agent.get_height();
 
+	u32 jump_id = get_poly_extra(current_poly_id).jump_up_id;
+
+	// Simplest case, no jumps available.
+	if (jump_id == UINT32_MAX) {
+		return UINT32_MAX;
+	}
+
+	const InternalJumpUp &j = jump_data.internal_jump_ups[jump_id];
+	IPoint2 pt_hit;
+	i32 poly_height = 0;
+
+	// Best result.
+	i32 best_poly = UINT32_MAX;
+	u32 best_wall_id = UINT32_MAX;
+	u64 best_dist = UINT64_MAX;
+	IPoint2 best_hit;
+	//i32 best_poly_height = 0;
+
+	// Check each jump wall.
+	for (u32 n = 0; n < j.num_jump_walls; n++) {
+		u32 wall_id = jump_data.jump_wall_ids[j.first_jump_wall + n];
+		const Wall &w = get_wall(wall_id);
+
+		NP_DEV_ASSERT(w.poly_id != UINT32_MAX);
+
+		bool on_poly = false;
+
+		if (poly_contains_point(w.poly_id, p_from)) {
+			poly_height = find_height_on_poly_plane(w.poly_id, p_to);
+			on_poly = true;
+		} else if (wall_find_intersect(wall_id, p_from, p_to, pt_hit)) {
+			poly_height = find_height_on_poly_plane(w.poly_id, pt_hit);
+		} else {
+			continue;
+		}
+
+		if (poly_height < p_ceiling_height) {
+			continue;
+		}
+
+		// Got a hit!
+		 log(String("can jump to poly ") + w.poly_id);
+
+		if (on_poly) {
+			best_poly = w.poly_id;
+			best_dist = 0;
+			//best_poly_height = poly_height;
+			best_wall_id = UINT32_MAX;
+			break;
+		} else {
+			u64 dist = (pt_hit - p_from).length_squared();
+			if (dist < best_dist) {
+				best_dist = dist;
+				best_poly = w.poly_id;
+				best_hit = pt_hit;
+				best_wall_id = wall_id;
+				//best_poly_height = poly_height;
+			}
+		}
+	}
+
+	if (best_poly != UINT32_MAX) {
+		if (best_wall_id == UINT32_MAX) {
+			r_agent.set_poly_id(best_poly);
+			r_agent.clear_wall_id();
+		} else {
+			r_agent.clear_poly_id();
+			r_agent.clear_wall_id();
+			r_agent.jump_link_wall_id = best_wall_id;
+			r_agent.jump_link_target_pos = best_hit;
+			r_agent.force_off_floor();
+		}
+
+		return true;
+	}
+
+	return false;
+}
 
 u32 Mesh::find_best_poly_within(const IPoint3 &p_pt, i32 p_max_drop, i32 p_max_step_up, u32 *r_goodness_of_fit) const {
 	IPoint2 pt2 = p_pt.xz();
@@ -1041,7 +1117,7 @@ i32 Mesh::_estimate_height_after_ledge_jump(const Agent &p_agent, i32 p_agent_he
 	// Predict height of agent after these ticks.
 	i32 height = p_agent_height;
 	i32 jump_vel = p_agent.get_jump_velocity();
-	
+
 	// TODO: This is not accounting for not straight down gravity!!
 	i32 gravity = dist_float_to_fixed_point(p_agent.gravity);
 

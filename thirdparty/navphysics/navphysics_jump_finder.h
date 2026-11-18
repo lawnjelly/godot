@@ -29,6 +29,11 @@ class JumpFinder {
 	void add_wall_jump(Mesh &r_mesh, u32 p_wall_id_from, u32 p_wall_id_to);
 	void add_poly_jump(u32 p_wall_id_from, u32 p_poly_id_to);
 
+	// Internal jump records that go up from a poly to a possible internal wall ABOVE them (or in the vicinity).
+	// This is to allow jumping onto platforms above a floor, i.e. there are polys ABOVE the current agent floor
+	// which can be jumped onto.
+	void find_jump_ups(Mesh &r_mesh);
+
 public:
 	void find_jumps(Mesh &r_mesh);
 };

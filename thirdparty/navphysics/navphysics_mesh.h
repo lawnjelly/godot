@@ -97,7 +97,7 @@ class Mesh {
 		TVector<WallPair> internal_wall_pairs;
 
 		TVector<u32> lipped_wall_ids;
-		
+
 		// We can't do anything with a mesh that hasn't been loaded
 		// correctly and has no polys.
 		bool is_valid = false;
@@ -110,7 +110,7 @@ public:
 		f32 exit_lip = 0.1;
 		f32 exit_max_step_up = 0.5;
 		f32 exit_max_drop = 1;
-		
+
 		// Fixed point coordinate space.
 		// i32 fp_exit_max_drop = INT32_MAX;
 	};
@@ -120,8 +120,8 @@ public:
 		LINK_FLAG_EXTERNAL = 1 << 30, // External link (to other meshes)
 		LINK_FLAG_INTERNAL = 1 << 29, // Jump links within the mesh.
 	};
-	
-	bool is_valid() const {return data.is_valid;}
+
+	bool is_valid() const { return data.is_valid; }
 
 private:
 	MeshParams mesh_params;
@@ -135,7 +135,7 @@ private:
 		u32 agent_lip = 1000;
 
 	} extension_data;
-	
+
 	struct InternalJumpInfo {
 		u32 first_jump_wall = 0;
 		u32 num_jump_walls = 0;
@@ -143,14 +143,21 @@ private:
 		u32 num_jump_polys = 0;
 	};
 
+	struct InternalJumpUp {
+		u32 first_jump_wall = 0;
+		u32 num_jump_walls = 0;
+	};
+
 	struct JumpData {
 		TVector<u32> jump_wall_ids;
 		TVector<u32> jump_poly_ids;
 		TVector<InternalJumpInfo> internal_jump_info;
+		Vector<InternalJumpUp> internal_jump_ups;
 		void clear() {
 			jump_wall_ids.clear();
 			jump_poly_ids.clear();
 			internal_jump_info.clear();
+			internal_jump_ups.clear();
 		}
 	} jump_data;
 
@@ -175,7 +182,7 @@ public:
 	static u64 _tick;
 	static u32 _ticks_per_sec;
 	//static freal _tps_force_fudge;
-	
+
 	void clear(bool p_preserve_extended_data = false) {
 		if (!p_preserve_extended_data) {
 			floor.clear();
@@ -199,9 +206,9 @@ public:
 		_POIs.clear();
 		data.is_valid = false;
 	}
-	
-	const AABB &get_extended_aabb() const {return _extended_aabb;}
-	
+
+	const AABB &get_extended_aabb() const { return _extended_aabb; }
+
 	POI &get_poi(u32 p_id) { return _POIs[p_id]; }
 	POI &request_poi(u32 &r_id) {
 		r_id = _POIs.size();
@@ -366,13 +373,13 @@ private:
 	bool poly_contains_vert(u32 p_poly_id, u32 p_vert_id) const;
 	bool wall_in_front_cross(u32 p_wall_id, const IPoint2 &p_pt) const;
 	i64 wall_cross(u32 p_wall_id, const IPoint2 &p_pt) const;
-	
+
 	// Returns height in local space.
 	freal find_float_height_on_poly_plane(u32 p_poly_id, const IPoint2 &p_pt, bool p_ceiling = false) const;
-	
+
 	// Returns height in local fixed point space.
 	i32 find_height_on_poly_plane(u32 p_poly_id, const IPoint2 &p_pt, bool p_ceiling = false) const;
-	
+
 	freal get_distance_from_wall_edge(u32 p_wall_id, const IPoint2 &p_pt) const;
 
 	void _check_for_duplicate_verts();
@@ -460,7 +467,7 @@ private:
 	void modify_velocity_for_poly_slope(const MoveInfo &p_info, IPoint2 &r_vel, u32 p_poly_id) const;
 	void modify_velocity_for_poly_wall(const MoveInfo &p_info, float &r_vel, u32 p_poly_id, u32 p_wall_id) const;
 	void slide_move_on_blocks(u32 p_poly_from_id, u32 p_poly_id, const IPoint2 &p_from, IPoint2 &r_vel, const MoveInfo &p_info) const;
-	
+
 	MoveResult recursive_move(i32 p_depth, IPoint2 p_from, IPoint2 p_vel, u32 p_poly_id, u32 p_poly_from_id, u32 p_hug_wall_id, MoveInfo &r_info) const;
 	TraceResult recursive_trace(i32 p_depth, IPoint2 p_from, const IPoint2 &p_to, u32 p_poly_id, TraceInfo &r_info) const;
 
@@ -526,9 +533,9 @@ public:
 	}
 
 	u32 find_poly_within(const IPoint2 &p_pt, u32 p_poly_id_hint = UINT32_MAX) const;
-	
-	u32 find_best_internal_jump_poly_within(const IPoint3 &p_pt, i32 p_max_drop, i32 p_max_step_up) const;
-	u32 find_best_poly_within(const IPoint3 &p_pt, i32 p_max_drop, i32 p_max_step_up, u32  * r_goodness_of_fit = nullptr) const;
+
+	bool try_internal_jump_poly(Agent &r_agent, const IPoint2 &p_from, const IPoint2 &p_to, i32 p_ceiling_height) const;
+	u32 find_best_poly_within(const IPoint3 &p_pt, i32 p_max_drop, i32 p_max_step_up, u32 *r_goodness_of_fit = nullptr) const;
 	u32 find_best_jump_poly_within(const Agent &p_agent, const JumpFinderDataLocal &p_jl, i32 p_max_drop, i32 p_max_step_up, u32 &r_goodness_of_fit) const;
 
 	bool find_best_poly_within_last_ditch_FINAL(Agent &r_agent, const FPoint3 &p_pt_local, const IPoint2 &p_pt2) const;
@@ -538,7 +545,7 @@ public:
 	void init(np_handle p_handle) {
 		_unit_test_find_lines_intersect_integer();
 	}
-	
+
 	/*
 	void refresh_local_agent_position_from_fixed_point(Agent &r_agent) const {
 		r_agent.fpos3 = fixed_point_to_float(r_agent.get_pos());

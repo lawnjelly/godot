@@ -57,6 +57,10 @@ public:
 
 	u32 first_ceiling_link = 0;
 	u32 num_ceiling_links = 0;
+	
+	// Precalculated list of internal jumps above this poly (stored in JumpData).
+	// In most case this will be unset.
+	u32 jump_up_id = UINT32_MAX;
 
 	u16 island_id = UINT16_MAX;
 	//	u16 flood_fill_counter = 0; // doubles as a flood fill counter for finding bottleneck areas

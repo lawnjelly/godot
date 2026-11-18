@@ -58,6 +58,8 @@ void JumpFinder::find_jumps(Mesh &r_mesh) {
 			}
 		}
 	}
+	
+	find_jump_ups(r_mesh);
 }
 
 bool JumpFinder::jump_wall_within_range(const IPoint2 &p_a, const IPoint2 &p_b, const IPoint2 &p_c, const IPoint2 &p_d, freal p_range) const {
@@ -236,6 +238,78 @@ void JumpFinder::find_wall_jumps(Mesh &r_mesh, u32 p_wall_id) {
 #endif
 	}
 #endif
+}
+
+void JumpFinder::find_jump_ups(Mesh &r_mesh) {
+	// First blank out all the jump ups for each polys.
+	for (u32 n = 0; n < r_mesh.get_num_polys(); n++) {
+		PolyExtra &ex = r_mesh.get_poly_extra(n);
+		ex.jump_up_id = UINT32_MAX;
+	}
+
+	// First pre-construct a list of internal walls that will be used to collide check against each poly.
+	struct JumpWall {
+		u32 wall_id = UINT32_MAX;
+		IRect2 bound;
+	};
+
+	Vector<JumpWall> jump_walls;
+
+	// We want to add a "booster" radius to the jump wall collision checks,
+	// because we may be jumping across a slight gap between the poly the agent
+	// is currently on, and the start of the platform above (the jump wall).
+	// The size of this boost will depend on how far we intend to allow to being
+	// in a "jump mode", but bear in mind the user should create a lip on the platform,
+	// so it shouldn't have to be that far in order to work.
+	u32 boost = r_mesh.get_baked_agent_radius();
+
+	for (u32 n = 0; n < r_mesh.get_num_walls(); n++) {
+		if (r_mesh.is_link_internal(n)) {
+			JumpWall jw;
+			jw.wall_id = n;
+
+			IPoint2 a, b;
+			r_mesh.get_wall_verts(n, a, b);
+			jw.bound.position = a;
+			jw.bound.expand_to_fast(b);
+			jw.bound.increment_size();
+
+			jw.bound.grow(boost);
+
+			jump_walls.push_back(jw);
+		}
+	}
+	
+	log(String("find_jump_ups : found ") + jump_walls.size() + " internal jump walls.");
+	
+	// Now calculate which bounds intersect in turn for each poly.
+	// This isn't super optimized, but there shouldn't be that many jump walls per mesh...
+	for (u32 n = 0; n < r_mesh.get_num_polys(); n++) {
+		const IRect2 &poly_bound = r_mesh.get_poly_bound(n);
+		PolyExtra &ex = r_mesh.get_poly_extra(n);
+
+		for (u32 w = 0; w < jump_walls.size(); w++) {
+			if (jump_walls[w].bound.intersects(poly_bound)) {
+				// First.
+				if (ex.jump_up_id == UINT32_MAX) {
+					// Create a new "JumpUp"
+					ex.jump_up_id = r_mesh.jump_data.internal_jump_ups.size();
+					Mesh::InternalJumpUp &j = r_mesh.jump_data.internal_jump_ups.request();
+
+					// Fill it with the wall ID.
+					j.first_jump_wall = r_mesh.jump_data.jump_wall_ids.size();
+					j.num_jump_walls = 1;
+					r_mesh.jump_data.jump_wall_ids.push_back(jump_walls[w].wall_id);
+				} else {
+					// There is an existing JumpUp.
+					// Let's add to it.
+					Mesh::InternalJumpUp &j = r_mesh.jump_data.internal_jump_ups[ex.jump_up_id];
+					j.num_jump_walls += 1;
+					r_mesh.jump_data.jump_wall_ids.push_back(jump_walls[w].wall_id);
+				}
+			}
+		} // for w
+	} // for n
 }
 
 void JumpFinder::find_poly_jumps(Mesh &r_mesh, u32 p_wall_id, u32 p_poly_id) {

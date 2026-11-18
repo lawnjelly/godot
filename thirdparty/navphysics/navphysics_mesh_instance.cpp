@@ -1091,9 +1091,10 @@ void MeshInstance::_agent_slide_on_ceiling(Agent &r_agent, Mesh::MoveInfo &r_mov
 
 	const Mesh &mesh = get_mesh();
 
-	IPoint2 dest_pos = r_agent.get_2d_pos() + r_agent_velocity;
+	IPoint2 pt_from = r_agent.get_2d_pos();
+	IPoint2 pt_to = pt_from + r_agent_velocity;
 	i32 ceiling_height = 0;
-	if (!mesh.find_ceiling_height(r_agent.get_poly_id(), dest_pos, ceiling_height, r_agent.ceiling_poly_id)) {
+	if (!mesh.find_ceiling_height(r_agent.get_poly_id(), pt_to, ceiling_height, r_agent.ceiling_poly_id)) {
 		return;
 	}
 
@@ -1117,15 +1118,8 @@ void MeshInstance::_agent_slide_on_ceiling(Agent &r_agent, Mesh::MoveInfo &r_mov
 	// See if we have jumped to a part of the mesh ABOVE the ceiling via an internal jump link.
 	// Note, this is quite expensive, might need to be optimized.
 
-	// The max drop here should be the agent height - the ceiling height, as we don't want to drop lower than that.
-	{
-		i32 max_drop = r_agent.get_height() - height;
-		u32 poly_above = mesh.find_best_internal_jump_poly_within(IPoint3(dest_pos.x, r_agent.get_height(), dest_pos.y), max_drop, 0);
-
-		if (poly_above != UINT32_MAX) {
-			r_agent.set_poly_id(poly_above);
-			return;
-		}
+	if (mesh.try_internal_jump_poly(r_agent, pt_from, pt_to, ceiling_height)) {
+		return;
 	}
 
 	// Start from a source point well back from the actual source, so we can detect the first crossing with the ceiling poly.
@@ -1146,7 +1140,7 @@ void MeshInstance::_agent_slide_on_ceiling(Agent &r_agent, Mesh::MoveInfo &r_mov
 	for (u32 w = 0; w < poly.num_inds; w++) {
 		const IPoint3 *vert_b = &mesh.get_vert(mesh.get_ind(poly.first_ind + w, true), true);
 
-		if (mesh.find_line_segments_intersect_integer(source_pos, dest_pos, vert_a->xz(), vert_b->xz(), pt_hit)) {
+		if (mesh.find_line_segments_intersect_integer(source_pos, pt_to, vert_a->xz(), vert_b->xz(), pt_hit)) {
 			u64 dist = (pt_hit - source_pos).length_squared();
 
 			if (dist < best_dist) {
@@ -1223,6 +1217,12 @@ void MeshInstance::_iterate_agent(Agent &r_agent, Mesh::MoveInfo &r_move_info) {
 	// Is the move blocked by a ceiling?
 	// Do we need to divert?
 	_agent_slide_on_ceiling(r_agent, r_move_info, agent_remaining_velocity);
+
+	// If we have gone through a jump up link at the ceiling, restart the routine.
+	if (ag.is_in_jump_link()) {
+		_iterate_agent_on_jump_link(r_agent, r_move_info, agent_remaining_magnitude);
+		return;
+	}
 
 	Mesh::MoveInfo &minfo = r_move_info;
 	minfo.on_floor = ag.is_on_floor();
