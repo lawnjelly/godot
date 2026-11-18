@@ -523,7 +523,8 @@ public:
 	}
 
 	u32 find_poly_within(const IPoint2 &p_pt, u32 p_poly_id_hint = UINT32_MAX) const;
-
+	
+	u32 find_best_internal_jump_poly_within(const IPoint3 &p_pt, i32 p_max_drop, i32 p_max_step_up) const;
 	u32 find_best_poly_within(const IPoint3 &p_pt, i32 p_max_drop, i32 p_max_step_up, u32  * r_goodness_of_fit = nullptr) const;
 	u32 find_best_jump_poly_within(const Agent &p_agent, const JumpFinderDataLocal &p_jl, i32 p_max_drop, i32 p_max_step_up, u32 &r_goodness_of_fit) const;
 

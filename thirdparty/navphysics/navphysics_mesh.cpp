@@ -354,6 +354,12 @@ bool Mesh::find_best_poly_within_last_ditch_FINAL(Agent &r_agent, const FPoint3 
 	return !r_agent.is_poly_id_null();
 }
 
+u32 Mesh::find_best_internal_jump_poly_within(const IPoint3 &p_pt, i32 p_max_drop, i32 p_max_step_up) const
+{
+	return UINT32_MAX;
+}
+
+
 u32 Mesh::find_best_poly_within(const IPoint3 &p_pt, i32 p_max_drop, i32 p_max_step_up, u32 *r_goodness_of_fit) const {
 	IPoint2 pt2 = p_pt.xz();
 

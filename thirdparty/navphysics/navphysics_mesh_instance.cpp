@@ -234,7 +234,7 @@ void MeshInstance::poi_set_position(POI &p_poi, const FPoint3 &p_pt_world) {
 
 	// Find the polygon.
 	p_poi.local_point.poly_id = mesh.find_best_poly_within(p_poi.local_point.pos, 10.0f * _scale_world_space_to_local_fixed_point, 0.5f * _scale_world_space_to_local_fixed_point);
-	
+
 	print_line(String("Best polygon is ") + itos(p_poi.local_point.poly_id));
 }
 
@@ -372,18 +372,16 @@ void MeshInstance::find_agent_jump_fit(Agent &r_agent, const JumpFinderData &p_j
 	// Calculate a bonus ALLOWED drop of whatever jump height the agent currently has.
 	freal jump_height = r_agent.get_height() - r_agent.floor_height;
 	p_max_drop += jump_height;
-	
-	
+
 	// Convert max drop and max step up to FP.
 	i32 max_step_up = mesh.dist_float_to_fixed_point(p_max_step_up);
 	i32 max_drop = mesh.dist_float_to_fixed_point(p_max_drop);
-	
+
 	// Note that this routine is an optimized one that relies on the velocity crossing a poly wall,
 	// and therefore that the up vectors of both meshes are somewhat aligned.
 	// If the two meshes are at 90 degrees, and the velocity is _straight down_ into the new mesh,
 	// no wall may be crossed, and this will return UINT32_MAX, so we need to try the slower backup path.
 	r_best_poly_id = mesh.find_best_jump_poly_within(r_agent, jl, max_drop, max_step_up, r_best_fit_so_far);
-	
 
 	if (r_best_poly_id == UINT32_MAX) {
 		IPoint3 to_local = ((jl.to_local - jl.from_local) / 2) + jl.from_local;
@@ -405,7 +403,7 @@ void MeshInstance::find_agent_jump_fit(Agent &r_agent, const JumpFinderData &p_j
 		// rather than using a jump target.
 		if ((r_best_poly_id != UINT32_MAX) && (fit < r_best_fit_so_far)) {
 			r_best_fit_so_far = fit;
-			
+
 			r_agent.set_poly_id(r_best_poly_id);
 			r_agent.clear_wall_id();
 
@@ -447,11 +445,11 @@ void MeshInstance::find_agent_jump_fit(Agent &r_agent, const JumpFinderData &p_j
 	NP_LLOG("\tinside navmesh");
 
 	// If we are replacing the best fit, we can overwrite the jump data on the agent.
-//	if (fit < r_best_fit_so_far) {
-		//AgentStatus::debug_print("find_agent_jump_fit best_poly is ");
-//	}
+	//	if (fit < r_best_fit_so_far) {
+	//AgentStatus::debug_print("find_agent_jump_fit best_poly is ");
+	//	}
 
-//	return fit;
+	//	return fit;
 }
 
 bool MeshInstance::find_last_ditch_poly(Agent &r_agent, const FPoint3 &p_world_pos) const {
@@ -1094,8 +1092,8 @@ void MeshInstance::_agent_slide_on_ceiling(Agent &r_agent, Mesh::MoveInfo &r_mov
 	const Mesh &mesh = get_mesh();
 
 	IPoint2 dest_pos = r_agent.get_2d_pos() + r_agent_velocity;
-	i32 height;
-	if (!mesh.find_ceiling_height(r_agent.get_poly_id(), dest_pos, height, r_agent.ceiling_poly_id)) {
+	i32 ceiling_height = 0;
+	if (!mesh.find_ceiling_height(r_agent.get_poly_id(), dest_pos, ceiling_height, r_agent.ceiling_poly_id)) {
 		return;
 	}
 
@@ -1107,7 +1105,7 @@ void MeshInstance::_agent_slide_on_ceiling(Agent &r_agent, Mesh::MoveInfo &r_mov
 
 	// The ceiling height must be adjusted for both the agent height,
 	// and the offset downward of the ceiling mesh from the ceiling (agent radius?).
-	height -= mesh.dist_float_to_fixed_point(r_agent.collision_height - mesh.mesh_params.agent_radius);
+	i32 height = ceiling_height - mesh.dist_float_to_fixed_point(r_agent.collision_height - mesh.mesh_params.agent_radius);
 
 	// If below the ceiling, do nothing.
 	if (r_agent.get_height() <= height) {
@@ -1115,15 +1113,21 @@ void MeshInstance::_agent_slide_on_ceiling(Agent &r_agent, Mesh::MoveInfo &r_mov
 	}
 
 	// If we get to here, we are ABOVE the ceiling.
-	
+
 	// See if we have jumped to a part of the mesh ABOVE the ceiling via an internal jump link.
 	// Note, this is quite expensive, might need to be optimized.
-	
-	
-	
-	
-	
-	
+
+	// The max drop here should be the agent height - the ceiling height, as we don't want to drop lower than that.
+	{
+		i32 max_drop = r_agent.get_height() - height;
+		u32 poly_above = mesh.find_best_internal_jump_poly_within(IPoint3(dest_pos.x, r_agent.get_height(), dest_pos.y), max_drop, 0);
+
+		if (poly_above != UINT32_MAX) {
+			r_agent.set_poly_id(poly_above);
+			return;
+		}
+	}
+
 	// Start from a source point well back from the actual source, so we can detect the first crossing with the ceiling poly.
 	IPoint2 backtrack = -r_agent_velocity;
 	backtrack.normalize_to_scale(FPoint2::FP_RANGE / 8);
