@@ -634,7 +634,7 @@ void Mesh::modify_velocity_for_poly_wall(const MoveInfo &p_info, float &r_vel, u
 	r_vel *= dot;
 }
 
-bool Mesh::cross_internal_or_external_link(u32 p_wall_id, const IPoint2 &p_from, const IPoint2 &p_vel, MoveInfo &r_info) const {
+Mesh::CrossLinkResult Mesh::cross_internal_or_external_link(u32 p_wall_id, const IPoint2 &p_from, const IPoint2 &p_vel, MoveInfo &r_info) const {
 	if (is_link_external(p_wall_id)) {
 		if (move_to_new_mesh(p_from, p_vel, r_info)) {
 			/*
@@ -648,7 +648,7 @@ bool Mesh::cross_internal_or_external_link(u32 p_wall_id, const IPoint2 &p_from,
 			r_info.wall_id = UINT32_MAX;
 			r_info.remaining_velocity = 0;
 			r_info.new_mesh_instance_id = r_info.agent->get_mesh_instance_id();
-			return true;
+			return CrossLinkResult::CROSSED_TO_NEW_MESH;
 		}
 	}
 
@@ -663,23 +663,22 @@ bool Mesh::cross_internal_or_external_link(u32 p_wall_id, const IPoint2 &p_from,
 				r_info.remaining_velocity = p_vel.lengthf();
 				r_info.new_mesh_instance_id = r_info.agent->get_mesh_instance_id();
 				NP_LOG(String("remaining velocity ") + r_info.remaining_velocity);
-				return true;
+				return CrossLinkResult::CROSSED_TO_NEW_MESH;
 			} break;
-			case JumpWithinMeshResult::CROSSED_TO_POLY:
-			{
-				r_info.poly_id = r_info.agent->get_poly_id();
-				r_info.pos_reached = p_from;
-				r_info.wall_id = UINT32_MAX;
-				r_info.remaining_velocity = p_vel.lengthf();
-				r_info.new_mesh_instance_id = r_info.agent->get_mesh_instance_id();
-				return true;
+			case JumpWithinMeshResult::CROSSED_TO_POLY: {
+				//				r_info.poly_id = r_info.agent->get_poly_id();
+				//				r_info.pos_reached = p_from;
+				//				r_info.wall_id = UINT32_MAX;
+				//				r_info.remaining_velocity = p_vel.lengthf();
+				//r_info.new_mesh_instance_id = r_info.agent->get_mesh_instance_id();
+				return CrossLinkResult::CROSSED_INTERNAL;
 			} break;
 			default:
 				break;
 		}
 	}
 
-	return false;
+	return CrossLinkResult::FAILED;
 }
 
 IPoint2 Mesh::_calculate_position_along_wall(u32 p_wall_id, freal p_fraction) const {
@@ -862,8 +861,17 @@ Mesh::MoveResult Mesh::recursive_move(i32 p_depth, IPoint2 p_from, IPoint2 p_vel
 		if (dot < 0.001f) {
 			// hugging wall
 
-			if (cross_internal_or_external_link(p_hug_wall_id, p_from, p_vel, r_info)) {
-				return MR_OK;
+			// First try and cross the hug wall (if it's a link).
+			CrossLinkResult cross_res = cross_internal_or_external_link(p_hug_wall_id, p_from, p_vel, r_info);
+			switch (cross_res) {
+				case CrossLinkResult::CROSSED_TO_NEW_MESH: {
+					return MR_OK;
+				} break;
+				case CrossLinkResult::CROSSED_INTERNAL: {
+					return recursive_move(p_depth + 1, p_from, p_vel, r_info.agent->get_poly_id(), p_poly_from_id, UINT32_MAX, r_info);
+				} break;
+				default:
+					break;
 			}
 
 			freal wall_length = wall.wall_vec.lengthf();
@@ -982,8 +990,16 @@ Mesh::MoveResult Mesh::recursive_move(i32 p_depth, IPoint2 p_from, IPoint2 p_vel
 	NP_LLOG(String("\t\tpt_intersect ") + pt_intersect.readable());
 
 	// account for possibility we are going through a connection to a new mesh instance
-	if (cross_internal_or_external_link(wall_id, p_from, p_vel, r_info)) {
-		return MR_OK;
+	CrossLinkResult cross_res = cross_internal_or_external_link(wall_id, p_from, p_vel, r_info);
+	switch (cross_res) {
+		case CrossLinkResult::CROSSED_TO_NEW_MESH: {
+			return MR_OK;
+		} break;
+		case CrossLinkResult::CROSSED_INTERNAL: {
+			return recursive_move(p_depth + 1, pt_intersect, p_vel, r_info.agent->get_poly_id(), p_poly_from_id, UINT32_MAX, r_info);
+		} break;
+		default:
+			break;
 	}
 
 	// reduce the velocity by how far travelled to the wall

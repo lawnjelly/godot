@@ -473,8 +473,15 @@ private:
 	TraceResult recursive_trace(i32 p_depth, IPoint2 p_from, const IPoint2 &p_to, u32 p_poly_id, TraceInfo &r_info) const;
 
 	IPoint2 _calculate_position_along_wall(u32 p_wall_id, freal p_fraction) const;
-
-	bool cross_internal_or_external_link(u32 p_wall_id, const IPoint2 &p_from, const IPoint2 &p_vel, MoveInfo &r_info) const;
+	
+	enum class CrossLinkResult
+	{
+		FAILED,
+		CROSSED_TO_NEW_MESH,
+		CROSSED_INTERNAL,
+	};
+	
+	CrossLinkResult cross_internal_or_external_link(u32 p_wall_id, const IPoint2 &p_from, const IPoint2 &p_vel, MoveInfo &r_info) const;
 	freal _calculate_jump_range_from_momentum(freal p_momentum, bool p_apply_minimum) const;
 	i32 _estimate_height_after_ledge_jump(const Agent &p_agent, i32 p_agent_height, freal p_forward_velocity, freal p_dist_to_ledge) const;
 	
