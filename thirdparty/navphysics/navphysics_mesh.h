@@ -110,6 +110,9 @@ public:
 		f32 exit_lip = 0.1;
 		f32 exit_max_step_up = 0.5;
 		f32 exit_max_drop = 1;
+		
+		// Fixed point coordinate space.
+		// i32 fp_exit_max_drop = INT32_MAX;
 	};
 
 	enum LinkFlags : u32 {
@@ -132,22 +135,22 @@ private:
 		u32 agent_lip = 1000;
 
 	} extension_data;
-
-	struct JumpInfo {
-		u32 first_wall_jump = 0;
-		u32 num_wall_jumps = 0;
-		u32 first_poly_jump = 0;
-		u32 num_poly_jumps = 0;
+	
+	struct InternalJumpInfo {
+		u32 first_jump_wall = 0;
+		u32 num_jump_walls = 0;
+		u32 first_jump_poly = 0;
+		u32 num_jump_polys = 0;
 	};
 
 	struct JumpData {
 		TVector<u32> jump_wall_ids;
 		TVector<u32> jump_poly_ids;
-		TVector<JumpInfo> jump_info;
+		TVector<InternalJumpInfo> internal_jump_info;
 		void clear() {
 			jump_wall_ids.clear();
 			jump_poly_ids.clear();
-			jump_info.clear();
+			internal_jump_info.clear();
 		}
 	} jump_data;
 
@@ -468,7 +471,7 @@ private:
 	i32 _estimate_height_after_ledge_jump(const Agent &p_agent, i32 p_agent_height, freal p_forward_velocity, freal p_dist_to_ledge) const;
 
 	bool jump_within_mesh(u32 p_source_wall_id, const IPoint2 &p_from, const IPoint2 &p_vel, MoveInfo &r_info) const;
-	bool _can_jump_to_wall(u32 p_dest_wall_id, const IPoint2 &p_from, IPoint2 &p_to, freal p_agent_height, freal p_agent_jump_height, bool p_on_floor) const;
+	bool _can_jump_to_wall(u32 p_dest_wall_id, const IPoint2 &p_from, IPoint2 &p_to, i32 p_agent_height, i32 p_agent_jump_height, bool p_on_floor) const;
 	bool move_to_new_mesh(const IPoint2 &p_from, const IPoint2 &p_vel, MoveInfo &r_info) const;
 	bool bounce_on_wall(u32 p_wall_id, IPoint2 &r_vel, float &r_momentum) const;
 

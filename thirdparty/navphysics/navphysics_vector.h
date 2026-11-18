@@ -14,7 +14,7 @@
 
 namespace NavPhysics {
 
-template <class T, class U = u32, bool force_trivial = false, bool USE_EXTERNAL_DATA = false>
+template <class T, class U = u32, bool FORCE_TRIVIAL = false, bool USE_EXTERNAL_DATA = false>
 class Vector {
 	// T should be trivially relocatable (rather than trivially copyable), for use with realloc.
 	// This cannot be static asserted in standard c++ unfortunately, and workarounds are omitted here.
@@ -67,7 +67,7 @@ public:
 			NP_CRASH_COND_MSG(!data, "Out of memory");
 		}
 
-		if (!std::is_trivially_constructible<T>::value && !force_trivial) {
+		if (!std::is_trivially_constructible<T>::value && !FORCE_TRIVIAL) {
 			new (&data[count++]) T(p_elem);
 		} else {
 			data[count++] = p_elem;
@@ -130,7 +130,7 @@ public:
 		for (U i = p_index; i < count; i++) {
 			data[i] = data[i + 1];
 		}
-		if (!std::is_trivially_destructible<T>::value && !force_trivial) {
+		if (!std::is_trivially_destructible<T>::value && !FORCE_TRIVIAL) {
 			data[count].~T();
 		}
 	}
@@ -143,7 +143,7 @@ public:
 		if (count > p_index) {
 			data[p_index] = data[count];
 		}
-		if (!std::is_trivially_destructible<T>::value && !force_trivial) {
+		if (!std::is_trivially_destructible<T>::value && !FORCE_TRIVIAL) {
 			data[count].~T();
 		}
 	}
@@ -205,7 +205,7 @@ public:
 	U size() const { return count; }
 	bool resize(U p_size) {
 		if (p_size < count) {
-			if (!std::is_trivially_destructible<T>::value && !force_trivial) {
+			if (!std::is_trivially_destructible<T>::value && !FORCE_TRIVIAL) {
 				for (U i = p_size; i < count; i++) {
 					data[i].~T();
 				}
@@ -226,7 +226,7 @@ public:
 				data = (T *)ALLOCATOR::realloc(data, capacity * sizeof(T));
 				NP_CRASH_COND_MSG(!data, "Out of memory");
 			}
-			if (!std::is_trivially_constructible<T>::value && !force_trivial) {
+			if (!std::is_trivially_constructible<T>::value && !FORCE_TRIVIAL) {
 				for (U i = count; i < p_size; i++) {
 					new (&data[i]) T;
 				}
@@ -237,12 +237,10 @@ public:
 	}
 	const T &operator[](U p_index) const {
 		NP_DEV_ASSERT(p_index < count);
-		// NP_CRASH_BAD_UNSIGNED_INDEX(p_index, count);
 		return data[p_index];
 	}
 	T &operator[](U p_index) {
 		NP_DEV_ASSERT(p_index < count);
-		// NP_CRASH_BAD_UNSIGNED_INDEX(p_index, count);
 		return data[p_index];
 	}
 
@@ -385,7 +383,7 @@ public:
 	}
 };
 
-// Constructed vector.
+// TVector = Trivial Vector.
 template <class T, class U = u32, bool USE_EXTERNAL_DATA = false>
 class TVector : public Vector<T, U, true, USE_EXTERNAL_DATA> {};
 

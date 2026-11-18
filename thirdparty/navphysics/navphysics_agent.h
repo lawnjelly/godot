@@ -159,7 +159,7 @@ public:
 #endif
 
 	// The agent may be jumping *above* the floor
-	int32_t floor_height = 0;
+	i32 floor_height = 0;
 
 	//FPoint3 world_space_air_velocity;
 

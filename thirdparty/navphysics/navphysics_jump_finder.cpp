@@ -38,14 +38,14 @@ void JumpFinder::find_jumps(Mesh &r_mesh) {
 		if (jump_info_id != UINT32_MAX) {
 			const JumpInfo &source_jump_info = data.jump_infos[jump_info_id];
 
-			r_mesh._walls[w].jump_info_id = r_mesh.jump_data.jump_info.size();
-			Mesh::JumpInfo &dest_jump_info = r_mesh.jump_data.jump_info.request();
+			r_mesh._walls[w].jump_info_id = r_mesh.jump_data.internal_jump_info.size();
+			Mesh::InternalJumpInfo &dest_jump_info = r_mesh.jump_data.internal_jump_info.request();
 
-			dest_jump_info.first_wall_jump = r_mesh.jump_data.jump_wall_ids.size();
-			dest_jump_info.num_wall_jumps = source_jump_info.to_wall_id.size();
+			dest_jump_info.first_jump_wall = r_mesh.jump_data.jump_wall_ids.size();
+			dest_jump_info.num_jump_walls = source_jump_info.to_wall_id.size();
 
-			dest_jump_info.first_poly_jump = r_mesh.jump_data.jump_poly_ids.size();
-			dest_jump_info.num_poly_jumps = source_jump_info.to_poly_id.size();
+			dest_jump_info.first_jump_poly = r_mesh.jump_data.jump_poly_ids.size();
+			dest_jump_info.num_jump_polys = source_jump_info.to_poly_id.size();
 
 			for (u32 n = 0; n < source_jump_info.to_wall_id.size(); n++) {
 				u32 jump_wall_id = source_jump_info.to_wall_id[n];

@@ -994,8 +994,8 @@ bool Mesh::jump_within_mesh(u32 p_source_wall_id, const IPoint2 &p_from, const I
 	}
 
 	// Agent height determines whether step up and step down to destinations is possible.
-	freal agent_height = r_info.agent->get_height();
-	freal agent_jump_height = agent_height - r_info.agent->floor_height;
+	i32 agent_height = r_info.agent->get_height();
+	i32 agent_jump_height = agent_height - r_info.agent->floor_height;
 
 	// Momentum should decide the max allowable jump vector.
 	freal scaled_momentum = _calculate_jump_range_from_momentum(r_info.momentum, true);
@@ -1009,10 +1009,10 @@ bool Mesh::jump_within_mesh(u32 p_source_wall_id, const IPoint2 &p_from, const I
 	IPoint2 jump_dest = p_from + jump_vec;
 
 	// Go through each jump link and find the best (if there is one).
-	const JumpInfo &info = jump_data.jump_info[source_wall.jump_info_id];
+	const InternalJumpInfo &info = jump_data.internal_jump_info[source_wall.jump_info_id];
 
-	for (u32 n = 0; n < info.num_wall_jumps; n++) {
-		u32 dest_wall_id = jump_data.jump_wall_ids[info.first_wall_jump + n];
+	for (u32 n = 0; n < info.num_jump_walls; n++) {
+		u32 dest_wall_id = jump_data.jump_wall_ids[info.first_jump_wall + n];
 
 		IPoint2 local_jump_dest = jump_dest;
 
@@ -1067,7 +1067,7 @@ i32 Mesh::_estimate_height_after_ledge_jump(const Agent &p_agent, i32 p_agent_he
 }
 
 // If we can jump to a wall, we calculate the wall fraction as a destination.
-bool Mesh::_can_jump_to_wall(u32 p_dest_wall_id, const IPoint2 &p_from, IPoint2 &p_to, freal p_agent_height, freal p_agent_jump_height, bool p_on_floor) const {
+bool Mesh::_can_jump_to_wall(u32 p_dest_wall_id, const IPoint2 &p_from, IPoint2 &p_to, i32 p_agent_height, i32 p_agent_jump_height, bool p_on_floor) const {
 	//IPoint2 to = p_to;
 	IPoint2 pt_hit;
 	if (wall_segments_find_intersect(p_dest_wall_id, p_from, p_to, pt_hit)) {
@@ -1075,9 +1075,9 @@ bool Mesh::_can_jump_to_wall(u32 p_dest_wall_id, const IPoint2 &p_from, IPoint2 
 
 		// Check whether we pass the height requirement.
 		const Wall &dest_wall = get_wall(p_dest_wall_id);
-		freal poly_height = find_float_height_on_poly_plane(dest_wall.poly_id, pt_hit);
+		i32 poly_height = find_height_on_poly_plane(dest_wall.poly_id, pt_hit);
 
-		freal height_change = poly_height - p_agent_height;
+		i32 height_change = poly_height - p_agent_height;
 
 		if (height_change > 0) {
 			// Needs to be jumping unless it is a drop.
@@ -1092,11 +1092,14 @@ bool Mesh::_can_jump_to_wall(u32 p_dest_wall_id, const IPoint2 &p_from, IPoint2 
 				return false;
 			}
 		} else {
-			if (height_change < -(mesh_params.exit_max_drop + p_agent_jump_height)) {
+			/*
+			NP_DEV_ASSERT(mesh_params.fp_exit_max_drop != INT32_MAX);
+			if (height_change < -(mesh_params.fp_exit_max_drop + p_agent_jump_height)) {
 				// Too low
 				//log("\tjump wall too low");
 				//continue;
 			}
+			*/
 		}
 
 #if 0
