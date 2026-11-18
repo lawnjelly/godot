@@ -58,7 +58,7 @@ void JumpFinder::find_jumps(Mesh &r_mesh) {
 			}
 		}
 	}
-	
+
 	find_jump_ups(r_mesh);
 }
 
@@ -153,6 +153,8 @@ void JumpFinder::find_wall_jumps(Mesh &r_mesh, u32 p_wall_id) {
 	Vector<u32> export_polys;
 #endif
 
+	bool is_internal = r_mesh.is_link_internal(p_wall_id);
+
 	// Find all polys within range of the wall,
 	// and all walls within range facing the source wall.
 	for (u32 r = 0; r < results.size(); r++) {
@@ -161,7 +163,9 @@ void JumpFinder::find_wall_jumps(Mesh &r_mesh, u32 p_wall_id) {
 		for (u32 p = 0; p < cr.num_polys; p++) {
 			u32 poly_id = cr.poly_ids[p];
 
-			find_poly_jumps(r_mesh, p_wall_id, poly_id);
+			if (is_internal) {
+				find_poly_jumps(r_mesh, p_wall_id, poly_id);
+			}
 
 			const Poly &poly = r_mesh.get_poly(poly_id);
 
@@ -279,9 +283,9 @@ void JumpFinder::find_jump_ups(Mesh &r_mesh) {
 			jump_walls.push_back(jw);
 		}
 	}
-	
+
 	log(String("find_jump_ups : found ") + jump_walls.size() + " internal jump walls.");
-	
+
 	// Now calculate which bounds intersect in turn for each poly.
 	// This isn't super optimized, but there shouldn't be that many jump walls per mesh...
 	for (u32 n = 0; n < r_mesh.get_num_polys(); n++) {
@@ -313,8 +317,21 @@ void JumpFinder::find_jump_ups(Mesh &r_mesh) {
 }
 
 void JumpFinder::find_poly_jumps(Mesh &r_mesh, u32 p_wall_id, u32 p_poly_id) {
-	const Poly &poly = r_mesh.get_poly(p_poly_id);
+	const Wall &wall = r_mesh.get_wall(p_wall_id);
 
+	// Don't check a wall against the poly it is coming from.
+	if (wall.poly_id == p_poly_id) {
+		return;
+	}
+	
+	// Don't consider any polys which are linked to the wall by one of the two wall verts.
+	if (r_mesh.poly_contains_vert(p_poly_id, wall.vert_a)) {
+		return;
+	}
+	if (r_mesh.poly_contains_vert(p_poly_id, wall.vert_b)) {
+		return;
+	}
+	
 	// Basically we need a line segment poly test.
 	// We can test whether either of the wall points are inside the poly.
 	// If not we should still intersect the wall with each poly wall, if there is a hit,
@@ -322,20 +339,13 @@ void JumpFinder::find_poly_jumps(Mesh &r_mesh, u32 p_wall_id, u32 p_poly_id) {
 	IPoint2 a, b;
 	r_mesh.get_wall_verts(p_wall_id, a, b);
 
-	const Wall &wall = r_mesh.get_wall(p_wall_id);
-
-	if (r_mesh.poly_contains_vert(p_poly_id, wall.vert_a)) {
-		return;
-	}
-	if (r_mesh.poly_contains_vert(p_poly_id, wall.vert_b)) {
-		return;
-	}
-
 	bool within = false;
 
 	within = r_mesh.poly_contains_point(p_poly_id, a) || r_mesh.poly_contains_point(p_poly_id, b);
 
 	if (!within) {
+		const Poly &poly = r_mesh.get_poly(p_poly_id);
+		
 		for (u32 w = 0; w < poly.num_inds; w++) {
 			u32 poly_wall_id = poly.first_ind + w;
 			IPoint2 pt_hit;
@@ -349,14 +359,6 @@ void JumpFinder::find_poly_jumps(Mesh &r_mesh, u32 p_wall_id, u32 p_poly_id) {
 	if (within) {
 		log(String("Wall ") + a + " to " + b + " is within");
 		r_mesh.debug_poly(p_poly_id);
-
-		if (r_mesh.poly_contains_vert(p_poly_id, wall.vert_a)) {
-			return;
-		}
-		if (r_mesh.poly_contains_vert(p_poly_id, wall.vert_b)) {
-			return;
-		}
-
 		add_poly_jump(p_wall_id, p_poly_id);
 	}
 }
