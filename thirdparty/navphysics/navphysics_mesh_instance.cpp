@@ -93,7 +93,10 @@ void MeshInstance::block_add_to_poly_lists(Block &p_block) {
 	u32 num_polys = mesh.get_num_polys();
 
 	for (u32 n = 0; n < num_polys; n++) {
-		const IRect2 &bound = mesh.get_poly_bound(n);
+		
+		// TODO, do this in 3D?
+		IRect2 bound = mesh.get_poly_bound2(n);
+		
 		if (p_block.data.bound.intersects(bound)) {
 			NP_DEV_ASSERT(_poly_block_lists[n].find(p_block.data.handle_block) == -1);
 			_poly_block_lists[n].push_back(p_block.data.handle_block);

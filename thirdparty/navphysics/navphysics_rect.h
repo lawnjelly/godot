@@ -109,14 +109,126 @@ struct [[nodiscard]] IRect2 {
 		}
 		return dist_sq;
 	}
+	
+	IRect2() = default;
+	
+	IRect2(const IPoint2 &p_position, const IPoint2 &p_size) {
+		position = p_position;
+		size = p_size;
+	}
 };
 
-/*
+// Exclusive definition.
 struct [[nodiscard]] IRect3 {
 	IPoint3 position;
 	IPoint3 size;
+
+	// Getting 2D versions.
+	IPoint2 get_position2() const { return position.xz(); }
+	IPoint2 get_size2() const { return size.xz(); }
+	IRect2 get_rect2() const { return IRect2(get_position2(), get_size2()); }
+
+	i64 get_volume() const { return (i64)size.x * (i64)size.y * (i64)size.z; }
+	IPoint3 end() const { return position + size; }
+
+	void zero() {
+		position.zero();
+		size.zero();
+	}
+
+	bool intersects(const IRect3 &p_o) const {
+		IPoint3 e = end();
+		IPoint3 o_e = p_o.end();
+
+		for (u32 n = 0; n < 3; n++) {
+			if (p_o.position.coord[n] >= e.coord[n]) {
+				return false;
+			}
+			if (position.coord[n] >= o_e.coord[n]) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	void expand_to(const IRect3 &o) {
+		IPoint3 begin = position;
+		IPoint3 end = position + size;
+		IPoint3 end_o = o.end();
+
+		for (u32 n = 0; n < 3; n++) {
+			begin.coord[n] = MIN(begin.coord[n], o.position.coord[n]);
+			end.coord[n] = MAX(end.coord[n], end_o.coord[n]);
+		}
+
+		position = begin;
+		size = end - begin;
+	}
+
+	void expand_to_fast(const IPoint3 &p_vector) {
+		IPoint3 begin = position;
+		IPoint3 end = position + size;
+
+		for (u32 n = 0; n < 3; n++) {
+			begin.coord[n] = MIN(begin.coord[n], p_vector.coord[n]);
+			end.coord[n] = MAX(end.coord[n], p_vector.coord[n]);
+		}
+
+		position = begin;
+		size = end - begin;
+	}
+	void increment_size() {
+		size += IPoint3(1, 1, 1);
+	}
+	void grow(i32 p_v) {
+		IPoint3 boost(p_v, p_v, p_v);
+		position -= boost;
+		size += (boost * 2);
+	}
+	bool contains_point(const IPoint3 &p_pt) const {
+		IPoint3 pt = p_pt - position;
+		for (u32 n = 0; n < 3; n++) {
+			if (pt.coord[n] < 0) {
+				return false;
+			}
+		}
+		for (u32 n = 0; n < 3; n++) {
+			if (pt.coord[n] >= size.coord[n]) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	bool is_empty_or_negative() const {
+		return size.x <= 0 || size.y <= 0 || size.z <= 0;
+	}
+
+	// Distance to a point.
+	i64 distance_squared(const IPoint3 &p_pt) const {
+		// Empty rects contain no points.
+		if (is_empty_or_negative()) {
+			return INT64_MAX;
+		}
+
+		i64 dist_sq = 0;
+		for (u32 n = 0; n < 3; n++) {
+			i64 min_c = (i64)position.coord[n];
+			i64 max_c = min_c + (i64)size.coord[n] - 1;
+			i64 c = (i64)p_pt.coord[n];
+
+			i64 d = 0;
+			if (c < min_c) {
+				d = min_c - c;
+			} else if (c > max_c) {
+				d = c - max_c;
+			}
+			dist_sq += d * d;
+		}
+		return dist_sq;
+	}
 };
-*/
 
 struct [[nodiscard]] Rect2 {
 	FPoint2 position;

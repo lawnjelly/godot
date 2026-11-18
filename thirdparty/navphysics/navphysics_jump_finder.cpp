@@ -289,7 +289,7 @@ void JumpFinder::find_jump_ups(Mesh &r_mesh) {
 	// Now calculate which bounds intersect in turn for each poly.
 	// This isn't super optimized, but there shouldn't be that many jump walls per mesh...
 	for (u32 n = 0; n < r_mesh.get_num_polys(); n++) {
-		const IRect2 &poly_bound = r_mesh.get_poly_bound(n);
+		IRect2 poly_bound = r_mesh.get_poly_bound2(n);
 		PolyExtra &ex = r_mesh.get_poly_extra(n);
 
 		for (u32 w = 0; w < jump_walls.size(); w++) {
@@ -323,7 +323,23 @@ void JumpFinder::find_poly_jumps(Mesh &r_mesh, u32 p_wall_id, u32 p_poly_id) {
 	if (wall.poly_id == p_poly_id) {
 		return;
 	}
-	
+
+	// Basically we need a line segment poly test.
+	// We can test whether either of the wall points are inside the poly.
+	// If not we should still intersect the wall with each poly wall, if there is a hit,
+	// then we add the poly to the jump list.
+	IPoint3 a, b;
+	r_mesh.get_wall_verts3(p_wall_id, a, b);
+	IPoint2 a2 = a.xz();
+	IPoint2 b2 = b.xz();
+
+	// If the points of the wall are BELOW the poly AABB, reject, as poly jumps are for jumping down only.
+	const IRect3 &poly_bound = r_mesh.get_poly_bound(p_poly_id);
+	i32 poly_bound_top = poly_bound.position.y + poly_bound.size.y;
+	if (a.y <= poly_bound_top || b.y <= poly_bound_top) {
+		return;
+	}
+
 	// Don't consider any polys which are linked to the wall by one of the two wall verts.
 	if (r_mesh.poly_contains_vert(p_poly_id, wall.vert_a)) {
 		return;
@@ -331,25 +347,18 @@ void JumpFinder::find_poly_jumps(Mesh &r_mesh, u32 p_wall_id, u32 p_poly_id) {
 	if (r_mesh.poly_contains_vert(p_poly_id, wall.vert_b)) {
 		return;
 	}
-	
-	// Basically we need a line segment poly test.
-	// We can test whether either of the wall points are inside the poly.
-	// If not we should still intersect the wall with each poly wall, if there is a hit,
-	// then we add the poly to the jump list.
-	IPoint2 a, b;
-	r_mesh.get_wall_verts(p_wall_id, a, b);
 
 	bool within = false;
 
-	within = r_mesh.poly_contains_point(p_poly_id, a) || r_mesh.poly_contains_point(p_poly_id, b);
+	within = r_mesh.poly_contains_point(p_poly_id, a.xz()) || r_mesh.poly_contains_point(p_poly_id, b.xz());
 
 	if (!within) {
 		const Poly &poly = r_mesh.get_poly(p_poly_id);
-		
+
 		for (u32 w = 0; w < poly.num_inds; w++) {
 			u32 poly_wall_id = poly.first_ind + w;
 			IPoint2 pt_hit;
-			if (r_mesh.wall_segments_find_intersect(poly_wall_id, a, b, pt_hit)) {
+			if (r_mesh.wall_segments_find_intersect(poly_wall_id, a2, b2, pt_hit)) {
 				within = true;
 				break;
 			}

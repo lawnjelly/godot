@@ -243,7 +243,7 @@ u32 Mesh::find_best_jump_poly_within(const Agent &p_agent, const JumpFinderDataL
 }
 
 void Mesh::_find_last_ditch_poly(Agent &r_agent, u32 p_poly_id, const FPoint3 &p_pt_local, const IPoint2 &p_pt_FP, freal &r_best_fit) const {
-	const IRect2 &bound = get_poly_bound(p_poly_id);
+	const IRect2 bound = get_poly_bound(p_poly_id).get_rect2();
 	u64 dist_from_bb_sq = bound.distance_squared(p_pt_FP);
 
 	// Calculate in 64 bit.
@@ -398,7 +398,7 @@ bool Mesh::try_internal_jump_poly(Agent &r_agent, const IPoint2 &p_from, const I
 		}
 
 		// Got a hit!
-		 log(String("can jump to poly ") + w.poly_id);
+		log(String("can jump to poly ") + w.poly_id);
 
 		if (on_poly) {
 			best_poly = w.poly_id;
@@ -653,14 +653,29 @@ bool Mesh::cross_internal_or_external_link(u32 p_wall_id, const IPoint2 &p_from,
 	}
 
 	if (is_link_internal(p_wall_id)) {
-		if (jump_within_mesh(p_wall_id, p_from, p_vel, r_info)) {
-			r_info.poly_id = UINT32_MAX;
-			r_info.pos_reached = p_from + p_vel;
-			r_info.wall_id = UINT32_MAX;
-			r_info.remaining_velocity = p_vel.lengthf();
-			r_info.new_mesh_instance_id = r_info.agent->get_mesh_instance_id();
-			NP_LOG(String("remaining velocity ") + r_info.remaining_velocity);
-			return true;
+		JumpWithinMeshResult res = jump_within_mesh(*r_info.agent, p_wall_id, p_from, p_vel, r_info);
+
+		switch (res) {
+			case JumpWithinMeshResult::CROSSED_TO_WALL: {
+				r_info.poly_id = UINT32_MAX;
+				r_info.pos_reached = p_from + p_vel;
+				r_info.wall_id = UINT32_MAX;
+				r_info.remaining_velocity = p_vel.lengthf();
+				r_info.new_mesh_instance_id = r_info.agent->get_mesh_instance_id();
+				NP_LOG(String("remaining velocity ") + r_info.remaining_velocity);
+				return true;
+			} break;
+			case JumpWithinMeshResult::CROSSED_TO_POLY:
+			{
+				r_info.poly_id = r_info.agent->get_poly_id();
+				r_info.pos_reached = p_from;
+				r_info.wall_id = UINT32_MAX;
+				r_info.remaining_velocity = p_vel.lengthf();
+				r_info.new_mesh_instance_id = r_info.agent->get_mesh_instance_id();
+				return true;
+			} break;
+			default:
+				break;
 		}
 	}
 
@@ -1056,17 +1071,24 @@ freal Mesh::_calculate_jump_range_from_momentum(freal p_momentum, bool p_apply_m
 	return r;
 }
 
-bool Mesh::jump_within_mesh(u32 p_source_wall_id, const IPoint2 &p_from, const IPoint2 &p_vel, MoveInfo &r_info) const {
+Mesh::JumpWithinMeshResult Mesh::jump_within_mesh(Agent &r_agent, u32 p_source_wall_id, const IPoint2 &p_from, const IPoint2 &p_vel, MoveInfo &r_info) const {
 	const Wall &source_wall = get_wall(p_source_wall_id);
 
 	// There are no jump links, can't possibly jump.
 	if (source_wall.jump_info_id == UINT32_MAX) {
-		return false;
+		return JumpWithinMeshResult::FAILED;
 	}
 
 	// Is the agent allowed to use jump links?
 	if (r_info.agent->guard_internal_jump_links) {
-		return false;
+		return JumpWithinMeshResult::FAILED;
+	}
+
+	const InternalJumpInfo &info = jump_data.internal_jump_info[source_wall.jump_info_id];
+
+	// Quick reject (maybe these can be removed as a pre-calculation?).
+	if (!info.num_jump_polys && !info.num_jump_walls) {
+		return JumpWithinMeshResult::FAILED;
 	}
 
 	// Agent height determines whether step up and step down to destinations is possible.
@@ -1084,9 +1106,32 @@ bool Mesh::jump_within_mesh(u32 p_source_wall_id, const IPoint2 &p_from, const I
 	// Hypothetical jump destination, to find crossing with the possible edges.
 	IPoint2 jump_dest = p_from + jump_vec;
 
-	// Go through each jump link and find the best (if there is one).
-	const InternalJumpInfo &info = jump_data.internal_jump_info[source_wall.jump_info_id];
+	// First try the easiest, have we landed directly on a jump poly?
+	i32 highest_poly_height = INT32_MIN;
+	u32 best_jump_poly = UINT32_MAX;
 
+	for (u32 n = 0; n < info.num_jump_polys; n++) {
+		u32 poly_id = jump_data.jump_poly_ids[info.first_jump_poly + n];
+		if (poly_contains_point(poly_id, p_from)) {
+			i32 poly_height = find_height_on_poly_plane(poly_id, p_from);
+
+			if (poly_height > highest_poly_height) {
+				highest_poly_height = poly_height;
+				best_jump_poly = poly_id;
+			}
+		}
+	}
+
+	if (best_jump_poly != UINT32_MAX) {
+		// We can transfer directly to this poly below.
+		r_agent.set_poly_id(best_jump_poly);
+		r_agent.clear_wall_id();
+		r_agent.on_floor = false;
+
+		return JumpWithinMeshResult::CROSSED_TO_POLY;
+	}
+
+	// Go through each jump link and find the best (if there is one).
 	for (u32 n = 0; n < info.num_jump_walls; n++) {
 		u32 dest_wall_id = jump_data.jump_wall_ids[info.first_jump_wall + n];
 
@@ -1103,11 +1148,11 @@ bool Mesh::jump_within_mesh(u32 p_source_wall_id, const IPoint2 &p_from, const I
 
 			//log(String("Jump start velocity ") + p_vel);
 
-			return true;
+			return JumpWithinMeshResult::CROSSED_TO_WALL;
 		}
 	}
 
-	return false;
+	return JumpWithinMeshResult::FAILED;
 }
 
 i32 Mesh::_estimate_height_after_ledge_jump(const Agent &p_agent, i32 p_agent_height, freal p_forward_velocity, freal p_dist_to_ledge) const {

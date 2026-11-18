@@ -34,7 +34,7 @@ class Mesh {
 
 		TVector<u32> inds;
 		TVector<Poly> polys;
-		TVector<IRect2> poly_bounds;
+		TVector<IRect3> poly_bounds;
 
 		u32 get_num_polys() const { return polys.size(); }
 		u32 get_num_verts() const { return verts.size(); }
@@ -268,7 +268,8 @@ protected:
 	Poly &get_poly(u32 p_idx, bool p_ceiling = false) { return p_ceiling ? ceiling.polys[p_idx] : floor.polys[p_idx]; }
 
 	PolyExtra &get_poly_extra(u32 p_idx) { return _polys_extra[p_idx]; }
-	const IRect2 &get_poly_bound(u32 p_idx, bool p_ceiling = false) const { return p_ceiling ? ceiling.poly_bounds[p_idx] : floor.poly_bounds[p_idx]; }
+	const IRect3 &get_poly_bound(u32 p_idx, bool p_ceiling = false) const { return p_ceiling ? ceiling.poly_bounds[p_idx] : floor.poly_bounds[p_idx]; }
+	IRect2 get_poly_bound2(u32 p_idx, bool p_ceiling = false) const { return p_ceiling ? ceiling.poly_bounds[p_idx].get_rect2() : floor.poly_bounds[p_idx].get_rect2(); }
 
 	u32 get_poly_verts(u32 p_poly_id, IPoint3 *r_verts, u32 p_max_verts, bool p_ceiling = false) const {
 		const Poly &poly = get_poly(p_poly_id, p_ceiling);
@@ -476,8 +477,15 @@ private:
 	bool cross_internal_or_external_link(u32 p_wall_id, const IPoint2 &p_from, const IPoint2 &p_vel, MoveInfo &r_info) const;
 	freal _calculate_jump_range_from_momentum(freal p_momentum, bool p_apply_minimum) const;
 	i32 _estimate_height_after_ledge_jump(const Agent &p_agent, i32 p_agent_height, freal p_forward_velocity, freal p_dist_to_ledge) const;
-
-	bool jump_within_mesh(u32 p_source_wall_id, const IPoint2 &p_from, const IPoint2 &p_vel, MoveInfo &r_info) const;
+	
+	enum class JumpWithinMeshResult
+	{
+		FAILED,
+		CROSSED_TO_WALL,
+		CROSSED_TO_POLY,
+	};
+	
+	JumpWithinMeshResult jump_within_mesh(Agent &r_agent, u32 p_source_wall_id, const IPoint2 &p_from, const IPoint2 &p_vel, MoveInfo &r_info) const;
 	bool _can_jump_to_wall(u32 p_dest_wall_id, const IPoint2 &p_from, IPoint2 &p_to, i32 p_agent_height, i32 p_agent_jump_height, bool p_on_floor) const;
 	bool move_to_new_mesh(const IPoint2 &p_from, const IPoint2 &p_vel, MoveInfo &r_info) const;
 	bool bounce_on_wall(u32 p_wall_id, IPoint2 &r_vel, float &r_momentum) const;
@@ -501,6 +509,14 @@ private:
 		r_a = get_vert(ind_a).xz();
 		r_b = get_vert(ind_b).xz();
 	}
+	void get_wall_verts3(u32 p_wall_id, IPoint3 &r_a, IPoint3 &r_b) const {
+		u32 ind_a = get_ind(p_wall_id);
+		u32 ind_b = get_ind_next(p_wall_id);
+		NP_DEV_ASSERT(ind_a != ind_b);
+		r_a = get_vert(ind_a);
+		r_b = get_vert(ind_b);
+	}
+	
 	void get_swapped_wall_verts(u32 p_wall_id, IPoint2 &r_a, IPoint2 &r_b) const {
 		u32 ind_a = get_ind(p_wall_id);
 		u32 ind_b = get_ind_next(p_wall_id);

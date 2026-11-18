@@ -58,7 +58,7 @@ void MeshExtender::push_extended_connection_new(Mesh &r_mesh, const EdgeWall &p_
 
 	r_mesh.floor.polys.push_back(poly);
 	r_mesh._polys_extra.push_back(poly_extra);
-	r_mesh.floor.poly_bounds.push_back(IRect2());
+	r_mesh.floor.poly_bounds.push_back(IRect3());
 
 	// This must be done AFTER adding the poly and poly bounds to the lists.
 	calculate_poly_bound(r_mesh.floor, r_mesh.get_num_polys() - 1);
@@ -418,20 +418,19 @@ void MeshExtender::calculate_poly_bound(Mesh::SubMesh &r_submesh, u32 p_poly_id)
 
 	NP_DEV_ASSERT(p.num_inds);
 
-	IRect2 &bound = r_submesh.poly_bounds[p_poly_id];
+	IRect3 &bound = r_submesh.poly_bounds[p_poly_id];
 	bound.zero();
 
 	u32 first_ind = r_submesh.inds[p.first_ind];
-	bound.position = r_submesh.verts[first_ind].xz();
+	bound.position = r_submesh.verts[first_ind];
 
 	for (u32 i = 1; i < p.num_inds; i++) {
 		u32 ind = r_submesh.inds[p.first_ind + i];
-		bound.expand_to_fast(r_submesh.verts[ind].xz());
+		bound.expand_to_fast(r_submesh.verts[ind]);
 	}
 	bound.increment_size();
-
-	NP_DEV_ASSERT(bound.size.x >= 0);
-	NP_DEV_ASSERT(bound.size.y >= 0);
+	
+	NP_DEV_ASSERT(!bound.is_empty_or_negative());
 }
 
 bool MeshExtender::fill_poly(const Mesh &p_mesh, const Mesh::SubMesh &p_submesh, Poly &r_poly) {

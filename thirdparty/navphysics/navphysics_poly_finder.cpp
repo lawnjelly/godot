@@ -46,11 +46,11 @@ void PolyFinder::build(const Mesh &p_mesh, bool p_ceiling) {
 	if (!count) {
 		return;
 	}
-
-	_boundary = sm->poly_bounds[0];
+	
+	_boundary = sm->poly_bounds[0].get_rect2();
 
 	for (u32 n = 1; n < count; n++) {
-		_boundary.expand_to(sm->poly_bounds[n]);
+		_boundary.expand_to(sm->poly_bounds[n].get_rect2());
 	}
 
 	u64 total_area = (u64)_boundary.size.x * (u64)_boundary.size.y;
@@ -69,7 +69,7 @@ void PolyFinder::build(const Mesh &p_mesh, bool p_ceiling) {
 	// Place each poly into appropriate cells.
 	// (This should be faster than going by cell.)
 	for (u32 p = 0; p < count; p++) {
-		IRect2 poly_bound = sm->poly_bounds[p];
+		IRect2 poly_bound = sm->poly_bounds[p].get_rect2();
 
 		NP_DEV_ASSERT(poly_bound.size.x >= 0);
 		NP_DEV_ASSERT(poly_bound.size.y >= 0);

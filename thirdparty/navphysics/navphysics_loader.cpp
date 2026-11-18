@@ -673,7 +673,7 @@ void Loader::find_floor_ceiling_links(Mesh &r_mesh) {
 		ex.num_ceiling_links = 0;
 
 		// Find the ceiling links for this poly.
-		const IRect2 &rect = r_mesh.floor.poly_bounds[n];
+		const IRect2 rect = r_mesh.floor.poly_bounds[n].get_rect2();
 
 		r_mesh.ceiling.poly_finder.find_cells(rect, results);
 
