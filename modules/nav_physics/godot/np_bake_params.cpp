@@ -35,11 +35,14 @@ void NPBakeParams_Mesh::_bind_methods() {
 	BIND_ENUM_CONSTANT(PARAM_DETAIL_SAMPLE_DISTANCE);
 	BIND_ENUM_CONSTANT(PARAM_DETAIL_SAMPLE_MAX_ERROR);
 	BIND_ENUM_CONSTANT(PARAM_EXIT_LIP);
-	//BIND_ENUM_CONSTANT(PARAM_EXIT_MAX_STEP_UP);
-	//BIND_ENUM_CONSTANT(PARAM_EXIT_MAX_DROP);
+
+	BIND_ENUM_CONSTANT(BOOL_PARAM_ERODE_LEDGES);
 
 	ClassDB::bind_method(D_METHOD("set_param", "param", "value"), &NPBakeParams_Mesh::set_param);
 	ClassDB::bind_method(D_METHOD("get_param", "param"), &NPBakeParams_Mesh::get_param);
+
+	ClassDB::bind_method(D_METHOD("set_bool_param", "param", "enable"), &NPBakeParams_Mesh::set_bool_param);
+	ClassDB::bind_method(D_METHOD("get_bool_param", "param"), &NPBakeParams_Mesh::get_bool_param);
 
 	ADD_GROUP("Exit", "exit_");
 	ADD_PROPERTYI(PropertyInfo(Variant::REAL, "exit_lip", PROPERTY_HINT_RANGE, "0.01,100.0,0.01,or_greater"), "set_param", "get_param", NPBakeParams_Mesh::PARAM_EXIT_LIP);
@@ -64,6 +67,9 @@ void NPBakeParams_Mesh::_bind_methods() {
 	ADD_GROUP("Details", "detail_");
 	ADD_PROPERTYI(PropertyInfo(Variant::REAL, "detail_sample_distance", PROPERTY_HINT_RANGE, "0.1,16.0,0.01,or_greater"), "set_param", "get_param", NPBakeParams_Mesh::PARAM_DETAIL_SAMPLE_DISTANCE);
 	ADD_PROPERTYI(PropertyInfo(Variant::REAL, "detail_sample_max_error", PROPERTY_HINT_RANGE, "0.1,16.0,0.01,or_greater"), "set_param", "get_param", NPBakeParams_Mesh::PARAM_DETAIL_SAMPLE_MAX_ERROR);
+
+	ADD_GROUP("Options", "option_");
+	ADD_PROPERTYI(PropertyInfo(Variant::BOOL, "option_erode_ledges"), "set_bool_param", "get_bool_param", NPBakeParams_Mesh::BOOL_PARAM_ERODE_LEDGES);
 }
 
 NPBakeParams_Mesh::Data::Data() {
@@ -79,6 +85,8 @@ NPBakeParams_Mesh::Data::Data() {
 	params[PARAM_EXIT_LIP] = 0.1;
 	//params[PARAM_EXIT_MAX_STEP_UP] = 0.5;
 	//params[PARAM_EXIT_MAX_DROP] = 1.0;
+
+	bool_params[BOOL_PARAM_ERODE_LEDGES] = false;
 }
 
 ////////////////////////////////////////////////////////////

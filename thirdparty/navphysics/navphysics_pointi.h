@@ -44,11 +44,13 @@ struct [[nodiscard]] IPoint2 {
 		return wall_vec.cross(pt_vec);
 	}
 	freal angle() const { return Math::atan2_real(y, x); }
-	
+
 	void round_from(const FPoint2 &p_v) {
 		x = Math::round32(p_v.x);
 		y = Math::round32(p_v.y);
 	}
+	static IPoint2 truncate(const FPoint2 &p_pt) { return IPoint2(p_pt.x, p_pt.y); }
+	
 	void from_angle(freal p_angle) {
 		FPoint2 pt;
 		pt.from_angle(p_angle);
@@ -81,7 +83,12 @@ struct [[nodiscard]] IPoint2 {
 
 		round_from(a);
 	}
-
+	
+	void clamp(const IPoint2 &p_min, const IPoint2 &p_max) {
+		x = CLAMP(x, p_min.x, p_max.x);
+		y = CLAMP(y, p_min.y, p_max.y);
+	}
+	
 	bool is_within_fp_range() const {
 		// Don't use ABS here, as you can get signed-unsigned conversion UB.
 		return (x >= -NAVPHYSICS_MESH_FP_RANGE_WITH_LIP) && (x <= NAVPHYSICS_MESH_FP_RANGE_WITH_LIP) &&
@@ -100,13 +107,14 @@ struct [[nodiscard]] IPoint2 {
 	IPoint2() {
 		zero();
 	}
-	IPoint2(i32 p_x, i32 p_y) {
-		x = p_x;
-		y = p_y;
-	}
+	constexpr IPoint2(i32 p_x, i32 p_y) : x(p_x), y(p_y) {}
+	
 	IPoint2(const FPoint2 &p_pt) {
 		round_from(p_pt);
 	}
+	
+	static constexpr IPoint2 constant_zero() { return IPoint2(0, 0); }
+	static constexpr IPoint2 one() { return IPoint2(1, 1); }
 };
 
 struct [[nodiscard]] IPoint3 {
@@ -141,6 +149,11 @@ struct [[nodiscard]] IPoint3 {
 		y = CLAMP(y, -r, r);
 		z = CLAMP(z, -r, r);
 	}
+	void clamp(const IPoint3 &p_min, const IPoint3 &p_max) {
+		x = CLAMP(x, p_min.x, p_max.x);
+		y = CLAMP(y, p_min.y, p_max.y);
+		z = CLAMP(z, p_min.z, p_max.z);
+	}
 
 	void round_from(const FPoint3 &p_v) {
 		x = Math::round32(p_v.x);
@@ -149,6 +162,7 @@ struct [[nodiscard]] IPoint3 {
 	}
 	IPoint2 xz() const { return IPoint2(x, z); }
 	static IPoint3 from(const IPoint2 &p_pt) { return IPoint3(p_pt.x, 0, p_pt.y); }
+	static IPoint3 truncate(const FPoint3 &p_pt) { return IPoint3(p_pt.x, p_pt.y, p_pt.z); }
 
 	bool is_within_fp_range() const {
 		// Don't use ABS here, as you can get signed-unsigned conversion UB.
@@ -160,16 +174,15 @@ struct [[nodiscard]] IPoint3 {
 	IPoint3() {
 		zero();
 	}
-
-	IPoint3(i32 p_x, i32 p_y, i32 p_z) {
-		x = p_x;
-		y = p_y;
-		z = p_z;
-	}
+	
+	constexpr IPoint3(i32 p_x, i32 p_y, i32 p_z) : x(p_x), y(p_y), z(p_z) {}
 
 	IPoint3(const FPoint3 &p_v) {
 		round_from(p_v);
 	}
+
+	static constexpr IPoint3 constant_zero() { return IPoint3(0, 0, 0); }
+	static constexpr IPoint3 one() { return IPoint3(1, 1, 1); }
 };
 
 // A way of storing a navigation mesh position WITH the pre-found poly ID.

@@ -48,7 +48,8 @@ public:
 
 namespace NavPhysics {
 
-#define NAV_PHYSICS_POLY_MAX_VERTS 7
+// Was 7 until adding t-junctions in new baker.
+#define NAV_PHYSICS_POLY_MAX_VERTS 8
 
 enum AgentState : u32 {
 	AGENT_STATE_CLEAR,

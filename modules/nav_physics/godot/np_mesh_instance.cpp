@@ -43,6 +43,11 @@ NPMeshInstance::~NPMeshInstance() {
 	}
 }
 
+void NPMeshInstance::bake_test() {
+	ERR_FAIL_COND(!get_mesh().is_valid());
+	get_mesh()->bake(this);
+}
+
 void NPMeshInstance::set_debug_visuals(bool p_enable) {
 	debug_data.show_debug_visuals = p_enable;
 	_refresh_debug_visuals();
@@ -340,6 +345,8 @@ bool NPMeshInstance::_refresh_debug_visuals() {
 }
 
 void NPMeshInstance::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("bake_test"), &NPMeshInstance::bake_test);
+
 	ClassDB::bind_method(D_METHOD("resource_changed", "resource"), &NPMeshInstance::resource_changed);
 	ClassDB::bind_method(D_METHOD("set_mesh", "mesh"), &NPMeshInstance::set_mesh);
 	ClassDB::bind_method(D_METHOD("get_mesh"), &NPMeshInstance::get_mesh);

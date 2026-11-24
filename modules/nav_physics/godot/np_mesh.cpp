@@ -1,4 +1,5 @@
 #include "np_mesh.h"
+#include "thirdparty/navphysics/navphysics_baker.h"
 #include "thirdparty/navphysics/navphysics_loader.h"
 #include "thirdparty/navphysics/navphysics_log.h"
 #include "thirdparty/navphysics/navphysics_map.h"
@@ -8,6 +9,7 @@
 
 #include "core/engine.h"
 #include "modules/navigation/navigation_mesh_generator.h"
+#include "np_defines.h"
 #include "scene/3d/navigation_mesh_instance.h"
 
 #ifdef TOOLS_ENABLED
@@ -983,6 +985,52 @@ bool NPMesh::bake(Node *p_node) {
 		BakedMeshData nav_mesh;
 		BakedMeshData ceiling_mesh;
 
+#define TEST_NEW_BAKER
+#ifdef TEST_NEW_BAKER
+		NavPhysics::Baker baker;
+		NavPhysics::Baker::NavMeshData baked_mesh_data;
+		NavPhysics::Baker::Parameters bake_params;
+
+		{
+			Ref<NPBakeParams_Mesh> rpm = get_bake_params_mesh();
+			Ref<NPBakeParams_Agent> rpa = get_bake_params_agent();
+
+			bake_params.voxel_cell_size = rpm->get_param(NPBakeParams_Mesh::PARAM_CELL_SIZE);
+			bake_params.agent_height = rpa->get_param(NPBakeParams_Agent::PARAM_AGENT_HEIGHT);
+			bake_params.agent_radius = rpa->get_param(NPBakeParams_Agent::PARAM_AGENT_RADIUS);
+			bake_params.max_climb = rpa->get_param(NPBakeParams_Agent::PARAM_AGENT_MAX_CLIMB);
+			bake_params.walkable_slope = rpa->get_param(NPBakeParams_Agent::PARAM_AGENT_MAX_SLOPE);
+			bake_params.contour_max_error_voxels = rpm->get_param(NPBakeParams_Mesh::PARAM_EDGE_MAX_ERROR);
+			bake_params.max_verts_per_poly = rpm->get_param(NPBakeParams_Mesh::PARAM_VERTS_PER_POLY);
+			bake_params.erode_ledges = rpm->get_bool_param(NPBakeParams_Mesh::BOOL_PARAM_ERODE_LEDGES);
+
+			// Put a cap on this, as the NavPhysics simplifier has a hard cap.
+			bake_params.max_verts_per_poly = MIN(bake_params.max_verts_per_poly, 8);
+		}
+
+		baker.bake(bake_params, NavPhysics::Span((const u32 *)indices.ptr(), (u32)indices.size()), NavPhysics::Span((const NavPhysics::FPoint3 *)vertices.ptr(), (u32)(vertices.size() / 3)), baked_mesh_data);
+
+		// Translate into Godot format.
+		for (uint32_t p = 0; p < baked_mesh_data.polys.size(); p++) {
+			const NavPhysics::Baker::NavPoly &poly = baked_mesh_data.polys[p];
+
+			BakedMeshData::Poly bpoly;
+			bpoly.first_index = nav_mesh.indices.size();
+			bpoly.num_indices = poly.num_indices;
+			nav_mesh.polys.push_back(bpoly);
+
+			for (u32 i = 0; i < poly.num_indices; i++) {
+				u32 idx = i + poly.first_index;
+				nav_mesh.indices.push_back(baked_mesh_data.indices[idx]);
+			}
+		}
+		for (uint32_t v = 0; v < baked_mesh_data.vertices.size(); v++) {
+			const NavPhysics::FPoint3 &vt = baked_mesh_data.vertices[v];
+			nav_mesh.vertices.push_back(NPHelper::np_fpoint3_to_vector3(vt));
+		}
+
+#else
+
 		_build_recast_navigation_mesh(*get_bake_params_agent().ptr(), *get_bake_params_mesh().ptr(),
 				params,
 #ifdef TOOLS_ENABLED
@@ -991,6 +1039,7 @@ bool NPMesh::bake(Node *p_node) {
 				vertices,
 				indices,
 				nav_mesh);
+#endif
 
 		_build_recast_ceiling_mesh(*get_bake_params_agent().ptr(), *get_bake_params_mesh().ptr(), params, vertices, indices, ceiling_mesh);
 
@@ -1356,6 +1405,12 @@ void NPMesh::_convert_detail_mesh_to_baked_mesh_data(const rcPolyMeshDetail *p_d
 		const unsigned int ntris = m[3];
 		const unsigned char *tris = &p_detail_mesh->tris[btris * 4];
 		for (unsigned int j = 0; j < ntris; j++) {
+			// All polys from recast for now are triangles.
+			BakedMeshData::Poly poly;
+			poly.first_index = r_res.indices.size();
+			poly.num_indices = 3;
+			r_res.polys.push_back(poly);
+
 			// Polygon order in recast is opposite than godot's
 			r_res.indices.push_back(bverts + tris[j * 4 + 0]);
 			r_res.indices.push_back(bverts + tris[j * 4 + 2]);
@@ -1395,18 +1450,27 @@ bool NPMesh::bake_load(const BakedMeshData &p_navmesh, const BakedMeshData &p_ce
 
 	GODOT_VECTOR_TO_NP(p_navmesh.indices, np_inds, i32, u32, pt);
 
-	poly_num_inds.resize(p_navmesh.indices.size() / 3);
-	for (u32 n = 0; n < poly_num_inds.size(); n++) {
-		poly_num_inds[n] = 3;
+	//	poly_num_inds.resize(p_navmesh.indices.size() / 3);
+	//	for (u32 n = 0; n < poly_num_inds.size(); n++) {
+	//		poly_num_inds[n] = 3;
+	//	}
+	poly_num_inds.resize(p_navmesh.polys.size());
+	for (u32 n = 0; n < p_navmesh.polys.size(); n++) {
+		poly_num_inds[n] = p_navmesh.polys[n].num_indices;
 	}
 
 	GODOT_VECTOR_TO_NP(p_ceiling.vertices, np_ceil_verts, Vector3, NavPhysics::FPoint3, NavPhysics::FPoint3::make(pt.x, pt.y, pt.z));
 
 	GODOT_VECTOR_TO_NP(p_ceiling.indices, np_ceil_inds, i32, u32, pt);
 
-	ceil_poly_num_inds.resize(p_ceiling.indices.size() / 3);
-	for (u32 n = 0; n < ceil_poly_num_inds.size(); n++) {
-		ceil_poly_num_inds[n] = 3;
+	//	ceil_poly_num_inds.resize(p_ceiling.indices.size() / 3);
+	//	for (u32 n = 0; n < ceil_poly_num_inds.size(); n++) {
+	//		ceil_poly_num_inds[n] = 3;
+	//	}
+
+	ceil_poly_num_inds.resize(p_ceiling.polys.size());
+	for (u32 n = 0; n < p_ceiling.polys.size(); n++) {
+		ceil_poly_num_inds[n] = p_ceiling.polys[n].num_indices;
 	}
 
 	source.num_verts = np_verts.size();

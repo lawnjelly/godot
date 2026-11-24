@@ -25,6 +25,12 @@ private:
 	T *data = nullptr;
 
 public:
+	T *begin() { return data; }
+	T *end() { return data + count; }
+
+	const T *begin() const { return data; }
+	const T *end() const { return data + count; }
+
 	void setup_external(T *p_data, U p_capacity) {
 		NP_DEV_ASSERT(USE_EXTERNAL_DATA);
 		data = p_data;

@@ -21,6 +21,29 @@ struct [[nodiscard]] IRect2 {
 		size.zero();
 	}
 
+	// Exclusive.
+	bool clamp_from_zero(const IPoint2 &p_max_size) {
+		if (position.x < 0) {
+			size.x += position.x;
+			position.x = 0;
+		}
+		if (position.y < 0) {
+			size.y += position.y;
+			position.y = 0;
+		}
+
+		IPoint2 e = end();
+		e -= p_max_size;
+		if (e.x >= 0) {
+			size.x -= e.x;
+		}
+		if (e.y >= 0) {
+			size.y -= e.y;
+		}
+
+		return (size.x > 0) && (size.y > 0);
+	}
+
 	bool intersects(const IRect2 &p_o) const {
 		IPoint2 e = end();
 		IPoint2 o_e = p_o.end();
@@ -109,9 +132,9 @@ struct [[nodiscard]] IRect2 {
 		}
 		return dist_sq;
 	}
-	
+
 	IRect2() = default;
-	
+
 	IRect2(const IPoint2 &p_position, const IPoint2 &p_size) {
 		position = p_position;
 		size = p_size;
@@ -235,6 +258,7 @@ struct [[nodiscard]] Rect2 {
 	FPoint2 size;
 
 	freal get_area() const { return size.x * size.y; }
+	FPoint2 end() const { return position + size; }
 
 	void expand_to(const FPoint2 &p_vector) {
 		FPoint2 begin = position;
@@ -248,6 +272,20 @@ struct [[nodiscard]] Rect2 {
 		position = begin;
 		size = end - begin;
 	}
+	bool intersects(const Rect2 &p_o) const {
+		FPoint2 e = end();
+		FPoint2 o_e = p_o.end();
+
+		for (u32 n = 0; n < 2; n++) {
+			if (p_o.position.coord[n] > e.coord[n]) {
+				return false;
+			}
+			if (position.coord[n] > o_e.coord[n]) {
+				return false;
+			}
+		}
+		return true;
+	}
 };
 
 struct [[nodiscard]] AABB {
@@ -259,8 +297,16 @@ struct [[nodiscard]] AABB {
 		position.zero();
 		size.zero();
 	}
-	freal end(u32 p_coord) const { return position.coord[p_coord] + size.coord[p_coord]; }
-
+	freal end_coord(u32 p_coord) const { return position.coord[p_coord] + size.coord[p_coord]; }
+	FPoint3 end() const { return position + size; }
+	
+	void grow(freal p_change)
+	{
+		FPoint3 change(p_change, p_change, p_change);
+		position -= change;
+		size += (change * 2);
+	}
+	
 	void expand_to(const FPoint3 &p_vector) {
 		FPoint3 begin = position;
 		FPoint3 end = position + size;
@@ -277,14 +323,14 @@ struct [[nodiscard]] AABB {
 	// p_aabb is above, NOT this AABB.
 	bool overlaps_aabb_or_above(const AABB &p_aabb) const {
 		for (u32 n = 0; n < 3; n++) {
-			if (p_aabb.end(n) < position.coord[n]) {
+			if (p_aabb.end_coord(n) < position.coord[n]) {
 				return false;
 			}
 		}
-		if (end(0) < p_aabb.position.x) {
+		if (end_coord(0) < p_aabb.position.x) {
 			return false;
 		}
-		if (end(2) < p_aabb.position.z) {
+		if (end_coord(2) < p_aabb.position.z) {
 			return false;
 		}
 

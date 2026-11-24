@@ -50,7 +50,8 @@ public:
 	//       This is slower than direct buffer access and can prevent autovectorization.
 	//       If the bounds are known, use ptr() subscript instead.
 	constexpr const T &operator[](U p_idx) const {
-		NP_CRASH_COND(p_idx >= _len);
+		NP_DEV_ASSERT(p_idx < _len);
+		//NP_CRASH_COND(p_idx >= _len);
 		return _ptr[p_idx];
 	}
 

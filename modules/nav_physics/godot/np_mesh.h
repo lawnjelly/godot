@@ -146,11 +146,17 @@ private:
 	};
 
 	struct BakedMeshData {
+		struct Poly {
+			u32 first_index = 0;
+			u32 num_indices = 0;
+		};
 		LocalVector<Vector3> vertices;
 		LocalVector<i32> indices;
+		LocalVector<Poly> polys;
 		void clear() {
 			vertices.clear();
 			indices.clear();
+			polys.clear();
 		}
 	};
 

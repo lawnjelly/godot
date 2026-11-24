@@ -30,6 +30,8 @@
 #include "navphysics_simplifier.cpp"
 #include "navphysics_string.cpp"
 #include "navphysics_structs.cpp"
+#include "navphysics_post_process.cpp"
+#include "navphysics_baker.cpp"
 #include "navphysics_transform.cpp"
 #include "navphysics_zone_planner.cpp"
 

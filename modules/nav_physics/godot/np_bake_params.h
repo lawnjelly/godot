@@ -52,14 +52,18 @@ public:
 		PARAM_DETAIL_SAMPLE_DISTANCE,
 		PARAM_DETAIL_SAMPLE_MAX_ERROR,
 		PARAM_EXIT_LIP,
-		//PARAM_EXIT_MAX_STEP_UP,
-		//PARAM_EXIT_MAX_DROP,
 		PARAM_MAX,
+	};
+
+	enum BoolParam {
+		BOOL_PARAM_ERODE_LEDGES,
+		BOOL_PARAM_MAX,
 	};
 
 protected:
 	struct Data {
 		float params[PARAM_MAX] = {};
+		bool bool_params[BOOL_PARAM_MAX] = {};
 		Data();
 	} data;
 
@@ -71,11 +75,16 @@ public:
 		data.params[p_param] = p_value;
 	}
 	float get_param(Param p_param) const { return data.params[p_param]; }
+
+	void set_bool_param(BoolParam p_param, bool p_enable) {
+		data.bool_params[p_param] = p_enable;
+	}
+	bool get_bool_param(BoolParam p_param) const { return data.bool_params[p_param]; }
 };
 
 VARIANT_ENUM_CAST(NPBakeParams_Mesh::Param);
+VARIANT_ENUM_CAST(NPBakeParams_Mesh::BoolParam);
 
-//class NPBakeParams {
 class NPBakeParams : public Object {
 	GDCLASS(NPBakeParams, Object);
 

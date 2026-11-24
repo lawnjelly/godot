@@ -64,6 +64,8 @@ public:
 	void set_debug_visuals(bool p_enable);
 	bool has_debug_visuals() const { return debug_data.show_debug_visuals; }
 
+	void bake_test();
+
 	String get_configuration_warning() const;
 
 	NPMeshInstance();

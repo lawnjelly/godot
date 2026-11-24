@@ -10,9 +10,15 @@ namespace NavPhysics {
 struct IPoint2;
 
 class Math {
-	static freal _fabs(f32 p_v);
-	static freal _fabs(f64 p_v);
-
+	static f32 _fabs(f32 p_v);
+	static f64 _fabs(f64 p_v);
+	
+	static f32 _floor(f32 p_v);
+	static f64 _floor(f64 p_v);
+	static f32 _ceil(f32 p_v);
+	static f64 _ceil(f64 p_v);
+	
+	
 	static f32 _sin(f32 p_v);
 	static f64 _sin(f64 p_v);
 	static f32 _cos(f32 p_v);
@@ -39,7 +45,10 @@ public:
 	static u64 abs(i64 p_v);
 
 	static i32 round32(f32 p_v);
-
+	
+	static freal floor_real(freal p_v);
+	static freal ceil_real(freal p_v);
+	
 	static double pow(double p_v, double p_factor);
 	static float pow(float p_v, float p_factor);
 

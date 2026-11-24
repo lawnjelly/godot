@@ -68,6 +68,36 @@ float Math::pow(float p_v, float p_factor) {
 	return ::powf(p_v, p_factor);
 }
 
+freal Math::floor_real(freal p_v)
+{
+	return Math::_floor(p_v);
+}
+
+f32 Math::_floor(f32 p_v)
+{
+	return ::floorf(p_v);
+}
+
+f64 Math::_floor(f64 p_v)
+{
+	return ::floor(p_v);
+}
+
+f32 Math::_ceil(f32 p_v)
+{
+	return ::ceilf(p_v);
+}
+
+f64 Math::_ceil(f64 p_v)
+{
+	return ::ceil(p_v);
+}
+
+freal Math::ceil_real(freal p_v)
+{
+	return Math::_ceil(p_v);
+}
+
 freal Math::fabs_real(freal p_v) {
 	return Math::_fabs(p_v);
 }
@@ -76,11 +106,11 @@ f32 Math::fabs32(f32 p_v) {
 	return ::fabsf(p_v);
 }
 
-freal Math::_fabs(f32 p_v) {
+f32 Math::_fabs(f32 p_v) {
 	return ::fabsf(p_v);
 }
 
-freal Math::_fabs(f64 p_v) {
+f64 Math::_fabs(f64 p_v) {
 	return ::fabs(p_v);
 }
 
